@@ -1,0 +1,27 @@
+{
+  "name": "precision-trainer",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:master": "turbo dev --filter=@precision/master",
+    "dev:trainer": "turbo dev --filter=@precision/trainer-app",
+    "dev:student": "turbo dev --filter=@precision/student-app",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,css,json,md}\"",
+    "db:types": "supabase gen types typescript --local > packages/db/src/types.ts",
+    "db:reset": "supabase db reset",
+    "db:migrate": "supabase migration new"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.0",
+    "supabase": "^2.95.6",
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.0"
+  },
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=20"
+  }
+}

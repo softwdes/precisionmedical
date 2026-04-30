@@ -1,0 +1,248 @@
+/* FullCalendar — Precision Trainer dark theme overrides */
+
+.fc-precision {
+  --fc-border-color:              #1A211F;
+  --fc-today-bg-color:            rgba(63, 248, 200, 0.07);
+  --fc-neutral-bg-color:          #0E1413;
+  --fc-neutral-text-color:        #6B7472;
+  --fc-page-bg-color:             #000000;
+  --fc-event-bg-color:            #3FF8C8;
+  --fc-event-border-color:        transparent;
+  --fc-event-text-color:          #00120E;
+  --fc-event-selected-overlay-color: rgba(0, 0, 0, 0.25);
+  --fc-button-bg-color:           transparent;
+  --fc-button-border-color:       #243029;
+  --fc-button-text-color:         #6B7472;
+  --fc-button-hover-bg-color:     #161C1B;
+  --fc-button-hover-border-color: #243029;
+  --fc-button-active-bg-color:    #3FF8C8;
+  --fc-button-active-border-color:#3FF8C8;
+  --fc-button-active-text-color:  #00120E;
+  --fc-now-indicator-color:       #3FF8C8;
+  --fc-highlight-color:           rgba(63, 248, 200, 0.07);
+  --fc-non-business-color:        rgba(0, 0, 0, 0.20);
+  --fc-list-event-hover-bg-color: #161C1B;
+  border: 1px solid #1A211F;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #000;
+  font-family: var(--font-sans, Inter, sans-serif);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────── */
+.fc-precision .fc-toolbar-title {
+  font-family: var(--font-serif, "Playfair Display", Georgia, serif);
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: #E6EDEC;
+  letter-spacing: -0.02em;
+}
+
+.fc-precision .fc-toolbar.fc-header-toolbar {
+  padding: 14px 16px;
+  background: #0A100F;
+  border-bottom: 1px solid #1A211F;
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fc-precision .fc-button {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 2px;
+  transition: all 120ms ease-out;
+}
+
+.fc-precision .fc-button:focus {
+  outline: 1px solid #3FF8C8;
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.fc-precision .fc-button-group .fc-button {
+  border-radius: 0;
+}
+.fc-precision .fc-button-group .fc-button:first-child { border-radius: 2px 0 0 2px; }
+.fc-precision .fc-button-group .fc-button:last-child  { border-radius: 0 2px 2px 0; }
+
+.fc-precision .fc-button-primary:not(:disabled):active,
+.fc-precision .fc-button-primary.fc-button-active {
+  background-color: #3FF8C8;
+  border-color: #3FF8C8;
+  color: #00120E;
+  box-shadow: 0 0 8px rgba(63, 248, 200, 0.25);
+}
+
+.fc-precision .fc-today-button {
+  color: #E6EDEC;
+  border-color: #243029;
+}
+.fc-precision .fc-today-button:hover {
+  color: #3FF8C8;
+  border-color: #3FF8C8;
+}
+
+/* ── Column headers ──────────────────────────────────────────────── */
+.fc-precision .fc-col-header-cell {
+  background: #0A100F;
+  border-color: #1A211F;
+  padding: 8px 4px;
+}
+
+.fc-precision .fc-col-header-cell-cushion {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #6B7472;
+  text-decoration: none;
+  padding: 4px 8px;
+}
+
+.fc-precision .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+  color: #3FF8C8;
+}
+
+/* ── Time slots ──────────────────────────────────────────────────── */
+.fc-precision .fc-timegrid-slot {
+  height: 32px;
+  border-color: #111716;
+}
+
+.fc-precision .fc-timegrid-slot-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #4A5250;
+  letter-spacing: 0.05em;
+  border-color: #1A211F;
+}
+
+.fc-precision .fc-timegrid-axis {
+  border-color: #1A211F;
+  width: 72px;
+}
+
+.fc-precision .fc-timegrid-col {
+  border-color: #1A211F;
+}
+
+.fc-precision .fc-timegrid-col.fc-day-today {
+  background: rgba(63, 248, 200, 0.04);
+}
+
+/* ── Day grid (month view) ───────────────────────────────────────── */
+.fc-precision .fc-daygrid-day {
+  min-height: 96px;
+  border-color: #1A211F;
+}
+
+.fc-precision .fc-daygrid-day-top {
+  padding: 4px 6px;
+}
+
+.fc-precision .fc-daygrid-day-number {
+  font-family: var(--font-serif, "Playfair Display", Georgia, serif);
+  font-size: 0.9rem;
+  color: #E6EDEC;
+  text-decoration: none;
+}
+
+.fc-precision .fc-day-today .fc-daygrid-day-number {
+  color: #3FF8C8;
+}
+
+.fc-precision .fc-day-other .fc-daygrid-day-number {
+  color: #4A5250;
+}
+
+.fc-precision .fc-daygrid-day-events {
+  padding: 0 2px 4px;
+}
+
+/* ── Events ──────────────────────────────────────────────────────── */
+.fc-precision .fc-event {
+  border-radius: 2px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border-width: 1px;
+  transition: opacity 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.fc-precision .fc-event:hover {
+  opacity: 0.88;
+}
+
+.fc-precision .fc-event-title {
+  padding: 1px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fc-precision .fc-timegrid-event {
+  border-radius: 2px;
+}
+
+/* ── Now indicator ───────────────────────────────────────────────── */
+.fc-precision .fc-timegrid-now-indicator-line {
+  border-color: #3FF8C8;
+  box-shadow: 0 0 6px rgba(63, 248, 200, 0.4);
+}
+
+.fc-precision .fc-timegrid-now-indicator-arrow {
+  border-color: #3FF8C8;
+}
+
+/* ── Scrollgrid ──────────────────────────────────────────────────── */
+.fc-precision .fc-scrollgrid,
+.fc-precision .fc-scrollgrid td,
+.fc-precision .fc-scrollgrid th {
+  border-color: #1A211F;
+}
+
+/* ── Selection mirror ────────────────────────────────────────────── */
+.fc-precision .fc-timegrid-event.fc-event-mirror {
+  background: rgba(63, 248, 200, 0.25);
+  border-color: #3FF8C8;
+}
+
+/* ── More link ───────────────────────────────────────────────────── */
+.fc-precision .fc-daygrid-more-link {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6B7472;
+}
+.fc-precision .fc-daygrid-more-link:hover { color: #3FF8C8; }
+
+/* ── Popover ─────────────────────────────────────────────────────── */
+.fc-precision .fc-popover {
+  background: #0E1413;
+  border: 1px solid #243029;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.fc-precision .fc-popover-header {
+  background: #0A100F;
+  border-bottom: 1px solid #1A211F;
+  padding: 8px 12px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6B7472;
+}
+
+.fc-precision .fc-popover-close {
+  color: #6B7472;
+  opacity: 1;
+}
+.fc-precision .fc-popover-close:hover { color: #E6EDEC; }

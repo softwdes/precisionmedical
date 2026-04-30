@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@precision/db": ["./src"],
+      "@precision/db/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -48,13 +48,35 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = createApiClient(request);
+    const trainerId = await getTrainerIdFromRequest(request);
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 });
+
+    const { error } = await supabase
+      .from('trainer_availability')
+      .delete()
+      .eq('id', id)
+      .eq('trainer_id', trainerId);
+
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createApiClient(request);
     const trainerId = await getTrainerIdFromRequest(request);
-    const { starts_at, ends_at, block_type, capacity, session_duration_min } = await request.json();
+    const { starts_at, ends_at, block_type, capacity, gym_id, student_ids } = await request.json();
 
-    const { data, error } = await supabase
+    const { data: block, error } = await supabase
       .from('trainer_availability')
       .insert({
         trainer_id: trainerId,
@@ -62,13 +84,27 @@ export async function POST(request: NextRequest) {
         ends_at,
         block_type: block_type ?? 'available',
         capacity: capacity ?? 1,
-        session_duration_min: session_duration_min ?? 60,
+        gym_id: gym_id ?? null,
       })
       .select()
       .single();
 
     if (error) throw new Error(error.message);
-    return NextResponse.json(data);
+
+    if (Array.isArray(student_ids) && student_ids.length > 0) {
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .insert(
+          student_ids.map((sid: string) => ({
+            trainer_availability_id: block.id,
+            student_id: sid,
+            status: 'reserved',
+          }))
+        );
+      if (bookingError) throw new Error(bookingError.message);
+    }
+
+    return NextResponse.json(block);
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }

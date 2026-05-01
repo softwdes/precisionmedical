@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -19,13 +19,18 @@ import './fullcalendar-theme.css';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface Student {
+  id: string;
+  full_name: string;
+}
+
 interface AvailabilityBlock {
   id: string;
   starts_at: string;
   ends_at: string;
   block_type: string;
   capacity: number;
-  session_duration_min: number;
+  gym_id?: string; // stores gym name as text
 }
 
 interface Booking {
@@ -37,6 +42,18 @@ interface Booking {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+
+const GYM_OPTIONS = [
+  'Gilmar Gym',
+  'Revo Sport',
+  'Imperium Center',
+  'Smart Fit',
+  'Bodytech',
+  'Millenium Gym',
+  'Strong Gym',
+  'Murdock Gym',
+  'Otro',
+];
 
 const BLOCK_TYPE_LABELS: Record<string, string> = {
   personal: 'Personal',
@@ -64,18 +81,54 @@ function toDatetimeLocal(d: Date) {
 export default function SchedulePage() {
   const [availability, setAvailability] = useState<AvailabilityBlock[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
 
   // Create-block modal
   const [showModal, setShowModal] = useState(false);
   const [preset, setPreset] = useState<{ starts_at: string; ends_at: string } | null>(null);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['']);
+
+  // Time-picker parts for the create-block form
+  const [startDate, setStartDate] = useState('');
+  const [startHour, setStartHour] = useState('08');
+  const [startMin, setStartMin] = useState('00');
+  const [endDate, setEndDate] = useState('');
+  const [endHour, setEndHour] = useState('09');
+  const [endMin, setEndMin] = useState('00');
 
   // Event-detail modal
   const [selectedBlock, setSelectedBlock] = useState<{
     block: AvailabilityBlock;
     bookings: Booking[];
   } | null>(null);
+
+  // Load students once on mount
+  useEffect(() => {
+    fetch('/api/students')
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d)) setStudents(d); })
+      .catch(() => {});
+  }, []);
+
+  // Sync time-picker state when the create-block modal opens
+  useEffect(() => {
+    if (!showModal) return;
+    setSelectedStudentIds(['']);
+    if (preset) {
+      const [sd = '', st = '08:00'] = preset.starts_at.split('T');
+      const [ed = '', et = '09:00'] = preset.ends_at.split('T');
+      setStartDate(sd); setStartHour(st.slice(0, 2)); setStartMin(st.slice(3, 5));
+      setEndDate(ed); setEndHour(et.slice(0, 2)); setEndMin(et.slice(3, 5));
+    } else {
+      const now = new Date();
+      const d = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      setStartDate(d); setStartHour('08'); setStartMin('00');
+      setEndDate(d); setEndHour('09'); setEndMin('00');
+    }
+  }, [showModal, preset]);
 
   // Track current calendar range so we can refetch after mutations
   const currentRangeRef = useRef<{ start: Date; end: Date } | null>(null);
@@ -149,6 +202,22 @@ export default function SchedulePage() {
     setSelectedBlock({ block, bookings });
   }, []);
 
+  const handleDeleteBlock = useCallback(async (id: string) => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/availability?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al eliminar');
+      setSelectedBlock(null);
+      if (currentRangeRef.current) {
+        fetchSchedule(currentRangeRef.current.start, currentRangeRef.current.end);
+      }
+    } catch (err) {
+      console.error('Error deleting block:', err);
+    } finally {
+      setDeleting(false);
+    }
+  }, [fetchSchedule]);
+
   const handleEventDrop = useCallback(async (arg: EventDropArg) => {
     const { event, revert } = arg;
     if (!event.start || !event.end) { revert(); return; }
@@ -200,10 +269,11 @@ export default function SchedulePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           block_type: fd.get('block_type') ?? 'available',
-          starts_at: fd.get('starts_at'),
-          ends_at: fd.get('ends_at'),
+          starts_at: `${startDate}T${startHour}:${startMin}`,
+          ends_at: `${endDate}T${endHour}:${endMin}`,
           capacity: Number(fd.get('capacity') ?? 1),
-          session_duration_min: Number(fd.get('session_duration_min') ?? 60),
+          gym_id: fd.get('gym_id') || null,
+          student_ids: selectedStudentIds.filter(Boolean),
         }),
       });
       if (!res.ok) {
@@ -247,9 +317,14 @@ export default function SchedulePage() {
         </header>
 
         <div className="main-content">
-          <section className="section-head">
-            <span className="eyebrow">Protocolo // 01</span>
-            <h1>Gestión de Horarios</h1>
+          <section className="section-head section-head-row">
+            <div>
+              <span className="eyebrow">Protocolo // 01</span>
+              <h1>Gestión de Horarios</h1>
+            </div>
+            <button className="btn btn-primary" onClick={() => { setPreset(null); setFormError(''); setShowModal(true); }}>
+              + Nuevo Bloque
+            </button>
           </section>
 
           {/* FullCalendar */}
@@ -289,13 +364,10 @@ export default function SchedulePage() {
             />
           </div>
 
-          {/* Leyenda + botón nuevo */}
+          {/* Leyenda */}
           <section className="card">
             <div className="card-head">
               <div className="card-title">Leyenda</div>
-              <button className="btn btn-primary" onClick={() => { setPreset(null); setFormError(''); setShowModal(true); }}>
-                + Nuevo Bloque
-              </button>
             </div>
             <div className="card-body card-body--padded">
               <div className="legend-row">
@@ -340,21 +412,87 @@ export default function SchedulePage() {
               <div className="form-group">
                 <label className="label">Tipo de Bloque</label>
                 <select name="block_type" className="select" defaultValue="available">
-                  <option value="available">Disponible — sesión con alumno</option>
+                  <option value="available">Clases Con Alumnos</option>
                   <option value="personal">Personal</option>
                   <option value="break">Descanso</option>
                   <option value="meal">Comida</option>
                 </select>
               </div>
 
+              <div className="form-group">
+                <label className="label">Alumnos</label>
+                {selectedStudentIds.map((sid, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                    <select
+                      className="select"
+                      style={{ flex: 1 }}
+                      value={sid}
+                      onChange={e => {
+                        const next = [...selectedStudentIds];
+                        next[i] = e.target.value;
+                        setSelectedStudentIds(next);
+                      }}
+                    >
+                      <option value="">— Sin alumno —</option>
+                      {students.map(s => (
+                        <option
+                          key={s.id}
+                          value={s.id}
+                          disabled={selectedStudentIds.includes(s.id) && selectedStudentIds[i] !== s.id}
+                        >
+                          {s.full_name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon"
+                      title="Agregar alumno"
+                      onClick={() => setSelectedStudentIds([...selectedStudentIds, ''])}
+                      disabled={selectedStudentIds.length >= students.length && students.length > 0}
+                      style={{ flexShrink: 0 }}
+                    >+</button>
+                    {selectedStudentIds.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon"
+                        title="Quitar alumno"
+                        onClick={() => setSelectedStudentIds(selectedStudentIds.filter((_, j) => j !== i))}
+                        style={{ flexShrink: 0, color: '#ff6b6b' }}
+                      >×</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label className="label">Inicio</label>
-                  <input type="datetime-local" name="starts_at" className="input" required defaultValue={preset?.starts_at ?? ''} />
+                  <input type="date" className="input" value={startDate} onChange={e => setStartDate(e.target.value)} required />
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <select className="select" style={{ flex: 1 }} value={startHour} onChange={e => setStartHour(e.target.value)}>
+                      {Array.from({ length: 24 }, (_, i) => pad(i)).map(h => (
+                        <option key={h} value={h}>{h}:00</option>
+                      ))}
+                    </select>
+                    <select className="select" style={{ flex: 1 }} value={startMin} onChange={e => setStartMin(e.target.value)}>
+                      {['00', '15', '30', '45'].map(m => <option key={m} value={m}>:{m}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div className="form-group">
                   <label className="label">Fin</label>
-                  <input type="datetime-local" name="ends_at" className="input" required defaultValue={preset?.ends_at ?? ''} />
+                  <input type="date" className="input" value={endDate} onChange={e => setEndDate(e.target.value)} required />
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <select className="select" style={{ flex: 1 }} value={endHour} onChange={e => setEndHour(e.target.value)}>
+                      {Array.from({ length: 24 }, (_, i) => pad(i)).map(h => (
+                        <option key={h} value={h}>{h}:00</option>
+                      ))}
+                    </select>
+                    <select className="select" style={{ flex: 1 }} value={endMin} onChange={e => setEndMin(e.target.value)}>
+                      {['00', '15', '30', '45'].map(m => <option key={m} value={m}>:{m}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -364,12 +502,12 @@ export default function SchedulePage() {
                   <input type="number" name="capacity" className="input" defaultValue="1" min="1" max="20" />
                 </div>
                 <div className="form-group">
-                  <label className="label">Duración de sesión</label>
-                  <select name="session_duration_min" className="select" defaultValue="60">
-                    <option value="30">30 min</option>
-                    <option value="45">45 min</option>
-                    <option value="60">60 min</option>
-                    <option value="90">90 min</option>
+                  <label className="label">Gimnasio</label>
+                  <select name="gym_id" className="select" defaultValue="">
+                    <option value="">— Sin gimnasio —</option>
+                    {GYM_OPTIONS.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -424,8 +562,8 @@ export default function SchedulePage() {
                     </span>
                   </div>
                   <div className="info-row">
-                    <span className="info-label">Duración sesión</span>
-                    <span className="info-value">{selectedBlock.block.session_duration_min} min</span>
+                    <span className="info-label">Gimnasio</span>
+                    <span className="info-value">{selectedBlock.block.gym_id || '—'}</span>
                   </div>
                 </div>
               )}
@@ -450,7 +588,17 @@ export default function SchedulePage() {
             </div>
 
             <div className="modal-actions" style={{ padding: '12px 24px' }}>
-              <button className="btn btn-outline" onClick={() => setSelectedBlock(null)}>Cerrar</button>
+              <button
+                className="btn btn-outline"
+                style={{ color: '#ff6b6b', borderColor: 'rgba(255,80,80,0.4)' }}
+                onClick={() => handleDeleteBlock(selectedBlock.block.id)}
+                disabled={deleting}
+              >
+                {deleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+              <button className="btn btn-outline" onClick={() => setSelectedBlock(null)} disabled={deleting}>
+                Cerrar
+              </button>
             </div>
           </div>
         </div>

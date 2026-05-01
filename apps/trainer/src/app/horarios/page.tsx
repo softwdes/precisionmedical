@@ -40,15 +40,15 @@ interface Booking {
 
 const BLOCK_TYPE_LABELS: Record<string, string> = {
   personal: 'Personal',
-  break:    'Descanso',
-  meal:     'Comida',
+  break: 'Descanso',
+  meal: 'Comida',
 };
 
 const BLOCK_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   available: { bg: '#3FF8C8', text: '#00120E', border: '#3FF8C8' },
-  personal:  { bg: '#161C1B', text: '#6B7472', border: '#243029' },
-  break:     { bg: '#1F2624', text: '#4A5250', border: '#1A211F' },
-  meal:      { bg: '#1F2624', text: '#4A5250', border: '#1A211F' },
+  personal: { bg: '#161C1B', text: '#6B7472', border: '#243029' },
+  break: { bg: '#1F2624', text: '#4A5250', border: '#1A211F' },
+  meal: { bg: '#1F2624', text: '#4A5250', border: '#1A211F' },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -63,13 +63,13 @@ function toDatetimeLocal(d: Date) {
 
 export default function SchedulePage() {
   const [availability, setAvailability] = useState<AvailabilityBlock[]>([]);
-  const [bookings, setBookings]         = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
 
   // Create-block modal
-  const [showModal, setShowModal]     = useState(false);
-  const [preset, setPreset]           = useState<{ starts_at: string; ends_at: string } | null>(null);
-  const [formError, setFormError]     = useState('');
-  const [saving, setSaving]           = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [preset, setPreset] = useState<{ starts_at: string; ends_at: string } | null>(null);
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Event-detail modal
   const [selectedBlock, setSelectedBlock] = useState<{
@@ -123,11 +123,11 @@ export default function SchedulePage() {
       id: block.id,
       title,
       start: block.starts_at,
-      end:   block.ends_at,
+      end: block.ends_at,
       backgroundColor: colors.bg,
-      textColor:       colors.text,
-      borderColor:     hasBookings ? '#5BFFD0' : colors.border,
-      extendedProps:   { block, bookings: bks },
+      textColor: colors.text,
+      borderColor: hasBookings ? '#5BFFD0' : colors.border,
+      extendedProps: { block, bookings: bks },
     };
   });
 
@@ -135,16 +135,18 @@ export default function SchedulePage() {
 
   const handleDateClick = useCallback((arg: DateClickArg) => {
     const start = arg.date;
-    const end   = new Date(start.getTime() + 60 * 60_000);
+    const end = new Date(start.getTime() + 60 * 60_000);
     setPreset({ starts_at: toDatetimeLocal(start), ends_at: toDatetimeLocal(end) });
     setFormError('');
     setShowModal(true);
   }, []);
 
   const handleEventClick = useCallback((arg: EventClickArg) => {
-    const block    = arg.event.extendedProps.block as AvailabilityBlock;
-    const bks      = arg.event.extendedProps.bookings as Booking[];
-    setSelectedBlock({ block, bookings: bks });
+    const { block, bookings } = arg.event.extendedProps as {
+      block: AvailabilityBlock;
+      bookings: Booking[];
+    };
+    setSelectedBlock({ block, bookings });
   }, []);
 
   const handleEventDrop = useCallback(async (arg: EventDropArg) => {
@@ -155,9 +157,9 @@ export default function SchedulePage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id:        event.id,
+          id: event.id,
           starts_at: event.start.toISOString(),
-          ends_at:   event.end.toISOString(),
+          ends_at: event.end.toISOString(),
         }),
       });
       if (!res.ok) revert();
@@ -174,9 +176,9 @@ export default function SchedulePage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id:        event.id,
+          id: event.id,
           starts_at: event.start.toISOString(),
-          ends_at:   event.end.toISOString(),
+          ends_at: event.end.toISOString(),
         }),
       });
       if (!res.ok) revert();
@@ -197,10 +199,10 @@ export default function SchedulePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          block_type:           fd.get('block_type') ?? 'available',
-          starts_at:            fd.get('starts_at'),
-          ends_at:              fd.get('ends_at'),
-          capacity:             Number(fd.get('capacity') ?? 1),
+          block_type: fd.get('block_type') ?? 'available',
+          starts_at: fd.get('starts_at'),
+          ends_at: fd.get('ends_at'),
+          capacity: Number(fd.get('capacity') ?? 1),
           session_duration_min: Number(fd.get('session_duration_min') ?? 60),
         }),
       });
@@ -257,15 +259,15 @@ export default function SchedulePage() {
               initialView="timeGridWeek"
               locale={esLocale}
               headerToolbar={{
-                left:   'prev,next today',
+                left: 'prev,next today',
                 center: 'title',
-                right:  'dayGridMonth,timeGridWeek,timeGridDay',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay',
               }}
               buttonText={{
                 today: 'Hoy',
                 month: 'Mes',
-                week:  'Semana',
-                day:   'Día',
+                week: 'Semana',
+                day: 'Día',
               }}
               slotMinTime="06:00:00"
               slotMaxTime="20:00:00"

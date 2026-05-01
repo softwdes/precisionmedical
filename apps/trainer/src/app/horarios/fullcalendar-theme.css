@@ -1,26 +1,32 @@
 /* FullCalendar — Precision Trainer dark theme overrides */
+/* Import ALL FullCalendar CSS files */
+/* FullCalendar — Precision Trainer dark theme overrides */
+/* Import ALL FullCalendar CSS files */
+@import url('https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/index.global.min.css');
+@import url('https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.15/index.global.min.css');
+@import url('https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.15/index.global.min.css');
 
 .fc-precision {
-  --fc-border-color:              #1A211F;
-  --fc-today-bg-color:            rgba(63, 248, 200, 0.07);
-  --fc-neutral-bg-color:          #0E1413;
-  --fc-neutral-text-color:        #6B7472;
-  --fc-page-bg-color:             #000000;
-  --fc-event-bg-color:            #3FF8C8;
-  --fc-event-border-color:        transparent;
-  --fc-event-text-color:          #00120E;
+  --fc-border-color: #1A211F;
+  --fc-today-bg-color: rgba(63, 248, 200, 0.07);
+  --fc-neutral-bg-color: #0E1413;
+  --fc-neutral-text-color: #6B7472;
+  --fc-page-bg-color: #000000;
+  --fc-event-bg-color: #3FF8C8;
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #00120E;
   --fc-event-selected-overlay-color: rgba(0, 0, 0, 0.25);
-  --fc-button-bg-color:           transparent;
-  --fc-button-border-color:       #243029;
-  --fc-button-text-color:         #6B7472;
-  --fc-button-hover-bg-color:     #161C1B;
+  --fc-button-bg-color: transparent;
+  --fc-button-border-color: #243029;
+  --fc-button-text-color: #6B7472;
+  --fc-button-hover-bg-color: #161C1B;
   --fc-button-hover-border-color: #243029;
-  --fc-button-active-bg-color:    #3FF8C8;
-  --fc-button-active-border-color:#3FF8C8;
-  --fc-button-active-text-color:  #00120E;
-  --fc-now-indicator-color:       #3FF8C8;
-  --fc-highlight-color:           rgba(63, 248, 200, 0.07);
-  --fc-non-business-color:        rgba(0, 0, 0, 0.20);
+  --fc-button-active-bg-color: #3FF8C8;
+  --fc-button-active-border-color: #3FF8C8;
+  --fc-button-active-text-color: #00120E;
+  --fc-now-indicator-color: #3FF8C8;
+  --fc-highlight-color: rgba(63, 248, 200, 0.07);
+  --fc-non-business-color: rgba(0, 0, 0, 0.20);
   --fc-list-event-hover-bg-color: #161C1B;
   border: 1px solid #1A211F;
   border-radius: 4px;
@@ -67,8 +73,14 @@
 .fc-precision .fc-button-group .fc-button {
   border-radius: 0;
 }
-.fc-precision .fc-button-group .fc-button:first-child { border-radius: 2px 0 0 2px; }
-.fc-precision .fc-button-group .fc-button:last-child  { border-radius: 0 2px 2px 0; }
+
+.fc-precision .fc-button-group .fc-button:first-child {
+  border-radius: 2px 0 0 2px;
+}
+
+.fc-precision .fc-button-group .fc-button:last-child {
+  border-radius: 0 2px 2px 0;
+}
 
 .fc-precision .fc-button-primary:not(:disabled):active,
 .fc-precision .fc-button-primary.fc-button-active {
@@ -82,6 +94,7 @@
   color: #E6EDEC;
   border-color: #243029;
 }
+
 .fc-precision .fc-today-button:hover {
   color: #3FF8C8;
   border-color: #3FF8C8;
@@ -220,7 +233,10 @@
   letter-spacing: 0.08em;
   color: #6B7472;
 }
-.fc-precision .fc-daygrid-more-link:hover { color: #3FF8C8; }
+
+.fc-precision .fc-daygrid-more-link:hover {
+  color: #3FF8C8;
+}
 
 /* ── Popover ─────────────────────────────────────────────────────── */
 .fc-precision .fc-popover {
@@ -245,4 +261,7 @@
   color: #6B7472;
   opacity: 1;
 }
-.fc-precision .fc-popover-close:hover { color: #E6EDEC; }
+
+.fc-precision .fc-popover-close:hover {
+  color: #E6EDEC;
+}

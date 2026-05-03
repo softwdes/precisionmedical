@@ -25,8 +25,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Precision Trainer — Panel del Entrenador',
-  description: 'Gestiona tu negocio de entrenamiento personalizado con Precision Trainer',
+  title: 'Neural Trainer Gym — Panel del Entrenador',
+  description: 'Gestiona tu negocio de entrenamiento personalizado con Neural Trainer Gym',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -15,8 +15,8 @@ export async function chatCompletion(
     apiKey: process.env.OPENROUTER_API_KEY,
     baseURL: 'https://openrouter.ai/api/v1',
     defaultHeaders: {
-      'HTTP-Referer': 'https://precision-trainer.app',
-      'X-Title': 'Precision Trainer AI',
+      'HTTP-Referer': 'https://neural-trainer-gym.app',
+      'X-Title': 'Neural Trainer Gym AI',
     },
   });
 

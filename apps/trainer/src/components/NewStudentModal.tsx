@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
-import { createStudentModal } from '@/actions';
+import { createStudentModal } from '@/actions/students';
 
 interface Goal { id: string; label: string; }
 

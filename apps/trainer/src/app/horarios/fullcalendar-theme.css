@@ -1,10 +1,5 @@
 /* FullCalendar — Precision Trainer dark theme overrides */
-/* Import ALL FullCalendar CSS files */
-/* FullCalendar — Precision Trainer dark theme overrides */
-/* Import ALL FullCalendar CSS files */
-@import url('https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/index.global.min.css');
-@import url('https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.15/index.global.min.css');
-@import url('https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.15/index.global.min.css');
+/* Base CSS is injected automatically by @fullcalendar/react at runtime */
 
 .fc-precision {
   --fc-border-color: #1A211F;
@@ -130,7 +125,7 @@
 .fc-precision .fc-timegrid-slot-label {
   font-size: 0.625rem;
   font-weight: 600;
-  color: #4A5250;
+  color: #E6EDEC;
   letter-spacing: 0.05em;
   border-color: #1A211F;
 }

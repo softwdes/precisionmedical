@@ -1,31 +1,24 @@
 import { getAuthContext } from '@/lib/supabase-server';
 import UserMenu from '@/components/UserMenu';
 import AppSidebar from '@/components/AppSidebar';
-import MetricasModule from '@/components/MetricasModule';
+import NutricionModule from '@/components/NutricionModule';
 
 export const dynamic = 'force-dynamic';
 
-export default async function MetricasPage() {
+export default async function NutricionPage() {
   const { supabase, trainerId } = await getAuthContext();
 
-  const [studentsRes, exercisesRes] = await Promise.all([
-    supabase
-      .from('students')
-      .select('id, full_name, experience_level')
-      .eq('trainer_id', trainerId)
-      .is('archived_at', null)
-      .order('full_name'),
-    supabase
-      .from('exercises')
-      .select('id, name, muscle_group')
-      .eq('activo', true)
-      .order('name'),
-  ]);
+  const { data: students } = await supabase
+    .from('students')
+    .select('id, full_name')
+    .eq('trainer_id', trainerId)
+    .is('archived_at', null)
+    .order('full_name');
 
   return (
     <div className="app">
       <AppSidebar
-        active="metricas"
+        active="nutricion"
         systemStatus={
           <div className="system-status-row">
             <span>Suscripción</span>
@@ -37,7 +30,7 @@ export default async function MetricasPage() {
         <header className="topbar">
           <div className="topbar-title">
             Panel del Entrenador <span className="sep">//</span>{' '}
-            <span className="crumb-active">Métricas</span>
+            <span className="crumb-active">Nutrición</span>
           </div>
           <div className="topbar-right">
             <div className="live-indicator">En Vivo</div>
@@ -46,13 +39,10 @@ export default async function MetricasPage() {
         </header>
         <div className="main-content">
           <section className="section-head">
-            <span className="eyebrow">Analytics // 07</span>
-            <h1>Métricas</h1>
+            <span className="eyebrow">Nutrición // 01</span>
+            <h1>Gestión Nutricional</h1>
           </section>
-          <MetricasModule
-            students={studentsRes.data ?? []}
-            exercises={exercisesRes.data ?? []}
-          />
+          <NutricionModule students={students ?? []} />
         </div>
       </main>
     </div>

@@ -4,37 +4,19 @@ import { useState, useEffect, useMemo } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import UserMenu from '@/components/UserMenu';
 import AppSidebar from '@/components/AppSidebar';
+import EjerciciosModule from '@/components/EjerciciosModule';
+import TemplatesModule from '@/components/TemplatesModule';
+import { EditIcon, DeleteIcon, XIcon } from '@/components/Icons';
 
-type Tab = 'gimnasios' | 'objetivos' | 'ejercicios';
+type Tab = 'ejercicios' | 'templates' | 'objetivos' | 'gimnasios';
 type FormMode = 'closed' | 'add' | 'edit';
 
 interface Gym { id: string; name: string; address: string | null; phone: string | null; email: string | null; }
 interface Goal { id: string; label: string; comentario: string | null; sort_order: number; }
-interface Exercise { id: string; name: string; muscle_group: string; equipment: string | null; }
 
 type Sb = ReturnType<typeof createBrowserClient>;
 
-const TAB_LABELS: Record<Tab, string> = { gimnasios: 'Gimnasios', objetivos: 'Objetivos', ejercicios: 'Ejercicios' };
-
-const EditIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
-    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-  </svg>
-);
-
-const DeleteIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-  </svg>
-);
-
-const XIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 18, height: 18 }}>
-    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
+const TAB_LABELS: Record<Tab, string> = { ejercicios: 'Ejercicios', templates: 'Templates', objetivos: 'Objetivos', gimnasios: 'Gimnasios' };
 
 // ── CONFIRM DELETE MODAL ──────────────────────────────────────
 function ConfirmDelete({ label, onClose, onConfirm }: {
@@ -444,133 +426,10 @@ function ObjetivosTab({ sb }: { sb: Sb }) {
   );
 }
 
-// ── EJERCICIOS TAB ────────────────────────────────────────────
-function EjerciciosTab({ sb }: { sb: Sb }) {
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<FormMode>('closed');
-  const [editing, setEditing] = useState<Exercise | null>(null);
-  const [form, setForm] = useState({ name: '', muscle_group: '', equipment: '' });
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<Exercise | null>(null);
-
-  useEffect(() => {
-    sb.from('exercises').select('*').order('muscle_group').then(({ data }) => {
-      setExercises(data ?? []);
-      setLoading(false);
-    });
-  }, [sb]);
-
-  const openAdd = () => { setForm({ name: '', muscle_group: '', equipment: '' }); setEditing(null); setSaveError(null); setMode('add'); };
-  const openEdit = (e: Exercise) => { setForm({ name: e.name, muscle_group: e.muscle_group, equipment: e.equipment ?? '' }); setEditing(e); setSaveError(null); setMode('edit'); };
-  const close = () => { setMode('closed'); setSaveError(null); };
-
-  const save = async () => {
-    if (!form.name.trim() || !form.muscle_group.trim()) return;
-    setSaving(true); setSaveError(null);
-    const payload = { name: form.name.trim(), muscle_group: form.muscle_group.trim(), equipment: form.equipment.trim() || null };
-    if (mode === 'edit' && editing) {
-      const { data, error } = await sb.from('exercises').update(payload).eq('id', editing.id).select().single();
-      if (error) { setSaveError(error.message); } else if (data) { setExercises(p => p.map(e => e.id === editing.id ? data : e)); close(); }
-    } else {
-      const { data, error } = await sb.from('exercises').insert(payload).select().single();
-      if (error) { setSaveError(error.message); } else if (data) { setExercises(p => [...p, data]); close(); }
-    }
-    setSaving(false);
-  };
-
-  const remove = async (ex: Exercise) => {
-    await sb.from('exercises').delete().eq('id', ex.id);
-    setExercises(p => p.filter(e => e.id !== ex.id));
-    setConfirmDelete(null);
-  };
-
-  return (
-    <div>
-      {confirmDelete && (
-        <ConfirmDelete
-          label={confirmDelete.name}
-          onClose={() => setConfirmDelete(null)}
-          onConfirm={() => remove(confirmDelete)}
-        />
-      )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-4)' }}>
-        <button className="btn btn-primary" onClick={openAdd}>Nuevo Ejercicio</button>
-      </div>
-
-      {mode !== 'closed' && (
-        <Modal title={mode === 'edit' ? 'Editar Ejercicio' : 'Nuevo Ejercicio'} onClose={close} onSave={save} saving={saving} error={saveError}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <div className="form-group">
-              <label className="label">Nombre *</label>
-              <input className="input" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Ej: Press de Banca" autoFocus />
-            </div>
-            <div className="form-group">
-              <label className="label">Grupo Muscular *</label>
-              <select className="select" value={form.muscle_group} onChange={e => setForm(p => ({ ...p, muscle_group: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                {['Pecho','Espalda','Hombros','Bíceps','Tríceps','Piernas','Glúteos','Core','Cardio','Full Body'].map(g => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="label">Equipamento</label>
-              <input className="input" value={form.equipment} onChange={e => setForm(p => ({ ...p, equipment: e.target.value }))} placeholder="Ej: Barra, Mancuernas" />
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      <div className="card">
-        <div className="card-head">
-          <div className="card-head-left">
-            <div className="card-title">Biblioteca de Ejercicios</div>
-            <div className="card-subtitle">Catálogo de ejercicios organizados por grupo muscular y tipo</div>
-          </div>
-        </div>
-        {loading ? (
-          <div className="card-body card-body--padded"><p style={{ color: 'var(--fg-muted)', fontSize: 'var(--text-sm)' }}>Cargando...</p></div>
-        ) : (
-          <div className="table-container">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Grupo Muscular</th>
-                  <th>Equipamento</th>
-                  <th style={{ width: 90 }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exercises.length === 0 ? (
-                  <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--fg-muted)', padding: 'var(--space-8)' }}>Sin ejercicios registrados.</td></tr>
-                ) : exercises.map(e => (
-                  <tr key={e.id}>
-                    <td>{e.name}</td>
-                    <td>{e.muscle_group}</td>
-                    <td style={{ color: 'var(--fg-muted)' }}>{e.equipment ?? '—'}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
-                        <button className="btn btn-ghost btn-icon" onClick={() => openEdit(e)} title="Editar"><EditIcon /></button>
-                        <button className="btn btn-ghost btn-icon" onClick={() => setConfirmDelete(e)} title="Eliminar"><DeleteIcon /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ── MAIN PAGE ─────────────────────────────────────────────────
 export default function Configuracion() {
-  const [tab, setTab] = useState<Tab>('gimnasios');
+  const [tab, setTab] = useState<Tab>('ejercicios');
 
   const sb = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -623,9 +482,10 @@ export default function Configuracion() {
             ))}
           </div>
 
-          {tab === 'gimnasios' && <GimnasiosTab sb={sb} />}
-          {tab === 'objetivos' && <ObjetivosTab sb={sb} />}
-          {tab === 'ejercicios' && <EjerciciosTab sb={sb} />}
+          {tab === 'ejercicios' && <EjerciciosModule />}
+          {tab === 'templates'  && <TemplatesModule />}
+          {tab === 'objetivos'  && <ObjetivosTab sb={sb} />}
+          {tab === 'gimnasios'  && <GimnasiosTab sb={sb} />}
         </div>
       </main>
     </div>

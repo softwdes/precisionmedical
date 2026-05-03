@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useTransition } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { signOut, updateTrainerProfile, updatePassword } from '@/actions';
+import { signOut, updateTrainerProfile, updatePassword } from '@/actions/profile';
 
 type ModalType = 'profile' | 'password' | null;
 

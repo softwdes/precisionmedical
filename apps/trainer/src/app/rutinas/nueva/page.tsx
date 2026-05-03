@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { createRoutineTemplate } from '@/actions';
+import { createRoutineTemplate } from '@/actions/routines';
 import UserMenu from '@/components/UserMenu';
 import AppSidebar from '@/components/AppSidebar';
 

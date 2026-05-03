@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
-import { deleteStudent, updateStudentModal } from '@/actions';
+import { deleteStudent, updateStudentModal } from '@/actions/students';
 
 interface Student {
   id: string;
@@ -310,7 +310,7 @@ export default function StudentsTable({ students: initial, goalsMap }: {
                     <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>Sin métricas registradas</p>
                   ) : (
                     <>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '8px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '10px', marginBottom: '8px' }}>
                         {[
                           { val: detailMetrics[0].weight_kg, unit: 'kg', label: 'Peso' },
                           { val: detailMetrics[0].body_fat_pct, unit: '%', label: 'Grasa Corp.' },

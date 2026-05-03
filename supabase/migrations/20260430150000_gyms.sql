@@ -1,12 +1,15 @@
 -- Gyms reference table
-CREATE TABLE gyms (
-  id uuid primary key default gen_random_uuid(),
-  name text not null unique,
-  created_at timestamptz default now()
+CREATE TABLE IF NOT EXISTS gyms (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  created_at timestamptz DEFAULT now()
 );
 
 ALTER TABLE gyms ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Authenticated users can view gyms" ON gyms FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Authenticated users can view gyms" ON gyms;
+CREATE POLICY "Authenticated users can view gyms" ON gyms
+  FOR SELECT USING (auth.role() = 'authenticated');
 
 INSERT INTO gyms (name) VALUES
   ('Gilmar Gym'),
@@ -17,8 +20,9 @@ INSERT INTO gyms (name) VALUES
   ('Millenium Gym'),
   ('Strong Gym'),
   ('Murdock Gym'),
-  ('Otro');
+  ('Otro')
+ON CONFLICT (name) DO NOTHING;
 
 -- Link each availability block to a gym (stored as text name for simplicity)
 ALTER TABLE trainer_availability
-  ADD COLUMN gym_id text;
+  ADD COLUMN IF NOT EXISTS gym_id text;

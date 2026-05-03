@@ -17,6 +17,49 @@ export async function getStudents() {
   return data || [];
 }
 
+export async function deleteStudent(id: string): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await getAuthContext();
+    const { error } = await supabase
+      .from('students')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) return { error: error.message };
+    revalidatePath('/alumnos');
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function updateStudentModal(id: string, formData: FormData): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await getAuthContext();
+    const full_name = (formData.get('full_name') as string)?.trim();
+    if (!full_name) return { error: 'El nombre es requerido' };
+    const email = (formData.get('email') as string)?.trim() || null;
+    const phone = (formData.get('phone') as string)?.trim() || null;
+    const birth_date = formData.get('birth_date') as string | null;
+    const experience_level = formData.get('experience_level') as string | null;
+    const goals = formData.getAll('goals') as string[];
+    const available_equipment = formData.get('available_equipment') as string | null;
+    const { error } = await supabase.from('students').update({
+      full_name,
+      email,
+      phone,
+      birth_date: birth_date || null,
+      experience_level: experience_level || null,
+      goals: goals.length > 0 ? goals : null,
+      available_equipment: available_equipment || null,
+    }).eq('id', id);
+    if (error) return { error: error.message };
+    revalidatePath('/alumnos');
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
 export async function getStudent(id: string) {
   const { supabase, trainerId } = await getAuthContext();
   const { data, error } = await supabase
@@ -37,6 +80,8 @@ export async function createStudentModal(
     const { supabase, trainerId } = await getAuthContext();
     const full_name = (formData.get('full_name') as string)?.trim();
     if (!full_name) return { error: 'El nombre es requerido' };
+    const email = (formData.get('email') as string)?.trim() || null;
+    const phone = (formData.get('phone') as string)?.trim() || null;
     const birth_date = formData.get('birth_date') as string | null;
     const experience_level = formData.get('experience_level') as string | null;
     const goals = formData.getAll('goals') as string[];
@@ -44,6 +89,8 @@ export async function createStudentModal(
     const { error } = await supabase.from('students').insert({
       trainer_id: trainerId,
       full_name,
+      email,
+      phone,
       birth_date: birth_date ? new Date(birth_date) : null,
       experience_level: experience_level || null,
       goals: goals.length > 0 ? goals : null,

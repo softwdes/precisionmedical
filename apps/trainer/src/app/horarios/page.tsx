@@ -72,6 +72,7 @@ const BLOCK_COLORS: Record<string, { bg: string; text: string; border: string }>
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 
+
 function toDatetimeLocal(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -90,6 +91,7 @@ export default function SchedulePage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['']);
+  const [comments, setComments] = useState('');
 
   // Time-picker parts for the create-block form
   const [startDate, setStartDate] = useState('');
@@ -110,13 +112,14 @@ export default function SchedulePage() {
     fetch('/api/students')
       .then(r => r.json())
       .then(d => { if (Array.isArray(d)) setStudents(d); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Sync time-picker state when the create-block modal opens
   useEffect(() => {
     if (!showModal) return;
     setSelectedStudentIds(['']);
+    setComments('');
     if (preset) {
       const [sd = '', st = '08:00'] = preset.starts_at.split('T');
       const [ed = '', et = '09:00'] = preset.ends_at.split('T');
@@ -269,10 +272,11 @@ export default function SchedulePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           block_type: fd.get('block_type') ?? 'available',
-          starts_at: `${startDate}T${startHour}:${startMin}`,
-          ends_at: `${endDate}T${endHour}:${endMin}`,
-          capacity: Number(fd.get('capacity') ?? 1),
+          starts_at: `${startDate}T${startHour}:${startMin}:00`,
+          ends_at: `${endDate}T${endHour}:${endMin}:00`,
+          capacity: parseInt(String(fd.get('capacity') ?? '1'), 10) || 1,
           gym_id: fd.get('gym_id') || null,
+          comments: comments.trim() || null,
           student_ids: selectedStudentIds.filter(Boolean),
         }),
       });
@@ -319,11 +323,11 @@ export default function SchedulePage() {
         <div className="main-content">
           <section className="section-head section-head-row">
             <div>
-              <span className="eyebrow">Protocolo // 01</span>
-              <h1>Gestión de Horarios</h1>
+              <span className="eyebrow">Horarios // 01</span>
+              <h1>Horario de Clases</h1>
             </div>
             <button className="btn btn-primary" onClick={() => { setPreset(null); setFormError(''); setShowModal(true); }}>
-              + Nuevo Bloque
+              + Nueva Clase
             </button>
           </section>
 
@@ -391,7 +395,7 @@ export default function SchedulePage() {
             <div className="modal-header">
               <div>
                 <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 'var(--text-xl)', color: 'var(--accent)' }}>
-                  Nuevo Bloque
+                  Nueva Clase
                 </h2>
                 {preset && (
                   <div style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: '2px' }}>
@@ -410,9 +414,9 @@ export default function SchedulePage() {
               )}
 
               <div className="form-group">
-                <label className="label">Tipo de Bloque</label>
+                <label className="label">Nueva Clase o Actividad</label>
                 <select name="block_type" className="select" defaultValue="available">
-                  <option value="available">Clases Con Alumnos</option>
+                  <option value="available">Clases</option>
                   <option value="personal">Personal</option>
                   <option value="break">Descanso</option>
                   <option value="meal">Comida</option>
@@ -496,20 +500,31 @@ export default function SchedulePage() {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="label">Capacidad (alumnos)</label>
-                  <input type="number" name="capacity" className="input" defaultValue="1" min="1" max="20" />
-                </div>
-                <div className="form-group">
-                  <label className="label">Gimnasio</label>
-                  <select name="gym_id" className="select" defaultValue="">
-                    <option value="">— Sin gimnasio —</option>
-                    {GYM_OPTIONS.map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="form-group">
+                <label className="label">Gimnasio</label>
+                <select name="gym_id" className="select" defaultValue="">
+                  <option value="">— Sin gimnasio —</option>
+                  {GYM_OPTIONS.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Comentarios</span>
+                  <span style={{ color: comments.length >= 500 ? '#ff6b6b' : 'var(--fg-muted)', fontSize: 'var(--text-xs)' }}>
+                    {comments.length} / 500 caracteres
+                  </span>
+                </label>
+                <textarea
+                  className="input"
+                  style={{ resize: 'vertical', minHeight: '80px' }}
+                  placeholder="Notas adicionales sobre la clase..."
+                  maxLength={500}
+                  value={comments}
+                  onChange={e => setComments(e.target.value)}
+                />
               </div>
 
               <div className="modal-actions">

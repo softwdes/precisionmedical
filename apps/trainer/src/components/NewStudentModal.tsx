@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 import { createStudentModal } from '@/actions';
+
+interface Goal { id: string; label: string; }
 
 const OVERLAY: React.CSSProperties = {
   position: 'fixed', inset: 0,
@@ -66,7 +69,15 @@ export default function NewStudentModal() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [comboGoal, setComboGoal] = useState('');
   const router = useRouter();
+
+  const supabase = useMemo(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ), []);
 
   // Toast state
   const [toastMsg, setToastMsg] = useState('');
@@ -77,6 +88,13 @@ export default function NewStudentModal() {
     document.addEventListener('keydown', h);
     return () => document.removeEventListener('keydown', h);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    supabase.from('goals').select('id, label').order('sort_order').then(({ data }) => {
+      setGoals(data ?? []);
+    });
+  }, [open, supabase]);
 
   useEffect(() => {
     if (!toastMsg) return;
@@ -110,7 +128,19 @@ export default function NewStudentModal() {
 
   function openModal() {
     setError('');
+    setSelectedGoals([]);
+    setComboGoal('');
     setOpen(true);
+  }
+
+  function addGoal() {
+    if (!comboGoal || selectedGoals.includes(comboGoal)) return;
+    setSelectedGoals(prev => [...prev, comboGoal]);
+    setComboGoal('');
+  }
+
+  function removeGoal(id: string) {
+    setSelectedGoals(prev => prev.filter(g => g !== id));
   }
 
   return (
@@ -155,6 +185,16 @@ export default function NewStudentModal() {
                       disabled={isPending}
                     />
                   </div>
+                  <div className="form-row" style={{ marginBottom: '14px' }}>
+                    <div className="form-group">
+                      <label className="label" htmlFor="ns-email">Email</label>
+                      <input id="ns-email" name="email" type="email" className="input" placeholder="correo@ejemplo.com" disabled={isPending} />
+                    </div>
+                    <div className="form-group">
+                      <label className="label" htmlFor="ns-phone">Celular / Teléfono</label>
+                      <input id="ns-phone" name="phone" type="tel" className="input" placeholder="+51 999 999 999" disabled={isPending} />
+                    </div>
+                  </div>
                   <div className="form-row">
                     <div className="form-group">
                       <label className="label" htmlFor="ns-birth">Fecha de Nacimiento</label>
@@ -174,24 +214,66 @@ export default function NewStudentModal() {
 
                 <div>
                   <div style={SECTION_TITLE}>Objetivos de Entrenamiento</div>
-                  <div className="checkbox-group">
-                    <label className="checkbox-label">
-                      <input type="checkbox" name="goals" value="hypertrophia" disabled={isPending} />
-                      <span>Hipertrofia</span>
-                    </label>
-                    <label className="checkbox-label">
-                      <input type="checkbox" name="goals" value="strength" disabled={isPending} />
-                      <span>Fuerza</span>
-                    </label>
-                    <label className="checkbox-label">
-                      <input type="checkbox" name="goals" value="fat_loss" disabled={isPending} />
-                      <span>Pérdida de Grasa</span>
-                    </label>
-                    <label className="checkbox-label">
-                      <input type="checkbox" name="goals" value="endurance" disabled={isPending} />
-                      <span>Resistencia</span>
-                    </label>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: selectedGoals.length > 0 ? '10px' : 0 }}>
+                    <select
+                      className="select"
+                      style={{ flex: 1 }}
+                      value={comboGoal}
+                      onChange={e => setComboGoal(e.target.value)}
+                      disabled={isPending || goals.length === 0}
+                    >
+                      <option value="">{goals.length === 0 ? 'Cargando...' : 'Seleccionar objetivo...'}</option>
+                      {goals.filter(g => !selectedGoals.includes(g.id)).map(g => (
+                        <option key={g.id} value={g.id}>{g.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={addGoal}
+                      disabled={!comboGoal || isPending}
+                      style={{
+                        flexShrink: 0, width: '38px', height: '38px',
+                        background: comboGoal ? 'var(--accent)' : 'rgba(255,255,255,0.06)',
+                        border: '1px solid ' + (comboGoal ? 'var(--accent)' : 'rgba(255,255,255,0.12)'),
+                        borderRadius: 'var(--radius-sm)', cursor: comboGoal ? 'pointer' : 'not-allowed',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'background 0.2s, border-color 0.2s',
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke={comboGoal ? '#000' : 'var(--fg-muted)'} strokeWidth="2.5" strokeLinecap="round" style={{ width: '16px', height: '16px' }}>
+                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                      </svg>
+                    </button>
                   </div>
+                  {selectedGoals.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {selectedGoals.map(id => {
+                        const label = goals.find(g => g.id === id)?.label ?? id;
+                        return (
+                          <span key={id} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '4px 10px', borderRadius: '20px',
+                            background: 'rgba(63,248,200,0.1)',
+                            border: '1px solid rgba(63,248,200,0.3)',
+                            fontSize: '12px', color: 'var(--accent)', fontWeight: 500,
+                          }}>
+                            {label}
+                            <input type="hidden" name="goals" value={id} />
+                            <button
+                              type="button"
+                              onClick={() => removeGoal(id)}
+                              disabled={isPending}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'var(--accent)', opacity: 0.7, lineHeight: 1 }}
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ width: '12px', height: '12px' }}>
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                              </svg>
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div>

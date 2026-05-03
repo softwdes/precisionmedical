@@ -107,32 +107,44 @@ CREATE TABLE IF NOT EXISTS trainer_availability (
   trainer_id UUID NOT NULL REFERENCES trainers(id) ON DELETE CASCADE,
   starts_at TIMESTAMPTZ NOT NULL,
   ends_at TIMESTAMPTZ NOT NULL,
-  block_type TEXT DEFAULT 'available' CHECK (block_type IN ('available', 'booked', 'blocked')),
+  block_type TEXT NOT NULL DEFAULT 'available', -- available | personal | break | meal
   capacity INTEGER DEFAULT 1,
   session_duration_min INTEGER DEFAULT 60,
+  gym_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 9. GYMS (Gimnasios de referencia)
+-- ================================
+CREATE TABLE IF NOT EXISTS gyms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 9. BOOKINGS (Reservas)
+-- 10. BOOKINGS (Reservas)
 -- ================================
 CREATE TABLE IF NOT EXISTS bookings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trainer_availability_id UUID NOT NULL REFERENCES trainer_availability(id) ON DELETE CASCADE,
   student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'reserved', -- reserved | confirmed | cancelled | no_show | attended
   reserved_at TIMESTAMPTZ DEFAULT NOW(),
-  status TEXT DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'completed', 'cancelled', 'no_show')),
+  cancelled_at TIMESTAMPTZ,
   attended_at TIMESTAMPTZ,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (trainer_availability_id, student_id)
 );
 
--- 10. BOOKING WAITLIST (Lista de espera)
+-- 11. BOOKING WAITLIST (Lista de espera)
 -- ================================
 CREATE TABLE IF NOT EXISTS booking_waitlist (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trainer_availability_id UUID NOT NULL REFERENCES trainer_availability(id) ON DELETE CASCADE,
   student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  added_at TIMESTAMPTZ DEFAULT NOW(),
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
   notified_at TIMESTAMPTZ,
   status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'offered', 'accepted', 'expired'))
 );
@@ -257,6 +269,7 @@ ALTER TABLE routine_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_routines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE routine_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trainer_availability ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gyms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booking_waitlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exercise_logs ENABLE ROW LEVEL SECURITY;
@@ -320,7 +333,16 @@ CREATE POLICY "personal_records_trainer" ON personal_records
     student_id IN (SELECT id FROM students WHERE trainer_id IN (SELECT id FROM trainers WHERE user_id = auth.uid()))
   );
 
+-- GYMS: Cualquier usuario autenticado puede ver los gimnasios
+CREATE POLICY "gyms_read" ON gyms FOR SELECT USING (auth.role() = 'authenticated');
+
 -- MASTER: Acceso completo a subscription_payments, activity_log, support_tickets
 CREATE POLICY "master_all" ON subscription_payments FOR ALL USING (true);
 CREATE POLICY "master_all_activity" ON activity_log FOR ALL USING (true);
 CREATE POLICY "master_all_tickets" ON support_tickets FOR ALL USING (true);
+
+-- Seed data for gyms
+INSERT INTO gyms (name) VALUES
+  ('Gilmar Gym'), ('Revo Sport'), ('Imperium Center'), ('Smart Fit'),
+  ('Bodytech'), ('Millenium Gym'), ('Strong Gym'), ('Murdock Gym'), ('Otro')
+ON CONFLICT (name) DO NOTHING;

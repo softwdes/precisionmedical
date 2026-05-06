@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
 
@@ -42,11 +42,6 @@ interface ActividadItem {
   tipo: 'pago' | 'alumno' | 'clase';
   descripcion: string;
   tiempo: string;
-}
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
 }
 
 export interface DashboardModuleProps {
@@ -102,14 +97,6 @@ export default function DashboardModule({
   const [clock, setClock] = useState('');
   const [alertaDismissed, setAlertaDismissed] = useState(false);
   const [pulsing, setPulsing] = useState<Set<string>>(new Set());
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [hasSpeech, setHasSpeech] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [usage, setUsage] = useState({ usadas: 0, restantes: 10, limite: 10 });
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // ── Clock ──
   useEffect(() => {
@@ -127,48 +114,6 @@ export default function DashboardModule({
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-
-  // ── Speech detection ──
-  useEffect(() => {
-    setHasSpeech(
-      typeof window !== 'undefined' &&
-        ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
-    );
-  }, []);
-
-  // ── Fetch usage on mount ──
-  useEffect(() => {
-    if (!trainerId) return;
-    fetch(`/api/ai/usage?trainerId=${trainerId}`)
-      .then((r) => r.json())
-      .then((d: { usadas?: number; restantes?: number; limite?: number }) => {
-        setUsage({ usadas: d.usadas ?? 0, restantes: d.restantes ?? 10, limite: d.limite ?? 10 });
-      })
-      .catch(() => {});
-  }, [trainerId]);
-
-  // ── Welcome message ──
-  useEffect(() => {
-    const total = initialMetrics.clasesCompletadas + initialMetrics.clasesPendientes;
-    const lines = [
-      `¡Hola! Aquí tu resumen del día 📋`,
-      `• ${initialMetrics.alumnosActivos} alumnos activos`,
-      `• ${total} clase${total !== 1 ? 's' : ''} hoy (${initialMetrics.clasesCompletadas} completada${initialMetrics.clasesCompletadas !== 1 ? 's' : ''})`,
-      `• S/ ${initialMetrics.cobradoMes.toFixed(0)} cobrado este mes`,
-      alertas.cuotasVencidas > 0
-        ? `• ⚠️ ${alertas.cuotasVencidas} cuota${alertas.cuotasVencidas !== 1 ? 's' : ''} vencida${alertas.cuotasVencidas !== 1 ? 's' : ''}`
-        : null,
-      `\n¿En qué puedo ayudarte?`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-    setMessages([{ role: 'assistant', content: lines }]);
-  }, []);
-
-  // ── Scroll to bottom on new message ──
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
 
   // ── Pulse trigger ──
   const triggerPulse = useCallback((key: string) => {
@@ -241,61 +186,6 @@ export default function DashboardModule({
       supabase.removeChannel(channel);
     };
   }, [trainerId, triggerPulse]);
-
-  // ── AI Chat ──
-  const sendMessage = useCallback(
-    async (text: string) => {
-      if (!text.trim() || isTyping) return;
-      const next: ChatMessage[] = [...messages, { role: 'user', content: text }];
-      setMessages(next);
-      setInputText('');
-      setIsTyping(true);
-      try {
-        const res = await fetch('/api/ai/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: next, trainerId }),
-        });
-        const data = (await res.json()) as {
-          reply?: string;
-          error?: string;
-          mensaje?: string;
-          usage?: { usadas: number; restantes: number; limite: number };
-        };
-        if (data.error === 'limite_alcanzado') {
-          setMessages([...next, { role: 'assistant', content: data.mensaje ?? 'Límite diario alcanzado.' }]);
-          setUsage({ usadas: 10, restantes: 0, limite: 10 });
-          return;
-        }
-        if (data.usage) setUsage(data.usage);
-        setMessages([...next, { role: 'assistant', content: data.reply ?? 'Sin respuesta.' }]);
-      } catch {
-        setMessages([...next, { role: 'assistant', content: 'Error al conectar. Intenta de nuevo.' }]);
-      } finally {
-        setIsTyping(false);
-      }
-    },
-    [messages, isTyping]
-  );
-
-  // ── Voice ──
-  const startListening = useCallback(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const recognition = new SR() as any;
-    recognition.lang = 'es-PE';
-    recognition.interimResults = false;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (e: any) => {
-      const transcript: string = e.results?.[0]?.[0]?.transcript ?? '';
-      if (transcript) sendMessage(transcript);
-    };
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
-    setIsListening(true);
-  }, [sendMessage]);
 
   // ─── Derived values ───────────────────────────────────────────────────────
   const alumnosPct = Math.min(100, Math.round((metrics.alumnosActivos / capacidadMax) * 100));
@@ -406,236 +296,6 @@ export default function DashboardModule({
           color="#EF9F27"
           pulsing={pulsing.has('clases')}
         />
-      </section>
-
-      {/* ── TrainerAI Panel ───────────────────────────────── */}
-      <section>
-        <div style={{
-          background: 'var(--bg-elevated)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          overflow: 'hidden',
-        }}>
-          {/* Header */}
-          <div style={{
-            padding: 'var(--space-4) var(--space-5)',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-3)',
-            background: 'var(--bg-header-card)',
-          }}>
-            <div style={{
-              width: 34,
-              height: 34,
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--fg-on-accent)' }}>
-                <path d="M12 2a10 10 0 1 1 0 20A10 10 0 0 1 12 2z"/>
-                <path d="M12 8v4l3 3"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 'var(--tracking-wider)', color: 'var(--fg-strong)' }}>
-                TrainerAI
-              </div>
-              <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--accent)', letterSpacing: 'var(--tracking-wide)' }}>
-                Asistente inteligente
-              </div>
-            </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-wide)' }}>En línea</span>
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse 2s infinite' }} />
-              </div>
-              <UsageBar usadas={usage.usadas} limite={usage.limite} />
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div style={{
-            height: 300,
-            overflowY: 'auto',
-            padding: 'var(--space-4)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-3)',
-          }}>
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  gap: 'var(--space-2)',
-                  flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                  alignItems: 'flex-start',
-                  animation: 'fadeIn 0.2s ease-out',
-                }}
-              >
-                <div style={{
-                  width: 28, height: 28,
-                  borderRadius: 'var(--radius-sm)',
-                  background: msg.role === 'assistant' ? 'var(--accent)' : 'var(--bg-row-active)',
-                  border: msg.role === 'user' ? '1px solid var(--border-strong)' : 'none',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: msg.role === 'assistant' ? 'var(--fg-on-accent)' : 'var(--accent)',
-                  letterSpacing: '0.04em',
-                }}>
-                  {msg.role === 'assistant' ? 'AI' : 'TR'}
-                </div>
-                <div style={{
-                  maxWidth: '75%',
-                  padding: 'var(--space-2) var(--space-3)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 'var(--text-sm)',
-                  lineHeight: 1.55,
-                  background: msg.role === 'assistant' ? 'var(--bg-row)' : '#E1F5EE',
-                  color: msg.role === 'assistant' ? 'var(--fg)' : '#0A2E24',
-                  border: msg.role === 'assistant' ? '1px solid var(--border)' : 'none',
-                  whiteSpace: 'pre-wrap',
-                }}>
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-            {isTyping && (
-              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-                <div style={{
-                  width: 28, height: 28,
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'var(--accent)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700, color: 'var(--fg-on-accent)',
-                }}>
-                  AI
-                </div>
-                <div style={{ background: 'var(--bg-row)', border: '1px solid var(--border)', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-md)' }}>
-                  <TypingDots />
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Quick pills */}
-          <div style={{ padding: 'var(--space-2) var(--space-4)', display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', borderTop: '1px solid var(--border)' }}>
-            {['¿Quién no pagó?', 'Baja adherencia', 'Resumen cobros', 'Clases de hoy', 'Progreso peso', 'Rutinas por vencer'].map((q) => (
-              <button
-                key={q}
-                onClick={() => sendMessage(q)}
-                disabled={isTyping}
-                style={{
-                  padding: '3px 10px',
-                  borderRadius: 'var(--radius-pill)',
-                  border: '1px solid var(--border-strong)',
-                  background: 'transparent',
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--fg-muted)',
-                  cursor: isTyping ? 'not-allowed' : 'pointer',
-                  transition: 'color var(--t), border-color var(--t)',
-                }}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-
-          {/* Input row */}
-          {usage.restantes === 0 ? (
-            <div style={{
-              padding: 'var(--space-4) var(--space-5)',
-              borderTop: '1px solid var(--border)',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', fontWeight: 600, marginBottom: 4 }}>
-                Límite diario alcanzado
-              </div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--fg-muted)' }}>
-                Se renueva mañana a las 00:00
-              </div>
-            </div>
-          ) : (
-            <div style={{
-              padding: 'var(--space-3) var(--space-4)',
-              display: 'flex',
-              gap: 'var(--space-2)',
-              borderTop: '1px solid var(--border)',
-            }}>
-              <input
-                ref={inputRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage(inputText);
-                  }
-                }}
-                placeholder="Escribe tu consulta..."
-                style={{
-                  flex: 1,
-                  background: 'var(--bg-row)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  padding: 'var(--space-2) var(--space-3)',
-                  fontSize: 'var(--text-sm)',
-                  color: 'var(--fg)',
-                  outline: 'none',
-                }}
-              />
-              {hasSpeech && (
-                <button
-                  onClick={startListening}
-                  disabled={isTyping}
-                  aria-label={isListening ? 'Escuchando...' : 'Dictar mensaje'}
-                  style={{
-                    padding: '0 var(--space-3)',
-                    background: isListening ? 'var(--accent)' : 'var(--bg-row)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius)',
-                    color: isListening ? 'var(--fg-on-accent)' : 'var(--fg-muted)',
-                    cursor: isTyping ? 'not-allowed' : 'pointer',
-                    transition: 'background var(--t)',
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
-                  </svg>
-                </button>
-              )}
-              <button
-                onClick={() => sendMessage(inputText)}
-                disabled={!inputText.trim() || isTyping}
-                style={{
-                  padding: 'var(--space-2) var(--space-4)',
-                  background: !inputText.trim() || isTyping ? 'var(--bg-row)' : 'var(--accent)',
-                  color: !inputText.trim() || isTyping ? 'var(--fg-muted)' : 'var(--fg-on-accent)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: 'var(--tracking-wide)',
-                  cursor: !inputText.trim() || isTyping ? 'not-allowed' : 'pointer',
-                  transition: 'background var(--t), color var(--t)',
-                }}
-              >
-                Enviar
-              </button>
-            </div>
-          )}
-        </div>
       </section>
 
       {/* ── Bottom Grid 1: Clases hoy + Pagos urgentes + Adherencia ─── */}
@@ -869,21 +529,6 @@ export default function DashboardModule({
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function UsageBar({ usadas, limite }: { usadas: number; limite: number }) {
-  const pct = Math.min(100, Math.round((usadas / limite) * 100));
-  const color = usadas < limite - 5 ? '#1D9E75' : usadas < limite - 2 ? '#EF9F27' : '#FF6B6B';
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-      <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--fg-muted)', letterSpacing: 'var(--tracking-wide)' }}>
-        Consultas: {usadas} / {limite}
-      </span>
-      <div style={{ width: 80, height: 3, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 0.4s ease' }} />
-      </div>
-    </div>
-  );
-}
-
 function MetricCard({
   label,
   value,
@@ -924,16 +569,3 @@ function MetricCard({
   );
 }
 
-function TypingDots() {
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setFrame((f) => (f + 1) % 4), 400);
-    return () => clearInterval(id);
-  }, []);
-  const dots = '.'.repeat(frame);
-  return (
-    <span style={{ fontSize: 'var(--text-sm)', color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)', letterSpacing: 2 }}>
-      Escribiendo{dots}
-    </span>
-  );
-}

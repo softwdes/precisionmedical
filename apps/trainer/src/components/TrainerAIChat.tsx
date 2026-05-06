@@ -13,12 +13,14 @@ interface Props {
 }
 
 const QUICK_PILLS = [
-  '¿Quién no pagó?',
-  'Baja adherencia',
-  'Resumen cobros',
+  'Alumnos activos',
+  'Cuotas vencidas',
+  'Próximas a vencer',
+  'Reporte de cobros',
   'Clases de hoy',
-  'Progreso peso',
-  'Rutinas por vencer',
+  'Adherencia del mes',
+  'Pendiente de cobro',
+  'Resumen general',
 ];
 
 export default function TrainerAIChat({ trainerId, onClose }: Props) {

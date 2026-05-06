@@ -90,6 +90,6 @@ on conflict do nothing;
 -- SEED: Super Admin role
 -- Reemplazá el email con el real del administrador
 -- ══════════════════════════════════════════════════════════
--- insert into public.user_roles (user_id, role)
--- select id, 'super_admin' from auth.users where email = 'admin@precision-trainer.com'
--- on conflict do nothing;
+insert into public.user_roles (user_id, role)
+select id, 'super_admin' from auth.users where email = 'esdsalinas@gmail.com'
+on conflict do nothing;

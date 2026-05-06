@@ -16,21 +16,31 @@ export async function buildSystemPrompt(trainerId: string): Promise<string> {
   const in7Days = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0] as string;
   const ago28 = new Date(Date.now() - 28 * 86400000).toISOString().split('T')[0] as string;
 
+  // Step 1: get trainer's active students (need IDs to filter subsequent queries)
+  const { data: alumnos } = await supabase
+    .from('students')
+    .select('id, full_name')
+    .eq('trainer_id', trainerId)
+    .is('archived_at', null);
+
+  const alumnoIds = (alumnos ?? []).map((a) => a.id as string);
+
+  // Step 2: remaining queries in parallel, all scoped to this trainer
   const [
-    { data: alumnos },
     { data: cuotasVencidas },
     { data: cuotasProximas },
     { data: clasesHoy },
     { data: sesiones },
-    { data: ultimosPesos },
+    { data: ultimasMedidas },
+    cobradoRes,
   ] = await Promise.all([
-    supabase.from('students').select('full_name').eq('activo', true),
     supabase
       .from('cuotas')
       .select('monto, fecha_vencimiento, students(full_name)')
       .eq('trainer_id', trainerId)
       .eq('estado', 'vencido')
       .order('fecha_vencimiento', { ascending: true }),
+
     supabase
       .from('cuotas')
       .select('monto, fecha_vencimiento, students(full_name)')
@@ -38,36 +48,45 @@ export async function buildSystemPrompt(trainerId: string): Promise<string> {
       .eq('estado', 'pendiente')
       .gte('fecha_vencimiento', hoy)
       .lte('fecha_vencimiento', in7Days),
+
     supabase
       .from('clases')
       .select('titulo, hora_inicio, hora_fin, tipo')
       .eq('trainer_id', trainerId)
       .eq('fecha', hoy)
       .order('hora_inicio'),
+
+    alumnoIds.length > 0
+      ? supabase
+          .from('sesiones_entrenamiento')
+          .select('alumno_id, completada')
+          .in('alumno_id', alumnoIds)
+          .gte('fecha', ago28)
+      : Promise.resolve({ data: [] as { alumno_id: string; completada: boolean }[], error: null }),
+
+    alumnoIds.length > 0
+      ? supabase
+          .from('medidas_corporales')
+          .select('alumno_id, fecha, cintura_cm, cadera_cm, students(full_name)')
+          .in('alumno_id', alumnoIds)
+          .order('fecha', { ascending: false })
+          .limit(6)
+      : Promise.resolve({ data: [] as { alumno_id: string; fecha: string; cintura_cm: number | null; cadera_cm: number | null; students: unknown }[], error: null }),
+
     supabase
-      .from('sesiones_entrenamiento')
-      .select('alumno_id, completada')
-      .gte('fecha', ago28),
-    supabase
-      .from('body_metrics')
-      .select('weight_kg, measured_at, students(full_name)')
-      .order('measured_at', { ascending: false })
-      .limit(5),
+      .from('cuotas')
+      .select('monto')
+      .eq('trainer_id', trainerId)
+      .eq('estado', 'pagado')
+      .gte('fecha_pago', `${hoy.slice(0, 7)}-01`),
   ]);
 
-  // Cobrado este mes
-  const cobradoRes = await supabase
-    .from('cuotas')
-    .select('monto')
-    .eq('trainer_id', trainerId)
-    .eq('estado', 'pagado')
-    .gte('fecha_pago', `${hoy.slice(0, 7)}-01`);
   const cobradoMes = cobradoRes.data?.reduce((s, c) => s + Number(c.monto), 0) ?? 0;
   const pendienteMes = cuotasVencidas?.reduce((s, c) => s + Number(c.monto), 0) ?? 0;
 
-  // Adherencia global últimas 4 semanas
+  // Adherencia global últimas 4 semanas (scoped to trainer's students)
   const sesMap: Record<string, { total: number; ok: number }> = {};
-  sesiones?.forEach((s) => {
+  (sesiones ?? []).forEach((s) => {
     if (!sesMap[s.alumno_id]) sesMap[s.alumno_id] = { total: 0, ok: 0 };
     sesMap[s.alumno_id]!.total++;
     if (s.completada) sesMap[s.alumno_id]!.ok++;
@@ -100,13 +119,18 @@ export async function buildSystemPrompt(trainerId: string): Promise<string> {
       ?.map((c) => `${c.hora_inicio}–${c.hora_fin} ${c.titulo} (${c.tipo})`)
       .join(' | ') || 'sin clases';
 
-  const pesosStr =
-    ultimosPesos
-      ?.map(
-        (p) =>
-          `${(p.students as unknown as StudentRef)?.full_name ?? 'Alumno'}: ${p.weight_kg}kg el ${(p.measured_at as string).slice(0, 10)}`
-      )
-      .join(' | ') || 'sin registros';
+  const medidasStr =
+    ultimasMedidas
+      ?.map((m) => {
+        const nombre = (m.students as unknown as StudentRef)?.full_name ?? 'Alumno';
+        const partes: string[] = [];
+        if (m.cintura_cm) partes.push(`cintura ${m.cintura_cm}cm`);
+        if (m.cadera_cm) partes.push(`cadera ${m.cadera_cm}cm`);
+        return `${nombre}: ${partes.join(', ') || 'medidas registradas'} (${m.fecha})`;
+      })
+      .join(' | ') || 'sin registros recientes';
+
+  const alumnosStr = (alumnos ?? []).map((a) => a.full_name).join(', ') || 'ninguno';
 
   const now2 = new Date();
   const fechaStr = now2.toLocaleDateString('es-PE', { month: 'long', day: 'numeric' });
@@ -118,14 +142,14 @@ Nunca inventés datos. Si no tenés información suficiente, decilo claramente.
 Sugerí acciones concretas: enviar WhatsApp, registrar pago, asignar rutina.
 
 DATOS ACTUALES DEL SISTEMA (actualizados al ${fechaStr} ${horaStr}):
-- Alumnos activos: ${alumnos?.length ?? 0}
+- Alumnos activos (${(alumnos ?? []).length}): ${alumnosStr}
 - Adherencia últimas 4 semanas: ${adherenciaGlobal}%
 - Clases hoy: ${clasesHoyStr}
 - Cobrado este mes: S/ ${cobradoMes.toLocaleString()}
-- Pendiente de cobro: S/ ${pendienteMes.toLocaleString()}
+- Pendiente de cobro (vencido): S/ ${pendienteMes.toLocaleString()}
 - Cuotas vencidas: ${vencidosStr}
 - Próximas a vencer (7 días): ${proximosStr}
-- Últimos registros de peso: ${pesosStr}
+- Últimas medidas corporales: ${medidasStr}
 
 LIMITACIONES IMPORTANTES:
 - Solo podés CONSULTAR datos, no modificarlos.

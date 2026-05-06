@@ -254,7 +254,10 @@ export default function NutricionModule({ students, initialStudentId }: { studen
   const sexo    = datos.sexo as 'm' | 'f';
   const nAct    = datos.nivel_actividad as keyof typeof ACTIVITY_FACTORS;
 
-  const valid = !isNaN(peso) && !isNaN(altura) && !isNaN(edad) && (sexo === 'm' || sexo === 'f') && peso > 0 && altura > 0 && edad > 0;
+  const valid = !isNaN(peso) && !isNaN(altura) && !isNaN(edad) && (sexo === 'm' || sexo === 'f')
+    && peso >= 20 && peso <= 350
+    && altura >= 100 && altura <= 250
+    && edad >= 10 && edad <= 110;
 
   const imc        = valid ? calcIMC(peso, altura) : null;
   const pesoIdeal  = valid ? calcPesoIdeal(altura, sexo) : null;
@@ -322,7 +325,7 @@ export default function NutricionModule({ students, initialStudentId }: { studen
   }
 
   // ── Chart data ────────────────────────────────────────────────────────────────
-  const chartData = useMemo(() => [...historial].reverse().slice(-20), [historial]);
+  const chartData = useMemo(() => historial.slice(0, 20), [historial]);
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -415,19 +418,25 @@ export default function NutricionModule({ students, initialStudentId }: { studen
                         <label className="label">Peso actual (kg)</label>
                         <input
                           className="input"
-                          type="number" step="0.1" placeholder="70.5"
+                          type="number" step="0.1" placeholder="70.5" min="20" max="350"
                           value={datos.peso_kg}
                           onChange={e => setDatos(p => ({ ...p, peso_kg: e.target.value }))}
                         />
+                        {datos.peso_kg !== '' && (peso < 20 || peso > 350) && (
+                          <div style={{ fontSize: '12px', color: '#ff6b6b', marginTop: '4px' }}>Ingresa un valor entre 20 y 350 kg</div>
+                        )}
                       </div>
                       <div className="form-group">
                         <label className="label">Altura (cm)</label>
                         <input
                           className="input"
-                          type="number" step="0.5" placeholder="175"
+                          type="number" step="0.5" placeholder="175" min="100" max="250"
                           value={datos.altura_cm}
                           onChange={e => setDatos(p => ({ ...p, altura_cm: e.target.value }))}
                         />
+                        {datos.altura_cm !== '' && (altura < 100 || altura > 250) && (
+                          <div style={{ fontSize: '12px', color: '#ff6b6b', marginTop: '4px' }}>Ingresa un valor entre 100 y 250 cm</div>
+                        )}
                       </div>
                     </div>
                     <div className="form-row">
@@ -435,10 +444,13 @@ export default function NutricionModule({ students, initialStudentId }: { studen
                         <label className="label">Edad</label>
                         <input
                           className="input"
-                          type="number" placeholder="28"
+                          type="number" placeholder="28" min="10" max="110"
                           value={datos.edad}
                           onChange={e => setDatos(p => ({ ...p, edad: e.target.value }))}
                         />
+                        {datos.edad !== '' && (edad < 10 || edad > 110) && (
+                          <div style={{ fontSize: '12px', color: '#ff6b6b', marginTop: '4px' }}>Ingresa una edad entre 10 y 110 años</div>
+                        )}
                       </div>
                       <div className="form-group">
                         <label className="label">Sexo</label>

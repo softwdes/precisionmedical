@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useTransition } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { calcIMC, calcGrasaEstimada, calcMasaMagra, getIMCCategory } from '@/lib/nutrition';
-import { addMedidaCorporal, addProgresoEjercicio, addSesionEntrenamiento } from '@/actions/metricas2';
+import { addMedidaCorporal, addProgresoEjercicio, addSesionEntrenamiento, otorgarLogro } from '@/actions/metricas2';
 
 type Tab = 'resumen' | 'cuerpo' | 'fuerza' | 'adherencia' | 'logros';
 
@@ -22,6 +22,97 @@ interface Logro { id: string; tipo: string; titulo: string; descripcion: string|
 const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const fmtFecha = (iso: string) => { const d = new Date(iso + 'T00:00:00'); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
 const fmtFechaLong = (iso: string) => { const d = new Date(iso + 'T00:00:00'); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+function calcRacha(sesiones: Sesion[]): number {
+  const sorted = [...sesiones].filter(s => s.completada).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  if (!sorted.length) return 0;
+  let streak = 0;
+  let prev = new Date(sorted[0]!.fecha + 'T00:00:00');
+  for (const s of sorted) {
+    const cur = new Date(s.fecha + 'T00:00:00');
+    const diff = Math.round((prev.getTime() - cur.getTime()) / (24 * 60 * 60 * 1000));
+    if (diff <= 2) { streak++; prev = cur; } else break;
+  }
+  return streak;
+}
+
+async function evaluateLogros(
+  alumnoId: string,
+  data: {
+    historial: HistorialPeso[];
+    datos: DatosFisicos | null;
+    progreso: ProgresoEj[];
+    sesiones: Sesion[];
+    earnedTypes: Set<string>;
+  }
+): Promise<Logro[]> {
+  const { historial, datos, progreso, sesiones, earnedTypes } = data;
+
+  const completadas = sesiones.filter(s => s.completada).length;
+  const racha = calcRacha(sesiones);
+
+  // Max strength gain across all exercises (first chronological entry → max weight)
+  const byEx = new Map<string, ProgresoEj[]>();
+  for (const p of progreso) {
+    const k = p.ejercicio_id ?? '';
+    if (!byEx.has(k)) byEx.set(k, []);
+    byEx.get(k)!.push(p);
+  }
+  const maxStrengthGain = Math.max(0, ...[...byEx.values()].map(entries => {
+    const byDate   = [...entries].sort((a, b) => a.fecha.localeCompare(b.fecha));
+    const byWeight = [...entries].sort((a, b) => (b.peso_kg ?? 0) - (a.peso_kg ?? 0));
+    return (byWeight[0]?.peso_kg ?? 0) - (byDate[0]?.peso_kg ?? 0);
+  }));
+
+  // Weight loss: oldest record minus newest record
+  const sortedHist = [...historial].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const weightLoss = sortedHist.length >= 2
+    ? sortedHist[0]!.peso_kg - sortedHist[sortedHist.length - 1]!.peso_kg
+    : 0;
+
+  // Training span in days
+  const sortedSes = [...sesiones].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const trainingDays = sortedSes.length > 0
+    ? Math.round((Date.now() - new Date(sortedSes[0]!.fecha + 'T00:00:00').getTime()) / (24 * 60 * 60 * 1000))
+    : 0;
+
+  // IMC with most recent weight
+  const peso   = historial[0]?.peso_kg ?? datos?.peso_kg ?? null;
+  const altura = datos?.altura_cm ?? null;
+  const imc    = peso && altura ? calcIMC(peso, altura) : null;
+
+  const DEFS = [
+    { tipo: 'primera_semana',  titulo: 'Primera semana completa',       descripcion: 'Completó 7 sesiones de entrenamiento.',                        check: completadas >= 7 },
+    { tipo: 'mes_consecutivo', titulo: '1 mes consecutivo',              descripcion: 'Mantuvo 30 sesiones seguidas (máx. 1 día de pausa).',           check: racha >= 30 },
+    { tipo: 'tres_meses',      titulo: '3 meses de entrenamiento',       descripcion: 'Lleva más de 3 meses entrenando con al menos 30 sesiones.',      check: trainingDays >= 90 && completadas >= 30 },
+    { tipo: 'primer_pr',       titulo: 'Primer récord personal',         descripcion: 'Registró su primer récord personal en un ejercicio.',           check: progreso.length >= 1 },
+    { tipo: 'cien_sesiones',   titulo: '100 sesiones completadas',       descripcion: 'Alcanzó 100 sesiones de entrenamiento.',                         check: completadas >= 100 },
+    { tipo: 'bajar_2kg',       titulo: 'Bajar 2 kg',                    descripcion: 'Perdió 2 kg desde su primer registro de peso.',                  check: weightLoss >= 2 },
+    { tipo: 'bajar_5kg',       titulo: 'Bajar 5 kg',                    descripcion: 'Perdió 5 kg desde su primer registro de peso.',                  check: weightLoss >= 5 },
+    { tipo: 'peso_10kg',       titulo: '+10 kg en ejercicio',            descripcion: 'Aumentó 10 kg en al menos un ejercicio.',                        check: maxStrengthGain >= 10 },
+    { tipo: 'peso_20kg',       titulo: '+20 kg en ejercicio',            descripcion: 'Aumentó 20 kg en al menos un ejercicio.',                        check: maxStrengthGain >= 20 },
+    { tipo: 'peso_30kg',       titulo: '+30 kg en ejercicio',            descripcion: 'Aumentó 30 kg en al menos un ejercicio.',                        check: maxStrengthGain >= 30 },
+    { tipo: 'imc_normal',      titulo: 'IMC en rango saludable',         descripcion: 'Alcanzó un IMC entre 18.5 y 25 (rango normal OMS).',             check: imc !== null && imc >= 18.5 && imc < 25 },
+  ];
+
+  const newLogros: Logro[] = [];
+  for (const def of DEFS) {
+    if (!def.check || earnedTypes.has(def.tipo)) continue;
+    const res = await otorgarLogro(alumnoId, { tipo: def.tipo, titulo: def.titulo, descripcion: def.descripcion });
+    if (res.data) {
+      newLogros.push({
+        id: res.data.id,
+        tipo: res.data.tipo,
+        titulo: res.data.titulo,
+        descripcion: res.data.descripcion,
+        fecha_obtenido: res.data.fecha_obtenido,
+      });
+    }
+  }
+  return newLogros;
+}
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -370,7 +461,6 @@ function TabCuerpo({ alumnoId, historial, datos, medidas, isPending, onAddMedida
 
 // ── Tab 3: Fuerza ─────────────────────────────────────────────────────────────
 
-const COMPOUND = ['Sentadilla con barra','Peso muerto','Press de banca plano','Press militar','Remo con barra'];
 
 function TabFuerza({ alumnoId, progreso, exercises, onAdd }: {
   alumnoId: string;
@@ -395,9 +485,10 @@ function TabFuerza({ alumnoId, progreso, exercises, onAdd }: {
 
   const maxLoads = useMemo(() => {
     return [...byExercise.entries()].map(([id, entries]) => {
-      const sorted = [...entries].sort((a,b) => (b.peso_kg??0) - (a.peso_kg??0));
+      const byWeight = [...entries].sort((a,b) => (b.peso_kg??0) - (a.peso_kg??0));
+      const byDate   = [...entries].sort((a,b) => a.fecha.localeCompare(b.fecha));
       const ex = exercises.find(e => e.id === id);
-      return { name: ex?.name ?? 'Ejercicio', max: sorted[0]?.peso_kg ?? null, inicial: sorted[sorted.length-1]?.peso_kg ?? null, count: entries.length };
+      return { name: ex?.name ?? 'Ejercicio', max: byWeight[0]?.peso_kg ?? null, inicial: byDate[0]?.peso_kg ?? null, count: entries.length };
     }).filter(x => x.max !== null).sort((a,b) => (b.max??0) - (a.max??0)).slice(0, 8);
   }, [byExercise, exercises]);
 
@@ -517,18 +608,7 @@ function TabAdherencia({ alumnoId, sesiones, onAdd }: {
   const perdidas    = sesiones.filter(s => !s.completada).length;
   const adherencia  = sesiones.length > 0 ? Math.round((completadas / sesiones.length) * 100) : null;
 
-  const racha = useMemo(() => {
-    const sorted = [...sesiones].filter(s => s.completada).sort((a,b) => b.fecha.localeCompare(a.fecha));
-    if (!sorted.length) return 0;
-    let streak = 0;
-    let prev = new Date(sorted[0]!.fecha + 'T00:00:00');
-    for (const s of sorted) {
-      const cur = new Date(s.fecha + 'T00:00:00');
-      const diff = Math.round((prev.getTime() - cur.getTime()) / (24*60*60*1000));
-      if (diff <= 2) { streak++; prev = cur; } else break;
-    }
-    return streak;
-  }, [sesiones]);
+  const racha = useMemo(() => calcRacha(sesiones), [sesiones]);
 
   const weeks = useMemo(() => {
     const map = new Map<string, { completadas: number; total: number }>();
@@ -545,14 +625,14 @@ function TabAdherencia({ alumnoId, sesiones, onAdd }: {
   }, [sesiones]);
 
   const calDays = useMemo(() => {
-    const set = new Set(sesiones.filter(s => s.completada).map(s => s.fecha));
+    const doneDates = new Set(sesiones.filter(s => s.completada).map(s => s.fecha));
+    const allDates  = new Set(sesiones.map(s => s.fecha));
     const days: { date: string; done: boolean; has: boolean }[] = [];
     const today = new Date();
     for (let i = 83; i >= 0; i--) {
       const d = new Date(today); d.setDate(today.getDate() - i);
       const key = d.toISOString().slice(0,10);
-      const allDates = new Set(sesiones.map(s => s.fecha));
-      days.push({ date: key, done: set.has(key), has: allDates.has(key) });
+      days.push({ date: key, done: doneDates.has(key), has: allDates.has(key) });
     }
     return days;
   }, [sesiones]);
@@ -703,11 +783,17 @@ function TabLogros({ alumnoId, logros }: { alumnoId: string; logros: Logro[] }) 
   }, [logros]);
 
   const UPCOMING = [
-    { tipo: 'primera_semana', titulo: 'Primera semana completa', descripcion: 'Completa 7 días de entrenamiento' },
-    { tipo: 'mes_consecutivo', titulo: '1 mes consecutivo', descripcion: 'Entrena durante 30 días seguidos' },
-    { tipo: 'primer_pr', titulo: 'Primer récord personal', descripcion: 'Registra un nuevo máximo en cualquier ejercicio' },
-    { tipo: 'bajar_2kg', titulo: 'Bajar 2 kg', descripcion: 'Pierde 2 kg desde el inicio' },
-    { tipo: 'peso_10kg', titulo: '+10 kg en ejercicio compuesto', descripcion: 'Aumenta 10 kg en cualquier compuesto' },
+    { tipo: 'primera_semana',  titulo: 'Primera semana completa',  descripcion: 'Completa 7 sesiones de entrenamiento' },
+    { tipo: 'mes_consecutivo', titulo: '1 mes consecutivo',         descripcion: 'Mantén 30 sesiones seguidas (máx. 1 día de pausa)' },
+    { tipo: 'tres_meses',      titulo: '3 meses de entrenamiento',  descripcion: 'Lleva más de 3 meses entrenando con al menos 30 sesiones' },
+    { tipo: 'primer_pr',       titulo: 'Primer récord personal',    descripcion: 'Registra un nuevo máximo en cualquier ejercicio' },
+    { tipo: 'cien_sesiones',   titulo: '100 sesiones completadas',  descripcion: 'Alcanza las 100 sesiones de entrenamiento' },
+    { tipo: 'bajar_2kg',       titulo: 'Bajar 2 kg',               descripcion: 'Pierde 2 kg desde tu primer registro de peso' },
+    { tipo: 'bajar_5kg',       titulo: 'Bajar 5 kg',               descripcion: 'Pierde 5 kg desde tu primer registro de peso' },
+    { tipo: 'peso_10kg',       titulo: '+10 kg en ejercicio',       descripcion: 'Aumenta 10 kg en al menos un ejercicio' },
+    { tipo: 'peso_20kg',       titulo: '+20 kg en ejercicio',       descripcion: 'Aumenta 20 kg en al menos un ejercicio' },
+    { tipo: 'peso_30kg',       titulo: '+30 kg en ejercicio',       descripcion: 'Aumenta 30 kg en al menos un ejercicio' },
+    { tipo: 'imc_normal',      titulo: 'IMC en rango saludable',    descripcion: 'Alcanza un IMC entre 18.5 y 25 (rango normal OMS)' },
   ].filter(u => !logros.find(l => l.tipo === u.tipo));
 
   return (
@@ -817,15 +903,33 @@ export default function MetricasModule({ students, exercises, initialStudentId }
       supabase.from('sesiones_entrenamiento').select('id,fecha,completada').eq('alumno_id', selectedId).order('fecha', { ascending: false }),
       supabase.from('logros').select('id,tipo,titulo,descripcion,fecha_obtenido').eq('alumno_id', selectedId).order('fecha_obtenido', { ascending: false }),
     ]).then(([h, d, p, r, m, pr, s, l]) => {
-      setHistorial((h.data ?? []) as HistorialPeso[]);
-      setDatos(d.data as DatosFisicos | null);
+      const loadedHistorial = (h.data ?? []) as HistorialPeso[];
+      const loadedDatos     = d.data as DatosFisicos | null;
+      const loadedProgreso  = (pr.data ?? []) as unknown as ProgresoEj[];
+      const loadedSesiones  = (s.data ?? []) as Sesion[];
+      const loadedLogros    = (l.data ?? []) as Logro[];
+
+      setHistorial(loadedHistorial);
+      setDatos(loadedDatos);
       setPlan(p.data as PlanActivo | null);
       setRutina(r.data as RutinaActiva | null);
       setMedidas((m.data ?? []) as MedidaCorporal[]);
-      setProgreso((pr.data ?? []) as unknown as ProgresoEj[]);
-      setSesiones((s.data ?? []) as Sesion[]);
-      setLogros((l.data ?? []) as Logro[]);
+      setProgreso(loadedProgreso);
+      setSesiones(loadedSesiones);
+      setLogros(loadedLogros);
       setLoading(false);
+
+      // Evaluate and auto-grant any newly qualified logros
+      const earnedTypes = new Set(loadedLogros.map(lg => lg.tipo));
+      evaluateLogros(selectedId, {
+        historial: loadedHistorial,
+        datos: loadedDatos,
+        progreso: loadedProgreso,
+        sesiones: loadedSesiones,
+        earnedTypes,
+      }).then(newLogros => {
+        if (newLogros.length > 0) setLogros(prev => [...newLogros, ...prev]);
+      });
     });
   }, [selectedId, supabase]);
 

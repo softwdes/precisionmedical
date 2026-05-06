@@ -47,3 +47,24 @@ export async function addSesionEntrenamiento(
     return {};
   } catch (e) { return { error: (e as Error).message }; }
 }
+
+export async function otorgarLogro(
+  alumnoId: string,
+  logro: { tipo: string; titulo: string; descripcion?: string }
+): Promise<{ data?: { id: string; tipo: string; titulo: string; descripcion: string | null; fecha_obtenido: string }; error?: string }> {
+  try {
+    const { supabase } = await getAuthContext();
+    const { data: existing } = await supabase
+      .from('logros').select('id').eq('alumno_id', alumnoId).eq('tipo', logro.tipo).maybeSingle();
+    if (existing) return {};
+    const { data, error } = await supabase.from('logros').insert({
+      alumno_id: alumnoId,
+      tipo: logro.tipo,
+      titulo: logro.titulo,
+      descripcion: logro.descripcion ?? null,
+    }).select('id,tipo,titulo,descripcion,fecha_obtenido').single();
+    if (error) return { error: error.message };
+    revalidatePath('/metricas');
+    return { data: data as { id: string; tipo: string; titulo: string; descripcion: string | null; fecha_obtenido: string } };
+  } catch (e) { return { error: (e as Error).message }; }
+}

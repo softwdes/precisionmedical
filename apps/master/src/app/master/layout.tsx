@@ -32,7 +32,10 @@ export default async function MasterLayout({ children }: { children: React.React
   try {
     const ctx = await getAdminContext();
     email = ctx.email;
-  } catch {
+  } catch (e) {
+    if (e instanceof Error && e.message === 'forbidden') {
+      redirect('/unauthorized');
+    }
     redirect('/login');
   }
 
@@ -78,9 +81,9 @@ export default async function MasterLayout({ children }: { children: React.React
         }}>
           <div style={{
             width: 32, height: 32, borderRadius: '50%',
-            background: 'rgba(83,74,183,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            background: V, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke={V} strokeWidth="2" style={{ width: 15, height: 15 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" style={{ width: 15, height: 15 }}>
               <circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>
             </svg>
           </div>

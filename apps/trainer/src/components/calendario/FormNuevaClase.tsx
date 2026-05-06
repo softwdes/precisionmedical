@@ -62,7 +62,7 @@ interface Props {
   fecha?: string | undefined;
   hora?: string | undefined;
   clase?: Clase | undefined;
-  onGuardar: () => void;
+  onGuardar: (info: { recurrencia: TipoRecurrencia; fecha: string }) => void;
   onCancelar: () => void;
 }
 
@@ -148,10 +148,12 @@ export default function FormNuevaClase({ fecha, hora, clase, onGuardar, onCancel
     const fechaStr = formatDateES(fechaHasta);
 
     if (recurrencia === 'rango') {
-      return `1 clase base + ${n} repetición${n !== 1 ? 'es' : ''} semanal${n !== 1 ? 'es' : ''} hasta ${fechaStr}. Total: ${fechas.length} clases.`;
+      return `Clase cada día del ${formatDateES(fechaVal)} al ${fechaStr}. Total: ${fechas.length} clases.`;
     }
     if (recurrencia === 'frecuencia') {
-      const label = frecuenciaTipo === 'diario' ? 'Diario' : 'Interdiario';
+      const label = frecuenciaTipo === 'diario' ? 'Diario'
+                  : frecuenciaTipo === 'interdiario' ? 'Interdiario'
+                  : 'Semanal';
       return `${label}: 1 clase base + ${n} repetición${n !== 1 ? 'es' : ''} hasta ${fechaStr}. Total: ${fechas.length} clases.`;
     }
     return '';
@@ -205,7 +207,7 @@ export default function FormNuevaClase({ fecha, hora, clase, onGuardar, onCancel
         } else {
           await crearClase(formData);
         }
-        onGuardar();
+        onGuardar({ recurrencia, fecha: fechaVal });
       } catch (err) {
         setError((err as Error).message);
       }
@@ -478,6 +480,7 @@ export default function FormNuevaClase({ fecha, hora, clase, onGuardar, onCancel
                   >
                     <option value="diario">Diario</option>
                     <option value="interdiario">Interdiario</option>
+                    <option value="semanal">Semanal</option>
                   </select>
                 </div>
               )}

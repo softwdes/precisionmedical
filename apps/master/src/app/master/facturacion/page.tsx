@@ -1,6 +1,7 @@
 import { getAdminContext } from '@/lib/supabase-server';
 import { getBillingHistory, getBillingMetrics } from '@/actions/master';
 import FacturacionTable from '@/components/master/FacturacionTable';
+import MasterUserMenu from '@/components/MasterUserMenu';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,9 @@ export default async function FacturacionPage() {
       <header className="topbar">
         <div className="topbar-title">
           Master <span className="sep">//</span> <span className="crumb-active">Facturación</span>
+        </div>
+        <div className="topbar-right">
+          <MasterUserMenu />
         </div>
       </header>
 

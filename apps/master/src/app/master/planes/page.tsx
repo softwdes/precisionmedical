@@ -1,6 +1,7 @@
 import { getAdminContext } from '@/lib/supabase-server';
 import { getPlanes } from '@/actions/master';
 import PlanesGrid from '@/components/master/PlanesGrid';
+import MasterUserMenu from '@/components/MasterUserMenu';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,9 @@ export default async function PlanesPage() {
       <header className="topbar">
         <div className="topbar-title">
           Master <span className="sep">//</span> <span className="crumb-active">Planes</span>
+        </div>
+        <div className="topbar-right">
+          <MasterUserMenu />
         </div>
       </header>
 

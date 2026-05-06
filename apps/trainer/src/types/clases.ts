@@ -1,7 +1,7 @@
 export type TipoClase = 'personal' | 'grupal' | 'evaluacion' | 'bloque';
 export type ColorClase = 'green' | 'blue' | 'purple' | 'amber' | 'coral';
 export type TipoRecurrencia = 'ninguna' | 'rango' | 'frecuencia';
-export type FrecuenciaTipo = 'diario' | 'interdiario';
+export type FrecuenciaTipo = 'diario' | 'interdiario' | 'semanal';
 
 export interface ClaseAlumno {
   alumno_id: string;

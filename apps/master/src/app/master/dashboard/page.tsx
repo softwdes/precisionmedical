@@ -4,6 +4,7 @@ import {
   getTopTrainers, getRecentActivity, getAlertBanners,
 } from '@/actions/master';
 import MasterDashboard from '@/components/master/MasterDashboard';
+import MasterUserMenu from '@/components/MasterUserMenu';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -37,12 +38,7 @@ export default async function DashboardPage() {
         </div>
         <div className="topbar-right">
           <div className="live-indicator">En Vivo</div>
-          <div className="user-chip">
-            <div>
-              <div className="user-name">Super Admin</div>
-              <div className="user-role">SaaS Master</div>
-            </div>
-          </div>
+          <MasterUserMenu />
         </div>
       </header>
 

@@ -47,6 +47,7 @@ interface Props {
 
 export default function DetalleClase({ clase, fechaOcurrencia, onEditar, onEliminar, onCerrar }: Props) {
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
 
   const colorHex = COLOR_HEX[clase.color] ?? '#1D9E75';
@@ -56,7 +57,7 @@ export default function DetalleClase({ clase, fechaOcurrencia, onEditar, onElimi
     ? clase.clase_alumnos.map(a => a.students?.full_name ?? '—').join(', ')
     : '—';
 
-  async function handleEliminar() {
+  async function handleConfirmarEliminar() {
     setDeleting(true);
     setError('');
     try {
@@ -65,6 +66,7 @@ export default function DetalleClase({ clase, fechaOcurrencia, onEditar, onElimi
     } catch (err) {
       setError((err as Error).message);
       setDeleting(false);
+      setConfirmDelete(false);
     }
   }
 
@@ -74,7 +76,9 @@ export default function DetalleClase({ clase, fechaOcurrencia, onEditar, onElimi
       return `Rango hasta ${clase.fecha_hasta ? formatDateES(clase.fecha_hasta) : '—'}`;
     }
     if (clase.recurrencia === 'frecuencia') {
-      const freqLabel = clase.frecuencia_tipo === 'diario' ? 'Diario' : 'Interdiario';
+      const freqLabel = clase.frecuencia_tipo === 'diario' ? 'Diario'
+                      : clase.frecuencia_tipo === 'interdiario' ? 'Interdiario'
+                      : 'Semanal';
       return `${freqLabel} hasta ${clase.fecha_hasta ? formatDateES(clase.fecha_hasta) : '—'}`;
     }
     return null;
@@ -123,6 +127,41 @@ export default function DetalleClase({ clase, fechaOcurrencia, onEditar, onElimi
       </div>
 
       <div className="modal-body">
+        {confirmDelete && (
+          <div style={{
+            padding: '12px 14px',
+            background: 'rgba(255,80,80,0.1)',
+            border: '1px solid rgba(255,80,80,0.3)',
+            borderRadius: '6px',
+            fontSize: '13px',
+            color: '#ff6b6b',
+            marginBottom: '12px',
+          }}>
+            <div style={{ marginBottom: '10px', fontWeight: 500 }}>
+              ¿Eliminar &quot;{clase.titulo}&quot;? Esta acción no se puede deshacer.
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ color: '#ff6b6b', borderColor: 'rgba(255,80,80,0.5)', fontSize: '13px', padding: '5px 14px' }}
+                onClick={handleConfirmarEliminar}
+                disabled={deleting}
+              >
+                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ fontSize: '13px', padding: '5px 14px' }}
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
         {error && (
           <div style={{
             padding: '10px 14px',
@@ -176,10 +215,10 @@ export default function DetalleClase({ clase, fechaOcurrencia, onEditar, onElimi
           type="button"
           className="btn btn-outline"
           style={{ color: '#ff6b6b', borderColor: 'rgba(255,80,80,0.4)' }}
-          onClick={handleEliminar}
+          onClick={() => { setConfirmDelete(true); setError(''); }}
           disabled={deleting}
         >
-          {deleting ? 'Eliminando...' : 'Eliminar'}
+          Eliminar
         </button>
         <button
           type="button"

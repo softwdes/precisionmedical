@@ -1,5 +1,6 @@
 import { getAdminContext } from '@/lib/supabase-server';
 import { getReporteMetrics } from '@/actions/master';
+import MasterUserMenu from '@/components/MasterUserMenu';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,9 @@ export default async function ReportesPage() {
       <header className="topbar">
         <div className="topbar-title">
           Master <span className="sep">//</span> <span className="crumb-active">Reportes</span>
+        </div>
+        <div className="topbar-right">
+          <MasterUserMenu />
         </div>
       </header>
 

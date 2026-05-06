@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -34,6 +34,7 @@ const COLOR_MAP: Record<string, string> = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function SchedulePage() {
+  const calendarRef = useRef<FullCalendar>(null);
   const [clases, setClases] = useState<Clase[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
   const [presetFecha, setPresetFecha] = useState<string | undefined>(undefined);
@@ -45,7 +46,7 @@ export default function SchedulePage() {
 
   const fetchClases = useCallback(async () => {
     try {
-      const res = await fetch('/api/clases');
+      const res = await fetch('/api/clases', { cache: 'no-store' });
       const data: unknown = await res.json();
       if (Array.isArray(data)) setClases(data as Clase[]);
     } catch (err) {
@@ -188,6 +189,7 @@ export default function SchedulePage() {
           {/* FullCalendar */}
           <div className="fc-precision">
             <FullCalendar
+              ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="timeGridWeek"
               locale={esLocale}
@@ -265,7 +267,16 @@ export default function SchedulePage() {
               fecha={editingClase?.fecha ?? presetFecha}
               hora={editingClase ? undefined : presetHora}
               clase={editingClase}
-              onGuardar={() => { setShowNewModal(false); setEditingClase(undefined); fetchClases(); }}
+              onGuardar={({ recurrencia, fecha }) => {
+                setShowNewModal(false);
+                setEditingClase(undefined);
+                fetchClases().then(() => {
+                  if (recurrencia !== 'ninguna') {
+                    const api = calendarRef.current?.getApi();
+                    if (api) api.changeView('dayGridMonth', fecha);
+                  }
+                });
+              }}
               onCancelar={() => { setShowNewModal(false); setEditingClase(undefined); }}
             />
           </div>

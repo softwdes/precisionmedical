@@ -1,6 +1,7 @@
 import { getAdminContext } from '@/lib/supabase-server';
 import { getMasterTrainers, getPlanes } from '@/actions/master';
 import TrainersTable from '@/components/master/TrainersTable';
+import MasterUserMenu from '@/components/MasterUserMenu';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,7 @@ export default async function TrainersPage() {
         </div>
         <div className="topbar-right">
           <div className="live-indicator">En Vivo</div>
+          <MasterUserMenu />
         </div>
       </header>
 

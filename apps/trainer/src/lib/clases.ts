@@ -1,22 +1,25 @@
 import type { Clase, NuevaClaseForm } from '@/types/clases';
 
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y!, m! - 1, d!);
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 export function fechasDeClase(clase: Clase): string[] {
   const fechas: string[] = [clase.fecha];
 
   if (clase.recurrencia === 'rango' && clase.fecha_hasta) {
-    let cur = addDays(clase.fecha, 7);
+    let cur = addDays(clase.fecha, 1);
     while (cur <= clase.fecha_hasta) {
       fechas.push(cur);
-      cur = addDays(cur, 7);
+      cur = addDays(cur, 1);
     }
   } else if (clase.recurrencia === 'frecuencia' && clase.fecha_hasta && clase.frecuencia_tipo) {
-    const step = clase.frecuencia_tipo === 'diario' ? 1 : 2;
+    const step = clase.frecuencia_tipo === 'diario' ? 1
+               : clase.frecuencia_tipo === 'interdiario' ? 2
+               : 7;
     let cur = addDays(clase.fecha, step);
     while (cur <= clase.fecha_hasta) {
       fechas.push(cur);

@@ -56,17 +56,17 @@ export default async function TrainerDetailPage({ params }: PageProps) {
             </svg>
           </span>
           <div>
-            <div className="brand-name">Precision</div>
-            <div className="brand-tag">Master Panel</div>
+            <div className="brand-name">Neural <span style={{ color: 'var(--accent)' }}>Trainer</span></div>
+            <div className="brand-tag">Master</div>
           </div>
         </div>
 
         <nav className="nav">
-          <Link href="/master" className="nav-item">Dashboard</Link>
-          <Link href="/master/trainers" className="nav-item active">Trainers</Link>
-          <Link href="/master/suscripciones" className="nav-item">Suscripciones</Link>
-          <Link href="/master/auditoria" className="nav-item">Auditoría</Link>
-          <Link href="/master/soporte" className="nav-item">Soporte</Link>
+          <Link href="/" className="nav-item">Dashboard</Link>
+          <Link href="/trainers" className="nav-item active">Trainers</Link>
+          <Link href="/suscripciones" className="nav-item">Suscripciones</Link>
+          <Link href="/auditoria" className="nav-item">Auditoría</Link>
+          <Link href="/soporte" className="nav-item">Soporte</Link>
         </nav>
 
         <div className="system-status">
@@ -79,7 +79,7 @@ export default async function TrainerDetailPage({ params }: PageProps) {
         <header className="topbar">
           <div className="topbar-title">
             Master Panel <span className="sep">//</span> 
-            <Link href="/master/trainers" className="crumb">Trainers</Link> <span className="sep">/</span> 
+            <Link href="/trainers" className="crumb">Trainers</Link> <span className="sep">/</span> 
             <span className="crumb-active">{trainer.business_name}</span>
           </div>
           <div className="topbar-right">

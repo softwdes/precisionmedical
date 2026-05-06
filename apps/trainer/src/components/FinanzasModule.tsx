@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useCurrencySymbol, LOCALE_DATA } from '@/lib/useCurrencySymbol';
 import {
   calcEstadoCuota,
   diasHastaVencimiento,
@@ -10,6 +11,7 @@ import {
 } from '@/lib/payments';
 import {
   createCuota,
+  updateCuota,
   updateCuotaEstado,
   deleteCuota,
   logWhatsappMensaje,
@@ -164,9 +166,6 @@ function AlertaBanner({ vencidos, proximos }: AlertaBannerProps) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatMonto(n: number): string {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(n);
-}
 
 function formatFecha(dateStr: string): string {
   if (!dateStr) return '—';
@@ -179,6 +178,11 @@ function formatFechaHora(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function fmtPeriodo(ym: string): string {
+  const [y, m] = ym.split('-');
+  return `${MESES_FULL[parseInt(m, 10) - 1] ?? ym} ${y}`;
+}
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
@@ -190,6 +194,29 @@ function currentMonthStr(): string {
   return `${d.getFullYear()}-${mm}`;
 }
 
+// ─── WA Composer ─────────────────────────────────────────────────────────────
+
+const WA_COMPOSER_TYPES = [
+  { tipo: 'vencimiento',   label: 'Recordatorio' },
+  { tipo: 'vencido',       label: 'Cuota Vencida' },
+  { tipo: 'cobro',         label: 'Cobro Confirmado' },
+  { tipo: 'bienvenida',    label: 'Bienvenida' },
+  { tipo: 'rutina',        label: 'Nueva Rutina' },
+  { tipo: 'personalizado', label: 'Personalizado' },
+];
+
+const WA_GREEN = '#25D366';
+
+function WaChipIcon({ tipo }: { tipo: string }) {
+  const p = { width: 13, height: 13, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 } as const;
+  if (tipo === 'vencimiento') return <svg {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+  if (tipo === 'vencido')     return <svg {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+  if (tipo === 'cobro')       return <svg {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+  if (tipo === 'bienvenida')  return <svg {...p}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>;
+  if (tipo === 'rutina')      return <svg {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+  return <svg {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function FinanzasModule({
@@ -199,6 +226,7 @@ export default function FinanzasModule({
   initialPlantillas,
   initialConfig,
 }: Props) {
+  const { format: formatMonto, locale: currencyLocale, saveLocale } = useCurrencySymbol();
   const [activeTab, setActiveTab] = useState<'cobros' | 'vencimientos' | 'whatsapp' | 'historial' | 'configuracion'>('cobros');
   const [cuotas, setCuotas] = useState<Cuota[]>(initialCuotas);
   const [waMensajes, setWaMensajes] = useState<WaMensaje[]>(initialWaMensajes);
@@ -226,6 +254,31 @@ export default function FinanzasModule({
   const [cFechaPago, setCFechaPago] = useState(todayStr());
   const [cMetodo, setCMetodo] = useState('efectivo');
   const [cSaving, setCobrarSaving] = useState(false);
+
+  // Edit modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTarget, setEditTarget] = useState<Cuota | null>(null);
+  const [editMonto, setEditMonto] = useState('');
+  const [editPeriodo, setEditPeriodo] = useState('');
+  const [editFechaVenc, setEditFechaVenc] = useState('');
+  const [editFechaPago, setEditFechaPago] = useState('');
+  const [editMetodo, setEditMetodo] = useState('');
+  const [editEstado, setEditEstado] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  // Delete modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Cuota | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+
+  // WA Composer modal
+  const [showWAComposer, setShowWAComposer] = useState(false);
+  const [waComposerCuota, setWaComposerCuota] = useState<Cuota | null>(null);
+  const [waComposerTipo, setWaComposerTipo] = useState('vencimiento');
+  const [waComposerMsg, setWaComposerMsg] = useState('');
+  const [waComposerCopied, setWaComposerCopied] = useState(false);
+  const waComposerTARef = useRef<HTMLTextAreaElement>(null);
 
   // ── Tab 3: WhatsApp ──
   const [waAlumno, setWaAlumno] = useState('');
@@ -337,10 +390,13 @@ export default function FinanzasModule({
 
     if (fAbrirWA && fFechaPago && student?.phone) {
       const tpl = DEFAULT_TEMPLATES['cobro'] ?? '';
+      const proxDate = new Date(fFechaVenc.slice(0, 10) + 'T00:00:00');
+      proxDate.setMonth(proxDate.getMonth() + 1);
       const msg = buildMensaje(tpl, {
         nombre: student.full_name,
         monto: formatMonto(parseFloat(fMonto)),
         fecha_vencimiento: formatFecha(fFechaVenc),
+        proxima_fecha: formatFecha(proxDate.toISOString().slice(0, 10)),
       });
       window.open(generarEnlaceWA(student.phone, msg), '_blank');
     }
@@ -381,14 +437,74 @@ export default function FinanzasModule({
     setShowCobrarModal(true);
   }
 
+  function openEditModal(cuota: Cuota) {
+    setEditTarget(cuota);
+    setEditMonto(String(cuota.monto));
+    setEditPeriodo(cuota.periodo);
+    setEditFechaVenc(cuota.fecha_vencimiento);
+    setEditFechaPago(cuota.fecha_pago ?? todayStr());
+    setEditMetodo(cuota.metodo_pago ?? '');
+    setEditEstado(cuota.estado);
+    setEditError('');
+    setShowEditModal(true);
+  }
+
+  async function handleEditSave() {
+    if (!editTarget) return;
+    if (!editMonto || !editPeriodo || !editFechaVenc) {
+      setEditError('Completá los campos obligatorios.');
+      return;
+    }
+    setEditSaving(true);
+    setEditError('');
+    const result = await updateCuota(editTarget.id, {
+      monto: parseFloat(editMonto),
+      periodo: editPeriodo,
+      fecha_vencimiento: editFechaVenc,
+      fecha_pago: editFechaPago || null,
+      metodo_pago: editMetodo || null,
+      estado: editEstado,
+    });
+    setEditSaving(false);
+    if (result.error) { setEditError(result.error); return; }
+    setCuotas(prev =>
+      prev.map(c =>
+        c.id === editTarget.id
+          ? { ...c, monto: parseFloat(editMonto), periodo: editPeriodo, fecha_vencimiento: editFechaVenc, fecha_pago: editFechaPago || null, metodo_pago: editMetodo || null, estado: editEstado }
+          : c
+      )
+    );
+    setShowEditModal(false);
+    setEditTarget(null);
+  }
+
+  function openDeleteModal(cuota: Cuota) {
+    setDeleteTarget(cuota);
+    setShowDeleteModal(true);
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    const result = await deleteCuota(deleteTarget.id);
+    setDeleteSaving(false);
+    if (result.error) return;
+    setCuotas(prev => prev.filter(c => c.id !== deleteTarget.id));
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
+  }
+
   function openWA(cuota: Cuota, tipo: string = 'vencimiento') {
     const tel = cuota.students?.phone ?? '';
     if (!tel) return;
     const tpl = DEFAULT_TEMPLATES[tipo] ?? DEFAULT_TEMPLATES['vencimiento'] ?? '';
+    const proxDate = new Date(cuota.fecha_vencimiento.slice(0, 10) + 'T00:00:00');
+    proxDate.setMonth(proxDate.getMonth() + 1);
     const msg = buildMensaje(tpl, {
       nombre: cuota.students?.full_name ?? '',
       monto: formatMonto(cuota.monto),
       fecha_vencimiento: formatFecha(cuota.fecha_vencimiento),
+      proxima_fecha: formatFecha(proxDate.toISOString().slice(0, 10)),
     });
     window.open(generarEnlaceWA(tel, msg), '_blank');
     void logWhatsappMensaje({
@@ -396,6 +512,61 @@ export default function FinanzasModule({
       tipo_mensaje: tipo,
       contenido: msg,
     });
+  }
+
+  function buildComposerMsg(cuota: Cuota, tipo: string): string {
+    if (tipo === 'personalizado') return '';
+    const tpl = getPlantillaContent(tipo);
+    const proxDate = new Date(cuota.fecha_vencimiento.slice(0, 10) + 'T00:00:00');
+    proxDate.setMonth(proxDate.getMonth() + 1);
+    const proxima_fecha = formatFecha(proxDate.toISOString().slice(0, 10));
+    return buildMensaje(tpl, {
+      nombre: cuota.students?.full_name ?? '',
+      monto: formatMonto(cuota.monto),
+      fecha_vencimiento: formatFecha(cuota.fecha_vencimiento),
+      proxima_fecha,
+    });
+  }
+
+  function openWAComposer(cuota: Cuota, tipo: string = 'vencimiento') {
+    setWaComposerCuota(cuota);
+    setWaComposerTipo(tipo);
+    setWaComposerMsg(buildComposerMsg(cuota, tipo));
+    setWaComposerCopied(false);
+    setShowWAComposer(true);
+  }
+
+  function handleComposerTipo(tipo: string) {
+    setWaComposerTipo(tipo);
+    if (waComposerCuota) setWaComposerMsg(buildComposerMsg(waComposerCuota, tipo));
+  }
+
+  function insertComposerVar(variable: string) {
+    const ta = waComposerTARef.current;
+    if (!ta) { setWaComposerMsg(prev => prev + variable); return; }
+    const s = ta.selectionStart;
+    const e = ta.selectionEnd;
+    const next = waComposerMsg.slice(0, s) + variable + waComposerMsg.slice(e);
+    setWaComposerMsg(next);
+    requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(s + variable.length, s + variable.length); });
+  }
+
+  async function handleWAComposerSend() {
+    if (!waComposerCuota) return;
+    const tel = waComposerCuota.students?.phone ?? '';
+    if (!tel) return;
+    window.open(generarEnlaceWA(tel, waComposerMsg), '_blank');
+    void logWhatsappMensaje({ alumno_id: waComposerCuota.alumno_id, tipo_mensaje: waComposerTipo, contenido: waComposerMsg });
+    setWaMensajes(prev => [{
+      id: crypto.randomUUID(),
+      alumno_id: waComposerCuota.alumno_id,
+      tipo_mensaje: waComposerTipo,
+      contenido: waComposerMsg,
+      fecha_envio: new Date().toISOString(),
+      estado: 'enviado',
+      students: { full_name: waComposerCuota.students?.full_name ?? '' },
+    }, ...prev]);
+    setShowWAComposer(false);
   }
 
   // ─── Vencimientos Tab Data ──────────────────────────────────────────────────
@@ -415,10 +586,17 @@ export default function FinanzasModule({
   function getWaPreviewText(): string {
     if (waTipo === 'personalizado') return waCustom;
     const tpl = DEFAULT_TEMPLATES[waTipo] ?? '';
+    const proxima_fecha = (() => {
+      if (!waLatestCuota) return '{proxima_fecha}';
+      const d = new Date(waLatestCuota.fecha_vencimiento.slice(0, 10) + 'T00:00:00');
+      d.setMonth(d.getMonth() + 1);
+      return formatFecha(d.toISOString().slice(0, 10));
+    })();
     return buildMensaje(tpl, {
       nombre: waStudent?.full_name ?? '{nombre}',
       monto: waLatestCuota ? formatMonto(waLatestCuota.monto) : '{monto}',
       fecha_vencimiento: waLatestCuota ? formatFecha(waLatestCuota.fecha_vencimiento) : '{fecha_vencimiento}',
+      proxima_fecha,
     });
   }
 
@@ -646,7 +824,7 @@ export default function FinanzasModule({
                             {cuota ? formatMonto(cuota.monto) : '—'}
                           </td>
                           <td>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                               {cuota && cuota.estado !== 'pagado' && (
                                 <button
                                   className="btn btn-outline"
@@ -660,9 +838,31 @@ export default function FinanzasModule({
                                 <button
                                   className="btn btn-ghost"
                                   style={{ fontSize: '12px', padding: '4px 10px' }}
-                                  onClick={() => openWA(cuota, cuota.estado === 'vencido' ? 'vencido' : 'vencimiento')}
+                                  onClick={() => openWAComposer(cuota, cuota.estado === 'vencido' ? 'vencido' : 'vencimiento')}
                                 >
-                                  WA
+                                  <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15" aria-label="WhatsApp">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                  </svg>
+                                </button>
+                              )}
+                              {cuota && (
+                                <button
+                                  className="btn btn-ghost"
+                                  style={{ padding: '4px 7px', color: '#94a3b8' }}
+                                  title="Editar"
+                                  onClick={() => openEditModal(cuota)}
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </button>
+                              )}
+                              {cuota && (
+                                <button
+                                  className="btn btn-ghost"
+                                  style={{ padding: '4px 7px', color: '#ef4444' }}
+                                  title="Eliminar"
+                                  onClick={() => openDeleteModal(cuota)}
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                                 </button>
                               )}
                             </div>
@@ -721,7 +921,7 @@ export default function FinanzasModule({
                             </td>
                             <td>{formatMonto(c.monto)}</td>
                             <td>
-                              <div style={{ display: 'flex', gap: '8px' }}>
+                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                                 <button
                                   className="btn btn-outline"
                                   style={{ fontSize: '12px', padding: '4px 10px' }}
@@ -732,12 +932,29 @@ export default function FinanzasModule({
                                 {c.students?.phone && (
                                   <button
                                     className="btn btn-ghost"
-                                    style={{ fontSize: '12px', padding: '4px 10px' }}
-                                    onClick={() => openWA(c, 'vencido')}
+                                    style={{ fontSize: '12px', padding: '4px 8px', color: WA_GREEN }}
+                                    title="Enviar WhatsApp"
+                                    onClick={() => openWAComposer(c, 'vencido')}
                                   >
-                                    WA
+                                    <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                                   </button>
                                 )}
+                                <button
+                                  className="btn btn-ghost"
+                                  style={{ padding: '4px 7px', color: '#94a3b8' }}
+                                  title="Editar"
+                                  onClick={() => openEditModal(c)}
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </button>
+                                <button
+                                  className="btn btn-ghost"
+                                  style={{ padding: '4px 7px', color: '#ef4444' }}
+                                  title="Eliminar"
+                                  onClick={() => openDeleteModal(c)}
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -802,15 +1019,34 @@ export default function FinanzasModule({
                               </td>
                               <td>{formatMonto(c.monto)}</td>
                               <td>
-                                {c.students?.phone && (
+                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                  {c.students?.phone && (
+                                    <button
+                                      className="btn btn-ghost"
+                                      style={{ fontSize: '12px', padding: '4px 8px', color: WA_GREEN }}
+                                      title="Enviar WhatsApp"
+                                      onClick={() => openWAComposer(c, 'vencimiento')}
+                                    >
+                                      <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                    </button>
+                                  )}
                                   <button
                                     className="btn btn-ghost"
-                                    style={{ fontSize: '12px', padding: '4px 10px' }}
-                                    onClick={() => openWA(c, 'vencimiento')}
+                                    style={{ padding: '4px 7px', color: '#94a3b8' }}
+                                    title="Editar"
+                                    onClick={() => openEditModal(c)}
                                   >
-                                    WA
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                   </button>
-                                )}
+                                  <button
+                                    className="btn btn-ghost"
+                                    style={{ padding: '4px 7px', color: '#ef4444' }}
+                                    title="Eliminar"
+                                    onClick={() => openDeleteModal(c)}
+                                  >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -946,7 +1182,7 @@ export default function FinanzasModule({
                   onClick={() => void handleWAEnviar()}
                   disabled={!waAlumno || !waStudent?.phone}
                 >
-                  Abrir en WhatsApp
+                  Enviar a WhatsApp
                 </button>
               </div>
               {waAlumno && !waStudent?.phone && (
@@ -1044,7 +1280,7 @@ export default function FinanzasModule({
                           <tr key={c.id}>
                             <td>{c.fecha_pago ? formatFecha(c.fecha_pago) : '—'}</td>
                             <td>{c.students?.full_name ?? '—'}</td>
-                            <td>{c.periodo}</td>
+                            <td>{fmtPeriodo(c.periodo)}</td>
                             <td>{formatMonto(c.monto)}</td>
                             <td>{c.metodo_pago ? <MetodoTag metodo={c.metodo_pago} /> : '—'}</td>
                             <td><StatusBadge estado={c.estado} /></td>
@@ -1081,6 +1317,32 @@ export default function FinanzasModule({
       {/* ── TAB 5: CONFIGURACIÓN ─────────────────────────────────────────── */}
       {activeTab === 'configuracion' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Moneda */}
+          <div className="card">
+            <div className="card-head">
+              <div className="card-title">Moneda</div>
+              <div className="card-subtitle">Se aplica a todos los montos en la app</div>
+            </div>
+            <div className="card-body card-body--padded">
+              <div className="form-group">
+                <label className="label">País / Moneda</label>
+                <select
+                  className="select"
+                  style={{ maxWidth: '320px' }}
+                  value={currencyLocale}
+                  onChange={e => saveLocale(e.target.value)}
+                >
+                  {Object.entries(LOCALE_DATA).map(([key, d]) => (
+                    <option key={key} value={key}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+              <p style={{ fontSize: '13px', color: '#555', marginTop: '4px' }}>
+                Símbolo actual: <strong style={{ color: '#ccc' }}>{(LOCALE_DATA[currencyLocale] ?? LOCALE_DATA['es-AR']!).symbol}</strong>
+              </p>
+            </div>
+          </div>
+
           {/* Recordatorios */}
           <div className="card">
             <div className="card-head">
@@ -1389,6 +1651,282 @@ export default function FinanzasModule({
                 disabled={fSaving}
               >
                 {fSaving ? 'Guardando...' : 'Registrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: WA Composer ───────────────────────────────────────────── */}
+      {showWAComposer && waComposerCuota && (
+        <div className="modal-overlay" onClick={() => setShowWAComposer(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '560px', width: '100%' }}>
+
+            {/* Header */}
+            <div className="modal-header" style={{ borderBottom: '1px solid #1e1e1e', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: WA_GREEN, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg viewBox="0 0 24 24" fill="white" width="22" height="22"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '15px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {waComposerCuota.students?.full_name ?? 'Alumno'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#555', marginTop: '2px' }}>
+                    {waComposerCuota.students?.phone ?? 'Sin teléfono'} · <StatusBadge estado={waComposerCuota.estado} />
+                  </div>
+                </div>
+              </div>
+              <button className="btn btn-ghost" onClick={() => setShowWAComposer(false)} style={{ padding: '4px 8px', flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+              {/* Template chips */}
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#555', marginBottom: '10px' }}>
+                  Tipo de mensaje
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {WA_COMPOSER_TYPES.map(t => {
+                    const active = waComposerTipo === t.tipo;
+                    return (
+                      <button
+                        key={t.tipo}
+                        onClick={() => handleComposerTipo(t.tipo)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          padding: '6px 13px', borderRadius: '20px', cursor: 'pointer',
+                          border: `1px solid ${active ? WA_GREEN : '#2a2a2a'}`,
+                          background: active ? 'rgba(37,211,102,0.1)' : '#161616',
+                          color: active ? WA_GREEN : '#666',
+                          fontSize: '12px', fontWeight: 600,
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <WaChipIcon tipo={t.tipo} />
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* WA Preview */}
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#555', marginBottom: '10px' }}>
+                  Vista previa
+                </div>
+                <div style={{ background: '#e5ddd5', borderRadius: '10px', padding: '16px', minHeight: '72px' }}>
+                  <div style={{
+                    background: '#dcf8c6', borderRadius: '8px 8px 0 8px',
+                    padding: '10px 14px', maxWidth: '88%', marginLeft: 'auto',
+                    color: '#111', fontSize: '13.5px', lineHeight: '1.55',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.18)',
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  }}>
+                    {waComposerMsg || <span style={{ color: '#aaa', fontStyle: 'italic' }}>El mensaje aparecerá aquí…</span>}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px', marginTop: '5px' }}>
+                      <span style={{ fontSize: '11px', color: '#667781' }}>
+                        {new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <svg viewBox="0 0 18 11" width="18" height="11" fill="#53bdeb">
+                        <path d="M17.394.614a.5.5 0 0 0-.707 0l-8.04 8.04-2.04-2.04a.5.5 0 1 0-.707.707l2.394 2.393a.5.5 0 0 0 .707 0L17.394 1.32a.5.5 0 0 0 0-.707zM13.394.614a.5.5 0 0 0-.707 0L5.354 8.348l-.354-.353a.5.5 0 1 0-.707.707l.708.707a.5.5 0 0 0 .707 0l7.686-7.688a.5.5 0 0 0 0-.707z"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Editor */}
+              <div>
+                <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#555', marginBottom: '8px' }}>
+                  Editar mensaje
+                </div>
+                <textarea
+                  ref={waComposerTARef}
+                  className="input"
+                  rows={5}
+                  value={waComposerMsg}
+                  onChange={e => setWaComposerMsg(e.target.value)}
+                  placeholder="Escribí tu mensaje aquí…"
+                  style={{ resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.55', fontSize: '13px' }}
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: '#444' }}>Insertar variable:</span>
+                  {['{nombre}', '{monto}', '{fecha_vencimiento}', '{proxima_fecha}'].map(v => (
+                    <button
+                      key={v}
+                      className="btn btn-ghost"
+                      style={{ fontSize: '11px', padding: '2px 8px', fontFamily: 'monospace', color: '#888', border: '1px solid #2a2a2a', borderRadius: '4px' }}
+                      onClick={() => insertComposerVar(v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {!waComposerCuota.students?.phone && (
+                <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px', fontSize: '13px', color: '#ef4444' }}>
+                  Este alumno no tiene teléfono registrado — no se puede enviar por WhatsApp.
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => setShowWAComposer(false)}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => {
+                  void navigator.clipboard.writeText(waComposerMsg);
+                  setWaComposerCopied(true);
+                  setTimeout(() => setWaComposerCopied(false), 2000);
+                }}
+                disabled={!waComposerMsg}
+              >
+                {waComposerCopied ? '¡Copiado!' : 'Copiar texto'}
+              </button>
+              <button
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '7px',
+                  padding: '8px 18px', borderRadius: '6px', border: 'none',
+                  background: waComposerCuota.students?.phone ? WA_GREEN : '#333',
+                  color: waComposerCuota.students?.phone ? '#fff' : '#666',
+                  fontWeight: 700, fontSize: '13px', cursor: waComposerCuota.students?.phone ? 'pointer' : 'not-allowed',
+                }}
+                disabled={!waComposerCuota.students?.phone || !waComposerMsg}
+                onClick={() => void handleWAComposerSend()}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Enviar a WhatsApp
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Editar Cuota ──────────────────────────────────────────── */}
+      {showEditModal && editTarget && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '100%' }}>
+            <div className="modal-header">
+              <div className="card-title">Editar cuota — {editTarget.students?.full_name}</div>
+              <button className="btn btn-ghost" onClick={() => setShowEditModal(false)} style={{ padding: '4px 8px' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="label">Monto *</label>
+                  <input className="input" type="number" min="0" step="0.01" value={editMonto} onChange={e => setEditMonto(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="label">Período *</label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <select
+                      className="select"
+                      style={{ flex: 1 }}
+                      value={editPeriodo.split('-')[1] ?? '01'}
+                      onChange={e => setEditPeriodo(`${editPeriodo.split('-')[0]}-${e.target.value}`)}
+                    >
+                      {MESES_FULL.map((m, i) => (
+                        <option key={m} value={String(i + 1).padStart(2, '0')}>{m}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="select"
+                      style={{ width: '90px' }}
+                      value={editPeriodo.split('-')[0] ?? String(new Date().getFullYear())}
+                      onChange={e => setEditPeriodo(`${e.target.value}-${editPeriodo.split('-')[1] ?? '01'}`)}
+                    >
+                      {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="label">Vencimiento *</label>
+                  <input className="input" type="date" value={editFechaVenc} onChange={e => setEditFechaVenc(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="label">Fecha de pago</label>
+                  <input className="input" type="date" value={editFechaPago} onChange={e => setEditFechaPago(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="label">Método de pago</label>
+                  <select className="select" value={editMetodo} onChange={e => setEditMetodo(e.target.value)}>
+                    <option value="">Sin especificar</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="yape_plin">Yape/Plin</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="tarjeta_debito">Tarjeta débito</option>
+                    <option value="tarjeta_credito">Tarjeta crédito</option>
+                    <option value="mercado_pago">Mercado Pago</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">Estado</label>
+                  <select className="select" value={editEstado} onChange={e => setEditEstado(e.target.value)}>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="pagado">Pagado</option>
+                    <option value="vencido">Vencido</option>
+                  </select>
+                </div>
+              </div>
+              {editError && <p style={{ color: '#ef4444', fontSize: '13px' }}>{editError}</p>}
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => setShowEditModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={() => void handleEditSave()} disabled={editSaving}>
+                {editSaving ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Confirmar Eliminación ─────────────────────────────────── */}
+      {showDeleteModal && deleteTarget && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', width: '100%' }}>
+            <div className="modal-header">
+              <div className="card-title">Eliminar cuota</div>
+              <button className="btn btn-ghost" onClick={() => setShowDeleteModal(false)} style={{ padding: '4px 8px' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '14px', color: '#ccc' }}>
+                ¿Eliminar la cuota de <strong>{deleteTarget.students?.full_name}</strong> por <strong>{formatMonto(deleteTarget.monto)}</strong> ({fmtPeriodo(deleteTarget.periodo)})?
+              </p>
+              <p style={{ fontSize: '13px', color: '#ef4444', marginTop: '8px' }}>Esta acción no se puede deshacer.</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => setShowDeleteModal(false)}>Cancelar</button>
+              <button
+                className="btn"
+                style={{ background: '#ef4444', color: '#fff', border: 'none' }}
+                onClick={() => void handleDeleteConfirm()}
+                disabled={deleteSaving}
+              >
+                {deleteSaving ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>
           </div>

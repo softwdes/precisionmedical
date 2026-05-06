@@ -1,11 +1,14 @@
 import Link from 'next/link';
-import { getAllTrainers, getGlobalMetrics } from '../../actions';
+import { getAllTrainers, getGlobalMetrics, getRecentPayments, recordSubscriptionPayment } from '../../actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SubscriptionsPage() {
-  const trainers = await getAllTrainers();
-  const metrics = await getGlobalMetrics();
+  const [trainers, metrics, recentPayments] = await Promise.all([
+    getAllTrainers(),
+    getGlobalMetrics(),
+    getRecentPayments(10),
+  ]);
 
   const activeCount = trainers.filter((t: any) => t.subscription_status === 'active').length;
   const trialingCount = trainers.filter((t: any) => t.subscription_status === 'trialing').length;
@@ -25,17 +28,17 @@ export default async function SubscriptionsPage() {
             </svg>
           </span>
           <div>
-            <div className="brand-name">Precision</div>
-            <div className="brand-tag">Master Panel</div>
+            <div className="brand-name">Neural <span style={{ color: 'var(--accent)' }}>Trainer</span></div>
+            <div className="brand-tag">Master</div>
           </div>
         </div>
 
         <nav className="nav">
-          <Link href="/master" className="nav-item">Dashboard</Link>
-          <Link href="/master/trainers" className="nav-item">Trainers</Link>
-          <Link href="/master/suscripciones" className="nav-item active">Suscripciones</Link>
-          <Link href="/master/auditoria" className="nav-item">Auditoría</Link>
-          <Link href="/master/soporte" className="nav-item">Soporte</Link>
+          <Link href="/" className="nav-item">Dashboard</Link>
+          <Link href="/trainers" className="nav-item">Trainers</Link>
+          <Link href="/suscripciones" className="nav-item active">Suscripciones</Link>
+          <Link href="/auditoria" className="nav-item">Auditoría</Link>
+          <Link href="/soporte" className="nav-item">Soporte</Link>
         </nav>
 
         <div className="system-status">
@@ -149,7 +152,7 @@ export default async function SubscriptionsPage() {
                 </div>
               </div>
               <div className="card-body card-body--padded">
-                <form action="/api/master/payment" method="POST" className="form-stack">
+                <form action={recordSubscriptionPayment} className="form-stack">
                   <div className="form-group">
                     <label className="label">Trainer</label>
                     <select name="trainer_id" className="select" required>
@@ -196,20 +199,29 @@ export default async function SubscriptionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>Coach Carlos M.</td>
-                    <td>S/ 299</td>
-                    <td>Ene 2026 - Dic 2026</td>
-                    <td>15/01/2026</td>
-                    <td><button className="btn btn-ghost">Descargar</button></td>
-                  </tr>
-                  <tr>
-                    <td>Fit Studio Lima</td>
-                    <td>S/ 299</td>
-                    <td>Ene 2026 - Dic 2026</td>
-                    <td>10/01/2026</td>
-                    <td><button className="btn btn-ghost">Descargar</button></td>
-                  </tr>
+                  {recentPayments.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--fg-muted)' }}>
+                        No hay pagos registrados
+                      </td>
+                    </tr>
+                  ) : (
+                    recentPayments.map((payment: any) => (
+                      <tr key={payment.id}>
+                        <td>{payment.trainer?.business_name || '-'}</td>
+                        <td className="text-mint">S/ {payment.amount.toLocaleString()}</td>
+                        <td className="text-muted">
+                          {new Date(payment.period_start).toLocaleDateString('es-PE', { month: 'short', year: 'numeric' })}
+                          {' — '}
+                          {new Date(payment.period_end).toLocaleDateString('es-PE', { month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="text-muted">
+                          {new Date(payment.paid_on).toLocaleDateString('es-PE')}
+                        </td>
+                        <td><button className="btn btn-ghost">Descargar</button></td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

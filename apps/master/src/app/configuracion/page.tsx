@@ -11,18 +11,18 @@ export default function ConfiguracionPage() {
             </svg>
           </span>
           <div>
-            <div className="brand-name">Precision</div>
-            <div className="brand-tag">Master Panel</div>
+            <div className="brand-name">Neural <span style={{ color: 'var(--accent)' }}>Trainer</span></div>
+            <div className="brand-tag">Master</div>
           </div>
         </div>
 
         <nav className="nav">
-          <Link href="/master" className="nav-item">Dashboard</Link>
-          <Link href="/master/trainers" className="nav-item">Trainers</Link>
-          <Link href="/master/suscripciones" className="nav-item">Suscripciones</Link>
-          <Link href="/master/auditoria" className="nav-item">Auditoría</Link>
-          <Link href="/master/soporte" className="nav-item">Soporte</Link>
-          <Link href="/master/configuracion" className="nav-item active">Configuración</Link>
+          <Link href="/" className="nav-item">Dashboard</Link>
+          <Link href="/trainers" className="nav-item">Trainers</Link>
+          <Link href="/suscripciones" className="nav-item">Suscripciones</Link>
+          <Link href="/auditoria" className="nav-item">Auditoría</Link>
+          <Link href="/soporte" className="nav-item">Soporte</Link>
+          <Link href="/configuracion" className="nav-item active">Configuración</Link>
         </nav>
       </aside>
 
@@ -60,15 +60,15 @@ export default function ConfiguracionPage() {
                 <form className="form-stack">
                   <div className="form-group">
                     <label className="form-label">Nombre de la Plataforma</label>
-                    <input type="text" className="input" defaultValue="Precision Trainer" />
+                    <input type="text" className="input" defaultValue="Neural Trainer Gym" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Dominio Principal</label>
-                    <input type="text" className="input" defaultValue="precisiontrainer.app" />
+                    <input type="text" className="input" defaultValue="neuraltrainergym.app" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Email de Soporte</label>
-                    <input type="email" className="input" defaultValue="soporte@precisiontrainer.com" />
+                    <input type="email" className="input" defaultValue="soporte@neuraltrainergym.app" />
                   </div>
                   <button type="submit" className="btn btn-primary">Guardar</button>
                 </form>

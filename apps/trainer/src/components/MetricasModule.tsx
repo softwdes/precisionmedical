@@ -782,13 +782,13 @@ function TabLogros({ alumnoId, logros }: { alumnoId: string; logros: Logro[] }) 
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function MetricasModule({ students, exercises }: { students: Student[]; exercises: Exercise[] }) {
+export default function MetricasModule({ students, exercises, initialStudentId }: { students: Student[]; exercises: Exercise[]; initialStudentId?: string }) {
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
 
-  const [selectedId, setSelectedId] = useState('');
+  const [selectedId, setSelectedId] = useState(initialStudentId ?? '');
   const [tab, setTab] = useState<Tab>('resumen');
   const [loading, setLoading] = useState(false);
 
@@ -840,25 +840,27 @@ export default function MetricasModule({ students, exercises }: { students: Stud
   return (
     <div>
       {/* Student selector */}
-      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
-        <div className="card-body--padded" style={{ padding: 'var(--space-5) var(--space-6)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1', minWidth: '240px' }}>
-              <label className="label" style={{ marginBottom: 'var(--space-2)' }}>Alumno</label>
-              <select className="select" value={selectedId} onChange={e => { setSelectedId(e.target.value); setTab('resumen'); }}>
-                <option value="">— Selecciona un alumno —</option>
-                {students.map(s => <option key={s.id} value={s.id}>{s.full_name}{s.experience_level ? ` · ${s.experience_level}` : ''}</option>)}
-              </select>
-            </div>
-            {selected && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 'var(--text-xl)', color: 'var(--fg-strong)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{selected.full_name}</div>
-                {selected.experience_level && <span className="badge badge-mint-soft">{selected.experience_level}</span>}
+      {!initialStudentId && (
+        <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+          <div className="card-body--padded" style={{ padding: 'var(--space-5) var(--space-6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1', minWidth: '240px' }}>
+                <label className="label" style={{ marginBottom: 'var(--space-2)' }}>Alumno</label>
+                <select className="select" value={selectedId} onChange={e => { setSelectedId(e.target.value); setTab('resumen'); }}>
+                  <option value="">— Selecciona un alumno —</option>
+                  {students.map(s => <option key={s.id} value={s.id}>{s.full_name}{s.experience_level ? ` · ${s.experience_level}` : ''}</option>)}
+                </select>
               </div>
-            )}
+              {selected && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 'var(--text-xl)', color: 'var(--fg-strong)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{selected.full_name}</div>
+                  {selected.experience_level && <span className="badge badge-mint-soft">{selected.experience_level}</span>}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {!selectedId ? (
         <div className="card">

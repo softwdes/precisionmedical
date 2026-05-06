@@ -17,17 +17,17 @@ export default async function TrainersPage() {
             </svg>
           </span>
           <div>
-            <div className="brand-name">Precision</div>
-            <div className="brand-tag">Master Panel</div>
+            <div className="brand-name">Neural <span style={{ color: 'var(--accent)' }}>Trainer</span></div>
+            <div className="brand-tag">Master</div>
           </div>
         </div>
 
         <nav className="nav">
-          <Link href="/master" className="nav-item">Dashboard</Link>
-          <Link href="/master/trainers" className="nav-item active">Trainers</Link>
-          <Link href="/master/suscripciones" className="nav-item">Suscripciones</Link>
-          <Link href="/master/auditoria" className="nav-item">Auditoría</Link>
-          <Link href="/master/soporte" className="nav-item">Soporte</Link>
+          <Link href="/" className="nav-item">Dashboard</Link>
+          <Link href="/trainers" className="nav-item active">Trainers</Link>
+          <Link href="/suscripciones" className="nav-item">Suscripciones</Link>
+          <Link href="/auditoria" className="nav-item">Auditoría</Link>
+          <Link href="/soporte" className="nav-item">Soporte</Link>
         </nav>
 
         <div className="system-status">
@@ -146,10 +146,10 @@ export default async function TrainersPage() {
                           </td>
                           <td>
                             <div className="row" style={{ gap: 'var(--space-2)' }}>
-                              <Link href={`/master/trainers/${trainer.id}`} className="btn btn-ghost btn-icon" title="Ver detalle">
+                              <Link href={`/trainers/${trainer.id}`} className="btn btn-ghost btn-icon" title="Ver detalle">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', height: '14px' }}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                               </Link>
-                              <Link href={`/master/trainers/${trainer.id}/editar`} className="btn btn-ghost btn-icon" title="Editar">
+                              <Link href={`/trainers/${trainer.id}/editar`} className="btn btn-ghost btn-icon" title="Editar">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', height: '14px' }}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                               </Link>
                             </div>

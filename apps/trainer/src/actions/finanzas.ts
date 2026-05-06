@@ -24,7 +24,7 @@ export async function createCuota(data: {
       periodo: data.periodo,
       estado,
       ...(data.fecha_pago !== undefined ? { fecha_pago: data.fecha_pago } : {}),
-      ...(data.metodo_pago !== undefined ? { metodo_pago: data.metodo_pago } : {}),
+      ...(data.metodo_pago ? { metodo_pago: data.metodo_pago } : {}),
       ...(data.notas !== undefined ? { notas: data.notas } : {}),
     });
     if (error) return { error: error.message };
@@ -49,6 +49,28 @@ export async function updateCuotaEstado(
         ...(fechaPago !== undefined ? { fecha_pago: fechaPago } : {}),
       })
       .eq('id', cuotaId);
+    if (error) return { error: error.message };
+    revalidatePath('/finanzas');
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function updateCuota(
+  cuotaId: string,
+  data: {
+    monto?: number;
+    fecha_vencimiento?: string;
+    periodo?: string;
+    metodo_pago?: string | null;
+    estado?: string;
+    fecha_pago?: string | null;
+  }
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await getAuthContext();
+    const { error } = await supabase.from('cuotas').update(data).eq('id', cuotaId);
     if (error) return { error: error.message };
     revalidatePath('/finanzas');
     return {};

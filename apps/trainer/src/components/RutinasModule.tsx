@@ -194,9 +194,10 @@ interface Props {
   initialTemplates: RutinaTemplateRow[];
   students: Student[];
   exercises: Ejercicio[];
+  initialStudentId?: string;
 }
 
-export default function RutinasModule({ initialTemplates, students, exercises }: Props) {
+export default function RutinasModule({ initialTemplates, students, exercises, initialStudentId }: Props) {
   // ── Supabase client ──
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -206,9 +207,9 @@ export default function RutinasModule({ initialTemplates, students, exercises }:
   const [templates] = useState<RutinaTemplateRow[]>(initialTemplates);
 
   // ── Wizard state ──
-  const [wStep, setWStep] = useState<1 | 2 | 3 | 4>(1);
-  const [wAlumno, setWAlumno] = useState('');
-  const [wFecha, setWFecha] = useState('');
+  const [wStep, setWStep] = useState<1 | 2 | 3 | 4>(initialStudentId ? 2 : 1);
+  const [wAlumno, setWAlumno] = useState(initialStudentId ?? '');
+  const [wFecha, setWFecha] = useState(initialStudentId ? new Date().toISOString().split('T')[0] : '');
   const [wTemplate, setWTemplate] = useState<string | 'custom' | null>(null);
   const [wTemplateDias, setWTemplateDias] = useState<TemplateDia[]>([]);
   const [wSelectedDias, setWSelectedDias] = useState<string[]>([]);

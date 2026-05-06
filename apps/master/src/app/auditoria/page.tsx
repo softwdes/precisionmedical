@@ -34,17 +34,17 @@ export default async function AuditPage() {
             </svg>
           </span>
           <div>
-            <div className="brand-name">Precision</div>
-            <div className="brand-tag">Master Panel</div>
+            <div className="brand-name">Neural <span style={{ color: 'var(--accent)' }}>Trainer</span></div>
+            <div className="brand-tag">Master</div>
           </div>
         </div>
 
         <nav className="nav">
-          <Link href="/master" className="nav-item">Dashboard</Link>
-          <Link href="/master/trainers" className="nav-item">Trainers</Link>
-          <Link href="/master/suscripciones" className="nav-item">Suscripciones</Link>
-          <Link href="/master/auditoria" className="nav-item active">Auditoría</Link>
-          <Link href="/master/soporte" className="nav-item">Soporte</Link>
+          <Link href="/" className="nav-item">Dashboard</Link>
+          <Link href="/trainers" className="nav-item">Trainers</Link>
+          <Link href="/suscripciones" className="nav-item">Suscripciones</Link>
+          <Link href="/auditoria" className="nav-item active">Auditoría</Link>
+          <Link href="/soporte" className="nav-item">Soporte</Link>
         </nav>
 
         <div className="system-status">

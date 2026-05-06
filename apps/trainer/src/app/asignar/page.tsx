@@ -6,7 +6,10 @@ import RutinasModule from '@/components/RutinasModule';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AsignarPage() {
+interface Props { searchParams: Promise<{ alumnoId?: string }> }
+
+export default async function AsignarPage({ searchParams }: Props) {
+  const sp = await searchParams;
   const { supabase, trainerId } = await getAuthContext();
 
   const [templates, studentsRes, exercisesRes] = await Promise.all([
@@ -42,6 +45,7 @@ export default async function AsignarPage() {
             initialTemplates={templates}
             students={studentsRes.data ?? []}
             exercises={exercisesRes.data ?? []}
+            {...(sp.alumnoId ? { initialStudentId: sp.alumnoId } : {})}
           />
         </div>
       </main>

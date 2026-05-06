@@ -18,8 +18,8 @@ export default function ContrasenaPage() {
             </svg>
           </span>
           <div>
-            <div className="brand-name">Precision</div>
-            <div className="brand-tag">Trainer</div>
+            <div className="brand-name">Neural <span style={{ color: 'var(--accent)' }}>Trainer</span></div>
+            <div className="brand-tag">Gym</div>
           </div>
         </div>
         <nav className="nav">

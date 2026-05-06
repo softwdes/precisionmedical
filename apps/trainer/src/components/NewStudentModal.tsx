@@ -191,7 +191,7 @@ export default function NewStudentModal() {
                       <input id="ns-email" name="email" type="email" className="input" placeholder="correo@ejemplo.com" disabled={isPending} />
                     </div>
                     <div className="form-group">
-                      <label className="label" htmlFor="ns-phone">Celular / Teléfono</label>
+                      <label className="label" htmlFor="ns-phone">Celular</label>
                       <input id="ns-phone" name="phone" type="tel" className="input" placeholder="+51 999 999 999" disabled={isPending} />
                     </div>
                   </div>

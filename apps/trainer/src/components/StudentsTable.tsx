@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import { deleteStudent, updateStudentModal } from '@/actions/students';
+import AlumnoPerfilClient from '@/app/alumnos/[id]/components/AlumnoPerfilClient';
 
 interface Student {
   id: string;
@@ -20,7 +21,7 @@ interface Student {
 interface Goal { id: string; label: string; }
 
 const OVERLAY: React.CSSProperties = {
-  position: 'fixed', inset: 0, background: '#000',
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
   zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
 };
 const MODAL: React.CSSProperties = {
@@ -44,10 +45,6 @@ const SECTION_TITLE: React.CSSProperties = {
   fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em',
   textTransform: 'uppercase', color: 'var(--accent)', marginBottom: '12px',
 };
-const INFO_ROW: React.CSSProperties = {
-  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px',
-};
 const ERROR_BOX: React.CSSProperties = {
   padding: '10px 14px', background: 'rgba(255,80,80,0.1)',
   border: '1px solid rgba(255,80,80,0.3)', borderRadius: '6px', fontSize: '13px', color: '#ff6b6b',
@@ -70,22 +67,26 @@ const CloseIcon = () => (
   </svg>
 );
 
-interface Metric { id: string; weight_kg: number | null; body_fat_pct: number | null; muscle_mass_kg: number | null; measured_at: string; notes: string | null; }
-interface Package { id: string; total_sessions: number; used_sessions: number; amount: number; currency: string; purchased_on: string; expires_on: string | null; }
-interface Routine { id: string; name?: string | null; active: boolean; starts_on: string | null; ends_on: string | null; }
+interface ProfileData {
+  loading: boolean;
+  rutinaActiva: any;
+  rutinasHistorial: any[];
+  cuotas: any[];
+  waMensajes: any[];
+  exercises: { id: string; name: string; muscle_group: string | null }[];
+}
 
 export default function StudentsTable({ students: initial, goalsMap }: {
   students: Student[];
   goalsMap: Record<string, string>;
 }) {
   const [students, setStudents] = useState(initial);
-
   useEffect(() => { setStudents(initial); }, [initial]);
-  const [detail, setDetail] = useState<Student | null>(null);
-  const [detailMetrics, setDetailMetrics] = useState<Metric[]>([]);
-  const [detailPackages, setDetailPackages] = useState<Package[]>([]);
-  const [detailRoutines, setDetailRoutines] = useState<Routine[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
+
+  const [profileStudent, setProfileStudent] = useState<Student | null>(null);
+  const [profileData, setProfileData] = useState<ProfileData>({
+    loading: false, rutinaActiva: null, rutinasHistorial: [], cuotas: [], waMensajes: [], exercises: [],
+  });
   const [editing, setEditing] = useState<Student | null>(null);
   const [deleting, setDeleting] = useState<Student | null>(null);
   const [goalsList, setGoalsList] = useState<Goal[]>([]);
@@ -100,21 +101,54 @@ export default function StudentsTable({ students: initial, goalsMap }: {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
 
-  useEffect(() => {
-    if (!detail) return;
-    setDetailLoading(true);
-    setDetailMetrics([]); setDetailPackages([]); setDetailRoutines([]);
-    Promise.all([
-      supabase.from('body_metrics').select('*').eq('student_id', detail.id).order('measured_at', { ascending: false }).limit(1),
-      supabase.from('session_packages').select('*').eq('student_id', detail.id).order('created_at', { ascending: false }),
-      supabase.from('student_routines').select('*').eq('student_id', detail.id).order('created_at', { ascending: false }),
-    ]).then(([m, p, r]) => {
-      setDetailMetrics(m.data ?? []);
-      setDetailPackages(p.data ?? []);
-      setDetailRoutines(r.data ?? []);
-      setDetailLoading(false);
+  async function openProfile(s: Student) {
+    setProfileStudent(s);
+    setProfileData({ loading: true, rutinaActiva: null, rutinasHistorial: [], cuotas: [], waMensajes: [], exercises: [] });
+
+    const [rutinaRes, historialRes, cuotasRes, waRes, exercisesRes] = await Promise.all([
+      supabase
+        .from('rutinas_alumno')
+        .select(`id, nombre, fecha_inicio, activo,
+          rutina_dias(id, orden, nombre,
+            rutina_ejercicios(id, orden, sets, reps, descanso_seg, notas, ejercicio_id,
+              exercises(name)))`)
+        .eq('alumno_id', s.id)
+        .eq('activo', true)
+        .maybeSingle(),
+      supabase
+        .from('rutinas_alumno')
+        .select('id, nombre, fecha_inicio, activo, created_at')
+        .eq('alumno_id', s.id)
+        .eq('activo', false)
+        .order('fecha_inicio', { ascending: false })
+        .limit(5),
+      supabase
+        .from('cuotas')
+        .select('id, monto, fecha_pago, fecha_vencimiento, periodo, metodo_pago, estado, notas')
+        .eq('alumno_id', s.id)
+        .order('fecha_vencimiento', { ascending: false })
+        .limit(6),
+      supabase
+        .from('whatsapp_mensajes')
+        .select('id, tipo_mensaje, contenido, fecha_envio, estado')
+        .eq('alumno_id', s.id)
+        .order('fecha_envio', { ascending: false })
+        .limit(5),
+      supabase
+        .from('exercises')
+        .select('id, name, muscle_group')
+        .order('name'),
+    ]);
+
+    setProfileData({
+      loading: false,
+      rutinaActiva: rutinaRes.data ?? null,
+      rutinasHistorial: historialRes.data ?? [],
+      cuotas: cuotasRes.data ?? [],
+      waMensajes: waRes.data ?? [],
+      exercises: (exercisesRes.data ?? []) as { id: string; name: string; muscle_group: string | null }[],
     });
-  }, [detail, supabase]);
+  }
 
   useEffect(() => {
     if (!editing) return;
@@ -135,7 +169,7 @@ export default function StudentsTable({ students: initial, goalsMap }: {
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setDetail(null); setEditing(null); setDeleting(null); }
+      if (e.key === 'Escape') { setProfileStudent(null); setEditing(null); setDeleting(null); }
     };
     document.addEventListener('keydown', h);
     return () => document.removeEventListener('keydown', h);
@@ -197,7 +231,7 @@ export default function StudentsTable({ students: initial, goalsMap }: {
           <thead>
             <tr>
               <th>Nombre</th>
-              <th>Celular / Teléfono</th>
+              <th>Celular</th>
               <th>Email</th>
               <th>Nivel</th>
               <th>Objetivos</th>
@@ -215,9 +249,12 @@ export default function StudentsTable({ students: initial, goalsMap }: {
             ) : students.map(s => (
               <tr key={s.id}>
                 <td>
-                  <span style={{ color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }} onClick={() => setDetail(s)}>
+                  <button
+                    onClick={() => openProfile(s)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontWeight: 600, padding: 0, fontSize: 'inherit', fontFamily: 'inherit', textAlign: 'left' }}
+                  >
                     {s.full_name}
-                  </span>
+                  </button>
                 </td>
                 <td className="text-muted">{s.phone || '-'}</td>
                 <td className="text-muted">{s.email || '-'}</td>
@@ -231,7 +268,7 @@ export default function StudentsTable({ students: initial, goalsMap }: {
                 </td>
                 <td>
                   <div className="row" style={{ gap: 'var(--space-2)' }}>
-                    <button className="btn btn-ghost btn-icon" title="Ver detalle" onClick={() => setDetail(s)}>
+                    <button className="btn btn-ghost btn-icon" title="Ver perfil" onClick={() => openProfile(s)}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     </button>
                     <button className="btn btn-ghost btn-icon" title="Editar" onClick={() => setEditing(s)}>
@@ -248,158 +285,55 @@ export default function StudentsTable({ students: initial, goalsMap }: {
         </table>
       </div>
 
-      {/* ── DETAIL POPUP ── */}
-      {detail && (
-        <div style={OVERLAY} onClick={() => setDetail(null)}>
-          <div style={{ ...MODAL, maxWidth: '620px' }} onClick={e => e.stopPropagation()}>
-            <div style={MODAL_HEAD}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '16px', color: 'var(--accent)' }}>{detail.full_name}</div>
-                <div style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: '2px' }}>Perfil completo del alumno</div>
+      {/* ── PROFILE POPUP ── */}
+      {profileStudent && (
+        <div style={{ ...OVERLAY, zIndex: 2200 }} onClick={() => setProfileStudent(null)}>
+          <div
+            style={{
+              width: '95vw', height: '92dvh', background: '#0d0d0f',
+              border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)',
+              background: '#0d0d0f', flexShrink: 0,
+            }}>
+              <div style={{ fontSize: '12px', color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
+                Perfil del Alumno
               </div>
-              <button style={CLOSE_BTN} onClick={() => setDetail(null)}><CloseIcon /></button>
+              <button style={CLOSE_BTN} onClick={() => setProfileStudent(null)}><CloseIcon /></button>
             </div>
 
-            {detailLoading ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--fg-muted)', fontSize: '13px' }}>Cargando perfil...</div>
+            {/* Body */}
+            {profileData.loading ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-muted)', fontSize: '13px' }}>
+                Cargando perfil...
+              </div>
             ) : (
-              <div style={MODAL_BODY}>
-                {/* Información Personal */}
-                <div>
-                  <div style={SECTION_TITLE}>Información Personal</div>
-                  {detail.email && (
-                    <div style={INFO_ROW}>
-                      <span style={{ color: 'var(--fg-muted)' }}>Email</span>
-                      <span>{detail.email}</span>
-                    </div>
-                  )}
-                  {detail.phone && (
-                    <div style={INFO_ROW}>
-                      <span style={{ color: 'var(--fg-muted)' }}>Celular / Teléfono</span>
-                      <span>{detail.phone}</span>
-                    </div>
-                  )}
-                  <div style={INFO_ROW}>
-                    <span style={{ color: 'var(--fg-muted)' }}>Nivel</span>
-                    <span className={`badge ${levelBadge(detail.experience_level)}`}>{levelLabel(detail.experience_level)}</span>
-                  </div>
-                  <div style={INFO_ROW}>
-                    <span style={{ color: 'var(--fg-muted)' }}>Objetivos</span>
-                    <span style={{ textAlign: 'right', maxWidth: '60%' }}>{resolveGoals(detail.goals)}</span>
-                  </div>
-                  <div style={INFO_ROW}>
-                    <span style={{ color: 'var(--fg-muted)' }}>Equipamiento</span>
-                    <span>{equipLabel(detail.available_equipment)}</span>
-                  </div>
-                  {detail.birth_date && (
-                    <div style={INFO_ROW}>
-                      <span style={{ color: 'var(--fg-muted)' }}>Fecha de nacimiento</span>
-                      <span>{fmtDate(detail.birth_date)}</span>
-                    </div>
-                  )}
-                  <div style={{ ...INFO_ROW, borderBottom: 'none' }}>
-                    <span style={{ color: 'var(--fg-muted)' }}>Fecha de ingreso</span>
-                    <span>{fmtDate(detail.created_at)}</span>
-                  </div>
-                </div>
-
-                {/* Métricas Biométricas */}
-                <div>
-                  <div style={SECTION_TITLE}>Métricas Biométricas</div>
-                  {detailMetrics.length === 0 ? (
-                    <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>Sin métricas registradas</p>
-                  ) : (
-                    <>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '10px', marginBottom: '8px' }}>
-                        {[
-                          { val: detailMetrics[0].weight_kg, unit: 'kg', label: 'Peso' },
-                          { val: detailMetrics[0].body_fat_pct, unit: '%', label: 'Grasa Corp.' },
-                          { val: detailMetrics[0].muscle_mass_kg, unit: 'kg', label: 'Masa Musc.' },
-                        ].map(({ val, unit, label }) => (
-                          <div key={label} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--accent)' }}>
-                              {val != null ? `${val}${unit}` : '—'}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--fg-muted)', textAlign: 'right' }}>
-                        Última medición: {fmtDate(detailMetrics[0].measured_at)}
-                      </div>
-                      {detailMetrics[0].notes && (
-                        <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--fg-muted)', fontStyle: 'italic' }}>
-                          {detailMetrics[0].notes}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* Paquetes de Sesiones */}
-                <div>
-                  <div style={SECTION_TITLE}>Paquetes de Sesiones</div>
-                  {detailPackages.length === 0 ? (
-                    <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>Sin paquetes registrados</p>
-                  ) : detailPackages.map(pkg => {
-                    const pct = pkg.total_sessions > 0 ? Math.round((pkg.used_sessions / pkg.total_sessions) * 100) : 0;
-                    const remaining = pkg.total_sessions - pkg.used_sessions;
-                    return (
-                      <div key={pkg.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '14px', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                          <span style={{ fontWeight: 600, fontSize: '14px' }}>
-                            {pkg.used_sessions} / {pkg.total_sessions} sesiones
-                          </span>
-                          <span style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>
-                            {pkg.currency} {pkg.amount}
-                          </span>
-                        </div>
-                        <div style={{ height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden', marginBottom: '8px' }}>
-                          <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: '3px' }} />
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--fg-muted)' }}>
-                          <span>{remaining} sesiones restantes</span>
-                          {pkg.expires_on && <span>Vence: {fmtDate(pkg.expires_on)}</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Rutinas Asignadas */}
-                <div>
-                  <div style={SECTION_TITLE}>Rutinas Asignadas</div>
-                  {detailRoutines.length === 0 ? (
-                    <p style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>Sin rutinas asignadas</p>
-                  ) : detailRoutines.map((r, i) => (
-                    <div key={r.id} style={{ ...INFO_ROW, borderBottom: i < detailRoutines.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                      <span style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>
-                        {r.name ? r.name : `Rutina ${i + 1}`}
-                        {r.starts_on && (
-                          <span style={{ marginLeft: '8px', fontSize: '12px', opacity: 0.7 }}>
-                            {fmtDate(r.starts_on)}{r.ends_on ? ` → ${fmtDate(r.ends_on)}` : ''}
-                          </span>
-                        )}
-                      </span>
-                      <span className={`badge ${r.active ? 'badge-mint-soft' : ''}`} style={!r.active ? { color: 'var(--fg-muted)', borderColor: 'rgba(255,255,255,0.12)' } : {}}>
-                        {r.active ? 'Activa' : 'Inactiva'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              <div className="profile-modal-body">
+                <AlumnoPerfilClient
+                  student={profileStudent as any}
+                  goalsMap={goalsMap}
+                  rutinaActiva={profileData.rutinaActiva}
+                  rutinasHistorial={profileData.rutinasHistorial}
+                  cuotas={profileData.cuotas}
+                  waMensajes={profileData.waMensajes}
+                  exercises={profileData.exercises}
+                />
               </div>
             )}
-
-            <div style={MODAL_FOOT}>
-              <button className="btn btn-outline" onClick={() => setDetail(null)}>Cerrar</button>
-            </div>
           </div>
         </div>
       )}
 
       {/* ── EDIT POPUP ── */}
       {editing && (
-        <div style={OVERLAY} onClick={() => !isPending && setEditing(null)}>
+        <div style={{ ...OVERLAY, zIndex: 2300 }} onClick={() => !isPending && setEditing(null)}>
           <div style={MODAL} onClick={e => e.stopPropagation()}>
             <div style={MODAL_HEAD}>
               <div>
@@ -424,7 +358,7 @@ export default function StudentsTable({ students: initial, goalsMap }: {
                       <input name="email" type="email" className="input" defaultValue={editing.email ?? ''} placeholder="correo@ejemplo.com" disabled={isPending} />
                     </div>
                     <div className="form-group">
-                      <label className="label">Celular / Teléfono</label>
+                      <label className="label">Celular</label>
                       <input name="phone" type="tel" className="input" defaultValue={editing.phone ?? ''} placeholder="+51 999 999 999" disabled={isPending} />
                     </div>
                   </div>
@@ -532,7 +466,7 @@ export default function StudentsTable({ students: initial, goalsMap }: {
 
       {/* ── DELETE CONFIRM ── */}
       {deleting && (
-        <div style={{ ...OVERLAY, zIndex: 2100 }} onClick={() => setDeleting(null)}>
+        <div style={{ ...OVERLAY, zIndex: 2400 }} onClick={() => setDeleting(null)}>
           <div style={CONFIRM_MODAL} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '24px' }}>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>

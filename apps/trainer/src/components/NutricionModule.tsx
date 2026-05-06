@@ -187,13 +187,13 @@ function WeightChart({ data }: { data: HistorialRow[] }) {
   );
 }
 
-export default function NutricionModule({ students }: { students: StudentOption[] }) {
+export default function NutricionModule({ students, initialStudentId }: { students: StudentOption[]; initialStudentId?: string }) {
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
 
-  const [selectedAlumno, setSelectedAlumno] = useState('');
+  const [selectedAlumno, setSelectedAlumno] = useState(initialStudentId ?? '');
   const [tab, setTab] = useState<Tab>('datos');
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -328,7 +328,7 @@ export default function NutricionModule({ students }: { students: StudentOption[
   return (
     <div>
       {/* Student selector */}
-      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+      {!initialStudentId && <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
         <div className="card-body--padded" style={{ padding: 'var(--space-5) var(--space-6)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
             <div style={{ flex: '1', minWidth: '240px' }}>
@@ -361,7 +361,11 @@ export default function NutricionModule({ students }: { students: StudentOption[
             )}
           </div>
         </div>
-      </div>
+      </div>}
+
+      {initialStudentId && saveMsg && (
+        <div style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-2) var(--space-4)', background: saveMsgType === 'ok' ? 'var(--accent-soft)' : 'rgba(255,107,107,0.1)', border: `1px solid ${saveMsgType === 'ok' ? 'var(--border-mint)' : 'rgba(255,107,107,0.3)'}`, borderRadius: 'var(--radius-xs)', fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: saveMsgType === 'ok' ? 'var(--accent)' : 'var(--danger)' }}>{saveMsg}</div>
+      )}
 
       {!selectedAlumno ? (
         <div className="card">

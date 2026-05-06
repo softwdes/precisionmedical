@@ -1,7 +1,15 @@
 import Link from 'next/link';
-import { getSupportTickets } from '../../actions';
+import { getSupportTickets, updateSupportTicket } from '../../actions';
 
 export const dynamic = 'force-dynamic';
+
+async function handleTicketUpdate(formData: FormData) {
+  'use server';
+  await updateSupportTicket(
+    formData.get('ticket_id') as string,
+    formData.get('status') as string,
+  );
+}
 
 export default async function SupportPage() {
   const allTickets = await getSupportTickets();
@@ -31,17 +39,17 @@ export default async function SupportPage() {
             </svg>
           </span>
           <div>
-            <div className="brand-name">Precision</div>
-            <div className="brand-tag">Master Panel</div>
+            <div className="brand-name">Neural <span style={{ color: 'var(--accent)' }}>Trainer</span></div>
+            <div className="brand-tag">Master</div>
           </div>
         </div>
 
         <nav className="nav">
-          <Link href="/master" className="nav-item">Dashboard</Link>
-          <Link href="/master/trainers" className="nav-item">Trainers</Link>
-          <Link href="/master/suscripciones" className="nav-item">Suscripciones</Link>
-          <Link href="/master/auditoria" className="nav-item">Auditoría</Link>
-          <Link href="/master/soporte" className="nav-item active">Soporte</Link>
+          <Link href="/" className="nav-item">Dashboard</Link>
+          <Link href="/trainers" className="nav-item">Trainers</Link>
+          <Link href="/suscripciones" className="nav-item">Suscripciones</Link>
+          <Link href="/auditoria" className="nav-item">Auditoría</Link>
+          <Link href="/soporte" className="nav-item active">Soporte</Link>
         </nav>
 
         <div className="system-status">
@@ -123,10 +131,11 @@ export default async function SupportPage() {
                     {ticket.body.substring(0, 150)}{ticket.body.length > 150 ? '...' : ''}
                   </div>
                   <div className="ticket-actions">
-                    <form action={`/api/master/tickets/${ticket.id}`} method="POST">
-                      <input type="hidden" name="status" value={ticket.status === 'open' ? 'in_progress' : 'closed'} />
+                    <form action={handleTicketUpdate}>
+                      <input type="hidden" name="ticket_id" value={ticket.id} />
+                      <input type="hidden" name="status" value={ticket.status === 'open' ? 'in_progress' : ticket.status === 'in_progress' ? 'closed' : 'open'} />
                       <button type="submit" className="btn btn-outline">
-                        {ticket.status === 'open' ? 'Tomar Ticket' : 
+                        {ticket.status === 'open' ? 'Tomar Ticket' :
                          ticket.status === 'in_progress' ? 'Cerrar' : 'Reabrir'}
                       </button>
                     </form>

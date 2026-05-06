@@ -3,24 +3,20 @@
 import { serverClient } from '@precision/db/client';
 import { revalidatePath } from 'next/cache';
 
-const supabase = serverClient();
-
-// MASTER ONLY - Get all trainers
 export async function getAllTrainers() {
+  const supabase = serverClient();
   const { data, error } = await supabase
     .from('trainers')
-    .select(`
-      *,
-      subscription_payments(amount, paid_on, period_start, period_end)
-    `)
+    .select('*')
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
   return data || [];
 }
 
-// MASTER - Get single trainer with details
 export async function getTrainerDetails(trainerId: string) {
+  const supabase = serverClient();
+
   const { data: trainer, error: trainerError } = await supabase
     .from('trainers')
     .select('*')
@@ -29,14 +25,12 @@ export async function getTrainerDetails(trainerId: string) {
 
   if (trainerError) throw new Error(trainerError.message);
 
-  // Get students count
   const { count: studentsCount } = await supabase
     .from('students')
     .select('*', { count: 'exact', head: true })
     .eq('trainer_id', trainerId)
     .is('archived_at', null);
 
-  // Get active subscriptions
   const { data: payments } = await supabase
     .from('subscription_payments')
     .select('*')
@@ -44,7 +38,6 @@ export async function getTrainerDetails(trainerId: string) {
     .order('paid_on', { ascending: false })
     .limit(5);
 
-  // Get storage usage (approximate)
   const { data: photos } = await supabase.storage
     .from('progress-photos')
     .list(trainerId, { limit: 100 });
@@ -57,45 +50,61 @@ export async function getTrainerDetails(trainerId: string) {
   };
 }
 
-// MASTER - Update trainer subscription
 export async function updateTrainerSubscription(trainerId: string, status: string, expiresAt: string) {
+  const supabase = serverClient();
   const { error } = await supabase.from('trainers').update({
     subscription_status: status as any,
     subscription_expires_at: expiresAt,
   }).eq('id', trainerId);
 
   if (error) throw new Error(error.message);
-  revalidatePath('/master/trainers');
+  revalidatePath('/trainers');
 }
 
-// MASTER - Record subscription payment
 export async function recordSubscriptionPayment(formData: FormData) {
+  const supabase = serverClient();
   const trainer_id = formData.get('trainer_id') as string;
   const amount = parseFloat(formData.get('amount') as string);
-  const period_start = formData.get('period_start') as string;
-  const period_end = formData.get('period_end') as string;
+  const period_months = parseInt(formData.get('period_months') as string) || 1;
+
+  const today = new Date();
+  const period_start = today.toISOString().split('T')[0];
+  const endDate = new Date(today);
+  endDate.setMonth(endDate.getMonth() + period_months);
+  const period_end = endDate.toISOString().split('T')[0];
 
   const { error } = await supabase.from('subscription_payments').insert({
     trainer_id,
     amount,
-    paid_on: new Date().toISOString().split('T')[0],
+    paid_on: period_start,
     period_start,
     period_end,
   });
 
   if (error) throw new Error(error.message);
 
-  // Update trainer status to active
   await supabase.from('trainers').update({
     subscription_status: 'active',
     subscription_expires_at: period_end,
   }).eq('id', trainer_id);
 
-  revalidatePath('/master/suscripciones');
+  revalidatePath('/suscripciones');
 }
 
-// MASTER - Get activity log
+export async function getRecentPayments(limit = 10) {
+  const supabase = serverClient();
+  const { data, error } = await supabase
+    .from('subscription_payments')
+    .select('*, trainer:trainers(business_name)')
+    .order('paid_on', { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
 export async function getActivityLog(limit = 100, offset = 0) {
+  const supabase = serverClient();
   const { data, error } = await supabase
     .from('activity_log')
     .select('*')
@@ -106,8 +115,8 @@ export async function getActivityLog(limit = 100, offset = 0) {
   return data || [];
 }
 
-// MASTER - Get support tickets
 export async function getSupportTickets(status?: string) {
+  const supabase = serverClient();
   let query = supabase
     .from('support_tickets')
     .select(`
@@ -125,40 +134,37 @@ export async function getSupportTickets(status?: string) {
   return data || [];
 }
 
-// MASTER - Update support ticket
 export async function updateSupportTicket(ticketId: string, status: string) {
+  const supabase = serverClient();
   const { error } = await supabase.from('support_tickets').update({
     status: status as any,
     updated_at: new Date().toISOString(),
   }).eq('id', ticketId);
 
   if (error) throw new Error(error.message);
-  revalidatePath('/master/soporte');
+  revalidatePath('/soporte');
 }
 
-// MASTER - Get global metrics
 export async function getGlobalMetrics() {
-  // Total trainers
+  const supabase = serverClient();
+
   const { count: totalTrainers } = await supabase
     .from('trainers')
     .select('*', { count: 'exact', head: true });
 
-  // Active subscriptions
   const { count: activeSubscriptions } = await supabase
     .from('trainers')
     .select('*', { count: 'exact', head: true })
     .eq('subscription_status', 'active');
 
-  // Total students
   const { count: totalStudents } = await supabase
     .from('students')
     .select('*', { count: 'exact', head: true })
     .is('archived_at', null);
 
-  // Total revenue this month (approximation)
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
-  
+
   const { data: payments } = await supabase
     .from('subscription_payments')
     .select('amount')
@@ -166,7 +172,6 @@ export async function getGlobalMetrics() {
 
   const monthlyRevenue = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
 
-  // Expired subscriptions count
   const now = new Date().toISOString();
   const { count: expiringSoon } = await supabase
     .from('trainers')
@@ -183,23 +188,21 @@ export async function getGlobalMetrics() {
   };
 }
 
-// MASTER - Update trainer modules
 export async function updateTrainerModules(trainerId: string, modules: Record<string, boolean>) {
+  const supabase = serverClient();
   const { error } = await supabase.from('trainers').update({
     enabled_modules: modules,
   }).eq('id', trainerId);
 
   if (error) throw new Error(error.message);
-  revalidatePath(`/master/trainers/${trainerId}`);
+  revalidatePath(`/trainers/${trainerId}`);
 }
 
-// MASTER - Get platform settings
 export async function getPlatformSettings() {
-  // In a real app, this would come from a platform_settings table
   return {
-    platform_name: 'Precision Trainer',
+    platform_name: 'Neural Trainer Gym',
     default_subscription_price: 299,
     currency: 'PEN',
-    support_email: 'soporte@precisiontrainer.com',
+    support_email: 'soporte@neuraltrainergym.app',
   };
 }

@@ -240,7 +240,7 @@ function GimnasiosTab({ sb }: { sb: Sb }) {
               <input className="input" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Nombre del gimnasio" autoFocus />
             </div>
             <div className="form-group">
-              <label className="label">Teléfono</label>
+              <label className="label">Celular</label>
               <input className="input" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+51 999 999 999" />
             </div>
             <div className="form-group">
@@ -270,7 +270,7 @@ function GimnasiosTab({ sb }: { sb: Sb }) {
               <thead>
                 <tr>
                   <th>Nombre</th>
-                  <th>Teléfono</th>
+                  <th>Celular</th>
                   <th>Email</th>
                   <th>Dirección</th>
                   <th style={{ width: 90 }}>Acciones</th>

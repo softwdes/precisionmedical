@@ -2,9 +2,12 @@ export function calcEstadoCuota(
   fechaVencimiento: string,
   fechaPago: string | null
 ): 'pagado' | 'pendiente' | 'vencido' {
-  if (fechaPago) return 'pagado';
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  if (fechaPago) {
+    const fp = new Date(fechaPago + 'T00:00:00');
+    if (fp <= today) return 'pagado';
+  }
   const venc = new Date(fechaVencimiento + 'T00:00:00');
   if (venc < today) return 'vencido';
   return 'pendiente';

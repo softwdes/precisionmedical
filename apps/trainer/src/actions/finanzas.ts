@@ -38,7 +38,8 @@ export async function createCuota(data: {
 export async function updateCuotaEstado(
   cuotaId: string,
   estado: string,
-  fechaPago?: string
+  fechaPago?: string,
+  metodoPago?: string
 ): Promise<{ error?: string }> {
   try {
     const { supabase } = await getAuthContext();
@@ -47,6 +48,7 @@ export async function updateCuotaEstado(
       .update({
         estado,
         ...(fechaPago !== undefined ? { fecha_pago: fechaPago } : {}),
+        ...(metodoPago !== undefined ? { metodo_pago: metodoPago } : {}),
       })
       .eq('id', cuotaId);
     if (error) return { error: error.message };
@@ -70,7 +72,11 @@ export async function updateCuota(
 ): Promise<{ error?: string }> {
   try {
     const { supabase } = await getAuthContext();
-    const { error } = await supabase.from('cuotas').update(data).eq('id', cuotaId);
+    const payload = { ...data };
+    if (data.fecha_vencimiento !== undefined) {
+      payload.estado = calcEstadoCuota(data.fecha_vencimiento, data.fecha_pago ?? null);
+    }
+    const { error } = await supabase.from('cuotas').update(payload).eq('id', cuotaId);
     if (error) return { error: error.message };
     revalidatePath('/finanzas');
     return {};

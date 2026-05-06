@@ -356,6 +356,10 @@ export default function FinanzasModule({
       setFError('Completá los campos obligatorios.');
       return;
     }
+    if (parseFloat(fMonto) <= 0) {
+      setFError('El monto debe ser mayor a cero.');
+      return;
+    }
     setFSaving(true);
     setFError('');
     const result = await createCuota({
@@ -416,7 +420,7 @@ export default function FinanzasModule({
   async function handleCobrarRapido() {
     if (!cobrarTarget) return;
     setCobrarSaving(true);
-    const result = await updateCuotaEstado(cobrarTarget.id, 'pagado', cFechaPago);
+    const result = await updateCuotaEstado(cobrarTarget.id, 'pagado', cFechaPago, cMetodo);
     setCobrarSaving(false);
     if (result.error) return;
     setCuotas(prev =>
@@ -442,7 +446,7 @@ export default function FinanzasModule({
     setEditMonto(String(cuota.monto));
     setEditPeriodo(cuota.periodo);
     setEditFechaVenc(cuota.fecha_vencimiento);
-    setEditFechaPago(cuota.fecha_pago ?? todayStr());
+    setEditFechaPago(cuota.fecha_pago ?? '');
     setEditMetodo(cuota.metodo_pago ?? '');
     setEditEstado(cuota.estado);
     setEditError('');
@@ -467,10 +471,11 @@ export default function FinanzasModule({
     });
     setEditSaving(false);
     if (result.error) { setEditError(result.error); return; }
+    const nuevoEstado = calcEstadoCuota(editFechaVenc, editFechaPago || null);
     setCuotas(prev =>
       prev.map(c =>
         c.id === editTarget.id
-          ? { ...c, monto: parseFloat(editMonto), periodo: editPeriodo, fecha_vencimiento: editFechaVenc, fecha_pago: editFechaPago || null, metodo_pago: editMetodo || null, estado: editEstado }
+          ? { ...c, monto: parseFloat(editMonto), periodo: editPeriodo, fecha_vencimiento: editFechaVenc, fecha_pago: editFechaPago || null, metodo_pago: editMetodo || null, estado: nuevoEstado }
           : c
       )
     );
@@ -571,7 +576,7 @@ export default function FinanzasModule({
 
   // ─── Vencimientos Tab Data ──────────────────────────────────────────────────
 
-  const cuotasVencidas = Array.from(latestByStudent.values()).filter(c => c.estado === 'vencido');
+  const cuotasVencidas = cuotas.filter(c => c.estado === 'vencido');
   const cuotasProximas7 = cuotas.filter(c => {
     if (c.estado !== 'pendiente') return false;
     const dias = diasHastaVencimiento(c.fecha_vencimiento);

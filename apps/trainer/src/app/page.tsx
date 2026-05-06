@@ -32,8 +32,17 @@ export default async function DashboardPage() {
     const ago28 = new Date(Date.now() - 28 * 86400000).toISOString().split('T')[0] as string;
     const yesterday = new Date(Date.now() - 86400000).toISOString();
 
+    // Step 1: get active students — needed for count AND to scope sesiones
+    const { data: alumnosData, count: alumnosCount } = await supabase
+      .from('students')
+      .select('id', { count: 'exact' })
+      .eq('trainer_id', trainerId)
+      .is('archived_at', null);
+
+    const alumnoIds = (alumnosData ?? []).map((a) => a.id as string);
+
+    // Step 2: remaining queries in parallel, sesiones scoped to trainer's students
     const [
-      alumnosRes,
       cobradoRes,
       clasesRes,
       cuotasVenRes,
@@ -41,11 +50,6 @@ export default async function DashboardPage() {
       actividadRes,
       sesionesRes,
     ] = await Promise.all([
-      supabase
-        .from('students')
-        .select('id', { count: 'exact', head: true })
-        .eq('trainer_id', trainerId)
-        .eq('activo', true),
       supabase
         .from('cuotas')
         .select('monto')
@@ -77,11 +81,14 @@ export default async function DashboardPage() {
         .gte('created_at', yesterday)
         .order('created_at', { ascending: false })
         .limit(12),
-      supabase
-        .from('sesiones_entrenamiento')
-        .select('alumno_id, completada, fecha')
-        .gte('fecha', ago28)
-        .lte('fecha', today),
+      alumnoIds.length > 0
+        ? supabase
+            .from('sesiones_entrenamiento')
+            .select('alumno_id, completada, fecha')
+            .in('alumno_id', alumnoIds)
+            .gte('fecha', ago28)
+            .lte('fecha', today)
+        : Promise.resolve({ data: [] as { alumno_id: string; completada: boolean; fecha: string }[], error: null }),
     ]);
 
     // Cobrado este mes
@@ -168,7 +175,7 @@ export default async function DashboardPage() {
     moduleProps = {
       trainerId,
       initialMetrics: {
-        alumnosActivos: alumnosRes.count ?? 0,
+        alumnosActivos: alumnosCount ?? 0,
         cobradoMes,
         adherenciaGlobal,
         clasesCompletadas,

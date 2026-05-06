@@ -31,6 +31,7 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
   const [isTyping, setIsTyping] = useState(false);
   const [hasSpeech, setHasSpeech] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [noSpeechMsg, setNoSpeechMsg] = useState(false);
   const [usage, setUsage] = useState({ usadas: 0, restantes: 100, limite: 100 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +93,11 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
   );
 
   const startListening = useCallback(() => {
+    if (!hasSpeech) {
+      setNoSpeechMsg(true);
+      setTimeout(() => setNoSpeechMsg(false), 3500);
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
@@ -105,9 +111,11 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
       if (transcript) sendMessage(transcript);
     };
     recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognition.onnomatch = () => setIsListening(false);
     recognition.start();
     setIsListening(true);
-  }, [sendMessage]);
+  }, [hasSpeech, sendMessage]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -278,73 +286,110 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
         <div style={{
           padding: '10px 12px',
           display: 'flex',
-          gap: '8px',
+          flexDirection: 'column',
+          gap: '6px',
           borderTop: '1px solid var(--border)',
           flexShrink: 0,
         }}>
-          <input
-            ref={inputRef}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage(inputText);
-              }
-            }}
-            placeholder="Escribe tu consulta..."
-            style={{
-              flex: 1,
-              background: 'var(--bg-row)',
-              border: '1px solid var(--border)',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              fontSize: '13px',
-              color: 'var(--fg)',
-              outline: 'none',
-            }}
-          />
-          {hasSpeech && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              ref={inputRef}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage(inputText);
+                }
+              }}
+              placeholder="Escribe tu consulta..."
+              style={{
+                flex: 1,
+                background: 'var(--bg-row)',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '13px',
+                color: 'var(--fg)',
+                outline: 'none',
+              }}
+            />
             <button
               onClick={startListening}
               disabled={isTyping}
               aria-label={isListening ? 'Escuchando...' : 'Dictar mensaje'}
+              title={hasSpeech ? (isListening ? 'Escuchando...' : 'Dictar mensaje') : 'Requiere Chrome o Edge'}
               style={{
-                padding: '0 12px',
+                width: 38,
+                flexShrink: 0,
                 background: isListening ? 'var(--accent)' : 'var(--bg-row)',
-                border: '1px solid var(--border)',
+                border: `1px solid ${isListening ? 'var(--accent)' : noSpeechMsg ? 'rgba(239,68,68,0.5)' : 'var(--border)'}`,
                 borderRadius: '6px',
-                color: isListening ? 'var(--fg-on-accent)' : 'var(--fg-muted)',
+                color: isListening ? 'var(--fg-on-accent)' : noSpeechMsg ? '#ef4444' : 'var(--fg-muted)',
                 cursor: isTyping ? 'not-allowed' : 'pointer',
-                transition: 'background 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.15s, border-color 0.15s, color 0.15s',
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
-              </svg>
+              {isListening ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="2"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="22"/>
+                </svg>
+              )}
             </button>
-          )}
-          <button
-            onClick={() => sendMessage(inputText)}
-            disabled={!inputText.trim() || isTyping}
-            style={{
-              padding: '8px 16px',
-              background: !inputText.trim() || isTyping ? 'var(--bg-row)' : 'var(--accent)',
-              color: !inputText.trim() || isTyping ? 'var(--fg-muted)' : 'var(--fg-on-accent)',
-              border: '1px solid var(--border)',
-              borderRadius: '6px',
+            <button
+              onClick={() => sendMessage(inputText)}
+              disabled={!inputText.trim() || isTyping}
+              style={{
+                padding: '8px 16px',
+                background: !inputText.trim() || isTyping ? 'var(--bg-row)' : 'var(--accent)',
+                color: !inputText.trim() || isTyping ? 'var(--fg-muted)' : 'var(--fg-on-accent)',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                cursor: !inputText.trim() || isTyping ? 'not-allowed' : 'pointer',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              Enviar
+            </button>
+          </div>
+          {noSpeechMsg && (
+            <div style={{
               fontSize: '11px',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              cursor: !inputText.trim() || isTyping ? 'not-allowed' : 'pointer',
-              transition: 'background 0.15s, color 0.15s',
-            }}
-          >
-            Enviar
-          </button>
+              color: '#ef4444',
+              padding: '4px 6px',
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.2)',
+              borderRadius: '4px',
+              animation: 'fadeIn 0.2s ease-out',
+            }}>
+              Tu navegador no soporta dictado por voz. Usá Chrome o Edge.
+            </div>
+          )}
+          {isListening && (
+            <div style={{
+              fontSize: '11px',
+              color: 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse 1s infinite' }} />
+              Escuchando... hablá ahora
+            </div>
+          )}
         </div>
       )}
     </div>

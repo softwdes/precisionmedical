@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useMemo } from 'react';
+import { useState, useEffect, useTransition, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import { deleteStudent, updateStudentModal } from '@/actions/students';
@@ -19,6 +19,14 @@ interface Student {
 }
 
 interface Goal { id: string; label: string; }
+
+const TOAST: React.CSSProperties = {
+  position: 'fixed', bottom: '28px', left: '50%', transform: 'translateX(-50%)',
+  background: 'rgba(63,248,200,0.12)', border: '1px solid rgba(63,248,200,0.35)',
+  borderRadius: '8px', padding: '10px 22px', color: 'var(--accent)',
+  fontSize: '13px', fontWeight: 600, zIndex: 9999,
+  boxShadow: '0 4px 24px rgba(0,0,0,0.6)', whiteSpace: 'nowrap',
+};
 
 const OVERLAY: React.CSSProperties = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
@@ -76,25 +84,46 @@ interface ProfileData {
   exercises: { id: string; name: string; muscle_group: string | null }[];
 }
 
-export default function StudentsTable({ students: initial, goalsMap }: {
+export default function StudentsTable({ students: initial, goalsMap, goalsList }: {
   students: Student[];
   goalsMap: Record<string, string>;
+  goalsList: Goal[];
 }) {
   const [students, setStudents] = useState(initial);
   useEffect(() => { setStudents(initial); }, [initial]);
 
+  const [search, setSearch] = useState('');
+  const [levelFilter, setLevelFilter] = useState('');
+  const [editSuccess, setEditSuccess] = useState(false);
+
+  const profileRequestRef = useRef(0);
   const [profileStudent, setProfileStudent] = useState<Student | null>(null);
   const [profileData, setProfileData] = useState<ProfileData>({
     loading: false, rutinaActiva: null, rutinasHistorial: [], cuotas: [], waMensajes: [], exercises: [],
   });
   const [editing, setEditing] = useState<Student | null>(null);
   const [deleting, setDeleting] = useState<Student | null>(null);
-  const [goalsList, setGoalsList] = useState<Goal[]>([]);
   const [editGoals, setEditGoals] = useState<string[]>([]);
   const [editComboGoal, setEditComboGoal] = useState('');
   const [editError, setEditError] = useState('');
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  const filteredStudents = useMemo(() => {
+    let result = students;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(s =>
+        s.full_name.toLowerCase().includes(q) ||
+        (s.email?.toLowerCase().includes(q) ?? false) ||
+        (s.phone?.includes(q) ?? false)
+      );
+    }
+    if (levelFilter) {
+      result = result.filter(s => s.experience_level === levelFilter);
+    }
+    return result;
+  }, [students, search, levelFilter]);
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -102,6 +131,7 @@ export default function StudentsTable({ students: initial, goalsMap }: {
   ), []);
 
   async function openProfile(s: Student) {
+    const reqId = ++profileRequestRef.current;
     setProfileStudent(s);
     setProfileData({ loading: true, rutinaActiva: null, rutinasHistorial: [], cuotas: [], waMensajes: [], exercises: [] });
 
@@ -140,6 +170,8 @@ export default function StudentsTable({ students: initial, goalsMap }: {
         .order('name'),
     ]);
 
+    if (reqId !== profileRequestRef.current) return;
+
     setProfileData({
       loading: false,
       rutinaActiva: rutinaRes.data ?? null,
@@ -154,8 +186,7 @@ export default function StudentsTable({ students: initial, goalsMap }: {
     if (!editing) return;
     setEditGoals(editing.goals ?? []);
     setEditComboGoal('');
-    supabase.from('goals').select('id, label').order('sort_order').then(({ data }) => setGoalsList(data ?? []));
-  }, [editing, supabase]);
+  }, [editing]);
 
   function addEditGoal() {
     if (!editComboGoal || editGoals.includes(editComboGoal)) return;
@@ -210,6 +241,8 @@ export default function StudentsTable({ students: initial, goalsMap }: {
         };
         setStudents(prev => prev.map(s => s.id === editing.id ? updated : s));
         setEditing(null);
+        setEditSuccess(true);
+        setTimeout(() => setEditSuccess(false), 3000);
         router.refresh();
       }
     });
@@ -226,6 +259,43 @@ export default function StudentsTable({ students: initial, goalsMap }: {
 
   return (
     <>
+      {/* Filter bar */}
+      <div style={{ display: 'flex', gap: '10px', padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          className="input"
+          placeholder="Buscar por nombre, email o teléfono..."
+          style={{ flex: 1, minWidth: '180px', maxWidth: '320px' }}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <select
+          className="select"
+          style={{ width: '180px' }}
+          value={levelFilter}
+          onChange={e => setLevelFilter(e.target.value)}
+        >
+          <option value="">Todos los niveles</option>
+          <option value="beginner">Principiante</option>
+          <option value="intermediate">Intermedio</option>
+          <option value="advanced">Avanzado</option>
+        </select>
+        {(search || levelFilter) && (
+          <button
+            className="btn btn-ghost"
+            onClick={() => { setSearch(''); setLevelFilter(''); }}
+            style={{ fontSize: '12px', color: 'var(--fg-muted)' }}
+          >
+            Limpiar filtros
+          </button>
+        )}
+        {(search || levelFilter) && (
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: '12px', color: 'var(--fg-muted)', marginLeft: 'auto' }}>
+            {filteredStudents.length} resultado{filteredStudents.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
       <div className="table-container">
         <table className="data-table">
           <thead>
@@ -240,13 +310,13 @@ export default function StudentsTable({ students: initial, goalsMap }: {
             </tr>
           </thead>
           <tbody>
-            {students.length === 0 ? (
+            {filteredStudents.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--fg-muted)' }}>
-                  No hay alumnos registrados. Agrega tu primer alumno.
+                  {students.length === 0 ? 'No hay alumnos registrados. Agrega tu primer alumno.' : 'Sin resultados para los filtros aplicados.'}
                 </td>
               </tr>
-            ) : students.map(s => (
+            ) : filteredStudents.map(s => (
               <tr key={s.id}>
                 <td>
                   <button
@@ -492,6 +562,10 @@ export default function StudentsTable({ students: initial, goalsMap }: {
             </div>
           </div>
         </div>
+      )}
+
+      {editSuccess && (
+        <div style={TOAST}>Cambios guardados correctamente</div>
       )}
     </>
   );

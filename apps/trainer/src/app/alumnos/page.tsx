@@ -10,8 +10,9 @@ export const dynamic = 'force-dynamic';
 export default async function StudentsPage() {
   const [students, supabase] = await Promise.all([getStudents(), createClient()]);
 
-  const { data: goalsData } = await supabase.from('goals').select('id, label');
+  const { data: goalsData } = await supabase.from('goals').select('id, label').order('sort_order');
   const goalsMap = Object.fromEntries((goalsData ?? []).map(g => [g.id, g.label]));
+  const goalsList = (goalsData ?? []) as { id: string; label: string }[];
 
 
   return (
@@ -43,27 +44,15 @@ export default async function StudentsPage() {
             <h1>Gestión de Alumnos</h1>
           </section>
 
-          <div className="row-between" style={{ marginBottom: 'var(--space-6)' }}>
-            <div className="row">
-              <input type="text" className="input" placeholder="Buscar alumno..." style={{ width: 'min(300px, 100%)' }} />
-              <select className="select" style={{ width: 'min(180px, 100%)' }}>
-                <option value="">Todos los niveles</option>
-                <option value="beginner">Principiante</option>
-                <option value="intermediate">Intermedio</option>
-                <option value="advanced">Avanzado</option>
-              </select>
-            </div>
-            <NewStudentModal />
-          </div>
-
           <div className="card">
             <div className="card-head">
               <div className="card-head-left">
                 <div className="card-title">Directorio de Alumnos</div>
                 <div className="card-subtitle">{students.length} alumnos activos</div>
               </div>
+              <NewStudentModal />
             </div>
-            <StudentsTable students={students} goalsMap={goalsMap} />
+            <StudentsTable students={students} goalsMap={goalsMap} goalsList={goalsList} />
           </div>
         </div>
       </main>

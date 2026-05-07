@@ -229,8 +229,8 @@ export async function deleteTrainer(trainerId: string, userId: string): Promise<
       admin.from('clases').select('id').eq('trainer_id', trainerId),
       admin.from('rutina_templates').select('id').eq('trainer_id', trainerId),
     ]);
-    const studentIds  = (studentsRes.data  ?? []).map((r: any) => r.id);
-    const classIds    = (classesRes.data   ?? []).map((r: any) => r.id);
+    const studentIds = (studentsRes.data ?? []).map((r: any) => r.id);
+    const classIds = (classesRes.data ?? []).map((r: any) => r.id);
     const templateIds = (templatesRes.data ?? []).map((r: any) => r.id);
 
     // 2. Delete deepest student-owned records
@@ -374,7 +374,7 @@ export async function getReporteMetrics(): Promise<ReporteMetrics> {
 // ── Demo-data seed ─────────────────────────────────────────────────────────
 async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerId: string) {
   const today = new Date();
-  const iso   = (d: Date) => d.toISOString().split('T')[0]!;
+  const iso = (d: Date) => d.toISOString().split('T')[0]!;
   const daysAgo = (n: number) => { const d = new Date(today); d.setDate(d.getDate() - n); return iso(d); };
   const daysAhead = (n: number) => { const d = new Date(today); d.setDate(d.getDate() + n); return iso(d); };
   const nextWeekday = (dow: number) => {
@@ -388,9 +388,9 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
   const { data: students } = await supabase
     .from('students')
     .insert([
-      { trainer_id: trainerId, full_name: 'María García',  experience_level: 'intermediate', goals: ['Pérdida de grasa', 'Tonificación'],        available_equipment: 'full_gym'   },
-      { trainer_id: trainerId, full_name: 'Carlos López',  experience_level: 'beginner',     goals: ['Ganar masa muscular'],                     available_equipment: 'home_basic' },
-      { trainer_id: trainerId, full_name: 'Ana Martínez',  experience_level: 'advanced',     goals: ['Rendimiento deportivo', 'Fuerza'],          available_equipment: 'full_gym'   },
+      { trainer_id: trainerId, full_name: 'María García', experience_level: 'intermediate', goals: ['Pérdida de grasa', 'Tonificación'], available_equipment: 'full_gym' },
+      { trainer_id: trainerId, full_name: 'Carlos López', experience_level: 'beginner', goals: ['Ganar masa muscular'], available_equipment: 'home_basic' },
+      { trainer_id: trainerId, full_name: 'Ana Martínez', experience_level: 'advanced', goals: ['Rendimiento deportivo', 'Fuerza'], available_equipment: 'full_gym' },
     ])
     .select('id');
   if (!students?.length) return;
@@ -406,15 +406,15 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
 
   // ── 3. Exercises lookup (librería global) ─────────────────────────────
   const { data: exDB } = await supabase.from('exercises').select('id, muscle_group').eq('activo', true);
-  const byGroup: Record<string, string[]> = {};
+  const byGroup: Record<string, string[] | undefined> = {};
   (exDB ?? []).forEach((e: any) => {
     if (!byGroup[e.muscle_group]) byGroup[e.muscle_group] = [];
-    byGroup[e.muscle_group].push(e.id);
+    byGroup[e.muscle_group]!.push(e.id);
   });
   const pick = (g: string, n: number): (string | null)[] => {
     const ids = byGroup[g] ?? [];
     const result = ids.slice(0, n);
-    while (result.length < n) result.push(null); // placeholder si no hay suficientes
+    while (result.length < n) (result as (string | null)[]).push(null); // placeholder si no hay suficientes
     return result;
   };
 
@@ -438,10 +438,10 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
       objetivo: 'Hipertrofia', dias_semana: 4, duracion_semanas: 4,
       sets: 4, reps: '8-12', descanso: 90,
       dias: [
-        { nombre: 'Día 1 — Pecho y Tríceps',  orden: 1, grupos: [['Pecho', 3], ['Tríceps', 2]] },
+        { nombre: 'Día 1 — Pecho y Tríceps', orden: 1, grupos: [['Pecho', 3], ['Tríceps', 2]] },
         { nombre: 'Día 2 — Espalda y Bíceps', orden: 2, grupos: [['Espalda', 3], ['Bíceps', 2]] },
-        { nombre: 'Día 3 — Piernas',           orden: 3, grupos: [['Piernas', 3], ['Glúteos', 2]] },
-        { nombre: 'Día 4 — Hombros y Core',    orden: 4, grupos: [['Hombros', 3], ['Core', 2]] },
+        { nombre: 'Día 3 — Piernas', orden: 3, grupos: [['Piernas', 3], ['Glúteos', 2]] },
+        { nombre: 'Día 4 — Hombros y Core', orden: 4, grupos: [['Hombros', 3], ['Core', 2]] },
       ],
     },
     {
@@ -449,9 +449,9 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
       objetivo: 'Fuerza e Hipertrofia', dias_semana: 5, duracion_semanas: 6,
       sets: 5, reps: '5-8', descanso: 120,
       dias: [
-        { nombre: 'Día 1 — Pecho',            orden: 1, grupos: [['Pecho', 4], ['Core', 1]] },
-        { nombre: 'Día 2 — Espalda',          orden: 2, grupos: [['Espalda', 5]] },
-        { nombre: 'Día 3 — Piernas A',        orden: 3, grupos: [['Piernas', 4], ['Glúteos', 1]] },
+        { nombre: 'Día 1 — Pecho', orden: 1, grupos: [['Pecho', 4], ['Core', 1]] },
+        { nombre: 'Día 2 — Espalda', orden: 2, grupos: [['Espalda', 5]] },
+        { nombre: 'Día 3 — Piernas A', orden: 3, grupos: [['Piernas', 4], ['Glúteos', 1]] },
         { nombre: 'Día 4 — Hombros y Brazos', orden: 4, grupos: [['Hombros', 3], ['Bíceps', 1], ['Tríceps', 1]] },
         { nombre: 'Día 5 — Full Body / Core', orden: 5, grupos: [['Piernas', 2], ['Espalda', 1], ['Core', 2]] },
       ],
@@ -485,8 +485,8 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
 
   // ── 5. Horarios (Clases) ──────────────────────────────────────────────
   const { data: clases } = await supabase.from('clases').insert([
-    { trainer_id: trainerId, titulo: 'Sesión Personal — María García', fecha: nextWeekday(1), hora_inicio: '08:00', hora_fin: '09:00', tipo: 'personal',   color: 'green',  recurrencia: 'ninguna' },
-    { trainer_id: trainerId, titulo: 'Clase Grupal Principiantes',     fecha: nextWeekday(3), hora_inicio: '10:00', hora_fin: '11:00', tipo: 'grupal',     color: 'blue',   recurrencia: 'ninguna' },
+    { trainer_id: trainerId, titulo: 'Sesión Personal — María García', fecha: nextWeekday(1), hora_inicio: '08:00', hora_fin: '09:00', tipo: 'personal', color: 'green', recurrencia: 'ninguna' },
+    { trainer_id: trainerId, titulo: 'Clase Grupal Principiantes', fecha: nextWeekday(3), hora_inicio: '10:00', hora_fin: '11:00', tipo: 'grupal', color: 'blue', recurrencia: 'ninguna' },
     { trainer_id: trainerId, titulo: 'Evaluación Inicial — Carlos López', fecha: nextWeekday(5), hora_inicio: '09:00', hora_fin: '09:45', tipo: 'evaluacion', color: 'purple', recurrencia: 'ninguna' },
   ]).select('id');
 
@@ -509,7 +509,7 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
     ]);
     await supabase.from('medidas_corporales').insert([
       { alumno_id: maria.id, fecha: daysAgo(30), cintura_cm: 72, cadera_cm: 98, muslo_cm: 58 },
-      { alumno_id: maria.id, fecha: iso(today),  cintura_cm: 70, cadera_cm: 96, muslo_cm: 57 },
+      { alumno_id: maria.id, fecha: iso(today), cintura_cm: 70, cadera_cm: 96, muslo_cm: 57 },
     ]);
   }
 
@@ -521,8 +521,8 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
       { alumno_id: carlos.id, peso_kg: 75.0, fecha: iso(today) },
     ]);
     await supabase.from('medidas_corporales').insert([
-      { alumno_id: carlos.id, fecha: daysAgo(30), pecho_cm: 98,  biceps_cm: 36 },
-      { alumno_id: carlos.id, fecha: iso(today),  pecho_cm: 100, biceps_cm: 38 },
+      { alumno_id: carlos.id, fecha: daysAgo(30), pecho_cm: 98, biceps_cm: 36 },
+      { alumno_id: carlos.id, fecha: iso(today), pecho_cm: 100, biceps_cm: 38 },
     ]);
     await supabase.from('logros').insert({ alumno_id: carlos.id, tipo: 'hito_semana', titulo: 'Primera semana completa', descripcion: 'Completó su primera semana de entrenamiento sin faltar ni un día.', fecha_obtenido: iso(today) });
   }
@@ -537,7 +537,7 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
     ]);
     await supabase.from('medidas_corporales').insert([
       { alumno_id: ana.id, fecha: daysAgo(30), cintura_cm: 68, biceps_cm: 30 },
-      { alumno_id: ana.id, fecha: iso(today),  cintura_cm: 67, biceps_cm: 31 },
+      { alumno_id: ana.id, fecha: iso(today), cintura_cm: 67, biceps_cm: 31 },
     ]);
     await supabase.from('logros').insert({ alumno_id: ana.id, tipo: 'record_personal', titulo: 'Nuevo récord en Sentadilla: 80 kg', descripcion: 'Superó su marca personal en sentadilla con barra libre.', fecha_obtenido: iso(today) });
   }
@@ -545,10 +545,10 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
   // ── 7. Plantillas WhatsApp ────────────────────────────────────────────
   await supabase.from('plantillas_mensaje').insert([
     { trainer_id: trainerId, tipo: 'recordatorio_vencimiento', nombre: 'Recordatorio de vencimiento', contenido: 'Hola {nombre}, te recuerdo que tu cuota de ${monto} vence el {fecha_vencimiento}. ¡No te quedes sin acceso a tus rutinas! 💪', activo: true },
-    { trainer_id: trainerId, tipo: 'cuota_vencida',            nombre: 'Cuota vencida',               contenido: 'Hola {nombre}, tu cuota de ${monto} venció el {fecha_vencimiento}. Por favor regularizá tu situación para continuar con tu plan. 🙏', activo: true },
-    { trainer_id: trainerId, tipo: 'cobro_realizado',          nombre: 'Cobro realizado',             contenido: '¡Listo {nombre}! Recibí tu pago de ${monto}. Tu próxima fecha de vencimiento es el {proxima_fecha}. ¡Seguimos! 🔥', activo: true },
-    { trainer_id: trainerId, tipo: 'bienvenida',               nombre: 'Bienvenida al programa',      contenido: '¡Bienvenido/a {nombre}! Es un gusto tenerte en el programa. Desde hoy empezamos tu plan personalizado. Cualquier consulta, acá estoy. 💪', activo: true },
-    { trainer_id: trainerId, tipo: 'nueva_rutina',             nombre: 'Nueva rutina asignada',       contenido: 'Hola {nombre}, ya tenés tu nueva rutina disponible en la app. ¡Entrá y mirala! Cualquier duda me avisás. 🏋️', activo: true },
+    { trainer_id: trainerId, tipo: 'cuota_vencida', nombre: 'Cuota vencida', contenido: 'Hola {nombre}, tu cuota de ${monto} venció el {fecha_vencimiento}. Por favor regularizá tu situación para continuar con tu plan. 🙏', activo: true },
+    { trainer_id: trainerId, tipo: 'cobro_realizado', nombre: 'Cobro realizado', contenido: '¡Listo {nombre}! Recibí tu pago de ${monto}. Tu próxima fecha de vencimiento es el {proxima_fecha}. ¡Seguimos! 🔥', activo: true },
+    { trainer_id: trainerId, tipo: 'bienvenida', nombre: 'Bienvenida al programa', contenido: '¡Bienvenido/a {nombre}! Es un gusto tenerte en el programa. Desde hoy empezamos tu plan personalizado. Cualquier consulta, acá estoy. 💪', activo: true },
+    { trainer_id: trainerId, tipo: 'nueva_rutina', nombre: 'Nueva rutina asignada', contenido: 'Hola {nombre}, ya tenés tu nueva rutina disponible en la app. ¡Entrá y mirala! Cualquier duda me avisás. 🏋️', activo: true },
   ]);
 
   // ── 8. Config recordatorios ───────────────────────────────────────────
@@ -569,18 +569,18 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
     const admin = serviceClient();
 
     const business_name = (formData.get('business_name') as string).trim();
-    const email         = (formData.get('email') as string).trim();
-    const password      = formData.get('password') as string;
-    const confirm       = formData.get('confirm') as string;
-    const plan_id       = formData.get('plan_id') as string;
-    const trial_days    = parseInt(formData.get('trial_days') as string) || 30;
-    const seed_demo     = formData.get('seed_demo') === 'true';
+    const email = (formData.get('email') as string).trim();
+    const password = formData.get('password') as string;
+    const confirm = formData.get('confirm') as string;
+    const plan_id = formData.get('plan_id') as string;
+    const trial_days = parseInt(formData.get('trial_days') as string) || 30;
+    const seed_demo = formData.get('seed_demo') === 'true';
 
     if (!business_name) return { error: 'El nombre del negocio es requerido' };
-    if (!email)         return { error: 'El email es requerido' };
+    if (!email) return { error: 'El email es requerido' };
     if (password.length < 8) return { error: 'La contraseña debe tener al menos 8 caracteres' };
-    if (password !== confirm)  return { error: 'Las contraseñas no coinciden' };
-    if (!plan_id)       return { error: 'Selecciona un plan' };
+    if (password !== confirm) return { error: 'Las contraseñas no coinciden' };
+    if (!plan_id) return { error: 'Selecciona un plan' };
 
     // 1. Crear usuario en auth
     const { data: authData, error: authErr } = await admin.auth.admin.createUser({
@@ -610,7 +610,7 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
     }
 
     // 3. Crear suscripción en trial
-    const today    = new Date().toISOString().split('T')[0]!;
+    const today = new Date().toISOString().split('T')[0]!;
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + trial_days);
     const trialEndStr = trialEnd.toISOString().split('T')[0]!;
@@ -624,12 +624,12 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
     const { data: sus, error: susErr } = await admin
       .from('trainer_suscripciones')
       .insert({
-        trainer_id:          trainer.id,
+        trainer_id: trainer.id,
         plan_id,
-        estado:              'trial',
-        fecha_inicio:        today,
-        fecha_fin_trial:     trialEndStr,
-        fecha_proximo_pago:  trialEndStr,
+        estado: 'trial',
+        fecha_inicio: today,
+        fecha_fin_trial: trialEndStr,
+        fecha_proximo_pago: trialEndStr,
       })
       .select('id, trainer_id, plan_id, estado, fecha_inicio, fecha_fin_trial, fecha_proximo_pago, metodo_pago, notas, created_at')
       .single();
@@ -653,7 +653,7 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
     };
   } catch (e) {
     if (userId) {
-      try { await serviceClient().auth.admin.deleteUser(userId); } catch {}
+      try { await serviceClient().auth.admin.deleteUser(userId); } catch { }
     }
     return { error: (e as Error).message };
   }

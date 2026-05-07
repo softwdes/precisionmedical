@@ -11,10 +11,12 @@ const FIELD_LABEL: React.CSSProperties = { fontSize: '13px', color: '#555' };
 const FIELD_VAL: React.CSSProperties = { fontSize: '13px', color: '#ccc', fontWeight: 500 };
 const ROW: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 0', borderBottom: '1px solid #1a1a1a' };
 
-const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 function fmtPeriodo(ym: string) {
-  const [y, m] = ym.split('-');
+  const parts = ym.split('-');
+  const y = parts[0] ?? ym;
+  const m = parts[1] ?? '1';
   return `${MESES[parseInt(m, 10) - 1] ?? ym} ${y}`;
 }
 function fmtDate(iso: string) {
@@ -46,13 +48,6 @@ interface Props {
   cuotas: Cuota[];
 }
 
-function calcVencStatus(fv: string): 'al_dia' | 'por_vencer' | 'vencido' {
-  const dias = Math.ceil((new Date(fv).getTime() - Date.now()) / 86400000);
-  if (dias < 0) return 'vencido';
-  if (dias <= 7) return 'por_vencer';
-  return 'al_dia';
-}
-
 export default function AlumnoPerfil({ student, goalsMap, cuotas }: Props) {
   const { symbol } = useCurrencySymbol();
   const [showPago, setShowPago] = useState(false);
@@ -62,9 +57,7 @@ export default function AlumnoPerfil({ student, goalsMap, cuotas }: Props) {
 
   const ultimaCuota = cuotas[0] ?? null;
   const proxVenc = cuotas.find(c => c.estado !== 'pagado');
-  const vencStatus = proxVenc ? calcVencStatus(proxVenc.fecha_vencimiento) : null;
-
-  const vencColor = vencStatus === 'vencido' ? '#E24B4A' : vencStatus === 'por_vencer' ? '#EF9F27' : G;
+  const vencColor = proxVenc?.estado === 'vencido' ? '#E24B4A' : proxVenc?.estado === 'pendiente' ? '#EF9F27' : G;
 
   const resolveGoals = (ids: string[] | null) =>
     ids?.map(g => goalsMap[g] ?? g).join(', ') || '—';
@@ -222,8 +215,8 @@ export default function AlumnoPerfil({ student, goalsMap, cuotas }: Props) {
                 <span style={FIELD_LABEL}>Próximo vencimiento</span>
                 <span style={{ fontSize: '13px', fontWeight: 600, color: vencColor }}>
                   {fmtDate(proxVenc.fecha_vencimiento)}
-                  {vencStatus === 'vencido' && ' · VENCIDO'}
-                  {vencStatus === 'por_vencer' && ' · VENCE PRONTO'}
+                  {proxVenc?.estado === 'vencido' && ' · VENCIDO'}
+                  {proxVenc?.estado === 'pendiente' && ' · VENCE PRONTO'}
                 </span>
               </div>
             )}

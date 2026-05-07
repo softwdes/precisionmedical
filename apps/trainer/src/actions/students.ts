@@ -19,11 +19,12 @@ export async function getStudents() {
 
 export async function deleteStudent(id: string): Promise<{ error?: string }> {
   try {
-    const { supabase } = await getAuthContext();
+    const { supabase, trainerId } = await getAuthContext();
     const { error } = await supabase
       .from('students')
       .update({ archived_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('trainer_id', trainerId);
     if (error) return { error: error.message };
     revalidatePath('/alumnos');
     return {};
@@ -34,7 +35,7 @@ export async function deleteStudent(id: string): Promise<{ error?: string }> {
 
 export async function updateStudentModal(id: string, formData: FormData): Promise<{ error?: string }> {
   try {
-    const { supabase } = await getAuthContext();
+    const { supabase, trainerId } = await getAuthContext();
     const full_name = (formData.get('full_name') as string)?.trim();
     if (!full_name) return { error: 'El nombre es requerido' };
     const email = (formData.get('email') as string)?.trim() || null;
@@ -51,7 +52,7 @@ export async function updateStudentModal(id: string, formData: FormData): Promis
       experience_level: experience_level || null,
       goals: goals.length > 0 ? goals : null,
       available_equipment: available_equipment || null,
-    }).eq('id', id);
+    }).eq('id', id).eq('trainer_id', trainerId);
     if (error) return { error: error.message };
     revalidatePath('/alumnos');
     return {};
@@ -127,7 +128,7 @@ export async function createStudent(formData: FormData) {
 }
 
 export async function updateStudent(id: string, formData: FormData) {
-  const { supabase } = await getAuthContext();
+  const { supabase, trainerId } = await getAuthContext();
   const full_name = formData.get('full_name') as string;
   const birth_date = formData.get('birth_date') as string | null;
   const experience_level = formData.get('experience_level') as string | null;
@@ -140,7 +141,7 @@ export async function updateStudent(id: string, formData: FormData) {
     experience_level,
     goals: goals.length > 0 ? goals : null,
     available_equipment,
-  }).eq('id', id);
+  }).eq('id', id).eq('trainer_id', trainerId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/alumnos/${id}`);
@@ -148,12 +149,12 @@ export async function updateStudent(id: string, formData: FormData) {
 }
 
 export async function getStudentMetrics(studentId: string) {
-  const supabase = await createClient();
+  const { supabase } = await getAuthContext();
   const { data, error } = await supabase
-    .from('body_metrics')
+    .from('medidas_corporales')
     .select('*')
-    .eq('student_id', studentId)
-    .order('measured_at', { ascending: false })
+    .eq('alumno_id', studentId)
+    .order('fecha', { ascending: false })
     .limit(20);
 
   if (error) throw new Error(error.message);

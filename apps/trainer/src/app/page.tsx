@@ -84,11 +84,11 @@ export default async function DashboardPage() {
         .limit(12),
       alumnoIds.length > 0
         ? supabase
-            .from('sesiones_entrenamiento')
-            .select('alumno_id, completada, fecha')
-            .in('alumno_id', alumnoIds)
-            .gte('fecha', ago28)
-            .lte('fecha', today)
+          .from('sesiones_entrenamiento')
+          .select('alumno_id, completada, fecha')
+          .in('alumno_id', alumnoIds)
+          .gte('fecha', ago28)
+          .lte('fecha', today)
         : Promise.resolve({ data: [] as { alumno_id: string; completada: boolean; fecha: string }[], error: null }),
       supabase
         .from('trainer_suscripciones')
@@ -168,13 +168,11 @@ export default async function DashboardPage() {
     ).map((c) => ({
       id: c.id,
       tipo: 'pago' as const,
-      descripcion: `${
-        (c.students as unknown as { full_name: string } | null)?.full_name ?? 'Alumno'
-      } — ${
-        c.estado === 'pagado'
+      descripcion: `${(c.students as unknown as { full_name: string } | null)?.full_name ?? 'Alumno'
+        } — ${c.estado === 'pagado'
           ? `pagó S/ ${c.monto}`
           : `cuota S/ ${c.monto} (${c.estado})`
-      }`,
+        }`,
       tiempo: relTime(c.created_at as string),
     }));
 
@@ -203,7 +201,7 @@ export default async function DashboardPage() {
       pagosUrgentes,
       actividadReciente,
       adherenciaSemanal,
-      capacidadMax: (suscripcionRes.data?.planes_saas as { limite_alumnos: number | null } | null)?.limite_alumnos ?? 15,
+      capacidadMax: (suscripcionRes.data?.planes_saas as unknown as { limite_alumnos: number | null } | null)?.limite_alumnos ?? 15,
       metaMensual: 5000,
     };
   } catch {

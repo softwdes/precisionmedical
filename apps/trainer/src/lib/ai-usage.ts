@@ -10,7 +10,7 @@ async function getPlanLimite(trainerId: string): Promise<number> {
     .eq('trainer_id', trainerId)
     .single();
 
-  const limite = (data?.planes_saas as { limite_ia_diario: number | null } | null)?.limite_ia_diario;
+  const limite = (data?.planes_saas as unknown as { limite_ia_diario: number | null } | null)?.limite_ia_diario;
   return limite ?? LIMITE_FALLBACK;
 }
 

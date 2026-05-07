@@ -22,7 +22,7 @@ export default async function StudentsPage() {
   const goalsData = goalsRes.data;
   const goalsMap = Object.fromEntries((goalsData ?? []).map(g => [g.id, g.label]));
   const goalsList = (goalsData ?? []) as { id: string; label: string }[];
-  const capacidadMax = (suscripcionRes.data?.planes_saas as { limite_alumnos: number | null } | null)?.limite_alumnos ?? 15;
+  const capacidadMax = (suscripcionRes.data?.planes_saas as { limite_alumnos: number | null } | null | undefined)?.limite_alumnos ?? 15;
 
   return (
     <div className="app">

@@ -32,13 +32,9 @@ interface Props {
 
 const QUICK_PILLS = [
   'Alumnos activos',
-  'Cuotas vencidas',
   'Próximas a vencer',
-  'Reporte de cobros',
   'Clases de hoy',
   'Adherencia del mes',
-  'Pendiente de cobro',
-  'Resumen general',
 ];
 
 const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -70,12 +66,23 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
   const [isConfirming, startConfirm] = useTransition();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     setHasSpeech(
       typeof window !== 'undefined' &&
         ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
     );
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -170,6 +177,16 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
   }
 
   const startListening = useCallback(() => {
+    // Toggle off if already listening
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+      setIsListening(false);
+      return;
+    }
+
     if (!hasSpeech) {
       setNoSpeechMsg(true);
       setTimeout(() => setNoSpeechMsg(false), 3500);
@@ -178,21 +195,47 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
+
+    // Abort any lingering session before starting a new one
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recognition = new SR() as any;
     recognition.lang = 'es-PE';
     recognition.interimResults = false;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (e: any) => {
       const transcript: string = e.results?.[0]?.[0]?.transcript ?? '';
       if (transcript) sendMessage(transcript);
     };
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-    recognition.onnomatch = () => setIsListening(false);
-    recognition.start();
-    setIsListening(true);
-  }, [hasSpeech, sendMessage]);
+
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (e: any) => {
+      recognitionRef.current = null;
+      setIsListening(false);
+      if (e.error === 'no-speech') {
+        setNoSpeechMsg(true);
+        setTimeout(() => setNoSpeechMsg(false), 2500);
+      }
+    };
+
+    try {
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsListening(true);
+    } catch {
+      recognitionRef.current = null;
+    }
+  }, [hasSpeech, isListening, sendMessage]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chatCompletion } from '@/lib/ai-provider';
 import { buildSystemPrompt } from '@/lib/ai-context';
-import { checkAndIncrementUsage, LIMITE_DIARIO } from '@/lib/ai-usage';
+import { checkAndIncrementUsage } from '@/lib/ai-usage';
 import { createClient } from '@/lib/supabase-server';
 
-interface ParsedAction {
-  type: 'register_payment';
-  student_name: string;
-  student_id: string | null;
-  monto: number;
-  periodo: string;
-  fecha_vencimiento: string;
-}
+type ParsedAction =
+  | {
+      type: 'register_payment';
+      student_name: string;
+      student_id: string | null;
+      monto: number;
+      periodo: string;
+      fecha_vencimiento: string;
+    }
+  | {
+      type: 'mark_session_complete';
+      student_name: string;
+      student_id: string | null;
+      fecha: string;
+    };
 
 async function parseAction(reply: string, trainerId: string): Promise<{ cleanReply: string; action: ParsedAction | null }> {
   const match = reply.match(/⟦ACCION⟧(\{[\s\S]*?\})⟦\/ACCION⟧/);
@@ -24,10 +31,13 @@ async function parseAction(reply: string, trainerId: string): Promise<{ cleanRep
       monto?: number;
       periodo?: string;
       fecha_vencimiento?: string;
+      fecha?: string;
     };
 
-    if (raw.type !== 'register_payment' || !raw.student_name) {
-      return { cleanReply: reply.replace(/⟦ACCION⟧[\s\S]*?⟦\/ACCION⟧/, '').trim(), action: null };
+    const cleanReply = reply.replace(/⟦ACCION⟧[\s\S]*?⟦\/ACCION⟧/, '').trim();
+
+    if (!raw.type || !raw.student_name) {
+      return { cleanReply, action: null };
     }
 
     const supabase = await createClient();
@@ -40,17 +50,28 @@ async function parseAction(reply: string, trainerId: string): Promise<{ cleanRep
       .limit(1);
 
     const student = students?.[0] ?? null;
+    const today = new Date().toISOString().split('T')[0]!;
 
-    const action: ParsedAction = {
-      type: 'register_payment',
-      student_name: student?.full_name ?? raw.student_name,
-      student_id: student?.id ?? null,
-      monto: raw.monto ?? 0,
-      periodo: raw.periodo ?? new Date().toISOString().slice(0, 7),
-      fecha_vencimiento: raw.fecha_vencimiento ?? '',
-    };
+    let action: ParsedAction | null = null;
 
-    const cleanReply = reply.replace(/⟦ACCION⟧[\s\S]*?⟦\/ACCION⟧/, '').trim();
+    if (raw.type === 'register_payment') {
+      action = {
+        type: 'register_payment',
+        student_name: student?.full_name ?? raw.student_name,
+        student_id: student?.id ?? null,
+        monto: raw.monto ?? 0,
+        periodo: raw.periodo ?? new Date().toISOString().slice(0, 7),
+        fecha_vencimiento: raw.fecha_vencimiento ?? '',
+      };
+    } else if (raw.type === 'mark_session_complete') {
+      action = {
+        type: 'mark_session_complete',
+        student_name: student?.full_name ?? raw.student_name,
+        student_id: student?.id ?? null,
+        fecha: raw.fecha ?? today,
+      };
+    }
+
     return { cleanReply, action };
   } catch {
     return { cleanReply: reply.replace(/⟦ACCION⟧[\s\S]*?⟦\/ACCION⟧/, '').trim(), action: null };
@@ -78,10 +99,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'limite_alcanzado',
-          mensaje:
-            'Alcanzaste el límite de 10 consultas por hoy. Mañana a las 00:00 se renueva automáticamente.',
+          mensaje: `Alcanzaste el límite de ${usage.limite} consultas por hoy. Mañana a las 00:00 se renueva automáticamente.`,
           restantes: 0,
-          usadas: LIMITE_DIARIO,
+          usadas: usage.limite,
         },
         { status: 429 }
       );
@@ -95,7 +115,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       reply: cleanReply,
       action,
-      usage: { usadas: usage.usadas, restantes: usage.restantes, limite: LIMITE_DIARIO },
+      usage: { usadas: usage.usadas, restantes: usage.restantes, limite: usage.limite },
     });
   } catch (error: unknown) {
     const err = error as { message?: string; status?: number };

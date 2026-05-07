@@ -2,20 +2,28 @@
 
 import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
 import { createCuota } from '@/actions/finanzas';
+import { marcarSesionCompletada } from '@/actions/metricas2';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
 }
 
-interface PendingAction {
-  type: 'register_payment';
-  student_id: string | null;
-  student_name: string;
-  monto: number;
-  periodo: string;
-  fecha_vencimiento: string;
-}
+type PendingAction =
+  | {
+      type: 'register_payment';
+      student_id: string | null;
+      student_name: string;
+      monto: number;
+      periodo: string;
+      fecha_vencimiento: string;
+    }
+  | {
+      type: 'mark_session_complete';
+      student_id: string | null;
+      student_name: string;
+      fecha: string;
+    };
 
 interface Props {
   trainerId: string;
@@ -34,11 +42,18 @@ const QUICK_PILLS = [
 ];
 
 const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MESES_SHORT = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
 function formatPeriodo(ym: string) {
   const parts = ym.split('-');
   const y = parts[0] ?? ym;
   const m = parts[1] ?? '1';
   return `${MESES_FULL[parseInt(m, 10) - 1] ?? ym} ${y}`;
+}
+
+function fmtFecha(iso: string) {
+  const d = new Date(iso + 'T00:00:00');
+  return `${d.getDate()} ${MESES_SHORT[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export default function TrainerAIChat({ trainerId, onClose }: Props) {
@@ -116,7 +131,7 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
   );
 
   function confirmPayment() {
-    if (!pendingAction || !pendingAction.student_id) return;
+    if (!pendingAction || pendingAction.type !== 'register_payment' || !pendingAction.student_id) return;
     const action = pendingAction;
     startConfirm(async () => {
       const res = await createCuota({
@@ -127,14 +142,28 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
       });
       setPendingAction(null);
       if (res.error) {
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: `No pude registrar el pago: ${res.error}`,
-        }]);
+        setMessages(prev => [...prev, { role: 'assistant', content: `No pude registrar el pago: ${res.error}` }]);
       } else {
         setMessages(prev => [...prev, {
           role: 'assistant',
           content: `Pago registrado. S/ ${action.monto} para ${action.student_name} — ${formatPeriodo(action.periodo)}. Podés verlo en Finanzas.`,
+        }]);
+      }
+    });
+  }
+
+  function confirmSession() {
+    if (!pendingAction || pendingAction.type !== 'mark_session_complete' || !pendingAction.student_id) return;
+    const action = pendingAction;
+    startConfirm(async () => {
+      const res = await marcarSesionCompletada(action.student_id!, action.fecha);
+      setPendingAction(null);
+      if (res.error) {
+        setMessages(prev => [...prev, { role: 'assistant', content: `No pude marcar la sesión: ${res.error}` }]);
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Sesión marcada como completada. ${action.student_name} — ${fmtFecha(action.fecha)}.`,
         }]);
       }
     });
@@ -284,85 +313,15 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
           </div>
         )}
 
-        {/* Payment confirmation card */}
-        {pendingAction?.type === 'register_payment' && !isTyping && (
-          <div style={{
-            marginLeft: '36px',
-            background: 'var(--bg-row)',
-            border: '1px solid var(--accent)',
-            borderRadius: '10px',
-            padding: '14px 16px',
-            animation: 'fadeIn 0.25s ease-out',
-          }}>
-            <div style={{
-              fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
-              letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: '10px',
-              display: 'flex', alignItems: 'center', gap: '6px',
-            }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-              </svg>
-              Confirmar registro de pago
-            </div>
-
-            {pendingAction.student_id ? (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', marginBottom: '12px' }}>
-                  {[
-                    ['Alumno', pendingAction.student_name],
-                    ['Monto', `S/ ${pendingAction.monto}`],
-                    ['Período', formatPeriodo(pendingAction.periodo)],
-                    ['Vencimiento', pendingAction.fecha_vencimiento],
-                  ].map(([label, val]) => (
-                    <div key={label}>
-                      <div style={{ fontSize: '10px', color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-                      <div style={{ fontSize: '13px', color: 'var(--fg-strong)', fontWeight: 600, marginTop: '2px' }}>{val}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={confirmPayment}
-                    disabled={isConfirming}
-                    style={{
-                      padding: '7px 18px',
-                      background: isConfirming ? 'rgba(63,248,200,0.3)' : 'var(--accent)',
-                      color: 'var(--fg-on-accent)',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.07em',
-                      cursor: isConfirming ? 'not-allowed' : 'pointer',
-                      transition: 'background 0.15s',
-                    }}
-                  >
-                    {isConfirming ? 'Guardando...' : 'Confirmar'}
-                  </button>
-                  <button
-                    onClick={() => setPendingAction(null)}
-                    disabled={isConfirming}
-                    style={{
-                      padding: '7px 14px',
-                      background: 'none',
-                      border: '1px solid var(--border-strong)',
-                      borderRadius: '6px',
-                      fontSize: '11px',
-                      color: 'var(--fg-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: '13px', color: '#ef4444' }}>
-                No encontré a &quot;{pendingAction.student_name}&quot; en el sistema. Verificá el nombre e intentá de nuevo.
-              </div>
-            )}
-          </div>
+        {/* Action confirmation card */}
+        {pendingAction && !isTyping && (
+          <ActionCard
+            action={pendingAction}
+            isConfirming={isConfirming}
+            onConfirmPayment={confirmPayment}
+            onConfirmSession={confirmSession}
+            onCancel={() => setPendingAction(null)}
+          />
         )}
 
         <div ref={messagesEndRef} />
@@ -528,6 +487,108 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function ActionCard({
+  action, isConfirming, onConfirmPayment, onConfirmSession, onCancel,
+}: {
+  action: PendingAction;
+  isConfirming: boolean;
+  onConfirmPayment: () => void;
+  onConfirmSession: () => void;
+  onCancel: () => void;
+}) {
+  const isPayment = action.type === 'register_payment';
+  const rows: [string, string][] = isPayment && action.type === 'register_payment'
+    ? [
+        ['Alumno', action.student_name],
+        ['Monto', `S/ ${action.monto}`],
+        ['Período', formatPeriodo(action.periodo)],
+        ['Vencimiento', action.fecha_vencimiento],
+      ]
+    : action.type === 'mark_session_complete'
+      ? [
+          ['Alumno', action.student_name],
+          ['Fecha', fmtFecha(action.fecha)],
+        ]
+      : [];
+
+  return (
+    <div style={{
+      marginLeft: '36px',
+      background: 'var(--bg-row)',
+      border: '1px solid var(--accent)',
+      borderRadius: '10px',
+      padding: '14px 16px',
+      animation: 'fadeIn 0.25s ease-out',
+    }}>
+      <div style={{
+        fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+        letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: '10px',
+        display: 'flex', alignItems: 'center', gap: '6px',
+      }}>
+        {isPayment ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        )}
+        {isPayment ? 'Confirmar registro de pago' : 'Confirmar sesión completada'}
+      </div>
+
+      {action.student_id ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', marginBottom: '12px' }}>
+            {rows.map(([label, val]) => (
+              <div key={label}>
+                <div style={{ fontSize: '10px', color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ fontSize: '13px', color: 'var(--fg-strong)', fontWeight: 600, marginTop: '2px' }}>{val}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={isPayment ? onConfirmPayment : onConfirmSession}
+              disabled={isConfirming}
+              style={{
+                padding: '7px 18px',
+                background: isConfirming ? 'rgba(63,248,200,0.3)' : 'var(--accent)',
+                color: 'var(--fg-on-accent)',
+                border: 'none', borderRadius: '6px',
+                fontSize: '11px', fontWeight: 700,
+                textTransform: 'uppercase', letterSpacing: '0.07em',
+                cursor: isConfirming ? 'not-allowed' : 'pointer',
+                transition: 'background 0.15s',
+              }}
+            >
+              {isConfirming ? 'Guardando...' : 'Confirmar'}
+            </button>
+            <button
+              onClick={onCancel}
+              disabled={isConfirming}
+              style={{
+                padding: '7px 14px',
+                background: 'none',
+                border: '1px solid var(--border-strong)',
+                borderRadius: '6px',
+                fontSize: '11px', color: 'var(--fg-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </>
+      ) : (
+        <div style={{ fontSize: '13px', color: '#ef4444' }}>
+          No encontré a &quot;{action.student_name}&quot; en el sistema. Verificá el nombre e intentá de nuevo.
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function SparklesIcon({ size = 20, color = 'currentColor' }: { size?: number; color?: string }) {
   return (

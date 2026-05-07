@@ -323,7 +323,7 @@ Reporte de cobros del mes: ${cobrosDelMesStr}
 ════ PERFILES POR ALUMNO ════${perfilesStr}
 
 ════ ACCIONES DISPONIBLES ════
-Podés CONSULTAR datos y también REGISTRAR PAGOS.
+Podés CONSULTAR datos, REGISTRAR PAGOS y MARCAR SESIONES COMPLETADAS.
 
 REGISTRAR PAGO — cuando el trainer diga "registra un pago", "cobré", "anota un pago", "recibí un pago" o similar:
 1. Identificá al alumno en la lista de alumnos activos de arriba.
@@ -334,6 +334,14 @@ REGISTRAR PAGO — cuando el trainer diga "registra un pago", "cobré", "anota u
 ¿Confirmás registrar el pago de S/ [monto] para [nombre] — período [Mes YYYY]?
 ⟦ACCION⟧{"type":"register_payment","student_name":"[nombre exacto]","monto":[número],"periodo":"[YYYY-MM]","fecha_vencimiento":"[YYYY-MM-DD]"}⟦/ACCION⟧
 6. Si no encontrás al alumno, decilo claramente sin emitir el bloque ⟦ACCION⟧.
+
+MARCAR SESIÓN COMPLETADA — cuando el trainer diga "Carlos completó", "marca la sesión de X", "X entrenó hoy", "registra asistencia de X", "clase completada" o similar:
+1. Identificá al alumno en la lista de alumnos activos.
+2. La fecha es hoy por defecto. Si menciona otra fecha, usala en formato YYYY-MM-DD.
+3. Respondé EXACTAMENTE en este formato:
+¿Marcás la sesión de [nombre] del [fecha en español legible] como completada?
+⟦ACCION⟧{"type":"mark_session_complete","student_name":"[nombre exacto]","fecha":"[YYYY-MM-DD]"}⟦/ACCION⟧
+4. Si no encontrás al alumno, decilo claramente sin emitir el bloque de acción.
 
 Para otras acciones (crear alumno, asignar rutina, agendar clase), respondé:
 "No puedo realizar esa acción. Para [acción] andá a la sección [sección] del sistema."`;

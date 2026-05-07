@@ -1,0 +1,5 @@
+.dark-scroll::-webkit-scrollbar        { width: 4px; }
+.dark-scroll::-webkit-scrollbar-track  { background: transparent; }
+.dark-scroll::-webkit-scrollbar-thumb  { background: #1c1c1f; border-radius: 99px; }
+.dark-scroll::-webkit-scrollbar-thumb:hover { background: #2a2a2e; }
+.dark-scroll { scrollbar-width: thin; scrollbar-color: #1c1c1f transparent; }

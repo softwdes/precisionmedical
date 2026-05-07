@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import '@precision/ui/globals.css';
+import './master.css';
 
 export const metadata: Metadata = {
   title: 'Neural Trainer Gym — Panel Master',

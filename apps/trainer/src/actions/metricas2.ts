@@ -48,6 +48,37 @@ export async function addSesionEntrenamiento(
   } catch (e) { return { error: (e as Error).message }; }
 }
 
+export async function marcarSesionCompletada(
+  alumnoId: string,
+  fecha: string,
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await getAuthContext();
+    const { data: existing } = await supabase
+      .from('sesiones_entrenamiento')
+      .select('id')
+      .eq('alumno_id', alumnoId)
+      .eq('fecha', fecha)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from('sesiones_entrenamiento')
+        .update({ completada: true })
+        .eq('id', existing.id);
+      if (error) return { error: error.message };
+    } else {
+      const { error } = await supabase
+        .from('sesiones_entrenamiento')
+        .insert({ alumno_id: alumnoId, fecha, completada: true });
+      if (error) return { error: error.message };
+    }
+    revalidatePath('/metricas');
+    return {};
+  } catch (e) { return { error: (e as Error).message }; }
+}
+
 export async function otorgarLogro(
   alumnoId: string,
   logro: { tipo: string; titulo: string; descripcion?: string }

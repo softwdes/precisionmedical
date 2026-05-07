@@ -49,6 +49,7 @@ export default async function DashboardPage() {
       cuotasProxRes,
       actividadRes,
       sesionesRes,
+      suscripcionRes,
     ] = await Promise.all([
       supabase
         .from('cuotas')
@@ -89,6 +90,11 @@ export default async function DashboardPage() {
             .gte('fecha', ago28)
             .lte('fecha', today)
         : Promise.resolve({ data: [] as { alumno_id: string; completada: boolean; fecha: string }[], error: null }),
+      supabase
+        .from('trainer_suscripciones')
+        .select('planes_saas(limite_alumnos)')
+        .eq('trainer_id', trainerId)
+        .single(),
     ]);
 
     // Cobrado este mes
@@ -197,7 +203,7 @@ export default async function DashboardPage() {
       pagosUrgentes,
       actividadReciente,
       adherenciaSemanal,
-      capacidadMax: 30,
+      capacidadMax: (suscripcionRes.data?.planes_saas as { limite_alumnos: number | null } | null)?.limite_alumnos ?? 15,
       metaMensual: 5000,
     };
   } catch {
@@ -215,7 +221,7 @@ export default async function DashboardPage() {
       pagosUrgentes: [],
       actividadReciente: [],
       adherenciaSemanal: [0, 0, 0, 0],
-      capacidadMax: 30,
+      capacidadMax: 15,
       metaMensual: 5000,
     };
   }

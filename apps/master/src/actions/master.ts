@@ -189,7 +189,7 @@ export async function getMasterTrainers(): Promise<TrainerRow[]> {
 
   const { data: trainers } = await supabase
     .from('trainers')
-    .select(`id, user_id, business_name, created_at,
+    .select(`id, user_id, business_name, phone, created_at,
       trainer_suscripciones(id, estado, fecha_inicio, fecha_fin_trial, fecha_proximo_pago, metodo_pago,
         planes_saas(id, nombre, precio_mensual, limite_alumnos, limite_ia_diario, incluye_metricas, incluye_whatsapp, incluye_soporte_prioritario, activo, created_at))`)
     .order('created_at', { ascending: false });
@@ -212,7 +212,7 @@ export async function getMasterTrainers(): Promise<TrainerRow[]> {
   return (trainers || []).map((t: any) => ({
     ...t,
     email: emailMap[t.user_id] ?? null,
-    phone: null,
+    phone: t.phone ?? null,
     students_count: studentCounts[t.id] || 0,
     ia_hoy: 0,
     suscripcion: (t.trainer_suscripciones as any[])?.[0] ?? null,
@@ -569,6 +569,7 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
     const admin = serviceClient();
 
     const business_name = (formData.get('business_name') as string).trim();
+    const phone = ((formData.get('phone') as string | null) ?? '').trim() || null;
     const email = (formData.get('email') as string).trim();
     const password = formData.get('password') as string;
     const confirm = formData.get('confirm') as string;
@@ -577,6 +578,7 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
     const seed_demo = formData.get('seed_demo') === 'true';
 
     if (!business_name) return { error: 'El nombre del negocio es requerido' };
+    if (!phone) return { error: 'El celular es requerido' };
     if (!email) return { error: 'El email es requerido' };
     if (password.length < 8) return { error: 'La contraseña debe tener al menos 8 caracteres' };
     if (password !== confirm) return { error: 'Las contraseñas no coinciden' };
@@ -600,8 +602,8 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
 
     const { data: trainer, error: trainerErr } = await admin
       .from('trainers')
-      .insert({ business_name, user_id: userId, slug })
-      .select('id, user_id, business_name, created_at')
+      .insert({ business_name, phone, user_id: userId, slug })
+      .select('id, user_id, business_name, phone, created_at')
       .single();
 
     if (trainerErr) {
@@ -645,7 +647,7 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
       trainer: {
         ...trainer,
         email,
-        phone: null,
+        phone: trainer.phone ?? null,
         students_count: seed_demo ? 3 : 0,
         ia_hoy: 0,
         suscripcion: { ...sus, planes_saas: planData! } as any,
@@ -659,10 +661,14 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
   }
 }
 
-export async function updateTrainer(trainerId: string, fields: { business_name: string }): Promise<{ error?: string }> {
+export async function updateTrainer(trainerId: string, fields: { business_name?: string; phone?: string | null }): Promise<{ error?: string }> {
   try {
     const admin = serviceClient();
-    const { error } = await admin.from('trainers').update({ business_name: fields.business_name.trim() }).eq('id', trainerId);
+    const update: Record<string, unknown> = {};
+    if (fields.business_name !== undefined) update.business_name = fields.business_name.trim();
+    if (fields.phone !== undefined) update.phone = fields.phone || null;
+    if (Object.keys(update).length === 0) return {};
+    const { error } = await admin.from('trainers').update(update).eq('id', trainerId);
     if (error) return { error: error.message };
     revalidatePath('/master/trainers');
     return {};

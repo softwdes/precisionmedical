@@ -1,5 +1,5 @@
 import { getStudents } from '@/actions';
-import { createClient } from '@/lib/supabase-server';
+import { createClient, getAuthContext } from '@/lib/supabase-server';
 import UserMenu from '@/components/UserMenu';
 import NewStudentModal from '@/components/NewStudentModal';
 import StudentsTable from '@/components/StudentsTable';
@@ -8,12 +8,21 @@ import AppSidebar from '@/components/AppSidebar';
 export const dynamic = 'force-dynamic';
 
 export default async function StudentsPage() {
-  const [students, supabase] = await Promise.all([getStudents(), createClient()]);
+  const [students, { supabase, trainerId }] = await Promise.all([getStudents(), getAuthContext()]);
 
-  const { data: goalsData } = await supabase.from('goals').select('id, label').order('sort_order');
+  const [goalsRes, suscripcionRes] = await Promise.all([
+    supabase.from('goals').select('id, label').order('sort_order'),
+    supabase
+      .from('trainer_suscripciones')
+      .select('planes_saas(limite_alumnos)')
+      .eq('trainer_id', trainerId)
+      .single(),
+  ]);
+
+  const goalsData = goalsRes.data;
   const goalsMap = Object.fromEntries((goalsData ?? []).map(g => [g.id, g.label]));
   const goalsList = (goalsData ?? []) as { id: string; label: string }[];
-
+  const capacidadMax = (suscripcionRes.data?.planes_saas as { limite_alumnos: number | null } | null)?.limite_alumnos ?? 15;
 
   return (
     <div className="app">
@@ -21,7 +30,7 @@ export default async function StudentsPage() {
         active="alumnos"
         systemStatus={
           <>
-            <div className="system-status-row"><span>Alumnos</span><span className="val">{students.length} / 30</span></div>
+            <div className="system-status-row"><span>Alumnos</span><span className="val">{students.length} / {capacidadMax === null ? '∞' : capacidadMax}</span></div>
             <div className="system-status-row"><span>Suscripción</span><span className="val accent">Activa</span></div>
           </>
         }

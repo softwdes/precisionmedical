@@ -1,0 +1,1 @@
+ALTER TABLE public.trainers ADD COLUMN IF NOT EXISTS phone text;

@@ -22,7 +22,7 @@ export async function chatCompletion(
 
   const response = await client.chat.completions.create({
     model: MODEL,
-    max_tokens: 400,
+    max_tokens: 600,
     messages: [
       { role: 'system', content: systemPrompt },
       ...messages.map((m) => ({

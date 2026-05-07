@@ -135,7 +135,7 @@ function DaysEditor({
               <button type="button" onClick={() => rmDay(day._id)} disabled={isPending}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f87171', padding: '4px', flexShrink: 0 }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}>
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                  <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                 </svg>
               </button>
             )}
@@ -165,7 +165,7 @@ function DaysEditor({
                   <button type="button" onClick={() => rmEx(day._id, ex._id)} disabled={isPending || day.ejercicios.length <= 1}
                     style={{ background: 'none', border: 'none', cursor: day.ejercicios.length <= 1 ? 'not-allowed' : 'pointer', color: '#f87171', opacity: day.ejercicios.length <= 1 ? 0.3 : 1, padding: '4px' }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ width: 14, height: 14 }}>
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
                   </button>
                 </div>
@@ -271,7 +271,7 @@ export default function RutinasModule({ initialTemplates, students, exercises, i
 
     const res = await assignRutinaToAlumno({
       alumno_id: wAlumno,
-      fecha_inicio: wFecha,
+      fecha_inicio: wFecha ?? '',
       template_id: wTemplate !== 'custom' ? wTemplate : null,
       nombre,
       dias,
@@ -303,8 +303,8 @@ export default function RutinasModule({ initialTemplates, students, exercises, i
     <>
       {/* ── ASIGNAR RUTINA ──────────────────────────────────────────────── */}
       <div>
-          {/* Step indicator */}
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '32px' }}>
+        {/* Step indicator */}
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', minWidth: '340px' }}>
             {[1, 2, 3, 4].map((s, i) => (
               <div key={s} style={{ display: 'flex', alignItems: 'center' }}>
@@ -323,179 +323,179 @@ export default function RutinasModule({ initialTemplates, students, exercises, i
               </div>
             ))}
           </div>
-          </div>
+        </div>
 
-          {/* ── Step 1 ── */}
-          {wStep === 1 && (
-            <div className="card">
-              <div style={{ ...SECTION_TITLE, marginBottom: '20px' }}>Seleccionar Alumno y Fecha</div>
-              <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label className="label">Alumno *</label>
-                <select className="select" value={wAlumno} onChange={e => setWAlumno(e.target.value)}>
-                  <option value="">Seleccionar alumno...</option>
-                  {students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-                </select>
+        {/* ── Step 1 ── */}
+        {wStep === 1 && (
+          <div className="card">
+            <div style={{ ...SECTION_TITLE, marginBottom: '20px' }}>Seleccionar Alumno y Fecha</div>
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label className="label">Alumno *</label>
+              <select className="select" value={wAlumno} onChange={e => setWAlumno(e.target.value)}>
+                <option value="">Seleccionar alumno...</option>
+                {students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ marginBottom: '24px' }}>
+              <label className="label">Fecha de inicio *</label>
+              <input className="input" type="date" value={wFecha} onChange={e => setWFecha(e.target.value)} />
+            </div>
+            <button className="btn btn-primary" disabled={!wAlumno || !wFecha} onClick={() => setWStep(2)}>
+              Siguiente →
+            </button>
+          </div>
+        )}
+
+        {/* ── Step 2 ── */}
+        {wStep === 2 && (
+          <div>
+            <div style={{ ...SECTION_TITLE, marginBottom: '20px' }}>Seleccionar Template</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+              {templates.map(tpl => (
+                <div key={tpl.id} onClick={() => goToStep3(tpl.id)}
+                  style={{
+                    ...CARD, cursor: 'pointer',
+                    border: `1px solid ${wTemplate === tpl.id ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}`,
+                    background: wTemplate === tpl.id ? 'rgba(63,248,200,0.06)' : 'rgba(255,255,255,0.03)',
+                    transition: 'border-color 0.15s, background 0.15s',
+                  }}>
+                  <div style={{ fontWeight: 700, marginBottom: '6px' }}>{tpl.nombre}</div>
+                  {tpl.nivel && <div style={{ fontSize: '12px', color: 'var(--accent)', marginBottom: '8px' }}>{tpl.nivel}</div>}
+                  <div style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
+                    {tpl.dias_semana} días/sem · {tpl.duracion_semanas} semanas · {tpl.template_dias.length} días
+                  </div>
+                  {tpl.objetivo && <div style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: '4px' }}>{tpl.objetivo}</div>}
+                </div>
+              ))}
+
+              {/* Custom option */}
+              <div onClick={() => goToStep3('custom')}
+                style={{
+                  ...CARD, cursor: 'pointer',
+                  border: `1px solid ${wTemplate === 'custom' ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}`,
+                  background: wTemplate === 'custom' ? 'rgba(63,248,200,0.06)' : 'rgba(255,255,255,0.03)',
+                  transition: 'border-color 0.15s, background 0.15s',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100px',
+                }}>
+                <div style={{ fontSize: '24px', marginBottom: '8px', color: 'var(--accent)' }}>＋</div>
+                <div style={{ fontWeight: 700, fontSize: '14px' }}>Rutina nueva personalizada</div>
+                <div style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: '4px' }}>Crear desde cero</div>
               </div>
-              <div className="form-group" style={{ marginBottom: '24px' }}>
-                <label className="label">Fecha de inicio *</label>
-                <input className="input" type="date" value={wFecha} onChange={e => setWFecha(e.target.value)} />
+            </div>
+            <button className="btn btn-outline" onClick={() => setWStep(1)}>← Volver</button>
+          </div>
+        )}
+
+        {/* ── Step 3 ── */}
+        {wStep === 3 && (
+          <div>
+            <div style={{ ...SECTION_TITLE, marginBottom: '20px' }}>
+              {wTemplate === 'custom' ? 'Crear Días y Ejercicios' : 'Seleccionar Días del Template'}
+            </div>
+
+            {loadingDias && <div style={{ color: 'var(--fg-muted)', marginBottom: '24px' }}>Cargando días...</div>}
+
+            {/* Template days as checkboxes */}
+            {wTemplate !== 'custom' && !loadingDias && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+                {wTemplateDias.map(dia => (
+                  <label key={dia.id} style={{ ...CARD, display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={wSelectedDias.includes(dia.id)}
+                      onChange={e => setWSelectedDias(prev => e.target.checked ? [...prev, dia.id] : prev.filter(id => id !== dia.id))}
+                      style={{ marginTop: '2px', accentColor: 'var(--accent)', flexShrink: 0, width: 16, height: 16 }} />
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: '4px' }}>{dia.nombre}</div>
+                      {dia.template_ejercicios.length > 0 && (
+                        <div style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
+                          {dia.template_ejercicios.map(e => e.exercises?.name ?? 'Ejercicio').join(' · ')}
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                ))}
               </div>
-              <button className="btn btn-primary" disabled={!wAlumno || !wFecha} onClick={() => setWStep(2)}>
+            )}
+
+            {/* Custom days form */}
+            {wTemplate === 'custom' && (
+              <div style={{ marginBottom: '24px' }}>
+                <DaysEditor dias={wCustomDias} exercises={exercises} isPending={false} onChange={setWCustomDias} />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn btn-outline" onClick={() => setWStep(2)}>← Volver</button>
+              <button className="btn btn-primary"
+                disabled={wTemplate !== 'custom' && wSelectedDias.length === 0}
+                onClick={() => setWStep(4)}>
                 Siguiente →
               </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ── Step 2 ── */}
-          {wStep === 2 && (
-            <div>
-              <div style={{ ...SECTION_TITLE, marginBottom: '20px' }}>Seleccionar Template</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-                {templates.map(tpl => (
-                  <div key={tpl.id} onClick={() => goToStep3(tpl.id)}
-                    style={{
-                      ...CARD, cursor: 'pointer',
-                      border: `1px solid ${wTemplate === tpl.id ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}`,
-                      background: wTemplate === tpl.id ? 'rgba(63,248,200,0.06)' : 'rgba(255,255,255,0.03)',
-                      transition: 'border-color 0.15s, background 0.15s',
-                    }}>
-                    <div style={{ fontWeight: 700, marginBottom: '6px' }}>{tpl.nombre}</div>
-                    {tpl.nivel && <div style={{ fontSize: '12px', color: 'var(--accent)', marginBottom: '8px' }}>{tpl.nivel}</div>}
-                    <div style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                      {tpl.dias_semana} días/sem · {tpl.duracion_semanas} semanas · {tpl.template_dias.length} días
-                    </div>
-                    {tpl.objetivo && <div style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: '4px' }}>{tpl.objetivo}</div>}
-                  </div>
-                ))}
+        {/* ── Step 4 ── */}
+        {wStep === 4 && (
+          <div>
+            <div style={{ ...SECTION_TITLE, marginBottom: '20px' }}>Confirmar Asignación</div>
 
-                {/* Custom option */}
-                <div onClick={() => goToStep3('custom')}
-                  style={{
-                    ...CARD, cursor: 'pointer',
-                    border: `1px solid ${wTemplate === 'custom' ? 'var(--accent)' : 'rgba(255,255,255,0.08)'}`,
-                    background: wTemplate === 'custom' ? 'rgba(63,248,200,0.06)' : 'rgba(255,255,255,0.03)',
-                    transition: 'border-color 0.15s, background 0.15s',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100px',
-                  }}>
-                  <div style={{ fontSize: '24px', marginBottom: '8px', color: 'var(--accent)' }}>＋</div>
-                  <div style={{ fontWeight: 700, fontSize: '14px' }}>Rutina nueva personalizada</div>
-                  <div style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: '4px' }}>Crear desde cero</div>
+            {assignOk && (
+              <div style={{ padding: '16px', background: 'rgba(63,248,200,0.1)', border: '1px solid rgba(63,248,200,0.3)', borderRadius: '8px', color: 'var(--accent)', fontWeight: 600, marginBottom: '20px', textAlign: 'center' }}>
+                ✓ Rutina asignada correctamente
+              </div>
+            )}
+
+            {assignErr && <div style={{ ...ERR, marginBottom: '16px' }}>{assignErr}</div>}
+
+            <div className="card" style={{ marginBottom: '16px' }}>
+              {[
+                { label: 'Alumno', val: wAlumnoName },
+                { label: 'Template', val: wTemplateName },
+                { label: 'Fecha de inicio', val: wFecha ? fmtDate(wFecha) : '-' },
+              ].map(row => (
+                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px' }}>
+                  <span style={{ color: 'var(--fg-muted)' }}>{row.label}</span>
+                  <span style={{ fontWeight: 600 }}>{row.val}</span>
                 </div>
-              </div>
-              <button className="btn btn-outline" onClick={() => setWStep(1)}>← Volver</button>
+              ))}
             </div>
-          )}
 
-          {/* ── Step 3 ── */}
-          {wStep === 3 && (
-            <div>
-              <div style={{ ...SECTION_TITLE, marginBottom: '20px' }}>
-                {wTemplate === 'custom' ? 'Crear Días y Ejercicios' : 'Seleccionar Días del Template'}
-              </div>
-
-              {loadingDias && <div style={{ color: 'var(--fg-muted)', marginBottom: '24px' }}>Cargando días...</div>}
-
-              {/* Template days as checkboxes */}
-              {wTemplate !== 'custom' && !loadingDias && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
-                  {wTemplateDias.map(dia => (
-                    <label key={dia.id} style={{ ...CARD, display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={wSelectedDias.includes(dia.id)}
-                        onChange={e => setWSelectedDias(prev => e.target.checked ? [...prev, dia.id] : prev.filter(id => id !== dia.id))}
-                        style={{ marginTop: '2px', accentColor: 'var(--accent)', flexShrink: 0, width: 16, height: 16 }} />
-                      <div>
-                        <div style={{ fontWeight: 600, marginBottom: '4px' }}>{dia.nombre}</div>
-                        {dia.template_ejercicios.length > 0 && (
-                          <div style={{ fontSize: '12px', color: 'var(--fg-muted)' }}>
-                            {dia.template_ejercicios.map(e => e.exercises?.name ?? 'Ejercicio').join(' · ')}
-                          </div>
-                        )}
-                      </div>
-                    </label>
+            {/* Days summary */}
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ ...SECTION_TITLE }}>Días incluidos</div>
+              {(wTemplate !== 'custom'
+                ? wTemplateDias.filter(d => wSelectedDias.includes(d.id))
+                : wCustomDias.map(d => ({
+                  id: d._id, nombre: d.nombre,
+                  template_ejercicios: d.ejercicios.map(e => ({
+                    id: e._id, exercises: exercises.find(ex => ex.id === e.ejercicio_id) ?? null,
+                    ...e,
+                  })),
+                }))
+              ).map((dia: any, i) => (
+                <div key={dia.id} style={{ ...CARD, marginBottom: '8px' }}>
+                  <div style={{ fontWeight: 600, marginBottom: '6px' }}>{dia.nombre}</div>
+                  {(dia.template_ejercicios ?? []).map((e: any, j: number) => (
+                    <div key={e.id ?? j} style={{ fontSize: '12px', color: 'var(--fg-muted)', display: 'flex', gap: '12px', padding: '3px 0' }}>
+                      <span style={{ color: 'var(--fg)' }}>{e.exercises?.name ?? (exercises.find(ex => ex.id === e.ejercicio_id)?.name ?? '—')}</span>
+                      <span>{e.sets} × {e.reps}</span>
+                      {e.descanso_seg > 0 && <span>{e.descanso_seg}s descanso</span>}
+                    </div>
                   ))}
                 </div>
-              )}
-
-              {/* Custom days form */}
-              {wTemplate === 'custom' && (
-                <div style={{ marginBottom: '24px' }}>
-                  <DaysEditor dias={wCustomDias} exercises={exercises} isPending={false} onChange={setWCustomDias} />
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="btn btn-outline" onClick={() => setWStep(2)}>← Volver</button>
-                <button className="btn btn-primary"
-                  disabled={wTemplate !== 'custom' && wSelectedDias.length === 0}
-                  onClick={() => setWStep(4)}>
-                  Siguiente →
-                </button>
-              </div>
+              ))}
             </div>
-          )}
 
-          {/* ── Step 4 ── */}
-          {wStep === 4 && (
-            <div>
-              <div style={{ ...SECTION_TITLE, marginBottom: '20px' }}>Confirmar Asignación</div>
-
-              {assignOk && (
-                <div style={{ padding: '16px', background: 'rgba(63,248,200,0.1)', border: '1px solid rgba(63,248,200,0.3)', borderRadius: '8px', color: 'var(--accent)', fontWeight: 600, marginBottom: '20px', textAlign: 'center' }}>
-                  ✓ Rutina asignada correctamente
-                </div>
-              )}
-
-              {assignErr && <div style={{ ...ERR, marginBottom: '16px' }}>{assignErr}</div>}
-
-              <div className="card" style={{ marginBottom: '16px' }}>
-                {[
-                  { label: 'Alumno', val: wAlumnoName },
-                  { label: 'Template', val: wTemplateName },
-                  { label: 'Fecha de inicio', val: wFecha ? fmtDate(wFecha) : '-' },
-                ].map(row => (
-                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--fg-muted)' }}>{row.label}</span>
-                    <span style={{ fontWeight: 600 }}>{row.val}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Days summary */}
-              <div style={{ marginBottom: '24px' }}>
-                <div style={{ ...SECTION_TITLE }}>Días incluidos</div>
-                {(wTemplate !== 'custom'
-                  ? wTemplateDias.filter(d => wSelectedDias.includes(d.id))
-                  : wCustomDias.map(d => ({
-                      id: d._id, nombre: d.nombre,
-                      template_ejercicios: d.ejercicios.map(e => ({
-                        id: e._id, exercises: exercises.find(ex => ex.id === e.ejercicio_id) ?? null,
-                        ...e,
-                      })),
-                    }))
-                ).map((dia: any, i) => (
-                  <div key={dia.id} style={{ ...CARD, marginBottom: '8px' }}>
-                    <div style={{ fontWeight: 600, marginBottom: '6px' }}>{dia.nombre}</div>
-                    {(dia.template_ejercicios ?? []).map((e: any, j: number) => (
-                      <div key={e.id ?? j} style={{ fontSize: '12px', color: 'var(--fg-muted)', display: 'flex', gap: '12px', padding: '3px 0' }}>
-                        <span style={{ color: 'var(--fg)' }}>{e.exercises?.name ?? (exercises.find(ex => ex.id === e.ejercicio_id)?.name ?? '—')}</span>
-                        <span>{e.sets} × {e.reps}</span>
-                        {e.descanso_seg > 0 && <span>{e.descanso_seg}s descanso</span>}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="btn btn-outline" onClick={() => setWStep(3)} disabled={assigning}>← Volver</button>
-                <button className="btn btn-outline" onClick={resetWizard} disabled={assigning}>Cancelar</button>
-                <button className="btn btn-primary" onClick={confirmAssign} disabled={assigning || assignOk}>
-                  {assigning ? 'Asignando...' : 'Confirmar y Asignar'}
-                </button>
-              </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn btn-outline" onClick={() => setWStep(3)} disabled={assigning}>← Volver</button>
+              <button className="btn btn-outline" onClick={resetWizard} disabled={assigning}>Cancelar</button>
+              <button className="btn btn-primary" onClick={confirmAssign} disabled={assigning || assignOk}>
+                {assigning ? 'Asignando...' : 'Confirmar y Asignar'}
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

@@ -322,16 +322,21 @@ Reporte de cobros del mes: ${cobrosDelMesStr}
 
 ════ PERFILES POR ALUMNO ════${perfilesStr}
 
-════ LIMITACIONES ════
-Solo podés CONSULTAR datos, no modificarlos.
-Si el trainer pide crear, registrar, guardar, eliminar o modificar algo, respondé:
-"No puedo realizar esa acción directamente. Para [acción] andá a la sección [sección] del sistema."
-Nunca confirmes haber realizado una acción de escritura.
-Ejemplos:
-  Nuevo alumno → "Andá a Alumnos → Nuevo alumno."
-  Registrar pago → "Andá a Finanzas → Registrar pago."
-  Asignar rutina → "Andá a Rutinas → Asignar rutina."
-  Eliminar clase → "Andá a Horarios y eliminala desde ahí."`;
+════ ACCIONES DISPONIBLES ════
+Podés CONSULTAR datos y también REGISTRAR PAGOS.
+
+REGISTRAR PAGO — cuando el trainer diga "registra un pago", "cobré", "anota un pago", "recibí un pago" o similar:
+1. Identificá al alumno en la lista de alumnos activos de arriba.
+2. Extraé el monto (número). Si no lo menciona, preguntá cuánto.
+3. Período: mes al que corresponde el pago, formato YYYY-MM. Si no lo dice, usá el mes actual.
+4. Fecha de vencimiento: si no la menciona, usá el último día del período.
+5. Respondé EXACTAMENTE en este formato (sin alterar los delimitadores):
+¿Confirmás registrar el pago de S/ [monto] para [nombre] — período [Mes YYYY]?
+⟦ACCION⟧{"type":"register_payment","student_name":"[nombre exacto]","monto":[número],"periodo":"[YYYY-MM]","fecha_vencimiento":"[YYYY-MM-DD]"}⟦/ACCION⟧
+6. Si no encontrás al alumno, decilo claramente sin emitir el bloque ⟦ACCION⟧.
+
+Para otras acciones (crear alumno, asignar rutina, agendar clase), respondé:
+"No puedo realizar esa acción. Para [acción] andá a la sección [sección] del sistema."`;
 
   cachedContext[trainerId] = { prompt, ts: now };
   return prompt;

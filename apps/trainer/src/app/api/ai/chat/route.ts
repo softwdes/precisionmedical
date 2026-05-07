@@ -2,6 +2,60 @@ import { NextRequest, NextResponse } from 'next/server';
 import { chatCompletion } from '@/lib/ai-provider';
 import { buildSystemPrompt } from '@/lib/ai-context';
 import { checkAndIncrementUsage, LIMITE_DIARIO } from '@/lib/ai-usage';
+import { createClient } from '@/lib/supabase-server';
+
+interface ParsedAction {
+  type: 'register_payment';
+  student_name: string;
+  student_id: string | null;
+  monto: number;
+  periodo: string;
+  fecha_vencimiento: string;
+}
+
+async function parseAction(reply: string, trainerId: string): Promise<{ cleanReply: string; action: ParsedAction | null }> {
+  const match = reply.match(/⟦ACCION⟧(\{[\s\S]*?\})⟦\/ACCION⟧/);
+  if (!match?.[1]) return { cleanReply: reply, action: null };
+
+  try {
+    const raw = JSON.parse(match[1]) as {
+      type?: string;
+      student_name?: string;
+      monto?: number;
+      periodo?: string;
+      fecha_vencimiento?: string;
+    };
+
+    if (raw.type !== 'register_payment' || !raw.student_name) {
+      return { cleanReply: reply.replace(/⟦ACCION⟧[\s\S]*?⟦\/ACCION⟧/, '').trim(), action: null };
+    }
+
+    const supabase = await createClient();
+    const { data: students } = await supabase
+      .from('students')
+      .select('id, full_name')
+      .eq('trainer_id', trainerId)
+      .is('archived_at', null)
+      .ilike('full_name', `%${raw.student_name}%`)
+      .limit(1);
+
+    const student = students?.[0] ?? null;
+
+    const action: ParsedAction = {
+      type: 'register_payment',
+      student_name: student?.full_name ?? raw.student_name,
+      student_id: student?.id ?? null,
+      monto: raw.monto ?? 0,
+      periodo: raw.periodo ?? new Date().toISOString().slice(0, 7),
+      fecha_vencimiento: raw.fecha_vencimiento ?? '',
+    };
+
+    const cleanReply = reply.replace(/⟦ACCION⟧[\s\S]*?⟦\/ACCION⟧/, '').trim();
+    return { cleanReply, action };
+  } catch {
+    return { cleanReply: reply.replace(/⟦ACCION⟧[\s\S]*?⟦\/ACCION⟧/, '').trim(), action: null };
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,10 +88,13 @@ export async function POST(req: NextRequest) {
     }
 
     const systemPrompt = await buildSystemPrompt(trainerId);
-    const reply = await chatCompletion(systemPrompt, body.messages);
+    const rawReply = await chatCompletion(systemPrompt, body.messages);
+
+    const { cleanReply, action } = await parseAction(rawReply, trainerId);
 
     return NextResponse.json({
-      reply,
+      reply: cleanReply,
+      action,
       usage: { usadas: usage.usadas, restantes: usage.restantes, limite: LIMITE_DIARIO },
     });
   } catch (error: unknown) {

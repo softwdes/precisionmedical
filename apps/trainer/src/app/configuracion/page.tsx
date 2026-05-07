@@ -184,7 +184,7 @@ function GimnasiosTab({ sb }: { sb: Sb }) {
   const [confirmDelete, setConfirmDelete] = useState<Gym | null>(null);
 
   useEffect(() => {
-    sb.from('gyms').select('*').order('name').then(({ data }) => {
+    sb.from('gyms').select('*').order('name').then(({ data }: { data: any }) => {
       setGyms(data ?? []);
       setLoading(false);
     });
@@ -314,7 +314,7 @@ function ObjetivosTab({ sb }: { sb: Sb }) {
   const [confirmDelete, setConfirmDelete] = useState<Goal | null>(null);
 
   useEffect(() => {
-    sb.from('goals').select('*').order('sort_order').then(({ data }) => {
+    sb.from('gyms').select('*').order('name').then(({ data }: { data: any }) => {
       setGoals(data ?? []);
       setLoading(false);
     });
@@ -483,9 +483,9 @@ export default function Configuracion() {
           </div>
 
           {tab === 'ejercicios' && <EjerciciosModule />}
-          {tab === 'templates'  && <TemplatesModule />}
-          {tab === 'objetivos'  && <ObjetivosTab sb={sb} />}
-          {tab === 'gimnasios'  && <GimnasiosTab sb={sb} />}
+          {tab === 'templates' && <TemplatesModule />}
+          {tab === 'objetivos' && <ObjetivosTab sb={sb} />}
+          {tab === 'gimnasios' && <GimnasiosTab sb={sb} />}
         </div>
       </main>
     </div>

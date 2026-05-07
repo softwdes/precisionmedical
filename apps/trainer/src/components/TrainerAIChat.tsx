@@ -1,10 +1,20 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
+import { createCuota } from '@/actions/finanzas';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface PendingAction {
+  type: 'register_payment';
+  student_id: string | null;
+  student_name: string;
+  monto: number;
+  periodo: string;
+  fecha_vencimiento: string;
 }
 
 interface Props {
@@ -23,9 +33,17 @@ const QUICK_PILLS = [
   'Resumen general',
 ];
 
+const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function formatPeriodo(ym: string) {
+  const parts = ym.split('-');
+  const y = parts[0] ?? ym;
+  const m = parts[1] ?? '1';
+  return `${MESES_FULL[parseInt(m, 10) - 1] ?? ym} ${y}`;
+}
+
 export default function TrainerAIChat({ trainerId, onClose }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: '¡Hola! Soy TrainerAI. ¿En qué puedo ayudarte hoy?' },
+    { role: 'assistant', content: '¡Hola! Soy TrainerAI. Puedo consultar datos y registrar pagos. ¿En qué te ayudo?' },
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -33,6 +51,8 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
   const [isListening, setIsListening] = useState(false);
   const [noSpeechMsg, setNoSpeechMsg] = useState(false);
   const [usage, setUsage] = useState({ usadas: 0, restantes: 100, limite: 100 });
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [isConfirming, startConfirm] = useTransition();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -55,11 +75,12 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, pendingAction]);
 
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isTyping) return;
+      setPendingAction(null);
       const next: ChatMessage[] = [...messages, { role: 'user', content: text }];
       setMessages(next);
       setInputText('');
@@ -74,6 +95,7 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
           reply?: string;
           error?: string;
           mensaje?: string;
+          action?: PendingAction;
           usage?: { usadas: number; restantes: number; limite: number };
         };
         if (data.error === 'limite_alcanzado') {
@@ -83,6 +105,7 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
         }
         if (data.usage) setUsage(data.usage);
         setMessages([...next, { role: 'assistant', content: data.reply ?? 'Sin respuesta.' }]);
+        if (data.action) setPendingAction(data.action);
       } catch {
         setMessages([...next, { role: 'assistant', content: 'Error al conectar. Intenta de nuevo.' }]);
       } finally {
@@ -91,6 +114,31 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
     },
     [messages, isTyping, trainerId]
   );
+
+  function confirmPayment() {
+    if (!pendingAction || !pendingAction.student_id) return;
+    const action = pendingAction;
+    startConfirm(async () => {
+      const res = await createCuota({
+        alumno_id: action.student_id!,
+        monto: action.monto,
+        fecha_vencimiento: action.fecha_vencimiento,
+        periodo: action.periodo,
+      });
+      setPendingAction(null);
+      if (res.error) {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `No pude registrar el pago: ${res.error}`,
+        }]);
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Pago registrado. S/ ${action.monto} para ${action.student_name} — ${formatPeriodo(action.periodo)}. Podés verlo en Finanzas.`,
+        }]);
+      }
+    });
+  }
 
   const startListening = useCallback(() => {
     if (!hasSpeech) {
@@ -143,7 +191,7 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
             TrainerAI
           </div>
           <div style={{ fontSize: '10px', color: 'var(--accent)', letterSpacing: '0.05em' }}>
-            Asistente inteligente
+            Consultas + acciones
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
@@ -221,6 +269,7 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
             </div>
           </div>
         ))}
+
         {isTyping && (
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <div style={{
@@ -234,6 +283,88 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
             </div>
           </div>
         )}
+
+        {/* Payment confirmation card */}
+        {pendingAction?.type === 'register_payment' && !isTyping && (
+          <div style={{
+            marginLeft: '36px',
+            background: 'var(--bg-row)',
+            border: '1px solid var(--accent)',
+            borderRadius: '10px',
+            padding: '14px 16px',
+            animation: 'fadeIn 0.25s ease-out',
+          }}>
+            <div style={{
+              fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: '10px',
+              display: 'flex', alignItems: 'center', gap: '6px',
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              </svg>
+              Confirmar registro de pago
+            </div>
+
+            {pendingAction.student_id ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', marginBottom: '12px' }}>
+                  {[
+                    ['Alumno', pendingAction.student_name],
+                    ['Monto', `S/ ${pendingAction.monto}`],
+                    ['Período', formatPeriodo(pendingAction.periodo)],
+                    ['Vencimiento', pendingAction.fecha_vencimiento],
+                  ].map(([label, val]) => (
+                    <div key={label}>
+                      <div style={{ fontSize: '10px', color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                      <div style={{ fontSize: '13px', color: 'var(--fg-strong)', fontWeight: 600, marginTop: '2px' }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={confirmPayment}
+                    disabled={isConfirming}
+                    style={{
+                      padding: '7px 18px',
+                      background: isConfirming ? 'rgba(63,248,200,0.3)' : 'var(--accent)',
+                      color: 'var(--fg-on-accent)',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.07em',
+                      cursor: isConfirming ? 'not-allowed' : 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    {isConfirming ? 'Guardando...' : 'Confirmar'}
+                  </button>
+                  <button
+                    onClick={() => setPendingAction(null)}
+                    disabled={isConfirming}
+                    style={{
+                      padding: '7px 14px',
+                      background: 'none',
+                      border: '1px solid var(--border-strong)',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      color: 'var(--fg-muted)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: '13px', color: '#ef4444' }}>
+                No encontré a &quot;{pendingAction.student_name}&quot; en el sistema. Verificá el nombre e intentá de nuevo.
+              </div>
+            )}
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -302,7 +433,7 @@ export default function TrainerAIChat({ trainerId, onClose }: Props) {
                   sendMessage(inputText);
                 }
               }}
-              placeholder="Escribe tu consulta..."
+              placeholder="Ej: registra un pago de 200 para Carlos..."
               style={{
                 flex: 1,
                 background: 'var(--bg-row)',

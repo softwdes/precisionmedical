@@ -174,7 +174,7 @@ function DaysEditor({
           </div>
 
           <button type="button" onClick={() => addEx(day._id)} disabled={isPending}
-            className="btn btn-ghost" style={{ fontSize: '12px', marginTop: '8px', height: '28px', padding: '0 10px' }}>
+            className="btn btn-ghost" style={{ fontSize: '12px', marginTop: '8px', padding: '0 10px', color: 'var(--accent)', borderColor: 'rgba(63,248,200,0.25)' }}>
             + Ejercicio
           </button>
         </div>
@@ -423,7 +423,7 @@ export default function RutinasModule({ initialTemplates, students, exercises, i
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div className="form-actions">
               <button className="btn btn-outline" onClick={() => setWStep(2)}>← Volver</button>
               <button className="btn btn-primary"
                 disabled={wTemplate !== 'custom' && wSelectedDias.length === 0}
@@ -486,7 +486,7 @@ export default function RutinasModule({ initialTemplates, students, exercises, i
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div className="form-actions">
               <button className="btn btn-outline" onClick={() => setWStep(3)} disabled={assigning}>← Volver</button>
               <button className="btn btn-outline" onClick={resetWizard} disabled={assigning}>Cancelar</button>
               <button className="btn btn-primary" onClick={confirmAssign} disabled={assigning || assignOk}>

@@ -2540,16 +2540,24 @@
   .modal { border-radius: var(--radius) var(--radius) 0 0; }
   .modal-overlay { align-items: flex-end; padding: 0; }
 
-  /* Chart tabs — horizontal scroll, no wrap */
+  /* Chart tabs — vertical stack */
   .chart-tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 2px;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
   }
-  .chart-tabs::-webkit-scrollbar { display: none; }
-  .chart-tab { flex-shrink: 0; }
+  .chart-tab {
+    width: 100%;
+    text-align: left;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--border);
+    padding: 13px 16px;
+    flex-shrink: 1;
+  }
+  .chart-tab:first-child { border-top: none; }
 
   /* Week nav */
   .week-label { font-size: var(--text-xs); }
@@ -2557,7 +2565,10 @@
 
   /* Form actions stack on mobile */
   .form-actions { flex-direction: column-reverse; }
-  .form-actions .btn { width: 100%; justify-content: center; }
+  .form-actions .btn { width: 100%; justify-content: center; height: 48px; }
+
+  /* Ghost buttons (inline actions like + Ejercicio) — larger tap area */
+  .btn-ghost { min-height: 44px; }
 
   /* Bar chart height */
   .bars { height: 180px; }

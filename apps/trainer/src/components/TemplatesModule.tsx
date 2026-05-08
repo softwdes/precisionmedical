@@ -131,7 +131,7 @@ function DaysEditor({ dias, exercises, isPending, onChange }: {
           </div>
 
           <button type="button" onClick={() => addEx(day._id)} disabled={isPending}
-            className="btn btn-ghost" style={{ fontSize: '12px', marginTop: '8px', height: '28px', padding: '0 10px' }}>
+            className="btn btn-ghost" style={{ fontSize: '12px', marginTop: '8px', padding: '0 10px', color: 'var(--accent)', borderColor: 'rgba(63,248,200,0.25)' }}>
             + Ejercicio
           </button>
         </div>

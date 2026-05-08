@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import { createStudentModal } from '@/actions/students';
+import PhoneField from '@/components/PhoneField';
 
 interface Goal { id: string; label: string; }
 
@@ -72,6 +73,7 @@ export default function NewStudentModal() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [comboGoal, setComboGoal] = useState('');
+  const [phoneValue, setPhoneValue] = useState('');
   const router = useRouter();
 
   const supabase = useMemo(() => createBrowserClient(
@@ -130,6 +132,7 @@ export default function NewStudentModal() {
     setError('');
     setSelectedGoals([]);
     setComboGoal('');
+    setPhoneValue('');
     setOpen(true);
   }
 
@@ -192,7 +195,8 @@ export default function NewStudentModal() {
                     </div>
                     <div className="form-group">
                       <label className="label" htmlFor="ns-phone">Celular</label>
-                      <input id="ns-phone" name="phone" type="tel" className="input" placeholder="+51 999 999 999" disabled={isPending} />
+                      <PhoneField id="ns-phone" value={phoneValue} onChange={setPhoneValue} disabled={isPending} />
+                      <input type="hidden" name="phone" value={phoneValue} />
                     </div>
                   </div>
                   <div className="form-row">

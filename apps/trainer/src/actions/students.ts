@@ -108,6 +108,7 @@ export async function createStudentModal(
 export async function createStudent(formData: FormData) {
   const { supabase, trainerId } = await getAuthContext();
   const full_name = formData.get('full_name') as string;
+  const phone = (formData.get('phone') as string)?.trim() || null;
   const birth_date = formData.get('birth_date') as string | null;
   const experience_level = formData.get('experience_level') as string | null;
   const goals = formData.getAll('goals') as string[];
@@ -116,6 +117,7 @@ export async function createStudent(formData: FormData) {
   const { error } = await supabase.from('students').insert({
     trainer_id: trainerId,
     full_name,
+    phone,
     birth_date: birth_date ? new Date(birth_date) : null,
     experience_level,
     goals: goals.length > 0 ? goals : null,
@@ -130,6 +132,7 @@ export async function createStudent(formData: FormData) {
 export async function updateStudent(id: string, formData: FormData) {
   const { supabase, trainerId } = await getAuthContext();
   const full_name = formData.get('full_name') as string;
+  const phone = (formData.get('phone') as string)?.trim() || null;
   const birth_date = formData.get('birth_date') as string | null;
   const experience_level = formData.get('experience_level') as string | null;
   const goals = formData.getAll('goals') as string[];
@@ -137,6 +140,7 @@ export async function updateStudent(id: string, formData: FormData) {
 
   const { error } = await supabase.from('students').update({
     full_name,
+    phone,
     birth_date: birth_date ? new Date(birth_date) : null,
     experience_level,
     goals: goals.length > 0 ? goals : null,

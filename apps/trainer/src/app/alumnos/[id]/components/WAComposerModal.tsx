@@ -219,22 +219,6 @@ export default function WAComposerModal({
                 padding: '10px 12px', resize: 'vertical', fontFamily: 'inherit', outline: 'none',
               }}
             />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', color: '#444' }}>Insertar:</span>
-              {['{nombre}', '{monto}', '{fecha_vencimiento}', '{proxima_fecha}'].map(v => (
-                <button
-                  key={v}
-                  onClick={() => insertVar(v)}
-                  style={{
-                    fontSize: '11px', padding: '2px 8px', fontFamily: 'monospace',
-                    color: '#888', background: 'none', border: '1px solid #2a2a2a',
-                    borderRadius: '4px', cursor: 'pointer',
-                  }}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
           </div>
 
           {!hasPhone && (

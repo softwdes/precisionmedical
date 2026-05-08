@@ -456,26 +456,69 @@ export default function Configuracion() {
             <h1>Ajustes del Sistema</h1>
           </section>
 
-          <div style={{ display: 'flex', gap: '2px', borderBottom: '1px solid var(--border)', marginBottom: 'var(--space-6)' }}>
+          <style>{`
+            .cfg-tab-bar {
+              display: flex;
+              gap: 2px;
+              border-bottom: 1px solid var(--border);
+              margin-bottom: var(--space-6);
+            }
+            .cfg-tab-btn {
+              padding: 10px 24px;
+              font-size: var(--text-xs);
+              font-family: var(--font-sans);
+              font-weight: var(--weight-bold);
+              letter-spacing: var(--tracking-wider);
+              text-transform: uppercase;
+              background: none;
+              border: none;
+              border-bottom: 2px solid transparent;
+              color: var(--fg-muted);
+              cursor: pointer;
+              margin-bottom: -1px;
+              transition: color 0.15s, border-color 0.15s, background 0.15s;
+              white-space: nowrap;
+            }
+            .cfg-tab-btn.cfg-active {
+              border-bottom-color: var(--accent);
+              color: var(--accent);
+            }
+            @media (max-width: 600px) {
+              .cfg-tab-bar {
+                flex-direction: column;
+                border-bottom: none;
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                gap: 0;
+                overflow: hidden;
+              }
+              .cfg-tab-btn {
+                width: 100%;
+                text-align: left;
+                padding: 14px 16px;
+                margin-bottom: 0;
+                border-bottom: none;
+                border-left: 3px solid transparent;
+                border-top: 1px solid var(--border);
+              }
+              .cfg-tab-btn:first-child {
+                border-top: none;
+              }
+              .cfg-tab-btn.cfg-active {
+                border-bottom-color: transparent;
+                border-left-color: var(--accent);
+                color: var(--accent);
+                background: rgba(255,255,255,0.04);
+              }
+            }
+          `}</style>
+
+          <div className="cfg-tab-bar">
             {(Object.keys(TAB_LABELS) as Tab[]).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                style={{
-                  padding: '10px 24px',
-                  fontSize: 'var(--text-xs)',
-                  fontFamily: 'var(--font-sans)',
-                  fontWeight: 'var(--weight-bold)',
-                  letterSpacing: 'var(--tracking-wider)',
-                  textTransform: 'uppercase',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
-                  color: tab === t ? 'var(--accent)' : 'var(--fg-muted)',
-                  cursor: 'pointer',
-                  marginBottom: '-1px',
-                  transition: 'color 0.15s, border-color 0.15s',
-                }}
+                className={`cfg-tab-btn${tab === t ? ' cfg-active' : ''}`}
               >
                 {TAB_LABELS[t]}
               </button>

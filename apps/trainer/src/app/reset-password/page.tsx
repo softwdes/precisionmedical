@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import '../login/login.css';
 
@@ -16,6 +16,7 @@ export default function ResetPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [showPass, setShowPass] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,6 +44,10 @@ export default function ResetPasswordPage() {
       setState('invalid');
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (state === 'form') passwordRef.current?.focus();
+  }, [state]);
 
   useEffect(() => {
     if (state !== 'success') return;
@@ -178,6 +183,7 @@ export default function ResetPasswordPage() {
                   </label>
                   <div style={{ position: 'relative' }}>
                     <input
+                      ref={passwordRef}
                       type={showPass ? 'text' : 'password'}
                       className="login-input"
                       value={password}

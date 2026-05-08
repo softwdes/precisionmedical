@@ -22,19 +22,20 @@ export async function middleware(request: NextRequest) {
   );
 
   const isLoginPage = request.nextUrl.pathname.startsWith('/login');
+  const isResetPasswordPage = request.nextUrl.pathname.startsWith('/reset-password');
 
   let user = null;
   try {
     const { data } = await supabase.auth.getUser();
     user = data.user;
   } catch {
-    if (isLoginPage) return supabaseResponse;
+    if (isLoginPage || isResetPasswordPage) return supabaseResponse;
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  if (!user && !isLoginPage) {
+  if (!user && !isLoginPage && !isResetPasswordPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);

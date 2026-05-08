@@ -437,8 +437,8 @@ function EditTrainerModal({ trainer, onUpdate, onClose }: { trainer: TrainerRow;
     if (updates.phone !== undefined) orig.current.phone = updates.phone ?? '';
     if (updates.email) orig.current.email = updates.email;
     if (updates.suscripcion?.fecha_fin_trial) orig.current.trialDate = trialDate;
-    setMsg({ type: 'ok', text: 'Cambios guardados correctamente' });
     onUpdate(updates);
+    onClose();
   }
 
   async function handleOpenWaModal() {
@@ -823,6 +823,7 @@ export default function TrainersTable({ initialTrainers, planes }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<TrainerRow | null>(null);
   const [newTrainer, setNewTrainer] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const [toastOk, setToastOk] = useState(true);
 
   const filtered = useMemo(() => {
     let list = [...trainers];
@@ -843,12 +844,12 @@ export default function TrainersTable({ initialTrainers, planes }: Props) {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const pageTrainers = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  function showToast(msg: string) { setToastMsg(msg); setTimeout(() => setToastMsg(''), 2500); }
+  function showToast(msg: string, ok = true) { setToastMsg(msg); setToastOk(ok); setTimeout(() => setToastMsg(''), 2500); }
 
   async function handleToggleStatus(t: TrainerRow) {
     const newStatus = t.suscripcion?.estado === 'activo' ? 'suspendido' : 'activo';
     const res = await toggleTrainerStatus(t.id, newStatus);
-    if (res.error) { showToast(res.error); return; }
+    if (res.error) { showToast(res.error, false); return; }
     setTrainers(prev => prev.map(x => x.id === t.id
       ? { ...x, suscripcion: x.suscripcion ? { ...x.suscripcion, estado: newStatus } : null }
       : x));
@@ -1021,6 +1022,7 @@ export default function TrainersTable({ initialTrainers, planes }: Props) {
           onUpdate={(updated) => {
             setTrainers(prev => prev.map(t => t.id === editTarget.id ? { ...t, ...updated } : t));
             setEditTarget(prev => prev ? { ...prev, ...updated } : prev);
+            showToast('Cambios guardados correctamente');
           }}
         />
       )}
@@ -1057,7 +1059,14 @@ export default function TrainersTable({ initialTrainers, planes }: Props) {
 
       {/* Toast */}
       {toastMsg && (
-        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999, background: '#0d0d0f', border: `1px solid ${V}50`, borderRadius: '10px', padding: '12px 20px', fontSize: '13px', color: 'var(--fg)', boxShadow: `0 8px 32px rgba(83,74,183,0.25)` }}>
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+          background: '#0d0d0f',
+          border: `1px solid ${toastOk ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)'}`,
+          borderRadius: '10px', padding: '12px 20px', fontSize: '13px',
+          color: toastOk ? '#4ade80' : '#f87171',
+          boxShadow: `0 8px 32px ${toastOk ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+        }}>
           {toastMsg}
         </div>
       )}

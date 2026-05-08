@@ -216,7 +216,9 @@ export async function getMasterTrainers(): Promise<TrainerRow[]> {
     phone: t.phone ?? null,
     students_count: studentCounts[t.id] || 0,
     ia_hoy: 0,
-    suscripcion: (t.trainer_suscripciones as any[])?.[0] ?? null,
+    suscripcion: Array.isArray(t.trainer_suscripciones)
+      ? (t.trainer_suscripciones[0] ?? null)
+      : (t.trainer_suscripciones ?? null),
   }));
 }
 
@@ -701,11 +703,13 @@ export async function updateTrainerPassword(userId: string, password: string): P
 export async function updateTrainerTrial(trainerId: string, fechaFinTrial: string): Promise<{ error?: string }> {
   try {
     const admin = serviceClient();
-    const { error } = await admin
+    const { data, error } = await admin
       .from('trainer_suscripciones')
       .update({ fecha_fin_trial: fechaFinTrial, fecha_proximo_pago: fechaFinTrial })
-      .eq('trainer_id', trainerId);
+      .eq('trainer_id', trainerId)
+      .select('id');
     if (error) return { error: error.message };
+    if (!data?.length) return { error: 'Este trainer no tiene suscripción registrada. Contacta soporte.' };
     revalidatePath('/master/trainers');
     return {};
   } catch (e) {

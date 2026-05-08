@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useTransition } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { signOut, updatePassword } from '@/actions';
 
@@ -76,12 +76,11 @@ export default function StudentMenu() {
   const [toastVisible, setToastVisible] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  ), []);
-
   useEffect(() => {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -97,7 +96,7 @@ export default function StudentMenu() {
         setGoals((data.goals as string[]) ?? []);
       }
     })();
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
     const h = (e: MouseEvent) => {

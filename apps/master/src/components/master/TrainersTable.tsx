@@ -273,9 +273,9 @@ const WA_GREEN = '#25D366';
 
 function WhatsAppAccessModal({ trainer, onClose, recoveryLink }: { trainer: TrainerRow; onClose: () => void; recoveryLink?: string | null }) {
   const defaultMsg = recoveryLink ? [
-    `¡Hola ${trainer.business_name}!`,
+    `¡Bienvenido ${trainer.business_name}!`,
     '',
-    'Para establecer tu contraseña de acceso a *Neural Trainer Gym*, ingresa al siguiente enlace (valido por 1 hora):',
+    'Para establecer tu contraseña de acceso a *Neural Trainer Gym*, ingresa al siguiente enlace (válido por 1 hora y se puede usar solo una vez):',
     '',
     recoveryLink,
     '',

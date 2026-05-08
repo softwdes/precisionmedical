@@ -739,7 +739,23 @@ export async function generateTrainerRecoveryLink(email: string): Promise<{ erro
       },
     });
     if (error) return { error: error.message };
-    return { link: (data as any)?.properties?.action_link ?? '' };
+
+    const fullUrl: string = (data as any)?.properties?.action_link ?? '';
+    if (!fullUrl) return { error: 'No se pudo generar el enlace' };
+
+    const code = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+      .map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32])
+      .join('');
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    const { error: insertError } = await admin
+      .from('invite_links')
+      .insert({ code, full_url: fullUrl, expires_at: expiresAt });
+
+    if (insertError) return { link: fullUrl };
+
+    return { link: `https://app.neuraltrainergym.com/acceso/${code}` };
   } catch (e) {
     return { error: (e as Error).message };
   }

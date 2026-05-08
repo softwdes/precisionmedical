@@ -74,7 +74,7 @@ export default async function ReportesPage() {
         {/* Platform activity */}
         <div className="card">
           <div className="label-caps" style={{ marginBottom: '16px' }}>Actividad de plataforma — hoy</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
             {[
               { label: 'Consultas IA', value: m.ia_consultas_hoy, color: V },
               { label: 'Clases', value: m.clases_hoy, color: '#3FF8C8' },

@@ -196,7 +196,7 @@ function PhoneField({ value, onChange, disabled, required, id }: PhoneFieldProps
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 9999,
-          width: 264, background: '#0c0c0e',
+          width: 'min(264px, calc(100vw - 48px))', background: '#0c0c0e',
           border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: 8,
           boxShadow: '0 12px 40px rgba(0,0,0,0.72)',

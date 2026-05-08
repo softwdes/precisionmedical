@@ -112,7 +112,7 @@ export default function PlanesGrid({ planes }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       {/* Plan cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
         {planes.map(p => <PlanCard key={p.id} plan={p} />)}
       </div>
 
@@ -124,27 +124,24 @@ export default function PlanesGrid({ planes }: Props) {
             const cfg = (PLAN_CONFIG[p.nombre] ?? PLAN_CONFIG.basico)!;
             return (
               <div key={p.id} style={{
-                display: 'grid', gridTemplateColumns: '1fr auto auto auto',
-                alignItems: 'center', gap: '16px',
+                display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px',
                 padding: '12px 0',
                 borderBottom: i < planes.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{
-                    fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px',
-                    background: cfg.badgeBg, color: cfg.badgeText,
-                    textTransform: 'uppercase', letterSpacing: '0.06em',
-                  }}>
-                    {cfg.badge}
-                  </span>
-                </div>
-                <span style={{ fontSize: '13px', color: 'var(--fg-muted)', textAlign: 'right' }}>
+                <span style={{
+                  fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px',
+                  background: cfg.badgeBg, color: cfg.badgeText,
+                  textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0,
+                }}>
+                  {cfg.badge}
+                </span>
+                <span style={{ fontSize: '13px', color: 'var(--fg-muted)', marginLeft: 'auto' }}>
                   {p.trainers_count ?? 0} trainers
                 </span>
-                <span style={{ fontSize: '13px', color: 'var(--fg-muted)', textAlign: 'right' }}>
+                <span style={{ fontSize: '13px', color: 'var(--fg-muted)' }}>
                   × ${p.precio_mensual}
                 </span>
-                <span style={{ fontSize: '14px', fontWeight: 700, textAlign: 'right', minWidth: '90px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, minWidth: '80px', textAlign: 'right' }}>
                   ${(p.ingreso_mensual ?? 0).toLocaleString()}
                 </span>
               </div>

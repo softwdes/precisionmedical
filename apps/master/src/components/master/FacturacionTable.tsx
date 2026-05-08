@@ -66,7 +66,7 @@ export default function FacturacionTable({ rows, metrics, periodos }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Metric summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
         {[
           { label: 'Cobrado este mes', value: `$${metrics.cobrado_mes.toLocaleString()}`, color: '#3FF8C8' },
           { label: 'Pendiente total', value: `$${metrics.pendiente_total.toLocaleString()}`, color: '#EF9F27' },
@@ -89,13 +89,13 @@ export default function FacturacionTable({ rows, metrics, periodos }: Props) {
           placeholder="Buscar trainer..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{ width: '200px', height: '34px' }}
+          style={{ flex: '1 1 160px', minWidth: 0, height: '34px' }}
         />
         <select
           className="input"
           value={periodo}
           onChange={e => setPeriodo(e.target.value)}
-          style={{ width: '150px', height: '34px' }}
+          style={{ flex: '1 1 140px', minWidth: 0, height: '34px' }}
         >
           <option value="">Todos los períodos</option>
           {periodos.map(p => <option key={p} value={p}>{p}</option>)}
@@ -104,14 +104,14 @@ export default function FacturacionTable({ rows, metrics, periodos }: Props) {
           className="input"
           value={estadoFilter}
           onChange={e => setEstadoFilter(e.target.value)}
-          style={{ width: '140px', height: '34px' }}
+          style={{ flex: '1 1 130px', minWidth: 0, height: '34px' }}
         >
           <option value="">Todos los estados</option>
           <option value="pagado">Pagado</option>
           <option value="pendiente">Pendiente</option>
           <option value="vencido">Vencido</option>
         </select>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
           <button
             onClick={exportCSV}
             style={{
@@ -131,7 +131,8 @@ export default function FacturacionTable({ rows, metrics, periodos }: Props) {
 
       {/* Table */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '640px' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
               {['Trainer', 'Plan', 'Monto', 'Fecha', 'Período', 'Estado', 'Método'].map(h => (
@@ -200,6 +201,7 @@ export default function FacturacionTable({ rows, metrics, periodos }: Props) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {filtered.length > 0 && (

@@ -1,5 +1,6 @@
 'use server';
 
+import { randomUUID } from 'crypto';
 import { serverClient, serviceClient } from '@precision/db/client';
 import { revalidatePath } from 'next/cache';
 import type {
@@ -571,8 +572,6 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
     const business_name = (formData.get('business_name') as string).trim();
     const phone = ((formData.get('phone') as string | null) ?? '').trim() || null;
     const email = (formData.get('email') as string).trim();
-    const password = formData.get('password') as string;
-    const confirm = formData.get('confirm') as string;
     const plan_id = formData.get('plan_id') as string;
     const trial_days = parseInt(formData.get('trial_days') as string) || 30;
     const seed_demo = formData.get('seed_demo') === 'true';
@@ -580,14 +579,14 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
     if (!business_name) return { error: 'El nombre del negocio es requerido' };
     if (!phone) return { error: 'El celular es requerido' };
     if (!email) return { error: 'El email es requerido' };
-    if (password.length < 8) return { error: 'La contraseña debe tener al menos 8 caracteres' };
-    if (password !== confirm) return { error: 'Las contraseñas no coinciden' };
     if (!plan_id) return { error: 'Selecciona un plan' };
+
+    const tempPassword = randomUUID();
 
     // 1. Crear usuario en auth
     const { data: authData, error: authErr } = await admin.auth.admin.createUser({
       email,
-      password,
+      password: tempPassword,
       email_confirm: true,
       user_metadata: { full_name: business_name },
     });
@@ -718,6 +717,23 @@ export async function resendTrainerAccess(email: string): Promise<{ error?: stri
   try {
     const admin = serviceClient();
     const { data, error } = await admin.auth.admin.generateLink({ type: 'magiclink', email });
+    if (error) return { error: error.message };
+    return { link: (data as any)?.properties?.action_link ?? '' };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function generateTrainerRecoveryLink(email: string): Promise<{ error?: string; link?: string }> {
+  try {
+    const admin = serviceClient();
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: {
+        redirectTo: 'https://app.neuraltrainergym.com/reset-password',
+      },
+    });
     if (error) return { error: error.message };
     return { link: (data as any)?.properties?.action_link ?? '' };
   } catch (e) {

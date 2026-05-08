@@ -45,13 +45,13 @@ export function buildMensaje(
 
 export const DEFAULT_TEMPLATES: Record<string, string> = {
   vencimiento:
-    'Hola {nombre}! 👋 Te recuerdo que tu cuota vence el {fecha_vencimiento}. El monto es de {monto}. Cualquier consulta estoy a disposición. ¡Saludos!',
+    'Hola {nombre}! Te recuerdo que tu cuota vence el {fecha_vencimiento}. El monto es de {monto}. Cualquier consulta estoy a disposición. ¡Saludos!',
   vencido:
     'Hola {nombre}, te contacto porque tu cuota de {monto} está vencida desde el {fecha_vencimiento}. Por favor, regulariza tu situación para continuar con tus entrenamientos. ¡Gracias!',
   cobro:
-    'Hola {nombre}! Confirmamos el recibo de tu pago de {monto}. Tu próximo vencimiento es el {proxima_fecha}. ¡Gracias por tu puntualidad! 💪',
+    'Hola {nombre}! Confirmamos el recibo de tu pago de {monto}. Tu próximo vencimiento es el {proxima_fecha}. ¡Gracias por tu puntualidad!',
   bienvenida:
-    'Hola {nombre}! 🎉 Bienvenido/a a nuestro equipo. Estamos muy contentos de tenerte. Te informo que tu primera cuota vence el {fecha_vencimiento} y es de {monto}. ¡Nos vemos en el gym!',
+    'Hola {nombre}! Bienvenido/a a nuestro equipo. Estamos muy contentos de tenerte. Te informo que tu primera cuota vence el {fecha_vencimiento} y es de {monto}. ¡Nos vemos en el gym!',
   rutina:
-    'Hola {nombre}! 💪 Tu nueva rutina de entrenamiento ya está lista. Ingresá a la app para verla. Cualquier duda estoy disponible. ¡A darle con todo!',
+    'Hola {nombre}! Tu nueva rutina de entrenamiento ya está lista. Ingresá a la app para verla. Cualquier duda estoy disponible. ¡A darle con todo!',
 };

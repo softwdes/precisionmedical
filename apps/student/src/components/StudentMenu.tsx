@@ -172,7 +172,7 @@ export default function StudentMenu() {
         {dropdownOpen && (
           <div style={{
             position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-            width: '200px', background: 'var(--bg-elevated)',
+            width: 'min(200px, 80vw)', background: 'var(--bg-elevated)',
             border: '1px solid var(--border)', borderRadius: '8px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 1000, overflow: 'hidden',
           }}>
@@ -288,7 +288,7 @@ export default function StudentMenu() {
 
       {toastMsg && (
         <div style={{
-          position: 'fixed', bottom: '28px', right: '28px', zIndex: 3000,
+          position: 'fixed', bottom: 'max(16px, env(safe-area-inset-bottom, 16px))', right: '16px', zIndex: 3000,
           display: 'flex', alignItems: 'center', gap: '10px',
           padding: '13px 18px', background: 'var(--bg-elevated)',
           border: '1px solid rgba(63,248,200,0.35)', borderRadius: '10px',

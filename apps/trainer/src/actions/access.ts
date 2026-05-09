@@ -55,13 +55,11 @@ export async function generateStudentAccess(studentId: string): Promise<AccessRe
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    const trainerAppUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.neuraltrainergym.com';
-
     const { error: insertError } = await admin
       .from('invite_links')
       .insert({ code, full_url: fullUrl, expires_at: expiresAt });
 
-    const link = insertError ? fullUrl : `${trainerAppUrl}/acceso/${code}`;
+    const link = insertError ? fullUrl : `${studentAppUrl}/acceso/${code}`;
 
     return {
       link,

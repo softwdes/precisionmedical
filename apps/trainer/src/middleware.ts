@@ -2,11 +2,25 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const isLoginPage = request.nextUrl.pathname.startsWith('/login');
+  const isResetPasswordPage = request.nextUrl.pathname.startsWith('/reset-password');
+  const isAccesoPage = request.nextUrl.pathname.startsWith('/acceso');
+
+  if (!supabaseUrl || !supabaseKey) {
+    if (isLoginPage || isResetPasswordPage || isAccesoPage) return NextResponse.next();
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
@@ -20,10 +34,6 @@ export async function middleware(request: NextRequest) {
       },
     }
   );
-
-  const isLoginPage = request.nextUrl.pathname.startsWith('/login');
-  const isResetPasswordPage = request.nextUrl.pathname.startsWith('/reset-password');
-  const isAccesoPage = request.nextUrl.pathname.startsWith('/acceso');
 
   let user = null;
   try {

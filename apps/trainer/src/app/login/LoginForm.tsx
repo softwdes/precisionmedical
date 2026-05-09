@@ -11,6 +11,9 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotStatus, setForgotStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,6 +27,14 @@ export default function LoginForm() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { setError(error.message); setLoading(false); return; }
     router.push('/');
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotStatus('sending');
+    const redirectTo = `${window.location.origin}/reset-password`;
+    await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), { redirectTo });
+    setForgotStatus('sent');
   }
 
   return (
@@ -123,67 +134,147 @@ export default function LoginForm() {
             borderRadius: '6px', backdropFilter: 'blur(10px)',
             boxSizing: 'border-box', width: '100%',
           }}>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {!forgotMode ? (
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                <label style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '11px', fontWeight: 600, color: '#00c8b4', textTransform: 'uppercase', letterSpacing: '2px' }}>
-                  Email
-                </label>
-                <input
-                  type="email" className="login-input"
-                  value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="trainer@ejemplo.com" required autoComplete="email"
-                  style={{
-                    background: 'rgba(0,200,180,0.04)', border: '1px solid rgba(0,200,180,0.2)',
-                    borderRadius: '4px', color: '#c8f0eb', fontSize: '16px',
-                    padding: '10px 14px', width: '100%', boxSizing: 'border-box',
-                    fontFamily: "'Rajdhani', sans-serif", fontWeight: 400,
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                <label style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '11px', fontWeight: 600, color: '#00c8b4', textTransform: 'uppercase', letterSpacing: '2px' }}>
-                  Contraseña
-                </label>
-                <input
-                  type="password" className="login-input"
-                  value={password} onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••" required autoComplete="current-password"
-                  style={{
-                    background: 'rgba(0,200,180,0.04)', border: '1px solid rgba(0,200,180,0.2)',
-                    borderRadius: '4px', color: '#c8f0eb', fontSize: '16px',
-                    padding: '10px 14px', width: '100%', boxSizing: 'border-box',
-                    fontFamily: "'Rajdhani', sans-serif", fontWeight: 400,
-                  }}
-                />
-              </div>
-
-              {error && (
-                <div style={{
-                  padding: '10px 14px',
-                  background: 'rgba(255,60,60,0.08)', border: '1px solid rgba(255,60,60,0.22)',
-                  borderRadius: '4px', fontSize: '13px', color: '#ff8080',
-                  fontFamily: "'Rajdhani', sans-serif", fontWeight: 600, letterSpacing: '0.5px',
-                }}>
-                  {error}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                  <label style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '11px', fontWeight: 600, color: '#00c8b4', textTransform: 'uppercase', letterSpacing: '2px' }}>
+                    Email
+                  </label>
+                  <input
+                    type="email" className="login-input"
+                    value={email} onChange={e => setEmail(e.target.value)}
+                    placeholder="trainer@ejemplo.com" required autoComplete="email"
+                    style={{
+                      background: 'rgba(0,200,180,0.04)', border: '1px solid rgba(0,200,180,0.2)',
+                      borderRadius: '4px', color: '#c8f0eb', fontSize: '16px',
+                      padding: '10px 14px', width: '100%', boxSizing: 'border-box',
+                      fontFamily: "'Rajdhani', sans-serif", fontWeight: 400,
+                    }}
+                  />
                 </div>
-              )}
 
-              <button
-                type="submit" className="login-btn" disabled={loading}
-                style={{
-                  background: '#00c8b4', color: '#020c10', border: 'none',
-                  borderRadius: '4px', padding: '14px', width: '100%', minHeight: '44px',
-                  fontFamily: "'Orbitron', sans-serif", fontWeight: 900,
-                  fontSize: '11px', letterSpacing: '3px', textTransform: 'uppercase',
-                  cursor: 'pointer', boxSizing: 'border-box',
-                }}
-              >
-                {loading ? 'VERIFICANDO...' : 'INGRESAR'}
-              </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                  <label style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '11px', fontWeight: 600, color: '#00c8b4', textTransform: 'uppercase', letterSpacing: '2px' }}>
+                    Contraseña
+                  </label>
+                  <input
+                    type="password" className="login-input"
+                    value={password} onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••" required autoComplete="current-password"
+                    style={{
+                      background: 'rgba(0,200,180,0.04)', border: '1px solid rgba(0,200,180,0.2)',
+                      borderRadius: '4px', color: '#c8f0eb', fontSize: '16px',
+                      padding: '10px 14px', width: '100%', boxSizing: 'border-box',
+                      fontFamily: "'Rajdhani', sans-serif", fontWeight: 400,
+                    }}
+                  />
+                </div>
 
-            </form>
+                {error && (
+                  <div style={{
+                    padding: '10px 14px',
+                    background: 'rgba(255,60,60,0.08)', border: '1px solid rgba(255,60,60,0.22)',
+                    borderRadius: '4px', fontSize: '13px', color: '#ff8080',
+                    fontFamily: "'Rajdhani', sans-serif", fontWeight: 600, letterSpacing: '0.5px',
+                  }}>
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit" className="login-btn" disabled={loading}
+                  style={{
+                    background: '#00c8b4', color: '#020c10', border: 'none',
+                    borderRadius: '4px', padding: '14px', width: '100%', minHeight: '44px',
+                    fontFamily: "'Orbitron', sans-serif", fontWeight: 900,
+                    fontSize: '11px', letterSpacing: '3px', textTransform: 'uppercase',
+                    cursor: 'pointer', boxSizing: 'border-box',
+                  }}
+                >
+                  {loading ? 'VERIFICANDO...' : 'INGRESAR'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setForgotMode(true); setForgotEmail(email); setError(''); }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontFamily: "'Rajdhani', sans-serif", fontSize: '12px',
+                    color: 'rgba(0,200,180,0.5)', textAlign: 'center',
+                    padding: '4px', letterSpacing: '0.5px',
+                  }}
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+
+              </form>
+            ) : (
+              <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+                <div style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '13px', color: 'rgba(0,200,180,0.7)', lineHeight: 1.6 }}>
+                  Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña.
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                  <label style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '11px', fontWeight: 600, color: '#00c8b4', textTransform: 'uppercase', letterSpacing: '2px' }}>
+                    Email
+                  </label>
+                  <input
+                    type="email" className="login-input"
+                    value={forgotEmail} onChange={e => setForgotEmail(e.target.value)}
+                    placeholder="trainer@ejemplo.com" required autoComplete="email"
+                    disabled={forgotStatus === 'sent'}
+                    style={{
+                      background: 'rgba(0,200,180,0.04)', border: '1px solid rgba(0,200,180,0.2)',
+                      borderRadius: '4px', color: '#c8f0eb', fontSize: '16px',
+                      padding: '10px 14px', width: '100%', boxSizing: 'border-box',
+                      fontFamily: "'Rajdhani', sans-serif", fontWeight: 400,
+                    }}
+                  />
+                </div>
+
+                {forgotStatus === 'sent' && (
+                  <div style={{
+                    padding: '10px 14px',
+                    background: 'rgba(0,200,180,0.08)', border: '1px solid rgba(0,200,180,0.3)',
+                    borderRadius: '4px', fontSize: '13px', color: '#00c8b4',
+                    fontFamily: "'Rajdhani', sans-serif", fontWeight: 600,
+                  }}>
+                    Revisa tu email — te enviamos el enlace de recuperación.
+                  </div>
+                )}
+
+                {forgotStatus !== 'sent' && (
+                  <button
+                    type="submit" className="login-btn" disabled={forgotStatus === 'sending'}
+                    style={{
+                      background: '#00c8b4', color: '#020c10', border: 'none',
+                      borderRadius: '4px', padding: '14px', width: '100%', minHeight: '44px',
+                      fontFamily: "'Orbitron', sans-serif", fontWeight: 900,
+                      fontSize: '11px', letterSpacing: '3px', textTransform: 'uppercase',
+                      cursor: forgotStatus === 'sending' ? 'wait' : 'pointer', boxSizing: 'border-box',
+                    }}
+                  >
+                    {forgotStatus === 'sending' ? 'ENVIANDO...' : 'ENVIAR ENLACE'}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => { setForgotMode(false); setForgotStatus('idle'); }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontFamily: "'Rajdhani', sans-serif", fontSize: '12px',
+                    color: 'rgba(0,200,180,0.5)', textAlign: 'center',
+                    padding: '4px', letterSpacing: '0.5px',
+                  }}
+                >
+                  ← Volver al login
+                </button>
+
+              </form>
+            )}
           </div>
         </div>
 

@@ -29,7 +29,8 @@ export default function ResetPasswordForm() {
     const type = params.get('type');
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
-    if (type === 'recovery' && accessToken && refreshToken) {
+    const validType = type === 'recovery' || type === 'invite' || type === 'signup';
+    if (validType && accessToken && refreshToken) {
       supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
         .then(({ error }) => { setState(error ? 'token_error' : 'form'); if (error) setFormError(error.message); });
     } else {

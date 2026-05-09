@@ -40,14 +40,14 @@ export async function generateStudentAccess(studentId: string): Promise<AccessRe
     let result = await admin.auth.admin.generateLink({
       type: hasAccount ? 'recovery' : 'invite',
       email: student.email,
-      options: { redirectTo: `${studentAppUrl}/inicio` },
+      options: { redirectTo: `${studentAppUrl}/reset-password` },
     });
 
     if (result.error?.message?.toLowerCase().includes('already been registered')) {
       result = await admin.auth.admin.generateLink({
         type: 'recovery',
         email: student.email,
-        options: { redirectTo: `${studentAppUrl}/inicio` },
+        options: { redirectTo: `${studentAppUrl}/reset-password` },
       });
     }
 

@@ -47,8 +47,24 @@ export async function generateStudentAccess(studentId: string): Promise<AccessRe
       return { error: 'No se pudo generar el link: ' + (error?.message ?? 'error desconocido') };
     }
 
+    const fullUrl = data.properties.action_link;
+
+    const code = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+      .map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32])
+      .join('');
+
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const trainerAppUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.neuraltrainergym.com';
+
+    const { error: insertError } = await admin
+      .from('invite_links')
+      .insert({ code, full_url: fullUrl, expires_at: expiresAt });
+
+    const link = insertError ? fullUrl : `${trainerAppUrl}/acceso/${code}`;
+
     return {
-      link: data.properties.action_link,
+      link,
       student: {
         name: student.full_name,
         phone: student.phone ?? null,

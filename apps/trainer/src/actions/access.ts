@@ -37,12 +37,21 @@ export async function generateStudentAccess(studentId: string): Promise<AccessRe
     const studentAppUrl = process.env.NEXT_PUBLIC_STUDENT_APP_URL ?? 'https://student.neuraltrainergym.com';
 
     const hasAccount = !!student.user_id;
-    const { data, error } = await admin.auth.admin.generateLink({
+    let result = await admin.auth.admin.generateLink({
       type: hasAccount ? 'recovery' : 'invite',
       email: student.email,
       options: { redirectTo: `${studentAppUrl}/inicio` },
     });
 
+    if (result.error?.message?.toLowerCase().includes('already been registered')) {
+      result = await admin.auth.admin.generateLink({
+        type: 'recovery',
+        email: student.email,
+        options: { redirectTo: `${studentAppUrl}/inicio` },
+      });
+    }
+
+    const { data, error } = result;
     if (error || !data?.properties?.action_link) {
       return { error: 'No se pudo generar el link: ' + (error?.message ?? 'error desconocido') };
     }

@@ -57,18 +57,20 @@ export async function updatePassword(
   _prev: { error?: string; success?: boolean } | null,
   formData: FormData,
 ): Promise<{ error?: string; success?: boolean }> {
+  const password = (formData.get('password') as string) || '';
+  const confirm = (formData.get('confirm') as string) || '';
+
+  if (password.length < 8) return { error: 'La contraseña debe tener al menos 8 caracteres' };
+  if (password !== confirm) return { error: 'Las contraseñas no coinciden' };
+
   try {
-    const password = (formData.get('password') as string) || '';
-    const confirm = (formData.get('confirm') as string) || '';
-
-    if (password.length < 8) return { error: 'La contraseña debe tener al menos 8 caracteres' };
-    if (password !== confirm) return { error: 'Las contraseñas no coinciden' };
-
     const supabase = await createClient();
     const { error } = await supabase.auth.updateUser({ password });
     if (error) return { error: error.message };
-    return { success: true };
+    await supabase.auth.signOut();
   } catch (e) {
     return { error: (e as Error).message };
   }
+
+  redirect('/login');
 }

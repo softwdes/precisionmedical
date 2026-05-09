@@ -69,6 +69,11 @@ export default function EditStudentForm({ student }: Props) {
           </div>
 
           <div className="form-group">
+            <label className="label" htmlFor="email">Email</label>
+            <input type="email" id="email" name="email" className="input" defaultValue={student.email ?? ''} placeholder="correo@ejemplo.com" />
+          </div>
+
+          <div className="form-group">
             <label className="label" htmlFor="phone">Celular</label>
             <PhoneField id="phone" value={phone} onChange={setPhone} />
             <input type="hidden" name="phone" value={phone} />

@@ -132,6 +132,7 @@ export async function createStudent(formData: FormData) {
 export async function updateStudent(id: string, formData: FormData) {
   const { supabase, trainerId } = await getAuthContext();
   const full_name = formData.get('full_name') as string;
+  const email = (formData.get('email') as string)?.trim() || null;
   const phone = (formData.get('phone') as string)?.trim() || null;
   const birth_date = formData.get('birth_date') as string | null;
   const experience_level = formData.get('experience_level') as string | null;
@@ -140,6 +141,7 @@ export async function updateStudent(id: string, formData: FormData) {
 
   const { error } = await supabase.from('students').update({
     full_name,
+    email,
     phone,
     birth_date: birth_date ? new Date(birth_date) : null,
     experience_level,

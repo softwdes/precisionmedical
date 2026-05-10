@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient, getAuthContext } from '@/lib/supabase-server';
+import { sendStudentInvitation } from '@/actions/auth';
 
 export async function getStudents() {
   const { supabase, trainerId } = await getAuthContext();
@@ -107,24 +108,31 @@ export async function createStudentModal(
 
 export async function createStudent(formData: FormData) {
   const { supabase, trainerId } = await getAuthContext();
-  const full_name = formData.get('full_name') as string;
+  const full_name = (formData.get('full_name') as string)?.trim();
+  const email = (formData.get('email') as string)?.trim() || null;
   const phone = (formData.get('phone') as string)?.trim() || null;
   const birth_date = formData.get('birth_date') as string | null;
   const experience_level = formData.get('experience_level') as string | null;
   const goals = formData.getAll('goals') as string[];
   const available_equipment = formData.get('available_equipment') as string | null;
 
-  const { error } = await supabase.from('students').insert({
+  const { data, error } = await supabase.from('students').insert({
     trainer_id: trainerId,
     full_name,
+    email,
     phone,
     birth_date: birth_date ? new Date(birth_date) : null,
     experience_level,
     goals: goals.length > 0 ? goals : null,
     available_equipment,
-  });
+  }).select('id').single();
 
   if (error) throw new Error(error.message);
+
+  if (email && data?.id) {
+    await sendStudentInvitation(data.id, email, full_name);
+  }
+
   revalidatePath('/alumnos');
   redirect('/alumnos');
 }

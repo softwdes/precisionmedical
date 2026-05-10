@@ -17,6 +17,11 @@ export default function NewStudentForm() {
           <input type="text" id="full_name" name="full_name" className="input" required placeholder="Ej: Juan Pérez García" />
         </div>
         <div className="form-group">
+          <label className="label" htmlFor="email">Email</label>
+          <input type="email" id="email" name="email" className="input" placeholder="Ej: alumno@email.com" />
+          <span style={{ fontSize: '12px', color: 'var(--fg-muted, #888)', lineHeight: 1.4 }}>Si ingresás el email, el alumno recibirá una invitación para acceder a la plataforma.</span>
+        </div>
+        <div className="form-group">
           <label className="label" htmlFor="phone">Celular</label>
           <PhoneField id="phone" value={phone} onChange={setPhone} />
           <input type="hidden" name="phone" value={phone} />

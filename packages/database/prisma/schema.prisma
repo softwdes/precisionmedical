@@ -1,0 +1,94 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// 1. IDENTITY (Phase 0 Models)
+// =====================================================
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  emailVerifiedAt DateTime?
+  passwordHash    String?
+  
+  firstName       String
+  lastName        String
+  avatarUrl       String?
+  phone           String?
+  
+  role            UserRole
+  status          UserStatus @default(ACTIVE)
+  
+  preferredLocale Locale     @default(es)
+  preferredTheme  Theme      @default(dark)
+  
+  mfaEnabled      Boolean    @default(false)
+  mfaSecret       String?
+  
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  
+  sessions        Session[]
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+  
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  EMPLOYEE
+  LAWYER
+  PROVIDER
+  AUDITOR_AI
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum Locale {
+  es
+  en
+}
+
+enum Theme {
+  light
+  dark
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  ipAddress String?
+  userAgent String?
+  device    String?
+  
+  expiresAt DateTime
+  revokedAt DateTime?
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}

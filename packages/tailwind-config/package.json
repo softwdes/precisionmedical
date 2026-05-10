@@ -1,0 +1,9 @@
+{
+  "name": "@precision/tailwind-config",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "tailwindcss": "^3.4.0",
+    "tailwindcss-animate": "^1.0.7"
+  }
+}

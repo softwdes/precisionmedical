@@ -1,0 +1,11 @@
+{
+  "name": "@precision/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "eslint-config-next": "^14.2.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.34.0",
+    "eslint-plugin-react-hooks": "^4.6.0"
+  }
+}

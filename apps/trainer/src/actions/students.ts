@@ -99,11 +99,13 @@ export async function createStudentModal(
       available_equipment: available_equipment || null,
     }).select('id').single();
     if (error) return { error: error.message };
+    let emailError: string | undefined;
     if (email && data?.id) {
-      await sendStudentInvitation(data.id, email, full_name);
+      const invResult = await sendStudentInvitation(data.id, email, full_name);
+      if (invResult.error) emailError = invResult.error;
     }
     revalidatePath('/alumnos');
-    return { success: true };
+    return { success: true, ...(emailError ? { emailError } : {}) };
   } catch (e) {
     return { error: (e as Error).message };
   }

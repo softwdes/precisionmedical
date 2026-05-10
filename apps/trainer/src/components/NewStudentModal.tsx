@@ -123,7 +123,10 @@ export default function NewStudentModal() {
       } else {
         setOpen(false);
         router.refresh();
-        showToast('Alumno creado correctamente');
+        const msg = (res as any)?.emailError
+          ? 'Alumno creado. Error al enviar invitación: ' + (res as any).emailError
+          : 'Alumno creado correctamente — invitación enviada';
+        showToast(msg);
       }
     });
   }

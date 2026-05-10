@@ -77,19 +77,30 @@ export async function sendStudentInvitation(
     );
 
     const studentAppUrl = process.env.NEXT_PUBLIC_STUDENT_APP_URL ?? 'https://student.neuraltrainergym.com';
+    const redirectTo = `${studentAppUrl}/reset-password`;
 
-    const { data, error } = await admin.auth.admin.generateLink({
+    // Try invite first (creates new auth user); fall back to recovery if already registered
+    let result = await admin.auth.admin.generateLink({
       type: 'invite',
       email: email.trim().toLowerCase(),
-      options: { redirectTo: `${studentAppUrl}/reset-password` },
+      options: { redirectTo },
     });
 
+    if (result.error?.message?.toLowerCase().includes('already been registered') ||
+        result.error?.message?.toLowerCase().includes('already registered')) {
+      result = await admin.auth.admin.generateLink({
+        type: 'recovery',
+        email: email.trim().toLowerCase(),
+        options: { redirectTo },
+      });
+    }
+
+    const { data, error } = result;
     if (error) return { error: error.message };
 
     const fullUrl: string = (data as any)?.properties?.action_link ?? '';
     if (!fullUrl) return { error: 'No se pudo generar el enlace de acceso' };
 
-    // Update student user_id with the newly created auth user
     const userId: string | undefined = (data as any)?.user?.id;
     if (userId) {
       await admin.from('students').update({ user_id: userId }).eq('id', studentId);

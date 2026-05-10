@@ -1,0 +1,36 @@
+{
+  "name": "precision-medical",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Precision Medical — LM Super Admin clinic operations platform",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "turbo run db:generate",
+    "db:push": "turbo run db:push",
+    "db:migrate": "pnpm --filter @precision/db prisma migrate dev",
+    "db:studio": "pnpm --filter @precision/db prisma studio",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prettier": "^3.3.0",
+    "prettier-plugin-tailwindcss": "^0.6.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

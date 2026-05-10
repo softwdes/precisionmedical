@@ -1,0 +1,1019 @@
+// =====================================================
+// LM Super Admin · Prisma Schema (Reference)
+// Precision Medical
+// =====================================================
+//
+// This is the canonical Prisma schema. Use this as the
+// reference for your schema.prisma file.
+//
+// Models are grouped by domain. Phase 0 is the minimum
+// to get authentication working. Subsequent phases add
+// more models as documented in DATA_MODEL.md.
+// =====================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// 1. IDENTITY
+// =====================================================
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  emailVerifiedAt DateTime?
+  passwordHash    String?
+  
+  firstName       String
+  lastName        String
+  avatarUrl       String?
+  phone           String?
+  
+  role            UserRole
+  status          UserStatus @default(ACTIVE)
+  
+  preferredLocale Locale     @default(es)
+  preferredTheme  Theme      @default(dark)
+  
+  mfaEnabled      Boolean    @default(false)
+  mfaSecret       String?
+  
+  employee        Employee?
+  lawyer          Lawyer?
+  provider        Provider?
+  
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  
+  sessions        Session[]
+  notifications   Notification[]
+  agentActions    AgentAction[]  @relation("ReviewedBy")
+  auditLogs       AuditLog[]     @relation("ActorUser")
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+  
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  EMPLOYEE
+  LAWYER
+  PROVIDER
+  AUDITOR_AI
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum Locale {
+  es
+  en
+}
+
+enum Theme {
+  light
+  dark
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  ipAddress String?
+  userAgent String?
+  device    String?
+  
+  expiresAt DateTime
+  revokedAt DateTime?
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// =====================================================
+// 2. WORKFORCE
+// =====================================================
+
+model Country {
+  id        String     @id @default(cuid())
+  code      String     @unique  // "US", "BO", "PE"
+  name      String
+  currency  Currency
+  
+  employees Employee[]
+  wallets   Wallet[]
+  
+  @@map("countries")
+}
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  
+  employees   Employee[]
+  
+  @@map("departments")
+}
+
+model Employee {
+  id              String          @id @default(cuid())
+  userId          String?         @unique
+  user            User?           @relation(fields: [userId], references: [id])
+  
+  employeeCode    String          @unique
+  externalId      String?         // ID from external attendance DB
+  
+  firstName       String
+  lastName        String
+  email           String
+  phone           String?
+  photoUrl        String?
+  
+  countryId       String
+  country         Country         @relation(fields: [countryId], references: [id])
+  city            String?
+  
+  type            EmploymentType
+  startDate       DateTime
+  endDate         DateTime?
+  
+  departmentId    String
+  department      Department      @relation(fields: [departmentId], references: [id])
+  position        String
+  
+  supervisorId    String?
+  supervisor      Employee?       @relation("Supervision", fields: [supervisorId], references: [id])
+  reports         Employee[]      @relation("Supervision")
+  
+  baseSalary      Decimal?        @db.Decimal(12, 2)
+  baseCurrency    Currency
+  hourlyRate      Decimal?        @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod?
+  bankAccount     String?         // encrypted at app level
+  
+  status          EmployeeStatus  @default(ACTIVE)
+  
+  payments        Payment[]
+  tasks           Task[]          @relation("AssignedTo")
+  reviewedTasks   Task[]          @relation("Supervisor")
+  attendanceSync  AttendanceSync[]
+  metricSnapshots MetricSnapshot[]
+  documents       EmployeeDocument[]
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+  
+  @@index([countryId])
+  @@index([type])
+  @@index([status])
+  @@index([departmentId])
+  @@index([externalId])
+  @@map("employees")
+}
+
+enum EmploymentType {
+  FULL_TIME
+  EXTERNAL
+  CONTRACTOR
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  ON_LEAVE
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  ZELLE
+  WIRE
+  OTHER
+}
+
+model EmployeeDocument {
+  id         String       @id @default(cuid())
+  employeeId String
+  employee   Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  type       DocumentType
+  name       String
+  fileUrl    String
+  uploadedBy String
+  
+  createdAt  DateTime     @default(now())
+  
+  @@map("employee_documents")
+}
+
+enum DocumentType {
+  CONTRACT
+  ID
+  NDA
+  TAX_FORM
+  OTHER
+}
+
+model AttendanceSync {
+  id         String    @id @default(cuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  
+  date       DateTime  @db.Date
+  
+  clockIn    DateTime?
+  breakStart DateTime?
+  breakEnd   DateTime?
+  clockOut   DateTime?
+  
+  totalHours Decimal?  @db.Decimal(5, 2)
+  isLate     Boolean   @default(false)
+  isAbsent   Boolean   @default(false)
+  
+  externalId String?
+  syncedAt   DateTime  @default(now())
+  
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+  @@map("attendance_sync")
+}
+
+model Task {
+  id              String       @id @default(cuid())
+  
+  title           String
+  description     String?
+  
+  assigneeId      String
+  assignee        Employee     @relation("AssignedTo", fields: [assigneeId], references: [id])
+  
+  supervisorId    String?
+  supervisor      Employee?    @relation("Supervisor", fields: [supervisorId], references: [id])
+  
+  status          TaskStatus   @default(ASSIGNED)
+  priority        TaskPriority @default(NORMAL)
+  
+  assignedDate    DateTime     @default(now())
+  dueDate         DateTime
+  completedDate   DateTime?
+  
+  qualityRating   Int?
+  qualityFeedback String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  ASSIGNED
+  IN_PROGRESS
+  DELIVERED
+  REVIEWED
+  REJECTED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model MetricSnapshot {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id])
+  
+  date              DateTime @db.Date
+  
+  punctualityScore  Decimal  @db.Decimal(5, 2)
+  taskOnTimeScore   Decimal  @db.Decimal(5, 2)
+  productivityScore Decimal  @db.Decimal(5, 2)
+  qualityScore      Decimal  @db.Decimal(5, 2)
+  attendanceScore   Decimal  @db.Decimal(5, 2)
+  
+  globalScore       Decimal  @db.Decimal(5, 2)
+  grade             Grade
+  
+  computedAt        DateTime @default(now())
+  
+  @@unique([employeeId, date])
+  @@index([date])
+  @@index([globalScore])
+  @@map("metric_snapshots")
+}
+
+enum Grade {
+  A_PLUS
+  A
+  B
+  C
+  D
+}
+
+// =====================================================
+// 3. FINANCE
+// =====================================================
+
+enum Currency {
+  USD
+  BOB
+  PEN
+}
+
+model Wallet {
+  id               String        @id @default(cuid())
+  currency         Currency
+  countryId        String
+  country          Country       @relation(fields: [countryId], references: [id])
+  
+  name             String
+  balance          Decimal       @db.Decimal(15, 2) @default(0)
+  
+  lastReconciledAt DateTime?
+  lastReconciledBy String?
+  
+  fxFromOps        FxOperation[] @relation("FromWallet")
+  fxToOps          FxOperation[] @relation("ToWallet")
+  payments         Payment[]
+  
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  
+  @@unique([currency, countryId])
+  @@map("wallets")
+}
+
+model FxOperation {
+  id            String   @id @default(cuid())
+  
+  fromWalletId  String
+  fromWallet    Wallet   @relation("FromWallet", fields: [fromWalletId], references: [id])
+  
+  toWalletId    String
+  toWallet      Wallet   @relation("ToWallet", fields: [toWalletId], references: [id])
+  
+  amountFrom    Decimal  @db.Decimal(15, 2)
+  amountTo      Decimal  @db.Decimal(15, 2)
+  rate          Decimal  @db.Decimal(12, 6)
+  fee           Decimal  @db.Decimal(10, 2) @default(0)
+  
+  exchangeHouse String?
+  receiptUrl    String?
+  notes         String?
+  
+  performedById String
+  performedAt   DateTime @default(now())
+  
+  reversedById  String?  // Append-only: edits create reversals
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([fromWalletId])
+  @@index([toWalletId])
+  @@index([performedAt])
+  @@map("fx_operations")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  
+  employeeId      String
+  employee        Employee      @relation(fields: [employeeId], references: [id])
+  
+  walletId        String
+  wallet          Wallet        @relation(fields: [walletId], references: [id])
+  
+  period          String
+  
+  amountLocal     Decimal       @db.Decimal(12, 2)
+  currencyLocal   Currency
+  amountUsdEquiv  Decimal       @db.Decimal(12, 2)
+  rateApplied     Decimal       @db.Decimal(12, 6)
+  
+  status          PaymentStatus @default(PENDING)
+  
+  scheduledDate   DateTime
+  paidDate        DateTime?
+  
+  proofUrl        String?
+  notes           String?
+  
+  reversedById    String?  // Append-only
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([employeeId])
+  @@index([period])
+  @@index([status])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  SCHEDULED
+  PAID
+  PARTIAL
+  CANCELLED
+  REVERSED
+}
+
+model CashBox {
+  id                  String            @id @default(cuid())
+  name                String            @unique
+  clinicId            String?
+  
+  currency            Currency          @default(USD)
+  balance             Decimal           @db.Decimal(12, 2) @default(0)
+  lowBalanceThreshold Decimal           @db.Decimal(12, 2) @default(100)
+  
+  responsibleUserId   String?
+  
+  transactions        CashTransaction[]
+  
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
+  @@map("cash_boxes")
+}
+
+model CashTransaction {
+  id            String              @id @default(cuid())
+  cashBoxId     String
+  cashBox       CashBox             @relation(fields: [cashBoxId], references: [id])
+  
+  type          CashTransactionType
+  amount        Decimal             @db.Decimal(12, 2)
+  
+  category      CashCategory
+  description   String
+  
+  receiptUrl    String?
+  
+  performedById String
+  performedAt   DateTime            @default(now())
+  
+  reversedById  String?  // Append-only
+  
+  createdAt     DateTime            @default(now())
+  
+  @@index([cashBoxId])
+  @@index([performedAt])
+  @@index([category])
+  @@map("cash_transactions")
+}
+
+enum CashTransactionType {
+  DEPOSIT
+  EXPENSE
+}
+
+enum CashCategory {
+  MEDICAL_SUPPLIES
+  TRANSPORT
+  FOOD
+  OFFICE
+  UTILITIES
+  MAINTENANCE
+  OTHER
+}
+
+// =====================================================
+// 4. EXTERNAL RELATIONS
+// =====================================================
+
+model Lawyer {
+  id               String            @id @default(cuid())
+  userId           String?           @unique
+  user             User?             @relation(fields: [userId], references: [id])
+  
+  entityType       LawyerEntityType
+  
+  firstName        String?
+  lastName         String?
+  firmName         String?
+  
+  parentFirmId     String?
+  parentFirm       Lawyer?           @relation("FirmMembers", fields: [parentFirmId], references: [id])
+  members          Lawyer[]          @relation("FirmMembers")
+  
+  email            String            @unique
+  phone            String?
+  address          String?
+  
+  status           ExternalStatus    @default(ACTIVE)
+  
+  commissionConfig CommissionConfig?
+  
+  referrals        Patient[]         @relation("LawyerReferrer")
+  commissions      Commission[]      @relation("LawyerCommission")
+  
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+  
+  @@map("lawyers")
+}
+
+enum LawyerEntityType {
+  FIRM
+  INDEPENDENT
+  FIRM_MEMBER
+}
+
+model Provider {
+  id             String          @id @default(cuid())
+  userId         String?         @unique
+  user           User?           @relation(fields: [userId], references: [id])
+  
+  firstName      String
+  lastName       String
+  
+  email          String          @unique
+  phone          String?
+  
+  specialty      Specialty
+  licenseNumber  String?
+  
+  status         ExternalStatus  @default(ACTIVE)
+  
+  serviceTariffs ServiceTariff[]
+  
+  referrals      Patient[]       @relation("ProviderReferrer")
+  commissions    Commission[]    @relation("ProviderCommission")
+  appointments   Appointment[]
+  
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+  
+  @@map("providers")
+}
+
+enum ExternalStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_APPROVAL
+  TERMINATED
+}
+
+enum Specialty {
+  RADIOLOGY
+  NEUROLOGY
+  ORTHOPEDICS
+  PHYSICAL_THERAPY
+  CHIROPRACTIC
+  PAIN_MANAGEMENT
+  PSYCHOLOGY
+  GENERAL
+  OTHER
+}
+
+model ServiceTariff {
+  id          String   @id @default(cuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id])
+  
+  serviceName String
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    Currency @default(USD)
+  
+  @@map("service_tariffs")
+}
+
+model Patient {
+  id                 String          @id @default(cuid())
+  
+  patientCode        String          @unique
+  
+  firstName          String
+  lastName           String
+  email              String?
+  phone              String?
+  dateOfBirth        DateTime?
+  
+  accidentDate       DateTime?
+  accidentType       AccidentType?
+  insuranceCarrier   String?
+  policyNumber       String?
+  
+  lawyerReferrerId   String?
+  lawyerReferrer     Lawyer?         @relation("LawyerReferrer", fields: [lawyerReferrerId], references: [id])
+  
+  providerReferrerId String?
+  providerReferrer   Provider?       @relation("ProviderReferrer", fields: [providerReferrerId], references: [id])
+  
+  status             PatientStatus   @default(NEW)
+  
+  appointments       Appointment[]
+  commissions        Commission[]
+  
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  
+  @@index([lawyerReferrerId])
+  @@index([providerReferrerId])
+  @@index([status])
+  @@map("patients")
+}
+
+enum PatientStatus {
+  NEW
+  ACTIVE
+  COMPLETED
+  DISCHARGED
+  INACTIVE
+}
+
+enum AccidentType {
+  AUTO
+  MOTORCYCLE
+  PEDESTRIAN
+  WORKPLACE
+  OTHER
+}
+
+model Clinic {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  address      String?
+  phone        String?
+  
+  appointments Appointment[]
+  
+  @@map("clinics")
+}
+
+model Appointment {
+  id              String            @id @default(cuid())
+  
+  patientId       String
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  
+  clinicId        String
+  clinic          Clinic            @relation(fields: [clinicId], references: [id])
+  
+  providerId      String?
+  provider        Provider?         @relation(fields: [providerId], references: [id])
+  
+  scheduledFor    DateTime
+  durationMinutes Int               @default(30)
+  
+  type            AppointmentType
+  status          AppointmentStatus @default(SCHEDULED)
+  
+  notes           String?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  @@index([patientId])
+  @@index([clinicId])
+  @@index([scheduledFor])
+  @@index([status])
+  @@map("appointments")
+}
+
+enum AppointmentType {
+  AUTO_ACCIDENT
+  FAMILY_PRACTICE
+  URGENT_CARE
+  FOLLOW_UP
+  CONSULTATION
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  PENDING
+}
+
+// =====================================================
+// 5. COMMISSIONS
+// =====================================================
+
+model CommissionConfig {
+  id            String           @id @default(cuid())
+  lawyerId      String           @unique
+  lawyer        Lawyer           @relation(fields: [lawyerId], references: [id])
+  
+  scheme        CommissionScheme
+  
+  flatAmount    Decimal?         @db.Decimal(10, 2)
+  percentage    Decimal?         @db.Decimal(5, 2)
+  tiers         Json?
+  hybridConfig  Json?
+  
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  @@map("commission_configs")
+}
+
+enum CommissionScheme {
+  FLAT_PER_REFERRAL
+  PERCENTAGE_OF_BILLING
+  VOLUME_TIER
+  HYBRID
+}
+
+model Commission {
+  id           String           @id @default(cuid())
+  
+  lawyerId     String?
+  lawyer       Lawyer?          @relation("LawyerCommission", fields: [lawyerId], references: [id])
+  
+  providerId   String?
+  provider     Provider?        @relation("ProviderCommission", fields: [providerId], references: [id])
+  
+  patientId    String
+  patient      Patient          @relation(fields: [patientId], references: [id])
+  
+  amount       Decimal          @db.Decimal(12, 2)
+  currency     Currency         @default(USD)
+  
+  status       CommissionStatus @default(EARNED)
+  earnedAt     DateTime         @default(now())
+  paidAt       DateTime?
+  paidProofUrl String?
+  
+  reversedById String?  // Append-only
+  
+  notes        String?
+  
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  
+  @@index([lawyerId])
+  @@index([providerId])
+  @@index([status])
+  @@index([earnedAt])
+  @@map("commissions")
+}
+
+enum CommissionStatus {
+  EARNED
+  APPROVED
+  PAID
+  CANCELLED
+  REVERSED
+}
+
+// =====================================================
+// 6. AI AGENTS
+// =====================================================
+
+model Agent {
+  id                 String         @id @default(cuid())
+  
+  name               String         @unique
+  type               AgentType
+  description        String
+  
+  status             AgentStatus    @default(IDLE)
+  mode               AgentMode      @default(MANUAL)
+  
+  schedule           String?
+  
+  permissions        String[]
+  budgetMonthlyUsd   Decimal        @db.Decimal(10, 2) @default(100)
+  
+  llmProvider        LlmProvider    @default(ANTHROPIC)
+  llmModel           String         @default("claude-3-5-sonnet")
+  
+  voiceEnabled       Boolean        @default(false)
+  voiceProvider      VoiceProvider?
+  voiceConfig        Json?
+  
+  totalActions       Int            @default(0)
+  totalTokensUsed    BigInt         @default(0)
+  totalCostUsd       Decimal        @db.Decimal(10, 4) @default(0)
+  
+  lastRunAt          DateTime?
+  nextRunAt          DateTime?
+  
+  actions            AgentAction[]
+  
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  
+  @@map("agents")
+}
+
+enum AgentType {
+  CONVERSATIONAL
+  AUDITOR
+  METRICS
+  FX_WATCHER
+  REFERRAL_OPTIMIZER
+  ORCHESTRATOR
+}
+
+enum AgentStatus {
+  IDLE
+  RUNNING
+  PAUSED
+  ERROR
+}
+
+enum AgentMode {
+  MANUAL
+  APPROVAL
+  AUTONOMOUS
+}
+
+enum LlmProvider {
+  ANTHROPIC
+  OPENAI
+  CUSTOM
+}
+
+enum VoiceProvider {
+  WEB_SPEECH
+  ELEVENLABS
+  OPENAI_TTS
+}
+
+model AgentAction {
+  id            String          @id @default(cuid())
+  agentId       String
+  agent         Agent           @relation(fields: [agentId], references: [id])
+  
+  type          AgentActionType
+  severity      ActionSeverity  @default(INFO)
+  status        ActionStatus    @default(PENDING_REVIEW)
+  
+  payload       Json
+  summary       String
+  
+  appliedAt     DateTime?
+  appliedResult Json?
+  
+  reviewedById  String?
+  reviewer      User?           @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  reviewNotes   String?
+  
+  tokensUsed    Int             @default(0)
+  costUsd       Decimal         @db.Decimal(10, 6) @default(0)
+  
+  createdAt     DateTime        @default(now())
+  
+  @@index([agentId])
+  @@index([status])
+  @@index([severity])
+  @@index([createdAt])
+  @@map("agent_actions")
+}
+
+enum AgentActionType {
+  DETECTION
+  RECOMMENDATION
+  AUTO_FIX
+  CONVERSATION
+  TOOL_CALL
+}
+
+enum ActionSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum ActionStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  APPLIED
+  FAILED
+  AUTO_APPLIED
+}
+
+model AgentConversation {
+  id        String   @id @default(cuid())
+  agentId   String
+  userId    String
+  
+  messages  Json
+  
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  
+  @@index([userId])
+  @@index([startedAt])
+  @@map("agent_conversations")
+}
+
+// =====================================================
+// 7. SYSTEM
+// =====================================================
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  
+  actorUserId   String?
+  actor         User?     @relation("ActorUser", fields: [actorUserId], references: [id])
+  actorRole     UserRole?
+  
+  action        String
+  entityType    String?
+  entityId      String?
+  
+  ipAddress     String?
+  userAgent     String?
+  
+  before        Json?
+  after         Json?
+  metadata      Json?
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      NotificationType
+  title     String
+  body      String?
+  
+  linkUrl   String?
+  
+  readAt    DateTime?
+  
+  createdAt DateTime         @default(now())
+  
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  SYSTEM
+  TASK_ASSIGNED
+  PAYMENT_PROCESSED
+  COMMISSION_EARNED
+  PATIENT_REFERRED
+  AGENT_ALERT
+  PERFORMANCE_REPORT
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  
+  @@map("settings")
+}

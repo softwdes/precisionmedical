@@ -1,26 +1,314 @@
-@import "tailwindcss";
+/* ============================================
+   LM Super Admin · Design Tokens
+   Precision Medical
+   ============================================
+   
+   These CSS custom properties define the entire
+   visual identity of the app. Do not modify.
+   
+   Use these in:
+   - Tailwind config (extend.colors)
+   - Component CSS modules
+   - shadcn/ui customization
+   ============================================ */
 
+
+/* ====== DARK THEME (default) ====== */
+:root,
+[data-theme="dark"] {
+  /* === Backgrounds === */
+  --bg-0: #0A0E1A;          /* Page background */
+  --bg-1: #0F1524;          /* Sidebar background */
+  --bg-2: #141B2D;          /* Card background (lower) */
+  --bg-3: #1A2238;          /* Elevated surface */
+  --surface: #161D31;       /* Card surface */
+  --surface-2: #1E2740;     /* Surface hover state */
+  
+  /* === Borders === */
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.10);
+  
+  /* === Text === */
+  --text-1: #F5F7FB;        /* Primary text */
+  --text-2: #A8B2CC;        /* Secondary text */
+  --text-3: #6B7592;        /* Tertiary text */
+  --text-muted: #4A5474;    /* Muted/disabled text */
+  
+  /* === Shadows === */
+  --shadow-soft: 
+    0 1px 0 rgba(255,255,255,0.04) inset, 
+    0 8px 24px rgba(0,0,0,0.25);
+  
+  --shadow-glow: 
+    0 0 0 1px rgba(99,102,241,0.25), 
+    0 12px 40px rgba(99,102,241,0.18);
+  
+  --shadow-card-hover: 
+    0 12px 32px rgba(0,0,0,0.2);
+}
+
+
+/* ====== LIGHT THEME ====== */
+[data-theme="light"] {
+  /* === Backgrounds === */
+  --bg-0: #F8FAFC;
+  --bg-1: #FFFFFF;
+  --bg-2: #F1F5F9;
+  --bg-3: #E2E8F0;
+  --surface: #FFFFFF;
+  --surface-2: #F8FAFC;
+  
+  /* === Borders === */
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  
+  /* === Text === */
+  --text-1: #0F172A;
+  --text-2: #475569;
+  --text-3: #64748B;
+  --text-muted: #94A3B8;
+  
+  /* === Shadows (lighter for light theme) === */
+  --shadow-soft:
+    0 1px 2px rgba(15,23,42,0.04),
+    0 4px 16px rgba(15,23,42,0.06);
+  
+  --shadow-glow:
+    0 0 0 1px rgba(99,102,241,0.20),
+    0 8px 28px rgba(99,102,241,0.15);
+  
+  --shadow-card-hover:
+    0 8px 24px rgba(15,23,42,0.10);
+}
+
+
+/* ====== BRAND & ACCENT COLORS (theme-independent) ====== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand */
+  --brand: #6366F1;         /* Indigo — primary action */
+  --brand-2: #8B5CF6;       /* Violet — secondary brand */
+  
+  /* Accents */
+  --cyan: #06B6D4;          /* Data, info */
+  --teal: #14B8A6;          /* Secondary positive */
+  --emerald: #10B981;       /* Success, positive */
+  --amber: #F59E0B;         /* Warning, attention */
+  --rose: #F43F5E;          /* Error, critical */
+  --sky: #0EA5E9;           /* Alt info */
+  --pink: #EC4899;          /* Highlight */
+  
+  /* Functional aliases */
+  --color-primary: var(--brand);
+  --color-success: var(--emerald);
+  --color-warning: var(--amber);
+  --color-error: var(--rose);
+  --color-info: var(--cyan);
+  --color-highlight: var(--pink);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+/* ====== TYPOGRAPHY ====== */
+:root {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, Monaco, monospace;
+  
+  /* Type scale */
+  --text-display: 30px;     /* Hero titles */
+  --text-h1: 24px;          /* Page titles */
+  --text-h2: 18px;          /* Section titles */
+  --text-h3: 15px;          /* Card titles */
+  --text-body: 14px;        /* Default text */
+  --text-small: 12.5px;     /* Helper text */
+  --text-tiny: 10.5px;      /* Labels, badges */
+  --text-mono-sm: 14px;
+  --text-mono-md: 22px;
+  --text-mono-lg: 28px;
+  
+  /* Font weights */
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  
+  /* Letter spacing */
+  --tracking-tight: -0.03em;
+  --tracking-snug: -0.02em;
+  --tracking-normal: -0.01em;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.06em;
+  --tracking-widest: 0.12em;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+
+/* ====== SPACING ====== */
+:root {
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 14px;
+  --space-5: 18px;
+  --space-6: 20px;
+  --space-7: 24px;
+  --space-8: 30px;
+  --space-9: 40px;
+  --space-10: 56px;
+}
+
+
+/* ====== RADIUS ====== */
+:root {
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+}
+
+
+/* ====== ANIMATION ====== */
+:root {
+  /* Easing functions */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  /* Durations */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --duration-boot: 1500ms;
+}
+
+
+/* ====== Z-INDEX SCALE ====== */
+:root {
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-overlay: 30;
+  --z-drawer: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+  --z-cifo-fab: 80;
+  --z-cifo-panel: 90;
+}
+
+
+/* ====== GRADIENT MIXINS ====== */
+:root {
+  --gradient-brand: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  --gradient-cyan: linear-gradient(135deg, #6366F1 0%, #06B6D4 100%);
+  --gradient-tri: linear-gradient(135deg, #6366F1 0%, #06B6D4 60%, #14B8A6 100%);
+  --gradient-cifo: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%);
+  --gradient-card: linear-gradient(180deg, var(--surface) 0%, var(--bg-2) 100%);
+  
+  --gradient-page: 
+    radial-gradient(1200px 600px at 80% -10%, rgba(99,102,241,0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, rgba(6,182,212,0.06), transparent 60%);
+}
+
+
+/* ====== GLOBAL RESETS & BASE STYLES ====== */
+* {
+  box-sizing: border-box;
+}
+
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: var(--font-medium);
+  letter-spacing: var(--tracking-normal);
+  line-height: 1.55;
+  color: var(--text-1);
+  background: 
+    radial-gradient(1200px 600px at 80% -10%, rgba(99,102,241,0.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, rgba(6,182,212,0.06), transparent 60%),
+    var(--bg-0);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 400ms ease, color 400ms ease;
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(99,102,241,0.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, rgba(6,182,212,0.04), transparent 60%),
+    var(--bg-0);
+  background-attachment: fixed;
+}
+
+
+/* ====== UTILITY CLASSES ====== */
+
+/* Mono numbers */
+.mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+/* Tracked label */
+.label {
+  font-size: var(--text-tiny);
+  font-weight: var(--font-bold);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* Brand gradient text */
+.text-gradient {
+  background: var(--gradient-tri);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+
+/* ====== ACCESSIBILITY ====== */
+
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* ====== SCROLLBAR ====== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--bg-0);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

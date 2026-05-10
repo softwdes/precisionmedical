@@ -1,0 +1,13 @@
+{
+  "name": "@precision/ui",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "react": "^19",
+    "react-dom": "^19",
+    "lucide-react": "^0.300.0",
+    "tailwind-merge": "^2.0.0",
+    "clsx": "^2.0.0"
+  }
+}

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@precision/api": "workspace:*",
     "@precision/database": "workspace:*",
     "next": "15.0.0",
     "react": "19.0.0",

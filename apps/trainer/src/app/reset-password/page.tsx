@@ -20,28 +20,11 @@ export default function ResetPasswordPage() {
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { flowType: 'implicit' } }
   ), []);
 
   useEffect(() => {
-    // PKCE flow: Supabase redirects with ?code= in query params
-    const searchParams = new URLSearchParams(window.location.search);
-    const code = searchParams.get('code');
-
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code)
-        .then(({ error }) => {
-          if (error) {
-            setState('token_error');
-            setFormError(error.message);
-          } else {
-            setState('form');
-          }
-        });
-      return;
-    }
-
-    // Implicit flow fallback: tokens in hash fragment
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
     const type = params.get('type');

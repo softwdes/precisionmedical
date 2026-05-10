@@ -10,11 +10,17 @@
   },
   "dependencies": {
     "@precision/api": "workspace:*",
+    "@precision/auth": "workspace:*",
     "@precision/database": "workspace:*",
+    "@precision/i18n": "workspace:*",
+    "@precision/ui": "workspace:*",
+    "@supabase/ssr": "^0.3.0",
+    "@supabase/supabase-js": "^2.40.0",
     "next": "15.0.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "next-intl": "^3.0.0"
+    "next-intl": "^3.0.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@precision/eslint-config": "workspace:*",
@@ -23,6 +29,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
     "eslint": "^8",
     "eslint-config-next": "15.0.0",
     "postcss": "^8",

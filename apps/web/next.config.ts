@@ -4,7 +4,13 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@precision/ui", "@precision/auth", "@precision/database", "@precision/i18n"],
+  transpilePackages: [
+    "@precision/ui",
+    "@precision/auth",
+    "@precision/database",
+    "@precision/i18n",
+    "@precision/api",
+  ],
 };
 
 export default withNextIntl(nextConfig);

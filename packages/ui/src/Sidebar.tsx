@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { cn } from './index';
+import { cn } from './lib/utils';
 
 export function Sidebar({ className }: { className?: string }) {
   return (

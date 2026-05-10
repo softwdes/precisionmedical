@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
-import { cn } from './index';
+import { cn } from './lib/utils';
 
 export function AppLayout({ children, className }: { children: React.ReactNode; className?: string }) {
   return (

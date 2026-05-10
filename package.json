@@ -17,13 +17,15 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "db:generate": "turbo run db:generate",
     "db:push": "turbo run db:push",
-    "db:migrate": "pnpm --filter @precision/db prisma migrate dev",
-    "db:studio": "pnpm --filter @precision/db prisma studio",
+    "db:migrate": "pnpm --filter @precision/database prisma migrate dev",
+    "db:studio": "pnpm --filter @precision/database prisma studio",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\""
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "prettier": "^3.3.0",
     "prettier-plugin-tailwindcss": "^0.6.0",
     "turbo": "^2.3.0",
@@ -35,6 +37,10 @@
   ],
   "dependencies": {
     "@sentry/nextjs": "^10.52.0",
-    "posthog-js": "^1.372.10"
+    "@tailwindcss/forms": "^0.5.11",
+    "class-variance-authority": "^0.7.0",
+    "posthog-js": "^1.372.10",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

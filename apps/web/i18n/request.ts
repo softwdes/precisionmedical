@@ -1,13 +1,16 @@
 import { getRequestConfig } from 'next-intl/server';
 import { cookies } from 'next/headers';
-import { locales, defaultLocale } from '@precision/i18n';
+import { defaultLocale, locales, type Locale } from '@precision/i18n';
 
 export default getRequestConfig(async () => {
   const cookieStore = await cookies();
-  const locale = cookieStore.get('NEXT_LOCALE')?.value || defaultLocale;
+  const rawLocale = cookieStore.get('NEXT_LOCALE')?.value ?? defaultLocale;
+  const locale = (locales.includes(rawLocale as Locale) ? rawLocale : defaultLocale) as string;
 
-  return {
-    locale,
-    messages: (await import(`../../../packages/i18n/messages/${locale}.json`)).default
-  };
+  const messages =
+    locale === 'en'
+      ? (await import('@precision/i18n/messages/en.json')).default
+      : (await import('@precision/i18n/messages/es.json')).default;
+
+  return { locale, messages };
 });

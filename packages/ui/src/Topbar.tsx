@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { cn } from './index';
+import { cn } from './lib/utils';
 
 export function Topbar({ className }: { className?: string }) {
   return (

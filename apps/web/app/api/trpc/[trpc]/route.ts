@@ -1,5 +1,4 @@
-import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
-import { appRouter } from '@precision/api';
+import { fetchRequestHandler, appRouter } from '@precision/api';
 
 const handler = (req: Request) =>
   fetchRequestHandler({

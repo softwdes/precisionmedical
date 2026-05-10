@@ -11,3 +11,6 @@ export const appRouter = t.router({
 });
 
 export type AppRouter = typeof appRouter;
+
+// Export fetch handler adapter for Next.js Route Handlers
+export { fetchRequestHandler } from '@trpc/server/adapters/fetch';

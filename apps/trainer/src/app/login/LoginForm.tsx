@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import './login.css';
@@ -14,6 +14,12 @@ export default function LoginForm() {
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotStatus, setForgotStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [setupDone, setSetupDone] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('setup') === 'ok') setSetupDone(true);
+  }, []);
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -136,6 +142,17 @@ export default function LoginForm() {
           }}>
             {!forgotMode ? (
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+                {setupDone && (
+                  <div style={{
+                    padding: '10px 14px',
+                    background: 'rgba(0,200,180,0.08)', border: '1px solid rgba(0,200,180,0.3)',
+                    borderRadius: '4px', fontSize: '13px', color: '#00c8b4',
+                    fontFamily: "'Rajdhani', sans-serif", fontWeight: 600, letterSpacing: '0.5px', lineHeight: 1.5,
+                  }}>
+                    Contraseña configurada. Ingresá con tu email y contraseña.
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                   <label style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '11px', fontWeight: 600, color: '#00c8b4', textTransform: 'uppercase', letterSpacing: '2px' }}>

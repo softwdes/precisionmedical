@@ -24,13 +24,31 @@ export default function ResetPasswordPage() {
   ), []);
 
   useEffect(() => {
+    // PKCE flow: Supabase redirects with ?code= in query params
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get('code');
+
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (error) {
+            setState('token_error');
+            setFormError(error.message);
+          } else {
+            setState('form');
+          }
+        });
+      return;
+    }
+
+    // Implicit flow fallback: tokens in hash fragment
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
     const type = params.get('type');
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
 
-    if (type === 'recovery' && accessToken && refreshToken) {
+    if ((type === 'recovery' || type === 'invite') && accessToken && refreshToken) {
       supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
         .then(({ error }) => {
           if (error) {
@@ -52,7 +70,7 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     if (state !== 'success') return;
     if (countdown <= 0) {
-      window.location.href = 'https://app.neuraltrainergym.com';
+      window.location.href = 'https://app.neuraltrainergym.com/login?setup=ok';
       return;
     }
     const t = setTimeout(() => setCountdown(c => c - 1), 1000);
@@ -66,8 +84,9 @@ export default function ResetPasswordPage() {
     if (password !== confirm) { setFormError('Las contraseñas no coinciden'); return; }
     setSubmitting(true);
     const { error } = await supabase.auth.updateUser({ password });
+    if (error) { setSubmitting(false); setFormError(error.message); return; }
+    await supabase.auth.signOut();
     setSubmitting(false);
-    if (error) { setFormError(error.message); return; }
     setState('success');
   }
 
@@ -278,14 +297,14 @@ export default function ResetPasswordPage() {
                   </div>
                   <div style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '13px', color: 'rgba(0,200,180,0.7)', lineHeight: 1.7 }}>
                     Tu contraseña fue establecida correctamente.<br />
-                    Serás redirigido en{' '}
+                    Serás redirigido al login en{' '}
                     <strong style={{ color: ACCENT, fontFamily: "'Orbitron', sans-serif", fontSize: '14px' }}>{countdown}</strong>
                     {' '}segundos.
                   </div>
                 </div>
 
                 <a
-                  href="https://app.neuraltrainergym.com"
+                  href="https://app.neuraltrainergym.com/login?setup=ok"
                   style={{
                     display: 'block', background: ACCENT, color: '#020c10',
                     textDecoration: 'none', borderRadius: '4px', padding: '14px',
@@ -293,7 +312,7 @@ export default function ResetPasswordPage() {
                     fontSize: '11px', letterSpacing: '3px', textTransform: 'uppercase',
                     textAlign: 'center', boxSizing: 'border-box',
                   }}>
-                  INGRESAR A LA PLATAFORMA
+                  IR AL LOGIN
                 </a>
 
               </div>

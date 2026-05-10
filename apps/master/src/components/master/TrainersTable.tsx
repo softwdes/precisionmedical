@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, type ReactNode } from 'react';
-import { changeTrainerPlan, toggleTrainerStatus, createTrainer, deleteTrainer, updateTrainer, updateTrainerEmail, updateTrainerTrial, generateTrainerRecoveryLink } from '@/actions/master';
+import { changeTrainerPlan, toggleTrainerStatus, createTrainer, deleteTrainer, updateTrainer, updateTrainerEmail, updateTrainerTrial, sendTrainerInvitation } from '@/actions/master';
 import type { TrainerRow, PlanSaas } from '@/types/master';
 
 const V = '#534AB7';
@@ -271,54 +271,32 @@ function PhoneField({ value, onChange, disabled, required, id }: PhoneFieldProps
 
 const WA_GREEN = '#25D366';
 
-function WhatsAppAccessModal({ trainer, onClose, recoveryLink }: { trainer: TrainerRow; onClose: () => void; recoveryLink?: string | null }) {
-  const defaultMsg = recoveryLink ? [
-    `¡Bienvenido ${trainer.business_name}!`,
-    '',
-    'Para establecer tu contraseña de acceso a *Neural Trainer Gym*, ingresa al siguiente enlace (válido por 1 hora y se puede usar solo una vez):',
-    '',
-    recoveryLink,
-    '',
-    `*Usuario:* ${trainer.email ?? '—'}`,
-  ].join('\n') : [
-    `¡Hola ${trainer.business_name}!`,
-    '',
-    'Te damos la bienvenida a *Neural Trainer Gym*. Aqui tienes tus datos de acceso a la plataforma:',
-    '',
-    `*Enlace:* https://app.neuraltrainergym.com/`,
-    `*Usuario:* ${trainer.email ?? '—'}`,
-    `*Contrasena:*`,
-  ].join('\n');
-
-  const [message, setMessage] = useState(defaultMsg);
-  const [password, setPassword] = useState('');
-
+function SendAccessModal({ trainer, onClose, waMessage }: { trainer: TrainerRow; onClose: () => void; waMessage: string }) {
+  const [msg, setMsg] = useState(waMessage);
   const cleanPhone = (trainer.phone ?? '').replace(/\D/g, '');
   const hasPhone = Boolean(cleanPhone);
 
-  function sendWhatsApp() {
-    const finalMsg = recoveryLink ? message : `${message} ${password}`.trim();
-    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(finalMsg)}`, '_blank');
+  function openWhatsApp() {
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    onClose();
   }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: '100%', maxWidth: '460px', background: '#0d0d0f', border: '1px solid rgba(37,211,102,0.25)', borderRadius: '14px', overflow: 'hidden' }}>
+      <div style={{ width: '100%', maxWidth: '460px', background: '#0d0d0f', border: '1px solid rgba(0,200,180,0.25)', borderRadius: '14px', overflow: 'hidden' }}>
 
         {/* Header */}
         <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(37,211,102,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill={WA_GREEN}>
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,200,180,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00c8b4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '14px', color: WA_GREEN }}>Enviar acceso por WhatsApp</div>
-              <div style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '1px' }}>
-                {hasPhone ? trainer.phone : 'Sin número registrado'}
-              </div>
+              <div style={{ fontWeight: 700, fontSize: '14px', color: '#00c8b4' }}>Invitación enviada</div>
+              <div style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '1px' }}>Correo enviado a {trainer.email ?? '—'}</div>
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', display: 'flex', padding: '4px' }}>
@@ -330,46 +308,38 @@ function WhatsAppAccessModal({ trainer, onClose, recoveryLink }: { trainer: Trai
 
         {/* Body */}
         <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {!hasPhone && (
-            <div style={{ padding: '10px 14px', background: 'rgba(255,160,0,0.08)', border: '1px solid rgba(255,160,0,0.25)', borderRadius: '6px', fontSize: '12px', color: '#FFA500', lineHeight: 1.5 }}>
-              Este trainer no tiene número de celular registrado. Guarda un número en la sección de información antes de enviar.
-            </div>
-          )}
-          <div className="form-group">
-            <label className="label">Mensaje</label>
-            <textarea
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              className="dark-scroll"
-              style={{ width: '100%', height: '172px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--fg)', fontFamily: 'inherit', fontSize: '12px', lineHeight: 1.6, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
-            />
+          <div style={{ padding: '12px 14px', background: 'rgba(0,200,180,0.06)', border: '1px solid rgba(0,200,180,0.2)', borderRadius: '6px', fontSize: '13px', color: '#00c8b4', lineHeight: 1.6 }}>
+            Se envió el correo de acceso. El trainer puede configurar su contraseña desde el enlace en su bandeja de entrada.
           </div>
-          {!recoveryLink && (
+          {hasPhone ? (
             <div className="form-group">
-              <label className="label">Contraseña</label>
-              <input
-                type="text"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Escribe la contraseña a enviar"
-                className="input"
-                style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}
+              <label className="label">Notificación por WhatsApp (opcional)</label>
+              <textarea
+                value={msg}
+                onChange={e => setMsg(e.target.value)}
+                className="dark-scroll"
+                style={{ width: '100%', height: '148px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--fg)', fontFamily: 'inherit', fontSize: '12px', lineHeight: 1.6, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
               />
-              <div style={{ fontSize: '11px', color: 'var(--fg-muted)', marginTop: '5px' }}>Se añade al final del mensaje junto a la línea de Contraseña.</div>
+            </div>
+          ) : (
+            <div style={{ padding: '10px 14px', background: 'rgba(255,160,0,0.08)', border: '1px solid rgba(255,160,0,0.25)', borderRadius: '6px', fontSize: '12px', color: '#FFA500', lineHeight: 1.5 }}>
+              Este trainer no tiene número registrado. No se puede enviar notificación por WhatsApp.
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: 'rgba(0,0,0,0.3)' }}>
-          <button type="button" className="btn btn-outline" onClick={onClose}>Cancelar</button>
-          <button type="button" onClick={sendWhatsApp} disabled={!hasPhone}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px', height: '38px', background: hasPhone ? WA_GREEN : 'rgba(37,211,102,0.3)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', fontWeight: 700, fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: hasPhone ? 'pointer' : 'not-allowed', opacity: hasPhone ? 1 : 0.5 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-            </svg>
-            Abrir WhatsApp
-          </button>
+          <button type="button" className="btn btn-outline" onClick={onClose}>Cerrar</button>
+          {hasPhone && (
+            <button type="button" onClick={openWhatsApp}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px', height: '38px', background: WA_GREEN, color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', fontWeight: 700, fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+              Notificar por WhatsApp
+            </button>
+          )}
         </div>
 
       </div>
@@ -445,10 +415,10 @@ function EditTrainerModal({ trainer, onUpdate, onClose }: { trainer: TrainerRow;
     const targetEmail = trainer.email ?? email;
     if (!targetEmail) { setMsg({ type: 'err', text: 'No hay email registrado para este trainer' }); return; }
     setWaLoading(true);
-    const res = await generateTrainerRecoveryLink(targetEmail);
+    const res = await sendTrainerInvitation(targetEmail, trainer.business_name);
     setWaLoading(false);
     if (res.error) { setMsg({ type: 'err', text: res.error }); return; }
-    setWaLink(res.link ?? null);
+    setWaLink(res.waMessage ?? null);
     setShowWaModal(true);
   }
 
@@ -530,11 +500,11 @@ function EditTrainerModal({ trainer, onUpdate, onClose }: { trainer: TrainerRow;
             {D}
 
             <button type="button" onClick={() => void handleOpenWaModal()} disabled={waLoading}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: 'rgba(37,211,102,0.08)', border: '1px solid rgba(37,211,102,0.25)', borderRadius: '8px', cursor: waLoading ? 'wait' : 'pointer', color: WA_GREEN, fontSize: '13px', fontFamily: 'inherit', fontWeight: 600, opacity: waLoading ? 0.7 : 1 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill={WA_GREEN}>
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', background: `rgba(83,74,183,0.1)`, border: `1px solid rgba(83,74,183,0.3)`, borderRadius: '8px', cursor: waLoading ? 'wait' : 'pointer', color: V, fontSize: '13px', fontFamily: 'inherit', fontWeight: 600, opacity: waLoading ? 0.7 : 1 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={V} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
               </svg>
-              {waLoading ? 'Generando enlace...' : 'Enviar acceso por WhatsApp'}
+              {waLoading ? 'Enviando invitación...' : 'Enviar invitación de acceso'}
             </button>
 
           </div>
@@ -550,7 +520,7 @@ function EditTrainerModal({ trainer, onUpdate, onClose }: { trainer: TrainerRow;
         </form>
 
       </div>
-      {showWaModal && <WhatsAppAccessModal trainer={trainer} onClose={() => setShowWaModal(false)} recoveryLink={waLink} />}
+      {showWaModal && <SendAccessModal trainer={trainer} onClose={() => setShowWaModal(false)} waMessage={waLink ?? ''} />}
     </div>
   );
 }
@@ -667,11 +637,18 @@ interface NewTrainerModalProps {
 function NewTrainerModal({ planes, onClose, onSuccess }: NewTrainerModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailWarning, setEmailWarning] = useState('');
+  const [pendingTrainer, setPendingTrainer] = useState<TrainerRow | null>(null);
   const [seedDemo, setSeedDemo] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState(planes[0]?.id ?? '');
   const [phoneValue, setPhoneValue] = useState('');
 
   const PLAN_LABELS: Record<string, string> = { basico: 'Básico', vip: 'VIP', premium: 'Premium' };
+
+  function handleClose() {
+    if (pendingTrainer) onSuccess(pendingTrainer);
+    else onClose();
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -685,6 +662,11 @@ function NewTrainerModal({ planes, onClose, onSuccess }: NewTrainerModalProps) {
     const res = await createTrainer(fd);
     setLoading(false);
     if (res.error) { setError(res.error); return; }
+    if (res.emailError) {
+      setPendingTrainer(res.trainer!);
+      setEmailWarning(res.emailError);
+      return;
+    }
     onSuccess(res.trainer!);
   }
 
@@ -699,7 +681,7 @@ function NewTrainerModal({ planes, onClose, onSuccess }: NewTrainerModalProps) {
             <div style={{ fontWeight: 700, fontSize: '16px', color: V }}>Nuevo Trainer</div>
             <div style={{ fontSize: '12px', color: 'var(--fg-muted)', marginTop: '2px' }}>Crea una cuenta y asigna plan</div>
           </div>
-          <button onClick={onClose} disabled={loading} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: '4px', display: 'flex' }}>
+          <button onClick={handleClose} disabled={loading} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-muted)', padding: '4px', display: 'flex' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -712,6 +694,14 @@ function NewTrainerModal({ planes, onClose, onSuccess }: NewTrainerModalProps) {
             {error && (
               <div style={{ padding: '10px 14px', background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.3)', borderRadius: '6px', fontSize: '13px', color: '#ff6b6b' }}>
                 {error}
+              </div>
+            )}
+
+            {emailWarning && (
+              <div style={{ padding: '12px 14px', background: 'rgba(255,160,0,0.08)', border: '1px solid rgba(255,160,0,0.3)', borderRadius: '6px', fontSize: '13px', color: '#FFA500', lineHeight: 1.6 }}>
+                <strong>Trainer creado correctamente.</strong><br />
+                El correo de invitación no se pudo enviar. Podés reenviarlo desde el modal de edición usando "Enviar invitación de acceso".<br />
+                <span style={{ fontSize: '11px', opacity: 0.7 }}>{emailWarning}</span>
               </div>
             )}
 
@@ -793,11 +783,15 @@ function NewTrainerModal({ planes, onClose, onSuccess }: NewTrainerModalProps) {
 
           {/* Footer */}
           <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: 'rgba(0,0,0,0.25)', flexShrink: 0 }}>
-            <button type="button" className="btn btn-outline" onClick={onClose} disabled={loading}>Cancelar</button>
-            <button type="submit" disabled={loading || !selectedPlan}
-              style={{ padding: '0 22px', height: '38px', background: V, color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', fontWeight: 700, fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-              {loading ? 'Creando cuenta...' : 'Crear trainer'}
+            <button type="button" className="btn btn-outline" onClick={handleClose} disabled={loading}>
+              {emailWarning ? 'Cerrar' : 'Cancelar'}
             </button>
+            {!emailWarning && (
+              <button type="submit" disabled={loading || !selectedPlan}
+                style={{ padding: '0 22px', height: '38px', background: V, color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontFamily: 'inherit', fontWeight: 700, fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+                {loading ? 'Creando cuenta...' : 'Crear trainer'}
+              </button>
+            )}
           </div>
         </form>
       </div>

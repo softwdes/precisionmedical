@@ -3,6 +3,7 @@
 import { randomUUID } from 'crypto';
 import { serverClient, serviceClient } from '@precision/db/client';
 import { revalidatePath } from 'next/cache';
+import { Resend } from 'resend';
 import type {
   MasterMetrics, MrrMensual, DistribucionPlan,
   TopTrainer, ActividadReciente, AlertBanners,
@@ -566,7 +567,7 @@ async function seedDemoData(supabase: ReturnType<typeof serviceClient>, trainerI
 }
 
 // ── Create trainer ─────────────────────────────────────────────────────────
-export async function createTrainer(formData: FormData): Promise<{ error?: string; trainer?: TrainerRow }> {
+export async function createTrainer(formData: FormData): Promise<{ error?: string; trainer?: TrainerRow; emailError?: string }> {
   let userId: string | null = null;
   try {
     const admin = serviceClient();
@@ -642,6 +643,9 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
     // 4. Sembrar datos de ejemplo
     if (seed_demo) await seedDemoData(admin, trainer.id);
 
+    // 5. Enviar email de invitación
+    const invResult = await sendTrainerInvitation(email, business_name);
+
     revalidatePath('/master/trainers');
 
     return {
@@ -653,6 +657,7 @@ export async function createTrainer(formData: FormData): Promise<{ error?: strin
         ia_hoy: 0,
         suscripcion: { ...sus, planes_saas: planData! } as any,
       },
+      ...(invResult.error ? { emailError: invResult.error } : {}),
     };
   } catch (e) {
     if (userId) {
@@ -728,37 +733,76 @@ export async function resendTrainerAccess(email: string): Promise<{ error?: stri
   }
 }
 
-export async function generateTrainerRecoveryLink(email: string): Promise<{ error?: string; link?: string }> {
+export async function sendTrainerInvitation(email: string, name: string): Promise<{ error?: string; waMessage?: string }> {
   try {
     const admin = serviceClient();
     const { data, error } = await admin.auth.admin.generateLink({
       type: 'recovery',
       email,
-      options: {
-        redirectTo: 'https://app.neuraltrainergym.com/reset-password',
-      },
+      options: { redirectTo: 'https://app.neuraltrainergym.com/reset-password' },
     });
     if (error) return { error: error.message };
 
     const fullUrl: string = (data as any)?.properties?.action_link ?? '';
-    if (!fullUrl) return { error: 'No se pudo generar el enlace' };
+    if (!fullUrl) return { error: 'No se pudo generar el enlace de acceso' };
 
     const code = Array.from(crypto.getRandomValues(new Uint8Array(6)))
       .map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32])
       .join('');
-
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-
     const { error: insertError } = await admin
       .from('invite_links')
       .insert({ code, full_url: fullUrl, expires_at: expiresAt });
 
-    if (insertError) return { link: fullUrl };
+    const inviteUrl = insertError
+      ? fullUrl
+      : `https://app.neuraltrainergym.com/acceso/${code}`;
 
-    return { link: `https://app.neuraltrainergym.com/acceso/${code}` };
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { error: emailError } = await resend.emails.send({
+      from: 'Neural Trainer Gym <noreply@neuraltrainergym.com>',
+      to: email,
+      subject: 'Configurá tu acceso a Neural Trainer Gym',
+      html: buildInviteEmail(name, inviteUrl),
+    });
+    if (emailError) return { error: `Error al enviar email: ${(emailError as any).message ?? 'desconocido'}` };
+
+    const waMessage = [
+      `¡Hola ${name}!`,
+      '',
+      `Te enviamos un correo a *${email}* con tu enlace de acceso a *Neural Trainer Gym*.`,
+      '',
+      'Revisá tu bandeja de entrada (y la carpeta de spam si no lo encontrás) para configurar tu contraseña.',
+    ].join('\n');
+
+    return { waMessage };
   } catch (e) {
     return { error: (e as Error).message };
   }
+}
+
+function buildInviteEmail(name: string, link: string): string {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#020c10;font-family:Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:40px 16px">
+<table width="100%" style="max-width:480px" cellpadding="0" cellspacing="0">
+  <tr><td align="center" style="padding-bottom:28px">
+    <div style="font-size:22px;font-weight:900;color:#ffffff;letter-spacing:0.06em;line-height:1.1">NEURAL</div>
+    <div style="font-size:22px;font-weight:900;color:#00c8b4;letter-spacing:0.06em;line-height:1.2">TRAINER GYM</div>
+    <div style="font-size:10px;font-weight:600;color:rgba(0,200,180,0.6);letter-spacing:2px;text-transform:uppercase;margin-top:8px">Sistema de Personal Trainer</div>
+  </td></tr>
+  <tr><td style="background:rgba(5,20,25,0.95);border:1px solid rgba(0,200,180,0.2);border-radius:8px;padding:32px">
+    <p style="color:#c8f0eb;font-size:15px;line-height:1.7;margin:0 0 20px">¡Hola <strong>${name}</strong>!</p>
+    <p style="color:#c8f0eb;font-size:15px;line-height:1.7;margin:0 0 28px">Tu cuenta en Neural Trainer Gym está lista. Hacé clic en el botón para configurar tu contraseña y acceder a la plataforma.</p>
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding-bottom:28px">
+      <a href="${link}" style="display:inline-block;background:#00c8b4;color:#020c10;text-decoration:none;padding:14px 36px;border-radius:6px;font-weight:900;font-size:11px;letter-spacing:3px;text-transform:uppercase">CONFIGURAR ACCESO</a>
+    </td></tr></table>
+    <p style="color:rgba(0,200,180,0.45);font-size:11px;text-align:center;line-height:1.7;margin:0">Este enlace es válido por 1 hora y es de uso único.<br>Si no esperabas este correo, podés ignorarlo.<br><br>Si el botón no funciona, copiá este enlace:<br><span style="word-break:break-all;color:rgba(0,200,180,0.6)">${link}</span></p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }
 
 export async function changeTrainerPlan(trainerId: string, planId: string): Promise<{ error?: string }> {

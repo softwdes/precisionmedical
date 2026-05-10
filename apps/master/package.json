@@ -10,20 +10,21 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "^15.3.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "@precision/ui": "workspace:*",
     "@precision/db": "workspace:*",
     "@precision/lib": "workspace:*",
+    "@precision/ui": "workspace:*",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.49.0",
+    "next": "^15.3.0",
     "openai": "^6.35.0",
-    "recharts": "^2.15.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "recharts": "^2.15.0",
+    "resend": "^6.12.3"
   },
   "devDependencies": {
-    "typescript": "^5.8.0",
     "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0"
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.8.0"
   }
 }

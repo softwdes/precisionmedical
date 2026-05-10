@@ -1,0 +1,12 @@
+{
+  "Auth": {
+    "login": "Sign in",
+    "email": "Email address",
+    "password": "Password",
+    "subtitle": "Sign in to your account"
+  },
+  "Dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to the Precision Medical admin dashboard."
+  }
+}

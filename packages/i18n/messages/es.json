@@ -1,0 +1,12 @@
+{
+  "Auth": {
+    "login": "Iniciar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "subtitle": "Ingresa a tu cuenta"
+  },
+  "Dashboard": {
+    "title": "Panel de Control",
+    "welcome": "Bienvenido al panel de administración de Precision Medical."
+  }
+}

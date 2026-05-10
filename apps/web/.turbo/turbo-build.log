@@ -1,2 +1,35 @@
- ERROR  packages field missing or empty
-For help, run: pnpm help run
+
+> web@0.1.0 build D:\ANTIGRAVITY\PRECISIONMEDICAL\apps\web
+> next build
+
+  ▲ Next.js 15.0.0
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+ ⨯ ESLint: Invalid Options: - Unknown options: useEslintrc, extensions - 'extensions' has been removed.
+   Collecting page data ...
+   Generating static pages (0/7) ...
+   Generating static pages (1/7) 
+   Generating static pages (3/7) 
+   Generating static pages (5/7) 
+ ✓ Generating static pages (7/7)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ƒ /                                    5.47 kB         105 kB
+├ ƒ /_not-found                          896 B           100 kB
+├ ƒ /api/trpc/[trpc]                     18.6 kB         118 kB
+├ ƒ /dashboard                           140 B          99.3 kB
+└ ƒ /login                               140 B          99.3 kB
++ First Load JS shared by all            99.2 kB
+  ├ chunks/289827b3-f3131845460aba8d.js  52.6 kB
+  ├ chunks/973-5398a8b34af34971.js       44.6 kB
+  └ other shared chunks (total)          1.89 kB
+
+
+ƒ Middleware                             82.2 kB
+
+ƒ  (Dynamic)  server-rendered on demand
+

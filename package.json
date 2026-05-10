@@ -32,5 +32,9 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "@sentry/nextjs": "^10.52.0",
+    "posthog-js": "^1.372.10"
+  }
 }

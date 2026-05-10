@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
+import { sendPasswordResetEmail } from '@/actions/auth';
 import './login.css';
 
 export default function LoginForm() {
@@ -23,8 +24,7 @@ export default function LoginForm() {
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { flowType: 'implicit' } }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -39,8 +39,12 @@ export default function LoginForm() {
   async function handleForgotPassword(e: React.FormEvent) {
     e.preventDefault();
     setForgotStatus('sending');
-    const redirectTo = `${window.location.origin}/reset-password`;
-    await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), { redirectTo });
+    const { error } = await sendPasswordResetEmail(forgotEmail.trim());
+    if (error) {
+      setError(error);
+      setForgotStatus('idle');
+      return;
+    }
     setForgotStatus('sent');
   }
 
@@ -263,6 +267,17 @@ export default function LoginForm() {
                   </div>
                 )}
 
+                {error && forgotStatus === 'idle' && (
+                  <div style={{
+                    padding: '10px 14px',
+                    background: 'rgba(255,60,60,0.08)', border: '1px solid rgba(255,60,60,0.22)',
+                    borderRadius: '4px', fontSize: '13px', color: '#ff8080',
+                    fontFamily: "'Rajdhani', sans-serif", fontWeight: 600, letterSpacing: '0.5px',
+                  }}>
+                    {error}
+                  </div>
+                )}
+
                 {forgotStatus !== 'sent' && (
                   <button
                     type="submit" className="login-btn" disabled={forgotStatus === 'sending'}
@@ -280,7 +295,7 @@ export default function LoginForm() {
 
                 <button
                   type="button"
-                  onClick={() => { setForgotMode(false); setForgotStatus('idle'); }}
+                  onClick={() => { setForgotMode(false); setForgotStatus('idle'); setError(''); }}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
                     fontFamily: "'Rajdhani', sans-serif", fontSize: '12px',

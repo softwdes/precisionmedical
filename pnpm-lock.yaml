@@ -157,6 +157,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.5(react@19.2.5)
+      resend:
+        specifier: ^6.12.3
+        version: 6.12.3
     devDependencies:
       '@types/react':
         specifier: ^19.1.0

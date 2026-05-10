@@ -20,8 +20,7 @@ export default function ResetPasswordPage() {
 
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { flowType: 'implicit' } }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
 
   useEffect(() => {

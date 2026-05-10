@@ -88,7 +88,7 @@ export async function createStudentModal(
     const experience_level = formData.get('experience_level') as string | null;
     const goals = formData.getAll('goals') as string[];
     const available_equipment = formData.get('available_equipment') as string | null;
-    const { error } = await supabase.from('students').insert({
+    const { data, error } = await supabase.from('students').insert({
       trainer_id: trainerId,
       full_name,
       email,
@@ -97,8 +97,11 @@ export async function createStudentModal(
       experience_level: experience_level || null,
       goals: goals.length > 0 ? goals : null,
       available_equipment: available_equipment || null,
-    });
+    }).select('id').single();
     if (error) return { error: error.message };
+    if (email && data?.id) {
+      await sendStudentInvitation(data.id, email, full_name);
+    }
     revalidatePath('/alumnos');
     return { success: true };
   } catch (e) {

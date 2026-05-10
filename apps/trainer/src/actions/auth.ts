@@ -133,6 +133,31 @@ export async function sendStudentInvitation(
   }
 }
 
+export async function resendStudentAccess(
+  studentId: string,
+): Promise<{ error?: string }> {
+  try {
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+
+    const { data: student, error: fetchError } = await admin
+      .from('students')
+      .select('email, full_name')
+      .eq('id', studentId)
+      .single();
+
+    if (fetchError || !student) return { error: 'Alumno no encontrado' };
+    if (!student.email) return { error: 'Este alumno no tiene email registrado' };
+
+    return sendStudentInvitation(studentId, student.email, student.full_name);
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
 function buildStudentInviteEmail(name: string, link: string): string {
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>

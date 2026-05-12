@@ -31,7 +31,7 @@ export default async function StudentsPage() {
   const goalsData = goalsRes.data;
   const goalsMap = Object.fromEntries((goalsData ?? []).map(g => [g.id, g.label]));
   const goalsList = (goalsData ?? []) as { id: string; label: string }[];
-  const limiteAlumnos = (suscripcionRes.data?.planes_saas as { limite_alumnos: number | null } | null)?.limite_alumnos;
+  const limiteAlumnos = (suscripcionRes.data?.planes_saas as unknown as { limite_alumnos: number | null } | null)?.limite_alumnos;
   const esIlimitado   = suscripcionRes.data != null && limiteAlumnos === null;
   const capacidadMax  = limiteAlumnos ?? 15;
   const restantes     = esIlimitado ? null : Math.max(0, capacidadMax - students.length);

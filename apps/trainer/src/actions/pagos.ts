@@ -32,7 +32,7 @@ export async function getTrainerPagos(): Promise<TrainerPago[]> {
       .eq('trainer_id', trainer.id)
       .order('fecha_pago', { ascending: false, nullsFirst: false });
 
-    return (data ?? []) as TrainerPago[];
+    return ((data ?? []) as unknown as TrainerPago[]);
   } catch {
     return [];
   }

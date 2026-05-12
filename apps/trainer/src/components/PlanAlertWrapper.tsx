@@ -34,7 +34,7 @@ export default async function PlanAlertWrapper() {
     const diasRestantes = Math.ceil((new Date(fechaRef).getTime() - Date.now()) / 86_400_000);
     if (diasRestantes > 5) return null;
 
-    const ps = sus.planes_saas as { nombre: string } | null;
+    const ps = sus.planes_saas as unknown as { nombre: string } | null;
     const planActualNombre = ps?.nombre ?? '';
     const planLabel = planActualNombre ? (LABELS[planActualNombre] ?? planActualNombre) : 'actual';
     const planes = (planesRes.data ?? []) as Plan[];

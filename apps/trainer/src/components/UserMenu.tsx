@@ -129,7 +129,7 @@ export default function UserMenu() {
           .maybeSingle();
 
         if (sus) {
-          const ps = sus.planes_saas as { nombre: string } | null;
+          const ps = sus.planes_saas as unknown as { nombre: string } | null;
           if (ps?.nombre) {
             setPlanNombreRaw(ps.nombre);
             const LABELS: Record<string, string> = { basico: 'Básico', vip: 'VIP', premium: 'Premium' };

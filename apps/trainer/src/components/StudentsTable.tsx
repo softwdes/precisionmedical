@@ -96,7 +96,7 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   vencido:  { color: 'var(--status-overdue)', label: 'Vencido' },
 };
 
-function StudentStatusBadge({ estado }: { estado?: string }) {
+function StudentStatusBadge({ estado }: { estado: string | undefined }) {
   const cfg = estado ? STATUS_CONFIG[estado] : undefined;
   const color = cfg?.color ?? '#4A5250';
   const label = cfg?.label ?? 'Sin cuota';

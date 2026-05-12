@@ -2,6 +2,7 @@ import UserMenu from '@/components/UserMenu';
 import AppSidebar from '@/components/AppSidebar';
 import DashboardModule, { type DashboardModuleProps } from '@/components/DashboardModule';
 import LiveClock from '@/components/LiveClock';
+import UpgradeBanner from '@/components/UpgradeBanner';
 import { getAuthContext } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,7 @@ function relTime(isoStr: string): string {
 
 export default async function DashboardPage() {
   let moduleProps: DashboardModuleProps;
+  let planNombreRaw = '';
 
   try {
     const { supabase, trainerId } = await getAuthContext();
@@ -92,7 +94,7 @@ export default async function DashboardPage() {
         : Promise.resolve({ data: [] as { alumno_id: string; completada: boolean; fecha: string }[], error: null }),
       supabase
         .from('trainer_suscripciones')
-        .select('planes_saas(limite_alumnos)')
+        .select('planes_saas(nombre, limite_alumnos)')
         .eq('trainer_id', trainerId)
         .single(),
     ]);
@@ -176,6 +178,8 @@ export default async function DashboardPage() {
       tiempo: relTime(c.created_at as string),
     }));
 
+    const susPlanes = suscripcionRes.data?.planes_saas as unknown as { nombre: string | null; limite_alumnos: number | null } | null;
+
     moduleProps = {
       trainerId,
       initialMetrics: {
@@ -201,9 +205,11 @@ export default async function DashboardPage() {
       pagosUrgentes,
       actividadReciente,
       adherenciaSemanal,
-      capacidadMax: (suscripcionRes.data?.planes_saas as unknown as { limite_alumnos: number | null } | null)?.limite_alumnos ?? 15,
+      capacidadMax: susPlanes?.limite_alumnos ?? 15,
       metaMensual: 5000,
     };
+
+    planNombreRaw = susPlanes?.nombre ?? '';
   } catch {
     moduleProps = {
       trainerId: '',
@@ -263,6 +269,7 @@ export default async function DashboardPage() {
         </header>
 
         <div className="main-content">
+          <UpgradeBanner planNombreRaw={planNombreRaw} />
           <DashboardModule {...moduleProps} />
         </div>
       </main>

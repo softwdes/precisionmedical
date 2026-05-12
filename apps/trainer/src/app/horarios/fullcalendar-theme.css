@@ -275,3 +275,41 @@
     gap: 12px;
   }
 }
+
+/* ── FullCalendar responsive ─────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .fc-precision .fc-timegrid-axis { width: 52px; }
+  .fc-precision .fc-col-header-cell-cushion {
+    font-size: 0.5625rem;
+    padding: 2px 4px;
+  }
+  .fc-precision .fc-toolbar-title { font-size: 1rem; }
+  .fc-precision .fc-button {
+    height: 30px;
+    padding: 0 8px;
+    font-size: 0.5625rem;
+  }
+  .fc-precision .fc-timegrid-slot { height: 28px; }
+  .fc-precision .fc-timegrid-slot-label { font-size: 0.5625rem; }
+}
+
+@media (max-width: 600px) {
+  .fc-precision .fc-timegrid-axis { width: 40px; }
+  .fc-precision .fc-toolbar.fc-header-toolbar { padding: 10px 12px; }
+  .fc-precision .fc-toolbar-title { font-size: 0.875rem; }
+  .fc-precision .fc-button {
+    height: 28px;
+    padding: 0 6px;
+    font-size: 0.5rem;
+    letter-spacing: 0.04em;
+  }
+  .fc-precision .fc-col-header-cell-cushion {
+    font-size: 0.5rem;
+    padding: 2px 2px;
+    letter-spacing: 0.06em;
+  }
+  .fc-precision .fc-timegrid-slot { height: 24px; }
+  .fc-precision .fc-daygrid-day { min-height: 64px; }
+  .fc-precision .fc-event-title { font-size: 0.5625rem; }
+}

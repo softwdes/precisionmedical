@@ -1,5 +1,5 @@
 import { getAdminContext } from '@/lib/supabase-server';
-import { getBillingHistory, getBillingMetrics } from '@/actions/master';
+import { getBillingHistory, getBillingMetrics, getTrainersForBilling, getPlanesForBilling } from '@/actions/master';
 import FacturacionTable from '@/components/master/FacturacionTable';
 import MasterUserMenu from '@/components/MasterUserMenu';
 import { redirect } from 'next/navigation';
@@ -13,15 +13,23 @@ export default async function FacturacionPage() {
     redirect('/login');
   }
 
-  const [rawRows, metrics] = await Promise.all([getBillingHistory(), getBillingMetrics()]);
+  const [rawRows, metrics, trainers, planes] = await Promise.all([
+    getBillingHistory(),
+    getBillingMetrics(),
+    getTrainersForBilling(),
+    getPlanesForBilling(),
+  ]);
 
   const rows = rawRows.map((r: any) => ({
     id: r.id,
+    plan_id: r.plan_id ?? '',
+    trainer_id: r.trainer_id ?? '',
     trainer_name: (r.trainers as any)?.business_name ?? '—',
     plan_nombre: (r.planes_saas as any)?.nombre ?? '—',
     monto: Number(r.monto),
     fecha_pago: r.fecha_pago,
     periodo: r.periodo,
+    frecuencia: r.frecuencia ?? null,
     estado: r.estado as 'pagado' | 'pendiente' | 'vencido',
     metodo_pago: r.metodo_pago ?? null,
   }));
@@ -44,7 +52,7 @@ export default async function FacturacionPage() {
         <h1>Facturación</h1>
       </section>
 
-      <FacturacionTable rows={rows} metrics={metrics} periodos={periodos} />
+      <FacturacionTable rows={rows} metrics={metrics} periodos={periodos} trainers={trainers} planes={planes} />
     </>
   );
 }

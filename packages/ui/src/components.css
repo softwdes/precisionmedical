@@ -224,6 +224,7 @@
 .user-avatar {
   width: 32px; height: 32px;
   border: 1px solid var(--border-strong);
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -241,6 +242,7 @@
 }
 .main-content {
   padding: var(--space-8);
+  padding-bottom: 88px;
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
@@ -2423,6 +2425,25 @@
 }
 
 /* ==========================================================================
+   SAFE-AREA — modal footers (iOS home indicator / Android nav bar)
+   ========================================================================== */
+
+.modal-foot-safe {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+/* Students card list — hidden by default, shown at ≤600px */
+.students-cards { display: none; }
+
+/* ==========================================================================
+   RESPONSIVE — 768px (tablet portrait)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .daygrid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ==========================================================================
    RESPONSIVE — 900px (tablet/mobile breakpoint)
    ========================================================================== */
 
@@ -2496,12 +2517,13 @@
 @media (max-width: 600px) {
   /* Topbar compact */
   .topbar { min-height: 64px; }
-  .topbar-title { font-size: 10px; }
+  .topbar-title { font-size: 12px; }
   .topbar-title .sep { display: none; }
   .live-indicator { display: none; }
+  .topbar-right { gap: var(--space-3); }
 
-  /* Content spacing */
-  .main-content { padding: var(--space-4); gap: var(--space-4); }
+  /* Content spacing — extra bottom padding so the fixed FAB never overlaps content */
+  .main-content { padding: var(--space-4); padding-bottom: 88px; gap: var(--space-4); }
 
   /* Section heading */
   .section-head h1 { font-size: var(--text-2xl); }
@@ -2514,7 +2536,7 @@
 
   /* Grids */
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-  .daygrid { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .daygrid { grid-template-columns: repeat(3, 1fr); overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
   /* Agenda rows — hide status column on tiny screens */
   .agenda-row {
@@ -2567,6 +2589,15 @@
   .form-actions { flex-direction: column-reverse; }
   .form-actions .btn { width: 100%; justify-content: center; height: 48px; }
 
+  /* Two-button wizard rows stay side by side */
+  .form-actions--row { flex-direction: row; }
+  .form-actions--row .btn { width: auto; flex: 1; }
+
+  /* Touch targets — 44px minimum per Apple/Google HIG */
+  .btn { height: 44px; }
+  .btn-icon { width: 44px; height: 44px; }
+  .input, .select { height: 44px; }
+
   /* Ghost buttons (inline actions like + Ejercicio) — larger tap area */
   .btn-ghost { min-height: 44px; }
 
@@ -2596,10 +2627,251 @@
   .data-table th,
   .data-table td { padding: var(--space-3); font-size: var(--text-xs); }
 
+  /* Hide non-essential columns on small screens */
+  .data-table .col-hide-sm { display: none; }
+
   /* Profile modal body — compact padding */
   .profile-modal-body { padding: 16px; }
 
   /* Card head padding compact */
   .card-head { padding: var(--space-4); }
   .card-body { padding: 0 var(--space-4) var(--space-4); }
+
+  /* Students — swap table for cards */
+  .students-table-view { display: none; }
+  .students-cards { display: flex; flex-direction: column; }
+  .student-card {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .student-card:last-child { border-bottom: none; }
+  .student-card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .student-card-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--status-paid);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .student-card-avatar span {
+    font-size: 13px;
+    font-weight: 700;
+    color: #000;
+    line-height: 1;
+  }
+  .student-card-info { flex: 1; min-width: 0; }
+  .student-card-name {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    width: 100%;
+  }
+  .student-card-phone { font-size: 12px; color: var(--fg-muted); margin-top: 2px; }
+  .student-card-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .student-card-actions { display: flex; gap: 8px; align-items: center; }
+  .student-card-flex-btn {
+    flex: 1;
+    justify-content: center;
+    font-size: 12px;
+    height: 44px;
+  }
+  .student-card-wa-btn {
+    flex: 1;
+    height: 44px;
+    background: #25D366;
+    color: #00120E;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   ALUMNO HEADER — card de identidad del alumno
+   ========================================================================== */
+
+.alumno-header-card {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alumno-header-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.alumno-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--status-paid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.alumno-avatar span {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000;
+  line-height: 1;
+}
+
+.alumno-header-info {
+  flex: 1;
+  min-width: 0;
+}
+.alumno-header-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.alumno-header-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #888;
+  margin-top: 3px;
+}
+.alumno-header-meta span::before { content: '· '; }
+.alumno-header-meta span:first-child::before { content: ''; }
+
+.alumno-wa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--status-paid);
+  color: var(--status-paid);
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.alumno-wa-btn:hover { background: rgba(29,158,117,0.08); }
+
+.alumno-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.alumno-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.alumno-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.alumno-badge--level { background: var(--status-paid); color: #000; }
+.alumno-badge--active { color: var(--status-paid); }
+.alumno-badge--pago { border: 1px solid; }
+
+@media (max-width: 600px) {
+  .alumno-header-top { gap: 10px; }
+  .alumno-header-name { font-size: 15px; }
+  .alumno-wa-btn span { display: none; }
+  .alumno-wa-btn { padding: 8px 10px; }
+}
+
+/* ==========================================================================
+   PROFILE TABS — horizontal scroll on mobile
+   ========================================================================== */
+
+.profile-tabs-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  margin-bottom: 24px;
+}
+.profile-tabs-wrap::-webkit-scrollbar { display: none; }
+
+.profile-tabs-wrap .chart-tabs {
+  margin-bottom: 0 !important;
+}
+
+@media (max-width: 600px) {
+  .profile-tabs-wrap .chart-tabs {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    min-width: max-content;
+  }
+  .profile-tabs-wrap .chart-tab {
+    width: auto;
+    white-space: nowrap;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    border-top: 1px solid var(--border);
+    padding: var(--space-2) var(--space-4);
+  }
+  .profile-tabs-wrap .chart-tab:first-child {
+    border-top: 1px solid var(--border);
+  }
 }

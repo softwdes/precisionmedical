@@ -305,10 +305,10 @@ export async function getPlanes(): Promise<PlanSaas[]> {
 }
 
 export async function getBillingHistory(periodo?: string) {
-  const supabase = serverClient();
+  const supabase = serviceClient();
   let query = supabase
     .from('master_pagos')
-    .select(`id, monto, fecha_pago, periodo, estado, metodo_pago, trainers(business_name), planes_saas(nombre)`)
+    .select(`id, trainer_id, plan_id, monto, fecha_pago, periodo, frecuencia, estado, metodo_pago, trainers(business_name), planes_saas(nombre)`)
     .order('fecha_pago', { ascending: false });
   if (periodo) query = query.like('periodo', `${periodo}%`);
   const { data, error } = await query;
@@ -803,6 +803,143 @@ function buildInviteEmail(name: string, link: string): string {
 </table>
 </td></tr></table>
 </body></html>`;
+}
+
+export interface TrainerForBilling {
+  id: string;
+  business_name: string;
+}
+
+export interface PlanForBilling {
+  id: string;
+  nombre: string;
+  precio_mensual: number;
+  precio_anual: number | null;
+}
+
+export async function getTrainersForBilling(): Promise<TrainerForBilling[]> {
+  const supabase = serviceClient();
+  const { data } = await supabase
+    .from('trainers')
+    .select('id, business_name')
+    .order('business_name');
+  return (data ?? []) as TrainerForBilling[];
+}
+
+export async function getPlanesForBilling(): Promise<PlanForBilling[]> {
+  const supabase = serverClient();
+  const { data } = await supabase
+    .from('planes_saas')
+    .select('id, nombre, precio_mensual, precio_anual')
+    .eq('activo', true)
+    .order('precio_mensual');
+  return (data ?? []) as PlanForBilling[];
+}
+
+export async function registerMasterPago(formData: FormData): Promise<{ error?: string }> {
+  try {
+    const supabase = serviceClient();
+    const trainer_id  = formData.get('trainer_id') as string;
+    const plan_id     = formData.get('plan_id') as string;
+    const monto       = parseFloat(formData.get('monto') as string);
+    const fecha_pago  = (formData.get('fecha_pago') as string) || null;
+    const periodo     = formData.get('periodo') as string;
+    const estado      = formData.get('estado') as string;
+    const metodo_pago = (formData.get('metodo_pago') as string) || null;
+    const notas       = (formData.get('notas') as string) || null;
+    const frecuencia  = (formData.get('frecuencia') as string) || 'mensual';
+
+    if (!trainer_id) return { error: 'Seleccioná un trainer' };
+    if (!plan_id)    return { error: 'Seleccioná un plan' };
+    if (!monto || isNaN(monto)) return { error: 'El monto es requerido' };
+    if (!periodo)    return { error: 'El período es requerido' };
+    if (!estado)     return { error: 'El estado es requerido' };
+
+    const { error } = await supabase.from('master_pagos').insert({
+      trainer_id, plan_id, monto,
+      fecha_pago: fecha_pago || null,
+      periodo, estado, metodo_pago, notas, frecuencia,
+    });
+    if (error) return { error: error.message };
+
+    // When paid, advance the trainer's subscription dates
+    if (estado === 'pagado' && fecha_pago) {
+      const base = new Date(fecha_pago);
+      if (frecuencia === 'anual') {
+        base.setFullYear(base.getFullYear() + 1);
+      } else {
+        base.setMonth(base.getMonth() + 1);
+      }
+      const fechaProximo = base.toISOString().split('T')[0]!;
+
+      await supabase.from('trainer_suscripciones')
+        .update({
+          plan_id,
+          estado: 'activo',
+          fecha_proximo_pago: fechaProximo,
+          fecha_fin_trial: fechaProximo,
+        })
+        .eq('trainer_id', trainer_id);
+    }
+
+    revalidatePath('/master/facturacion');
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function deleteMasterPago(id: string): Promise<{ error?: string }> {
+  try {
+    const supabase = serviceClient();
+    const { error } = await supabase.from('master_pagos').delete().eq('id', id);
+    if (error) return { error: error.message };
+    revalidatePath('/master/facturacion');
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function updateMasterPago(
+  id: string,
+  fields: {
+    plan_id: string;
+    monto: number;
+    fecha_pago: string | null;
+    periodo: string;
+    estado: string;
+    metodo_pago: string | null;
+    frecuencia: string;
+    trainer_id?: string;
+  }
+): Promise<{ error?: string }> {
+  try {
+    const supabase = serviceClient();
+
+    const { trainer_id, ...pagoFields } = fields;
+    const { error } = await supabase.from('master_pagos').update(pagoFields).eq('id', id);
+    if (error) return { error: error.message };
+
+    // If marking as paid with a date, advance the trainer's subscription dates
+    if (fields.estado === 'pagado' && fields.fecha_pago && trainer_id) {
+      const base = new Date(fields.fecha_pago);
+      if (fields.frecuencia === 'anual') {
+        base.setFullYear(base.getFullYear() + 1);
+      } else {
+        base.setMonth(base.getMonth() + 1);
+      }
+      const fechaProximo = base.toISOString().split('T')[0]!;
+      await supabase.from('trainer_suscripciones')
+        .update({ plan_id: fields.plan_id, estado: 'activo', fecha_proximo_pago: fechaProximo, fecha_fin_trial: fechaProximo })
+        .eq('trainer_id', trainer_id);
+    }
+
+    revalidatePath('/master/facturacion');
+    return {};
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
 }
 
 export async function changeTrainerPlan(trainerId: string, planId: string): Promise<{ error?: string }> {

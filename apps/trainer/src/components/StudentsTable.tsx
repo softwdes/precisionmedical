@@ -49,7 +49,9 @@ const MODAL_HEAD: React.CSSProperties = {
 };
 const MODAL_BODY: React.CSSProperties = { padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' };
 const MODAL_FOOT: React.CSSProperties = {
-  padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)',
+  padding: '16px 24px',
+  paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+  borderTop: '1px solid rgba(255,255,255,0.08)',
   display: 'flex', gap: '10px', justifyContent: 'flex-end',
   background: 'rgba(0,0,0,0.3)', position: 'sticky', bottom: 0,
 };
@@ -88,10 +90,29 @@ interface ProfileData {
   exercises: { id: string; name: string; muscle_group: string | null }[];
 }
 
-export default function StudentsTable({ students: initial, goalsMap, goalsList }: {
+const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+  pagado:   { color: 'var(--status-paid)',    label: 'Al día' },
+  pendiente: { color: 'var(--status-pending)', label: 'Pendiente' },
+  vencido:  { color: 'var(--status-overdue)', label: 'Vencido' },
+};
+
+function StudentStatusBadge({ estado }: { estado?: string }) {
+  const cfg = estado ? STATUS_CONFIG[estado] : undefined;
+  const color = cfg?.color ?? '#4A5250';
+  const label = cfg?.label ?? 'Sin cuota';
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', color, fontWeight: 600 }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, display: 'inline-block' }} />
+      {label}
+    </span>
+  );
+}
+
+export default function StudentsTable({ students: initial, goalsMap, goalsList, cuotaStatusMap = {} }: {
   students: Student[];
   goalsMap: Record<string, string>;
   goalsList: Goal[];
+  cuotaStatusMap?: Record<string, string>;
 }) {
   const [students, setStudents] = useState(initial);
   useEffect(() => { setStudents(initial); }, [initial]);
@@ -105,6 +126,7 @@ export default function StudentsTable({ students: initial, goalsMap, goalsList }
   const [profileData, setProfileData] = useState<ProfileData>({
     loading: false, rutinaActiva: null, rutinasHistorial: [], cuotas: [], waMensajes: [], exercises: [],
   });
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [editing, setEditing] = useState<Student | null>(null);
   const [deleting, setDeleting] = useState<Student | null>(null);
   const [waStudent, setWaStudent] = useState<Student | null>(null);
@@ -231,6 +253,9 @@ export default function StudentsTable({ students: initial, goalsMap, goalsList }
   const levelBadge = (l: string | null) =>
     l === 'beginner' ? 'badge-mint-soft' : l === 'intermediate' ? 'badge-accent' : 'badge';
 
+  const initials = (name: string) =>
+    name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+
   async function handleSendAccess(student: Student) {
     setAccessError('');
     setAccessLoading(true);
@@ -279,6 +304,8 @@ export default function StudentsTable({ students: initial, goalsMap, goalsList }
       await deleteStudent(deleting.id);
       setStudents(p => p.filter(s => s.id !== deleting.id));
       setDeleting(null);
+      setDeleteSuccess(true);
+      setTimeout(() => setDeleteSuccess(false), 3000);
     });
   }
 
@@ -334,15 +361,16 @@ export default function StudentsTable({ students: initial, goalsMap, goalsList }
         )}
       </div>
 
+      <div className="students-table-view">
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
               <th>Nombre</th>
               <th>Celular</th>
-              <th>Email</th>
+              <th className="col-hide-sm">Email</th>
               <th>Nivel</th>
-              <th>Objetivos</th>
+              <th className="col-hide-sm">Objetivos</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -365,14 +393,13 @@ export default function StudentsTable({ students: initial, goalsMap, goalsList }
                   </button>
                 </td>
                 <td className="text-muted">{s.phone || '-'}</td>
-                <td className="text-muted">{s.email || '-'}</td>
+                <td className="text-muted col-hide-sm">{s.email || '-'}</td>
                 <td>
                   <span className={`badge ${levelBadge(s.experience_level)}`}>{levelLabel(s.experience_level)}</span>
                 </td>
-                <td className="text-muted">{resolveGoals(s.goals)}</td>
+                <td className="text-muted col-hide-sm">{resolveGoals(s.goals)}</td>
                 <td>
-                  <span className="status-dot active"></span>
-                  <span className="status-text">Activo</span>
+                  <StudentStatusBadge estado={cuotaStatusMap[s.id]} />
                 </td>
                 <td>
                   <div className="row" style={{ gap: 'var(--space-2)' }}>
@@ -394,6 +421,47 @@ export default function StudentsTable({ students: initial, goalsMap, goalsList }
             ))}
           </tbody>
         </table>
+      </div>
+      </div>
+
+      <div className="students-cards">
+        {filteredStudents.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--fg-muted)', fontSize: '13px' }}>
+            {students.length === 0 ? 'No hay alumnos registrados.' : 'Sin resultados para los filtros aplicados.'}
+          </div>
+        ) : filteredStudents.map(s => (
+          <div key={s.id} className="student-card">
+            <div className="student-card-top">
+              <div className="student-card-avatar">
+                <span>{initials(s.full_name)}</span>
+              </div>
+              <div className="student-card-info">
+                <button className="student-card-name" onClick={() => openProfile(s)}>
+                  {s.full_name}
+                </button>
+                <div className="student-card-phone">{s.phone || '—'}</div>
+              </div>
+              <div className="student-card-badges">
+                <StudentStatusBadge estado={cuotaStatusMap[s.id]} />
+                <span className={`badge ${levelBadge(s.experience_level)}`}>{levelLabel(s.experience_level)}</span>
+              </div>
+            </div>
+            <div className="student-card-actions">
+              <button className="btn btn-outline student-card-flex-btn" onClick={() => openProfile(s)}>
+                Ver perfil
+              </button>
+              <button className="student-card-wa-btn" onClick={() => void openWA(s)}>
+                WhatsApp
+              </button>
+              <button className="btn btn-ghost btn-icon" title="Editar" onClick={() => setEditing(s)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '16px', height: '16px' }}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button className="btn btn-ghost btn-icon" title="Eliminar" onClick={() => setDeleting(s)} style={{ color: '#ef4444' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '16px', height: '16px' }}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ── PROFILE POPUP ── */}
@@ -583,7 +651,7 @@ export default function StudentsTable({ students: initial, goalsMap, goalsList }
                     display: 'inline-flex', alignItems: 'center', gap: '6px',
                     padding: '0 14px', height: '38px', borderRadius: 'var(--radius-sm)', border: 'none',
                     background: !editing?.email || isPending || accessLoading ? 'rgba(37,211,102,0.12)' : '#25D366',
-                    color: !editing?.email || isPending || accessLoading ? 'rgba(37,211,102,0.45)' : '#fff',
+                    color: !editing?.email || isPending || accessLoading ? 'rgba(37,211,102,0.45)' : '#00120E',
                     fontFamily: 'var(--font-sans)', fontWeight: 700, fontSize: '12px',
                     cursor: !editing?.email || isPending || accessLoading ? 'not-allowed' : 'pointer',
                     letterSpacing: '0.04em',
@@ -654,6 +722,11 @@ export default function StudentsTable({ students: initial, goalsMap, goalsList }
 
       {editSuccess && (
         <div style={TOAST}>Cambios guardados correctamente</div>
+      )}
+      {deleteSuccess && (
+        <div style={{ ...TOAST, background: 'rgba(255,80,80,0.12)', border: '1px solid rgba(255,80,80,0.35)', color: '#ff6b6b' }}>
+          Alumno eliminado correctamente
+        </div>
       )}
     </>
   );

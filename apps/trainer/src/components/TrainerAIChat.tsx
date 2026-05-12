@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useTransition } from 'react';
 import { createCuota } from '@/actions/finanzas';
-import { marcarSesionCompletada } from '@/actions/metricas2';
+import { marcarSesionCompletada } from '@/actions/metricas';
 
 interface ChatMessage {
   role: 'user' | 'assistant';

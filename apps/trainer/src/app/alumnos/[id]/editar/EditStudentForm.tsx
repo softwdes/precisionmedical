@@ -224,7 +224,7 @@ export default function EditStudentForm({ student }: Props) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--bg-base)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--fg-on-accent)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </span>

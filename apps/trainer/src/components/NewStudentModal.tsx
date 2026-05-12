@@ -50,6 +50,7 @@ const MODAL_BODY: React.CSSProperties = {
 
 const MODAL_FOOT: React.CSSProperties = {
   padding: '16px 24px',
+  paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
   borderTop: '1px solid rgba(255,255,255,0.08)',
   display: 'flex', gap: '10px', justifyContent: 'flex-end',
   background: 'rgba(0,0,0,0.3)',

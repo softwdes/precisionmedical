@@ -195,7 +195,8 @@ export default function NutricionModule({ students, initialStudentId }: { studen
 
   const [selectedAlumno, setSelectedAlumno] = useState(initialStudentId ?? '');
   const [tab, setTab] = useState<Tab>('datos');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!initialStudentId);
+  const [sinDatos, setSinDatos] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [saveMsg, setSaveMsg] = useState('');
   const [saveMsgType, setSaveMsgType] = useState<'ok' | 'error'>('ok');
@@ -221,30 +222,55 @@ export default function NutricionModule({ students, initialStudentId }: { studen
   async function loadStudentData(alumnoId: string) {
     setLoading(true);
     setSaveMsg('');
+    setSinDatos(false);
+    try {
+      const [datosRes, historialRes, planRes] = await Promise.all([
+        supabase.from('alumnos_datos_fisicos').select('*')
+          .eq('alumno_id', alumnoId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('historial_peso').select('*')
+          .eq('alumno_id', alumnoId).order('fecha', { ascending: false }),
+        supabase.from('planes_nutricionales')
+          .select('objetivo_nutricional, distribucion_macros')
+          .eq('alumno_id', alumnoId).eq('activo', true).maybeSingle(),
+      ]);
 
-    const [datosRes, historialRes] = await Promise.all([
-      supabase.from('alumnos_datos_fisicos').select('*')
-        .eq('alumno_id', alumnoId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('historial_peso').select('*')
-        .eq('alumno_id', alumnoId).order('fecha', { ascending: false }),
-    ]);
+      const loadErr = datosRes.error ?? historialRes.error ?? planRes.error;
+      if (loadErr) showMsg(`Error al cargar: ${loadErr.message}`, 'error');
 
-    if (datosRes.data) {
-      const d = datosRes.data;
-      setDatos({
-        peso_kg:        d.peso_kg?.toString() ?? '',
-        altura_cm:      d.altura_cm?.toString() ?? '',
-        edad:           d.edad?.toString() ?? '',
-        sexo:           (d.sexo as 'm' | 'f') ?? '',
-        nivel_actividad: d.nivel_actividad ?? 'moderado',
-        notas:          d.notas ?? '',
-      });
-    } else {
-      setDatos(EMPTY_DATOS);
+      if (datosRes.data) {
+        const d = datosRes.data;
+        setSinDatos(false);
+        setDatos({
+          peso_kg:        d.peso_kg?.toString() ?? '',
+          altura_cm:      d.altura_cm?.toString() ?? '',
+          edad:           d.edad?.toString() ?? '',
+          sexo:           (d.sexo as 'm' | 'f') ?? '',
+          nivel_actividad: d.nivel_actividad ?? 'moderado',
+          notas:          d.notas ?? '',
+        });
+      } else {
+        setSinDatos(true);
+        setDatos(EMPTY_DATOS);
+      }
+
+      setHistorial((historialRes.data ?? []) as HistorialRow[]);
+
+      if (planRes.data) {
+        const validObjs = Object.keys(OBJETIVO_ADJUSTMENTS) as (keyof typeof OBJETIVO_ADJUSTMENTS)[];
+        const validDists = Object.keys(MACRO_DISTRIBUTIONS) as (keyof typeof MACRO_DISTRIBUTIONS)[];
+        const savedObj = planRes.data.objetivo_nutricional as keyof typeof OBJETIVO_ADJUSTMENTS;
+        const savedDist = planRes.data.distribucion_macros as keyof typeof MACRO_DISTRIBUTIONS;
+        setObjetivo(validObjs.includes(savedObj) ? savedObj : 'mantenimiento');
+        setDistribucion(validDists.includes(savedDist) ? savedDist : 'estandar');
+      } else {
+        setObjetivo('mantenimiento');
+        setDistribucion('estandar');
+      }
+    } catch {
+      showMsg('Error de conexión al cargar datos', 'error');
+    } finally {
+      setLoading(false);
     }
-
-    setHistorial((historialRes.data ?? []) as HistorialRow[]);
-    setLoading(false);
   }
 
   // ── Derived calculations ─────────────────────────────────────────────────────
@@ -254,12 +280,11 @@ export default function NutricionModule({ students, initialStudentId }: { studen
   const sexo    = datos.sexo as 'm' | 'f';
   const nAct    = datos.nivel_actividad as keyof typeof ACTIVITY_FACTORS;
 
-  const valid = !isNaN(peso) && !isNaN(altura) && !isNaN(edad) && (sexo === 'm' || sexo === 'f')
-    && peso >= 20 && peso <= 350
-    && altura >= 100 && altura <= 250
-    && edad >= 10 && edad <= 110;
+  const imcValid = !isNaN(peso) && !isNaN(altura) && peso >= 20 && peso <= 350 && altura >= 100 && altura <= 250;
 
-  const imc        = valid ? calcIMC(peso, altura) : null;
+  const valid = imcValid && !isNaN(edad) && (sexo === 'm' || sexo === 'f') && edad >= 10 && edad <= 110;
+
+  const imc        = imcValid ? calcIMC(peso, altura) : null;
   const pesoIdeal  = valid ? calcPesoIdeal(altura, sexo) : null;
   const grasaPct   = (valid && imc !== null) ? Math.max(0, calcGrasaEstimada(imc, edad, sexo)) : null;
   const masaMagra  = (valid && grasaPct !== null) ? calcMasaMagra(peso, grasaPct) : null;
@@ -339,7 +364,7 @@ export default function NutricionModule({ students, initialStudentId }: { studen
               <select
                 className="select"
                 value={selectedAlumno}
-                onChange={e => setSelectedAlumno(e.target.value)}
+                onChange={e => { if (e.target.value) setLoading(true); setSelectedAlumno(e.target.value); }}
               >
                 <option value="">— Selecciona un alumno —</option>
                 {students.map(s => (
@@ -513,7 +538,19 @@ export default function NutricionModule({ students, initialStudentId }: { studen
                   </div>
                   <div className="card-body card-body--padded">
                     {imc !== null ? (
-                      <IMCBar imc={imc} />
+                      <>
+                        <IMCBar imc={imc} />
+                        {!valid && (
+                          <p style={{ color: 'var(--fg-muted)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-3)' }}>
+                            Añade sexo y edad para calcular composición corporal completa
+                          </p>
+                        )}
+                      </>
+                    ) : sinDatos ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                        <p style={{ color: 'var(--fg-muted)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>Sin datos físicos registrados</p>
+                        <p style={{ color: 'var(--fg-muted)', fontSize: 'var(--text-xs)' }}>Completa el formulario a la izquierda y guarda para ver los cálculos.</p>
+                      </div>
                     ) : (
                       <p style={{ color: 'var(--fg-muted)', fontSize: 'var(--text-sm)' }}>
                         Completa peso y altura para calcular el IMC
@@ -576,7 +613,9 @@ export default function NutricionModule({ students, initialStudentId }: { studen
                   <div className="card-body card-body--padded">
                     {!valid ? (
                       <p style={{ color: 'var(--fg-muted)', fontSize: 'var(--text-sm)' }}>
-                        Completa los datos físicos en la pestaña anterior primero
+                        {sinDatos
+                          ? 'Sin datos físicos registrados. Completa el formulario en "Datos Físicos" y guarda.'
+                          : 'Completa los datos físicos en la pestaña anterior primero'}
                       </p>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>

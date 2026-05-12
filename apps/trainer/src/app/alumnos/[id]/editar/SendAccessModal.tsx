@@ -156,7 +156,7 @@ export default function SendAccessModal({ studentName, phone, email, link, hasAc
               display: 'flex', alignItems: 'center', gap: '7px',
               padding: '8px 18px', borderRadius: '6px', border: 'none',
               background: hasPhone && msg ? WA_GREEN : '#1e1e1e',
-              color: hasPhone && msg ? '#fff' : '#444',
+              color: hasPhone && msg ? '#00120E' : '#444',
               fontWeight: 700, fontSize: '13px',
               cursor: hasPhone && msg ? 'pointer' : 'not-allowed',
             }}

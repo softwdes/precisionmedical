@@ -423,7 +423,7 @@ export default function RutinasModule({ initialTemplates, students, exercises, i
               </div>
             )}
 
-            <div className="form-actions">
+            <div className="form-actions form-actions--row">
               <button className="btn btn-outline" onClick={() => setWStep(2)}>← Volver</button>
               <button className="btn btn-primary"
                 disabled={wTemplate !== 'custom' && wSelectedDias.length === 0}
@@ -486,11 +486,11 @@ export default function RutinasModule({ initialTemplates, students, exercises, i
               ))}
             </div>
 
-            <div className="form-actions">
+            <div className="form-actions form-actions--row">
               <button className="btn btn-outline" onClick={() => setWStep(3)} disabled={assigning}>← Volver</button>
               <button className="btn btn-outline" onClick={resetWizard} disabled={assigning}>Cancelar</button>
               <button className="btn btn-primary" onClick={confirmAssign} disabled={assigning || assignOk}>
-                {assigning ? 'Asignando...' : 'Confirmar y Asignar'}
+                {assigning ? 'Asignando...' : 'Asignar'}
               </button>
             </div>
           </div>

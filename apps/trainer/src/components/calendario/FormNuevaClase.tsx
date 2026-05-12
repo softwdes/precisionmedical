@@ -523,8 +523,8 @@ export default function FormNuevaClase({ fecha, hora, clase, onGuardar, onCancel
                   onClick={() => setColor(c)}
                   title={c}
                   style={{
-                    width: '28px',
-                    height: '28px',
+                    width: 'clamp(36px, 8vw, 44px)',
+                    height: 'clamp(36px, 8vw, 44px)',
                     borderRadius: '50%',
                     background: hex,
                     border: 'none',

@@ -78,16 +78,18 @@ export default function AlumnoPerfilClient({
         cuota={primCuota}
       />
 
-      <div className="chart-tabs" style={{ marginBottom: '24px' }}>
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            className={`chart-tab${activeTab === t.key ? ' active' : ''}`}
-            onClick={() => setActiveTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="profile-tabs-wrap">
+        <div className="chart-tabs" style={{ marginBottom: '24px' }}>
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              className={`chart-tab${activeTab === t.key ? ' active' : ''}`}
+              onClick={() => setActiveTab(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {activeTab === 'datos' && (

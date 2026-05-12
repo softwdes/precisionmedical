@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Inter, Playfair_Display, JetBrains_Mono } from 'next/font/google';
 import '@precision/ui/globals.css';
 import TrainerAIAvatarWrapper from '@/components/TrainerAIAvatarWrapper';
+import ExitGuardWrapper from '@/components/ExitGuardWrapper';
+import PlanAlertWrapper from '@/components/PlanAlertWrapper';
 
 
 const inter = Inter({
@@ -36,6 +38,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <TrainerAIAvatarWrapper />
+        <ExitGuardWrapper />
+        <PlanAlertWrapper />
       </body>
     </html>
   );

@@ -1804,7 +1804,7 @@ export default function FinanzasModule({
                   display: 'flex', alignItems: 'center', gap: '7px',
                   padding: '8px 18px', borderRadius: '6px', border: 'none',
                   background: waComposerCuota.students?.phone ? WA_GREEN : '#333',
-                  color: waComposerCuota.students?.phone ? '#fff' : '#666',
+                  color: waComposerCuota.students?.phone ? '#00120E' : '#666',
                   fontWeight: 700, fontSize: '13px', cursor: waComposerCuota.students?.phone ? 'pointer' : 'not-allowed',
                 }}
                 disabled={!waComposerCuota.students?.phone || !waComposerMsg}

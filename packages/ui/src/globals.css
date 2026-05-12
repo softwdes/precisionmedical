@@ -35,6 +35,11 @@
   --info:            #6BB6FF;
   --neutral:         #4A5250;
 
+  /* Status colors — used for payment & activity indicators */
+  --status-paid:     #1D9E75;
+  --status-pending:  #EF9F27;
+  --status-overdue:  #E24B4A;
+
   --border:          #1A211F;
   --border-strong:   #243029;
   --border-mint:     rgba(63, 248, 200, 0.25);

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useTransition } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { calcIMC, calcGrasaEstimada, calcMasaMagra, getIMCCategory } from '@/lib/nutrition';
-import { addMedidaCorporal, addProgresoEjercicio, addSesionEntrenamiento, otorgarLogro } from '@/actions/metricas2';
+import { addMedidaCorporal, addProgresoEjercicio, addSesionEntrenamiento, otorgarLogro } from '@/actions/metricas';
 
 type Tab = 'resumen' | 'cuerpo' | 'fuerza' | 'adherencia' | 'logros';
 

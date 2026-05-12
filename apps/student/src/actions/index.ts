@@ -24,6 +24,16 @@ export async function updatePassword(
   redirect('/login');
 }
 
+const LEGACY_GOAL_LABELS: Record<string, string> = {
+  hypertrophy:  'Hipertrofia',
+  hypertrophia: 'Hipertrofia',
+  fat_loss:     'Pérdida de grasa',
+  strength:     'Fuerza',
+  endurance:    'Resistencia',
+  flexibility:  'Flexibilidad',
+  general_fitness: 'Fitness general',
+};
+
 export async function getDashboardData() {
   const { supabase, studentId, student } = await getStudentContext();
   const today = new Date().toISOString().split('T')[0]!;
@@ -49,8 +59,18 @@ export async function getDashboardData() {
     proximaClase = data;
   }
 
+  // Resolve goal IDs to labels (handles both UUID-based and legacy string-code goals)
+  let goalNames: string[] = [];
+  const rawGoals = student.goals as string[] | null;
+  if (rawGoals && rawGoals.length > 0) {
+    const { data: goalsData } = await supabase.from('goals').select('id, label').in('id', rawGoals);
+    const goalMap = Object.fromEntries((goalsData ?? []).map((g: any) => [g.id, g.label as string]));
+    goalNames = rawGoals.map(id => goalMap[id] ?? LEGACY_GOAL_LABELS[id] ?? id);
+  }
+
   return {
     student,
+    goalNames,
     peso: pesoRes.data,
     rutina: rutinaRes.data,
     proximaClase,

@@ -2,10 +2,6 @@ import { getDashboardData } from '@/actions';
 
 export const dynamic = 'force-dynamic';
 
-const GOAL_LABELS: Record<string, string> = {
-  hypertrophy: 'Hipertrofia', fat_loss: 'Pérdida de grasa', strength: 'Fuerza',
-  endurance: 'Resistencia', flexibility: 'Flexibilidad', general_fitness: 'Fitness general',
-};
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
@@ -32,7 +28,7 @@ export default async function InicioPage() {
     );
   }
 
-  const { student, peso, rutina, proximaClase, nutricion } = data;
+  const { student, goalNames, peso, rutina, proximaClase, nutricion } = data;
   const firstName = student.full_name.split(' ')[0] ?? student.full_name;
 
   return (
@@ -81,15 +77,15 @@ export default async function InicioPage() {
       )}
 
       {/* Objetivos */}
-      {student.goals && student.goals.length > 0 && (
+      {goalNames.length > 0 && (
         <div className="card">
           <div className="card-head">
             <div className="card-title">Mis objetivos</div>
           </div>
           <div className="card-body" style={{ padding: 'var(--space-4)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-            {student.goals.map((g: string) => (
-              <span key={g} className="badge badge-mint-soft">
-                {GOAL_LABELS[g] ?? g}
+            {goalNames.map((name) => (
+              <span key={name} className="badge badge-mint-soft">
+                {name}
               </span>
             ))}
           </div>

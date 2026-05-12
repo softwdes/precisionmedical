@@ -46,7 +46,7 @@ export default function NewStudentForm() {
       <div className="form-section">
         <h3 className="form-section-title">Objetivos de Entrenamiento</h3>
         <div className="checkbox-group">
-          <label className="checkbox-label"><input type="checkbox" name="goals" value="hypertrophia" /><span>Hipertrofia</span></label>
+          <label className="checkbox-label"><input type="checkbox" name="goals" value="hypertrophy" /><span>Hipertrofia</span></label>
           <label className="checkbox-label"><input type="checkbox" name="goals" value="strength" /><span>Fuerza</span></label>
           <label className="checkbox-label"><input type="checkbox" name="goals" value="fat_loss" /><span>Pérdida de Grasa</span></label>
           <label className="checkbox-label"><input type="checkbox" name="goals" value="endurance" /><span>Resistencia</span></label>

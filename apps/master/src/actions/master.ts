@@ -237,9 +237,10 @@ export async function deleteTrainer(trainerId: string, userId: string): Promise<
     const classIds = (classesRes.data ?? []).map((r: any) => r.id);
     const templateIds = (templatesRes.data ?? []).map((r: any) => r.id);
 
-    // 2. Delete deepest student-owned records
+    // 2. Delete all student-owned records (CASCADE tables + non-CASCADE tables)
     if (studentIds.length) {
       await Promise.all([
+        // alumno_id FK (have CASCADE, but explicit is safer)
         admin.from('alumnos_datos_fisicos').delete().in('alumno_id', studentIds),
         admin.from('planes_nutricionales').delete().in('alumno_id', studentIds),
         admin.from('historial_peso').delete().in('alumno_id', studentIds),
@@ -248,8 +249,22 @@ export async function deleteTrainer(trainerId: string, userId: string): Promise<
         admin.from('clase_alumnos').delete().in('alumno_id', studentIds),
         admin.from('rutinas_alumno').delete().in('alumno_id', studentIds),
         admin.from('cuotas').delete().in('alumno_id', studentIds),
+        admin.from('sesiones_entrenamiento').delete().in('alumno_id', studentIds),
+        admin.from('progreso_ejercicio').delete().in('alumno_id', studentIds),
+        admin.from('whatsapp_mensajes').delete().in('alumno_id', studentIds),
+        // student_id FK (no CASCADE — must delete explicitly or students.delete() will fail)
+        admin.from('body_metrics').delete().in('student_id', studentIds),
+        admin.from('student_routines').delete().in('student_id', studentIds),
+        admin.from('bookings').delete().in('student_id', studentIds),
+        admin.from('booking_waitlist').delete().in('student_id', studentIds),
+        admin.from('daily_checkins').delete().in('student_id', studentIds),
+        admin.from('messages').delete().in('student_id', studentIds),
+        admin.from('session_packages').delete().in('student_id', studentIds),
+        admin.from('personal_records').delete().in('student_id', studentIds),
+        admin.from('progress_photos').delete().in('student_id', studentIds),
       ]);
-      await admin.from('students').delete().in('id', studentIds);
+      const { error: studentsErr } = await admin.from('students').delete().in('id', studentIds);
+      if (studentsErr) return { error: `Error eliminando alumnos: ${studentsErr.message}` };
     }
 
     // 3. Delete class records (clase_alumnos by class_id may already be gone; safe to re-run)

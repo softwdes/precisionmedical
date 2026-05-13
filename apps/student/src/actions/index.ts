@@ -24,17 +24,16 @@ export async function updatePassword(
   redirect('/login');
 }
 
-const LEGACY_GOAL_LABELS: Record<string, string> = {
-  hypertrophy:  'Hipertrofia',
-  hypertrophia: 'Hipertrofia',
-  fat_loss:     'Pérdida de grasa',
-  strength:     'Fuerza',
-  endurance:    'Resistencia',
-  flexibility:  'Flexibilidad',
-  general_fitness: 'Fitness general',
-};
-
 export async function getDashboardData() {
+  const LEGACY_GOAL_LABELS: Record<string, string> = {
+    hypertrophy:     'Hipertrofia',
+    hypertrophia:    'Hipertrofia',
+    fat_loss:        'Pérdida de grasa',
+    strength:        'Fuerza',
+    endurance:       'Resistencia',
+    flexibility:     'Flexibilidad',
+    general_fitness: 'Fitness general',
+  };
   const { supabase, studentId, student } = await getStudentContext();
   const today = new Date().toISOString().split('T')[0]!;
 

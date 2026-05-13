@@ -31,8 +31,27 @@ export default function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setError(error.message); setLoading(false); return; }
+
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) { setError(authError.message); setLoading(false); return; }
+
+    // Verify the authenticated user has a trainer profile
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: trainer } = await supabase
+        .from('trainers')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!trainer) {
+        await supabase.auth.signOut();
+        setError('Esta cuenta no tiene acceso al panel de entrenador.');
+        setLoading(false);
+        return;
+      }
+    }
+
     router.push('/');
   }
 

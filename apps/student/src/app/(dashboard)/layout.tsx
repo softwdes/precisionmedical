@@ -1,7 +1,15 @@
+import { redirect } from 'next/navigation';
+import { getStudentContext } from '@/lib/supabase-server';
 import StudentSidebar from '@/components/StudentSidebar';
 import StudentMenu from '@/components/StudentMenu';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  try {
+    await getStudentContext();
+  } catch {
+    redirect('/login');
+  }
+
   return (
     <div className="app">
       <StudentSidebar />

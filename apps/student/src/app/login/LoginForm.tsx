@@ -23,8 +23,27 @@ export default function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setError('Email o contraseña incorrectos'); setLoading(false); return; }
+
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) { setError('Email o contraseña incorrectos'); setLoading(false); return; }
+
+    // Verify the authenticated user actually has a student profile
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: student } = await supabase
+        .from('students')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!student) {
+        await supabase.auth.signOut();
+        setError('Esta cuenta no tiene acceso al portal de alumnos.');
+        setLoading(false);
+        return;
+      }
+    }
+
     router.push('/');
   }
 

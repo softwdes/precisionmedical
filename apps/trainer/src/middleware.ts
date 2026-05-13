@@ -46,10 +46,28 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (!user && !isLoginPage && !isResetPasswordPage && !isAccesoPage) {
+  const isPublic = isLoginPage || isResetPasswordPage || isAccesoPage;
+
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
+  }
+
+  // Authenticated user on a protected route — verify they have a trainer profile
+  if (user && !isPublic) {
+    const { data: trainer } = await supabase
+      .from('trainers')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!trainer) {
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
   }
 
   if (user && isLoginPage) {

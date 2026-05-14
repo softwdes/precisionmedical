@@ -11,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@precision/ui';
-import { Plus, Search, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Plus, Search, ChevronRight, ChevronLeft, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -73,6 +73,8 @@ export function EmployeesClient({
           {t('employees.addNew')}
         </Button>
       </div>
+
+      <TopPerformers />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
@@ -207,6 +209,82 @@ export function EmployeesClient({
         onCreated={() => { setShowCreate(false); void refetch(); }}
         departments={departments}
       />
+    </div>
+  );
+}
+
+// ─── Top 5 Performers ────────────────────────────────────────────────────────
+
+const TOP_5 = [
+  { name: 'Maria González',  initials: 'MG', position: 'Recepcionista',   clinic: 'Provo',          score: 96 },
+  { name: 'Carlos Méndez',   initials: 'CM', position: 'Terapeuta',        clinic: 'Spanish Fork',   score: 93 },
+  { name: 'Ana Ramírez',     initials: 'AR', position: 'Enfermera',        clinic: 'Pleasant Grove', score: 91 },
+  { name: 'Luis Torres',     initials: 'LT', position: 'Fisioterapeuta',   clinic: 'West Valley',    score: 88 },
+  { name: 'Sofía Vargas',    initials: 'SV', position: 'Coordinadora',     clinic: 'South Murray',   score: 85 },
+];
+
+const RANK_STYLES = [
+  { badge: '#F59E0B', label: '1°', avatar: 'from-amber-400 to-yellow-500',  ring: 'ring-amber-400/40' },
+  { badge: '#94A3B8', label: '2°', avatar: 'from-slate-400 to-slate-500',   ring: 'ring-slate-400/40' },
+  { badge: '#B45309', label: '3°', avatar: 'from-amber-700 to-amber-800',   ring: 'ring-amber-700/40' },
+  { badge: '#6366F1', label: '4°', avatar: 'from-indigo-400 to-indigo-600', ring: 'ring-indigo-400/30' },
+  { badge: '#6366F1', label: '5°', avatar: 'from-indigo-400 to-indigo-600', ring: 'ring-indigo-400/30' },
+];
+
+function scoreColor(s: number) {
+  if (s >= 90) return { bar: 'bg-emerald-500', text: 'text-emerald' };
+  if (s >= 80) return { bar: 'bg-brand',       text: 'text-brand' };
+  return           { bar: 'bg-amber-400',      text: 'text-amber' };
+}
+
+function TopPerformers() {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Trophy className="h-4 w-4 text-amber-400" />
+        <p className="text-sm font-semibold text-text-1">Top 5 Empleados del Mes</p>
+        <span className="ml-auto text-xs text-text-3 bg-border/60 rounded-full px-2 py-0.5">Mayo 2026</span>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {TOP_5.map((emp, i) => {
+          const rank  = RANK_STYLES[i]!;
+          const color = scoreColor(emp.score);
+          return (
+            <div
+              key={emp.name}
+              className="relative flex flex-col items-center gap-2 rounded-xl border border-border bg-bg-0 p-3 text-center"
+            >
+              {/* Rank badge */}
+              <span
+                className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-extrabold text-white shadow-sm"
+                style={{ background: rank.badge }}
+              >
+                {i + 1}
+              </span>
+
+              {/* Avatar */}
+              <div className={`flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br ${rank.avatar} ring-2 ${rank.ring} text-xs font-bold text-white shadow-sm`}>
+                {emp.initials}
+              </div>
+
+              {/* Info */}
+              <div className="w-full">
+                <p className="text-xs font-semibold text-text-1 truncate">{emp.name}</p>
+                <p className="text-[10px] text-text-3 truncate">{emp.position}</p>
+                <p className="text-[10px] text-text-muted truncate">{emp.clinic}</p>
+              </div>
+
+              {/* Score bar */}
+              <div className="w-full space-y-1">
+                <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
+                  <div className={`h-full rounded-full ${color.bar} transition-all`} style={{ width: `${emp.score}%` }} />
+                </div>
+                <p className={`text-xs font-bold font-mono ${color.text}`}>{emp.score}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

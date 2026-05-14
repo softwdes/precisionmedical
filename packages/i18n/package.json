@@ -1,0 +1,20 @@
+{
+  "name": "@precision-medical/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./config": "./src/config.ts",
+    "./messages/en": "./messages/en.json",
+    "./messages/es": "./messages/es.json"
+  },
+  "dependencies": {
+    "next-intl": "^3.21.1"
+  },
+  "devDependencies": {
+    "@precision-medical/tsconfig": "workspace:*",
+    "next": "^15.0.0",
+    "typescript": "^5.6.3"
+  }
+}

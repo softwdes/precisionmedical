@@ -1,0 +1,23 @@
+{
+  "name": "@precision-medical/auth",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./client": "./src/client.ts",
+    "./admin": "./src/admin.ts",
+    "./middleware": "./src/middleware.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.1",
+    "@supabase/supabase-js": "^2.45.4",
+    "@precision-medical/database": "workspace:*"
+  },
+  "devDependencies": {
+    "@precision-medical/tsconfig": "workspace:*",
+    "next": "^15.0.0",
+    "typescript": "^5.6.3"
+  }
+}

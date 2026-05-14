@@ -48,29 +48,39 @@ export async function sendWelcomeEmail({
   };
 
   const html = baseTemplate(`
-    <h2 style="color:#E2E2EE;font-size:20px;font-weight:700;margin:0 0 8px;">Bienvenido, ${firstName} 👋</h2>
-    <p style="color:#8888AA;font-size:13px;margin:0 0 20px;line-height:1.6;">
-      Tu cuenta ha sido creada en <strong style="color:#E2E2EE;">LM Super Admin</strong> de Precision Medical.
-    </p>
-    <div style="background:#0A0A0F;border:1px solid #1E1E2E;border-radius:8px;padding:16px;margin-bottom:20px;">
-      <p style="margin:0 0 6px;color:#8888AA;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Tu rol asignado</p>
-      <p style="margin:0;color:#6366F1;font-size:15px;font-weight:600;">${roleLabels[role] ?? role}</p>
-    </div>
-    <p style="color:#8888AA;font-size:13px;margin:0 0 20px;line-height:1.6;">
-      Haz clic en el botón para activar tu cuenta y configurar tu contraseña de acceso.
-    </p>
     <div style="text-align:center;margin-bottom:24px;">
+      <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,rgba(99,102,241,0.2) 0%,rgba(139,92,246,0.2) 100%);border:1px solid rgba(99,102,241,0.3);">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+    </div>
+    <h2 style="color:#E2E2EE;font-size:22px;font-weight:700;margin:0 0 8px;text-align:center;">Bienvenido, ${firstName}</h2>
+    <p style="color:#8888AA;font-size:13px;margin:0 0 24px;line-height:1.6;text-align:center;">
+      Tu cuenta ha sido creada en <strong style="color:#E2E2EE;">LM Super Admin</strong> de Precision Medical.<br/>
+      Activa tu cuenta para comenzar.
+    </p>
+    <div style="background:linear-gradient(135deg,rgba(99,102,241,0.08) 0%,rgba(139,92,246,0.08) 100%);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;gap:14px;">
+      <div style="flex-shrink:0;width:36px;height:36px;border-radius:8px;background:rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <p style="margin:0 0 2px;color:#8888AA;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;">Rol asignado</p>
+        <p style="margin:0;color:#A5B4FC;font-size:14px;font-weight:600;">${roleLabels[role] ?? role}</p>
+      </div>
+    </div>
+    <p style="color:#8888AA;font-size:13px;margin:0 0 20px;line-height:1.6;text-align:center;">
+      Haz clic en el botón para crear tu contraseña y acceder al sistema.
+    </p>
+    <div style="text-align:center;margin-bottom:28px;">
       <a href="${activationLink}"
-         style="display:inline-block;background:linear-gradient(135deg,#6366F1 0%,#8B5CF6 100%);color:white;font-weight:700;font-size:14px;padding:13px 32px;border-radius:12px;text-decoration:none;box-shadow:0 8px 32px rgba(99,102,241,0.35);">
-        Activar mi cuenta
+         style="display:inline-block;background:linear-gradient(135deg,#6366F1 0%,#8B5CF6 60%,#7C3AED 100%);color:white;font-weight:700;font-size:15px;padding:14px 36px;border-radius:14px;text-decoration:none;letter-spacing:0.02em;box-shadow:0 8px 24px rgba(99,102,241,0.45),0 2px 8px rgba(0,0,0,0.4);">
+        Activar mi cuenta →
       </a>
     </div>
-    <p style="color:#3D3D52;font-size:11px;margin:0 0 8px;text-align:center;line-height:1.6;">
-      Este enlace expira en 24 horas. Si tienes alguna pregunta, contacta al administrador del sistema.
+    <div style="height:1px;background:linear-gradient(90deg,transparent,#1E1E2E,transparent);margin-bottom:16px;"></div>
+    <p style="color:#3D3D52;font-size:11px;margin:0;text-align:center;line-height:1.8;">
+      Este enlace expira en <strong style="color:#555568;">24 horas</strong>.<br/>
+      Si no solicitaste esta cuenta, puedes ignorar este mensaje.
     </p>
-    <div style="text-align:center;margin-top:8px;">
-      <p style="color:#3D3D52;font-size:11px;margin:0;">Estado inicial: <span style="color:#F59E0B;">Pendiente de verificación</span></p>
-    </div>
   `);
 
   const { error } = await resend.emails.send({

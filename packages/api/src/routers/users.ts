@@ -136,19 +136,36 @@ export const usersRouter = router({
         createdAt: new Date().toISOString(),
       });
 
-      // 3. Generate activation link and send welcome email via Resend
+      // 3. Generate activation link
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-      const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'invite',
         email: input.email,
         options: { redirectTo: `${appUrl}/dashboard` },
       });
-      const activationLink = linkData?.properties?.action_link ?? `${appUrl}/login`;
+      if (linkError) console.error('[users.create] generateLink failed:', linkError.message);
 
-      sendWelcomeEmail({ to: input.email, firstName: input.firstName, role: input.role, activationLink })
-        .catch((err: unknown) => console.error('[users.create] Welcome email failed:', err));
+      const activationLink = linkData?.properties?.action_link;
+      if (!activationLink) {
+        console.error('[users.create] No action_link returned — email will not have a valid activation button');
+      }
 
-      return data;
+      // 4. Send welcome email via Resend and surface the result
+      let emailSent = false;
+      try {
+        await sendWelcomeEmail({
+          to: input.email,
+          firstName: input.firstName,
+          role: input.role,
+          activationLink: activationLink ?? `${appUrl}/login`,
+        });
+        emailSent = true;
+      } catch (emailErr: unknown) {
+        const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+        console.error('[users.create] Welcome email failed:', msg);
+      }
+
+      return { ...data, emailSent };
     }),
 
   update: superAdminProcedure

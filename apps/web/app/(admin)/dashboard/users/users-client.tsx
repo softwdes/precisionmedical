@@ -238,7 +238,14 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
   };
 
   const create = trpc.users.create.useMutation({
-    onSuccess: () => { toast.success(t('users.created')); onCreated(); },
+    onSuccess: (result) => {
+      if (result.emailSent) {
+        toast.success(`${t('users.created')} — Correo de activación enviado a ${result.email}`);
+      } else {
+        toast.warning(`${t('users.created')} — El correo de activación no pudo enviarse. Verifica la configuración de email.`);
+      }
+      onCreated();
+    },
     onError: (e) => toast.error(e.message),
   });
 

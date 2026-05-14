@@ -476,7 +476,7 @@ function NuevoMovimientoModal({
   return (
     <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
-        <div className="max-h-[80vh] overflow-y-auto pr-1">
+        <div className="max-h-[80vh] overflow-y-auto pr-2 scroll-thin">
           <DialogHeader><DialogTitle>Nuevo movimiento</DialogTitle></DialogHeader>
 
           <div className="space-y-5 pt-4 pb-2">

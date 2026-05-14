@@ -9,22 +9,12 @@ import {
   LayoutDashboard,
   Users,
   UserCheck,
-  DollarSign,
-  Wallet,
-  Scale,
-  Stethoscope,
+  Banknote,
+  BarChart3,
   Bot,
   Settings,
   LogOut,
   ChevronLeft,
-  Activity,
-  Building2,
-  Landmark,
-  ArrowLeftRight,
-  CalendarCheck,
-  ClipboardList,
-  CalendarDays,
-  BadgeDollarSign,
 } from 'lucide-react';
 
 interface NavItem {
@@ -50,20 +40,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
   ];
 
   const NAV_MODULES: NavItem[] = [
-    { key: 'users', href: '/dashboard/users', icon: Users, label: t('nav.users') },
-    { key: 'employees', href: '/dashboard/employees', icon: UserCheck, label: t('nav.employees') },
-    { key: 'attendance', href: '/dashboard/attendance', icon: CalendarCheck, label: t('nav.attendance') },
-    { key: 'tasks', href: '/dashboard/tasks', icon: ClipboardList, label: t('nav.tasks') },
-    { key: 'payments', href: '/dashboard/payments', icon: DollarSign, label: t('nav.payments') },
-    { key: 'petty-cash', href: '/dashboard/petty-cash', icon: Wallet, label: t('nav.pettyCash') },
-    { key: 'wallets', href: '/dashboard/wallets', icon: Landmark, label: t('nav.wallets') },
-    { key: 'fx', href: '/dashboard/fx', icon: ArrowLeftRight, label: t('nav.fx') },
-    { key: 'metrics', href: '/dashboard/metrics', icon: Activity, label: t('nav.metrics') },
-    { key: 'lawyers', href: '/dashboard/lawyers', icon: Scale, label: t('nav.lawyers') },
-    { key: 'providers', href: '/dashboard/providers', icon: Stethoscope, label: t('nav.providers') },
-    { key: 'patients', href: '/dashboard/patients', icon: Building2, label: t('nav.patients') },
-    { key: 'appointments', href: '/dashboard/appointments', icon: CalendarDays, label: t('nav.appointments') },
-    { key: 'commissions', href: '/dashboard/commissions', icon: BadgeDollarSign, label: t('nav.commissions') },
+    { key: 'users',      href: '/dashboard/users',      icon: Users,      label: t('nav.users') },
+    { key: 'employees',  href: '/dashboard/employees',  icon: UserCheck,  label: t('nav.employees') },
+    { key: 'finanzas',   href: '/dashboard/finanzas',   icon: Banknote,   label: t('nav.finance') },
+    { key: 'metricas',   href: '/dashboard/metricas',   icon: BarChart3,  label: t('nav.metrics') },
+  ];
+
+  const NAV_INTELLIGENCE: NavItem[] = [
     { key: 'ai-agents', href: '/dashboard/ai-agents', icon: Bot, label: t('nav.aiAgents') },
   ];
 
@@ -120,6 +103,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
               {t('nav.modules') as string}
             </p>
             <NavGroup items={NAV_MODULES} pathname={pathname} />
+          </div>
+
+          <div className="mt-4">
+            <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
+              {t('nav.inteligencia') as string}
+            </p>
+            <NavGroup items={NAV_INTELLIGENCE} pathname={pathname} />
           </div>
 
           <div className="mt-4">

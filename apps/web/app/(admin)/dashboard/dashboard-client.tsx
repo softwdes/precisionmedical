@@ -7,7 +7,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@precision/ui';
 import { cn } from '@precision/ui';
 import {
-  CalendarDays, Users, DollarSign, CheckSquare,
+  CalendarDays, Users, DollarSign,
   Wallet, AlertTriangle, Download, Plus,
   TrendingUp, TrendingDown,
   Check, ArrowLeftRight, UserPlus, Zap, CreditCard,
@@ -25,7 +25,6 @@ const SPARK = {
   citas:     [38, 42, 40, 45, 42, 47, 47],
   pacientes: [2630, 2680, 2720, 2750, 2790, 2820, 2847],
   ingresos:  [220, 235, 240, 258, 268, 278, 284],
-  tareas:    [28, 30, 27, 25, 24, 25, 23],
 };
 
 const SAMPLE_ACTIVITIES_DATA = [
@@ -96,7 +95,6 @@ const SAMPLE_KPIS = {
   todayAppointments: 47,
   activePatients: 2847,
   monthlyRevenue: 284500,
-  pendingTasks: 23,
   activeEmployees: 12,
   currentPeriod: 'Mayo 2026',
 };
@@ -342,19 +340,6 @@ export function DashboardClient({
       sub: t('revenueGoal'),
       spark: SPARK.ingresos,
       href: '/dashboard/payments',
-    },
-    {
-      label: t('pendingTasks'),
-      value: ('pendingTasks' in data ? data.pendingTasks : SAMPLE_KPIS.pendingTasks).toLocaleString(),
-      icon: CheckSquare,
-      color: '#8B5CF6',
-      bg: 'rgba(139,92,246,0.12)',
-      border: 'rgba(139,92,246,0.25)',
-      trend: '-3.1%',
-      trendUp: false,
-      sub: t('tasksDueToday'),
-      spark: SPARK.tareas,
-      href: '/dashboard',
     },
   ];
 

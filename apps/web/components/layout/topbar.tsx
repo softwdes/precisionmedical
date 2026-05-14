@@ -9,7 +9,7 @@ import { PillToggle, Button, Input, Label, Dialog, DialogContent, DialogHeader, 
 import { useTheme } from '@/components/providers/theme-provider';
 import { Bell, Search, Menu, Moon, Sun, User, KeyRound, LogOut, Eye, EyeOff, Zap, Copy } from 'lucide-react';
 import { api as trpc } from '@/lib/trpc/client';
-import { createBrowserClient } from '@precision-medical/auth';
+import { createClient as createSupabaseClient } from '@precision-medical/auth/client';
 import { NotificationsDrawer } from './notifications-drawer';
 import { CommandPalette } from './command-palette';
 import { toast } from 'sonner';
@@ -140,7 +140,7 @@ export function Topbar({
     if (newPw.length < 8)     return setPwError('Mínimo 8 caracteres');
     if (newPw !== confirmPw)  return setPwError('Las contraseñas no coinciden');
     setPwLoading(true); setPwError('');
-    const supabase = createBrowserClient();
+    const supabase = createSupabaseClient();
     const { error } = await supabase.auth.updateUser({ password: newPw });
     setPwLoading(false);
     if (error) return setPwError(error.message);

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Label, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@precision-medical/ui';
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Label, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@precision/ui';
 import { CheckCircle, Globe, Database, Mail, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 

@@ -4,8 +4,8 @@ import * as React from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
-import { Card, CardContent, CardHeader, CardTitle } from '@precision-medical/ui';
-import { cn } from '@precision-medical/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@precision/ui';
+import { cn } from '@precision/ui';
 import {
   CalendarDays, Users, DollarSign, CheckSquare,
   Wallet, AlertTriangle, Download, Plus,

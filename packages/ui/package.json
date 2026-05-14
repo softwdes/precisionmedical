@@ -1,5 +1,5 @@
 {
-  "name": "@precision-medical/ui",
+  "name": "@precision/ui",
   "version": "0.0.0",
   "private": true,
   "main": "./src/index.ts",

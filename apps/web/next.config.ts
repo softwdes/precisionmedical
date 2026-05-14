@@ -5,7 +5,7 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig: NextConfig = {
   transpilePackages: [
-    '@precision-medical/ui',
+    '@precision/ui',
     '@precision-medical/auth',
     '@precision-medical/api',
     '@precision-medical/database',

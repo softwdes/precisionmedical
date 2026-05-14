@@ -10,7 +10,7 @@ export const metadata = { title: 'Empleados' };
 
 const TABS = [
   { key: 'lista',    label: 'Lista',    href: '/dashboard/employees' },
-  { key: 'pagos',    label: 'Pagos',    href: '/dashboard/employees?tab=pagos' },
+  { key: 'pagos',    label: 'Pagos de Salarios',    href: '/dashboard/employees?tab=pagos' },
   { key: 'metricas', label: 'Métricas', href: '/dashboard/employees?tab=metricas' },
 ];
 

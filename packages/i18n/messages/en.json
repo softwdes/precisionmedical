@@ -357,7 +357,7 @@
     }
   },
   "payments": {
-    "title": "Payments",
+    "title": "Salary Payments",
     "newPayment": "New payment",
     "paidThisMonth": "Paid this month",
     "totalPayments": "Total payments",

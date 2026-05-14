@@ -35,10 +35,12 @@ export async function sendWelcomeEmail({
   to,
   firstName,
   role,
+  activationLink,
 }: {
   to: string;
   firstName: string;
   role: string;
+  activationLink: string;
 }): Promise<void> {
   const roleLabels: Record<string, string> = {
     SUPER_ADMIN: 'Super Admin', ADMIN: 'Admin', EMPLOYEE: 'Empleado',
@@ -54,12 +56,17 @@ export async function sendWelcomeEmail({
       <p style="margin:0 0 6px;color:#8888AA;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Tu rol asignado</p>
       <p style="margin:0;color:#6366F1;font-size:15px;font-weight:600;">${roleLabels[role] ?? role}</p>
     </div>
-    <p style="color:#8888AA;font-size:12px;margin:0 0 16px;line-height:1.6;">
-      Recibirás un segundo correo de invitación con un enlace para activar tu cuenta y configurar tu contraseña.
-      Si no lo ves en unos minutos, revisa tu carpeta de spam.
+    <p style="color:#8888AA;font-size:13px;margin:0 0 20px;line-height:1.6;">
+      Haz clic en el botón para activar tu cuenta y configurar tu contraseña de acceso.
     </p>
-    <p style="color:#8888AA;font-size:12px;margin:0 0 20px;line-height:1.6;">
-      Si tienes alguna pregunta, contacta al administrador del sistema.
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${activationLink}"
+         style="display:inline-block;background:linear-gradient(135deg,#6366F1 0%,#8B5CF6 100%);color:white;font-weight:700;font-size:14px;padding:13px 32px;border-radius:12px;text-decoration:none;box-shadow:0 8px 32px rgba(99,102,241,0.35);">
+        Activar mi cuenta
+      </a>
+    </div>
+    <p style="color:#3D3D52;font-size:11px;margin:0 0 8px;text-align:center;line-height:1.6;">
+      Este enlace expira en 24 horas. Si tienes alguna pregunta, contacta al administrador del sistema.
     </p>
     <div style="text-align:center;margin-top:8px;">
       <p style="color:#3D3D52;font-size:11px;margin:0;">Estado inicial: <span style="color:#F59E0B;">Pendiente de verificación</span></p>

@@ -96,18 +96,19 @@ export const usersRouter = router({
       const { data: existing } = await supabaseAdmin.from('users').select('id').eq('email', input.email).single();
       if (existing) throw new TRPCError({ code: 'CONFLICT', message: 'Email already exists' });
 
-      // 1. Create auth user via invitation — this sends the activation email and gives us the UUID
-      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(input.email, {
-        data: { firstName: input.firstName, lastName: input.lastName },
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/dashboard`,
+      // 1. Create auth user (no email sent by Supabase — we handle email via Resend)
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: input.email,
+        user_metadata: { firstName: input.firstName, lastName: input.lastName },
+        email_confirm: false,
       });
-      if (inviteError) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Invite failed: ${inviteError.message}` });
+      if (authError) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Auth creation failed: ${authError.message}` });
 
       // 2. Insert into users table using the Supabase Auth UUID as id
       const { data, error } = await supabaseAdmin
         .from('users')
         .insert({
-          id: inviteData.user.id,
+          id: authData.user.id,
           ...input,
           status: 'PENDING_VERIFICATION',
           preferredLocale: 'es',
@@ -121,7 +122,7 @@ export const usersRouter = router({
 
       if (error) {
         // Roll back: delete the auth user to avoid orphaned auth records
-        await supabaseAdmin.auth.admin.deleteUser(inviteData.user.id);
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
       }
 
@@ -135,8 +136,16 @@ export const usersRouter = router({
         createdAt: new Date().toISOString(),
       });
 
-      // Welcome email via Resend (complementary notification)
-      sendWelcomeEmail({ to: input.email, firstName: input.firstName, role: input.role })
+      // 3. Generate activation link and send welcome email via Resend
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+      const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
+        email: input.email,
+        options: { redirectTo: `${appUrl}/dashboard` },
+      });
+      const activationLink = linkData?.properties?.action_link ?? `${appUrl}/login`;
+
+      sendWelcomeEmail({ to: input.email, firstName: input.firstName, role: input.role, activationLink })
         .catch((err: unknown) => console.error('[users.create] Welcome email failed:', err));
 
       return data;

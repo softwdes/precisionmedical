@@ -362,12 +362,23 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
           </div>
 
           {/* Top categories */}
-          {sidebarStats.topCategories.length > 0 && (
-            <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
-              <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">Top categorías</p>
-              {sidebarStats.topCategories.map(([cat, amount]) => {
-                const max = sidebarStats.topCategories[0]?.[1] ?? 1;
-                return (
+          {(() => {
+            const SAMPLE_CATS: [string, number][] = [
+              ['TRANSPORT',        245.50],
+              ['OFFICE',           180.00],
+              ['MEDICAL_SUPPLIES', 125.75],
+              ['UTILITIES',         98.20],
+            ];
+            const cats = sidebarStats.topCategories.length > 0 ? sidebarStats.topCategories : SAMPLE_CATS;
+            const isSample = sidebarStats.topCategories.length === 0;
+            const max = cats[0]?.[1] ?? 1;
+            return (
+              <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">Top categorías</p>
+                  {isSample && <span className="text-[9px] text-text-muted italic">ejemplo</span>}
+                </div>
+                {cats.map(([cat, amount]) => (
                   <div key={cat} className="space-y-1">
                     <div className="flex justify-between text-xs">
                       <span className="text-text-2 truncate pr-2">{CATEGORY_LABELS[cat] ?? cat}</span>
@@ -377,10 +388,10 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                       <div className="h-full rounded-full bg-brand" style={{ width: `${(amount / max) * 100}%` }} />
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Low balance alert */}
           {(kpis?.lowBoxes ?? []).length > 0 && (

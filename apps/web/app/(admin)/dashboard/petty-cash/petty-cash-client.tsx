@@ -98,7 +98,7 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
       acc[cat] = (acc[cat] ?? 0) + Math.abs(Number(t.amount));
       return acc;
     }, {} as Record<string, number>);
-    const topCategories = Object.entries(byCat).sort(([, a], [, b]) => b - a).slice(0, 4);
+    const topCategories = (Object.entries(byCat) as [string, number][]).sort(([, a], [, b]) => b - a).slice(0, 4);
     return { deposits, expenses, net: deposits - expenses, topCategories };
   }, [items]);
 

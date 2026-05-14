@@ -12,12 +12,15 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Label,
 } from '@precision/ui';
-import { Plus, Search, UserX } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
 
 type UsersListOutput = inferRouterOutputs<AppRouter>['users']['list'];
+type UserRow = UsersListOutput['users'][number];
+
+const PROTECTED_EMAIL = 'erick@precisionmedicalcare.com';
 
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
   ACTIVE: 'success', PENDING_VERIFICATION: 'warning', SUSPENDED: 'destructive', INACTIVE: 'secondary',
@@ -32,6 +35,8 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
 
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'),
@@ -58,10 +63,34 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
     { initialData: initial },
   );
 
-  const suspendUser = trpc.users.suspend.useMutation({
-    onSuccess: () => { toast.success(t('users.suspended')); void refetch(); },
+  const deleteUser = trpc.users.delete.useMutation({
+    onSuccess: () => { toast.success('Usuario eliminado'); setDeletingUser(null); void refetch(); },
     onError: (e) => toast.error(e.message),
   });
+
+  function ActionButtons({ user }: { user: UserRow }) {
+    const isProtected = user.email === PROTECTED_EMAIL;
+    return (
+      <div className="flex items-center gap-1">
+        <button
+          onClick={(e) => { e.stopPropagation(); setEditingUser(user); }}
+          className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+          title="Editar usuario"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        {!isProtected && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setDeletingUser(user); }}
+            className="p-1.5 rounded text-text-muted hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+            title="Eliminar usuario"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-4">
@@ -134,13 +163,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
                       <Badge variant={STATUS_COLORS[user.status] ?? 'secondary'}>{STATUS_LABELS[user.status as keyof typeof STATUS_LABELS] ?? user.status}</Badge>
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); suspendUser.mutate({ id: user.id }); }}
-                    className="p-1.5 text-text-muted hover:text-rose transition-colors shrink-0"
-                    title={t('users.suspend')}
-                  >
-                    <UserX className="h-4 w-4" />
-                  </button>
+                  <ActionButtons user={user} />
                 </div>
               ))}
             </div>
@@ -156,7 +179,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
                 <TableHead>{t('users.role')}</TableHead>
                 <TableHead>{t('common.status')}</TableHead>
                 <TableHead>{t('users.lastAccess')}</TableHead>
-                <TableHead className="w-10"></TableHead>
+                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -190,13 +213,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
                       {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES') : '—'}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => suspendUser.mutate({ id: user.id })}
-                        className="p-1 text-text-muted hover:text-rose transition-colors"
-                        title={t('users.suspend')}
-                      >
-                        <UserX className="h-4 w-4" />
-                      </button>
+                      <ActionButtons user={user} />
                     </TableCell>
                   </TableRow>
                 ))
@@ -218,12 +235,30 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
         </div>
       )}
 
-      {/* Create Dialog */}
+      {/* Dialogs */}
       <CreateUserDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); void refetch(); }} />
+
+      {editingUser && (
+        <EditUserDialog
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => { setEditingUser(null); void refetch(); }}
+        />
+      )}
+
+      {deletingUser && (
+        <DeleteConfirmDialog
+          user={deletingUser}
+          isPending={deleteUser.isPending}
+          onConfirm={() => deleteUser.mutate({ id: deletingUser.id })}
+          onClose={() => setDeletingUser(null)}
+        />
+      )}
     </div>
   );
 }
 
+// ─── Create Dialog ───────────────────────────────────────────────────────────
 function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({ email: '', firstName: '', lastName: '', role: 'EMPLOYEE' as const, phone: '' });
@@ -293,6 +328,141 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
             <Button type="submit" loading={create.isPending}>{t('users.createUser')}</Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Edit Dialog ─────────────────────────────────────────────────────────────
+function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: () => void; onSaved: () => void }): React.ReactElement {
+  const t = useTranslations();
+  const [form, setForm] = useState({
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role as 'SUPER_ADMIN' | 'ADMIN' | 'EMPLOYEE' | 'LAWYER' | 'PROVIDER' | 'AUDITOR_AI',
+    status: user.status as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION',
+    phone: user.phone ?? '',
+  });
+
+  const ROLE_LABELS = {
+    SUPER_ADMIN: t('users.roles.SUPER_ADMIN'), ADMIN: t('users.roles.ADMIN'),
+    EMPLOYEE: t('users.roles.EMPLOYEE'), LAWYER: t('users.roles.LAWYER'),
+    PROVIDER: t('users.roles.PROVIDER'), AUDITOR_AI: t('users.roles.AUDITOR_AI'),
+  };
+
+  const STATUS_LABELS = {
+    ACTIVE: t('users.statuses.ACTIVE'), INACTIVE: t('users.statuses.INACTIVE'),
+    SUSPENDED: t('users.statuses.SUSPENDED'), PENDING_VERIFICATION: t('users.statuses.PENDING_VERIFICATION'),
+  };
+
+  const update = trpc.users.update.useMutation({
+    onSuccess: () => { toast.success('Usuario actualizado'); onSaved(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleSubmit = (e: React.FormEvent): void => {
+    e.preventDefault();
+    update.mutate({ id: user.id, ...form });
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar usuario</DialogTitle>
+        </DialogHeader>
+        <div className="flex items-center gap-3 py-1 px-1">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
+            {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-text-1">{user.firstName} {user.lastName}</p>
+            <p className="text-xs text-text-3">{user.email}</p>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>{t('employees.firstName')}</Label>
+              <Input required value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.lastName')}</Label>
+              <Input required value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>{t('users.role')}</Label>
+              <Select value={form.role} onValueChange={(v) => setForm(f => ({ ...f, role: v as typeof form.role }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ROLE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('common.status')}</Label>
+              <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v as typeof form.status }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(STATUS_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('employees.phone')} <span className="text-text-muted font-normal">({t('common.optional')})</span></Label>
+            <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button type="submit" loading={update.isPending}>Guardar cambios</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Delete Confirm Dialog ────────────────────────────────────────────────────
+function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
+  user: UserRow;
+  isPending: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+}): React.ReactElement {
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-rose-500">Eliminar usuario</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-1">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
+              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-text-1">{user.firstName} {user.lastName}</p>
+              <p className="text-xs text-text-3">{user.email}</p>
+            </div>
+          </div>
+          <p className="text-sm text-text-2 leading-relaxed">
+            ¿Estás seguro de que deseas eliminar este usuario? Se eliminará su acceso al sistema y esta acción <strong className="text-text-1">no se puede deshacer</strong>.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>
+          <Button
+            disabled={isPending}
+            loading={isPending}
+            onClick={onConfirm}
+            style={{ background: '#f43f5e', color: '#fff' }}
+          >
+            Eliminar usuario
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -213,6 +213,41 @@ export const usersRouter = router({
       return data ?? [];
     }),
 
+  delete: superAdminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const { data: target, error: fetchError } = await supabaseAdmin
+        .from('users')
+        .select('id, email, role')
+        .eq('id', input.id)
+        .single();
+
+      if (fetchError || !target) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (target.email === 'erick@precisionmedicalcare.com') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Este usuario no puede ser eliminado' });
+      }
+
+      const { error } = await supabaseAdmin
+        .from('users')
+        .update({ deletedAt: new Date().toISOString() })
+        .eq('id', input.id);
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.auth.admin.deleteUser(input.id);
+
+      await supabaseAdmin.from('audit_logs').insert({
+        actorUserId: ctx.user.id,
+        actorRole: ctx.user.role,
+        action: 'user.deleted',
+        entityType: 'User',
+        entityId: input.id,
+        createdAt: new Date().toISOString(),
+      });
+
+      return { success: true };
+    }),
+
   suspend: superAdminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input, ctx }) => {

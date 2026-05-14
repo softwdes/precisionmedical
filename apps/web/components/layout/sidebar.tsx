@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { cn } from '@precision/ui';
 import {
@@ -13,7 +13,6 @@ import {
   BarChart3,
   Bot,
   Settings,
-  LogOut,
   ChevronLeft,
 } from 'lucide-react';
 
@@ -32,7 +31,6 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
-  const router = useRouter();
   const t = useTranslations();
 
   const NAV_MAIN: NavItem[] = [
@@ -53,12 +51,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
   const NAV_SYSTEM: NavItem[] = [
     { key: 'settings', href: '/dashboard/settings', icon: Settings, label: t('nav.settings') },
   ];
-
-  const handleLogout = async (): Promise<void> => {
-    await fetch('/api/auth/signout');
-    router.push('/login');
-    router.refresh();
-  };
 
   return (
     <>
@@ -120,16 +112,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
           </div>
         </nav>
 
-        {/* Logout */}
-        <div className="border-t border-border p-3">
-          <button
-            className="flex w-full items-center gap-3 rounded px-3 py-2 text-sm text-text-3 transition-colors hover:bg-surface hover:text-rose"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4" />
-            <span>{t('nav.logout') as string}</span>
-          </button>
-        </div>
       </aside>
     </>
   );

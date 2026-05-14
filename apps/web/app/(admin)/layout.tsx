@@ -43,6 +43,7 @@ export default async function AdminLayout({
       <AppLayout
         userName={`${user.firstName} ${user.lastName}`}
         userRole={roleLabels[user.role] ?? user.role}
+        userEmail={supabaseUser.email ?? ''}
         avatarUrl={user.avatarUrl ?? undefined}
       >
         {children}

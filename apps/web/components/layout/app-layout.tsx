@@ -11,6 +11,7 @@ interface AppLayoutProps {
   children: React.ReactNode;
   userName?: string;
   userRole?: string;
+  userEmail?: string;
   avatarUrl?: string;
 }
 
@@ -18,6 +19,7 @@ export function AppLayout({
   children,
   userName,
   userRole,
+  userEmail,
   avatarUrl,
 }: AppLayoutProps): React.ReactElement {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -38,6 +40,7 @@ export function AppLayout({
           onMenuClick={() => setSidebarOpen(true)}
           userName={userName}
           userRole={userRole}
+          userEmail={userEmail}
           avatarUrl={avatarUrl}
         />
 

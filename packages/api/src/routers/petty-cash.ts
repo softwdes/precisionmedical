@@ -6,6 +6,11 @@ import { sendLowBalanceEmail } from '../email';
 
 const TRANSACTION_CATEGORIES = ['MEDICAL_SUPPLIES', 'TRANSPORT', 'FOOD', 'OFFICE', 'UTILITIES', 'MAINTENANCE', 'OTHER'] as const;
 
+const EEUU_CLINICS = ['Provo', 'Pleasant Grove', 'Spanish Fork', 'West Valley', 'South Murray'] as const;
+function inferCountry(name: string): 'EEUU' | 'Bolivia' {
+  return (EEUU_CLINICS as readonly string[]).includes(name) ? 'EEUU' : 'Bolivia';
+}
+
 export const pettyCashRouter = router({
   listBoxes: protectedProcedure.query(async () => {
     const { data, error } = await supabaseAdmin
@@ -170,6 +175,115 @@ export const pettyCashRouter = router({
         }
       }
 
+      return tx;
+    }),
+
+  kpis: protectedProcedure.query(async () => {
+    const { data: boxes } = await supabaseAdmin
+      .from('cash_boxes')
+      .select('id, name, balance, lowBalanceThreshold, currency');
+    const safeBoxes = boxes ?? [];
+    const eeuuBoxes = safeBoxes.filter(b => (EEUU_CLINICS as readonly string[]).includes(b.name));
+    const boliviaBoxes = safeBoxes.filter(b => !(EEUU_CLINICS as readonly string[]).includes(b.name));
+    const total = safeBoxes.reduce((s, b) => s + Number(b.balance), 0);
+    const eeuu = eeuuBoxes.reduce((s, b) => s + Number(b.balance), 0);
+    const bolivia = boliviaBoxes.reduce((s, b) => s + Number(b.balance), 0);
+
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    const { data: expenses } = await supabaseAdmin
+      .from('cash_transactions').select('amount, category').eq('type', 'EXPENSE').gte('performedAt', monthStart);
+    const monthlyExpenses = (expenses ?? []).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+    const monthlyCount = expenses?.length ?? 0;
+    const lowBoxes = safeBoxes
+      .filter(b => Number(b.balance) < Number(b.lowBalanceThreshold))
+      .map(b => ({ name: b.name, balance: Number(b.balance), threshold: Number(b.lowBalanceThreshold) }));
+
+    return { total, eeuu, bolivia, monthlyExpenses, monthlyCount, lowBoxes, eeuuBoxCount: eeuuBoxes.length, boliviaBoxCount: boliviaBoxes.length };
+  }),
+
+  listMovements: protectedProcedure
+    .input(z.object({
+      country: z.enum(['all', 'EEUU', 'Bolivia']).default('all'),
+      clinicName: z.string().optional(),
+      type: z.enum(['all', 'DEPOSIT', 'EXPENSE']).default('all'),
+      month: z.string().optional(),
+      page: z.number().int().positive().default(1),
+      pageSize: z.number().int().positive().max(100).default(20),
+    }))
+    .query(async ({ input }) => {
+      const { country, clinicName, type, month, page, pageSize } = input;
+      const { data: allBoxes } = await supabaseAdmin.from('cash_boxes').select('id, name');
+      if (!allBoxes) return { items: [], total: 0, page, pageSize, totalPages: 0 };
+
+      let relevantBoxes = allBoxes;
+      if (country === 'EEUU') relevantBoxes = allBoxes.filter(b => (EEUU_CLINICS as readonly string[]).includes(b.name));
+      else if (country === 'Bolivia') relevantBoxes = allBoxes.filter(b => !(EEUU_CLINICS as readonly string[]).includes(b.name));
+      if (clinicName) relevantBoxes = relevantBoxes.filter(b => b.name === clinicName);
+
+      const boxIds = relevantBoxes.map(b => b.id);
+      if (boxIds.length === 0) return { items: [], total: 0, page, pageSize, totalPages: 0 };
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      let q = supabaseAdmin.from('cash_transactions').select('*', { count: 'exact' })
+        .in('cashBoxId', boxIds).order('performedAt', { ascending: false }).range(from, to);
+
+      if (type !== 'all') q = q.eq('type', type);
+      if (month) {
+        const [y, m] = month.split('-').map(Number);
+        q = q.gte('performedAt', new Date(y, m - 1, 1).toISOString())
+             .lte('performedAt', new Date(y, m, 0, 23, 59, 59).toISOString());
+      }
+      const { data, error, count } = await q;
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      const boxMap = Object.fromEntries(allBoxes.map(b => [b.id, b.name]));
+      const items = (data ?? []).map(tx => ({
+        ...tx,
+        clinicName: boxMap[tx.cashBoxId] ?? tx.cashBoxId,
+        country: inferCountry(boxMap[tx.cashBoxId] ?? ''),
+      }));
+      return { items, total: count ?? 0, page, pageSize, totalPages: Math.ceil((count ?? 0) / pageSize) };
+    }),
+
+  createMovement: adminProcedure
+    .input(z.object({
+      type: z.enum(['DEPOSIT', 'EXPENSE']),
+      clinicName: z.string().min(1),
+      amount: z.number().positive(),
+      currency: z.enum(['USD', 'BOB']),
+      category: z.string().min(1),
+      description: z.string().min(1),
+      date: z.string(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      let { data: box } = await supabaseAdmin.from('cash_boxes').select('id, balance, lowBalanceThreshold').eq('name', input.clinicName).single();
+      if (!box) {
+        const { data: nb, error: ce } = await supabaseAdmin.from('cash_boxes')
+          .insert({ name: input.clinicName, currency: input.currency, balance: 0, lowBalanceThreshold: 100, updatedAt: new Date().toISOString() })
+          .select('id, balance, lowBalanceThreshold').single();
+        if (ce || !nb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create cash box' });
+        box = nb;
+      }
+      const txAmount = input.type === 'DEPOSIT' ? input.amount : -input.amount;
+      const newBalance = Number(box.balance) + txAmount;
+      if (input.type === 'EXPENSE' && newBalance < 0) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Saldo insuficiente' });
+
+      const { data: tx, error } = await supabaseAdmin.from('cash_transactions')
+        .insert({ cashBoxId: box.id, type: input.type, amount: txAmount, category: input.category, description: input.description,
+          performedById: ctx.user.id, performedAt: new Date(input.date).toISOString(), createdAt: new Date().toISOString() })
+        .select().single();
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.from('cash_boxes').update({ balance: newBalance, updatedAt: new Date().toISOString() }).eq('id', box.id);
+
+      if (input.type === 'EXPENSE' && newBalance <= Number(box.lowBalanceThreshold)) {
+        await supabaseAdmin.from('notifications').insert({
+          userId: ctx.user.id, type: 'SYSTEM', title: 'Saldo bajo en caja chica',
+          body: `La caja "${input.clinicName}" tiene un saldo de $${newBalance.toFixed(2)} — por debajo del umbral mínimo`,
+          createdAt: new Date().toISOString(),
+        });
+      }
       return tx;
     }),
 

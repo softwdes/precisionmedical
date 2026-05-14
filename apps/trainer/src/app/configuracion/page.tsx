@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -432,8 +432,8 @@ export default function Configuracion() {
   const [tab, setTab] = useState<Tab>('ejercicios');
 
   const sb = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder'
   ), []);
 
   return (

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo, useActionState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -16,8 +16,8 @@ export default function PerfilPage() {
   const [state, action, isPending] = useActionState(updateTrainerProfile, null);
 
   const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder',
   ), []);
 
   useEffect(() => {

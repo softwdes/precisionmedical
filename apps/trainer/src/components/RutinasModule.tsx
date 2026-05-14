@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useMemo } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -200,8 +200,8 @@ interface Props {
 export default function RutinasModule({ initialTemplates, students, exercises, initialStudentId }: Props) {
   // ── Supabase client ──
   const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder'
   ), []);
 
   const [templates] = useState<RutinaTemplateRow[]>(initialTemplates);

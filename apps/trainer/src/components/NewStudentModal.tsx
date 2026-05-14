@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -86,8 +86,8 @@ export default function NewStudentModal() {
   const router = useRouter();
 
   const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder'
   ), []);
 
   useEffect(() => {

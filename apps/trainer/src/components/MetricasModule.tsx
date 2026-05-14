@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -870,8 +870,8 @@ function TabLogros({ alumnoId, logros }: { alumnoId: string; logros: Logro[] }) 
 
 export default function MetricasModule({ students, exercises, initialStudentId }: { students: Student[]; exercises: Exercise[]; initialStudentId?: string }) {
   const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder'
   ), []);
 
   const [selectedId, setSelectedId] = useState(initialStudentId ?? '');

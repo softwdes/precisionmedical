@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useTransition } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { signOut, updateTrainerProfile, updatePassword } from '@/actions/profile';
 import { getTrainerPagos, type TrainerPago } from '@/actions/pagos';
@@ -99,13 +99,18 @@ export default function UserMenu() {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  ), []);
+  const [supabase, setSupabase] = useState<ReturnType<typeof createBrowserClient> | null>(null);
+
+  useEffect(() => {
+    setSupabase(createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    ));
+  }, []);
 
   // Load profile on mount
   useEffect(() => {
+    if (!supabase) return;
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -193,6 +198,7 @@ export default function UserMenu() {
 
   async function openUpgradeModal() {
     setDropdownOpen(false);
+    if (!supabase) return;
     if (upgradePlanes.length === 0) {
       const { data } = await supabase
         .from('planes_saas')

@@ -27,17 +27,15 @@ const CATEGORY_LABELS: Record<string, string> = {
   CALACOTO:         'Calacoto',
   RECORDINGS:       'Grabaciones',
   MAINTENANCE:      'Limpieza',
-  OTHER:            'Otros',
   OFFICE:           'Papelería y oficina',
   UTILITIES:        'Servicios básicos',
   MEDICAL_SUPPLIES: 'Suministros médicos',
   TRANSPORT:        'Transporte',
   VIATICOS:         'Viáticos',
+  OTHER:            'Otros',
 };
 
-const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS)
-  .map(([value, label]) => ({ value, label }))
-  .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
 
 function getMonthOptions() {
   return Array.from({ length: 7 }, (_, i) => {

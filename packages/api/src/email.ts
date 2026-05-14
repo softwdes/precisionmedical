@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = 'LM Super Admin <onboarding@resend.dev>';
+const FROM = process.env.RESEND_FROM_EMAIL ?? 'LM Super Admin <onboarding@resend.dev>';
 
 function baseTemplate(content: string): string {
   return `<!DOCTYPE html>
@@ -54,8 +54,12 @@ export async function sendWelcomeEmail({
       <p style="margin:0 0 6px;color:#8888AA;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Tu rol asignado</p>
       <p style="margin:0;color:#6366F1;font-size:15px;font-weight:600;">${roleLabels[role] ?? role}</p>
     </div>
+    <p style="color:#8888AA;font-size:12px;margin:0 0 16px;line-height:1.6;">
+      Recibirás un segundo correo de invitación con un enlace para activar tu cuenta y configurar tu contraseña.
+      Si no lo ves en unos minutos, revisa tu carpeta de spam.
+    </p>
     <p style="color:#8888AA;font-size:12px;margin:0 0 20px;line-height:1.6;">
-      Recibirás las credenciales de acceso por separado. Si tienes alguna pregunta, contacta al administrador del sistema.
+      Si tienes alguna pregunta, contacta al administrador del sistema.
     </p>
     <div style="text-align:center;margin-top:8px;">
       <p style="color:#3D3D52;font-size:11px;margin:0;">Estado inicial: <span style="color:#F59E0B;">Pendiente de verificación</span></p>

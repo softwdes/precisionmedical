@@ -122,7 +122,16 @@ export const usersRouter = router({
         createdAt: new Date().toISOString(),
       });
 
-      void sendWelcomeEmail({ to: input.email, firstName: input.firstName, role: input.role }).catch(() => null);
+      // Create Supabase Auth user + send invitation email with activation link
+      const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(input.email, {
+        data: { firstName: input.firstName, lastName: input.lastName },
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/dashboard`,
+      });
+      if (inviteError) console.error('[users.create] Supabase invite failed:', inviteError.message);
+
+      // Welcome email via Resend (complementary notification)
+      sendWelcomeEmail({ to: input.email, firstName: input.firstName, role: input.role })
+        .catch((err: unknown) => console.error('[users.create] Welcome email failed:', err));
 
       return data;
     }),

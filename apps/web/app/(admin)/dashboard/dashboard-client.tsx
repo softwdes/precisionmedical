@@ -7,7 +7,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@precision/ui';
 import { cn } from '@precision/ui';
 import {
-  CalendarDays, Users, DollarSign,
+  CalendarDays, Users, DollarSign, Building2,
   Wallet, AlertTriangle, Download, Plus,
   TrendingUp, TrendingDown,
   Check, ArrowLeftRight, UserPlus, Zap, CreditCard,
@@ -25,6 +25,7 @@ const SPARK = {
   citas:     [38, 42, 40, 45, 42, 47, 47],
   pacientes: [2630, 2680, 2720, 2750, 2790, 2820, 2847],
   ingresos:  [220, 235, 240, 258, 268, 278, 284],
+  topClinic: [74, 78, 72, 81, 79, 85, 84],
 };
 
 const SAMPLE_ACTIVITIES_DATA = [
@@ -339,7 +340,20 @@ export function DashboardClient({
       trendUp: true,
       sub: t('revenueGoal'),
       spark: SPARK.ingresos,
-      href: '/dashboard/payments',
+      href: '/dashboard/employees?tab=pagos',
+    },
+    {
+      label: t('topClinic'),
+      value: '$84.2K',
+      icon: Building2,
+      color: '#6366F1',
+      bg: 'rgba(99,102,241,0.12)',
+      border: 'rgba(99,102,241,0.25)',
+      trend: '+11.3%',
+      trendUp: true,
+      sub: 'Provo · ' + t('vsLastMonth'),
+      spark: SPARK.topClinic,
+      href: '/dashboard/finanzas',
     },
   ];
 

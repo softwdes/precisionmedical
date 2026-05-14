@@ -1,0 +1,209 @@
+import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
+import { router, protectedProcedure, adminProcedure } from '../trpc';
+import { supabaseAdmin } from '../supabase-admin';
+import { sendLowBalanceEmail } from '../email';
+
+const TRANSACTION_CATEGORIES = ['MEDICAL_SUPPLIES', 'TRANSPORT', 'FOOD', 'OFFICE', 'UTILITIES', 'MAINTENANCE', 'OTHER'] as const;
+
+export const pettyCashRouter = router({
+  listBoxes: protectedProcedure.query(async () => {
+    const { data, error } = await supabaseAdmin
+      .from('cash_boxes')
+      .select('id, name, currency, balance, lowBalanceThreshold, updatedAt')
+      .order('name');
+
+    if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+    return data ?? [];
+  }),
+
+  getBox: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input }) => {
+      const { data, error } = await supabaseAdmin
+        .from('cash_boxes')
+        .select('*')
+        .eq('id', input.id)
+        .single();
+
+      if (error || !data) throw new TRPCError({ code: 'NOT_FOUND', message: 'Cash box not found' });
+      return data;
+    }),
+
+  listTransactions: protectedProcedure
+    .input(z.object({
+      cashBoxId: z.string(),
+      page: z.number().int().positive().default(1),
+      pageSize: z.number().int().positive().max(100).default(25),
+      type: z.enum(['DEPOSIT', 'EXPENSE', 'ADJUSTMENT']).optional(),
+      dateFrom: z.string().optional(),
+      dateTo: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const { cashBoxId, page, pageSize, type, dateFrom, dateTo } = input;
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      let query = supabaseAdmin
+        .from('cash_transactions')
+        .select('*', { count: 'exact' })
+        .eq('cashBoxId', cashBoxId)
+        .range(from, to)
+        .order('performedAt', { ascending: false });
+
+      if (type) query = query.eq('type', type);
+      if (dateFrom) query = query.gte('performedAt', dateFrom);
+      if (dateTo) query = query.lte('performedAt', dateTo);
+
+      const { data, error, count } = await query;
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      return {
+        items: data ?? [],
+        total: count ?? 0,
+        page,
+        pageSize,
+        totalPages: Math.ceil((count ?? 0) / pageSize),
+      };
+    }),
+
+  deposit: adminProcedure
+    .input(z.object({
+      cashBoxId: z.string(),
+      amount: z.number().positive(),
+      description: z.string().min(1),
+      receiptUrl: z.string().url().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { data: box } = await supabaseAdmin.from('cash_boxes').select('balance').eq('id', input.cashBoxId).single();
+      if (!box) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const newBalance = Number(box.balance) + input.amount;
+
+      const { data: tx, error } = await supabaseAdmin
+        .from('cash_transactions')
+        .insert({
+          cashBoxId: input.cashBoxId,
+          type: 'DEPOSIT',
+          amount: input.amount,
+          category: 'OTHER',
+          description: input.description,
+          receiptUrl: input.receiptUrl,
+          performedById: ctx.user.id,
+          performedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.from('cash_boxes').update({ balance: newBalance, updatedAt: new Date().toISOString() }).eq('id', input.cashBoxId);
+
+      return tx;
+    }),
+
+  expense: adminProcedure
+    .input(z.object({
+      cashBoxId: z.string(),
+      amount: z.number().positive(),
+      category: z.enum(TRANSACTION_CATEGORIES),
+      description: z.string().min(1),
+      receiptUrl: z.string().url(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { data: box } = await supabaseAdmin.from('cash_boxes').select('balance, lowBalanceThreshold').eq('id', input.cashBoxId).single();
+      if (!box) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (Number(box.balance) < input.amount) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Insufficient balance' });
+
+      const newBalance = Number(box.balance) - input.amount;
+
+      const { data: tx, error } = await supabaseAdmin
+        .from('cash_transactions')
+        .insert({
+          cashBoxId: input.cashBoxId,
+          type: 'EXPENSE',
+          amount: -input.amount,
+          category: input.category,
+          description: input.description,
+          receiptUrl: input.receiptUrl,
+          performedById: ctx.user.id,
+          performedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.from('cash_boxes').update({ balance: newBalance, updatedAt: new Date().toISOString() }).eq('id', input.cashBoxId);
+
+      if (newBalance <= Number(box.lowBalanceThreshold)) {
+        const { data: boxFull } = await supabaseAdmin
+          .from('cash_boxes')
+          .select('name, currency')
+          .eq('id', input.cashBoxId)
+          .single();
+
+        await supabaseAdmin.from('notifications').insert({
+          userId: ctx.user.id,
+          type: 'SYSTEM',
+          title: 'Saldo bajo en caja chica',
+          body: `La caja "${boxFull?.name ?? ''}" tiene un saldo de $${newBalance.toFixed(2)} — por debajo del umbral mínimo`,
+          createdAt: new Date().toISOString(),
+        });
+
+        const { data: actorUser } = await supabaseAdmin
+          .from('users')
+          .select('email')
+          .eq('id', ctx.user.id)
+          .single();
+
+        if (actorUser?.email) {
+          void sendLowBalanceEmail({
+            to: actorUser.email,
+            boxName: boxFull?.name ?? input.cashBoxId,
+            balance: newBalance,
+            threshold: Number(box.lowBalanceThreshold),
+            currency: boxFull?.currency ?? 'USD',
+          }).catch(() => null);
+        }
+      }
+
+      return tx;
+    }),
+
+  reverse: adminProcedure
+    .input(z.object({ transactionId: z.string(), reason: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      const { data: original } = await supabaseAdmin.from('cash_transactions').select('*').eq('id', input.transactionId).single();
+      if (!original) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const { data: box } = await supabaseAdmin.from('cash_boxes').select('balance').eq('id', original.cashBoxId).single();
+      if (!box) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const reverseAmount = -Number(original.amount);
+      const newBalance = Number(box.balance) + reverseAmount;
+
+      const { data: tx, error } = await supabaseAdmin
+        .from('cash_transactions')
+        .insert({
+          cashBoxId: original.cashBoxId,
+          type: original.type,
+          amount: reverseAmount,
+          category: original.category,
+          description: `REVERSAL: ${input.reason}`,
+          reversedById: input.transactionId,
+          performedById: ctx.user.id,
+          performedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.from('cash_boxes').update({ balance: newBalance, updatedAt: new Date().toISOString() }).eq('id', original.cashBoxId);
+      return tx;
+    }),
+});

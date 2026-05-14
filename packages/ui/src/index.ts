@@ -1,21 +1,61 @@
-/**
- * @precision/ui — Shared UI components & design system
- *
- * Based on "Clinical · Avant-Garde" design system:
- * - Dark-mode only, black pure background
- * - Mint electric accent (#3FF8C8)
- * - Serif (Playfair Display) for headlines + values
- * - Sans (Inter) in UPPERCASE with wide tracking for labels
- * - Rectangular aesthetics (2-4px radius max)
- */
+export { Button, buttonVariants } from './components/button';
+export type { ButtonProps } from './components/button';
 
-// Layout
-export { AppShell } from './components/app-shell';
-export { Sidebar } from './components/sidebar';
-export { Topbar } from './components/topbar';
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from './components/card';
 
-// Primitives
-export { Card } from './components/card';
-export { MetricCard } from './components/metric-card';
-export { Badge } from './components/badge';
-export { Button } from './components/button';
+export { Badge, badgeVariants } from './components/badge';
+export type { BadgeProps } from './components/badge';
+
+export { Input } from './components/input';
+export type { InputProps } from './components/input';
+
+export { Textarea } from './components/textarea';
+export type { TextareaProps } from './components/textarea';
+
+export { Label } from './components/label';
+
+export { PillToggle } from './components/pill-toggle';
+export type { PillOption } from './components/pill-toggle';
+
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectLabel,
+  SelectItem,
+  SelectSeparator,
+} from './components/select';
+
+export {
+  Dialog,
+  DialogTrigger,
+  DialogPortal,
+  DialogClose,
+  DialogOverlay,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from './components/dialog';
+
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableCaption,
+} from './components/table';
+
+export { cn } from './lib/utils';

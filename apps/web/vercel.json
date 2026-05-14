@@ -1,0 +1,6 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && pnpm --filter=@precision-medical/database db:generate && pnpm build --filter=@precision-medical/web",
+  "installCommand": "pnpm install",
+  "outputDirectory": ".next"
+}

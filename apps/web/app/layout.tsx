@@ -1,0 +1,77 @@
+import type { Metadata } from 'next';
+import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+import { cookies } from 'next/headers';
+import { ThemeProvider } from '@/components/providers/theme-provider';
+import { TRPCProvider } from '@/components/providers/trpc-provider';
+import { Toaster } from 'sonner';
+import './globals.css';
+
+const fontSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+});
+
+const fontMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-jetbrains',
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: {
+    template: '%s | LM Super Admin',
+    default: 'LM Super Admin · Precision Medical',
+  },
+  description: 'Centralized operations platform for Precision Medical',
+  robots: 'noindex,nofollow',
+  icons: {
+    icon: [{ url: '/icon', type: 'image/png', sizes: '32x32' }],
+    apple: [{ url: '/apple-icon', type: 'image/png', sizes: '180x180' }],
+    shortcut: '/icon',
+  },
+};
+
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}): Promise<React.ReactElement> {
+  const messages = await getMessages();
+  const cookieStore = await cookies();
+  const theme = (cookieStore.get('theme')?.value ?? 'dark') as 'dark' | 'light';
+
+  return (
+    <html
+      lang="es"
+      suppressHydrationWarning
+      data-theme={theme}
+      className={`${fontSans.variable} ${fontMono.variable}`}
+    >
+      <body className="font-sans antialiased">
+        <NextIntlClientProvider messages={messages}>
+          <TRPCProvider>
+            <ThemeProvider defaultTheme={theme}>
+              {children}
+              <Toaster
+                theme={theme}
+                position="bottom-right"
+                toastOptions={{
+                  style: {
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-strong)',
+                    color: 'var(--text-1)',
+                  },
+                }}
+              />
+            </ThemeProvider>
+          </TRPCProvider>
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  );
+}

@@ -96,9 +96,18 @@ export const usersRouter = router({
       const { data: existing } = await supabaseAdmin.from('users').select('id').eq('email', input.email).single();
       if (existing) throw new TRPCError({ code: 'CONFLICT', message: 'Email already exists' });
 
+      // 1. Create auth user via invitation — this sends the activation email and gives us the UUID
+      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(input.email, {
+        data: { firstName: input.firstName, lastName: input.lastName },
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/dashboard`,
+      });
+      if (inviteError) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Invite failed: ${inviteError.message}` });
+
+      // 2. Insert into users table using the Supabase Auth UUID as id
       const { data, error } = await supabaseAdmin
         .from('users')
         .insert({
+          id: inviteData.user.id,
           ...input,
           status: 'PENDING_VERIFICATION',
           preferredLocale: 'es',
@@ -110,7 +119,11 @@ export const usersRouter = router({
         .select()
         .single();
 
-      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      if (error) {
+        // Roll back: delete the auth user to avoid orphaned auth records
+        await supabaseAdmin.auth.admin.deleteUser(inviteData.user.id);
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      }
 
       await supabaseAdmin.from('audit_logs').insert({
         actorUserId: ctx.user.id,
@@ -121,13 +134,6 @@ export const usersRouter = router({
         after: { ...data, passwordHash: undefined },
         createdAt: new Date().toISOString(),
       });
-
-      // Create Supabase Auth user + send invitation email with activation link
-      const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(input.email, {
-        data: { firstName: input.firstName, lastName: input.lastName },
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/dashboard`,
-      });
-      if (inviteError) console.error('[users.create] Supabase invite failed:', inviteError.message);
 
       // Welcome email via Resend (complementary notification)
       sendWelcomeEmail({ to: input.email, firstName: input.firstName, role: input.role })

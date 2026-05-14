@@ -23,16 +23,21 @@ type Boxes = inferRouterOutputs<AppRouter>['pettyCash']['listBoxes'];
 const EEUU_CLINICS = ['Provo', 'Pleasant Grove', 'Spanish Fork', 'West Valley', 'South Murray'] as const;
 
 const CATEGORY_LABELS: Record<string, string> = {
-  MEDICAL_SUPPLIES: 'Suministros médicos',
-  OFFICE:           'Papelería y oficina',
-  MAINTENANCE:      'Limpieza',
   FOOD:             'Alimentación personal',
-  TRANSPORT:        'Transporte',
-  UTILITIES:        'Servicios básicos',
+  CALACOTO:         'Calacoto',
+  RECORDINGS:       'Grabaciones',
+  MAINTENANCE:      'Limpieza',
   OTHER:            'Otros',
+  OFFICE:           'Papelería y oficina',
+  UTILITIES:        'Servicios básicos',
+  MEDICAL_SUPPLIES: 'Suministros médicos',
+  TRANSPORT:        'Transporte',
+  VIATICOS:         'Viáticos',
 };
 
-const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
+const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS)
+  .map(([value, label]) => ({ value, label }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'es'));
 
 function getMonthOptions() {
   return Array.from({ length: 7 }, (_, i) => {
@@ -435,6 +440,7 @@ function NuevoMovimientoModal({
 
   useEffect(() => {
     setClinic(clinicOptions[0] ?? '');
+    setCurrency(country === 'Bolivia' ? 'BOB' : 'USD');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
@@ -447,7 +453,7 @@ function NuevoMovimientoModal({
     const errs: Record<string, string> = {};
     if (!amount || Number(amount) <= 0) errs.amount = 'El monto debe ser mayor a $0';
     if (!description.trim())            errs.description = 'La descripción es requerida';
-    if (!category)                      errs.category = 'Selecciona una categoría';
+    if (tipo === 'EXPENSE' && !category) errs.category = 'Selecciona una categoría';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -481,7 +487,7 @@ function NuevoMovimientoModal({
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setTipo('DEPOSIT')}
+                  onClick={() => { setTipo('DEPOSIT'); setCategory(''); }}
                   className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all cursor-pointer ${
                     isDeposit ? 'border-emerald-500 bg-emerald-500/[0.07]' : 'border-border hover:border-border/80'
                   }`}
@@ -515,17 +521,19 @@ function NuevoMovimientoModal({
               <p className="text-[11px] text-text-3">Los países se gestionan en Configuración → Sedes</p>
             </div>
 
-            {/* Field 3 — Clínica */}
-            <div className="space-y-1.5">
-              <Label>Clínica</Label>
-              <Select value={clinic} onValueChange={setClinic}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-text-3">Se carga automáticamente según el país</p>
-            </div>
+            {/* Field 3 — Clínica (solo EEUU) */}
+            {country === 'EEUU' && (
+              <div className="space-y-1.5">
+                <Label>Clínica</Label>
+                <Select value={clinic} onValueChange={setClinic}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-text-3">Se carga automáticamente según el país</p>
+              </div>
+            )}
 
             {/* Field 4 — Monto */}
             <div className="space-y-1.5">
@@ -548,8 +556,8 @@ function NuevoMovimientoModal({
               {errors.amount && <p className="text-xs text-rose-500">{errors.amount}</p>}
             </div>
 
-            {/* Field 5 — Categoría */}
-            <div className="space-y-1.5">
+            {/* Field 5 — Categoría (solo Gasto) */}
+            {!isDeposit && <div className="space-y-1.5">
               <Label>Categoría</Label>
               <Select value={category} onValueChange={v => { setCategory(v); setErrors(r => ({ ...r, category: '' })); }}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar categoría..." /></SelectTrigger>
@@ -558,7 +566,7 @@ function NuevoMovimientoModal({
                 </SelectContent>
               </Select>
               {errors.category && <p className="text-xs text-rose-500">{errors.category}</p>}
-            </div>
+            </div>}
 
             {/* Field 6 — Descripción */}
             <div className="space-y-1.5">

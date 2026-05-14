@@ -170,8 +170,8 @@ export default function LoginPage(): React.ReactElement {
             className="pm-glow-1"
             style={{
               position: 'absolute',
-              top: -120,
-              right: -140,
+              top: -160,
+              right: -100,
               width: 380,
               height: 380,
               borderRadius: '50%',

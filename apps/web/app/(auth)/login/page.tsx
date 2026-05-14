@@ -119,7 +119,7 @@ export default function LoginPage(): React.ReactElement {
             top: 0, left: 0, right: 0, bottom: 0,
             pointerEvents: 'none',
             zIndex: 0,
-            background: 'repeating-linear-gradient(180deg, transparent, transparent 39px, rgba(99,102,241,0.03) 40px)',
+            background: 'repeating-linear-gradient(180deg, transparent, transparent 39px, rgba(99,102,241,0.022) 40px)',
           }}
         />
 
@@ -131,8 +131,8 @@ export default function LoginPage(): React.ReactElement {
             pointerEvents: 'none',
             zIndex: 0,
             backgroundImage: [
-              'linear-gradient(rgba(99,102,241,0.045) 1px, transparent 1px)',
-              'linear-gradient(90deg, rgba(99,102,241,0.045) 1px, transparent 1px)',
+              'linear-gradient(rgba(99,102,241,0.032) 1px, transparent 1px)',
+              'linear-gradient(90deg, rgba(99,102,241,0.032) 1px, transparent 1px)',
             ].join(','),
             backgroundSize: '32px 32px',
           }}
@@ -148,19 +148,19 @@ export default function LoginPage(): React.ReactElement {
             height: 1,
             pointerEvents: 'none',
             zIndex: 0,
-            background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.12) 35%, rgba(6,182,212,0.12) 65%, transparent 100%)',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.08) 35%, rgba(6,182,212,0.08) 65%, transparent 100%)',
           }}
         />
 
         {/* ── Layer 5: Floating particles ── */}
-        <div style={{ position: 'absolute', top: '15%',  left: '10%',  width: 3, height: 3, borderRadius: '50%', background: 'rgba(99,102,241,0.60)', pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 3.0s ease-in-out infinite 0ms' }} />
-        <div style={{ position: 'absolute', top: '22%',  right: '14%', width: 2, height: 2, borderRadius: '50%', background: 'rgba(6,182,212,0.50)',   pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 2.5s ease-in-out infinite 400ms' }} />
-        <div style={{ position: 'absolute', top: '72%',  left: '7%',   width: 2, height: 2, borderRadius: '50%', background: 'rgba(139,92,246,0.50)',  pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 3.5s ease-in-out infinite 800ms' }} />
-        <div style={{ position: 'absolute', top: '65%',  right: '9%',  width: 3, height: 3, borderRadius: '50%', background: 'rgba(99,102,241,0.45)',  pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 4.0s ease-in-out infinite 1200ms' }} />
-        <div style={{ position: 'absolute', top: '38%',  left: '4%',   width: 2, height: 2, borderRadius: '50%', background: 'rgba(6,182,212,0.40)',   pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 2.8s ease-in-out infinite 1600ms' }} />
-        <div style={{ position: 'absolute', top: '85%',  right: '18%', width: 2, height: 2, borderRadius: '50%', background: 'rgba(99,102,241,0.35)',  pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 3.2s ease-in-out infinite 2000ms' }} />
-        <div style={{ position: 'absolute', top: '18%',  left: '30%',  width: 2, height: 2, borderRadius: '50%', background: 'rgba(16,185,129,0.35)',  pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 3.8s ease-in-out infinite 2400ms' }} />
-        <div style={{ position: 'absolute', top: '78%',  right: '35%', width: 3, height: 3, borderRadius: '50%', background: 'rgba(6,182,212,0.35)',   pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 2.6s ease-in-out infinite 2800ms' }} />
+        <div style={{ position: 'absolute', top: '15%',  left: '10%',  width: 3, height: 3, borderRadius: '50%', background: 'rgba(99,102,241,0.42)', pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 3.0s ease-in-out infinite 0ms' }} />
+        <div style={{ position: 'absolute', top: '22%',  right: '14%', width: 2, height: 2, borderRadius: '50%', background: 'rgba(6,182,212,0.35)',   pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 2.5s ease-in-out infinite 400ms' }} />
+        <div style={{ position: 'absolute', top: '72%',  left: '7%',   width: 2, height: 2, borderRadius: '50%', background: 'rgba(139,92,246,0.35)',  pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 3.5s ease-in-out infinite 800ms' }} />
+        <div style={{ position: 'absolute', top: '65%',  right: '9%',  width: 3, height: 3, borderRadius: '50%', background: 'rgba(99,102,241,0.32)',  pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 4.0s ease-in-out infinite 1200ms' }} />
+        <div style={{ position: 'absolute', top: '38%',  left: '4%',   width: 2, height: 2, borderRadius: '50%', background: 'rgba(6,182,212,0.28)',   pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 2.8s ease-in-out infinite 1600ms' }} />
+        <div style={{ position: 'absolute', top: '85%',  right: '18%', width: 2, height: 2, borderRadius: '50%', background: 'rgba(99,102,241,0.25)',  pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 3.2s ease-in-out infinite 2000ms' }} />
+        <div style={{ position: 'absolute', top: '18%',  left: '30%',  width: 2, height: 2, borderRadius: '50%', background: 'rgba(16,185,129,0.25)',  pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 3.8s ease-in-out infinite 2400ms' }} />
+        <div style={{ position: 'absolute', top: '78%',  right: '35%', width: 3, height: 3, borderRadius: '50%', background: 'rgba(6,182,212,0.25)',   pointerEvents: 'none', zIndex: 0, animation: 'particlePulse 2.6s ease-in-out infinite 2800ms' }} />
 
         {/* Content — glow anchor wrapper */}
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 480, overflow: 'visible' }}>
@@ -171,11 +171,11 @@ export default function LoginPage(): React.ReactElement {
             style={{
               position: 'absolute',
               top: -120,
-              right: -160,
-              width: 420,
-              height: 420,
+              right: -140,
+              width: 380,
+              height: 380,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(99,102,241,0.32) 0%, rgba(139,92,246,0.14) 40%, transparent 60%)',
+              background: 'radial-gradient(circle, rgba(99,102,241,0.20) 0%, rgba(139,92,246,0.08) 45%, transparent 65%)',
               pointerEvents: 'none',
               zIndex: 0,
             }}
@@ -185,11 +185,11 @@ export default function LoginPage(): React.ReactElement {
             style={{
               position: 'absolute',
               bottom: -120,
-              left: -160,
-              width: 360,
-              height: 360,
+              left: -140,
+              width: 320,
+              height: 320,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(6,182,212,0.22) 0%, transparent 60%)',
+              background: 'radial-gradient(circle, rgba(6,182,212,0.16) 0%, transparent 60%)',
               pointerEvents: 'none',
               zIndex: 0,
             }}
@@ -203,7 +203,7 @@ export default function LoginPage(): React.ReactElement {
               width: 500,
               height: 500,
               borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 65%)',
+              background: 'radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 65%)',
               pointerEvents: 'none',
               zIndex: 0,
             }}

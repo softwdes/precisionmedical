@@ -93,8 +93,17 @@ export const usersRouter = router({
       phone: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { data: existing } = await supabaseAdmin.from('users').select('id').eq('email', input.email).single();
-      if (existing) throw new TRPCError({ code: 'CONFLICT', message: 'Email already exists' });
+      // Block if an active (non-deleted) user already has this email
+      const { data: existingActive } = await supabaseAdmin
+        .from('users').select('id').eq('email', input.email).is('deletedAt', null).maybeSingle();
+      if (existingActive) throw new TRPCError({ code: 'CONFLICT', message: 'Email already exists' });
+
+      // Clean up any lingering soft-deleted record to free the UNIQUE constraint
+      const { data: existingDeleted } = await supabaseAdmin
+        .from('users').select('id').eq('email', input.email).not('deletedAt', 'is', null).maybeSingle();
+      if (existingDeleted) {
+        await supabaseAdmin.from('users').delete().eq('id', existingDeleted.id);
+      }
 
       // 1. Create auth user (no email sent by Supabase — we handle email via Resend)
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -229,7 +238,7 @@ export const usersRouter = router({
 
       const { error } = await supabaseAdmin
         .from('users')
-        .update({ deletedAt: new Date().toISOString() })
+        .delete()
         .eq('id', input.id);
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });

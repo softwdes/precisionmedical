@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, cn } from '@precision-medical/ui';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, cn } from '@precision/ui';
 import {
   ArrowLeft, Mail, Phone, MapPin, Briefcase, Calendar, DollarSign,
   FileText, Activity, Building2, UserCheck, CreditCard, Eye, EyeOff,

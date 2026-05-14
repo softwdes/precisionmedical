@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { Button, Input } from '@precision-medical/ui';
+import { Button, Input } from '@precision/ui';
 import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 

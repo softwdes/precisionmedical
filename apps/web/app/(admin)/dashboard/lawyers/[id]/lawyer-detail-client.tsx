@@ -9,7 +9,7 @@ import {
   Button, Badge, Label, Input,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@precision-medical/ui';
+} from '@precision/ui';
 import { ArrowLeft, Scale, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';

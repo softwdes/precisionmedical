@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@precision-medical/ui';
+} from '@precision/ui';
 import {
   ArrowLeft, Bot, Play, Pause, CheckCircle, XCircle, Cpu,
   DollarSign, Activity, MessageSquare, Settings2,

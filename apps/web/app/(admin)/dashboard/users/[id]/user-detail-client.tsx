@@ -8,7 +8,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Badge, Button, Card, CardContent, CardHeader, CardTitle, cn,
-} from '@precision-medical/ui';
+} from '@precision/ui';
 import {
   ArrowLeft, Mail, Phone, Shield, Clock, Monitor, Key,
   CheckCircle, XCircle, Activity,

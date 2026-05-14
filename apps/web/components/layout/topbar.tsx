@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { cn } from '@precision-medical/ui';
-import { PillToggle } from '@precision-medical/ui';
+import { cn } from '@precision/ui';
+import { PillToggle } from '@precision/ui';
 import { useTheme } from '@/components/providers/theme-provider';
 import { Bell, Search, Menu, Moon, Sun } from 'lucide-react';
 import { api as trpc } from '@/lib/trpc/client';

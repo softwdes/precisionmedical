@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Card, CardContent,
-} from '@precision-medical/ui';
+} from '@precision/ui';
 import { Plus, CheckCircle, RotateCcw, Clock, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';

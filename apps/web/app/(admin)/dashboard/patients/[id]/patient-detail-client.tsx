@@ -8,7 +8,7 @@ import { api as trpc } from '@/lib/trpc/client';
 import {
   Button, Badge,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@precision-medical/ui';
+} from '@precision/ui';
 import { ArrowLeft, Building2, CalendarDays, BadgeDollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';

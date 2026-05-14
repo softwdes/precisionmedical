@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@precision-medical/ui';
+} from '@precision/ui';
 import { ArrowLeft, Stethoscope, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';

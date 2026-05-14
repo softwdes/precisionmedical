@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Label, Input,
-} from '@precision-medical/ui';
+} from '@precision/ui';
 import {
   Plus, Bot, Play, Pause, ChevronRight, Cpu, DollarSign, Activity,
 } from 'lucide-react';

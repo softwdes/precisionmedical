@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { cn } from '@precision-medical/ui';
+import { cn } from '@precision/ui';
 import { X, Mic, MicOff, Send, Sparkles } from 'lucide-react';
 
 export function CifoChat(): React.ReactElement {

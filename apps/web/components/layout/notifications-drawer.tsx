@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import { Bell, X, Check, CheckCheck } from 'lucide-react';
-import { Button, cn } from '@precision-medical/ui';
+import { Button, cn } from '@precision/ui';
 
 const TYPE_ICONS: Record<string, string> = {
   LOW_BALANCE: '⚠️',

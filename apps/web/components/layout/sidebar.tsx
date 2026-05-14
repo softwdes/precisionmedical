@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { cn } from '@precision-medical/ui';
+import { cn } from '@precision/ui';
 import {
   LayoutDashboard,
   Users,

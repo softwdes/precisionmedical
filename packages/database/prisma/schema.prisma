@@ -949,6 +949,66 @@ model AgentConversation {
 }
 
 // =====================================================
+// 6B. FREELANCERS
+// =====================================================
+
+enum FreelancerModalidad {
+  POR_HORA
+  POR_SERVICIO
+}
+
+enum FreelancerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Freelancer {
+  id         String             @id @default(cuid())
+  nombre     String
+  email      String?
+  phone      String?
+  pais       String
+  modalidad  FreelancerModalidad
+  tarifaBase Decimal?           @db.Decimal(10, 2)
+  moneda     Currency           @default(USD)
+  status     FreelancerStatus   @default(ACTIVE)
+  notas      String?
+
+  payments   FreelancerPayment[]
+
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  deletedAt  DateTime?
+
+  @@index([status])
+  @@index([modalidad])
+  @@map("freelancers")
+}
+
+model FreelancerPayment {
+  id            String             @id @default(cuid())
+  freelancerId  String
+  freelancer    Freelancer         @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+
+  descripcion   String
+  modalidad     FreelancerModalidad
+  horas         Decimal?           @db.Decimal(8, 2)
+  tarifaHora    Decimal?           @db.Decimal(10, 2)
+  monto         Decimal            @db.Decimal(12, 2)
+  moneda        Currency           @default(USD)
+
+  fechaServicio DateTime           @db.Date
+  fechaPago     DateTime           @db.Date
+  notas         String?
+
+  createdAt     DateTime           @default(now())
+
+  @@index([freelancerId])
+  @@index([fechaPago])
+  @@map("freelancer_payments")
+}
+
+// =====================================================
 // 7. SYSTEM
 // =====================================================
 

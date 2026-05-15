@@ -11,12 +11,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@precision/ui';
-import { Plus, Search, ChevronRight, ChevronLeft, Trophy } from 'lucide-react';
+import { Plus, Search, ChevronRight, ChevronLeft, Trophy, Eye, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
 
 type EmployeesListOutput = inferRouterOutputs<AppRouter>['employees']['list'];
+type EmployeeListItem = EmployeesListOutput['items'][number];
 type Department = inferRouterOutputs<AppRouter>['departments']['list'][number];
 
 const TYPE_COLORS: Record<string, 'success' | 'info' | 'secondary'> = { FULL_TIME: 'success', EXTERNAL: 'info', CONTRACTOR: 'secondary' };
@@ -37,6 +38,8 @@ export function EmployeesClient({
   const [statusFilter, setStatusFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editEmp, setEditEmp] = useState<EmployeeListItem | null>(null);
+  const [deactivateEmp, setDeactivateEmp] = useState<EmployeeListItem | null>(null);
 
   const TYPE_LABELS = {
     FULL_TIME: t('employees.types.FULL_TIME'),
@@ -60,6 +63,15 @@ export function EmployeesClient({
     },
     { initialData: initial },
   );
+
+  const deactivate = trpc.employees.deactivate.useMutation({
+    onSuccess: () => {
+      toast.success(t('employees.deactivated'));
+      void refetch();
+      setDeactivateEmp(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   return (
     <div className="p-6 space-y-4">
@@ -117,8 +129,7 @@ export function EmployeesClient({
               {(data?.items ?? []).map((emp) => (
                 <div
                   key={emp.id}
-                  className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-surface/50 active:bg-surface transition-colors"
-                  onClick={() => router.push(`/dashboard/employees/${emp.id}`)}
+                  className="flex items-center gap-3 px-4 py-3.5"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/20 text-small font-bold text-brand shrink-0">
                     {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
@@ -131,7 +142,11 @@ export function EmployeesClient({
                       <Badge variant={STATUS_COLORS[emp.status] ?? 'secondary'}>{STATUS_LABELS[emp.status as keyof typeof STATUS_LABELS] ?? emp.status}</Badge>
                     </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-text-muted shrink-0" />
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <ActionButton icon={Eye} title={t('common.view')} onClick={() => router.push(`/dashboard/employees/${emp.id}`)} />
+                    <ActionButton icon={Pencil} title={t('common.edit')} onClick={() => setEditEmp(emp)} />
+                    <ActionButton icon={Trash2} title={t('employees.deactivate')} variant="danger" onClick={() => setDeactivateEmp(emp)} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -149,7 +164,7 @@ export function EmployeesClient({
                 <TableHead>{t('employees.type')}</TableHead>
                 <TableHead>{t('employees.status')}</TableHead>
                 <TableHead>{t('employees.salary')}</TableHead>
-                <TableHead className="w-8"></TableHead>
+                <TableHead className="w-32 text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -159,7 +174,7 @@ export function EmployeesClient({
                 </TableRow>
               ) : (
                 (data?.items ?? []).map((emp) => (
-                  <TableRow key={emp.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/employees/${emp.id}`)}>
+                  <TableRow key={emp.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/20 text-tiny font-bold text-brand shrink-0">
@@ -178,7 +193,13 @@ export function EmployeesClient({
                     <TableCell className="text-small text-text-2">
                       {emp.baseSalary ? `$${Number(emp.baseSalary).toLocaleString()} ${emp.baseCurrency}` : '—'}
                     </TableCell>
-                    <TableCell><ChevronRight className="h-4 w-4 text-text-muted" /></TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-0.5">
+                        <ActionButton icon={Eye} title={t('common.view')} onClick={() => router.push(`/dashboard/employees/${emp.id}`)} />
+                        <ActionButton icon={Pencil} title={t('common.edit')} onClick={() => setEditEmp(emp)} />
+                        <ActionButton icon={Trash2} title={t('employees.deactivate')} variant="danger" onClick={() => setDeactivateEmp(emp)} />
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -209,7 +230,72 @@ export function EmployeesClient({
         onCreated={() => { setShowCreate(false); void refetch(); }}
         departments={departments}
       />
+
+      {editEmp && (
+        <EditEmployeeDialog
+          key={editEmp.id}
+          employee={editEmp}
+          departments={departments}
+          onClose={() => setEditEmp(null)}
+          onUpdated={() => { setEditEmp(null); void refetch(); }}
+        />
+      )}
+
+      {deactivateEmp && (
+        <Dialog open onOpenChange={(o) => { if (!o) setDeactivateEmp(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{t('employees.deactivate')}</DialogTitle>
+            </DialogHeader>
+            <p className="text-small text-text-2">
+              {t('employees.deactivateConfirm')}
+            </p>
+            <p className="text-small font-semibold text-text-1">
+              {deactivateEmp.firstName} {deactivateEmp.lastName}
+            </p>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setDeactivateEmp(null)}>{t('common.cancel')}</Button>
+              <Button
+                variant="destructive"
+                loading={deactivate.isPending}
+                onClick={() => deactivate.mutate({ id: deactivateEmp.id })}
+              >
+                {t('employees.deactivate')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
+  );
+}
+
+// ─── Action Button ────────────────────────────────────────────────────────────
+
+function ActionButton({
+  icon: Icon,
+  title,
+  variant = 'default',
+  onClick,
+}: {
+  icon: React.ElementType;
+  title: string;
+  variant?: 'default' | 'danger';
+  onClick: () => void;
+}): React.ReactElement {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      className={[
+        'flex h-7 w-7 items-center justify-center rounded transition-colors',
+        variant === 'danger'
+          ? 'text-text-muted hover:text-destructive hover:bg-destructive/10'
+          : 'text-text-muted hover:text-text-1 hover:bg-border/60',
+      ].join(' ')}
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </button>
   );
 }
 
@@ -288,6 +374,8 @@ function TopPerformers() {
     </div>
   );
 }
+
+// ─── Create Employee Dialog ───────────────────────────────────────────────────
 
 function CreateEmployeeDialog({
   open, onClose, onCreated, departments,
@@ -432,6 +520,171 @@ function CreateEmployeeDialog({
             </Button>
           ) : (
             <Button onClick={handleSubmit} loading={create.isPending}>{t('employees.createEmployee')}</Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Edit Employee Dialog ─────────────────────────────────────────────────────
+
+function EditEmployeeDialog({
+  employee, departments, onClose, onUpdated,
+}: {
+  employee: EmployeeListItem; departments: Department[]; onClose: () => void; onUpdated: () => void;
+}): React.ReactElement {
+  const t = useTranslations();
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({
+    firstName: employee.firstName,
+    lastName: employee.lastName,
+    email: employee.email,
+    phone: employee.phone ?? '',
+    type: employee.type as 'FULL_TIME' | 'EXTERNAL' | 'CONTRACTOR',
+    departmentId: (employee.departmentId as string | null) ?? '',
+    position: employee.position,
+    startDate: employee.startDate ? new Date(employee.startDate).toISOString().split('T')[0]! : '',
+    countryId: (employee.countryId as string | null) ?? '',
+    baseSalary: employee.baseSalary ? String(employee.baseSalary) : '',
+    baseCurrency: (employee.baseCurrency ?? 'USD') as 'USD' | 'BOB' | 'PEN',
+    paymentMethod: 'BANK_TRANSFER' as 'BANK_TRANSFER' | 'CASH' | 'ZELLE' | 'WIRE' | 'OTHER',
+    bankAccount: '',
+  });
+
+  const update = trpc.employees.update.useMutation({
+    onSuccess: () => { toast.success(t('employees.updated')); onUpdated(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleSubmit = (): void => {
+    update.mutate({
+      id: employee.id,
+      data: {
+        ...form,
+        startDate: form.startDate ? new Date(form.startDate) : undefined,
+        baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
+        phone: form.phone || undefined,
+        bankAccount: form.bankAccount || undefined,
+      },
+    });
+  };
+
+  const f = (k: keyof typeof form, v: string): void => setForm(prev => ({ ...prev, [k]: v }));
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) { onClose(); setStep(1); } }}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{t('employees.editEmployeeStep', { step })}</DialogTitle>
+        </DialogHeader>
+
+        {/* Progress */}
+        <div className="flex gap-1.5 mb-2">
+          {[1, 2, 3].map((s) => (
+            <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? 'bg-brand' : 'bg-border'}`} />
+          ))}
+        </div>
+
+        {step === 1 && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label>{t('employees.firstName')} *</Label><Input required value={form.firstName} onChange={(e) => f('firstName', e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>{t('employees.lastName')} *</Label><Input required value={form.lastName} onChange={(e) => f('lastName', e.target.value)} /></div>
+            </div>
+            <div className="space-y-1.5"><Label>{t('employees.email')} *</Label><Input type="email" required value={form.email} onChange={(e) => f('email', e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>{t('employees.phone')}</Label><Input value={form.phone} onChange={(e) => f('phone', e.target.value)} /></div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>{t('employees.type')} *</Label>
+                <Select value={form.type} onValueChange={(v) => f('type', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FULL_TIME">{t('employees.types.FULL_TIME')}</SelectItem>
+                    <SelectItem value="EXTERNAL">{t('employees.types.EXTERNAL')}</SelectItem>
+                    <SelectItem value="CONTRACTOR">{t('employees.types.CONTRACTOR')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('employees.startDate')} *</Label>
+                <Input type="date" required value={form.startDate} onChange={(e) => f('startDate', e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.department')} *</Label>
+              <Select value={form.departmentId} onValueChange={(v) => f('departmentId', v)}>
+                <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
+                <SelectContent>
+                  {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>{t('employees.position')} *</Label><Input required value={form.position} onChange={(e) => f('position', e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.country')} *</Label>
+              <Select value={form.countryId} onValueChange={(v) => f('countryId', v)}>
+                <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="US">United States (USD)</SelectItem>
+                  <SelectItem value="BO">Bolivia (BOB)</SelectItem>
+                  <SelectItem value="PE">Peru (PEN)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label>{t('employees.baseSalary')}</Label><Input type="number" value={form.baseSalary} onChange={(e) => f('baseSalary', e.target.value)} /></div>
+              <div className="space-y-1.5">
+                <Label>{t('finance.currency')}</Label>
+                <Select value={form.baseCurrency} onValueChange={(v) => f('baseCurrency', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="BOB">BOB</SelectItem>
+                    <SelectItem value="PEN">PEN</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.paymentMethod')}</Label>
+              <Select value={form.paymentMethod} onValueChange={(v) => f('paymentMethod', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BANK_TRANSFER">{t('employees.bankTransfer')}</SelectItem>
+                  <SelectItem value="CASH">{t('employees.cash')}</SelectItem>
+                  <SelectItem value="ZELLE">Zelle</SelectItem>
+                  <SelectItem value="WIRE">Wire</SelectItem>
+                  <SelectItem value="OTHER">{t('employees.other')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>{t('employees.bankAccount')}</Label><Input value={form.bankAccount} onChange={(e) => f('bankAccount', e.target.value)} placeholder={t('employees.bankAccountPlaceholder')} /></div>
+          </div>
+        )}
+
+        <DialogFooter>
+          {step > 1 && <Button type="button" variant="ghost" onClick={() => setStep(s => s - 1)}>{t('common.back')}</Button>}
+          <Button type="button" variant="ghost" onClick={() => { onClose(); setStep(1); }}>{t('common.cancel')}</Button>
+          {step < 3 ? (
+            <Button type="button" onClick={() => setStep(s => s + 1)} disabled={
+              (step === 1 && (!form.firstName || !form.lastName || !form.email)) ||
+              (step === 2 && (!form.type || !form.startDate || !form.departmentId || !form.position || !form.countryId))
+            }>
+              {t('common.next')}
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} loading={update.isPending}>{t('common.save')}</Button>
           )}
         </DialogFooter>
       </DialogContent>

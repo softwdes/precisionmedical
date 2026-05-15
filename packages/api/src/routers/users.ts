@@ -50,7 +50,7 @@ export const usersRouter = router({
 
       let query = supabaseAdmin
         .from('users')
-        .select('id, email, firstName, lastName, avatarUrl, role, status, lastLoginAt, createdAt', { count: 'exact' })
+        .select('id, email, firstName, lastName, avatarUrl, role, status, phone, lastLoginAt, createdAt', { count: 'exact' })
         .is('deletedAt', null)
         .range(from, to)
         .order('createdAt', { ascending: false });

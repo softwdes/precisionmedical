@@ -13,38 +13,41 @@ export default function InvitePage(): React.ReactElement {
   useEffect(() => {
     const supabase = createClient();
 
-    // Supabase JS v2 automatically exchanges the hash token on init.
-    // We listen for the resulting auth event and redirect to set-password.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session) {
-        router.replace('/reset-password');
-      } else if (event === 'TOKEN_REFRESHED') {
-        router.replace('/reset-password');
-      }
-    });
+    // @supabase/ssr stores sessions in cookies — it does NOT auto-process hash tokens.
+    // We must parse the hash manually and call setSession() explicitly.
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
 
-    // Fallback: check if session is already present (e.g. hash processed before listener attached)
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        setErrorMsg('El enlace de activación no es válido o ha expirado.');
+    if (!accessToken || !refreshToken) {
+      // No tokens in hash — check if there's already a valid session (e.g. second visit)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          router.replace('/reset-password');
+        } else {
+          setErrorMsg('No se encontraron credenciales de activación. El enlace puede haber expirado.');
+          setStatus('error');
+        }
+      });
+      return;
+    }
+
+    // Exchange the hash tokens for a real cookie-based session
+    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(({ data, error }) => {
+        if (error || !data.session) {
+          setErrorMsg('El enlace de activación ha expirado o no es válido. Pide al administrador que cree el usuario nuevamente.');
+          setStatus('error');
+          return;
+        }
+        // Session established — redirect to set-password page
+        router.replace('/reset-password');
+      })
+      .catch(() => {
+        setErrorMsg('Ocurrió un error al procesar la invitación.');
         setStatus('error');
-        return;
-      }
-      if (session) {
-        router.replace('/reset-password');
-      }
-    });
-
-    // Timeout fallback — if nothing happens in 8s, show error
-    const timer = setTimeout(() => {
-      setErrorMsg('No se pudo procesar el enlace. Es posible que haya expirado.');
-      setStatus('error');
-    }, 8000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timer);
-    };
+      });
   }, [router]);
 
   return (
@@ -57,10 +60,6 @@ export default function InvitePage(): React.ReactElement {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0.4; }
         }
       `}</style>
 
@@ -83,7 +82,6 @@ export default function InvitePage(): React.ReactElement {
           fontFamily: '"Plus Jakarta Sans", -apple-system, system-ui, sans-serif',
         }}
       >
-        {/* Glows */}
         <div style={{ position: 'absolute', width: 380, height: 380, top: -100, right: -80, background: 'radial-gradient(circle, rgba(99,102,241,0.20) 0%, transparent 60%)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', width: 300, height: 300, bottom: -80, left: -100, background: 'radial-gradient(circle, rgba(6,182,212,0.14) 0%, transparent 60%)', pointerEvents: 'none' }} />
 
@@ -109,33 +107,25 @@ export default function InvitePage(): React.ReactElement {
           {/* Card */}
           <div
             style={{
-              width: 340,
-              maxWidth: '90vw',
+              width: 340, maxWidth: '90vw',
               background: 'rgba(15,21,36,0.75)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: 20,
-              padding: '2rem',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
+              border: `1px solid ${status === 'error' ? 'rgba(244,63,94,0.20)' : 'rgba(255,255,255,0.07)'}`,
+              borderRadius: 20, padding: '2rem',
+              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
               animation: 'fadeUp 600ms 150ms cubic-bezier(0.16, 1, 0.3, 1) both',
               textAlign: 'center',
             }}
           >
             {status === 'loading' ? (
               <>
-                {/* Spinner */}
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
                   <div style={{ position: 'relative', width: 52, height: 52 }}>
                     <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(99,102,241,0.15)' }} />
-                    <svg
-                      style={{ animation: 'spin 1s linear infinite', position: 'absolute', inset: 0 }}
-                      width="52" height="52" viewBox="0 0 52 52" fill="none"
-                    >
-                      <circle cx="26" cy="26" r="23" stroke="url(#grad)" strokeWidth="2" strokeLinecap="round" strokeDasharray="36 108" />
+                    <svg style={{ animation: 'spin 1s linear infinite', position: 'absolute', inset: 0 }} width="52" height="52" viewBox="0 0 52 52" fill="none">
+                      <circle cx="26" cy="26" r="23" stroke="url(#g)" strokeWidth="2" strokeLinecap="round" strokeDasharray="36 108" />
                       <defs>
-                        <linearGradient id="grad" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse">
-                          <stop stopColor="#6366F1" />
-                          <stop offset="1" stopColor="#06B6D4" />
+                        <linearGradient id="g" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+                          <stop stopColor="#6366F1" /><stop offset="1" stopColor="#06B6D4" />
                         </linearGradient>
                       </defs>
                     </svg>
@@ -150,7 +140,6 @@ export default function InvitePage(): React.ReactElement {
               </>
             ) : (
               <>
-                {/* Error icon */}
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
                   <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" strokeWidth="2" strokeLinecap="round">
@@ -158,21 +147,9 @@ export default function InvitePage(): React.ReactElement {
                     </svg>
                   </div>
                 </div>
-                <p style={{ color: '#F43F5E', fontWeight: 600, fontSize: 14, margin: '0 0 8px' }}>
-                  Enlace expirado
-                </p>
-                <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: '0 0 1.25rem' }}>
-                  {errorMsg}
-                </p>
-                <a
-                  href="/login"
-                  style={{
-                    display: 'inline-block',
-                    background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-                    color: 'white', fontWeight: 700, fontSize: 13,
-                    padding: '10px 24px', borderRadius: 10, textDecoration: 'none',
-                  }}
-                >
+                <p style={{ color: '#F43F5E', fontWeight: 600, fontSize: 14, margin: '0 0 8px' }}>Enlace expirado</p>
+                <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: '0 0 1.25rem' }}>{errorMsg}</p>
+                <a href="/login" style={{ display: 'inline-block', background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)', color: 'white', fontWeight: 700, fontSize: 13, padding: '10px 24px', borderRadius: 10, textDecoration: 'none' }}>
                   Ir al login
                 </a>
               </>

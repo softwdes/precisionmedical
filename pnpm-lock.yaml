@@ -340,6 +340,9 @@ importers:
       '@precision-medical/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.19.17
+        version: 22.19.17
       prisma:
         specifier: ^5.20.0
         version: 5.22.0

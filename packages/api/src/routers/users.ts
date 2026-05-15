@@ -150,7 +150,7 @@ export const usersRouter = router({
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'invite',
         email: input.email,
-        options: { redirectTo: `${appUrl}/dashboard` },
+        options: { redirectTo: `${appUrl}/auth/invite` },
       });
       if (linkError) console.error('[users.create] generateLink failed:', linkError.message);
 

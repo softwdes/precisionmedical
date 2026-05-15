@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState, useMemo, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Button, Input, Label,
@@ -22,7 +23,13 @@ type Boxes = inferRouterOutputs<AppRouter>['pettyCash']['listBoxes'];
 
 const EEUU_CLINICS = ['Provo', 'Pleasant Grove', 'Spanish Fork', 'West Valley', 'South Murray'] as const;
 
-const CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_KEYS = [
+  'FOOD', 'CALACOTO', 'RECORDINGS', 'MAINTENANCE', 'OFFICE',
+  'UTILITIES', 'MEDICAL_SUPPLIES', 'TRANSPORT', 'VIATICOS', 'OTHER',
+] as const;
+
+// Used only for CSV/PDF export output (always Spanish)
+const CATEGORY_LABELS_ES: Record<string, string> = {
   FOOD:             'Alimentación personal',
   CALACOTO:         'Calacoto',
   RECORDINGS:       'Grabaciones',
@@ -34,8 +41,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   VIATICOS:         'Viáticos',
   OTHER:            'Otros',
 };
-
-const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
 
 function getMonthOptions() {
   return Array.from({ length: 7 }, (_, i) => {
@@ -56,6 +61,7 @@ function fmtDate(iso: string) {
 }
 
 export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: Boxes; initialKpis: KPIs }) {
+  const t = useTranslations();
   const MONTH_OPTIONS = useMemo(() => getMonthOptions(), []);
 
   const [filterCountry, setFilterCountry] = useState<'all' | 'EEUU' | 'Bolivia'>('all');
@@ -93,22 +99,27 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
   const total      = movements?.total      ?? 0;
   const totalPages = movements?.totalPages ?? 1;
 
+  const getCategoryLabel = (key: string) =>
+    (CATEGORY_KEYS as readonly string[]).includes(key)
+      ? t(`pettyCash.categories.${key}`)
+      : key;
+
   const sidebarStats = useMemo(() => {
-    const deposits = items.filter(t => t.type === 'DEPOSIT').reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
-    const expenses  = items.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
-    const byCat = items.filter(t => t.type === 'EXPENSE').reduce((acc, t) => {
-      const cat = t.category ?? 'OTHER';
-      acc[cat] = (acc[cat] ?? 0) + Math.abs(Number(t.amount));
+    const deposits = items.filter(tx => tx.type === 'DEPOSIT').reduce((s, tx) => s + Math.abs(Number(tx.amount)), 0);
+    const expenses  = items.filter(tx => tx.type === 'EXPENSE').reduce((s, tx) => s + Math.abs(Number(tx.amount)), 0);
+    const byCat = items.filter(tx => tx.type === 'EXPENSE').reduce((acc, tx) => {
+      const cat = tx.category ?? 'OTHER';
+      acc[cat] = (acc[cat] ?? 0) + Math.abs(Number(tx.amount));
       return acc;
     }, {} as Record<string, number>);
     const topCategories = (Object.entries(byCat) as [string, number][]).sort(([, a], [, b]) => b - a).slice(0, 4);
     return { deposits, expenses, net: deposits - expenses, topCategories };
   }, [items]);
 
-  const monthLabel    = MONTH_OPTIONS.find(o => o.value === filterMonth)?.label ?? filterMonth;
-  const eeuuHealthy   = (kpis?.eeuu ?? 0) >= 100;
+  const monthLabel     = MONTH_OPTIONS.find(o => o.value === filterMonth)?.label ?? filterMonth;
+  const eeuuHealthy    = (kpis?.eeuu ?? 0) >= 100;
   const boliviaHealthy = (kpis?.bolivia ?? 0) >= 100;
-  const totalBoxCount = (kpis?.eeuuBoxCount ?? 0) + (kpis?.boliviaBoxCount ?? 0);
+  const totalBoxCount  = (kpis?.eeuuBoxCount ?? 0) + (kpis?.boliviaBoxCount ?? 0);
 
   // ── Export CSV ──
   const handleExportCSV = () => {
@@ -118,7 +129,7 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
       tx.country,
       tx.clinicName,
       tx.description,
-      CATEGORY_LABELS[tx.category ?? ''] ?? (tx.category ?? ''),
+      CATEGORY_LABELS_ES[tx.category ?? ''] ?? (tx.category ?? ''),
       `${Number(tx.amount) >= 0 ? '+' : ''}${Number(tx.amount).toFixed(2)}`,
     ]);
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -132,14 +143,13 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
 
   // ── Export PDF ──
   const handleExportPDF = () => {
-    const [y, m] = filterMonth.split('-');
     const rows = items.map(tx => `
       <tr>
         <td>${fmtDate(tx.performedAt)}</td>
         <td>${tx.country}</td>
         <td>${tx.clinicName}</td>
         <td>${tx.description}</td>
-        <td>${CATEGORY_LABELS[tx.category ?? ''] ?? (tx.category ?? '')}</td>
+        <td>${CATEGORY_LABELS_ES[tx.category ?? ''] ?? (tx.category ?? '')}</td>
         <td style="text-align:right;color:${Number(tx.amount) >= 0 ? '#16a34a' : '#dc2626'};font-family:monospace">
           ${Number(tx.amount) >= 0 ? '+' : ''}$${Math.abs(Number(tx.amount)).toFixed(2)}
         </td>
@@ -172,8 +182,8 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
       {/* ── Header ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-text-1">Caja Chica</h1>
-          <p className="text-sm text-text-3">Control de fondos · EEUU + Bolivia</p>
+          <h1 className="text-xl font-bold text-text-1">{t('pettyCash.title')}</h1>
+          <p className="text-sm text-text-3">{t('pettyCash.subtitle')}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5">
@@ -183,7 +193,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             <Download className="h-3.5 w-3.5" /> Excel
           </Button>
           <Button size="sm" onClick={() => setShowModal(true)} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" /> Nuevo movimiento
+            <Plus className="h-3.5 w-3.5" /> {t('pettyCash.newMovement')}
           </Button>
         </div>
       </div>
@@ -193,11 +203,11 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
 
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="flex items-start justify-between">
-            <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">Saldo total</p>
+            <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.totalBalance')}</p>
             <Wallet className="h-4 w-4 text-brand opacity-70" />
           </div>
           <p className="mt-2 text-2xl font-bold font-mono text-text-1">${fmt(kpis?.total ?? 0)}</p>
-          <p className="mt-1 text-xs text-text-3">{totalBoxCount} cajas · USD</p>
+          <p className="mt-1 text-xs text-text-3">{totalBoxCount} {t('pettyCash.registeredBoxes')} · USD</p>
         </div>
 
         <div className={`rounded-xl border p-4 ${eeuuHealthy ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-amber-400/30 bg-amber-400/5'}`}>
@@ -208,7 +218,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
           <p className={`mt-2 text-2xl font-bold font-mono ${eeuuHealthy ? 'text-emerald-500' : 'text-amber-400'}`}>
             ${fmt(kpis?.eeuu ?? 0)}
           </p>
-          <p className="mt-1 text-xs text-text-3">Mín: $100 · {eeuuHealthy ? 'Saludable' : '⚠ Bajo'}</p>
+          <p className="mt-1 text-xs text-text-3">{t('pettyCash.minBalance')}: $100 · {eeuuHealthy ? t('pettyCash.healthy') : t('pettyCash.lowStatus')}</p>
         </div>
 
         <div className={`rounded-xl border p-4 ${boliviaHealthy ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-amber-400/30 bg-amber-400/5'}`}>
@@ -219,16 +229,16 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
           <p className={`mt-2 text-2xl font-bold font-mono ${boliviaHealthy ? 'text-emerald-500' : 'text-amber-400'}`}>
             ${fmt(kpis?.bolivia ?? 0)}
           </p>
-          <p className="mt-1 text-xs text-text-3">Mín: $100 · {boliviaHealthy ? 'Saludable' : '⚠ Bajo'}</p>
+          <p className="mt-1 text-xs text-text-3">{t('pettyCash.minBalance')}: $100 · {boliviaHealthy ? t('pettyCash.healthy') : t('pettyCash.lowStatus')}</p>
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="flex items-start justify-between">
-            <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">Gastos {monthLabel}</p>
+            <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.monthlyExpensesLabel', { month: monthLabel })}</p>
             <TrendingDown className="h-4 w-4 text-rose-500 opacity-70" />
           </div>
           <p className="mt-2 text-2xl font-bold font-mono text-rose-500">${fmt(kpis?.monthlyExpenses ?? 0)}</p>
-          <p className="mt-1 text-xs text-text-3">{kpis?.monthlyCount ?? 0} transacciones</p>
+          <p className="mt-1 text-xs text-text-3">{kpis?.monthlyCount ?? 0} {t('pettyCash.transactions').toLowerCase()}</p>
         </div>
       </div>
 
@@ -243,7 +253,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             <Select value={filterCountry} onValueChange={handleCountryChange}>
               <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas las sedes</SelectItem>
+                <SelectItem value="all">{t('pettyCash.allSedes')}</SelectItem>
                 <SelectItem value="EEUU">🇺🇸 EEUU</SelectItem>
                 <SelectItem value="Bolivia">🇧🇴 Bolivia</SelectItem>
               </SelectContent>
@@ -252,7 +262,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             <Select value={filterClinic} onValueChange={handleClinicChange}>
               <SelectTrigger className="h-8 w-auto min-w-[155px] text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas las clínicas</SelectItem>
+                <SelectItem value="all">{t('pettyCash.allClinics')}</SelectItem>
                 {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -260,9 +270,9 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             <Select value={filterType} onValueChange={handleTypeChange}>
               <SelectTrigger className="h-8 w-auto min-w-[120px] text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="DEPOSIT">Depósitos</SelectItem>
-                <SelectItem value="EXPENSE">Gastos</SelectItem>
+                <SelectItem value="all">{t('pettyCash.allTypes')}</SelectItem>
+                <SelectItem value="DEPOSIT">{t('pettyCash.deposits')}</SelectItem>
+                <SelectItem value="EXPENSE">{t('pettyCash.expenses')}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -273,7 +283,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
               </SelectContent>
             </Select>
 
-            <span className="text-xs text-text-3 ml-auto">{total} registros</span>
+            <span className="text-xs text-text-3 ml-auto">{total} {t('pettyCash.records')}</span>
           </div>
 
           {/* Table */}
@@ -282,19 +292,19 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-[11px]">Fecha</TableHead>
-                    <TableHead className="text-[11px]">Sede</TableHead>
-                    <TableHead className="text-[11px]">Clínica</TableHead>
-                    <TableHead className="text-[11px]">Descripción</TableHead>
-                    <TableHead className="text-[11px]">Categoría</TableHead>
-                    <TableHead className="text-right text-[11px]">Monto</TableHead>
+                    <TableHead className="text-[11px]">{t('pettyCash.date')}</TableHead>
+                    <TableHead className="text-[11px]">{t('pettyCash.sedeHeader')}</TableHead>
+                    <TableHead className="text-[11px]">{t('pettyCash.clinicHeader')}</TableHead>
+                    <TableHead className="text-[11px]">{t('pettyCash.description')}</TableHead>
+                    <TableHead className="text-[11px]">{t('pettyCash.category')}</TableHead>
+                    <TableHead className="text-right text-[11px]">{t('common.amount')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-12 text-text-3 text-sm">
-                        Sin movimientos para los filtros seleccionados
+                        {t('pettyCash.noMovements')}
                       </TableCell>
                     </TableRow>
                   ) : items.map(tx => (
@@ -311,7 +321,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                             ? 'bg-emerald-500/10 text-emerald-500'
                             : 'bg-rose-500/10 text-rose-500'
                         }`}>
-                          {tx.type === 'DEPOSIT' ? 'Depósito' : 'Gasto'}
+                          {tx.type === 'DEPOSIT' ? t('pettyCash.typeDeposit') : t('pettyCash.typeExpense')}
                         </span>
                       </TableCell>
                       <TableCell className={`text-right font-mono text-xs font-semibold ${Number(tx.amount) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
@@ -326,13 +336,13 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
 
           {/* Pagination */}
           <div className="flex items-center justify-between text-xs text-text-3">
-            <span>Mostrando {items.length > 0 ? (page - 1) * 20 + 1 : 0}–{Math.min(page * 20, total)} de {total}</span>
+            <span>{t('pettyCash.showing', { from: items.length > 0 ? (page - 1) * 20 + 1 : 0, to: Math.min(page * 20, total), total })}</span>
             <div className="flex gap-1">
               <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
-                <ChevronLeft className="h-3 w-3" /> Ant
+                <ChevronLeft className="h-3 w-3" /> {t('common.previous')}
               </Button>
               <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                Sig <ChevronRight className="h-3 w-3" />
+                {t('common.next')} <ChevronRight className="h-3 w-3" />
               </Button>
             </div>
           </div>
@@ -343,18 +353,18 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
 
           {/* Monthly summary */}
           <div className="rounded-xl border border-border bg-surface p-4 space-y-2">
-            <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">Resumen {monthLabel}</p>
+            <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.summary', { month: monthLabel })}</p>
             <div className="flex justify-between text-xs py-0.5">
-              <span className="text-text-3">Total depósitos</span>
+              <span className="text-text-3">{t('pettyCash.totalDepositsLabel')}</span>
               <span className="font-mono text-emerald-500 font-semibold">+${fmt(sidebarStats.deposits)}</span>
             </div>
             <div className="flex justify-between text-xs py-0.5">
-              <span className="text-text-3">Total gastos</span>
+              <span className="text-text-3">{t('pettyCash.totalExpensesLabel')}</span>
               <span className="font-mono text-rose-500 font-semibold">-${fmt(sidebarStats.expenses)}</span>
             </div>
             <div className="h-px bg-border" />
             <div className="flex justify-between text-xs font-semibold pt-0.5">
-              <span className="text-text-2">Balance neto</span>
+              <span className="text-text-2">{t('pettyCash.netBalance')}</span>
               <span className={`font-mono ${sidebarStats.net >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                 {sidebarStats.net >= 0 ? '+' : ''}${fmt(sidebarStats.net)}
               </span>
@@ -375,13 +385,13 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             return (
               <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">Top categorías</p>
-                  {isSample && <span className="text-[9px] text-text-muted italic">ejemplo</span>}
+                  <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.topCategories')}</p>
+                  {isSample && <span className="text-[9px] text-text-muted italic">{t('pettyCash.sampleIndicator')}</span>}
                 </div>
                 {cats.map(([cat, amount]) => (
                   <div key={cat} className="space-y-1">
                     <div className="flex justify-between text-xs">
-                      <span className="text-text-2 truncate pr-2">{CATEGORY_LABELS[cat] ?? cat}</span>
+                      <span className="text-text-2 truncate pr-2">{getCategoryLabel(cat)}</span>
                       <span className="font-mono text-text-3 flex-shrink-0">${fmt(amount)}</span>
                     </div>
                     <div className="h-1 rounded-full bg-border overflow-hidden">
@@ -398,11 +408,9 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-                <p className="text-xs font-semibold text-amber-400">{kpis!.lowBoxes[0].name} · Saldo bajo</p>
+                <p className="text-xs font-semibold text-amber-400">{kpis!.lowBoxes[0].name} · {t('pettyCash.lowBalance')}</p>
               </div>
-              <p className="text-xs text-amber-300/80">
-                Saldo ${kpis!.lowBoxes[0].balance.toFixed(2)} está por debajo del mínimo de $100.
-              </p>
+              <p className="text-xs text-amber-300/80">{t('pettyCash.lowAlertDesc')}</p>
             </div>
           )}
         </div>
@@ -414,7 +422,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
           open={showModal}
           boxes={initialBoxes}
           onClose={() => setShowModal(false)}
-          onSuccess={() => { setShowModal(false); refetchAll(); toast.success('Movimiento registrado correctamente'); }}
+          onSuccess={() => { setShowModal(false); refetchAll(); toast.success(t('pettyCash.successMovement')); }}
         />
       )}
     </div>
@@ -432,6 +440,8 @@ function NuevoMovimientoModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const t = useTranslations();
+
   const [tipo,        setTipo]        = useState<'DEPOSIT' | 'EXPENSE'>('DEPOSIT');
   const [country,     setCountry]     = useState<'EEUU' | 'Bolivia'>('EEUU');
   const [clinic,      setClinic]      = useState('Provo');
@@ -442,6 +452,11 @@ function NuevoMovimientoModal({
   const [date,        setDate]        = useState(() => new Date().toISOString().split('T')[0]);
   const [errors,      setErrors]      = useState<Record<string, string>>({});
   const [lowWarn,     setLowWarn]     = useState(false);
+
+  const categoryOptions = useMemo(
+    () => CATEGORY_KEYS.map(key => ({ value: key, label: t(`pettyCash.categories.${key}`) })),
+    [t],
+  );
 
   const clinicOptions = country === 'EEUU'
     ? [...EEUU_CLINICS]
@@ -460,9 +475,9 @@ function NuevoMovimientoModal({
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!amount || Number(amount) <= 0) errs.amount = 'El monto debe ser mayor a $0';
-    if (!description.trim())            errs.description = 'La descripción es requerida';
-    if (tipo === 'EXPENSE' && !category) errs.category = 'Selecciona una categoría';
+    if (!amount || Number(amount) <= 0) errs.amount      = t('pettyCash.errAmount');
+    if (!description.trim())            errs.description = t('pettyCash.errDescription');
+    if (tipo === 'EXPENSE' && !category) errs.category   = t('pettyCash.errCategory');
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -486,13 +501,13 @@ function NuevoMovimientoModal({
     <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <div className="max-h-[80vh] overflow-y-auto pr-2 scroll-thin">
-          <DialogHeader><DialogTitle>Nuevo movimiento</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('pettyCash.newMovement')}</DialogTitle></DialogHeader>
 
           <div className="space-y-5 pt-4 pb-2">
 
-            {/* Field 1 — Tipo */}
+            {/* Tipo */}
             <div className="space-y-2">
-              <Label>Tipo de movimiento</Label>
+              <Label>{t('pettyCash.movementType')}</Label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -502,7 +517,7 @@ function NuevoMovimientoModal({
                   }`}
                 >
                   <ArrowDownCircle className={`h-6 w-6 ${isDeposit ? 'text-emerald-500' : 'text-text-3'}`} />
-                  <span className={`text-sm font-semibold ${isDeposit ? 'text-emerald-500' : 'text-text-2'}`}>Depósito</span>
+                  <span className={`text-sm font-semibold ${isDeposit ? 'text-emerald-500' : 'text-text-2'}`}>{t('pettyCash.deposit')}</span>
                 </button>
                 <button
                   type="button"
@@ -512,14 +527,14 @@ function NuevoMovimientoModal({
                   }`}
                 >
                   <ArrowUpCircle className={`h-6 w-6 ${!isDeposit ? 'text-rose-500' : 'text-text-3'}`} />
-                  <span className={`text-sm font-semibold ${!isDeposit ? 'text-rose-500' : 'text-text-2'}`}>Gasto</span>
+                  <span className={`text-sm font-semibold ${!isDeposit ? 'text-rose-500' : 'text-text-2'}`}>{t('pettyCash.expense')}</span>
                 </button>
               </div>
             </div>
 
-            {/* Field 2 — País / Sede */}
+            {/* País / Sede */}
             <div className="space-y-1.5">
-              <Label>País / Sede</Label>
+              <Label>{t('pettyCash.countryField')}</Label>
               <Select value={country} onValueChange={v => setCountry(v as 'EEUU' | 'Bolivia')}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -527,26 +542,26 @@ function NuevoMovimientoModal({
                   <SelectItem value="Bolivia">🇧🇴 Bolivia</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-text-3">Los países se gestionan en Configuración → Sedes</p>
+              <p className="text-[11px] text-text-3">{t('pettyCash.countryHint')}</p>
             </div>
 
-            {/* Field 3 — Clínica (solo EEUU) */}
+            {/* Clínica (solo EEUU) */}
             {country === 'EEUU' && (
               <div className="space-y-1.5">
-                <Label>Clínica</Label>
+                <Label>{t('pettyCash.clinicHeader')}</Label>
                 <Select value={clinic} onValueChange={setClinic}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-text-3">Se carga automáticamente según el país</p>
+                <p className="text-[11px] text-text-3">{t('pettyCash.clinicHint')}</p>
               </div>
             )}
 
-            {/* Field 4 — Monto */}
+            {/* Monto */}
             <div className="space-y-1.5">
-              <Label>Monto</Label>
+              <Label>{t('common.amount')}</Label>
               <div className="flex gap-2">
                 <Select value={currency} onValueChange={v => setCurrency(v as 'USD' | 'BOB')}>
                   <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
@@ -565,32 +580,34 @@ function NuevoMovimientoModal({
               {errors.amount && <p className="text-xs text-rose-500">{errors.amount}</p>}
             </div>
 
-            {/* Field 5 — Categoría (solo Gasto) */}
-            {!isDeposit && <div className="space-y-1.5">
-              <Label>Categoría</Label>
-              <Select value={category} onValueChange={v => { setCategory(v); setErrors(r => ({ ...r, category: '' })); }}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar categoría..." /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {errors.category && <p className="text-xs text-rose-500">{errors.category}</p>}
-            </div>}
+            {/* Categoría (solo Gasto) */}
+            {!isDeposit && (
+              <div className="space-y-1.5">
+                <Label>{t('pettyCash.category')}</Label>
+                <Select value={category} onValueChange={v => { setCategory(v); setErrors(r => ({ ...r, category: '' })); }}>
+                  <SelectTrigger><SelectValue placeholder={t('pettyCash.selectCategory')} /></SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {errors.category && <p className="text-xs text-rose-500">{errors.category}</p>}
+              </div>
+            )}
 
-            {/* Field 6 — Descripción */}
+            {/* Descripción */}
             <div className="space-y-1.5">
-              <Label>Descripción</Label>
+              <Label>{t('pettyCash.description')}</Label>
               <Input
-                placeholder="Ej: Compra de guantes y mascarillas..."
+                placeholder={t('pettyCash.descPlaceholder')}
                 value={description}
                 onChange={e => { setDescription(e.target.value); setErrors(r => ({ ...r, description: '' })); }}
               />
               {errors.description && <p className="text-xs text-rose-500">{errors.description}</p>}
             </div>
 
-            {/* Field 7 — Fecha */}
+            {/* Fecha */}
             <div className="space-y-1.5">
-              <Label>Fecha</Label>
+              <Label>{t('pettyCash.date')}</Label>
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
 
@@ -598,15 +615,13 @@ function NuevoMovimientoModal({
             {lowWarn && (
               <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3">
                 <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-400">
-                  ⚠ Este gasto dejará la caja por debajo del mínimo ($100). Puedes confirmar y guardar de todas formas.
-                </p>
+                <p className="text-xs text-amber-400">{t('pettyCash.lowWarnText')}</p>
               </div>
             )}
           </div>
 
           <DialogFooter className="pt-2">
-            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
             <Button
               disabled={create.isPending}
               onClick={handleSubmit}
@@ -614,7 +629,11 @@ function NuevoMovimientoModal({
                 ? { background: '#10b981', color: '#fff' }
                 : { background: '#f43f5e', color: '#fff' }}
             >
-              {create.isPending ? 'Guardando…' : isDeposit ? 'Registrar depósito' : 'Registrar gasto'}
+              {create.isPending
+                ? t('pettyCash.saving')
+                : isDeposit
+                  ? t('pettyCash.registerDeposit')
+                  : t('pettyCash.registerExpense')}
             </Button>
           </DialogFooter>
         </div>

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
@@ -94,10 +95,10 @@ export const employeesRouter = router({
       const { data, error } = await supabaseAdmin
         .from('employees')
         .insert({
+          id: randomUUID(),
           ...input,
           employeeCode,
           startDate: input.startDate.toISOString(),
-          createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         })
         .select()

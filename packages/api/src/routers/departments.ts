@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
@@ -19,7 +20,7 @@ export const departmentsRouter = router({
     .mutation(async ({ input }) => {
       const { data, error } = await supabaseAdmin
         .from('departments')
-        .insert({ ...input, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+        .insert({ id: randomUUID(), ...input })
         .select()
         .single();
 

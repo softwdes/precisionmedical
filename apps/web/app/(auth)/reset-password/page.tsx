@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 import { Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { api } from '@/lib/trpc/client';
 
 export default function ResetPasswordPage(): React.ReactElement {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function ResetPasswordPage(): React.ReactElement {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const activateSelf = api.users.activateSelf.useMutation();
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -38,6 +40,8 @@ export default function ResetPasswordPage(): React.ReactElement {
         setError('Unable to update password. The link may have expired.');
         return;
       }
+
+      await activateSelf.mutateAsync().catch(() => { /* non-critical */ });
 
       setDone(true);
       setTimeout(() => router.push('/dashboard'), 2500);

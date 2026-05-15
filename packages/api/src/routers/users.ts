@@ -257,6 +257,18 @@ export const usersRouter = router({
       return { success: true };
     }),
 
+  activateSelf: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      const { error } = await supabaseAdmin
+        .from('users')
+        .update({ status: 'ACTIVE', updatedAt: new Date().toISOString() })
+        .eq('id', ctx.user.id)
+        .eq('status', 'PENDING_VERIFICATION');
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return { success: true };
+    }),
+
   suspend: superAdminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input, ctx }) => {

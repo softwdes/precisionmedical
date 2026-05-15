@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Label,
 } from '@precision/ui';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, MailCheck, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -274,10 +274,41 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
 
   const create = trpc.users.create.useMutation({
     onSuccess: (result) => {
+      const initials = `${result.firstName.charAt(0)}${result.lastName.charAt(0)}`.toUpperCase();
       if (result.emailSent) {
-        toast.success(`${t('users.created')} — Correo de activación enviado a ${result.email}`);
+        toast.custom(() => (
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-2xl w-[360px]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-text-1">Usuario creado</p>
+              <p className="text-xs text-text-3 truncate">{result.firstName} {result.lastName}</p>
+              <p className="text-[10px] text-text-muted truncate">{result.email}</p>
+            </div>
+            <span className="flex items-center gap-1 shrink-0 text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2.5 py-1">
+              <MailCheck className="h-3 w-3" />
+              Correo enviado
+            </span>
+          </div>
+        ), { duration: 5000 });
       } else {
-        toast.warning(`${t('users.created')} — El correo de activación no pudo enviarse. Verifica la configuración de email.`);
+        toast.custom(() => (
+          <div className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-surface px-4 py-3 shadow-2xl w-[360px]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-text-1">Usuario creado</p>
+              <p className="text-xs text-text-3 truncate">{result.firstName} {result.lastName}</p>
+              <p className="text-[10px] text-amber-400 truncate">Correo no pudo enviarse</p>
+            </div>
+            <span className="flex items-center gap-1 shrink-0 text-[10px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-2.5 py-1">
+              <AlertTriangle className="h-3 w-3" />
+              Sin correo
+            </span>
+          </div>
+        ), { duration: 6000 });
       }
       onCreated();
     },

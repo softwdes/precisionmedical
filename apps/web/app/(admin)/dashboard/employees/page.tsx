@@ -9,9 +9,9 @@ import { ModuleTabs } from '@/components/module-tabs';
 export const metadata = { title: 'Empleados' };
 
 const TABS = [
-  { key: 'lista',        label: 'Lista',              href: '/dashboard/employees' },
-  { key: 'pagos',        label: 'Pagos de Salarios',  href: '/dashboard/employees?tab=pagos' },
-  { key: 'freelancers',  label: 'Freelancers',        href: '/dashboard/employees?tab=freelancers' },
+  { key: 'lista',       label: 'Empleados',          href: '/dashboard/employees' },
+  { key: 'freelancers', label: 'Freelancers',        href: '/dashboard/employees?tab=freelancers' },
+  { key: 'pagos',       label: 'Pagos de Salarios',  href: '/dashboard/employees?tab=pagos' },
 ];
 
 export default async function EmployeesPage({

@@ -42,9 +42,10 @@ export default function ResetPasswordPage(): React.ReactElement {
       }
 
       await activateSelf.mutateAsync().catch(() => { /* non-critical */ });
+      await supabase.auth.signOut();
 
       setDone(true);
-      setTimeout(() => router.push('/dashboard'), 2500);
+      setTimeout(() => router.push('/login'), 2500);
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -148,9 +149,9 @@ export default function ResetPasswordPage(): React.ReactElement {
                 <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', marginBottom: '1rem' }}>
                   <CheckCircle size={22} color="#10B981" />
                 </div>
-                <p style={{ color: '#F5F7FB', fontWeight: 700, fontSize: 15, margin: '0 0 8px' }}>Password updated</p>
+                <p style={{ color: '#F5F7FB', fontWeight: 700, fontSize: 15, margin: '0 0 8px' }}>Contraseña creada</p>
                 <p style={{ color: '#4A5474', fontSize: 12, lineHeight: 1.6, margin: 0 }}>
-                  Your password has been updated successfully. Redirecting to dashboard...
+                  Tu contraseña fue creada exitosamente. Redirigiendo al login...
                 </p>
               </div>
             ) : (

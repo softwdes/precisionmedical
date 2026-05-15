@@ -15,24 +15,26 @@ export default function LoginPage(): React.ReactElement {
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
 
+  // Detect invite/recovery tokens synchronously so we never render the form
+  const [tokenHandling] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const p = new URLSearchParams(window.location.hash.slice(1));
+    const type = p.get('type');
+    return !!(p.get('access_token') && (type === 'invite' || type === 'recovery'));
+  });
+
   useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (!hash) return;
-    const params = new URLSearchParams(hash);
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    const type = params.get('type');
-    if (accessToken && refreshToken && (type === 'invite' || type === 'recovery')) {
-      const supabase = createBrowserClient();
-      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(({ data, error }) => {
-          if (!error && data.session) {
-            router.replace('/reset-password');
-          }
-        })
-        .catch(() => { /* silent — user stays on login */ });
-    }
-  }, [router]);
+    if (!tokenHandling) return;
+    const p = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = p.get('access_token')!;
+    const refreshToken = p.get('refresh_token') ?? '';
+    const supabase = createBrowserClient();
+    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(({ data, error }) => {
+        if (!error && data.session) router.replace('/reset-password');
+      })
+      .catch(() => { /* silent — user stays on login */ });
+  }, [tokenHandling, router]);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -65,6 +67,23 @@ export default function LoginPage(): React.ReactElement {
       setLoading(false);
     }
   };
+
+  // Render a full-screen redirect screen instead of the login form
+  if (tokenHandling) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#060810', fontFamily: '"Plus Jakarta Sans", -apple-system, system-ui, sans-serif', gap: '1rem' }}>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <div style={{ position: 'relative', width: 52, height: 52 }}>
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(99,102,241,0.15)' }} />
+          <svg style={{ animation: 'spin 1s linear infinite', position: 'absolute', inset: 0 }} width="52" height="52" viewBox="0 0 52 52" fill="none">
+            <circle cx="26" cy="26" r="23" stroke="url(#g)" strokeWidth="2" strokeLinecap="round" strokeDasharray="36 108" />
+            <defs><linearGradient id="g" x1="0" y1="0" x2="52" y2="52" gradientUnits="userSpaceOnUse"><stop stopColor="#6366F1" /><stop offset="1" stopColor="#06B6D4" /></linearGradient></defs>
+          </svg>
+        </div>
+        <p style={{ color: '#4A5474', fontSize: 13, letterSpacing: '0.04em' }}>Activando cuenta...</p>
+      </div>
+    );
+  }
 
   return (
     <>

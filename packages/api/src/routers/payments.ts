@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
@@ -52,24 +53,34 @@ export const paymentsRouter = router({
   create: adminProcedure
     .input(createPaymentSchema)
     .mutation(async ({ input }) => {
-      const insertData: Record<string, unknown> = {
-        employeeId: input.employeeId,
-        period: input.period,
-        amountLocal: input.amountLocal,
-        currencyLocal: input.currencyLocal,
-        amountUsdEquiv: input.amountLocal,
-        rateApplied: 1,
-        scheduledDate: input.scheduledDate.toISOString(),
-        status: 'PENDING',
-        notes: input.notes,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      if (input.walletId) insertData.walletId = input.walletId;
+      // Resolve wallet: use provided walletId or look up by currency
+      let walletId = input.walletId;
+      if (!walletId) {
+        const { data: wallet } = await supabaseAdmin
+          .from('wallets')
+          .select('id')
+          .eq('currency', input.currencyLocal)
+          .single();
+        if (!wallet) throw new TRPCError({ code: 'NOT_FOUND', message: `No wallet found for currency ${input.currencyLocal}` });
+        walletId = wallet.id;
+      }
 
       const { data, error } = await supabaseAdmin
         .from('payments')
-        .insert(insertData)
+        .insert({
+          id: randomUUID(),
+          employeeId: input.employeeId,
+          walletId,
+          period: input.period,
+          amountLocal: input.amountLocal,
+          currencyLocal: input.currencyLocal,
+          amountUsdEquiv: input.amountLocal,
+          rateApplied: 1,
+          scheduledDate: input.scheduledDate.toISOString(),
+          status: 'PENDING',
+          notes: input.notes,
+          updatedAt: new Date().toISOString(),
+        })
         .select()
         .single();
 
@@ -111,8 +122,12 @@ export const paymentsRouter = router({
 
       if (!original) throw new TRPCError({ code: 'NOT_FOUND' });
 
-      const reversalData: Record<string, unknown> = {
+      if (!original.walletId) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Original payment has no wallet assigned' });
+
+      const reversalData = {
+        id: randomUUID(),
         employeeId: original.employeeId,
+        walletId: original.walletId,
         period: original.period,
         amountLocal: -Math.abs(Number(original.amountLocal)),
         currencyLocal: original.currencyLocal,
@@ -123,10 +138,8 @@ export const paymentsRouter = router({
         paidDate: new Date().toISOString(),
         notes: `REVERSAL: ${input.reason}`,
         reversedById: input.id,
-        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      if (original.walletId) reversalData.walletId = original.walletId;
 
       const { data: reversal, error } = await supabaseAdmin
         .from('payments')

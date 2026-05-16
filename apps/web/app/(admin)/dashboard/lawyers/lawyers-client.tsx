@@ -210,7 +210,7 @@ function CreateLawyerDialog({ open, onClose, onCreated }: { open: boolean; onClo
           {isFirm ? (
             <div className="space-y-1.5">
               <Label>{t('lawyers.firmName')} *</Label>
-              <Input value={form.firmName} onChange={(e) => f('firmName', e.target.value)} placeholder="Ej: Smith & Associates" />
+              <Input value={form.firmName} onChange={(e) => f('firmName', e.target.value)} placeholder={t('lawyers.firmNamePlaceholder')} />
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -226,7 +226,7 @@ function CreateLawyerDialog({ open, onClose, onCreated }: { open: boolean; onClo
           )}
           <div className="space-y-1.5">
             <Label>{t('lawyers.email')} *</Label>
-            <Input type="email" value={form.email} onChange={(e) => f('email', e.target.value)} placeholder="abogado@firma.com" />
+            <Input type="email" value={form.email} onChange={(e) => f('email', e.target.value)} placeholder={t('lawyers.emailPlaceholder')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

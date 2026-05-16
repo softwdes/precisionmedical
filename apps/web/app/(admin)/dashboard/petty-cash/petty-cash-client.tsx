@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useState, useMemo, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Button, Input, Label,
@@ -42,12 +42,12 @@ const CATEGORY_LABELS_ES: Record<string, string> = {
   OTHER:            'Otros',
 };
 
-function getMonthOptions() {
+function getMonthOptions(locale: string) {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    const label = d.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
     return { value, label: label.charAt(0).toUpperCase() + label.slice(1) };
   });
 }
@@ -56,13 +56,14 @@ function fmt(amount: number) {
   return Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+function fmtDate(iso: string, locale: string) {
+  return new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: 'short' });
 }
 
 export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: Boxes; initialKpis: KPIs }) {
   const t = useTranslations();
-  const MONTH_OPTIONS = useMemo(() => getMonthOptions(), []);
+  const locale = useLocale();
+  const MONTH_OPTIONS = useMemo(() => getMonthOptions(locale), [locale]);
 
   const [filterCountry, setFilterCountry] = useState<'all' | 'EEUU' | 'Bolivia'>('all');
   const [filterClinic,  setFilterClinic]  = useState('all');
@@ -125,7 +126,7 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
   const handleExportCSV = () => {
     const headers = ['Fecha', 'Sede', 'Clínica', 'Descripción', 'Categoría', 'Monto'];
     const rows = items.map(tx => [
-      fmtDate(tx.performedAt),
+      fmtDate(tx.performedAt, locale),
       tx.country,
       tx.clinicName,
       tx.description,
@@ -145,7 +146,7 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
   const handleExportPDF = () => {
     const rows = items.map(tx => `
       <tr>
-        <td>${fmtDate(tx.performedAt)}</td>
+        <td>${fmtDate(tx.performedAt, locale)}</td>
         <td>${tx.country}</td>
         <td>${tx.clinicName}</td>
         <td>${tx.description}</td>
@@ -309,7 +310,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                        <span className="text-[10px] text-text-3">{fmtDate(tx.performedAt)}</span>
+                        <span className="text-[10px] text-text-3">{fmtDate(tx.performedAt, locale)}</span>
                         <span className="text-[10px] text-text-muted">·</span>
                         <span className="text-[10px] text-text-3">{tx.country === 'EEUU' ? '🇺🇸' : '🇧🇴'} {tx.clinicName}</span>
                         {tx.category && (
@@ -349,7 +350,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                     </TableRow>
                   ) : items.map(tx => (
                     <TableRow key={tx.id}>
-                      <TableCell className="text-xs text-text-3 whitespace-nowrap">{fmtDate(tx.performedAt)}</TableCell>
+                      <TableCell className="text-xs text-text-3 whitespace-nowrap">{fmtDate(tx.performedAt, locale)}</TableCell>
                       <TableCell className="text-xs text-text-2 whitespace-nowrap">
                         {tx.country === 'EEUU' ? '🇺🇸 EEUU' : '🇧🇴 Bolivia'}
                       </TableCell>

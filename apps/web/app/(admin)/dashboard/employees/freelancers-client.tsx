@@ -854,7 +854,7 @@ function PaymentsHistoryDialog({
         </DialogHeader>
 
         {isLoading ? (
-          <div className="py-8 text-center text-small text-text-3">Cargando...</div>
+          <div className="py-8 text-center text-small text-text-3">{t('common.loading')}</div>
         ) : payments.length === 0 ? (
           <div className="py-8 text-center text-small text-text-muted">{t('freelancers.noPayments')}</div>
         ) : (

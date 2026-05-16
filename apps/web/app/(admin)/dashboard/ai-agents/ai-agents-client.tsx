@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Button, Badge,
@@ -91,25 +91,26 @@ function fmt2(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
-function fmtTime(iso: string): string {
+function fmtTime(iso: string, locale: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
-function fmtRelative(iso: string): string {
+type TFn = (key: string, values?: Record<string, number>) => string;
+function fmtRelative(iso: string, t: TFn): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'hace un momento';
-  if (mins < 60) return `hace ${mins} min`;
+  if (mins < 1) return t('aiAgents.justNow');
+  if (mins < 60) return t('aiAgents.minsAgo', { n: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `hace ${hrs}h`;
-  return `hace ${Math.floor(hrs / 24)}d`;
+  if (hrs < 24) return t('aiAgents.hoursAgo', { n: hrs });
+  return t('aiAgents.daysAgo', { n: Math.floor(hrs / 24) });
 }
 
-function fmtMonth(dateStr: string): string {
+function fmtMonth(dateStr: string, locale: string): string {
   const [year, month] = dateStr.split('-');
   const d = new Date(Number(year), Number(month) - 1, 1);
-  return d.toLocaleDateString('es', { month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
 }
 
 function daysSince(iso: string | null): number {
@@ -328,6 +329,7 @@ function DashboardTab({
   budget: number;
 }): React.ReactElement {
   const t = useTranslations();
+  const locale = useLocale();
 
   const pendingCount = allFindings.filter(f => f.status === 'pending').length;
   const criticalCount = allFindings.filter(f => f.status === 'pending' && f.severity === 'critical').length;
@@ -531,7 +533,7 @@ function DashboardTab({
           <p className="text-small font-semibold text-text-1">{t('aiAgents.lastAuditTitle')}</p>
           {lastRun?.completed_at ? (
             <span className="font-mono text-tiny text-text-muted">
-              Hoy {fmtTime(lastRun.completed_at)}
+              {t('dashboard.today')} {fmtTime(lastRun.completed_at, locale)}
             </span>
           ) : (
             <span className="text-tiny text-text-muted">{t('aiAgents.noAuditYet')}</span>
@@ -571,6 +573,7 @@ function DashboardTab({
 // ─── Finding pill (small) ────────────────────────────────────
 
 function FindingPill({ finding }: { finding: AuditFinding }): React.ReactElement {
+  const t = useTranslations();
   const borderColor = finding.severity === 'critical' ? 'rgba(244,63,94,0.4)' : 'rgba(245,158,11,0.4)';
   const textColor = finding.severity === 'critical' ? 'text-rose' : 'text-amber';
   return (
@@ -582,7 +585,7 @@ function FindingPill({ finding }: { finding: AuditFinding }): React.ReactElement
         <span className={`text-[10px] font-bold uppercase tracking-wider ${textColor}`}>
           {finding.severity === 'critical' ? 'CRÍTICO' : 'ADVERTENCIA'}
         </span>
-        <span className="text-tiny text-text-muted font-mono">{fmtRelative(finding.created_at)}</span>
+        <span className="text-tiny text-text-muted font-mono">{fmtRelative(finding.created_at, t)}</span>
       </div>
       <p className="text-tiny text-text-2 line-clamp-1">{finding.description}</p>
     </div>
@@ -687,6 +690,7 @@ function AuditAgentTab({
   onScanComplete: () => void;
 }): React.ReactElement {
   const t = useTranslations();
+  const locale = useLocale();
 
   const [local, setLocal] = useState<{
     modeSurveillance: boolean;
@@ -925,17 +929,17 @@ function AuditAgentTab({
             <table className="w-full text-small">
               <thead>
                 <tr className="border-b border-border bg-surface/60">
-                  <th className="text-left px-3 py-2 text-tiny text-text-muted font-medium">Inicio</th>
-                  <th className="text-left px-3 py-2 text-tiny text-text-muted font-medium">Tipo</th>
-                  <th className="text-left px-3 py-2 text-tiny text-text-muted font-medium">Hallazgos</th>
-                  <th className="text-right px-3 py-2 text-tiny text-text-muted font-medium">Estado</th>
+                  <th className="text-left px-3 py-2 text-tiny text-text-muted font-medium">{t('aiAgents.colStart')}</th>
+                  <th className="text-left px-3 py-2 text-tiny text-text-muted font-medium">{t('common.type')}</th>
+                  <th className="text-left px-3 py-2 text-tiny text-text-muted font-medium">{t('aiAgents.findingsTab')}</th>
+                  <th className="text-right px-3 py-2 text-tiny text-text-muted font-medium">{t('common.status')}</th>
                 </tr>
               </thead>
               <tbody>
                 {runs.slice(0, 8).map((run) => (
                   <tr key={run.id} className="border-b border-border last:border-0">
                     <td className="px-3 py-2 font-mono text-tiny text-text-2">
-                      {new Date(run.started_at).toLocaleDateString('es', { day: '2-digit', month: 'short' })} {fmtTime(run.started_at)}
+                      {new Date(run.started_at).toLocaleDateString(locale, { day: '2-digit', month: 'short' })} {fmtTime(run.started_at, locale)}
                     </td>
                     <td className="px-3 py-2 text-tiny text-text-3 capitalize">{run.triggered_by}</td>
                     <td className="px-3 py-2 text-tiny">
@@ -955,7 +959,7 @@ function AuditAgentTab({
           </div>
         )}
         {showHistory && runs.length === 0 && (
-          <p className="text-tiny text-text-muted text-center py-4">Sin ejecuciones registradas</p>
+          <p className="text-tiny text-text-muted text-center py-4">{t('aiAgents.noRunsYet')}</p>
         )}
       </div>
 
@@ -984,7 +988,7 @@ function AuditAgentTab({
           <p className="text-small text-text-3 leading-relaxed">{t('aiAgents.semiAutoConfirmBody')}</p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowSemiConfirm(false)}>{t('common.cancel')}</Button>
-            <Button onClick={confirmSemi}>Activar</Button>
+            <Button onClick={confirmSemi}>{t('aiAgents.activate')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -997,7 +1001,7 @@ function AuditAgentTab({
           </DialogHeader>
           <div className="space-y-3 text-small text-text-3">
             <div className="rounded-lg border border-emerald/25 bg-emerald/8 p-3">
-              <p className="font-semibold text-emerald mb-2">El agente PUEDE hacer automáticamente:</p>
+              <p className="font-semibold text-emerald mb-2">{t('aiAgents.agentCanDo')}</p>
               <ul className="space-y-1 text-text-2 text-tiny">
                 <li>• Crear hallazgos y enviar notificaciones</li>
                 <li>• Marcar pagos duplicados como revisados</li>
@@ -1005,7 +1009,7 @@ function AuditAgentTab({
               </ul>
             </div>
             <div className="rounded-lg border border-rose/25 bg-rose/8 p-3">
-              <p className="font-semibold text-rose mb-2">El agente NO puede:</p>
+              <p className="font-semibold text-rose mb-2">{t('aiAgents.agentCannotDo')}</p>
               <ul className="space-y-1 text-text-2 text-tiny">
                 <li>• Eliminar o modificar pagos</li>
                 <li>• Cambiar configuraciones del sistema</li>
@@ -1209,7 +1213,7 @@ function FindingCard({
               {MODULE_LABELS[finding.module] ?? finding.module.toUpperCase()}
             </span>
             <span className="ml-auto font-mono text-tiny text-text-muted">
-              {fmtRelative(finding.created_at)}
+              {fmtRelative(finding.created_at, t)}
             </span>
           </div>
 
@@ -1268,7 +1272,7 @@ function FindingCard({
 
           {isResolved && (
             <p className="text-tiny text-text-muted italic">
-              {finding.status === 'resolved' ? '✓ Resuelto' : '— Ignorado'}{finding.resolved_at ? ` · ${fmtRelative(finding.resolved_at)}` : ''}
+              {finding.status === 'resolved' ? t('aiAgents.resolvedLabel') : t('aiAgents.ignoredLabel')}{finding.resolved_at ? ` · ${fmtRelative(finding.resolved_at, t)}` : ''}
             </p>
           )}
         </div>
@@ -1357,7 +1361,7 @@ function CostosTab({
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-tiny">
-              <span className="text-text-muted">Total</span>
+              <span className="text-text-muted">{t('common.total')}</span>
               <span className="font-mono font-semibold text-text-1">{fmt2(costs?.cifoMonthCost ?? 0)}</span>
             </div>
             <div className="flex justify-between text-tiny">
@@ -1383,7 +1387,7 @@ function CostosTab({
           </div>
           <div className="space-y-2">
             <div className="flex justify-between text-tiny">
-              <span className="text-text-muted">Total</span>
+              <span className="text-text-muted">{t('common.total')}</span>
               <span className="font-mono font-semibold text-text-1">{fmt2(costs?.auditMonthCost ?? 0)}</span>
             </div>
             <div className="flex justify-between text-tiny">

@@ -371,7 +371,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
         {/* Content */}
         <div className="p-5 min-h-[260px] max-h-[65vh] overflow-y-auto">
           {isLoading ? (
-            <div className="flex items-center justify-center h-40 text-text-muted text-sm">Cargando...</div>
+            <div className="flex items-center justify-center h-40 text-text-muted text-sm">{t('common.loading')}</div>
           ) : emp ? (
             <>
               {/* Visión general */}
@@ -566,11 +566,12 @@ function scoreColor(s: number) {
 }
 
 function TopPerformers() {
+  const t = useTranslations();
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
       <div className="flex items-center gap-2 mb-3">
         <Trophy className="h-4 w-4 text-amber-400" />
-        <p className="text-sm font-semibold text-text-1">Top 5 Empleados del Mes</p>
+        <p className="text-sm font-semibold text-text-1">{t('employees.topPerformersTitle')}</p>
         <span className="ml-auto text-xs text-text-3 bg-border/60 rounded-full px-2 py-0.5">Mayo 2026</span>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

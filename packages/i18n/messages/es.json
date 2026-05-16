@@ -27,6 +27,7 @@
     "date": "Fecha",
     "amount": "Monto",
     "total": "Total",
+    "type": "Tipo",
     "required": "Requerido",
     "optional": "Opcional",
     "new": "Nuevo",
@@ -230,7 +231,8 @@
       "employeeCreated": "Empleado creado",
       "employeeUpdated": "Empleado actualizado",
       "employeeDeactivated": "Empleado desactivado"
-    }
+    },
+    "topPerformersTitle": "Top 5 Empleados del Mes"
   },
   "freelancers": {
     "tab": "Freelancers",
@@ -415,7 +417,10 @@
       "employeeUpdated": "Empleado actualizado",
       "paymentCreated": "Pago creado",
       "paymentPaid": "Pago confirmado"
-    }
+    },
+    "editUser": "Editar usuario",
+    "saveChanges": "Guardar cambios",
+    "deleteUser": "Eliminar usuario"
   },
   "payments": {
     "title": "Pagos de Salarios",
@@ -647,7 +652,9 @@
       "PERCENTAGE_OF_BILLING": "% de facturación",
       "VOLUME_TIER": "Escalonado por volumen",
       "HYBRID": "Híbrido"
-    }
+    },
+    "firmNamePlaceholder": "Ej: Smith & Associates",
+    "emailPlaceholder": "abogado@firma.com"
   },
   "providers": {
     "title": "Proveedores",
@@ -994,7 +1001,17 @@
     "cifoConversations": "Conversaciones CIFO",
     "noCifoConversations": "Sin conversaciones registradas",
     "cifoStatsTitle": "Estadísticas de uso",
-    "openFabHint": "Usa el botón CIFO en la esquina inferior derecha para iniciar una conversación"
+    "openFabHint": "Usa el botón CIFO en la esquina inferior derecha para iniciar una conversación",
+    "noRunsYet": "Sin ejecuciones registradas",
+    "agentCanDo": "El agente PUEDE hacer automáticamente:",
+    "agentCannotDo": "El agente NO puede:",
+    "justNow": "hace un momento",
+    "minsAgo": "hace {n} min",
+    "hoursAgo": "hace {n}h",
+    "daysAgo": "hace {n}d",
+    "colStart": "Inicio",
+    "resolvedLabel": "✓ Resuelto",
+    "ignoredLabel": "— Ignorado"
   },
   "tasks": {
     "title": "Tareas",

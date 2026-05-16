@@ -412,7 +412,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="flex flex-col max-h-[90dvh] overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>Editar usuario</DialogTitle>
+          <DialogTitle>{t('users.editUser')}</DialogTitle>
         </DialogHeader>
         <div className="flex items-center gap-3 py-1 px-1 shrink-0">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
@@ -462,7 +462,7 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
           </div>
           <DialogFooter className="shrink-0">
             <Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-            <Button type="submit" loading={update.isPending}>Guardar cambios</Button>
+            <Button type="submit" loading={update.isPending}>{t('users.saveChanges')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -549,7 +549,7 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
         {/* Tab content */}
         <div className="p-5 min-h-[200px] flex-1 overflow-y-auto">
           {isLoading ? (
-            <div className="flex items-center justify-center h-40 text-text-muted text-sm">Cargando...</div>
+            <div className="flex items-center justify-center h-40 text-text-muted text-sm">{t('common.loading')}</div>
           ) : user ? (
             <>
               {/* Perfil */}
@@ -664,11 +664,12 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
   onConfirm: () => void;
   onClose: () => void;
 }): React.ReactElement {
+  const t = useTranslations();
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="text-rose-500">Eliminar usuario</DialogTitle>
+          <DialogTitle className="text-rose-500">{t('users.deleteUser')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1 overflow-y-auto flex-1 min-h-0">
           <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
@@ -685,14 +686,14 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
           </p>
         </div>
         <DialogFooter className="shrink-0">
-          <Button variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={isPending}>{t('common.cancel')}</Button>
           <Button
             disabled={isPending}
             loading={isPending}
             onClick={onConfirm}
             style={{ background: '#f43f5e', color: '#fff' }}
           >
-            Eliminar usuario
+            {t('users.deleteUser')}
           </Button>
         </DialogFooter>
       </DialogContent>

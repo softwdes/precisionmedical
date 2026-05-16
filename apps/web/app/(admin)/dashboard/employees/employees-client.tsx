@@ -702,7 +702,23 @@ function CreateEmployeeDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5"><Label>{t('employees.position')} *</Label><Input required value={form.position} onChange={(e) => f('position', e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.position')} *</Label>
+              <Select value={form.position} onValueChange={(v) => f('position', v)}>
+                <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Doctor">Doctor</SelectItem>
+                  <SelectItem value="Enfermero">Enfermero</SelectItem>
+                  <SelectItem value="Recepcionista">Recepcionista</SelectItem>
+                  <SelectItem value="Desarrollador de Software">Desarrollador de Software</SelectItem>
+                  <SelectItem value="Administrador de Clínica">Administrador de Clínica</SelectItem>
+                  <SelectItem value="Asistente Médico">Asistente Médico</SelectItem>
+                  <SelectItem value="Marketing">Marketing</SelectItem>
+                  <SelectItem value="Comunicación">Comunicación</SelectItem>
+                  <SelectItem value="Personal de Limpieza">Personal de Limpieza</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5">
               <Label>{t('employees.country')} *</Label>
               <Select value={form.countryId} onValueChange={(v) => f('countryId', v)}>
@@ -862,7 +878,23 @@ function EditEmployeeDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5"><Label>{t('employees.position')} *</Label><Input required value={form.position} onChange={(e) => f('position', e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.position')} *</Label>
+              <Select value={form.position} onValueChange={(v) => f('position', v)}>
+                <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Doctor">Doctor</SelectItem>
+                  <SelectItem value="Enfermero">Enfermero</SelectItem>
+                  <SelectItem value="Recepcionista">Recepcionista</SelectItem>
+                  <SelectItem value="Desarrollador de Software">Desarrollador de Software</SelectItem>
+                  <SelectItem value="Administrador de Clínica">Administrador de Clínica</SelectItem>
+                  <SelectItem value="Asistente Médico">Asistente Médico</SelectItem>
+                  <SelectItem value="Marketing">Marketing</SelectItem>
+                  <SelectItem value="Comunicación">Comunicación</SelectItem>
+                  <SelectItem value="Personal de Limpieza">Personal de Limpieza</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5">
               <Label>{t('employees.country')} *</Label>
               <Select value={form.countryId} onValueChange={(v) => f('countryId', v)}>

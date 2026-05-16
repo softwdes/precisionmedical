@@ -7,7 +7,9 @@ import { supabaseAdmin } from '../supabase-admin';
 const createPaymentSchema = z.object({
   employeeId: z.string(),
   period: z.string().regex(/^\d{4}-\d{2}$/, 'Format: YYYY-MM'),
-  amountLocal: z.number().positive(),
+  baseSalary: z.number().positive(),
+  bonusAmount: z.number().positive().optional(),
+  bonusReason: z.string().min(3).optional(),
   currencyLocal: z.enum(['USD', 'BOB', 'PEN']).default('USD'),
   scheduledDate: z.coerce.date(),
   notes: z.string().optional(),
@@ -30,7 +32,10 @@ export const paymentsRouter = router({
 
       let query = supabaseAdmin
         .from('payments')
-        .select('id, period, amountLocal, currencyLocal, status, scheduledDate, paidDate, notes, employeeId, walletId, reversedById, employee:employees(id,firstName,lastName,employeeCode)', { count: 'exact' })
+        .select(
+          'id, period, amountLocal, base_salary, bonus_amount, bonus_reason, currencyLocal, status, scheduledDate, paidDate, notes, employeeId, walletId, reversedById, employee:employees(id,firstName,lastName,employeeCode)',
+          { count: 'exact' },
+        )
         .range(from, to)
         .order('createdAt', { ascending: false });
 
@@ -65,6 +70,8 @@ export const paymentsRouter = router({
         walletId = wallet.id;
       }
 
+      const amountLocal = input.baseSalary + (input.bonusAmount ?? 0);
+
       const { data, error } = await supabaseAdmin
         .from('payments')
         .insert({
@@ -72,15 +79,18 @@ export const paymentsRouter = router({
           employeeId: input.employeeId,
           walletId,
           period: input.period,
-          amountLocal: input.amountLocal,
+          amountLocal,
+          base_salary: input.baseSalary,
+          bonus_amount: input.bonusAmount ?? null,
+          bonus_reason: input.bonusReason ?? null,
           currencyLocal: input.currencyLocal,
-          amountUsdEquiv: input.amountLocal,
+          amountUsdEquiv: amountLocal,
           rateApplied: 1,
           scheduledDate: input.scheduledDate.toISOString(),
           status: 'PENDING',
           notes: input.notes,
           updatedAt: new Date().toISOString(),
-        })
+        } as never)
         .select()
         .single();
 
@@ -143,7 +153,7 @@ export const paymentsRouter = router({
 
       const { data: reversal, error } = await supabaseAdmin
         .from('payments')
-        .insert(reversalData)
+        .insert(reversalData as never)
         .select()
         .single();
 

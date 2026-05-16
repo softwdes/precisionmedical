@@ -433,7 +433,11 @@ model Payment {
   
   proofUrl        String?
   notes           String?
-  
+
+  baseSalary      Decimal?      @db.Decimal(12, 2) @map("base_salary")
+  bonusAmount     Decimal?      @db.Decimal(12, 2) @map("bonus_amount")
+  bonusReason     String?                           @map("bonus_reason")
+
   reversedById    String?  // Append-only
   
   createdAt       DateTime      @default(now())

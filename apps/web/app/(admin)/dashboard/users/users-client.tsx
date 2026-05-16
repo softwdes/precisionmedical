@@ -6,13 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
-  Button, Badge, Input,
+  Button, Badge, Input, cn,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Label,
 } from '@precision/ui';
-import { Plus, Search, Pencil, Trash2, MailCheck, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, MailCheck, AlertTriangle, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -35,6 +35,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [showCreate, setShowCreate] = useState(false);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
 
@@ -72,6 +73,13 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
     const isProtected = user.email === PROTECTED_EMAIL;
     return (
       <div className="flex items-center gap-1">
+        <button
+          onClick={(e) => { e.stopPropagation(); setViewingUserId(user.id); }}
+          className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+          title="Ver usuario"
+        >
+          <Eye className="h-3.5 w-3.5" />
+        </button>
         <button
           onClick={(e) => { e.stopPropagation(); setEditingUser(user); }}
           className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
@@ -179,7 +187,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
                 <TableHead>{t('users.role')}</TableHead>
                 <TableHead>{t('common.status')}</TableHead>
                 <TableHead>{t('users.lastAccess')}</TableHead>
-                <TableHead className="w-20"></TableHead>
+                <TableHead className="w-28"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -237,6 +245,10 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
 
       {/* Dialogs */}
       <CreateUserDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); void refetch(); }} />
+
+      {viewingUserId && (
+        <UserViewDialog userId={viewingUserId} onClose={() => setViewingUserId(null)} />
+      )}
 
       {editingUser && (
         <EditUserDialog
@@ -451,6 +463,191 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <Button type="submit" loading={update.isPending}>Guardar cambios</Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── User View Dialog ─────────────────────────────────────────────────────────
+function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => void }): React.ReactElement {
+  const t = useTranslations();
+  const locale = useLocale();
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'activity'>('profile');
+
+  const { data: user, isLoading } = trpc.users.getById.useQuery({ id: userId });
+  const { data: activity = [] } = trpc.users.listActivity.useQuery({ userId });
+
+  const ROLE_LABELS: Record<string, string> = {
+    SUPER_ADMIN: t('users.roles.SUPER_ADMIN'), ADMIN: t('users.roles.ADMIN'),
+    EMPLOYEE: t('users.roles.EMPLOYEE'), LAWYER: t('users.roles.LAWYER'),
+    PROVIDER: t('users.roles.PROVIDER'), AUDITOR_AI: t('users.roles.AUDITOR_AI'),
+  };
+  const STATUS_LABELS: Record<string, string> = {
+    ACTIVE: t('users.statuses.ACTIVE'), INACTIVE: t('users.statuses.INACTIVE'),
+    SUSPENDED: t('users.statuses.SUSPENDED'), PENDING_VERIFICATION: t('users.statuses.PENDING_VERIFICATION'),
+  };
+  const ACTION_LABELS: Record<string, string> = {
+    'user.created': t('users.activityActions.userCreated'),
+    'user.updated': t('users.activityActions.userUpdated'),
+    'user.suspended': t('users.activityActions.userSuspended'),
+    'employee.created': t('users.activityActions.employeeCreated'),
+    'employee.updated': t('users.activityActions.employeeUpdated'),
+    'payment.created': t('users.activityActions.paymentCreated'),
+    'payment.paid': t('users.activityActions.paymentPaid'),
+  };
+
+  const tabs = [
+    { id: 'profile' as const, label: t('users.profile') },
+    { id: 'security' as const, label: t('users.security') },
+    { id: 'activity' as const, label: t('users.activityTab') },
+  ];
+
+  const fmt = (d: string | null | undefined) =>
+    d ? new Date(d).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  const fmtFull = (d: string | null | undefined) =>
+    d ? new Date(d).toLocaleString(locale === 'en' ? 'en-US' : 'es-ES') : '—';
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="p-0 overflow-hidden">
+        {/* User header */}
+        {user && (
+          <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-sm font-bold text-white shrink-0">
+              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-text-1 truncate">{user.firstName} {user.lastName}</p>
+              <p className="text-xs text-text-3 truncate">{user.email}</p>
+            </div>
+            <Badge variant={STATUS_COLORS[user.status] ?? 'secondary'}>{STATUS_LABELS[user.status] ?? user.status}</Badge>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex border-b border-border px-5">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors',
+                activeTab === tab.id
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-text-3 hover:text-text-1',
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="p-5 min-h-[260px] max-h-[420px] overflow-y-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-40 text-text-muted text-sm">Cargando...</div>
+          ) : user ? (
+            <>
+              {/* Perfil */}
+              {activeTab === 'profile' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('employees.firstName')}</p>
+                      <p className="text-sm text-text-1">{user.firstName}</p>
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('employees.lastName')}</p>
+                      <p className="text-sm text-text-1">{user.lastName}</p>
+                    </div>
+                    <div className="col-span-2 space-y-0.5">
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('auth.email')}</p>
+                      <p className="text-sm text-text-1">{user.email}</p>
+                    </div>
+                    {user.phone && (
+                      <div className="col-span-2 space-y-0.5">
+                        <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('employees.phone')}</p>
+                        <p className="text-sm text-text-1">{user.phone}</p>
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('users.role')}</p>
+                      <Badge variant="secondary">{ROLE_LABELS[user.role] ?? user.role}</Badge>
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('users.createdAt')}</p>
+                      <p className="text-sm text-text-1">{fmt(user.createdAt)}</p>
+                    </div>
+                  </div>
+                  <div className="border-t border-border pt-3">
+                    <p className="text-[10px] uppercase tracking-wider text-text-muted mb-2">{t('users.preferences')}</p>
+                    <div className="flex gap-2">
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border text-text-2">
+                        {user.preferredLocale === 'es' ? t('users.spanish') : t('users.english')}
+                      </span>
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border text-text-2">
+                        {user.preferredTheme === 'dark' ? t('users.dark') : t('users.light')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Seguridad */}
+              {activeTab === 'security' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-surface/50 px-4 py-3">
+                    <p className="text-xs font-medium text-text-1">{t('users.mfa')}</p>
+                    <Badge variant={user.mfaEnabled ? 'success' : 'secondary'}>
+                      {user.mfaEnabled ? t('users.mfaEnabled') : t('users.mfaDisabled')}
+                    </Badge>
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface/50 divide-y divide-border">
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <p className="text-xs text-text-muted">{t('users.lastAccess')}</p>
+                      <p className="text-xs font-medium text-text-1">{fmtFull(user.lastLoginAt)}</p>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <p className="text-xs text-text-muted">{t('users.lastLoginIp')}</p>
+                      <p className="text-xs font-mono text-text-1">{user.lastLoginIp ?? '—'}</p>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <p className="text-xs text-text-muted">{t('common.status')}</p>
+                      <Badge variant={STATUS_COLORS[user.status] ?? 'secondary'}>{STATUS_LABELS[user.status] ?? user.status}</Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Actividad */}
+              {activeTab === 'activity' && (
+                <div className="space-y-2">
+                  {activity.length === 0 ? (
+                    <div className="flex items-center justify-center h-40 text-text-3 text-sm">{t('users.noActivity')}</div>
+                  ) : (
+                    activity.map((entry) => {
+                      const actorArr = entry.actorUser as { firstName: string; lastName: string }[] | null;
+                      const actor = Array.isArray(actorArr) ? actorArr[0] : null;
+                      const actorName = actor ? `${actor.firstName} ${actor.lastName}` : t('users.system');
+                      return (
+                        <div key={entry.id} className="flex items-start gap-3 rounded-lg border border-border bg-surface/50 px-3 py-2.5">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-brand shrink-0 mt-0.5">
+                            <span className="text-[9px] font-bold">{actorName.charAt(0).toUpperCase()}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-text-1">{ACTION_LABELS[entry.action] ?? entry.action}</p>
+                            <p className="text-[10px] text-text-muted">{actorName}</p>
+                          </div>
+                          <p className="text-[10px] text-text-muted shrink-0">{fmt(entry.createdAt)}</p>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   );

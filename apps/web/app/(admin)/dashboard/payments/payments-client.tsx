@@ -59,7 +59,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
   const [reverseReason, setReverseReason] = useState('');
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="px-3 py-4 sm:p-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-y-2">
         <div>
           <h1 className="text-xl font-bold text-text-1">{t('payments.title')}</h1>
@@ -259,10 +259,10 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
 
       {/* Mark Paid Dialog */}
       <Dialog open={!!showMarkPaid} onOpenChange={(o) => { if (!o) setShowMarkPaid(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>{t('payments.markAsPaid')}</DialogTitle></DialogHeader>
-          <p className="text-small text-text-3">{t('payments.markAsPaidConfirm')}</p>
-          <DialogFooter>
+        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+          <DialogHeader className="shrink-0"><DialogTitle>{t('payments.markAsPaid')}</DialogTitle></DialogHeader>
+          <p className="text-small text-text-3 flex-1">{t('payments.markAsPaidConfirm')}</p>
+          <DialogFooter className="shrink-0">
             <Button variant="ghost" onClick={() => setShowMarkPaid(null)}>{t('common.cancel')}</Button>
             <Button loading={markPaid.isPending} onClick={() => showMarkPaid && markPaid.mutate({ id: showMarkPaid })}>{t('common.confirm')}</Button>
           </DialogFooter>
@@ -271,13 +271,13 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
 
       {/* Reverse Dialog */}
       <Dialog open={!!showReverse} onOpenChange={(o) => { if (!o) setShowReverse(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>{t('payments.reversePayment')}</DialogTitle></DialogHeader>
-          <div className="space-y-1.5">
+        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+          <DialogHeader className="shrink-0"><DialogTitle>{t('payments.reversePayment')}</DialogTitle></DialogHeader>
+          <div className="space-y-1.5 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
             <Label>{t('payments.reverseReason')} *</Label>
             <Textarea value={reverseReason} onChange={(e) => setReverseReason(e.target.value)} placeholder={t('payments.reverseReasonPlaceholder')} />
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="ghost" onClick={() => setShowReverse(null)}>{t('common.cancel')}</Button>
             <Button variant="destructive" loading={reverse.isPending} disabled={!reverseReason.trim()} onClick={() => showReverse && reverse.mutate({ id: showReverse, reason: reverseReason })}>
               {t('payments.reverseButton')}
@@ -308,40 +308,42 @@ function CreatePaymentDialog({ open, onClose, onCreated }: { open: boolean; onCl
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>{t('payments.newPayment')}</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>{t('employees.employee')} *</Label>
-            <Select value={form.employeeId} onValueChange={(v) => f('employeeId', v)}>
-              <SelectTrigger><SelectValue placeholder={t('payments.employeePlaceholder')} /></SelectTrigger>
-              <SelectContent>
-                {(employees?.items ?? []).map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName} — {e.employeeCode}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5"><Label>{t('payments.periodLabel')} *</Label><Input type="month" required value={form.period} onChange={(e) => f('period', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>{t('payments.scheduledDateLabel')} *</Label><Input type="date" required value={form.scheduledDate} onChange={(e) => f('scheduledDate', e.target.value)} /></div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5"><Label>{t('payments.amountLabel')} *</Label><Input type="number" required min="0.01" step="0.01" value={form.amountLocal} onChange={(e) => f('amountLocal', e.target.value)} /></div>
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-lg overflow-hidden">
+        <DialogHeader className="shrink-0"><DialogTitle>{t('payments.newPayment')}</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
             <div className="space-y-1.5">
-              <Label>{t('finance.currency')}</Label>
-              <Select value={form.currencyLocal} onValueChange={(v) => f('currencyLocal', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label>{t('employees.employee')} *</Label>
+              <Select value={form.employeeId} onValueChange={(v) => f('employeeId', v)}>
+                <SelectTrigger><SelectValue placeholder={t('payments.employeePlaceholder')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="BOB">BOB</SelectItem>
-                  <SelectItem value="PEN">PEN</SelectItem>
+                  {(employees?.items ?? []).map((e) => (
+                    <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName} — {e.employeeCode}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label>{t('payments.periodLabel')} *</Label><Input type="month" required value={form.period} onChange={(e) => f('period', e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>{t('payments.scheduledDateLabel')} *</Label><Input type="date" required value={form.scheduledDate} onChange={(e) => f('scheduledDate', e.target.value)} /></div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label>{t('payments.amountLabel')} *</Label><Input type="number" required min="0.01" step="0.01" value={form.amountLocal} onChange={(e) => f('amountLocal', e.target.value)} /></div>
+              <div className="space-y-1.5">
+                <Label>{t('finance.currency')}</Label>
+                <Select value={form.currencyLocal} onValueChange={(v) => f('currencyLocal', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="BOB">BOB</SelectItem>
+                    <SelectItem value="PEN">PEN</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5"><Label>{t('payments.notesLabel')}</Label><Textarea value={form.notes} onChange={(e) => f('notes', e.target.value)} /></div>
           </div>
-          <div className="space-y-1.5"><Label>{t('payments.notesLabel')}</Label><Textarea value={form.notes} onChange={(e) => f('notes', e.target.value)} /></div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
             <Button type="submit" loading={create.isPending}>{t('payments.createButton')}</Button>
           </DialogFooter>

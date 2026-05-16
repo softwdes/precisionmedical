@@ -510,26 +510,28 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
       <DialogContent className="p-0 overflow-hidden">
         {/* User header */}
         {user && (
-          <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-sm font-bold text-white shrink-0">
+          <div className="flex items-start gap-3 pl-5 pr-12 pt-5 pb-4 border-b border-border">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-sm font-bold text-white shrink-0 mt-0.5">
               {user.firstName.charAt(0)}{user.lastName.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-text-1 truncate">{user.firstName} {user.lastName}</p>
               <p className="text-xs text-text-3 truncate">{user.email}</p>
+              <div className="mt-1.5">
+                <Badge variant={STATUS_COLORS[user.status] ?? 'secondary'}>{STATUS_LABELS[user.status] ?? user.status}</Badge>
+              </div>
             </div>
-            <Badge variant={STATUS_COLORS[user.status] ?? 'secondary'}>{STATUS_LABELS[user.status] ?? user.status}</Badge>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex border-b border-border px-5">
+        <div className="flex overflow-x-auto border-b border-border px-5 scrollbar-none">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors',
+                'px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0',
                 activeTab === tab.id
                   ? 'border-brand text-brand'
                   : 'border-transparent text-text-3 hover:text-text-1',
@@ -541,7 +543,7 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
         </div>
 
         {/* Tab content */}
-        <div className="p-5 min-h-[260px] max-h-[420px] overflow-y-auto">
+        <div className="p-5 min-h-[260px] max-h-[65vh] overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center justify-center h-40 text-text-muted text-sm">Cargando...</div>
           ) : user ? (
@@ -549,7 +551,7 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
               {/* Perfil */}
               {activeTab === 'profile' && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
                     <div className="space-y-0.5">
                       <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('employees.firstName')}</p>
                       <p className="text-sm text-text-1">{user.firstName}</p>
@@ -601,11 +603,11 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
                     </Badge>
                   </div>
                   <div className="rounded-lg border border-border bg-surface/50 divide-y divide-border">
-                    <div className="flex justify-between items-center px-4 py-3">
+                    <div className="flex flex-col gap-0.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs text-text-muted">{t('users.lastAccess')}</p>
-                      <p className="text-xs font-medium text-text-1">{fmtFull(user.lastLoginAt)}</p>
+                      <p className="text-xs font-medium text-text-1 break-all">{fmtFull(user.lastLoginAt)}</p>
                     </div>
-                    <div className="flex justify-between items-center px-4 py-3">
+                    <div className="flex flex-col gap-0.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs text-text-muted">{t('users.lastLoginIp')}</p>
                       <p className="text-xs font-mono text-text-1">{user.lastLoginIp ?? '—'}</p>
                     </div>

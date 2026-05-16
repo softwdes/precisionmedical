@@ -249,9 +249,9 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
         <div className="flex-1 min-w-0 space-y-3">
 
           {/* Filters toolbar */}
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
             <Select value={filterCountry} onValueChange={handleCountryChange}>
-              <SelectTrigger className="h-8 w-auto min-w-[140px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-full sm:w-auto sm:min-w-[140px] text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('pettyCash.allSedes')}</SelectItem>
                 <SelectItem value="EEUU">🇺🇸 EEUU</SelectItem>
@@ -260,7 +260,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             </Select>
 
             <Select value={filterClinic} onValueChange={handleClinicChange}>
-              <SelectTrigger className="h-8 w-auto min-w-[155px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-full sm:w-auto sm:min-w-[155px] text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('pettyCash.allClinics')}</SelectItem>
                 {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -268,7 +268,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             </Select>
 
             <Select value={filterType} onValueChange={handleTypeChange}>
-              <SelectTrigger className="h-8 w-auto min-w-[120px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-full sm:w-auto sm:min-w-[120px] text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('pettyCash.allTypes')}</SelectItem>
                 <SelectItem value="DEPOSIT">{t('pettyCash.deposits')}</SelectItem>
@@ -277,17 +277,57 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             </Select>
 
             <Select value={filterMonth} onValueChange={handleMonthChange}>
-              <SelectTrigger className="h-8 w-auto min-w-[155px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-full sm:w-auto sm:min-w-[155px] text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {MONTH_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
 
-            <span className="text-xs text-text-3 ml-auto">{total} {t('pettyCash.records')}</span>
+            <span className="col-span-2 text-xs text-text-3 sm:ml-auto">{total} {t('pettyCash.records')}</span>
           </div>
 
-          {/* Table */}
-          <div className="rounded-lg border border-border bg-surface overflow-hidden">
+          {/* Mobile: card list */}
+          <div className="md:hidden rounded-lg border border-border bg-surface overflow-hidden">
+            {items.length === 0 ? (
+              <div className="text-center py-12 text-text-3 text-sm">{t('pettyCash.noMovements')}</div>
+            ) : (
+              <div className="divide-y divide-border">
+                {items.map(tx => (
+                  <div key={tx.id} className="flex items-start gap-3 px-4 py-3.5">
+                    <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
+                      tx.type === 'DEPOSIT' ? 'bg-emerald-500/10' : 'bg-rose-500/10'
+                    }`}>
+                      {tx.type === 'DEPOSIT'
+                        ? <ArrowDownCircle className="h-4 w-4 text-emerald-500" />
+                        : <ArrowUpCircle className="h-4 w-4 text-rose-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-medium text-text-1 truncate">{tx.description}</p>
+                        <p className={`text-sm font-bold font-mono shrink-0 ${Number(tx.amount) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {Number(tx.amount) >= 0 ? '+' : ''}${fmt(Number(tx.amount))}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className="text-[10px] text-text-3">{fmtDate(tx.performedAt)}</span>
+                        <span className="text-[10px] text-text-muted">·</span>
+                        <span className="text-[10px] text-text-3">{tx.country === 'EEUU' ? '🇺🇸' : '🇧🇴'} {tx.clinicName}</span>
+                        {tx.category && (
+                          <>
+                            <span className="text-[10px] text-text-muted">·</span>
+                            <span className="text-[10px] text-text-muted">{getCategoryLabel(tx.category)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block rounded-lg border border-border bg-surface overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -335,7 +375,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between text-xs text-text-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-text-3">
             <span>{t('pettyCash.showing', { from: items.length > 0 ? (page - 1) * 20 + 1 : 0, to: Math.min(page * 20, total), total })}</span>
             <div className="flex gap-1">
               <Button variant="outline" size="sm" className="h-7 px-2 text-xs gap-1" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
@@ -562,9 +602,9 @@ function NuevoMovimientoModal({
             {/* Monto */}
             <div className="space-y-1.5">
               <Label>{t('common.amount')}</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Select value={currency} onValueChange={v => setCurrency(v as 'USD' | 'BOB')}>
-                  <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full sm:w-[90px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD</SelectItem>
                     <SelectItem value="BOB">BOB</SelectItem>

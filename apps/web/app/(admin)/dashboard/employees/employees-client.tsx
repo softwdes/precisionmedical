@@ -334,14 +334,14 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
       <DialogContent className="max-w-xl p-0 overflow-hidden">
         {/* Header */}
         {emp && (
-          <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand/20 text-sm font-bold text-brand shrink-0">
+          <div className="flex items-start gap-3 pl-5 pr-12 pt-5 pb-4 border-b border-border">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand/20 text-sm font-bold text-brand shrink-0 mt-0.5">
               {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-text-1">{emp.firstName} {emp.lastName}</p>
-              <p className="text-xs text-text-3">{emp.position}</p>
-              <div className="flex items-center gap-1.5 mt-1">
+              <p className="font-semibold text-text-1 truncate">{emp.firstName} {emp.lastName}</p>
+              <p className="text-xs text-text-3 truncate">{emp.position}</p>
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 <span className="font-mono text-[10px] text-text-muted border border-border rounded px-1.5 py-0.5">{emp.employeeCode}</span>
                 <Badge variant={STATUS_COLORS[emp.status] ?? 'secondary'}>{STATUS_LABELS[emp.status] ?? emp.status}</Badge>
                 <Badge variant={TYPE_COLORS[emp.type] ?? 'secondary'}>{TYPE_LABELS[emp.type] ?? emp.type}</Badge>
@@ -351,13 +351,13 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
         )}
 
         {/* Tabs */}
-        <div className="flex border-b border-border px-5">
+        <div className="flex overflow-x-auto border-b border-border px-5 scrollbar-none">
           {TABS_VIEW.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                'px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+                'px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0',
                 activeTab === tab
                   ? 'border-brand text-brand'
                   : 'border-transparent text-text-3 hover:text-text-1',
@@ -369,7 +369,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
         </div>
 
         {/* Content */}
-        <div className="p-5 min-h-[260px] max-h-[440px] overflow-y-auto">
+        <div className="p-5 min-h-[260px] max-h-[65vh] overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center justify-center h-40 text-text-muted text-sm">Cargando...</div>
           ) : emp ? (
@@ -502,12 +502,12 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
 
 function EmpInfoRow({ icon: Icon, label, value, padded }: { icon: React.ElementType; label: string; value: string; padded?: boolean }): React.ReactElement {
   return (
-    <div className={cn('flex items-center justify-between gap-3', padded ? 'px-3 py-2.5' : 'py-2 border-b border-border/50 last:border-0')}>
+    <div className={cn('flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3', padded ? 'px-3 py-2.5' : 'py-2 border-b border-border/50 last:border-0')}>
       <div className="flex items-center gap-2 text-xs text-text-3 shrink-0">
         <Icon className="h-3.5 w-3.5 shrink-0" />
         {label}
       </div>
-      <span className="text-xs text-text-1 text-right min-w-0 truncate">{value}</span>
+      <span className="text-xs text-text-1 sm:text-right min-w-0 break-words pl-5 sm:pl-0">{value}</span>
     </div>
   );
 }

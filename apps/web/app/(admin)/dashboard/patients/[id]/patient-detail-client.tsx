@@ -69,7 +69,7 @@ export function PatientDetailClient({ patient: initial }: { patient: Patient }):
   const commissions = (patient.commissions as unknown as Array<{ id: string; amount: number; currency: string; status: string; earnedAt: string; paidAt?: string | null }>) ?? [];
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
+    <div className="px-3 py-4 sm:p-6 space-y-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
         <Link href="/dashboard/patients" className="text-text-3 hover:text-text-1 transition-colors">
           <ArrowLeft className="h-4 w-4" />
@@ -78,7 +78,7 @@ export function PatientDetailClient({ patient: initial }: { patient: Patient }):
           <Building2 className="h-4 w-4 text-emerald" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-text-1">{patient.firstName} {patient.lastName}</h1>
+          <h1 className="text-xl font-bold text-text-1 truncate">{patient.firstName} {patient.lastName}</h1>
           <p className="text-small font-mono text-text-3">{patient.patientCode}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -94,7 +94,7 @@ export function PatientDetailClient({ patient: initial }: { patient: Patient }):
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto scrollbar-none">
         {(['info', 'appointments', 'commissions'] as const).map((tab_) => (
           <button
             key={tab_}
@@ -108,7 +108,7 @@ export function PatientDetailClient({ patient: initial }: { patient: Patient }):
 
       {tab === 'info' && (
         <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4 text-small">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-small">
             <div>
               <p className="text-tiny text-text-3 mb-0.5">{t('patients.email')}</p>
               <p className="text-text-1">{patient.email ?? '—'}</p>

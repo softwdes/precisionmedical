@@ -58,7 +58,7 @@ export function PatientsClient({
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="px-3 py-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-text-1">{t('patients.title')}</h1>

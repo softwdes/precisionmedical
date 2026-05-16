@@ -8,17 +8,17 @@ import { sendAuditAlertEmail } from '../email';
 
 export interface AgentSettings {
   id: string;
-  createdAt: string;
-  updatedAt: string;
-  agentName: string;
-  modeSurveillance: boolean;
-  modeSemiAutonomous: boolean;
-  modeAutonomous: boolean;
-  scanFrequency: string;
-  scheduledScanTime: string;
-  notifyEmail: boolean;
-  surveillanceActiveSince: string | null;
-  monthlyBudget: number;
+  created_at: string;
+  updated_at: string;
+  agent_name: string;
+  mode_surveillance: boolean;
+  mode_semi_autonomous: boolean;
+  mode_autonomous: boolean;
+  scan_frequency: string;
+  scheduled_scan_time: string;
+  notify_email: boolean;
+  surveillance_active_since: string | null;
+  monthly_budget: number;
 }
 
 interface AuditFindingInsert {
@@ -27,20 +27,8 @@ interface AuditFindingInsert {
   description: string;
   suggestion: string | null;
   status: 'pending';
-  runId: string;
+  run_id: string;
 }
-
-const DEFAULT_SETTINGS: Omit<AgentSettings, 'id' | 'createdAt' | 'updatedAt'> = {
-  agentName: 'audit_agent',
-  modeSurveillance: true,
-  modeSemiAutonomous: false,
-  modeAutonomous: false,
-  scanFrequency: '30min',
-  scheduledScanTime: '02:00',
-  notifyEmail: true,
-  surveillanceActiveSince: null,
-  monthlyBudget: 50,
-};
 
 // ─── Existing selectors ─────────────────────────────────────
 
@@ -211,23 +199,23 @@ export const aiAgentsRouter = router({
   getAuditSettings: protectedProcedure.query(async () => {
     const { data } = await supabaseAdmin
       .from('agent_settings')
-      .select('id, createdAt, updatedAt, agentName, modeSurveillance, modeSemiAutonomous, modeAutonomous, scanFrequency, scheduledScanTime, notifyEmail, surveillanceActiveSince, monthlyBudget')
-      .eq('agentName', 'audit_agent')
+      .select('id, created_at, updated_at, agent_name, mode_surveillance, mode_semi_autonomous, mode_autonomous, scan_frequency, scheduled_scan_time, notify_email, surveillance_active_since, monthly_budget')
+      .eq('agent_name', 'audit_agent')
       .maybeSingle();
     if (data) return data;
     return {
       id: '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      agentName: 'audit_agent',
-      modeSurveillance: true,
-      modeSemiAutonomous: false,
-      modeAutonomous: false,
-      scanFrequency: '30min',
-      scheduledScanTime: '02:00',
-      notifyEmail: true,
-      surveillanceActiveSince: null as string | null,
-      monthlyBudget: 50,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      agent_name: 'audit_agent',
+      mode_surveillance: true,
+      mode_semi_autonomous: false,
+      mode_autonomous: false,
+      scan_frequency: '30min',
+      scheduled_scan_time: '02:00',
+      notify_email: true,
+      surveillance_active_since: null as string | null,
+      monthly_budget: 50,
     };
   }),
 
@@ -245,26 +233,31 @@ export const aiAgentsRouter = router({
 
       const { data: current } = await supabaseAdmin
         .from('agent_settings')
-        .select('modeSurveillance, surveillanceActiveSince')
-        .eq('agentName', 'audit_agent')
+        .select('mode_surveillance, surveillance_active_since')
+        .eq('agent_name', 'audit_agent')
         .maybeSingle();
 
-      const prev = current as { modeSurveillance: boolean; surveillanceActiveSince: string | null } | null;
-      let surveillanceActiveSince: string | null = prev?.surveillanceActiveSince ?? null;
-      if (input.modeSurveillance && !prev?.modeSurveillance) {
-        surveillanceActiveSince = now;
+      const prev = current as { mode_surveillance: boolean; surveillance_active_since: string | null } | null;
+      let surveillance_active_since: string | null = prev?.surveillance_active_since ?? null;
+      if (input.modeSurveillance && !prev?.mode_surveillance) {
+        surveillance_active_since = now;
       } else if (!input.modeSurveillance) {
-        surveillanceActiveSince = null;
+        surveillance_active_since = null;
       }
 
       const { data, error } = await supabaseAdmin
         .from('agent_settings')
         .upsert({
-          agentName: 'audit_agent',
-          ...input,
-          surveillanceActiveSince,
-          updatedAt: now,
-        }, { onConflict: 'agentName' })
+          agent_name: 'audit_agent',
+          mode_surveillance: input.modeSurveillance,
+          mode_semi_autonomous: input.modeSemiAutonomous,
+          mode_autonomous: input.modeAutonomous,
+          scan_frequency: input.scanFrequency,
+          scheduled_scan_time: input.scheduledScanTime,
+          notify_email: input.notifyEmail,
+          surveillance_active_since,
+          updated_at: now,
+        }, { onConflict: 'agent_name' })
         .select('*')
         .single();
 
@@ -278,8 +271,8 @@ export const aiAgentsRouter = router({
       const { error } = await supabaseAdmin
         .from('agent_settings')
         .upsert(
-          { agentName: 'audit_agent', monthlyBudget: input.budget, updatedAt: new Date().toISOString() },
-          { onConflict: 'agentName' },
+          { agent_name: 'audit_agent', monthly_budget: input.budget, updated_at: new Date().toISOString() },
+          { onConflict: 'agent_name' },
         );
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
       return { budget: input.budget };
@@ -288,9 +281,18 @@ export const aiAgentsRouter = router({
   runAuditScan: adminProcedure.mutation(async ({ ctx }) => {
     const now = new Date().toISOString();
 
+    // Block concurrent scans
+    const { data: running } = await supabaseAdmin
+      .from('audit_runs')
+      .select('id')
+      .eq('status', 'running')
+      .limit(1)
+      .maybeSingle();
+    if (running) throw new TRPCError({ code: 'CONFLICT', message: 'Ya hay un escaneo en progreso' });
+
     const { data: run, error: runError } = await supabaseAdmin
       .from('audit_runs')
-      .insert({ triggeredBy: 'manual', triggeredByUser: ctx.user.id, startedAt: now, status: 'running' })
+      .insert({ triggered_by: 'manual', triggered_by_user: ctx.user.id, started_at: now, status: 'running' })
       .select('id')
       .single();
 
@@ -302,15 +304,12 @@ export const aiAgentsRouter = router({
     const findings: AuditFindingInsert[] = [];
 
     const [cashResult, paymentsResult, fxResult, commissionsResult] = await Promise.allSettled([
-      // CHECK 1: Cash boxes below threshold
       supabaseAdmin
         .from('cash_boxes')
         .select('id, name, currency, balance, lowBalanceThreshold')
         .then(({ data: boxes }) => (boxes ?? []).filter(
           (b: { balance: number; lowBalanceThreshold: number }) => Number(b.balance) < Number(b.lowBalanceThreshold),
         )),
-
-      // CHECK 2 + 3: Payments
       supabaseAdmin
         .from('payments')
         .select('id, employeeId, amountLocal, currencyLocal, period, createdAt')
@@ -318,15 +317,11 @@ export const aiAgentsRouter = router({
         .order('createdAt', { ascending: false })
         .limit(500)
         .then(({ data }) => data ?? []),
-
-      // CHECK 4: FX operations last 90 days
       supabaseAdmin
         .from('fx_operations')
         .select('id, rate, performedAt')
         .gte('performedAt', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
         .then(({ data }) => data ?? []),
-
-      // CHECK 5: Commissions without reference
       supabaseAdmin
         .from('commissions')
         .select('id, lawyerId, providerId, status')
@@ -336,7 +331,6 @@ export const aiAgentsRouter = router({
         .then(({ data }) => data ?? []),
     ]);
 
-    // Process CHECK 1: low balance cash boxes
     if (cashResult.status === 'fulfilled') {
       for (const box of cashResult.value as Array<{ name: string; currency: string; balance: number; lowBalanceThreshold: number }>) {
         findings.push({
@@ -345,12 +339,11 @@ export const aiAgentsRouter = router({
           description: `Caja "${box.name}" · saldo ${box.currency} ${Number(box.balance).toFixed(2)} por debajo del mínimo (${Number(box.lowBalanceThreshold).toFixed(2)})`,
           suggestion: 'Registrar un depósito para reponer el saldo mínimo requerido',
           status: 'pending',
-          runId,
+          run_id: runId,
         });
       }
     }
 
-    // Process CHECK 2: duplicate payments
     if (paymentsResult.status === 'fulfilled') {
       const payments = paymentsResult.value as Array<{
         id: string; employeeId: string; amountLocal: number;
@@ -371,7 +364,7 @@ export const aiAgentsRouter = router({
               description: `Posible pago duplicado: empleado ...${p.employeeId.slice(-6)} · ${p.currencyLocal} ${Number(p.amountLocal).toFixed(2)} · período ${p.period}`,
               suggestion: 'Verificar si ambos pagos son intencionales o si uno debe reversarse',
               status: 'pending',
-              runId,
+              run_id: runId,
             });
           }
         } else {
@@ -380,7 +373,6 @@ export const aiAgentsRouter = router({
       }
     }
 
-    // Process CHECK 4: FX rates out of range
     if (fxResult.status === 'fulfilled') {
       const ops = fxResult.value as Array<{ id: string; rate: number }>;
       if (ops.length > 3) {
@@ -395,7 +387,7 @@ export const aiAgentsRouter = router({
               description: `Operación FX con tasa ${Number(op.rate).toFixed(4)} · desvío ${(dev * 100).toFixed(1)}% del promedio histórico (${avgRate.toFixed(4)})`,
               suggestion: 'Verificar que la tasa aplicada sea correcta con la casa de cambio',
               status: 'pending',
-              runId,
+              run_id: runId,
             });
             break;
           }
@@ -403,7 +395,6 @@ export const aiAgentsRouter = router({
       }
     }
 
-    // Process CHECK 5: commissions without reference
     if (commissionsResult.status === 'fulfilled') {
       const count = (commissionsResult.value as unknown[]).length;
       if (count > 0) {
@@ -413,7 +404,7 @@ export const aiAgentsRouter = router({
           description: `${count} comisión(es) devengada(s) sin abogado ni proveedor asignado`,
           suggestion: 'Asignar el abogado o proveedor correspondiente a cada comisión sin referencia',
           status: 'pending',
-          runId,
+          run_id: runId,
         });
       }
     }
@@ -422,42 +413,42 @@ export const aiAgentsRouter = router({
       await supabaseAdmin.from('audit_findings').insert(findings);
     }
 
-    const criticalCount = findings.filter(f => f.severity === 'critical').length;
-    const warningCount = findings.filter(f => f.severity === 'warning').length;
-    const infoCount = findings.filter(f => f.severity === 'info').length;
+    const critical_count = findings.filter(f => f.severity === 'critical').length;
+    const warning_count = findings.filter(f => f.severity === 'warning').length;
+    const info_count = findings.filter(f => f.severity === 'info').length;
 
     await supabaseAdmin
       .from('audit_runs')
       .update({
         status: 'completed',
-        completedAt: new Date().toISOString(),
-        findingsCount: findings.length,
-        criticalCount,
-        warningCount,
-        infoCount,
+        completed_at: new Date().toISOString(),
+        findings_count: findings.length,
+        critical_count,
+        warning_count,
+        info_count,
       })
       .eq('id', runId);
 
-    if (criticalCount > 0) {
+    if (critical_count > 0) {
       const { data: settings } = await supabaseAdmin
         .from('agent_settings')
-        .select('notifyEmail')
-        .eq('agentName', 'audit_agent')
+        .select('notify_email')
+        .eq('agent_name', 'audit_agent')
         .maybeSingle();
-      if ((settings as { notifyEmail: boolean } | null)?.notifyEmail) {
+      if ((settings as { notify_email: boolean } | null)?.notify_email) {
         try {
           await sendAuditAlertEmail({
-            to: 'erick@precisionmedicalcare.com',
-            criticalCount,
+            to: process.env.ADMIN_EMAIL ?? 'erick@precisionmedicalcare.com',
+            criticalCount: critical_count,
             findings: findings.filter(f => f.severity === 'critical'),
           });
         } catch {
-          // Non-fatal: scan succeeded even if email fails
+          // Non-fatal
         }
       }
     }
 
-    return { runId, findingsCount: findings.length, criticalCount, warningCount, infoCount };
+    return { runId, findingsCount: findings.length, criticalCount: critical_count, warningCount: warning_count, infoCount: info_count };
   }),
 
   listFindings: protectedProcedure
@@ -470,7 +461,7 @@ export const aiAgentsRouter = router({
       let q = supabaseAdmin
         .from('audit_findings')
         .select('*')
-        .order('createdAt', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(200);
 
       if (input?.severity) q = q.eq('severity', input.severity);
@@ -479,9 +470,9 @@ export const aiAgentsRouter = router({
 
       const { data } = await q;
       return (data ?? []) as Array<{
-        id: string; createdAt: string; severity: string; module: string;
+        id: string; created_at: string; severity: string; module: string;
         description: string; suggestion: string | null; status: string;
-        resolvedAt: string | null; resolvedBy: string | null; actionTaken: string | null; runId: string | null;
+        resolved_at: string | null; resolved_by: string | null; action_taken: string | null; run_id: string | null;
       }>;
     }),
 
@@ -496,9 +487,9 @@ export const aiAgentsRouter = router({
         .from('audit_findings')
         .update({
           status: input.action,
-          resolvedAt: new Date().toISOString(),
-          resolvedBy: ctx.user.id,
-          actionTaken: input.actionTaken ?? null,
+          resolved_at: new Date().toISOString(),
+          resolved_by: ctx.user.id,
+          action_taken: input.actionTaken ?? null,
         })
         .eq('id', input.id)
         .select('id, status')
@@ -513,12 +504,12 @@ export const aiAgentsRouter = router({
       const { data } = await supabaseAdmin
         .from('audit_runs')
         .select('*')
-        .order('createdAt', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(input?.limit ?? 10);
       return (data ?? []) as Array<{
-        id: string; createdAt: string; triggeredBy: string;
-        startedAt: string; completedAt: string | null; status: string;
-        findingsCount: number; criticalCount: number; warningCount: number; infoCount: number;
+        id: string; created_at: string; triggered_by: string;
+        started_at: string; completed_at: string | null; status: string;
+        findings_count: number; critical_count: number; warning_count: number; info_count: number;
       }>;
     }),
 
@@ -530,30 +521,30 @@ export const aiAgentsRouter = router({
 
     const [costsRes, settingsRes, todayConvsRes, monthConvsRes, runsRes] = await Promise.allSettled([
       supabaseAdmin.from('agent_costs').select('*').gte('month', sixMonthsAgo).order('month', { ascending: false }),
-      supabaseAdmin.from('agent_settings').select('monthlyBudget').eq('agentName', 'audit_agent').maybeSingle(),
+      supabaseAdmin.from('agent_settings').select('monthly_budget').eq('agent_name', 'audit_agent').maybeSingle(),
       supabaseAdmin.from('agent_conversations').select('id', { count: 'exact', head: true }).gte('startedAt', todayStart),
       supabaseAdmin.from('agent_conversations').select('id', { count: 'exact', head: true }).gte('startedAt', monthStart),
-      supabaseAdmin.from('audit_runs').select('id', { count: 'exact', head: true }).gte('createdAt', monthStart),
+      supabaseAdmin.from('audit_runs').select('id', { count: 'exact', head: true }).gte('created_at', monthStart),
     ]);
 
     const costs = costsRes.status === 'fulfilled' ? (costsRes.value.data ?? []) : [];
-    const settings = settingsRes.status === 'fulfilled' ? settingsRes.value.data as { monthlyBudget: number } | null : null;
+    const settings = settingsRes.status === 'fulfilled' ? settingsRes.value.data as { monthly_budget: number } | null : null;
     const cifoTodayCount = todayConvsRes.status === 'fulfilled' ? (todayConvsRes.value.count ?? 0) : 0;
     const cifoMonthCount = monthConvsRes.status === 'fulfilled' ? (monthConvsRes.value.count ?? 0) : 0;
     const monthScanCount = runsRes.status === 'fulfilled' ? (runsRes.value.count ?? 0) : 0;
 
-    const cifoCosts = (costs as Array<{ agentName: string; totalCost: number; operationCount: number; month: string }>)
-      .filter(c => c.agentName === 'cifo');
-    const auditCosts = (costs as Array<{ agentName: string; totalCost: number; operationCount: number; month: string }>)
-      .filter(c => c.agentName === 'audit_agent');
+    const cifoCosts = (costs as Array<{ agent_name: string; total_cost: number; operation_count: number; month: string }>)
+      .filter(c => c.agent_name === 'cifo');
+    const auditCosts = (costs as Array<{ agent_name: string; total_cost: number; operation_count: number; month: string }>)
+      .filter(c => c.agent_name === 'audit_agent');
 
-    const cifoMonthCost = cifoCosts.find(c => c.month >= monthStart)?.totalCost ?? 0;
-    const auditMonthCost = auditCosts.find(c => c.month >= monthStart)?.totalCost ?? 0;
+    const cifoMonthCost = cifoCosts.find(c => c.month >= monthStart)?.total_cost ?? 0;
+    const auditMonthCost = auditCosts.find(c => c.month >= monthStart)?.total_cost ?? 0;
     const totalMonthCost = Number(cifoMonthCost) + Number(auditMonthCost);
 
     return {
-      costs: costs as Array<{ agentName: string; month: string; totalCost: number; operationCount: number }>,
-      budget: Number(settings?.monthlyBudget ?? 50),
+      costs: costs as Array<{ agent_name: string; month: string; total_cost: number; operation_count: number }>,
+      budget: Number(settings?.monthly_budget ?? 50),
       cifoTodayCount,
       cifoMonthCount,
       cifoMonthCost: Number(cifoMonthCost),
@@ -568,13 +559,13 @@ export const aiAgentsRouter = router({
       .from('audit_runs')
       .select('*')
       .eq('status', 'completed')
-      .order('completedAt', { ascending: false })
+      .order('completed_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
     return run as {
-      id: string; completedAt: string; findingsCount: number;
-      criticalCount: number; warningCount: number; infoCount: number;
+      id: string; completed_at: string; findings_count: number;
+      critical_count: number; warning_count: number; info_count: number;
     } | null;
   }),
 });

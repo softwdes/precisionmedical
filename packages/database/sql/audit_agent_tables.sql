@@ -1,70 +1,69 @@
 -- ============================================================
 -- Audit Agent Tables — Precision Medical
--- Run this once in the Supabase SQL Editor
+-- Run once in the Supabase SQL Editor (snake_case schema)
 -- ============================================================
 
 -- Agent settings: toggles + config per agent
 CREATE TABLE IF NOT EXISTS agent_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "agentName" TEXT NOT NULL,
-  "modeSurveillance" BOOLEAN NOT NULL DEFAULT true,
-  "modeSemiAutonomous" BOOLEAN NOT NULL DEFAULT false,
-  "modeAutonomous" BOOLEAN NOT NULL DEFAULT false,
-  "scanFrequency" TEXT NOT NULL DEFAULT '30min',
-  "scheduledScanTime" TEXT NOT NULL DEFAULT '02:00',
-  "notifyEmail" BOOLEAN NOT NULL DEFAULT true,
-  "surveillanceActiveSince" TIMESTAMPTZ,
-  "monthlyBudget" DECIMAL(10,2) NOT NULL DEFAULT 50.00,
-  UNIQUE("agentName")
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  agent_name TEXT NOT NULL UNIQUE,
+  mode_surveillance BOOLEAN NOT NULL DEFAULT true,
+  mode_semi_autonomous BOOLEAN NOT NULL DEFAULT false,
+  mode_autonomous BOOLEAN NOT NULL DEFAULT false,
+  scan_frequency TEXT NOT NULL DEFAULT '30min',
+  scheduled_scan_time TEXT NOT NULL DEFAULT '02:00',
+  notify_email BOOLEAN NOT NULL DEFAULT true,
+  surveillance_active_since TIMESTAMPTZ,
+  monthly_budget DECIMAL(10,2) NOT NULL DEFAULT 50.00
 );
 
-INSERT INTO agent_settings ("agentName", "modeSurveillance")
+INSERT INTO agent_settings (agent_name, mode_surveillance)
   VALUES ('audit_agent', true)
-  ON CONFLICT ("agentName") DO NOTHING;
+  ON CONFLICT (agent_name) DO NOTHING;
 
 -- Audit runs: each execution of the audit scan
 CREATE TABLE IF NOT EXISTS audit_runs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "triggeredBy" TEXT NOT NULL DEFAULT 'manual',
-  "triggeredByUser" UUID,
-  "startedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "completedAt" TIMESTAMPTZ,
-  "status" TEXT NOT NULL DEFAULT 'running',
-  "findingsCount" INTEGER NOT NULL DEFAULT 0,
-  "criticalCount" INTEGER NOT NULL DEFAULT 0,
-  "warningCount" INTEGER NOT NULL DEFAULT 0,
-  "infoCount" INTEGER NOT NULL DEFAULT 0
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  triggered_by TEXT NOT NULL DEFAULT 'manual',
+  triggered_by_user UUID,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'running',
+  findings_count INTEGER NOT NULL DEFAULT 0,
+  critical_count INTEGER NOT NULL DEFAULT 0,
+  warning_count INTEGER NOT NULL DEFAULT 0,
+  info_count INTEGER NOT NULL DEFAULT 0
 );
 
 -- Audit findings: individual anomalies detected per run
 CREATE TABLE IF NOT EXISTS audit_findings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "severity" TEXT NOT NULL,
-  "module" TEXT NOT NULL,
-  "description" TEXT NOT NULL,
-  "suggestion" TEXT,
-  "status" TEXT NOT NULL DEFAULT 'pending',
-  "resolvedAt" TIMESTAMPTZ,
-  "resolvedBy" UUID,
-  "actionTaken" TEXT,
-  "runId" UUID REFERENCES audit_runs(id) ON DELETE CASCADE
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  severity TEXT NOT NULL,
+  module TEXT NOT NULL,
+  description TEXT NOT NULL,
+  suggestion TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  resolved_at TIMESTAMPTZ,
+  resolved_by UUID,
+  action_taken TEXT,
+  run_id UUID REFERENCES audit_runs(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_audit_findings_status ON audit_findings("status");
-CREATE INDEX IF NOT EXISTS idx_audit_findings_severity ON audit_findings("severity");
+CREATE INDEX IF NOT EXISTS idx_audit_findings_status ON audit_findings(status);
+CREATE INDEX IF NOT EXISTS idx_audit_findings_severity ON audit_findings(severity);
 
 -- Agent costs: monthly API cost per agent
 CREATE TABLE IF NOT EXISTS agent_costs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  "agentName" TEXT NOT NULL,
-  "month" DATE NOT NULL,
-  "totalCost" DECIMAL(10,4) NOT NULL DEFAULT 0,
-  "operationCount" INTEGER NOT NULL DEFAULT 0,
-  "modelUsed" TEXT NOT NULL DEFAULT 'claude-sonnet-4-6',
-  UNIQUE("agentName", "month")
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  agent_name TEXT NOT NULL,
+  month DATE NOT NULL,
+  total_cost DECIMAL(10,4) NOT NULL DEFAULT 0,
+  operation_count INTEGER NOT NULL DEFAULT 0,
+  model_used TEXT NOT NULL DEFAULT 'poolside/laguna-m.1:free',
+  UNIQUE(agent_name, month)
 );

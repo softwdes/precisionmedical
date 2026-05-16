@@ -24,48 +24,48 @@ type ScanFrequency = '15min' | '30min' | '1h' | 'nightly';
 
 interface AgentSettings {
   id: string;
-  createdAt: string;
-  updatedAt: string;
-  agentName: string;
-  modeSurveillance: boolean;
-  modeSemiAutonomous: boolean;
-  modeAutonomous: boolean;
-  scanFrequency: string;
-  scheduledScanTime: string;
-  notifyEmail: boolean;
-  surveillanceActiveSince: string | null;
-  monthlyBudget: number;
+  created_at: string;
+  updated_at: string;
+  agent_name: string;
+  mode_surveillance: boolean;
+  mode_semi_autonomous: boolean;
+  mode_autonomous: boolean;
+  scan_frequency: string;
+  scheduled_scan_time: string;
+  notify_email: boolean;
+  surveillance_active_since: string | null;
+  monthly_budget: number;
 }
 
 interface AuditFinding {
   id: string;
-  createdAt: string;
+  created_at: string;
   severity: string;
   module: string;
   description: string;
   suggestion: string | null;
   status: string;
-  resolvedAt: string | null;
-  resolvedBy: string | null;
-  actionTaken: string | null;
-  runId: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  action_taken: string | null;
+  run_id: string | null;
 }
 
 interface AuditRun {
   id: string;
-  createdAt: string;
-  triggeredBy: string;
-  startedAt: string;
-  completedAt: string | null;
+  created_at: string;
+  triggered_by: string;
+  started_at: string;
+  completed_at: string | null;
   status: string;
-  findingsCount: number;
-  criticalCount: number;
-  warningCount: number;
-  infoCount: number;
+  findings_count: number;
+  critical_count: number;
+  warning_count: number;
+  info_count: number;
 }
 
 interface AgentCosts {
-  costs: Array<{ agentName: string; month: string; totalCost: number; operationCount: number }>;
+  costs: Array<{ agent_name: string; month: string; total_cost: number; operation_count: number }>;
   budget: number;
   cifoTodayCount: number;
   cifoMonthCount: number;
@@ -82,7 +82,7 @@ interface Props {
   initialFindings: AuditFinding[];
   initialRuns: AuditRun[];
   initialCosts: AgentCosts | null;
-  initialLastRun: { id: string; completedAt: string; findingsCount: number; criticalCount: number; warningCount: number; infoCount: number } | null;
+  initialLastRun: { id: string; completed_at: string; findings_count: number; critical_count: number; warning_count: number; info_count: number } | null;
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -218,7 +218,7 @@ export function AiAgentsClient({
 
   const pendingFindings = (findings ?? []).filter(f => f.status === 'pending');
   const pendingCount = pendingFindings.length;
-  const budget = costs?.budget ?? settings?.monthlyBudget ?? 50;
+  const budget = costs?.budget ?? settings?.monthly_budget ?? 50;
 
   const refetchAll = useCallback((): void => {
     void refetchSettings();
@@ -321,7 +321,7 @@ function DashboardTab({
   settings: AgentSettings | null;
   allFindings: AuditFinding[];
   costs: AgentCosts | null;
-  lastRun: { completedAt: string; criticalCount: number; warningCount: number } | null;
+  lastRun: { completed_at: string; critical_count: number; warning_count: number } | null;
   onRunNow: () => void;
   onViewFindings: () => void;
   onOpenCifo: () => void;
@@ -335,7 +335,7 @@ function DashboardTab({
   const totalMonthCost = costs?.totalMonthCost ?? 0;
   const cifoTodayCount = costs?.cifoTodayCount ?? 0;
 
-  const auditRunning = settings?.modeSurveillance ?? true;
+  const auditRunning = settings?.mode_surveillance ?? true;
 
   return (
     <div className="space-y-5">
@@ -529,9 +529,9 @@ function DashboardTab({
       <div className="rounded-xl border border-border bg-surface p-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-small font-semibold text-text-1">{t('aiAgents.lastAuditTitle')}</p>
-          {lastRun?.completedAt ? (
+          {lastRun?.completed_at ? (
             <span className="font-mono text-tiny text-text-muted">
-              Hoy {fmtTime(lastRun.completedAt)}
+              Hoy {fmtTime(lastRun.completed_at)}
             </span>
           ) : (
             <span className="text-tiny text-text-muted">{t('aiAgents.noAuditYet')}</span>
@@ -539,10 +539,10 @@ function DashboardTab({
         </div>
         <div className="flex flex-wrap gap-2">
           {[
-            { label: t('aiAgents.finanzasReviewed'), ok: lastRun ? lastRun.criticalCount === 0 : true },
-            { label: t('aiAgents.paymentsVerified'), ok: lastRun ? (lastRun.criticalCount === 0) : true },
+            { label: t('aiAgents.finanzasReviewed'), ok: lastRun ? lastRun.critical_count === 0 : true },
+            { label: t('aiAgents.paymentsVerified'), ok: lastRun ? (lastRun.critical_count === 0) : true },
             { label: t('aiAgents.pettyCashChecked'), ok: lastRun ? true : true },
-            { label: t('aiAgents.commissionsOk'), ok: lastRun ? lastRun.warningCount === 0 : true },
+            { label: t('aiAgents.commissionsOk'), ok: lastRun ? lastRun.warning_count === 0 : true },
             { label: t('aiAgents.hipaaOk'), ok: true },
           ].map(({ label, ok }) => (
             <span
@@ -582,7 +582,7 @@ function FindingPill({ finding }: { finding: AuditFinding }): React.ReactElement
         <span className={`text-[10px] font-bold uppercase tracking-wider ${textColor}`}>
           {finding.severity === 'critical' ? 'CRÍTICO' : 'ADVERTENCIA'}
         </span>
-        <span className="text-tiny text-text-muted font-mono">{fmtRelative(finding.createdAt)}</span>
+        <span className="text-tiny text-text-muted font-mono">{fmtRelative(finding.created_at)}</span>
       </div>
       <p className="text-tiny text-text-2 line-clamp-1">{finding.description}</p>
     </div>
@@ -696,19 +696,20 @@ function AuditAgentTab({
     scheduledScanTime: string;
     notifyEmail: boolean;
   }>({
-    modeSurveillance: settings?.modeSurveillance ?? true,
-    modeSemiAutonomous: settings?.modeSemiAutonomous ?? false,
-    modeAutonomous: settings?.modeAutonomous ?? false,
-    scanFrequency: (settings?.scanFrequency as ScanFrequency | undefined) ?? '30min',
-    scheduledScanTime: settings?.scheduledScanTime ?? '02:00',
-    notifyEmail: settings?.notifyEmail ?? true,
+    modeSurveillance: settings?.mode_surveillance ?? true,
+    modeSemiAutonomous: settings?.mode_semi_autonomous ?? false,
+    modeAutonomous: settings?.mode_autonomous ?? false,
+    scanFrequency: (settings?.scan_frequency as ScanFrequency | undefined) ?? '30min',
+    scheduledScanTime: settings?.scheduled_scan_time ?? '02:00',
+    notifyEmail: settings?.notify_email ?? true,
   });
 
   const [showSemiConfirm, setShowSemiConfirm] = useState(false);
   const [showAutoConfirm, setShowAutoConfirm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [scanPending, setScanPending] = useState(false);
 
-  const surveillanceDays = daysSince(settings?.surveillanceActiveSince ?? null);
+  const surveillanceDays = daysSince(settings?.surveillance_active_since ?? null);
   const autonomousLocked = surveillanceDays < 7;
 
   const saveSettings = trpc.aiAgents.saveAuditSettings.useMutation({
@@ -716,13 +717,20 @@ function AuditAgentTab({
     onError: (e) => toast.error(e.message),
   });
 
-  const runScan = trpc.aiAgents.runAuditScan.useMutation({
-    onSuccess: (d) => {
-      toast.success(`${t('aiAgents.scanCompleted')} · ${d.findingsCount} hallazgos`);
+  const handleRunScan = async (): Promise<void> => {
+    setScanPending(true);
+    try {
+      const res = await fetch('/api/audit/run', { method: 'POST' });
+      const data = await res.json() as { findings_count?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Error al ejecutar el escaneo');
+      toast.success(`${t('aiAgents.scanCompleted')} · ${data.findings_count ?? 0} hallazgos`);
       onScanComplete();
-    },
-    onError: (e) => toast.error(e.message),
-  });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al ejecutar el escaneo');
+    } finally {
+      setScanPending(false);
+    }
+  };
 
   const handleToggle = (key: keyof typeof local, value: boolean): void => {
     if (key === 'modeSemiAutonomous' && value) {
@@ -894,12 +902,12 @@ function AuditAgentTab({
         <div className="flex flex-col sm:flex-row gap-3">
           <Button
             className="flex-1 sm:flex-none"
-            loading={runScan.isPending}
-            disabled={runScan.isPending}
-            onClick={() => runScan.mutate()}
+            loading={scanPending}
+            disabled={scanPending}
+            onClick={() => { void handleRunScan(); }}
           >
             <Play className="h-4 w-4" />
-            {runScan.isPending ? t('aiAgents.scanRunning') : t('aiAgents.runScanBtn')}
+            {scanPending ? t('aiAgents.scanRunning') : t('aiAgents.runScanBtn')}
           </Button>
           <Button
             variant="outline"
@@ -927,13 +935,13 @@ function AuditAgentTab({
                 {runs.slice(0, 8).map((run) => (
                   <tr key={run.id} className="border-b border-border last:border-0">
                     <td className="px-3 py-2 font-mono text-tiny text-text-2">
-                      {new Date(run.startedAt).toLocaleDateString('es', { day: '2-digit', month: 'short' })} {fmtTime(run.startedAt)}
+                      {new Date(run.started_at).toLocaleDateString('es', { day: '2-digit', month: 'short' })} {fmtTime(run.started_at)}
                     </td>
-                    <td className="px-3 py-2 text-tiny text-text-3 capitalize">{run.triggeredBy}</td>
+                    <td className="px-3 py-2 text-tiny text-text-3 capitalize">{run.triggered_by}</td>
                     <td className="px-3 py-2 text-tiny">
-                      {run.criticalCount > 0 && <span className="text-rose font-semibold">{run.criticalCount}C </span>}
-                      {run.warningCount > 0 && <span className="text-amber">{run.warningCount}W </span>}
-                      {run.findingsCount === 0 && <span className="text-text-muted">—</span>}
+                      {run.critical_count > 0 && <span className="text-rose font-semibold">{run.critical_count}C </span>}
+                      {run.warning_count > 0 && <span className="text-amber">{run.warning_count}W </span>}
+                      {run.findings_count === 0 && <span className="text-text-muted">—</span>}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <span className={`text-[10px] font-semibold ${run.status === 'completed' ? 'text-emerald' : run.status === 'failed' ? 'text-rose' : 'text-amber'}`}>
@@ -1031,7 +1039,7 @@ function HallazgosTab({
   const [filterModule, setFilterModule] = useState('all');
   const [filterStatus, setFilterStatus] = useState('pending');
 
-  const isSemiAutonomous = settings?.modeSemiAutonomous ?? false;
+  const isSemiAutonomous = settings?.mode_semi_autonomous ?? false;
 
   const resolve = trpc.aiAgents.resolveFinding.useMutation({
     onSuccess: (d) => {
@@ -1057,6 +1065,7 @@ function HallazgosTab({
     fx: 'FX',
     hipaa: 'HIPAA',
     finanzas: 'Finanzas',
+    sistema: 'Sistema',
   };
 
   return (
@@ -1170,7 +1179,7 @@ function FindingCard({
 
   const MODULE_LABELS: Record<string, string> = {
     caja_chica: 'CAJA CHICA', empleados: 'EMPLEADOS', comisiones: 'COMISIONES',
-    fx: 'FX', hipaa: 'HIPAA', finanzas: 'FINANZAS',
+    fx: 'FX', hipaa: 'HIPAA', finanzas: 'FINANZAS', sistema: 'SISTEMA',
   };
 
   const severityLabel =
@@ -1200,7 +1209,7 @@ function FindingCard({
               {MODULE_LABELS[finding.module] ?? finding.module.toUpperCase()}
             </span>
             <span className="ml-auto font-mono text-tiny text-text-muted">
-              {fmtRelative(finding.createdAt)}
+              {fmtRelative(finding.created_at)}
             </span>
           </div>
 
@@ -1259,7 +1268,7 @@ function FindingCard({
 
           {isResolved && (
             <p className="text-tiny text-text-muted italic">
-              {finding.status === 'resolved' ? '✓ Resuelto' : '— Ignorado'}{finding.resolvedAt ? ` · ${fmtRelative(finding.resolvedAt)}` : ''}
+              {finding.status === 'resolved' ? '✓ Resuelto' : '— Ignorado'}{finding.resolved_at ? ` · ${fmtRelative(finding.resolved_at)}` : ''}
             </p>
           )}
         </div>
@@ -1289,7 +1298,6 @@ function CostosTab({
     onError: (e) => toast.error(e.message),
   });
 
-  // Build monthly history from costs data
   const now = new Date();
   const months: Array<{ label: string; key: string; cifo: number; audit: number }> = [];
   for (let i = 0; i < 6; i++) {
@@ -1299,8 +1307,8 @@ function CostosTab({
     months.push({
       label: d.toLocaleDateString('es', { month: 'short', year: '2-digit' }),
       key: shortKey,
-      cifo: Number((costs?.costs ?? []).find(c => c.agentName === 'cifo' && c.month.startsWith(shortKey))?.totalCost ?? 0),
-      audit: Number((costs?.costs ?? []).find(c => c.agentName === 'audit_agent' && c.month.startsWith(shortKey))?.totalCost ?? 0),
+      cifo: Number((costs?.costs ?? []).find(c => c.agent_name === 'cifo' && c.month.startsWith(shortKey))?.total_cost ?? 0),
+      audit: Number((costs?.costs ?? []).find(c => c.agent_name === 'audit_agent' && c.month.startsWith(shortKey))?.total_cost ?? 0),
     });
   }
 

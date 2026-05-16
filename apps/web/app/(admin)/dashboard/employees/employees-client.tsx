@@ -22,7 +22,7 @@ import type { AppRouter } from '@precision-medical/api';
 type EmployeesListOutput = inferRouterOutputs<AppRouter>['employees']['list'];
 type EmployeeListItem = EmployeesListOutput['items'][number];
 type Department = inferRouterOutputs<AppRouter>['departments']['list'][number];
-type PositionKey = 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'SOFTWARE_DEVELOPER' | 'CLINIC_ADMIN' | 'MEDICAL_ASSISTANT' | 'MARKETING' | 'COMMUNICATIONS' | 'CLEANING_STAFF';
+type PositionKey = 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'SOFTWARE_DEVELOPER' | 'CLINIC_ADMIN' | 'MEDICAL_ASSISTANT' | 'COMMUNICATOR' | 'CLEANING_STAFF';
 
 const TYPE_COLORS: Record<string, 'success' | 'info' | 'secondary'> = { FULL_TIME: 'success', EXTERNAL: 'info', CONTRACTOR: 'secondary' };
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = { ACTIVE: 'success', ON_LEAVE: 'warning', SUSPENDED: 'destructive', INACTIVE: 'secondary' };
@@ -310,8 +310,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
     SOFTWARE_DEVELOPER: t('employees.positions.SOFTWARE_DEVELOPER'),
     CLINIC_ADMIN: t('employees.positions.CLINIC_ADMIN'),
     MEDICAL_ASSISTANT: t('employees.positions.MEDICAL_ASSISTANT'),
-    MARKETING: t('employees.positions.MARKETING'),
-    COMMUNICATIONS: t('employees.positions.COMMUNICATIONS'),
+    COMMUNICATOR: t('employees.positions.COMMUNICATOR'),
     CLEANING_STAFF: t('employees.positions.CLEANING_STAFF'),
   };
   const STATUS_LABELS: Record<string, string> = {
@@ -731,8 +730,7 @@ function CreateEmployeeDialog({
                   <SelectItem value="SOFTWARE_DEVELOPER">{t('employees.positions.SOFTWARE_DEVELOPER')}</SelectItem>
                   <SelectItem value="CLINIC_ADMIN">{t('employees.positions.CLINIC_ADMIN')}</SelectItem>
                   <SelectItem value="MEDICAL_ASSISTANT">{t('employees.positions.MEDICAL_ASSISTANT')}</SelectItem>
-                  <SelectItem value="MARKETING">{t('employees.positions.MARKETING')}</SelectItem>
-                  <SelectItem value="COMMUNICATIONS">{t('employees.positions.COMMUNICATIONS')}</SelectItem>
+                  <SelectItem value="COMMUNICATOR">{t('employees.positions.COMMUNICATOR')}</SelectItem>
                   <SelectItem value="CLEANING_STAFF">{t('employees.positions.CLEANING_STAFF')}</SelectItem>
                 </SelectContent>
               </Select>
@@ -907,8 +905,7 @@ function EditEmployeeDialog({
                   <SelectItem value="SOFTWARE_DEVELOPER">{t('employees.positions.SOFTWARE_DEVELOPER')}</SelectItem>
                   <SelectItem value="CLINIC_ADMIN">{t('employees.positions.CLINIC_ADMIN')}</SelectItem>
                   <SelectItem value="MEDICAL_ASSISTANT">{t('employees.positions.MEDICAL_ASSISTANT')}</SelectItem>
-                  <SelectItem value="MARKETING">{t('employees.positions.MARKETING')}</SelectItem>
-                  <SelectItem value="COMMUNICATIONS">{t('employees.positions.COMMUNICATIONS')}</SelectItem>
+                  <SelectItem value="COMMUNICATOR">{t('employees.positions.COMMUNICATOR')}</SelectItem>
                   <SelectItem value="CLEANING_STAFF">{t('employees.positions.CLEANING_STAFF')}</SelectItem>
                 </SelectContent>
               </Select>

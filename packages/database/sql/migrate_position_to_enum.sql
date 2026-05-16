@@ -7,13 +7,17 @@ SET position = CASE position
   WHEN 'Desarrollador de Software' THEN 'SOFTWARE_DEVELOPER'
   WHEN 'Administrador de Clínica'  THEN 'CLINIC_ADMIN'
   WHEN 'Asistente Médico'          THEN 'MEDICAL_ASSISTANT'
-  WHEN 'Marketing'                 THEN 'MARKETING'
-  WHEN 'Comunicación'              THEN 'COMMUNICATIONS'
+  WHEN 'Comunicación'              THEN 'COMMUNICATOR'
   WHEN 'Personal de Limpieza'      THEN 'CLEANING_STAFF'
   ELSE position
 END
 WHERE position IN (
   'Doctor', 'Enfermero', 'Recepcionista', 'Desarrollador de Software',
-  'Administrador de Clínica', 'Asistente Médico', 'Marketing',
-  'Comunicación', 'Personal de Limpieza'
+  'Administrador de Clínica', 'Asistente Médico', 'Comunicación',
+  'Personal de Limpieza'
 );
+
+-- Add Marketing department if it doesn't exist
+INSERT INTO departments (id, name)
+VALUES (gen_random_uuid()::text, 'Marketing')
+ON CONFLICT (name) DO NOTHING;

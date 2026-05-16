@@ -240,8 +240,7 @@
       "SOFTWARE_DEVELOPER": "Software Developer",
       "CLINIC_ADMIN": "Clinic Administrator",
       "MEDICAL_ASSISTANT": "Medical Assistant",
-      "MARKETING": "Marketing",
-      "COMMUNICATIONS": "Communications",
+      "COMMUNICATOR": "Communicator",
       "CLEANING_STAFF": "Cleaning Staff"
     }
   },

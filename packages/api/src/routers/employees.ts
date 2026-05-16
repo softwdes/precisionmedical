@@ -14,7 +14,7 @@ const createEmployeeSchema = z.object({
   type: z.enum(['FULL_TIME', 'EXTERNAL', 'CONTRACTOR']),
   startDate: z.coerce.date(),
   departmentId: z.string(),
-  position: z.enum(['DOCTOR', 'NURSE', 'RECEPTIONIST', 'SOFTWARE_DEVELOPER', 'CLINIC_ADMIN', 'MEDICAL_ASSISTANT', 'MARKETING', 'COMMUNICATIONS', 'CLEANING_STAFF']),
+  position: z.enum(['DOCTOR', 'NURSE', 'RECEPTIONIST', 'SOFTWARE_DEVELOPER', 'CLINIC_ADMIN', 'MEDICAL_ASSISTANT', 'COMMUNICATOR', 'CLEANING_STAFF']),
   supervisorId: z.string().optional(),
   baseSalary: z.number().positive().optional(),
   baseCurrency: z.enum(['USD', 'BOB', 'PEN']).default('USD'),

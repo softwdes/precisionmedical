@@ -96,7 +96,7 @@ export function AgentDetailClient({
   const pendingCount = (actions?.items ?? []).filter(a => a.status === 'PENDING_REVIEW').length;
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl mx-auto">
+    <div className="px-3 py-4 sm:p-6 space-y-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/dashboard/ai-agents" className="text-text-3 hover:text-text-1 transition-colors">
@@ -124,7 +124,7 @@ export function AgentDetailClient({
       </div>
 
       {/* KPI strip */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-lg border border-border bg-surface px-3 py-2.5 text-center">
           <p className="text-tiny text-text-3 mb-0.5">{t('aiAgents.totalActions')}</p>
           <p className="font-mono font-bold text-text-1">{Number(agent.totalActions).toLocaleString()}</p>
@@ -140,7 +140,7 @@ export function AgentDetailClient({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto scrollbar-none">
         {([
           { key: 'config', label: t('aiAgents.configTab'), icon: Settings2 },
           { key: 'actions', label: `${t('aiAgents.actionsTab')}${pendingCount > 0 ? ` (${pendingCount})` : ''}`, icon: Activity },
@@ -149,7 +149,7 @@ export function AgentDetailClient({
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-small transition-colors border-b-2 -mb-px ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-2 text-tiny sm:text-small transition-colors border-b-2 -mb-px ${
               tab === key ? 'border-brand text-brand font-semibold' : 'border-transparent text-text-3 hover:text-text-2'
             }`}
           >
@@ -161,7 +161,7 @@ export function AgentDetailClient({
 
       {/* CONFIG TAB */}
       {tab === 'config' && (
-        <div className="rounded-lg border border-border bg-surface p-5 space-y-4">
+        <div className="rounded-lg border border-border bg-surface p-3 sm:p-5 space-y-4">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-small font-semibold text-text-1">{t('aiAgents.configTab')}</h2>
             <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
@@ -169,7 +169,7 @@ export function AgentDetailClient({
               {t('common.edit')}
             </Button>
           </div>
-          <div className="grid grid-cols-2 gap-4 text-small">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-small">
             <div>
               <p className="text-tiny text-text-3 mb-0.5">{t('aiAgents.description')}</p>
               <p className="text-text-1">{agent.description}</p>
@@ -263,7 +263,7 @@ export function AgentDetailClient({
                       </div>
                     </div>
                     {action.status === 'PENDING_REVIEW' && (
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => setReviewTarget({ id: action.id, decision: 'APPROVED' })}>
                           <CheckCircle className="h-3 w-3 text-emerald" />
                           {t('aiAgents.approve')}
@@ -367,7 +367,7 @@ export function AgentDetailClient({
                   ? Math.round((new Date(conv.endedAt).getTime() - new Date(conv.startedAt).getTime()) / 1000)
                   : null;
                 return (
-                  <div key={conv.id} className="px-5 py-4 space-y-2">
+                  <div key={conv.id} className="px-3 sm:px-5 py-3 sm:py-4 space-y-2">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <MessageSquare className="h-3.5 w-3.5 text-text-3 shrink-0" />
@@ -381,7 +381,7 @@ export function AgentDetailClient({
                       <span className="text-tiny font-mono text-text-muted">{msgs?.length ?? 0} msgs</span>
                     </div>
                     {lastMsg && (
-                      <p className="text-tiny text-text-3 line-clamp-2 pl-5">
+                      <p className="text-tiny text-text-3 line-clamp-2 pl-3 sm:pl-5">
                         <span className="font-semibold capitalize">{lastMsg.role}:</span> {lastMsg.content}
                       </p>
                     )}
@@ -433,14 +433,14 @@ function EditConfigDialog({ agent, onClose, onSaved }: { agent: Agent; onClose: 
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>{t('aiAgents.configTab')}</DialogTitle></DialogHeader>
-        <div className="space-y-4">
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-md overflow-hidden">
+        <DialogHeader className="shrink-0"><DialogTitle>{t('aiAgents.configTab')}</DialogTitle></DialogHeader>
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
           <div className="space-y-1.5">
             <Label>{t('aiAgents.description')} *</Label>
             <Input value={form.description} onChange={(e) => f('description', e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('aiAgents.mode')}</Label>
               <Select value={form.mode} onValueChange={(v) => f('mode', v)}>
@@ -455,7 +455,7 @@ function EditConfigDialog({ agent, onClose, onSaved }: { agent: Agent; onClose: 
               <Input type="number" min="0" step="10" value={form.budgetMonthlyUsd} onChange={(e) => f('budgetMonthlyUsd', e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('aiAgents.llmProvider')}</Label>
               <Select value={form.llmProvider} onValueChange={(v) => f('llmProvider', v)}>
@@ -475,7 +475,7 @@ function EditConfigDialog({ agent, onClose, onSaved }: { agent: Agent; onClose: 
             <Input value={form.schedule} onChange={(e) => f('schedule', e.target.value)} placeholder="0 */6 * * *" />
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             loading={save.isPending}
@@ -519,8 +519,8 @@ function ReviewActionDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className={decision === 'APPROVED' ? 'text-emerald' : 'text-rose'}>
             {decision === 'APPROVED' ? t('aiAgents.approve') : t('aiAgents.reject')}
           </DialogTitle>

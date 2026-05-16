@@ -65,7 +65,7 @@ export function AiAgentsClient({ initialAgents }: { initialAgents: Agent[] }): R
   const runningCount = agents.filter(a => a.status === 'RUNNING').length;
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="px-3 py-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-text-1">{t('aiAgents.title')}</h1>
@@ -227,14 +227,14 @@ function CreateAgentDialog({ open, onClose, onCreated }: { open: boolean; onClos
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>{t('aiAgents.createAgent')}</DialogTitle></DialogHeader>
-        <div className="space-y-4">
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-md overflow-hidden">
+        <DialogHeader className="shrink-0"><DialogTitle>{t('aiAgents.createAgent')}</DialogTitle></DialogHeader>
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
           <div className="space-y-1.5">
             <Label>{t('aiAgents.name')} *</Label>
             <Input value={form.name} onChange={(e) => f('name', e.target.value)} placeholder="Ej: Auditor Financiero" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('aiAgents.type')} *</Label>
               <Select value={form.type} onValueChange={(v) => f('type', v)}>
@@ -266,7 +266,7 @@ function CreateAgentDialog({ open, onClose, onCreated }: { open: boolean; onClos
               placeholder="Ej: Revisa anomalías en pagos y comisiones"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('aiAgents.llmProvider')}</Label>
               <Select
@@ -289,7 +289,7 @@ function CreateAgentDialog({ open, onClose, onCreated }: { open: boolean; onClos
             <Input type="number" min="0" step="10" value={form.budgetMonthlyUsd} onChange={(e) => f('budgetMonthlyUsd', e.target.value)} />
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             loading={create.isPending}

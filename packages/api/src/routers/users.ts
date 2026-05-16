@@ -161,6 +161,7 @@ export const usersRouter = router({
 
       // 4. Send welcome email via Resend and surface the result
       let emailSent = false;
+      let emailError: string | null = null;
       try {
         await sendWelcomeEmail({
           to: input.email,
@@ -170,11 +171,11 @@ export const usersRouter = router({
         });
         emailSent = true;
       } catch (emailErr: unknown) {
-        const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
-        console.error('[users.create] Welcome email failed:', msg);
+        emailError = emailErr instanceof Error ? emailErr.message : String(emailErr);
+        console.error('[users.create] Welcome email failed:', emailError);
       }
 
-      return { ...data, emailSent };
+      return { ...data, emailSent, emailError };
     }),
 
   update: superAdminProcedure

@@ -89,7 +89,7 @@ export async function sendWelcomeEmail({
     subject: `Bienvenido a LM Super Admin, ${firstName}`,
     html,
   });
-  if (error) throw new Error(`Resend: ${error.message}`);
+  if (error) throw new Error(`Resend [${error.name}]: ${error.message}`);
 }
 
 export async function sendPasswordResetEmail({
@@ -126,7 +126,7 @@ export async function sendPasswordResetEmail({
     subject: 'Reset your LM Super Admin password',
     html,
   });
-  if (error) throw new Error(`Resend: ${error.message}`);
+  if (error) throw new Error(`Resend [${error.name}]: ${error.message}`);
 }
 
 export async function sendLowBalanceEmail({
@@ -174,5 +174,5 @@ export async function sendLowBalanceEmail({
     subject: `⚠️ Saldo bajo en caja "${boxName}" — ${currency} ${balance.toLocaleString()}`,
     html,
   });
-  if (error) throw new Error(`Resend: ${error.message}`);
+  if (error) throw new Error(`Resend [${error.name}]: ${error.message}`);
 }

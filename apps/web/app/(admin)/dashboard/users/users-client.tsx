@@ -301,7 +301,7 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-text-1">Usuario creado</p>
               <p className="text-xs text-text-3 truncate">{result.firstName} {result.lastName}</p>
-              <p className="text-[10px] text-amber-400 truncate">Correo no pudo enviarse</p>
+              <p className="text-[10px] text-amber-400 truncate">{result.emailError ?? 'Correo no pudo enviarse'}</p>
             </div>
             <span className="flex items-center gap-1 shrink-0 text-[10px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-2.5 py-1">
               <AlertTriangle className="h-3 w-3" />

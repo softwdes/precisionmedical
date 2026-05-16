@@ -99,7 +99,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="px-3 py-4 sm:p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -332,39 +332,41 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="flex flex-col max-h-[90dvh] overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t('users.addNew')}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>{t('employees.firstName')}</Label>
-              <Input required value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} />
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>{t('employees.firstName')}</Label>
+                <Input required value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('employees.lastName')}</Label>
+                <Input required value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))} />
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label>{t('employees.lastName')}</Label>
-              <Input required value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))} />
+              <Label>{t('auth.email')}</Label>
+              <Input type="email" required value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('users.role')}</Label>
+              <Select value={form.role} onValueChange={(v) => setForm(f => ({ ...f, role: v as typeof form.role }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ROLE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.phone')} <span className="text-text-muted font-normal">({t('common.optional')})</span></Label>
+              <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>{t('auth.email')}</Label>
-            <Input type="email" required value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('users.role')}</Label>
-            <Select value={form.role} onValueChange={(v) => setForm(f => ({ ...f, role: v as typeof form.role }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(ROLE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('employees.phone')} <span className="text-text-muted font-normal">({t('common.optional')})</span></Label>
-            <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
-          </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
             <Button type="submit" loading={create.isPending}>{t('users.createUser')}</Button>
           </DialogFooter>
@@ -408,11 +410,11 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="flex flex-col max-h-[90dvh] overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Editar usuario</DialogTitle>
         </DialogHeader>
-        <div className="flex items-center gap-3 py-1 px-1">
+        <div className="flex items-center gap-3 py-1 px-1 shrink-0">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
             {user.firstName.charAt(0)}{user.lastName.charAt(0)}
           </div>
@@ -421,42 +423,44 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <p className="text-xs text-text-3">{user.email}</p>
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>{t('employees.firstName')}</Label>
-              <Input required value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} />
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden pt-1">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>{t('employees.firstName')}</Label>
+                <Input required value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('employees.lastName')}</Label>
+                <Input required value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>{t('users.role')}</Label>
+                <Select value={form.role} onValueChange={(v) => setForm(f => ({ ...f, role: v as typeof form.role }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ROLE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('common.status')}</Label>
+                <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v as typeof form.status }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(STATUS_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label>{t('employees.lastName')}</Label>
-              <Input required value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))} />
+              <Label>{t('employees.phone')} <span className="text-text-muted font-normal">({t('common.optional')})</span></Label>
+              <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label>{t('users.role')}</Label>
-              <Select value={form.role} onValueChange={(v) => setForm(f => ({ ...f, role: v as typeof form.role }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(ROLE_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t('common.status')}</Label>
-              <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v as typeof form.status }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(STATUS_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('employees.phone')} <span className="text-text-muted font-normal">({t('common.optional')})</span></Label>
-            <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
-          </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
             <Button type="submit" loading={update.isPending}>Guardar cambios</Button>
           </DialogFooter>
@@ -507,10 +511,10 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="p-0 overflow-hidden">
+      <DialogContent className="p-0 flex flex-col max-h-[90dvh] overflow-hidden">
         {/* User header */}
         {user && (
-          <div className="flex items-start gap-3 pl-5 pr-12 pt-5 pb-4 border-b border-border">
+          <div className="flex items-start gap-3 pl-5 pr-12 pt-5 pb-4 border-b border-border shrink-0">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-sm font-bold text-white shrink-0 mt-0.5">
               {user.firstName.charAt(0)}{user.lastName.charAt(0)}
             </div>
@@ -525,7 +529,7 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
         )}
 
         {/* Tabs */}
-        <div className="flex overflow-x-auto border-b border-border px-5 scrollbar-none">
+        <div className="flex overflow-x-auto border-b border-border px-5 scrollbar-none shrink-0">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -543,7 +547,7 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
         </div>
 
         {/* Tab content */}
-        <div className="p-5 min-h-[260px] max-h-[65vh] overflow-y-auto">
+        <div className="p-5 min-h-[200px] flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="flex items-center justify-center h-40 text-text-muted text-sm">Cargando...</div>
           ) : user ? (
@@ -662,11 +666,11 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
 }): React.ReactElement {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="text-rose-500">Eliminar usuario</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-1">
+        <div className="space-y-4 py-1 overflow-y-auto flex-1 min-h-0">
           <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
               {user.firstName.charAt(0)}{user.lastName.charAt(0)}
@@ -680,7 +684,7 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
             ¿Estás seguro de que deseas eliminar este usuario? Se eliminará su acceso al sistema y esta acción <strong className="text-text-1">no se puede deshacer</strong>.
           </p>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={onClose} disabled={isPending}>Cancelar</Button>
           <Button
             disabled={isPending}

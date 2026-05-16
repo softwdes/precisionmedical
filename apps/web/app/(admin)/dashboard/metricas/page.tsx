@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import * as React from 'react';
 import { api } from '@/lib/trpc/server';
+import { EmployeesClient } from '../employees/employees-client';
 import { LawyersClient } from '../lawyers/lawyers-client';
 import { ProvidersClient } from '../providers/providers-client';
 import { AppointmentsClient } from '../appointments/appointments-client';
@@ -10,6 +11,7 @@ export const metadata = { title: 'Métricas' };
 
 const TABS = [
   { key: 'clinicas',    label: 'Clínicas',    href: '/dashboard/metricas' },
+  { key: 'empleados',   label: 'Empleados',   href: '/dashboard/metricas?tab=empleados' },
   { key: 'abogados',    label: 'Abogados',    href: '/dashboard/metricas?tab=abogados' },
   { key: 'proveedores', label: 'Proveedores', href: '/dashboard/metricas?tab=proveedores' },
   { key: 'citas',       label: 'Citas',       href: '/dashboard/metricas?tab=citas' },
@@ -26,7 +28,13 @@ export default async function MetricasPage({
 
   let content: React.ReactElement;
 
-  if (activeTab === 'abogados') {
+  if (activeTab === 'empleados') {
+    const [initial, departments] = await Promise.all([
+      api.employees.list({ page: 1, pageSize: 25 }),
+      api.departments.list(),
+    ]);
+    content = <EmployeesClient initial={initial} departments={departments} />;
+  } else if (activeTab === 'abogados') {
     const initial = await api.lawyers.list();
     content = <LawyersClient initial={initial} />;
   } else if (activeTab === 'proveedores') {

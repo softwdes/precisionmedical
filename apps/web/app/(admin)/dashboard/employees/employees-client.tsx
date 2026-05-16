@@ -2,16 +2,19 @@
 
 import * as React from 'react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
-  Button, Badge, Input, Label, Textarea,
+  Button, Badge, Input, Label, Textarea, cn,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@precision/ui';
-import { Plus, Search, ChevronRight, ChevronLeft, Trophy, Eye, Pencil, Trash2 } from 'lucide-react';
+import {
+  Plus, Search, ChevronRight, ChevronLeft, Trophy, Eye, EyeOff,
+  Pencil, Trash2, Mail, Phone, MapPin, Briefcase, Calendar,
+  DollarSign, FileText, Activity, Building2, UserCheck, CreditCard,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -30,7 +33,6 @@ export function EmployeesClient({
   initial: EmployeesListOutput;
   departments: Department[];
 }): React.ReactElement {
-  const router = useRouter();
   const t = useTranslations();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -38,6 +40,7 @@ export function EmployeesClient({
   const [statusFilter, setStatusFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [viewingEmpId, setViewingEmpId] = useState<string | null>(null);
   const [editEmp, setEditEmp] = useState<EmployeeListItem | null>(null);
   const [deactivateEmp, setDeactivateEmp] = useState<EmployeeListItem | null>(null);
 
@@ -143,7 +146,7 @@ export function EmployeesClient({
                     </div>
                   </div>
                   <div className="flex items-center gap-0.5 shrink-0">
-                    <ActionButton icon={Eye} title={t('common.view')} onClick={() => router.push(`/dashboard/employees/${emp.id}`)} />
+                    <ActionButton icon={Eye} title={t('common.view')} onClick={() => setViewingEmpId(emp.id)} />
                     <ActionButton icon={Pencil} title={t('common.edit')} onClick={() => setEditEmp(emp)} />
                     <ActionButton icon={Trash2} title={t('employees.deactivate')} variant="danger" onClick={() => setDeactivateEmp(emp)} />
                   </div>
@@ -195,7 +198,7 @@ export function EmployeesClient({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-0.5">
-                        <ActionButton icon={Eye} title={t('common.view')} onClick={() => router.push(`/dashboard/employees/${emp.id}`)} />
+                        <ActionButton icon={Eye} title={t('common.view')} onClick={() => setViewingEmpId(emp.id)} />
                         <ActionButton icon={Pencil} title={t('common.edit')} onClick={() => setEditEmp(emp)} />
                         <ActionButton icon={Trash2} title={t('employees.deactivate')} variant="danger" onClick={() => setDeactivateEmp(emp)} />
                       </div>
@@ -222,6 +225,10 @@ export function EmployeesClient({
             </Button>
           </div>
         </div>
+      )}
+
+      {viewingEmpId && (
+        <EmployeeViewDialog employeeId={viewingEmpId} onClose={() => setViewingEmpId(null)} />
       )}
 
       <CreateEmployeeDialog
@@ -266,6 +273,241 @@ export function EmployeesClient({
           </DialogContent>
         </Dialog>
       )}
+    </div>
+  );
+}
+
+// ─── Employee View Dialog ─────────────────────────────────────────────────────
+
+type EmpDetail = inferRouterOutputs<AppRouter>['employees']['getById'];
+type ActivityItem = inferRouterOutputs<AppRouter>['employees']['listActivity'][number];
+
+const TABS_VIEW = ['overview', 'compensation', 'documents', 'activity'] as const;
+type ViewTab = typeof TABS_VIEW[number];
+
+function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClose: () => void }): React.ReactElement {
+  const t = useTranslations();
+  const locale = useLocale();
+  const [activeTab, setActiveTab] = useState<ViewTab>('overview');
+  const [showAccount, setShowAccount] = useState(false);
+
+  const { data: emp, isLoading } = trpc.employees.getById.useQuery({ id: employeeId });
+  const { data: activity = [] } = trpc.employees.listActivity.useQuery(
+    { employeeId },
+    { enabled: activeTab === 'activity' },
+  );
+
+  const TYPE_LABELS: Record<string, string> = {
+    FULL_TIME: t('employees.types.FULL_TIME'),
+    EXTERNAL: t('employees.types.EXTERNAL'),
+    CONTRACTOR: t('employees.types.CONTRACTOR'),
+  };
+  const STATUS_LABELS: Record<string, string> = {
+    ACTIVE: t('employees.statuses.ACTIVE'),
+    INACTIVE: t('employees.statuses.INACTIVE'),
+    SUSPENDED: t('employees.statuses.SUSPENDED'),
+    ON_LEAVE: t('employees.statuses.ON_LEAVE'),
+  };
+  const ACTION_LABELS: Record<string, string> = {
+    'employee.created': t('employees.activityActions.employeeCreated'),
+    'employee.updated': t('employees.activityActions.employeeUpdated'),
+    'employee.deactivated': t('employees.activityActions.employeeDeactivated'),
+  };
+  const TAB_LABELS: Record<ViewTab, string> = {
+    overview: t('employees.overviewTab'),
+    compensation: t('employees.compensationTab'),
+    documents: t('employees.documentsTab'),
+    activity: t('employees.activityTab'),
+  };
+
+  const fmt = (d: string | Date | null | undefined) =>
+    d ? new Date(d).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+  const country = emp?.country as { code: string; name: string; currency: string } | null;
+  const department = emp?.department as { name: string } | null;
+  const supervisor = emp?.supervisor as { id: string; firstName: string; lastName: string } | null;
+  const documents = (emp?.documents as Array<{ id: string; type: string; url: string; createdAt: string }>) ?? [];
+  const empCast = emp as (EmpDetail & { city?: string; hourlyRate?: number; paymentMethod?: string; bankAccount?: string }) | undefined;
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl p-0 overflow-hidden">
+        {/* Header */}
+        {emp && (
+          <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand/20 text-sm font-bold text-brand shrink-0">
+              {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-text-1">{emp.firstName} {emp.lastName}</p>
+              <p className="text-xs text-text-3">{emp.position}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="font-mono text-[10px] text-text-muted border border-border rounded px-1.5 py-0.5">{emp.employeeCode}</span>
+                <Badge variant={STATUS_COLORS[emp.status] ?? 'secondary'}>{STATUS_LABELS[emp.status] ?? emp.status}</Badge>
+                <Badge variant={TYPE_COLORS[emp.type] ?? 'secondary'}>{TYPE_LABELS[emp.type] ?? emp.type}</Badge>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex border-b border-border px-5">
+          {TABS_VIEW.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                'px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+                activeTab === tab
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-text-3 hover:text-text-1',
+              )}
+            >
+              {TAB_LABELS[tab]}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="p-5 min-h-[260px] max-h-[440px] overflow-y-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-40 text-text-muted text-sm">Cargando...</div>
+          ) : emp ? (
+            <>
+              {/* Visión general */}
+              {activeTab === 'overview' && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-wider text-text-muted flex items-center gap-1.5 mb-2">
+                      <UserCheck className="h-3 w-3" />{t('employees.personalInfo')}
+                    </p>
+                    <EmpInfoRow icon={Mail} label={t('employees.email')} value={emp.email} />
+                    <EmpInfoRow icon={Phone} label={t('employees.phone')} value={emp.phone ?? '—'} />
+                    <EmpInfoRow icon={MapPin} label={t('employees.country')} value={country ? `${country.name} (${country.code})` : '—'} />
+                    <EmpInfoRow icon={MapPin} label={t('employees.city')} value={empCast?.city ?? '—'} />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase tracking-wider text-text-muted flex items-center gap-1.5 mb-2">
+                      <Briefcase className="h-3 w-3" />{t('employees.workInfo')}
+                    </p>
+                    <EmpInfoRow icon={Building2} label={t('employees.department')} value={department?.name ?? '—'} />
+                    <EmpInfoRow icon={Briefcase} label={t('employees.position')} value={emp.position} />
+                    <EmpInfoRow icon={Calendar} label={t('employees.startDate')} value={fmt(emp.startDate)} />
+                    {supervisor && <EmpInfoRow icon={UserCheck} label={t('employees.supervisor')} value={`${supervisor.firstName} ${supervisor.lastName}`} />}
+                  </div>
+                </div>
+              )}
+
+              {/* Compensación */}
+              {activeTab === 'compensation' && (
+                <div className="space-y-0">
+                  <p className="text-[10px] uppercase tracking-wider text-text-muted flex items-center gap-1.5 mb-3">
+                    <DollarSign className="h-3 w-3" />{t('employees.compensationTab')}
+                  </p>
+                  <div className="rounded-lg border border-border divide-y divide-border">
+                    <EmpInfoRow icon={DollarSign} label={t('employees.baseSalary')} value={emp.baseSalary ? `$${Number(emp.baseSalary).toLocaleString()} ${emp.baseCurrency}` : '—'} padded />
+                    <EmpInfoRow icon={DollarSign} label={t('employees.hourlyRate')} value={empCast?.hourlyRate ? `$${Number(empCast.hourlyRate).toFixed(2)}/hr` : '—'} padded />
+                    <EmpInfoRow icon={CreditCard} label={t('employees.paymentMethod')} value={empCast?.paymentMethod ?? '—'} padded />
+                    <div className="flex items-center justify-between px-3 py-2.5">
+                      <div className="flex items-center gap-2 text-xs text-text-3">
+                        <CreditCard className="h-3.5 w-3.5 shrink-0" />
+                        {t('employees.bankAccount')}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs text-text-1">
+                          {empCast?.bankAccount
+                            ? showAccount ? empCast.bankAccount : '••••••••' + empCast.bankAccount.slice(-4)
+                            : '—'}
+                        </span>
+                        {empCast?.bankAccount && (
+                          <button onClick={() => setShowAccount(!showAccount)} className="text-text-muted hover:text-text-2">
+                            {showAccount ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Documentos */}
+              {activeTab === 'documents' && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-text-muted flex items-center gap-1.5 mb-3">
+                    <FileText className="h-3 w-3" />{t('employees.documentsTab')}
+                  </p>
+                  {documents.length === 0 ? (
+                    <div className="flex items-center justify-center h-32 text-text-3 text-sm">{t('employees.noDocuments')}</div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {documents.map((doc) => (
+                        <li key={doc.id} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-4 w-4 text-text-3 shrink-0" />
+                            <div>
+                              <p className="text-xs font-medium text-text-1">{doc.type}</p>
+                              <p className="text-[10px] text-text-3">{fmt(doc.createdAt)}</p>
+                            </div>
+                          </div>
+                          <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-brand hover:underline">
+                            {t('common.view')}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {/* Actividad */}
+              {activeTab === 'activity' && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-text-muted flex items-center gap-1.5 mb-3">
+                    <Activity className="h-3 w-3" />{t('employees.activityTab')}
+                  </p>
+                  {activity.length === 0 ? (
+                    <div className="flex items-center justify-center h-32 text-text-3 text-sm">{t('employees.noActivity')}</div>
+                  ) : (
+                    <ul className="divide-y divide-border/50">
+                      {activity.map((item) => {
+                        const actorRaw = item.actorUser as unknown;
+                        const actor = Array.isArray(actorRaw)
+                          ? (actorRaw[0] as { firstName: string; lastName: string } | undefined)
+                          : (actorRaw as { firstName: string; lastName: string } | null);
+                        const actorName = actor ? `${actor.firstName} ${actor.lastName}` : t('employees.system');
+                        return (
+                          <li key={item.id} className="flex items-start gap-3 py-2.5">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-[9px] font-bold text-brand shrink-0 mt-0.5">
+                              {actorName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-text-1">{ACTION_LABELS[item.action] ?? item.action}</p>
+                              <p className="text-[10px] text-text-muted">{actorName}</p>
+                            </div>
+                            <p className="text-[10px] text-text-muted shrink-0">{fmt(item.createdAt)}</p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EmpInfoRow({ icon: Icon, label, value, padded }: { icon: React.ElementType; label: string; value: string; padded?: boolean }): React.ReactElement {
+  return (
+    <div className={cn('flex items-center justify-between gap-3', padded ? 'px-3 py-2.5' : 'py-2 border-b border-border/50 last:border-0')}>
+      <div className="flex items-center gap-2 text-xs text-text-3 shrink-0">
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        {label}
+      </div>
+      <span className="text-xs text-text-1 text-right min-w-0 truncate">{value}</span>
     </div>
   );
 }

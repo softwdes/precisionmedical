@@ -205,9 +205,9 @@ function LogAttendanceDialog({ open, employees, onClose, onCreated }: { open: bo
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>{t('attendance.createRecord')}</DialogTitle></DialogHeader>
-        <div className="space-y-4">
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogHeader className="shrink-0"><DialogTitle>{t('attendance.createRecord')}</DialogTitle></DialogHeader>
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
           <div className="space-y-1.5">
             <Label>{t('attendance.employee')} *</Label>
             <Select value={form.employeeId} onValueChange={(v) => f('employeeId', v)}>
@@ -220,7 +220,7 @@ function LogAttendanceDialog({ open, employees, onClose, onCreated }: { open: bo
             <Input type="date" value={form.date} onChange={(e) => f('date', e.target.value)} />
           </div>
           {!form.isAbsent && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>{t('attendance.clockIn')}</Label><Input type="time" value={form.clockIn} onChange={(e) => f('clockIn', e.target.value)} /></div>
               <div className="space-y-1.5"><Label>{t('attendance.clockOut')}</Label><Input type="time" value={form.clockOut} onChange={(e) => f('clockOut', e.target.value)} /></div>
             </div>
@@ -236,7 +236,7 @@ function LogAttendanceDialog({ open, employees, onClose, onCreated }: { open: bo
             </label>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             loading={create.isPending}

@@ -621,7 +621,7 @@ export function DashboardClient({
             <p className="text-[11.5px] text-text-3 mt-0.5">{t('commissionsMonth')}</p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-2 mb-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3.5">
               {commissionCards.map((c) => (
                 <div key={c.label} className="rounded-[10px] border p-3"
                   style={{

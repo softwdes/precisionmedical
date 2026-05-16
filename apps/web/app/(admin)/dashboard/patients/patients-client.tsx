@@ -214,10 +214,10 @@ function CreatePatientDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{t('patients.createPatient')}</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-md overflow-hidden">
+        <DialogHeader className="shrink-0"><DialogTitle>{t('patients.createPatient')}</DialogTitle></DialogHeader>
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('patients.firstName')} *</Label>
               <Input value={form.firstName} onChange={(e) => f('firstName', e.target.value)} />
@@ -227,7 +227,7 @@ function CreatePatientDialog({
               <Input value={form.lastName} onChange={(e) => f('lastName', e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('patients.email')}</Label>
               <Input type="email" value={form.email} onChange={(e) => f('email', e.target.value)} />
@@ -237,7 +237,7 @@ function CreatePatientDialog({
               <Input type="tel" value={form.phone} onChange={(e) => f('phone', e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('patients.accidentDate')}</Label>
               <Input type="date" value={form.accidentDate} onChange={(e) => f('accidentDate', e.target.value)} />
@@ -252,7 +252,7 @@ function CreatePatientDialog({
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('patients.insuranceCarrier')}</Label>
               <Input value={form.insuranceCarrier} onChange={(e) => f('insuranceCarrier', e.target.value)} />
@@ -286,7 +286,7 @@ function CreatePatientDialog({
             </Select>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             loading={create.isPending}

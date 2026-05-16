@@ -269,9 +269,9 @@ function CreateCommissionDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>{t('commissions.createCommission')}</DialogTitle></DialogHeader>
-        <div className="space-y-4">
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogHeader className="shrink-0"><DialogTitle>{t('commissions.createCommission')}</DialogTitle></DialogHeader>
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
           <div className="flex gap-2">
             <Button
               variant={recipientType === 'lawyer' ? 'default' : 'outline'}
@@ -321,7 +321,7 @@ function CreateCommissionDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('commissions.amount')} *</Label>
               <Input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => f('amount', e.target.value)} placeholder="0.00" />
@@ -341,7 +341,7 @@ function CreateCommissionDialog({
             <Input value={form.notes} onChange={(e) => f('notes', e.target.value)} />
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             loading={create.isPending}

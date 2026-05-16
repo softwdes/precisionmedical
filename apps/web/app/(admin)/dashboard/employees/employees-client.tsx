@@ -651,20 +651,20 @@ function CreateEmployeeDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { onClose(); setStep(1); } }}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-xl overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t('employees.newEmployeeStep', { step })}</DialogTitle>
         </DialogHeader>
 
         {/* Progress */}
-        <div className="flex gap-1.5 mb-2">
-          {[1, 2, 3].map((s) => (
+        <div className="flex gap-1.5 shrink-0">
+          {[1, 2].map((s) => (
             <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? 'bg-brand' : 'bg-border'}`} />
           ))}
         </div>
 
         {step === 1 && (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5"><Label>{t('employees.firstName')} *</Label><Input required value={form.firstName} onChange={(e) => f('firstName', e.target.value)} /></div>
               <div className="space-y-1.5"><Label>{t('employees.lastName')} *</Label><Input required value={form.lastName} onChange={(e) => f('lastName', e.target.value)} /></div>
@@ -675,7 +675,7 @@ function CreateEmployeeDialog({
         )}
 
         {step === 2 && (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>{t('employees.type')} *</Label>
@@ -714,11 +714,7 @@ function CreateEmployeeDialog({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-4">
+            <div className="border-t" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5"><Label>{t('employees.baseSalary')}</Label><Input type="number" value={form.baseSalary} onChange={(e) => f('baseSalary', e.target.value)} /></div>
               <div className="space-y-1.5">
@@ -750,13 +746,12 @@ function CreateEmployeeDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           {step > 1 && <Button type="button" variant="ghost" onClick={() => setStep(s => s - 1)}>{t('common.back')}</Button>}
           <Button type="button" variant="ghost" onClick={() => { onClose(); setStep(1); }}>{t('common.cancel')}</Button>
-          {step < 3 ? (
+          {step < 2 ? (
             <Button type="button" onClick={() => setStep(s => s + 1)} disabled={
-              (step === 1 && (!form.firstName || !form.lastName || !form.email)) ||
-              (step === 2 && (!form.type || !form.startDate || !form.departmentId || !form.position || !form.countryId))
+              step === 1 && (!form.firstName || !form.lastName || !form.email)
             }>
               {t('common.next')}
             </Button>
@@ -816,20 +811,20 @@ function EditEmployeeDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) { onClose(); setStep(1); } }}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-xl overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t('employees.editEmployeeStep', { step })}</DialogTitle>
         </DialogHeader>
 
         {/* Progress */}
-        <div className="flex gap-1.5 mb-2">
-          {[1, 2, 3].map((s) => (
+        <div className="flex gap-1.5 shrink-0">
+          {[1, 2].map((s) => (
             <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${s <= step ? 'bg-brand' : 'bg-border'}`} />
           ))}
         </div>
 
         {step === 1 && (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5"><Label>{t('employees.firstName')} *</Label><Input required value={form.firstName} onChange={(e) => f('firstName', e.target.value)} /></div>
               <div className="space-y-1.5"><Label>{t('employees.lastName')} *</Label><Input required value={form.lastName} onChange={(e) => f('lastName', e.target.value)} /></div>
@@ -840,7 +835,7 @@ function EditEmployeeDialog({
         )}
 
         {step === 2 && (
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>{t('employees.type')} *</Label>
@@ -879,11 +874,7 @@ function EditEmployeeDialog({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-4">
+            <div className="border-t" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5"><Label>{t('employees.baseSalary')}</Label><Input type="number" value={form.baseSalary} onChange={(e) => f('baseSalary', e.target.value)} /></div>
               <div className="space-y-1.5">
@@ -915,13 +906,12 @@ function EditEmployeeDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           {step > 1 && <Button type="button" variant="ghost" onClick={() => setStep(s => s - 1)}>{t('common.back')}</Button>}
           <Button type="button" variant="ghost" onClick={() => { onClose(); setStep(1); }}>{t('common.cancel')}</Button>
-          {step < 3 ? (
+          {step < 2 ? (
             <Button type="button" onClick={() => setStep(s => s + 1)} disabled={
-              (step === 1 && (!form.firstName || !form.lastName || !form.email)) ||
-              (step === 2 && (!form.type || !form.startDate || !form.departmentId || !form.position || !form.countryId))
+              step === 1 && (!form.firstName || !form.lastName || !form.email)
             }>
               {t('common.next')}
             </Button>

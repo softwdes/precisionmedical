@@ -232,7 +232,18 @@
       "employeeUpdated": "Employee updated",
       "employeeDeactivated": "Employee deactivated"
     },
-    "topPerformersTitle": "Top 5 Employees of the Month"
+    "topPerformersTitle": "Top 5 Employees of the Month",
+    "positions": {
+      "DOCTOR": "Doctor",
+      "NURSE": "Nurse",
+      "RECEPTIONIST": "Receptionist",
+      "SOFTWARE_DEVELOPER": "Software Developer",
+      "CLINIC_ADMIN": "Clinic Administrator",
+      "MEDICAL_ASSISTANT": "Medical Assistant",
+      "MARKETING": "Marketing",
+      "COMMUNICATIONS": "Communications",
+      "CLEANING_STAFF": "Cleaning Staff"
+    }
   },
   "freelancers": {
     "tab": "Freelancers",

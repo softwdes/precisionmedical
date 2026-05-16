@@ -22,6 +22,7 @@ import type { AppRouter } from '@precision-medical/api';
 type EmployeesListOutput = inferRouterOutputs<AppRouter>['employees']['list'];
 type EmployeeListItem = EmployeesListOutput['items'][number];
 type Department = inferRouterOutputs<AppRouter>['departments']['list'][number];
+type PositionKey = 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'SOFTWARE_DEVELOPER' | 'CLINIC_ADMIN' | 'MEDICAL_ASSISTANT' | 'MARKETING' | 'COMMUNICATIONS' | 'CLEANING_STAFF';
 
 const TYPE_COLORS: Record<string, 'success' | 'info' | 'secondary'> = { FULL_TIME: 'success', EXTERNAL: 'info', CONTRACTOR: 'secondary' };
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = { ACTIVE: 'success', ON_LEAVE: 'warning', SUSPENDED: 'destructive', INACTIVE: 'secondary' };
@@ -302,6 +303,17 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
     EXTERNAL: t('employees.types.EXTERNAL'),
     CONTRACTOR: t('employees.types.CONTRACTOR'),
   };
+  const POSITION_LABELS: Record<string, string> = {
+    DOCTOR: t('employees.positions.DOCTOR'),
+    NURSE: t('employees.positions.NURSE'),
+    RECEPTIONIST: t('employees.positions.RECEPTIONIST'),
+    SOFTWARE_DEVELOPER: t('employees.positions.SOFTWARE_DEVELOPER'),
+    CLINIC_ADMIN: t('employees.positions.CLINIC_ADMIN'),
+    MEDICAL_ASSISTANT: t('employees.positions.MEDICAL_ASSISTANT'),
+    MARKETING: t('employees.positions.MARKETING'),
+    COMMUNICATIONS: t('employees.positions.COMMUNICATIONS'),
+    CLEANING_STAFF: t('employees.positions.CLEANING_STAFF'),
+  };
   const STATUS_LABELS: Record<string, string> = {
     ACTIVE: t('employees.statuses.ACTIVE'),
     INACTIVE: t('employees.statuses.INACTIVE'),
@@ -340,7 +352,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-text-1 truncate">{emp.firstName} {emp.lastName}</p>
-              <p className="text-xs text-text-3 truncate">{emp.position}</p>
+              <p className="text-xs text-text-3 truncate">{POSITION_LABELS[emp.position] ?? emp.position}</p>
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 <span className="font-mono text-[10px] text-text-muted border border-border rounded px-1.5 py-0.5">{emp.employeeCode}</span>
                 <Badge variant={STATUS_COLORS[emp.status] ?? 'secondary'}>{STATUS_LABELS[emp.status] ?? emp.status}</Badge>
@@ -391,7 +403,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
                       <Briefcase className="h-3 w-3" />{t('employees.workInfo')}
                     </p>
                     <EmpInfoRow icon={Building2} label={t('employees.department')} value={department?.name ?? '—'} />
-                    <EmpInfoRow icon={Briefcase} label={t('employees.position')} value={emp.position} />
+                    <EmpInfoRow icon={Briefcase} label={t('employees.position')} value={POSITION_LABELS[emp.position] ?? emp.position} />
                     <EmpInfoRow icon={Calendar} label={t('employees.startDate')} value={fmt(emp.startDate)} />
                     {supervisor && <EmpInfoRow icon={UserCheck} label={t('employees.supervisor')} value={`${supervisor.firstName} ${supervisor.lastName}`} />}
                   </div>
@@ -628,7 +640,7 @@ function CreateEmployeeDialog({
   const t = useTranslations();
   const INITIAL_FORM = {
     firstName: '', lastName: '', email: '', phone: '',
-    type: 'FULL_TIME' as const, departmentId: '', position: '', startDate: '',
+    type: 'FULL_TIME' as const, departmentId: '', position: '' as PositionKey | '', startDate: '',
     countryId: '', baseSalary: '', baseCurrency: 'USD' as const, paymentMethod: 'BANK_TRANSFER' as const, bankAccount: '',
   };
 
@@ -645,6 +657,7 @@ function CreateEmployeeDialog({
   const handleSubmit = (): void => {
     create.mutate({
       ...form,
+      position: form.position as PositionKey,
       startDate: new Date(form.startDate),
       baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
       phone: form.phone || undefined,
@@ -712,15 +725,15 @@ function CreateEmployeeDialog({
               <Select value={form.position} onValueChange={(v) => f('position', v)}>
                 <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Doctor">Doctor</SelectItem>
-                  <SelectItem value="Enfermero">Enfermero</SelectItem>
-                  <SelectItem value="Recepcionista">Recepcionista</SelectItem>
-                  <SelectItem value="Desarrollador de Software">Desarrollador de Software</SelectItem>
-                  <SelectItem value="Administrador de Clínica">Administrador de Clínica</SelectItem>
-                  <SelectItem value="Asistente Médico">Asistente Médico</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Comunicación">Comunicación</SelectItem>
-                  <SelectItem value="Personal de Limpieza">Personal de Limpieza</SelectItem>
+                  <SelectItem value="DOCTOR">{t('employees.positions.DOCTOR')}</SelectItem>
+                  <SelectItem value="NURSE">{t('employees.positions.NURSE')}</SelectItem>
+                  <SelectItem value="RECEPTIONIST">{t('employees.positions.RECEPTIONIST')}</SelectItem>
+                  <SelectItem value="SOFTWARE_DEVELOPER">{t('employees.positions.SOFTWARE_DEVELOPER')}</SelectItem>
+                  <SelectItem value="CLINIC_ADMIN">{t('employees.positions.CLINIC_ADMIN')}</SelectItem>
+                  <SelectItem value="MEDICAL_ASSISTANT">{t('employees.positions.MEDICAL_ASSISTANT')}</SelectItem>
+                  <SelectItem value="MARKETING">{t('employees.positions.MARKETING')}</SelectItem>
+                  <SelectItem value="COMMUNICATIONS">{t('employees.positions.COMMUNICATIONS')}</SelectItem>
+                  <SelectItem value="CLEANING_STAFF">{t('employees.positions.CLEANING_STAFF')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -801,7 +814,7 @@ function EditEmployeeDialog({
     phone: employee.phone ?? '',
     type: employee.type as 'FULL_TIME' | 'EXTERNAL' | 'CONTRACTOR',
     departmentId: (employee.departmentId as string | null) ?? '',
-    position: employee.position,
+    position: employee.position as PositionKey,
     startDate: employee.startDate ? new Date(employee.startDate).toISOString().split('T')[0]! : '',
     countryId: (employee.countryId as string | null) ?? '',
     baseSalary: employee.baseSalary ? String(employee.baseSalary) : '',
@@ -888,15 +901,15 @@ function EditEmployeeDialog({
               <Select value={form.position} onValueChange={(v) => f('position', v)}>
                 <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Doctor">Doctor</SelectItem>
-                  <SelectItem value="Enfermero">Enfermero</SelectItem>
-                  <SelectItem value="Recepcionista">Recepcionista</SelectItem>
-                  <SelectItem value="Desarrollador de Software">Desarrollador de Software</SelectItem>
-                  <SelectItem value="Administrador de Clínica">Administrador de Clínica</SelectItem>
-                  <SelectItem value="Asistente Médico">Asistente Médico</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Comunicación">Comunicación</SelectItem>
-                  <SelectItem value="Personal de Limpieza">Personal de Limpieza</SelectItem>
+                  <SelectItem value="DOCTOR">{t('employees.positions.DOCTOR')}</SelectItem>
+                  <SelectItem value="NURSE">{t('employees.positions.NURSE')}</SelectItem>
+                  <SelectItem value="RECEPTIONIST">{t('employees.positions.RECEPTIONIST')}</SelectItem>
+                  <SelectItem value="SOFTWARE_DEVELOPER">{t('employees.positions.SOFTWARE_DEVELOPER')}</SelectItem>
+                  <SelectItem value="CLINIC_ADMIN">{t('employees.positions.CLINIC_ADMIN')}</SelectItem>
+                  <SelectItem value="MEDICAL_ASSISTANT">{t('employees.positions.MEDICAL_ASSISTANT')}</SelectItem>
+                  <SelectItem value="MARKETING">{t('employees.positions.MARKETING')}</SelectItem>
+                  <SelectItem value="COMMUNICATIONS">{t('employees.positions.COMMUNICATIONS')}</SelectItem>
+                  <SelectItem value="CLEANING_STAFF">{t('employees.positions.CLEANING_STAFF')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

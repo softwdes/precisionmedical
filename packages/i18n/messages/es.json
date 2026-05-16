@@ -232,7 +232,18 @@
       "employeeUpdated": "Empleado actualizado",
       "employeeDeactivated": "Empleado desactivado"
     },
-    "topPerformersTitle": "Top 5 Empleados del Mes"
+    "topPerformersTitle": "Top 5 Empleados del Mes",
+    "positions": {
+      "DOCTOR": "Doctor",
+      "NURSE": "Enfermero",
+      "RECEPTIONIST": "Recepcionista",
+      "SOFTWARE_DEVELOPER": "Desarrollador de Software",
+      "CLINIC_ADMIN": "Administrador de Clínica",
+      "MEDICAL_ASSISTANT": "Asistente Médico",
+      "MARKETING": "Marketing",
+      "COMMUNICATIONS": "Comunicación",
+      "CLEANING_STAFF": "Personal de Limpieza"
+    }
   },
   "freelancers": {
     "tab": "Freelancers",

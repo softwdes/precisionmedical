@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -27,7 +26,6 @@ const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'sec
 };
 
 export function UsersClient({ initial }: { initial: UsersListOutput }): React.ReactElement {
-  const router = useRouter();
   const t = useTranslations();
   const locale = useLocale();
   const [page, setPage] = useState(1);
@@ -158,7 +156,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
                 <div
                   key={user.id}
                   className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-surface/50 active:bg-surface transition-colors"
-                  onClick={() => router.push(`/dashboard/users/${user.id}`)}
+                  onClick={() => setViewingUserId(user.id)}
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-small font-bold text-white shrink-0">
                     {user.firstName.charAt(0)}{user.lastName.charAt(0)}
@@ -199,7 +197,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
                 </TableRow>
               ) : (
                 (data?.users ?? []).map((user) => (
-                  <TableRow key={user.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/users/${user.id}`)}>
+                  <TableRow key={user.id} className="cursor-pointer" onClick={() => setViewingUserId(user.id)}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-brand text-tiny font-bold text-white shrink-0">

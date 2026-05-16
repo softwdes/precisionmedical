@@ -626,15 +626,19 @@ function CreateEmployeeDialog({
   open: boolean; onClose: () => void; onCreated: () => void; departments: Department[];
 }): React.ReactElement {
   const t = useTranslations();
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
+  const INITIAL_FORM = {
     firstName: '', lastName: '', email: '', phone: '',
     type: 'FULL_TIME' as const, departmentId: '', position: '', startDate: '',
     countryId: '', baseSalary: '', baseCurrency: 'USD' as const, paymentMethod: 'BANK_TRANSFER' as const, bankAccount: '',
-  });
+  };
+
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState(INITIAL_FORM);
+
+  const resetForm = (): void => { setForm(INITIAL_FORM); setStep(1); };
 
   const create = trpc.employees.create.useMutation({
-    onSuccess: () => { toast.success(t('employees.created')); onCreated(); },
+    onSuccess: () => { toast.success(t('employees.created')); resetForm(); onCreated(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -651,7 +655,7 @@ function CreateEmployeeDialog({
   const f = (k: keyof typeof form, v: string): void => setForm(prev => ({ ...prev, [k]: v }));
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { onClose(); setStep(1); } }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { resetForm(); onClose(); } }}>
       <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-xl overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{t('employees.newEmployeeStep', { step })}</DialogTitle>

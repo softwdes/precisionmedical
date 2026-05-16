@@ -70,15 +70,15 @@ export function MetricsClient({
     : 0;
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="px-3 py-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-text-1">{t('metrics.title')}</h1>
           <p className="text-small text-text-3">{t('metrics.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-brand/20 bg-brand/5">
-          <Activity className="h-4 w-4 text-brand" />
-          <span className="text-small font-semibold text-brand">{t('metrics.globalScore')}: {avg.toFixed(1)}</span>
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-brand/20 bg-brand/5 shrink-0">
+          <Activity className="h-4 w-4 text-brand shrink-0" />
+          <span className="text-small font-semibold text-brand whitespace-nowrap">{t('metrics.globalScore')}: {avg.toFixed(1)}</span>
         </div>
       </div>
 
@@ -210,15 +210,15 @@ function ComputeDialog({ snapshot, month, onClose, onComputed }: { snapshot: Sna
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t('metrics.compute')} — {emp?.firstName} {emp?.lastName}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
           <Label>{t('metrics.month')}</Label>
           <Input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} />
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button
             loading={compute.isPending}

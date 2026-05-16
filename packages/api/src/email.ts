@@ -129,6 +129,53 @@ export async function sendPasswordResetEmail({
   if (error) throw new Error(`Resend [${error.name}]: ${error.message}`);
 }
 
+export async function sendAuditAlertEmail({
+  to,
+  criticalCount,
+  findings,
+}: {
+  to: string;
+  criticalCount: number;
+  findings: Array<{ module: string; description: string; suggestion: string | null }>;
+}): Promise<void> {
+  const findingRows = findings
+    .map(f => `
+      <div style="background:#0A0A0F;border:1px solid rgba(244,63,94,0.25);border-left:3px solid #F43F5E;border-radius:8px;padding:14px 16px;margin-bottom:10px;">
+        <p style="margin:0 0 4px;color:#F43F5E;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;">${f.module.toUpperCase()}</p>
+        <p style="margin:0 0 6px;color:#E2E2EE;font-size:13px;line-height:1.5;">${f.description}</p>
+        ${f.suggestion ? `<p style="margin:0;color:#8888AA;font-size:11px;font-style:italic;">💡 ${f.suggestion}</p>` : ''}
+      </div>
+    `)
+    .join('');
+
+  const html = baseTemplate(`
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="display:inline-flex;align-items:center;justify-content:center;background:rgba(244,63,94,0.12);border:1px solid rgba(244,63,94,0.3);border-radius:50%;width:52px;height:52px;">
+        <span style="font-size:24px;">🔍</span>
+      </div>
+    </div>
+    <h2 style="color:#E2E2EE;font-size:18px;font-weight:700;margin:0 0 8px;text-align:center;">Audit Agent · ${criticalCount} hallazgo${criticalCount !== 1 ? 's' : ''} crítico${criticalCount !== 1 ? 's' : ''}</h2>
+    <p style="color:#8888AA;font-size:13px;margin:0 0 20px;line-height:1.6;text-align:center;">
+      El Audit Agent completó un escaneo y encontró anomalías que requieren tu atención.
+    </p>
+    ${findingRows}
+    <div style="text-align:center;margin-top:20px;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.precisionmedicalcare.com'}/dashboard/ai-agents"
+         style="display:inline-block;background:linear-gradient(135deg,#6366F1 0%,#8B5CF6 100%);color:white;font-weight:700;font-size:14px;padding:12px 28px;border-radius:10px;text-decoration:none;">
+        Ver hallazgos →
+      </a>
+    </div>
+  `);
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `🔍 Audit Agent · ${criticalCount} hallazgo${criticalCount !== 1 ? 's' : ''} crítico${criticalCount !== 1 ? 's' : ''} detectado${criticalCount !== 1 ? 's' : ''}`,
+    html,
+  });
+  if (error) throw new Error(`Resend [${error.name}]: ${error.message}`);
+}
+
 export async function sendLowBalanceEmail({
   to,
   boxName,

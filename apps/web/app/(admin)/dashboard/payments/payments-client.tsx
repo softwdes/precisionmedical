@@ -532,7 +532,7 @@ function CreatePaymentDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { onClose(); } }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { resetForm(); onClose(); } }}>
       <DialogContent className="flex flex-col w-full sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
         <style>{`
           @keyframes fadeUp {

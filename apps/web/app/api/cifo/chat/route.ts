@@ -218,7 +218,10 @@ INSTRUCTIONS:
         ? 'El servicio de IA está temporalmente no disponible. Intenta más tarde.'
         : 'The AI service is temporarily unavailable. Please try again later.';
     } else if (!response.ok) {
-      throw new Error(`OpenRouter error: ${response.status}`);
+      let errBody = '';
+      try { errBody = await response.text(); } catch { /* ignore */ }
+      console.error(`CIFO OpenRouter HTTP ${response.status}:`, errBody);
+      throw new Error(`OpenRouter ${response.status}: ${errBody}`);
     } else {
       const data = await response.json() as OpenRouterResponse;
       assistantMessage = data.choices?.[0]?.message?.content
@@ -226,10 +229,17 @@ INSTRUCTIONS:
       tokensUsed = data.usage?.total_tokens ?? 0;
     }
   } catch (error) {
-    console.error('CIFO OpenRouter error:', error);
-    assistantMessage = isSpanish
-      ? 'Hubo un error al conectar con el servicio de IA. Por favor intenta de nuevo en unos momentos.'
-      : 'There was an error connecting to the AI service. Please try again in a moment.';
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('CIFO error:', errMsg);
+    // Surface the real error in the response for debugging
+    return NextResponse.json({
+      message: isSpanish
+        ? `Error temporal del servicio de IA. Intenta de nuevo. (${errMsg.slice(0, 120)})`
+        : `Temporary AI service error. Please try again. (${errMsg.slice(0, 120)})`,
+      session_id: sessionId,
+      language: detectedLang,
+      response_time_ms: Date.now() - startTime,
+    });
   }
 
   const responseTime = Date.now() - startTime;

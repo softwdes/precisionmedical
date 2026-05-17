@@ -59,6 +59,7 @@ export function CifoChat(): React.ReactElement {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<unknown>(null);
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 150);
@@ -98,6 +99,84 @@ export function CifoChat(): React.ReactElement {
     return () => window.removeEventListener('cifo:open-session', handler);
   }, []);
 
+  type AnyRecognition = {
+    lang: string; interimResults: boolean; maxAlternatives: number; continuous: boolean;
+    start(): void; stop(): void;
+    onstart: (() => void) | null;
+    onresult: ((e: { resultIndex: number; results: Array<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
+    onerror: ((e: { error: string }) => void) | null;
+    onend: (() => void) | null;
+  };
+
+  const stopListening = (): void => {
+    (recognitionRef.current as AnyRecognition | null)?.stop();
+    recognitionRef.current = null;
+    setListening(false);
+  };
+
+  const toggleMic = (): void => {
+    if (listening) { stopListening(); return; }
+
+    const win = typeof window !== 'undefined' ? (window as unknown as Record<string, unknown>) : null;
+    const RecognitionCtor = (win?.['SpeechRecognition'] ?? win?.['webkitSpeechRecognition']) as (new () => AnyRecognition) | undefined;
+
+    if (!RecognitionCtor) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: language === 'es'
+          ? 'Tu navegador no soporta reconocimiento de voz. Prueba con Chrome.'
+          : 'Your browser does not support voice recognition. Try Chrome.',
+        timestamp: new Date(),
+        isError: true,
+      }]);
+      return;
+    }
+
+    const recognition = new RecognitionCtor();
+    recognition.lang = language === 'es' ? 'es-ES' : 'en-US';
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    recognition.onstart = (): void => { setListening(true); };
+
+    recognition.onresult = (event): void => {
+      let interim = '';
+      let final = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i]?.[0]?.transcript ?? '';
+        if (event.results[i]?.isFinal) { final += transcript; }
+        else { interim += transcript; }
+      }
+      if (interim) setInput(interim);
+      if (final.trim()) {
+        setInput('');
+        stopListening();
+        void sendMessage(final.trim());
+      }
+    };
+
+    recognition.onerror = (event): void => {
+      console.error('Speech recognition error:', event.error);
+      stopListening();
+      if (event.error === 'not-allowed') {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: language === 'es'
+            ? 'Permiso de micrófono denegado. Habilítalo en la configuración del navegador.'
+            : 'Microphone permission denied. Enable it in your browser settings.',
+          timestamp: new Date(),
+          isError: true,
+        }]);
+      }
+    };
+
+    recognition.onend = (): void => { setListening(false); };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
   const resetChat = (): void => {
     setSessionId(null);
     setMessages([{ role: 'assistant', content: t('greeting'), timestamp: new Date() }]);
@@ -107,6 +186,7 @@ export function CifoChat(): React.ReactElement {
   };
 
   const handleClose = (): void => {
+    stopListening();
     setOpen(false);
     resetChat();
   };
@@ -305,7 +385,7 @@ export function CifoChat(): React.ReactElement {
         {/* Input row */}
         <div className="flex items-center gap-2 px-3 py-3 border-t border-border">
           <button
-            onClick={() => setListening(v => !v)}
+            onClick={toggleMic}
             className={cn(
               'flex h-8 w-8 items-center justify-center rounded-lg shrink-0 transition-all',
               listening ? 'text-white' : 'text-text-3 hover:text-text-1 hover:bg-surface',
@@ -346,7 +426,7 @@ export function CifoChat(): React.ReactElement {
 
       {/* ── FAB ── */}
       <button
-        onClick={() => { setOpen(v => !v); if (listening) setListening(false); }}
+        onClick={() => { setOpen(v => !v); if (listening) stopListening(); }}
         className="fixed bottom-6 right-6 z-[90] flex h-14 w-14 items-center justify-center rounded-[18px] text-white cifo-fab"
         style={{ background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 55%, #06B6D4 100%)', boxShadow: '0 12px 32px rgba(99,102,241,0.45)' }}
         aria-label={open ? t('close') : t('open')}

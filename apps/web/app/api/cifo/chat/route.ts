@@ -12,23 +12,16 @@ interface OpenRouterResponse {
   usage?: { total_tokens?: number };
 }
 
-interface ContextData {
-  cash_boxes?: Array<{ name: string; balance: number; lowBalanceThreshold: number; currency: string }>;
-  employees?: Array<{ id: string; firstName: string; type: string; status: string }>;
-  payments_this_month?: { count: number; total: number; bonuses: number };
-  audit_findings?: { total: number; critical: number; warning: number; items: Array<{ severity: string; module: string; description: string }> };
-  last_audit?: { created_at: string; status: string; findings_count: number; critical_count: number };
-  freelancers_count?: number;
-}
-
 function detectLanguage(text: string): 'es' | 'en' {
-  const spanishWords = ['hola', 'qué', 'cómo', 'cuánto', 'cuál', 'hay', 'dame', 'muestra', 'dime', 'está', 'son', 'tiene', 'puedes', 'gracias', 'resumen', 'empleados', 'pago', 'quiero', 'necesito', 'tengo', 'puedo'];
+  const spanishWords = ['hola', 'qué', 'cómo', 'cuánto', 'cuál', 'hay', 'dame', 'muestra', 'dime',
+    'está', 'son', 'tiene', 'puedes', 'gracias', 'resumen', 'empleados', 'pago', 'quiero',
+    'necesito', 'tengo', 'puedo', 'freelancer', 'comision', 'saldo', 'caja', 'billetera'];
   const lower = text.toLowerCase();
   return spanishWords.some(w => lower.includes(w)) ? 'es' : 'en';
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // 1. AUTH CHECK
+  // 1. AUTH
   const supabaseAuth = await createServerClient();
   const { data: { user } } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -51,69 +44,237 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const detectedLang: 'es' | 'en' = (language as 'es' | 'en') ?? detectLanguage(message);
   const isSpanish = detectedLang === 'es';
 
-  // 3. FETCH REAL-TIME DATA IN PARALLEL
-  const contextData: ContextData = {};
+  // 3. FETCH REAL-TIME DATA — 12 queries in parallel
+
+  // Raw bucket types
+  type EmpRow      = { id: string; firstName: string; lastName: string; type: string; position: string; baseSalary: string | null; baseCurrency: string; countryId: string; departmentId: string };
+  type CashRow     = { name: string; balance: string; lowBalanceThreshold: string; currency: string };
+  type CountryRow  = { id: string; code: string };
+  type DeptRow     = { id: string; name: string };
+  type PmtMonthRow = { amountLocal: string; bonus_amount: string | null };
+  type PmtRecentRow= { employeeId: string; amountLocal: string; currencyLocal: string; period: string; status: string; paidDate: string | null; bonus_amount: string | null };
+  type FLRow       = { id: string; nombre: string; pais: string; modalidad: string; tarifaBase: string | null; moneda: string };
+  type FPRow       = { freelancerId: string; monto: string; moneda: string; descripcion: string; fechaPago: string };
+  type WalletRow   = { name: string; currency: string; balance: string };
+  type CommRow     = { amount: string; currency: string; status: string; paidAt: string | null };
+  type FindingRow  = { severity: string; module: string; description: string };
+  type AuditRunRow = { created_at: string; status: string; findings_count: number; critical_count: number };
+
+  // Result buckets (filled by Promise.allSettled)
+  let cashBoxRows:     CashRow[]      = [];
+  let empRows:         EmpRow[]       = [];
+  let countryRows:     CountryRow[]   = [];
+  let deptRows:        DeptRow[]      = [];
+  let pmtMonthRows:    PmtMonthRow[]  = [];
+  let pmtRecentRows:   PmtRecentRow[] = [];
+  let flRows:          FLRow[]        = [];
+  let fpRows:          FPRow[]        = [];
+  let walletRows:      WalletRow[]    = [];
+  let commRows:        CommRow[]      = [];
+  let findingRows:     FindingRow[]   = [];
+  let lastAuditRow:    AuditRunRow | undefined;
+
+  const monthStart    = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
+
   await Promise.allSettled([
-    admin
-      .from('cash_boxes')
+    // Cash boxes (petty cash)
+    admin.from('cash_boxes')
       .select('name, balance, lowBalanceThreshold, currency')
       .eq('isActive', true)
-      .then(({ data }) => { if (data) contextData.cash_boxes = data as ContextData['cash_boxes']; }),
+      .then(({ data }) => { if (data) cashBoxRows = data as CashRow[]; }),
 
-    admin
-      .from('employees')
-      .select('id, firstName, type, status')
+    // Active employees with lookup IDs
+    admin.from('employees')
+      .select('id, firstName, lastName, type, position, baseSalary, baseCurrency, countryId, departmentId')
       .eq('status', 'ACTIVE')
       .is('deletedAt', null)
-      .then(({ data }) => { if (data) contextData.employees = data as ContextData['employees']; }),
+      .then(({ data }) => { if (data) empRows = data as EmpRow[]; }),
 
-    admin
-      .from('payments')
-      .select('amountLocal, currencyLocal, period, base_salary, bonus_amount')
-      .gte('createdAt', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
-      .then(({ data }) => {
-        if (data) {
-          contextData.payments_this_month = {
-            count: data.length,
-            total: data.reduce((s, p) => s + (Number(p.amountLocal) || 0), 0),
-            bonuses: data.reduce((s, p) => s + (Number(p.bonus_amount) || 0), 0),
-          };
-        }
-      }),
+    // Country code lookup (id → "US"/"BO"/"PE")
+    admin.from('countries')
+      .select('id, code')
+      .then(({ data }) => { if (data) countryRows = data as CountryRow[]; }),
 
-    admin
-      .from('audit_findings')
-      .select('severity, module, description, created_at')
+    // Department name lookup (id → "Marketing")
+    admin.from('departments')
+      .select('id, name')
+      .then(({ data }) => { if (data) deptRows = data as DeptRow[]; }),
+
+    // Payments this month — aggregate summary
+    admin.from('payments')
+      .select('amountLocal, bonus_amount')
+      .gte('createdAt', monthStart)
+      .then(({ data }) => { if (data) pmtMonthRows = data as PmtMonthRow[]; }),
+
+    // Last 15 payments — individual detail with employee lookup
+    admin.from('payments')
+      .select('employeeId, amountLocal, currencyLocal, period, status, paidDate, bonus_amount')
+      .order('createdAt', { ascending: false })
+      .limit(15)
+      .then(({ data }) => { if (data) pmtRecentRows = data as PmtRecentRow[]; }),
+
+    // Active freelancers — full detail (id needed for payment lookup)
+    admin.from('freelancers')
+      .select('id, nombre, pais, modalidad, tarifaBase, moneda')
+      .eq('status', 'active')
+      .is('deletedAt', null)
+      .then(({ data }) => { if (data) flRows = data as FLRow[]; }),
+
+    // Freelancer payments — last 90 days
+    admin.from('freelancer_payments')
+      .select('freelancerId, monto, moneda, descripcion, fechaPago')
+      .gte('fechaPago', ninetyDaysAgo)
+      .order('fechaPago', { ascending: false })
+      .limit(20)
+      .then(({ data }) => { if (data) fpRows = data as FPRow[]; }),
+
+    // Wallets — main treasury by country
+    admin.from('wallets')
+      .select('name, currency, balance')
+      .then(({ data }) => { if (data) walletRows = data as WalletRow[]; }),
+
+    // Commissions — last 90 days (earned + paid)
+    admin.from('commissions')
+      .select('amount, currency, status, paidAt')
+      .in('status', ['EARNED', 'APPROVED', 'PAID'])
+      .gte('earnedAt', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+      .then(({ data }) => { if (data) commRows = data as CommRow[]; }),
+
+    // Audit findings — pending
+    admin.from('audit_findings')
+      .select('severity, module, description')
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
       .limit(5)
-      .then(({ data }) => {
-        if (data) {
-          contextData.audit_findings = {
-            total: data.length,
-            critical: data.filter(f => f.severity === 'critical').length,
-            warning: data.filter(f => f.severity === 'warning').length,
-            items: data as Array<{ severity: string; module: string; description: string }>,
-          };
-        }
-      }),
+      .then(({ data }) => { if (data) findingRows = data as FindingRow[]; }),
 
-    admin
-      .from('audit_runs')
+    // Last completed audit run
+    admin.from('audit_runs')
       .select('created_at, status, findings_count, critical_count')
       .eq('status', 'completed')
       .order('created_at', { ascending: false })
       .limit(1)
-      .then(({ data }) => { if (data?.[0]) contextData.last_audit = data[0] as ContextData['last_audit']; }),
-
-    admin
-      .from('freelancers')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'active')
-      .then(({ count }) => { if (count !== null) contextData.freelancers_count = count; }),
+      .then(({ data }) => { if (data?.[0]) lastAuditRow = data[0] as AuditRunRow; }),
   ]);
 
-  // 4. GET CONVERSATION HISTORY (last 10 messages)
+  // 4. ENRICH & BUILD CONTEXT
+
+  // Lookup maps
+  const countryMap = new Map(countryRows.map(c => [c.id, c.code]));
+  const deptMap    = new Map(deptRows.map(d => [d.id, d.name]));
+  const empNameMap = new Map<string, string>();
+  const flNameMap  = new Map(flRows.map(f => [f.id, f.nombre]));
+
+  // Employees — resolved names, department, country, salary
+  const employees = empRows.map(e => {
+    const fullName = `${e.firstName} ${e.lastName}`;
+    empNameMap.set(e.id, fullName);
+    return {
+      name:       fullName,
+      type:       e.type,
+      position:   e.position,
+      department: deptMap.get(e.departmentId) ?? '—',
+      country:    countryMap.get(e.countryId) ?? '—',
+      salary:     e.baseSalary != null
+        ? `${Number(e.baseSalary).toFixed(2)} ${e.baseCurrency}`
+        : null,
+    };
+  });
+
+  const employees_summary = {
+    total:         employees.length,
+    by_country:    employees.reduce<Record<string, number>>((a, e) => { a[e.country]    = (a[e.country]    ?? 0) + 1; return a; }, {}),
+    by_department: employees.reduce<Record<string, number>>((a, e) => { a[e.department] = (a[e.department] ?? 0) + 1; return a; }, {}),
+  };
+
+  // Payments this month — aggregate
+  const payments_this_month = {
+    count:   pmtMonthRows.length,
+    total:   pmtMonthRows.reduce((s, p) => s + Number(p.amountLocal),    0),
+    bonuses: pmtMonthRows.reduce((s, p) => s + Number(p.bonus_amount ?? 0), 0),
+  };
+
+  // Recent payments — enriched with employee name
+  const recent_payments = pmtRecentRows.map(p => ({
+    employee:  empNameMap.get(p.employeeId) ?? `(…${p.employeeId.slice(-6)})`,
+    amount:    Number(p.amountLocal),
+    currency:  p.currencyLocal,
+    period:    p.period,
+    status:    p.status,
+    paid_date: p.paidDate ?? null,
+    bonus:     p.bonus_amount != null ? Number(p.bonus_amount) : null,
+  }));
+
+  // Freelancers — formatted tariff
+  const freelancers = flRows.map(f => ({
+    nombre:   f.nombre,
+    pais:     f.pais,
+    modalidad: f.modalidad === 'POR_HORA' ? 'Por hora' : 'Por servicio',
+    tarifa:   f.tarifaBase != null
+      ? `${Number(f.tarifaBase).toFixed(2)} ${f.moneda}${f.modalidad === 'POR_HORA' ? '/hr' : ''}`
+      : 'Sin tarifa fija',
+  }));
+
+  // Freelancer payments — enriched with freelancer name
+  const recent_freelancer_payments = fpRows.map(p => ({
+    freelancer:  flNameMap.get(p.freelancerId) ?? `(…${p.freelancerId.slice(-6)})`,
+    amount:      Number(p.monto),
+    currency:    p.moneda,
+    description: p.descripcion,
+    date:        p.fechaPago,
+  }));
+
+  // Wallets
+  const wallets = walletRows.map(w => ({
+    name:     w.name,
+    currency: w.currency,
+    balance:  Number(w.balance),
+  }));
+
+  // Cash boxes — annotate low balance
+  const cash_boxes = cashBoxRows.map(b => ({
+    name:      b.name,
+    balance:   Number(b.balance),
+    threshold: Number(b.lowBalanceThreshold),
+    currency:  b.currency,
+    low:       Number(b.balance) < Number(b.lowBalanceThreshold),
+  }));
+
+  // Commissions — summary
+  const earned       = commRows.filter(c => c.status === 'EARNED' || c.status === 'APPROVED');
+  const paidThisMo   = commRows.filter(c => c.status === 'PAID' && c.paidAt != null && c.paidAt >= monthStart);
+  const commissions_summary = {
+    earned_pending_count: earned.length,
+    earned_pending_total: Number(earned.reduce((s, c) => s + Number(c.amount), 0).toFixed(2)),
+    paid_this_month_count: paidThisMo.length,
+    paid_this_month_total: Number(paidThisMo.reduce((s, c) => s + Number(c.amount), 0).toFixed(2)),
+  };
+
+  // Audit
+  const audit_findings = findingRows.length > 0 ? {
+    total:    findingRows.length,
+    critical: findingRows.filter(f => f.severity === 'critical').length,
+    warning:  findingRows.filter(f => f.severity === 'warning').length,
+    items:    findingRows,
+  } : null;
+
+  // Final context object passed to LLM
+  const contextData = {
+    cash_boxes,
+    wallets,
+    employees,
+    employees_summary,
+    payments_this_month,
+    recent_payments,
+    freelancers,
+    recent_freelancer_payments,
+    commissions_summary,
+    ...(audit_findings  ? { audit_findings }      : {}),
+    ...(lastAuditRow    ? { last_audit: lastAuditRow } : {}),
+  };
+
+  // 5. GET CONVERSATION HISTORY (last 10 messages)
   const sessionId = session_id ?? crypto.randomUUID();
   const { data: history } = await admin
     .from('cifo_conversations')
@@ -122,63 +283,85 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .order('created_at', { ascending: true })
     .limit(10);
 
-  // 5. BUILD SYSTEM PROMPT
+  // 6. BUILD SYSTEM PROMPT
   const currentDate = new Date().toLocaleDateString(
     isSpanish ? 'es-ES' : 'en-US',
     { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' },
   );
 
   const systemPrompt = isSpanish
-    ? `Eres CIFO, el asistente de inteligencia artificial de Precision Medical, una clínica especializada en auto-accidentes ubicada en Utah, USA, con operaciones también en Bolivia y Perú.
+    ? `Eres CIFO, el asistente de inteligencia artificial de Precision Medical, una clínica especializada en auto-accidentes en Utah, USA, con operaciones en Bolivia y Perú.
 
-Tu personalidad:
-- Nombre: CIFO (pronunciado "sí-fo")
-- Tono: amigable, profesional, directo y confiable
-- Hablas en español cuando te hablan en español, en inglés cuando te hablan en inglés
-- Eres conciso — no escribas párrafos largos innecesarios
-- Usas los datos reales del sistema que se te proporcionan
-- Si no tienes datos sobre algo, lo dices claramente
-- Nunca inventas números o información
+Personalidad:
+- Nombre: CIFO (pronunciado "sí-fo") · Tono: amigable, profesional, directo
+- Conciso — sin párrafos innecesarios · Nunca inventas datos
+- Hablas en español si te hablan en español
 
 Hoy es: ${currentDate}
 Usuario: Erick Salinas (Super Admin)
 
-DATOS ACTUALES DEL SISTEMA:
+DATOS EN TIEMPO REAL:
 ${JSON.stringify(contextData, null, 2)}
 
-INSTRUCCIONES:
-- Cuando respondas sobre finanzas, usa los números exactos de los datos
-- Si la caja chica está bajo el mínimo, menciónalo con urgencia
-- Si hay hallazgos críticos del Audit Agent, mencionálos proactivamente
-- Para preguntas de resumen del día, incluye los datos más relevantes
-- Formatea los montos con 2 decimales y símbolo de moneda
-- Usa emojis con moderación para hacer la respuesta más clara`
-    : `You are CIFO, the AI assistant of Precision Medical, a clinic specialized in auto-accidents located in Utah, USA, with operations also in Bolivia and Peru.
+GUÍA DE SECCIONES:
+• cash_boxes — cajas chicas por clínica. "low:true" = saldo bajo el mínimo → urgente
+• wallets — billeteras del tesoro principal (USD/BOB/PEN por país)
+• employees — lista de empleados activos: nombre, cargo, departamento, país, salario
+• employees_summary — conteo por país y por departamento
+• payments_this_month — resumen total pagado a empleados este mes
+• recent_payments — últimos 15 pagos individuales con nombre del empleado
+• freelancers — freelancers activos: nombre, país, modalidad, tarifa
+• recent_freelancer_payments — pagos a freelancers en los últimos 90 días
+• commissions_summary — earned_pending = comisiones devengadas sin pagar; paid_this_month = pagadas este mes
+• audit_findings — hallazgos pendientes del Audit Agent (críticos primero)
+• last_audit — último escaneo completado
 
-Your personality:
-- Name: CIFO
-- Tone: friendly, professional, direct and reliable
-- You speak Spanish when addressed in Spanish, English when addressed in English
-- You are concise — no unnecessary long paragraphs
-- You use real system data provided to you
-- If you don't have data about something, say so clearly
-- Never invent numbers or information
+REGLAS:
+- Para "¿cuánto gana/se le pagó a X?": busca en employees (salary) y recent_payments (employee)
+- Para "¿cuándo/cuánto se le pagó al freelancer X?": busca en recent_freelancer_payments
+- Para "¿cuánto hay en caja/billetera?": usa cash_boxes + wallets
+- Para comisiones pendientes: usa commissions_summary.earned_pending_total
+- Formatea montos con 2 decimales y símbolo de moneda (USD $, BOB Bs., PEN S/)
+- Si hay caja con low:true → menciónalo con urgencia aunque no te lo pregunten
+- Si hay hallazgos críticos → menciónalo proactivamente
+- Emojis con moderación`
+    : `You are CIFO, the AI assistant of Precision Medical, a clinic specialized in auto-accidents in Utah, USA, with operations in Bolivia and Peru.
+
+Personality:
+- Name: CIFO · Tone: friendly, professional, direct
+- Concise — no unnecessary paragraphs · Never invent data
+- Speak English when addressed in English
 
 Today is: ${currentDate}
 User: Erick Salinas (Super Admin)
 
-CURRENT SYSTEM DATA:
+REAL-TIME DATA:
 ${JSON.stringify(contextData, null, 2)}
 
-INSTRUCTIONS:
-- When answering about finances, use exact numbers from the data
-- If petty cash is below minimum, mention it urgently
-- If there are critical Audit Agent findings, mention them proactively
-- For daily summary questions, include the most relevant data
-- Format amounts with 2 decimals and currency symbol
-- Use emojis sparingly to make responses clearer`;
+DATA GUIDE:
+• cash_boxes — petty cash by clinic. "low:true" = below minimum threshold → urgent
+• wallets — main treasury wallets (USD/BOB/PEN by country)
+• employees — active employees: name, position, department, country, salary
+• employees_summary — count by country and by department
+• payments_this_month — total paid to employees this month
+• recent_payments — last 15 individual payments with employee name
+• freelancers — active freelancers: name, country, modality, rate
+• recent_freelancer_payments — freelancer payments in the last 90 days
+• commissions_summary — earned_pending = accrued unpaid commissions; paid_this_month = paid this month
+• audit_findings — pending Audit Agent findings (critical first)
+• last_audit — last completed scan
 
-  // 6. BUILD MESSAGES ARRAY
+RULES:
+- For "how much does/did X earn?": look in employees (salary) and recent_payments (employee)
+- For "when/how much was freelancer X paid?": look in recent_freelancer_payments
+- For "how much is in the safe/wallet?": use cash_boxes + wallets
+- For pending commissions: use commissions_summary.earned_pending_total
+- Format amounts with 2 decimals and currency symbol
+- If any cash box has low:true → mention it urgently even if not asked
+- If critical audit findings exist → mention them proactively
+- Use emojis sparingly`;
+
+  // 7. BUILD MESSAGES ARRAY
   const messages: CifoMessage[] = [
     { role: 'system', content: systemPrompt },
     ...((history ?? []) as Array<{ role: string; content: string }>).map(h => ({
@@ -188,7 +371,7 @@ INSTRUCTIONS:
     { role: 'user', content: message },
   ];
 
-  // 7. CALL OPENROUTER
+  // 8. CALL OPENROUTER
   let assistantMessage = '';
   let tokensUsed = 0;
 
@@ -225,7 +408,9 @@ INSTRUCTIONS:
     } else {
       const data = await response.json() as OpenRouterResponse;
       assistantMessage = data.choices?.[0]?.message?.content
-        ?? (isSpanish ? 'Lo siento, no pude procesar tu consulta. Intenta de nuevo.' : 'Sorry, I could not process your query. Please try again.');
+        ?? (isSpanish
+          ? 'Lo siento, no pude procesar tu consulta. Intenta de nuevo.'
+          : 'Sorry, I could not process your query. Please try again.');
       tokensUsed = data.usage?.total_tokens ?? 0;
     }
   } catch (error) {
@@ -237,49 +422,46 @@ INSTRUCTIONS:
 
   const responseTime = Date.now() - startTime;
 
-  // 8. SAVE CONVERSATION TO DB
+  // 9. SAVE CONVERSATION
   await admin.from('cifo_conversations').insert([
     {
-      session_id: sessionId,
-      user_id: user.id,
-      role: 'user',
-      content: message,
-      language: detectedLang,
-      model_used: process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
+      session_id:  sessionId,
+      user_id:     user.id,
+      role:        'user',
+      content:     message,
+      language:    detectedLang,
+      model_used:  process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
     },
     {
-      session_id: sessionId,
-      user_id: user.id,
-      role: 'assistant',
-      content: assistantMessage,
-      language: detectedLang,
-      tokens_used: tokensUsed,
-      model_used: process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
+      session_id:       sessionId,
+      user_id:          user.id,
+      role:             'assistant',
+      content:          assistantMessage,
+      language:         detectedLang,
+      tokens_used:      tokensUsed,
+      model_used:       process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
       response_time_ms: responseTime,
     },
   ] as never);
 
-  // 9. UPDATE AGENT COSTS (fire and forget)
-  const currentMonth = new Date();
-  currentMonth.setDate(1);
-  currentMonth.setHours(0, 0, 0, 0);
-  const monthKey = currentMonth.toISOString().split('T')[0];
-
+  // 10. UPDATE AGENT COSTS (fire and forget)
+  const monthKey = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString().split('T')[0]!;
   void admin.from('agent_costs').upsert(
     {
-      agent_name: 'cifo',
-      month: monthKey,
-      total_cost: 0,
+      agent_name:      'cifo',
+      month:           monthKey,
+      total_cost:      0,
       operation_count: 1,
-      model_used: process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
+      model_used:      process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
     } as never,
     { onConflict: 'agent_name,month' },
   );
 
   return NextResponse.json({
-    message: assistantMessage,
-    session_id: sessionId,
-    language: detectedLang,
+    message:         assistantMessage,
+    session_id:      sessionId,
+    language:        detectedLang,
     response_time_ms: responseTime,
   });
 }

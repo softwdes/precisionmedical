@@ -737,7 +737,11 @@ function CreateEmployeeDialog({
             </div>
             <div className="space-y-1.5">
               <Label>{t('employees.country')} *</Label>
-              <Select value={form.countryId} onValueChange={(v) => f('countryId', v)}>
+              <Select value={form.countryId} onValueChange={(v) => {
+                f('countryId', v);
+                const currencyMap: Record<string, 'USD' | 'BOB' | 'PEN'> = { US: 'USD', BO: 'BOB', PE: 'PEN' };
+                if (currencyMap[v]) f('baseCurrency', currencyMap[v]!);
+              }}>
                 <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="US">United States (USD)</SelectItem>
@@ -912,7 +916,11 @@ function EditEmployeeDialog({
             </div>
             <div className="space-y-1.5">
               <Label>{t('employees.country')} *</Label>
-              <Select value={form.countryId} onValueChange={(v) => f('countryId', v)}>
+              <Select value={form.countryId} onValueChange={(v) => {
+                f('countryId', v);
+                const currencyMap: Record<string, 'USD' | 'BOB' | 'PEN'> = { US: 'USD', BO: 'BOB', PE: 'PEN' };
+                if (currencyMap[v]) f('baseCurrency', currencyMap[v]!);
+              }}>
                 <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="US">United States (USD)</SelectItem>

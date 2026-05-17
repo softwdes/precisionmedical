@@ -555,11 +555,18 @@ function FreelancerFormDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t('freelancers.pais')} *</Label>
-              <Input
-                value={form.pais}
-                onChange={(e) => f('pais', e.target.value)}
-                placeholder={t('freelancers.paisPlaceholder')}
-              />
+              <Select value={form.pais} onValueChange={(v) => {
+                f('pais', v);
+                const currencyMap: Record<string, string> = { 'United States': 'USD', 'Bolivia': 'BOB', 'Peru': 'PEN' };
+                if (currencyMap[v]) f('moneda', currencyMap[v]!);
+              }}>
+                <SelectTrigger><SelectValue placeholder={t('freelancers.paisPlaceholder')} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="United States">United States (USD)</SelectItem>
+                  <SelectItem value="Bolivia">Bolivia (BOB)</SelectItem>
+                  <SelectItem value="Peru">Peru (PEN)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>{t('freelancers.moneda')} *</Label>

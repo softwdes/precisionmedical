@@ -541,7 +541,7 @@ function NuevoMovimientoModal({
 
   const [tipo,        setTipo]        = useState<'DEPOSIT' | 'EXPENSE'>('DEPOSIT');
   const [country,     setCountry]     = useState<'EEUU' | 'Bolivia'>('EEUU');
-  const [clinic,      setClinic]      = useState('Provo');
+  const [clinic,      setClinic]      = useState(() => boxes.filter(b => isEEUUBox(b.name))[0]?.name ?? '');
   const [amount,      setAmount]      = useState('');
   const [currency,    setCurrency]    = useState<'USD' | 'BOB'>('USD');
   const [category,    setCategory]    = useState('');
@@ -572,6 +572,7 @@ function NuevoMovimientoModal({
 
   const validate = () => {
     const errs: Record<string, string> = {};
+    if (!clinic.trim())                  errs.clinic      = 'Selecciona o ingresa una sede';
     if (!amount || Number(amount) <= 0) errs.amount      = t('pettyCash.errAmount');
     if (!description.trim())            errs.description = t('pettyCash.errDescription');
     if (tipo === 'EXPENSE' && !category) errs.category   = t('pettyCash.errCategory');
@@ -642,19 +643,26 @@ function NuevoMovimientoModal({
               <p className="text-[11px] text-text-3">{t('pettyCash.countryHint')}</p>
             </div>
 
-            {/* Clínica (solo EEUU) */}
-            {country === 'EEUU' && (
-              <div className="space-y-1.5">
-                <Label>{t('pettyCash.clinicHeader')}</Label>
-                <Select value={clinic} onValueChange={setClinic}>
+            {/* Clínica */}
+            <div className="space-y-1.5">
+              <Label>{t('pettyCash.clinicHeader')}</Label>
+              {clinicOptions.length > 0 ? (
+                <Select value={clinic} onValueChange={v => { setClinic(v); setErrors(r => ({ ...r, clinic: '' })); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-text-3">{t('pettyCash.clinicHint')}</p>
-              </div>
-            )}
+              ) : (
+                <Input
+                  placeholder={country === 'Bolivia' ? 'Ej. La Paz, Calacoto, Cochabamba…' : 'Nombre de la sede'}
+                  value={clinic}
+                  onChange={e => { setClinic(e.target.value); setErrors(r => ({ ...r, clinic: '' })); }}
+                />
+              )}
+              {errors.clinic && <p className="text-xs text-rose-500">{errors.clinic}</p>}
+              <p className="text-[11px] text-text-3">{t('pettyCash.clinicHint')}</p>
+            </div>
 
             {/* Monto */}
             <div className="space-y-1.5">

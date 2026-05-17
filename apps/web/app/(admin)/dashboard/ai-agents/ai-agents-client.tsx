@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -717,6 +717,14 @@ function CifoTab({ costs }: { costs: AgentCosts | null }): React.ReactElement {
 
 // ─── Tab: Audit Agent ────────────────────────────────────────
 
+const SCAN_STEPS = [
+  { key: 'cash',        icon: Building2,     label: 'Verificando cajas chicas',        ms: 350 },
+  { key: 'payments',    icon: DollarSign,    label: 'Detectando pagos duplicados',     ms: 850 },
+  { key: 'fx',          icon: ArrowLeftRight,label: 'Analizando operaciones FX',       ms: 1350 },
+  { key: 'commissions', icon: Percent,       label: 'Revisando comisiones',            ms: 1800 },
+  { key: 'ai',          icon: Sparkles,      label: 'Análisis IA con OpenRouter',      ms: 2300 },
+] as const;
+
 function AuditAgentTab({
   settings,
   runs,
@@ -751,6 +759,11 @@ function AuditAgentTab({
   const [showAutoConfirm, setShowAutoConfirm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [scanPending, setScanPending] = useState(false);
+  const [visibleSteps, setVisibleSteps] = useState(0);
+  const [scanResult, setScanResult] = useState<{
+    findings_count: number; critical_count: number; warning_count: number; info_count: number;
+  } | null>(null);
+  const stepTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const surveillanceDays = daysSince(settings?.surveillance_active_since ?? null);
   const autonomousLocked = surveillanceDays < 7;
@@ -762,13 +775,36 @@ function AuditAgentTab({
 
   const handleRunScan = async (): Promise<void> => {
     setScanPending(true);
+    setVisibleSteps(0);
+    setScanResult(null);
+
+    // Schedule step reveals
+    stepTimers.current = SCAN_STEPS.map((step, i) =>
+      setTimeout(() => setVisibleSteps(i + 1), step.ms),
+    );
+
     try {
       const res = await fetch('/api/audit/run', { method: 'POST' });
-      const data = await res.json() as { findings_count?: number; error?: string };
+      const data = await res.json() as {
+        findings_count?: number; critical_count?: number;
+        warning_count?: number; info_count?: number; error?: string;
+      };
       if (!res.ok) throw new Error(data.error ?? 'Error al ejecutar el escaneo');
+
+      // Clear pending timers and snap all steps to done
+      stepTimers.current.forEach(clearTimeout);
+      setVisibleSteps(SCAN_STEPS.length);
+      setScanResult({
+        findings_count: data.findings_count ?? 0,
+        critical_count:  data.critical_count  ?? 0,
+        warning_count:   data.warning_count   ?? 0,
+        info_count:      data.info_count      ?? 0,
+      });
       toast.success(`${t('aiAgents.scanCompleted')} · ${data.findings_count ?? 0} hallazgos`);
       onScanComplete();
     } catch (err) {
+      stepTimers.current.forEach(clearTimeout);
+      setVisibleSteps(SCAN_STEPS.length);
       toast.error(err instanceof Error ? err.message : 'Error al ejecutar el escaneo');
     } finally {
       setScanPending(false);
@@ -962,6 +998,88 @@ function AuditAgentTab({
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
           </Button>
         </div>
+
+        {/* Scan progress panel */}
+        {(scanPending || scanResult !== null) && (
+          <div className="rounded-lg border border-border bg-surface/40 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-surface/60">
+              {scanPending ? (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-brand animate-pulse shrink-0" />
+                  <span className="text-small font-medium text-brand">Escaneo en progreso...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-emerald shrink-0" />
+                  <span className="text-small font-medium text-emerald">Escaneo completado</span>
+                </>
+              )}
+            </div>
+
+            {/* Steps */}
+            <div className="px-4 py-3 space-y-2">
+              {SCAN_STEPS.map((step, i) => {
+                const revealed = i < visibleSteps;
+                const isActive = scanPending && i === visibleSteps - 1;
+                const Icon = step.icon;
+                return (
+                  <div
+                    key={step.key}
+                    className={`flex items-center gap-3 transition-all duration-300 ${
+                      revealed ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+                    }`}
+                  >
+                    <div className={`flex h-5 w-5 items-center justify-center rounded-full shrink-0 transition-colors ${
+                      isActive ? 'bg-brand/15' : revealed ? 'bg-emerald/15' : 'bg-border/50'
+                    }`}>
+                      {isActive
+                        ? <RefreshCw className="h-3 w-3 text-brand animate-spin" />
+                        : <CheckCircle2 className="h-3 w-3 text-emerald" />
+                      }
+                    </div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-brand' : 'text-text-muted'}`} />
+                      <span className={`text-small ${isActive ? 'text-brand font-medium' : 'text-text-2'}`}>
+                        {step.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Result summary */}
+            {scanResult !== null && (
+              <div className="px-4 pb-3">
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
+                  {scanResult.findings_count === 0 ? (
+                    <span className="text-tiny font-medium text-emerald">Sin hallazgos — sistema OK</span>
+                  ) : (
+                    <>
+                      <span className="text-tiny text-text-muted font-mono">{scanResult.findings_count} hallazgos:</span>
+                      {scanResult.critical_count > 0 && (
+                        <span className="text-tiny font-semibold text-rose bg-rose/10 px-2 py-0.5 rounded-full">
+                          {scanResult.critical_count} críticos
+                        </span>
+                      )}
+                      {scanResult.warning_count > 0 && (
+                        <span className="text-tiny font-semibold text-amber bg-amber/10 px-2 py-0.5 rounded-full">
+                          {scanResult.warning_count} advertencias
+                        </span>
+                      )}
+                      {scanResult.info_count > 0 && (
+                        <span className="text-tiny font-semibold text-cyan bg-cyan/10 px-2 py-0.5 rounded-full">
+                          {scanResult.info_count} info
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {showHistory && runs.length > 0 && (
           <div className="rounded-lg border border-border overflow-hidden">

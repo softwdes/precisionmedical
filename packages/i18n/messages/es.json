@@ -260,7 +260,7 @@
     "email": "Correo electrónico",
     "phone": "Teléfono",
     "pais": "País",
-    "paisPlaceholder": "Ej: United States",
+    "paisPlaceholder": "Seleccionar...",
     "modalidad": "Modalidad",
     "tarifaBase": "Tarifa base (por hora)",
     "tarifaBaseCol": "Tarifa base",

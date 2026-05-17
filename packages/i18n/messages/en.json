@@ -260,7 +260,7 @@
     "email": "Email",
     "phone": "Phone",
     "pais": "Country",
-    "paisPlaceholder": "E.g.: United States",
+    "paisPlaceholder": "Select...",
     "modalidad": "Type",
     "tarifaBase": "Base rate (per hour)",
     "tarifaBaseCol": "Base rate",

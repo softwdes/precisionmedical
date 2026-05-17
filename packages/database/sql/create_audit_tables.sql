@@ -1,11 +1,20 @@
 -- ============================================================
 -- Precision Medical · Audit Agent Tables
 -- Run this in Supabase SQL Editor
+-- Safe to re-run: drops and recreates all 4 tables
+-- ============================================================
+
+-- Drop in reverse dependency order
+DROP TABLE IF EXISTS audit_findings  CASCADE;
+DROP TABLE IF EXISTS audit_runs      CASCADE;
+DROP TABLE IF EXISTS agent_costs     CASCADE;
+DROP TABLE IF EXISTS agent_settings  CASCADE;
+
 -- ============================================================
 
 -- 1. agent_settings
 -- One row per agent, identified by agent_name
-CREATE TABLE IF NOT EXISTS agent_settings (
+CREATE TABLE agent_settings (
   id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at               timestamptz NOT NULL DEFAULT now(),
   updated_at               timestamptz NOT NULL DEFAULT now(),
@@ -32,7 +41,7 @@ ON CONFLICT (agent_name) DO NOTHING;
 
 -- 2. audit_runs
 -- One row per scan execution (manual or cron)
-CREATE TABLE IF NOT EXISTS audit_runs (
+CREATE TABLE audit_runs (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at        timestamptz NOT NULL DEFAULT now(),
   triggered_by      text NOT NULL CHECK (triggered_by IN ('manual', 'cron')),
@@ -47,14 +56,14 @@ CREATE TABLE IF NOT EXISTS audit_runs (
   info_count        integer NOT NULL DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS audit_runs_status_idx      ON audit_runs (status);
-CREATE INDEX IF NOT EXISTS audit_runs_created_at_idx  ON audit_runs (created_at DESC);
+CREATE INDEX audit_runs_status_idx      ON audit_runs (status);
+CREATE INDEX audit_runs_created_at_idx  ON audit_runs (created_at DESC);
 
 -- ============================================================
 
 -- 3. audit_findings
 -- Individual findings linked to an audit run
-CREATE TABLE IF NOT EXISTS audit_findings (
+CREATE TABLE audit_findings (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at   timestamptz NOT NULL DEFAULT now(),
   run_id       uuid REFERENCES audit_runs (id) ON DELETE SET NULL,
@@ -69,16 +78,16 @@ CREATE TABLE IF NOT EXISTS audit_findings (
   action_taken text
 );
 
-CREATE INDEX IF NOT EXISTS audit_findings_status_idx    ON audit_findings (status);
-CREATE INDEX IF NOT EXISTS audit_findings_severity_idx  ON audit_findings (severity);
-CREATE INDEX IF NOT EXISTS audit_findings_run_id_idx    ON audit_findings (run_id);
-CREATE INDEX IF NOT EXISTS audit_findings_created_idx   ON audit_findings (created_at DESC);
+CREATE INDEX audit_findings_status_idx    ON audit_findings (status);
+CREATE INDEX audit_findings_severity_idx  ON audit_findings (severity);
+CREATE INDEX audit_findings_run_id_idx    ON audit_findings (run_id);
+CREATE INDEX audit_findings_created_idx   ON audit_findings (created_at DESC);
 
 -- ============================================================
 
 -- 4. agent_costs
 -- Monthly cost / operation tracking per agent (cifo + audit_agent)
-CREATE TABLE IF NOT EXISTS agent_costs (
+CREATE TABLE agent_costs (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at       timestamptz NOT NULL DEFAULT now(),
   agent_name       text NOT NULL,
@@ -90,7 +99,7 @@ CREATE TABLE IF NOT EXISTS agent_costs (
   CONSTRAINT agent_costs_agent_month_key UNIQUE (agent_name, month)
 );
 
-CREATE INDEX IF NOT EXISTS agent_costs_agent_month_idx ON agent_costs (agent_name, month DESC);
+CREATE INDEX agent_costs_agent_month_idx ON agent_costs (agent_name, month DESC);
 
 -- ============================================================
 -- RLS: disable for service-role-only tables (admin client bypasses RLS)

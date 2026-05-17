@@ -6,9 +6,13 @@ import { sendLowBalanceEmail } from '../email';
 
 const TRANSACTION_CATEGORIES = ['MEDICAL_SUPPLIES', 'TRANSPORT', 'FOOD', 'OFFICE', 'UTILITIES', 'MAINTENANCE', 'OTHER'] as const;
 
-const EEUU_CLINICS = ['Provo', 'Pleasant Grove', 'Spanish Fork', 'West Valley', 'South Murray'] as const;
+const EEUU_CLINIC_KEYWORDS = ['provo', 'pleasant grove', 'spanish fork', 'west valley', 'south murray'] as const;
+function isEEUUName(name: string): boolean {
+  const n = name.toLowerCase();
+  return (EEUU_CLINIC_KEYWORDS as readonly string[]).some(k => n.includes(k));
+}
 function inferCountry(name: string): 'EEUU' | 'Bolivia' {
-  return (EEUU_CLINICS as readonly string[]).includes(name) ? 'EEUU' : 'Bolivia';
+  return isEEUUName(name) ? 'EEUU' : 'Bolivia';
 }
 
 export const pettyCashRouter = router({
@@ -186,8 +190,8 @@ export const pettyCashRouter = router({
       .from('cash_boxes')
       .select('id, name, balance, lowBalanceThreshold, currency');
     const safeBoxes = boxes ?? [];
-    const eeuuBoxes = safeBoxes.filter(b => (EEUU_CLINICS as readonly string[]).includes(b.name));
-    const boliviaBoxes = safeBoxes.filter(b => !(EEUU_CLINICS as readonly string[]).includes(b.name));
+    const eeuuBoxes = safeBoxes.filter(b => isEEUUName(b.name));
+    const boliviaBoxes = safeBoxes.filter(b => !isEEUUName(b.name));
     const total = safeBoxes.reduce((s, b) => s + Number(b.balance), 0);
     const eeuu = eeuuBoxes.reduce((s, b) => s + Number(b.balance), 0);
     const bolivia = boliviaBoxes.reduce((s, b) => s + Number(b.balance), 0);
@@ -199,7 +203,7 @@ export const pettyCashRouter = router({
     const monthlyCount = expenses?.length ?? 0;
     const lowBoxes = safeBoxes
       .filter(b => Number(b.balance) < Number(b.lowBalanceThreshold))
-      .map(b => ({ name: b.name, balance: Number(b.balance), threshold: Number(b.lowBalanceThreshold) }));
+      .map(b => ({ name: b.name, balance: Number(b.balance), threshold: Number(b.lowBalanceThreshold), country: inferCountry(b.name) }));
 
     return { total, eeuu, bolivia, monthlyExpenses, monthlyCount, lowBoxes, eeuuBoxCount: eeuuBoxes.length, boliviaBoxCount: boliviaBoxes.length };
   }),
@@ -219,8 +223,8 @@ export const pettyCashRouter = router({
       if (!allBoxes) return { items: [], total: 0, page, pageSize, totalPages: 0 };
 
       let relevantBoxes = allBoxes;
-      if (country === 'EEUU') relevantBoxes = allBoxes.filter(b => (EEUU_CLINICS as readonly string[]).includes(b.name));
-      else if (country === 'Bolivia') relevantBoxes = allBoxes.filter(b => !(EEUU_CLINICS as readonly string[]).includes(b.name));
+      if (country === 'EEUU') relevantBoxes = allBoxes.filter(b => isEEUUName(b.name));
+      else if (country === 'Bolivia') relevantBoxes = allBoxes.filter(b => !isEEUUName(b.name));
       if (clinicName) relevantBoxes = relevantBoxes.filter(b => b.name === clinicName);
 
       const boxIds = relevantBoxes.map(b => b.id);

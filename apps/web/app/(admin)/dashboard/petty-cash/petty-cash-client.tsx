@@ -21,7 +21,10 @@ import type { AppRouter } from '@precision-medical/api';
 type KPIs  = inferRouterOutputs<AppRouter>['pettyCash']['kpis'];
 type Boxes = inferRouterOutputs<AppRouter>['pettyCash']['listBoxes'];
 
-const EEUU_CLINICS = ['Provo', 'Pleasant Grove', 'Spanish Fork', 'West Valley', 'South Murray'] as const;
+function isEEUUBox(name: string): boolean {
+  const n = name.toLowerCase();
+  return ['provo', 'pleasant grove', 'spanish fork', 'west valley', 'south murray'].some(k => n.includes(k));
+}
 
 const CATEGORY_KEYS = [
   'FOOD', 'CALACOTO', 'RECORDINGS', 'MAINTENANCE', 'OFFICE',
@@ -84,12 +87,14 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
   });
 
   const clinicOptions = useMemo(() => {
-    if (filterCountry === 'EEUU')    return [...EEUU_CLINICS];
-    if (filterCountry === 'Bolivia') return initialBoxes.filter(b => !(EEUU_CLINICS as readonly string[]).includes(b.name)).map(b => b.name);
-    return [...EEUU_CLINICS, ...initialBoxes.filter(b => !(EEUU_CLINICS as readonly string[]).includes(b.name)).map(b => b.name)];
+    if (filterCountry === 'EEUU')    return initialBoxes.filter(b => isEEUUBox(b.name)).map(b => b.name);
+    if (filterCountry === 'Bolivia') return initialBoxes.filter(b => !isEEUUBox(b.name)).map(b => b.name);
+    return initialBoxes.map(b => b.name);
   }, [filterCountry, initialBoxes]);
 
-  const refetchAll = () => { void refetchKpis(); void refetchMovements(); };
+  const refetchAll = () => { void refetchKpis(); void refetchMovements(); void refetchBoxes(); };
+
+  const { data: liveBoxes, refetch: refetchBoxes } = trpc.pettyCash.listBoxes.useQuery(undefined, { refetchInterval: 60_000 });
 
   const handleCountryChange = (v: string) => { setFilterCountry(v as 'all' | 'EEUU' | 'Bolivia'); setFilterClinic('all'); setPage(1); };
   const handleClinicChange  = (v: string) => { setFilterClinic(v); setPage(1); };
@@ -99,6 +104,22 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
   const items      = movements?.items      ?? [];
   const total      = movements?.total      ?? 0;
   const totalPages = movements?.totalPages ?? 1;
+
+  const boxMap = useMemo((): Record<string, { balance: number; threshold: number }> => {
+    const src = liveBoxes ?? initialBoxes;
+    return Object.fromEntries(src.map(b => [b.id, { balance: Number(b.balance), threshold: Number(b.lowBalanceThreshold) }]));
+  }, [liveBoxes, initialBoxes]);
+
+  const runningBalances = useMemo(() => {
+    const tracker: Record<string, number> = {};
+    Object.entries(boxMap).forEach(([id, v]) => { tracker[id] = v.balance; });
+    const result: Record<string, number> = {};
+    for (const tx of items) {
+      result[tx.id] = tracker[tx.cashBoxId] ?? 0;
+      tracker[tx.cashBoxId] = (tracker[tx.cashBoxId] ?? 0) - Number(tx.amount);
+    }
+    return result;
+  }, [items, boxMap]);
 
   const getCategoryLabel = (key: string) =>
     (CATEGORY_KEYS as readonly string[]).includes(key)
@@ -118,8 +139,8 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
   }, [items]);
 
   const monthLabel     = MONTH_OPTIONS.find(o => o.value === filterMonth)?.label ?? filterMonth;
-  const eeuuHealthy    = (kpis?.eeuu ?? 0) >= 100;
-  const boliviaHealthy = (kpis?.bolivia ?? 0) >= 100;
+  const eeuuHealthy    = !(kpis?.lowBoxes ?? []).some(b => b.country === 'EEUU');
+  const boliviaHealthy = !(kpis?.lowBoxes ?? []).some(b => b.country === 'Bolivia');
   const totalBoxCount  = (kpis?.eeuuBoxCount ?? 0) + (kpis?.boliviaBoxCount ?? 0);
 
   // ── Export CSV ──
@@ -319,6 +340,18 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                             <span className="text-[10px] text-text-muted">{getCategoryLabel(tx.category)}</span>
                           </>
                         )}
+                        {(() => {
+                          const bal = runningBalances[tx.id] ?? 0;
+                          const threshold = boxMap[tx.cashBoxId]?.threshold ?? 100;
+                          const balColor = bal > threshold ? 'text-emerald-500' : bal > 0 ? 'text-amber-400' : 'text-rose-500';
+                          const warn = bal > threshold ? '' : bal > 0 ? ' ⚠' : ' ⚠⚠';
+                          return (
+                            <>
+                              <span className="text-[10px] text-text-muted">·</span>
+                              <span className={`text-[10px] font-mono ${balColor}`}>Saldo: ${fmt(bal)}{warn}</span>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -339,12 +372,13 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                     <TableHead className="text-[11px]">{t('pettyCash.description')}</TableHead>
                     <TableHead className="text-[11px]">{t('pettyCash.category')}</TableHead>
                     <TableHead className="text-right text-[11px]">{t('common.amount')}</TableHead>
+                    <TableHead className="text-right text-[11px]">Saldo</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-text-3 text-sm">
+                      <TableCell colSpan={7} className="text-center py-12 text-text-3 text-sm">
                         {t('pettyCash.noMovements')}
                       </TableCell>
                     </TableRow>
@@ -368,6 +402,17 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                       <TableCell className={`text-right font-mono text-xs font-semibold ${Number(tx.amount) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {Number(tx.amount) >= 0 ? '+' : ''}${fmt(Number(tx.amount))}
                       </TableCell>
+                      {(() => {
+                        const bal = runningBalances[tx.id] ?? 0;
+                        const threshold = boxMap[tx.cashBoxId]?.threshold ?? 100;
+                        const color = bal > threshold ? 'text-emerald-500' : bal > 0 ? 'text-amber-400' : 'text-rose-500';
+                        const warn = bal > threshold ? '' : bal > 0 ? ' ⚠' : ' ⚠⚠';
+                        return (
+                          <TableCell className={`text-right font-mono text-xs font-semibold whitespace-nowrap ${color}`}>
+                            ${fmt(bal)}{warn}
+                          </TableCell>
+                        );
+                      })()}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -414,29 +459,21 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
 
           {/* Top categories */}
           {(() => {
-            const SAMPLE_CATS: [string, number][] = [
-              ['TRANSPORT',        245.50],
-              ['OFFICE',           180.00],
-              ['MEDICAL_SUPPLIES', 125.75],
-              ['UTILITIES',         98.20],
-            ];
-            const cats = sidebarStats.topCategories.length > 0 ? sidebarStats.topCategories : SAMPLE_CATS;
-            const isSample = sidebarStats.topCategories.length === 0;
+            const cats = sidebarStats.topCategories;
             const max = cats[0]?.[1] ?? 1;
             return (
               <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.topCategories')}</p>
-                  {isSample && <span className="text-[9px] text-text-muted italic">{t('pettyCash.sampleIndicator')}</span>}
-                </div>
-                {cats.map(([cat, amount]) => (
+                <p className="text-[10px] font-semibold text-text-3 uppercase tracking-widest">{t('pettyCash.topCategories')}</p>
+                {cats.length === 0 ? (
+                  <p className="text-xs text-text-3 text-center py-2">Sin movimientos este mes</p>
+                ) : cats.map(([cat, amount]) => (
                   <div key={cat} className="space-y-1">
                     <div className="flex justify-between text-xs">
                       <span className="text-text-2 truncate pr-2">{getCategoryLabel(cat)}</span>
                       <span className="font-mono text-text-3 flex-shrink-0">${fmt(amount)}</span>
                     </div>
-                    <div className="h-1 rounded-full bg-border overflow-hidden">
-                      <div className="h-full rounded-full bg-brand" style={{ width: `${(amount / max) * 100}%` }} />
+                    <div className="h-[5px] rounded-full overflow-hidden" style={{ background: 'rgba(99,102,241,0.08)' }}>
+                      <div className="h-full rounded-full" style={{ width: `${(amount / max) * 100}%`, background: 'linear-gradient(90deg, #6366F1, #06B6D4)' }} />
                     </div>
                   </div>
                 ))}
@@ -444,16 +481,35 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
             );
           })()}
 
-          {/* Low balance alert */}
-          {(kpis?.lowBoxes ?? []).length > 0 && (
-            <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 space-y-1.5">
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
-                <p className="text-xs font-semibold text-amber-400">{kpis!.lowBoxes[0].name} · {t('pettyCash.lowBalance')}</p>
+          {/* Low balance alerts */}
+          {(() => {
+            const lowBoxes = kpis?.lowBoxes ?? [];
+            if (lowBoxes.length === 0) {
+              return (
+                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 flex items-center gap-1.5">
+                  <span className="text-emerald-500 text-xs font-bold">✓</span>
+                  <p className="text-xs font-semibold text-emerald-500">Todas las cajas saludables</p>
+                </div>
+              );
+            }
+            return (
+              <div className="space-y-2">
+                {lowBoxes.map(box => (
+                  <div key={box.name} className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+                      <p className="text-xs font-semibold text-amber-400">
+                        {box.country === 'EEUU' ? '🇺🇸' : '🇧🇴'} {box.name}
+                      </p>
+                    </div>
+                    <p className="text-xs text-amber-300/80">
+                      Saldo ${fmt(box.balance)} — mín ${fmt(box.threshold)}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-amber-300/80">{t('pettyCash.lowAlertDesc')}</p>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
@@ -500,8 +556,8 @@ function NuevoMovimientoModal({
   );
 
   const clinicOptions = country === 'EEUU'
-    ? [...EEUU_CLINICS]
-    : boxes.filter(b => !(EEUU_CLINICS as readonly string[]).includes(b.name)).map(b => b.name);
+    ? boxes.filter(b => isEEUUBox(b.name)).map(b => b.name)
+    : boxes.filter(b => !isEEUUBox(b.name)).map(b => b.name);
 
   useEffect(() => {
     setClinic(clinicOptions[0] ?? '');

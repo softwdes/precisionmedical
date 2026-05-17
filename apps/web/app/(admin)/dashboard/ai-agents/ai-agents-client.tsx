@@ -594,8 +594,24 @@ function FindingPill({ finding }: { finding: AuditFinding }): React.ReactElement
 
 // ─── Tab: CIFO ──────────────────────────────────────────────
 
+function fmtRelativeSimple(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `hace ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  return `hace ${days}d`;
+}
+
 function CifoTab({ costs }: { costs: AgentCosts | null }): React.ReactElement {
   const t = useTranslations();
+  const { data: conversations = [], isLoading: convsLoading } = trpc.aiAgents.getCifoConversations.useQuery();
+
+  const openSession = (sessionId: string): void => {
+    window.dispatchEvent(new CustomEvent('cifo:open-session', { detail: { sessionId } }));
+  };
 
   return (
     <div className="space-y-5">
@@ -630,7 +646,7 @@ function CifoTab({ costs }: { costs: AgentCosts | null }): React.ReactElement {
             { label: 'Consultas hoy', value: String(costs?.cifoTodayCount ?? 0), color: 'text-cyan' },
             { label: 'Consultas este mes', value: String(costs?.cifoMonthCount ?? 0), color: 'text-cyan' },
             { label: 'Costo este mes', value: fmt2(costs?.cifoMonthCost ?? 0), color: 'text-emerald' },
-            { label: 'Promedio / consulta', value: costs && costs.cifoMonthCount > 0 ? fmt2(costs.cifoMonthCost / costs.cifoMonthCount) : '$0.00', color: 'text-amber' },
+            { label: 'Promedio / consulta', value: '$0.00', color: 'text-amber' },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-lg bg-surface/60 px-3 py-3 text-center">
               <p className={`text-lg font-bold font-mono ${color}`}>{value}</p>
@@ -661,14 +677,37 @@ function CifoTab({ costs }: { costs: AgentCosts | null }): React.ReactElement {
       {/* Conversations list */}
       <div>
         <p className="text-small font-semibold text-text-1 mb-3">{t('aiAgents.cifoConversations')}</p>
-        {(costs?.cifoMonthCount ?? 0) === 0 ? (
+        {convsLoading ? (
+          <div className="rounded-xl border border-border bg-surface py-8 flex items-center justify-center">
+            <span className="text-tiny text-text-muted animate-pulse">Cargando...</span>
+          </div>
+        ) : conversations.length === 0 ? (
           <div className="rounded-xl border border-border bg-surface py-10 flex flex-col items-center gap-2">
             <MessageCircle className="h-8 w-8 text-text-muted" />
             <p className="text-small text-text-3">{t('aiAgents.noCifoConversations')}</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-surface p-4 text-center">
-            <p className="text-tiny text-text-3">{costs?.cifoMonthCount} conversaciones este mes</p>
+          <div className="rounded-xl border border-border bg-surface divide-y divide-border overflow-hidden">
+            {conversations.map(conv => (
+              <button
+                key={conv.session_id}
+                onClick={() => openSession(conv.session_id)}
+                className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-surface/80 transition-colors"
+              >
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-lg shrink-0 mt-0.5"
+                  style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.10))', border: '1px solid rgba(99,102,241,0.20)' }}
+                >
+                  <MessageCircle className="h-3.5 w-3.5 text-brand" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-small text-text-1 truncate">{conv.first_message || '—'}</p>
+                  <p className="text-[10px] text-text-muted mt-0.5">
+                    {conv.message_count} mensajes · {fmtRelativeSimple(conv.last_message_at)}
+                  </p>
+                </div>
+              </button>
+            ))}
           </div>
         )}
       </div>

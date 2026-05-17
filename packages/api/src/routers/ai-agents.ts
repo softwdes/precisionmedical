@@ -522,8 +522,8 @@ export const aiAgentsRouter = router({
     const [costsRes, settingsRes, todayConvsRes, monthConvsRes, runsRes] = await Promise.allSettled([
       supabaseAdmin.from('agent_costs').select('*').gte('month', sixMonthsAgo).order('month', { ascending: false }),
       supabaseAdmin.from('agent_settings').select('monthly_budget').eq('agent_name', 'audit_agent').maybeSingle(),
-      supabaseAdmin.from('agent_conversations').select('id', { count: 'exact', head: true }).gte('startedAt', todayStart),
-      supabaseAdmin.from('agent_conversations').select('id', { count: 'exact', head: true }).gte('startedAt', monthStart),
+      supabaseAdmin.from('cifo_conversations').select('id', { count: 'exact', head: true }).eq('role', 'user').gte('created_at', todayStart),
+      supabaseAdmin.from('cifo_conversations').select('id', { count: 'exact', head: true }).eq('role', 'user').gte('created_at', monthStart),
       supabaseAdmin.from('audit_runs').select('id', { count: 'exact', head: true }).gte('created_at', monthStart),
     ]);
 
@@ -567,5 +567,39 @@ export const aiAgentsRouter = router({
       id: string; completed_at: string; findings_count: number;
       critical_count: number; warning_count: number; info_count: number;
     } | null;
+  }),
+
+  getCifoConversations: protectedProcedure.query(async ({ ctx }) => {
+    const { data } = await supabaseAdmin
+      .from('cifo_conversations')
+      .select('session_id, role, content, created_at')
+      .eq('user_id', ctx.user.id)
+      .order('created_at', { ascending: true });
+
+    if (!data?.length) return [];
+
+    // Group by session_id
+    const sessionMap = new Map<string, Array<{ session_id: string; role: string; content: string; created_at: string }>>();
+    for (const row of data) {
+      const key = row.session_id as string;
+      if (!sessionMap.has(key)) sessionMap.set(key, []);
+      sessionMap.get(key)!.push(row as { session_id: string; role: string; content: string; created_at: string });
+    }
+
+    const sessions = [...sessionMap.entries()].map(([sid, msgs]) => {
+      const firstUser = msgs.find(m => m.role === 'user');
+      const lastMsg = msgs[msgs.length - 1]!;
+      const title = firstUser?.content ?? '';
+      return {
+        session_id: sid,
+        message_count: msgs.length,
+        first_message: title.length > 60 ? `${title.slice(0, 60)}…` : title,
+        started_at: msgs[0]!.created_at,
+        last_message_at: lastMsg.created_at,
+      };
+    });
+
+    sessions.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+    return sessions.slice(0, 20);
   }),
 });

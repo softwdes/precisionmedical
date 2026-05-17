@@ -88,6 +88,7 @@ export const pettyCashRouter = router({
       const { data: tx, error } = await supabaseAdmin
         .from('cash_transactions')
         .insert({
+          id: crypto.randomUUID(),
           cashBoxId: input.cashBoxId,
           type: 'DEPOSIT',
           amount: input.amount,
@@ -126,6 +127,7 @@ export const pettyCashRouter = router({
       const { data: tx, error } = await supabaseAdmin
         .from('cash_transactions')
         .insert({
+          id: crypto.randomUUID(),
           cashBoxId: input.cashBoxId,
           type: 'EXPENSE',
           amount: -input.amount,
@@ -151,6 +153,7 @@ export const pettyCashRouter = router({
           .single();
 
         await supabaseAdmin.from('notifications').insert({
+          id: crypto.randomUUID(),
           userId: ctx.user.id,
           type: 'SYSTEM',
           title: 'Saldo bajo en caja chica',
@@ -260,7 +263,7 @@ export const pettyCashRouter = router({
       let { data: box } = await supabaseAdmin.from('cash_boxes').select('id, balance, lowBalanceThreshold').eq('name', input.clinicName).single();
       if (!box) {
         const { data: nb, error: ce } = await supabaseAdmin.from('cash_boxes')
-          .insert({ name: input.clinicName, currency: input.currency, balance: 0, lowBalanceThreshold: 100, updatedAt: new Date().toISOString() })
+          .insert({ id: crypto.randomUUID(), name: input.clinicName, currency: input.currency, balance: 0, lowBalanceThreshold: 100, updatedAt: new Date().toISOString() })
           .select('id, balance, lowBalanceThreshold').single();
         if (ce || !nb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create cash box' });
         box = nb;
@@ -270,7 +273,7 @@ export const pettyCashRouter = router({
       if (input.type === 'EXPENSE' && newBalance < 0) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Saldo insuficiente' });
 
       const { data: tx, error } = await supabaseAdmin.from('cash_transactions')
-        .insert({ cashBoxId: box.id, type: input.type, amount: txAmount, category: input.category, description: input.description,
+        .insert({ id: crypto.randomUUID(), cashBoxId: box.id, type: input.type, amount: txAmount, category: input.category, description: input.description,
           performedById: ctx.user.id, performedAt: new Date(input.date).toISOString(), createdAt: new Date().toISOString() })
         .select().single();
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
@@ -279,7 +282,7 @@ export const pettyCashRouter = router({
 
       if (input.type === 'EXPENSE' && newBalance <= Number(box.lowBalanceThreshold)) {
         await supabaseAdmin.from('notifications').insert({
-          userId: ctx.user.id, type: 'SYSTEM', title: 'Saldo bajo en caja chica',
+          id: crypto.randomUUID(), userId: ctx.user.id, type: 'SYSTEM', title: 'Saldo bajo en caja chica',
           body: `La caja "${input.clinicName}" tiene un saldo de $${newBalance.toFixed(2)} — por debajo del umbral mínimo`,
           createdAt: new Date().toISOString(),
         });
@@ -302,6 +305,7 @@ export const pettyCashRouter = router({
       const { data: tx, error } = await supabaseAdmin
         .from('cash_transactions')
         .insert({
+          id: crypto.randomUUID(),
           cashBoxId: original.cashBoxId,
           type: original.type,
           amount: reverseAmount,

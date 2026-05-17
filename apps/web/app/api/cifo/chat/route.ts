@@ -202,7 +202,7 @@ INSTRUCTIONS:
         'X-Title': 'LM Super Admin - CIFO Assistant',
       },
       body: JSON.stringify({
-        model: process.env.CIFO_MODEL ?? 'meta-llama/llama-3.1-8b-instruct:free',
+        model: process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
         max_tokens: 800,
         temperature: 0.7,
         messages,
@@ -229,17 +229,10 @@ INSTRUCTIONS:
       tokensUsed = data.usage?.total_tokens ?? 0;
     }
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    console.error('CIFO error:', errMsg);
-    // Surface the real error in the response for debugging
-    return NextResponse.json({
-      message: isSpanish
-        ? `Error temporal del servicio de IA. Intenta de nuevo. (${errMsg.slice(0, 120)})`
-        : `Temporary AI service error. Please try again. (${errMsg.slice(0, 120)})`,
-      session_id: sessionId,
-      language: detectedLang,
-      response_time_ms: Date.now() - startTime,
-    });
+    console.error('CIFO error:', error instanceof Error ? error.message : error);
+    assistantMessage = isSpanish
+      ? 'Hubo un error al conectar con el servicio de IA. Por favor intenta de nuevo en unos momentos.'
+      : 'There was an error connecting to the AI service. Please try again in a moment.';
   }
 
   const responseTime = Date.now() - startTime;
@@ -252,7 +245,7 @@ INSTRUCTIONS:
       role: 'user',
       content: message,
       language: detectedLang,
-      model_used: process.env.CIFO_MODEL ?? 'meta-llama/llama-3.1-8b-instruct:free',
+      model_used: process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
     },
     {
       session_id: sessionId,
@@ -261,7 +254,7 @@ INSTRUCTIONS:
       content: assistantMessage,
       language: detectedLang,
       tokens_used: tokensUsed,
-      model_used: process.env.CIFO_MODEL ?? 'meta-llama/llama-3.1-8b-instruct:free',
+      model_used: process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
       response_time_ms: responseTime,
     },
   ] as never);
@@ -278,7 +271,7 @@ INSTRUCTIONS:
       month: monthKey,
       total_cost: 0,
       operation_count: 1,
-      model_used: process.env.CIFO_MODEL ?? 'meta-llama/llama-3.1-8b-instruct:free',
+      model_used: process.env.CIFO_MODEL ?? 'poolside/laguna-m.1:free',
     } as never,
     { onConflict: 'agent_name,month' },
   );

@@ -533,7 +533,7 @@ function NuevoMovimientoModal({
       }
     }
     setLowWarn(false);
-    create.mutate({ type: tipo, clinicName: clinic, amount: Number(amount), currency, category, description, date });
+    create.mutate({ type: tipo, clinicName: clinic, amount: Number(amount), currency, category: category || 'OTHER', description, date });
   };
 
   const isDeposit = tipo === 'DEPOSIT';

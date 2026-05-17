@@ -288,6 +288,7 @@ export function AiAgentsClient({
           runs={runs ?? []}
           onSettingsSaved={refetchAll}
           onScanComplete={refetchAll}
+          onViewFindings={() => setTab('findings')}
         />
       )}
       {tab === 'findings' && (
@@ -730,11 +731,13 @@ function AuditAgentTab({
   runs,
   onSettingsSaved,
   onScanComplete,
+  onViewFindings,
 }: {
   settings: AgentSettings | null;
   runs: AuditRun[];
   onSettingsSaved: () => void;
   onScanComplete: () => void;
+  onViewFindings: () => void;
 }): React.ReactElement {
   const t = useTranslations();
   const locale = useLocale();
@@ -1051,31 +1054,46 @@ function AuditAgentTab({
 
             {/* Result summary */}
             {scanResult !== null && (
-              <div className="px-4 pb-3">
+              <div className="px-4 pb-4 space-y-2">
+                {/* Severity badges row */}
                 <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
                   {scanResult.findings_count === 0 ? (
                     <span className="text-tiny font-medium text-emerald">Sin hallazgos — sistema OK</span>
                   ) : (
                     <>
-                      <span className="text-tiny text-text-muted font-mono">{scanResult.findings_count} hallazgos:</span>
+                      <span className="text-tiny text-text-muted font-mono">
+                        {scanResult.findings_count} hallazgo{scanResult.findings_count !== 1 ? 's' : ''}:
+                      </span>
                       {scanResult.critical_count > 0 && (
                         <span className="text-tiny font-semibold text-rose bg-rose/10 px-2 py-0.5 rounded-full">
-                          {scanResult.critical_count} críticos
+                          {scanResult.critical_count} crítico{scanResult.critical_count !== 1 ? 's' : ''}
                         </span>
                       )}
                       {scanResult.warning_count > 0 && (
                         <span className="text-tiny font-semibold text-amber bg-amber/10 px-2 py-0.5 rounded-full">
-                          {scanResult.warning_count} advertencias
+                          {scanResult.warning_count} advertencia{scanResult.warning_count !== 1 ? 's' : ''}
                         </span>
                       )}
                       {scanResult.info_count > 0 && (
-                        <span className="text-tiny font-semibold text-cyan bg-cyan/10 px-2 py-0.5 rounded-full">
+                        <span className="text-tiny font-semibold text-sky-400 bg-sky-400/10 px-2 py-0.5 rounded-full">
                           {scanResult.info_count} info
                         </span>
                       )}
                     </>
                   )}
                 </div>
+
+                {/* CTA — only show when there are findings */}
+                {scanResult.findings_count > 0 && (
+                  <button
+                    onClick={onViewFindings}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg border border-brand/30 bg-brand/8 px-3 py-2 text-small font-medium text-brand hover:bg-brand/15 transition-colors"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Ver detalle de hallazgos
+                    <span className="ml-auto text-tiny opacity-60">→ tab Hallazgos</span>
+                  </button>
+                )}
               </div>
             )}
           </div>

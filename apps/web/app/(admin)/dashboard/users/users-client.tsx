@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -18,6 +18,15 @@ import type { AppRouter } from '@precision-medical/api';
 
 type UsersListOutput = inferRouterOutputs<AppRouter>['users']['list'];
 type UserRow = UsersListOutput['users'][number];
+
+type NotificationData = {
+  initials: string;
+  name: string;
+  email: string;
+  title: string;
+  emailSent: boolean;
+  emailError?: string | null;
+};
 
 const PROTECTED_EMAIL = 'erick@precisionmedicalcare.com';
 
@@ -36,6 +45,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
+  const [notification, setNotification] = useState<NotificationData | null>(null);
 
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'),
@@ -242,7 +252,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
       )}
 
       {/* Dialogs */}
-      <CreateUserDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); void refetch(); }} />
+      <CreateUserDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); void refetch(); }} onNotify={setNotification} />
 
       {viewingUserId && (
         <UserViewDialog userId={viewingUserId} onClose={() => setViewingUserId(null)} />
@@ -253,6 +263,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
           user={editingUser}
           onClose={() => setEditingUser(null)}
           onSaved={() => { setEditingUser(null); void refetch(); }}
+          onNotify={setNotification}
         />
       )}
 
@@ -264,12 +275,16 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
           onClose={() => setDeletingUser(null)}
         />
       )}
+
+      {notification && (
+        <UserSuccessCard {...notification} onDone={() => setNotification(null)} />
+      )}
     </div>
   );
 }
 
 // ─── Create Dialog ───────────────────────────────────────────────────────────
-function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }): React.ReactElement {
+function CreateUserDialog({ open, onClose, onCreated, onNotify }: { open: boolean; onClose: () => void; onCreated: () => void; onNotify: (n: NotificationData) => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({ email: '', firstName: '', lastName: '', role: 'EMPLOYEE' as const, phone: '' });
 
@@ -284,42 +299,14 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
 
   const create = trpc.users.create.useMutation({
     onSuccess: (result) => {
-      const initials = `${result.firstName.charAt(0)}${result.lastName.charAt(0)}`.toUpperCase();
-      if (result.emailSent) {
-        toast.custom(() => (
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-2xl w-[360px]">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-text-1">Usuario creado</p>
-              <p className="text-xs text-text-3 truncate">{result.firstName} {result.lastName}</p>
-              <p className="text-[10px] text-text-muted truncate">{result.email}</p>
-            </div>
-            <span className="flex items-center gap-1 shrink-0 text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2.5 py-1">
-              <MailCheck className="h-3 w-3" />
-              Correo enviado
-            </span>
-          </div>
-        ), { duration: 5000 });
-      } else {
-        toast.custom(() => (
-          <div className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-surface px-4 py-3 shadow-2xl w-[360px]">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-text-1">Usuario creado</p>
-              <p className="text-xs text-text-3 truncate">{result.firstName} {result.lastName}</p>
-              <p className="text-[10px] text-amber-400 break-all">{result.emailError ?? 'Correo no pudo enviarse'}</p>
-            </div>
-            <span className="flex items-center gap-1 shrink-0 text-[10px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-2.5 py-1">
-              <AlertTriangle className="h-3 w-3" />
-              Sin correo
-            </span>
-          </div>
-        ), { duration: 6000 });
-      }
+      onNotify({
+        initials: `${result.firstName.charAt(0)}${result.lastName.charAt(0)}`.toUpperCase(),
+        name: `${result.firstName} ${result.lastName}`,
+        email: result.email,
+        title: 'Usuario creado',
+        emailSent: result.emailSent,
+        emailError: result.emailError,
+      });
       onCreated();
     },
     onError: (e) => toast.error(e.message),
@@ -377,7 +364,7 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
 }
 
 // ─── Edit Dialog ─────────────────────────────────────────────────────────────
-function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: () => void; onSaved: () => void }): React.ReactElement {
+function EditUserDialog({ user, onClose, onSaved, onNotify }: { user: UserRow; onClose: () => void; onSaved: () => void; onNotify: (n: NotificationData) => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({
     firstName: user.firstName,
@@ -404,7 +391,15 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
   });
 
   const sendAccess = trpc.users.sendPasswordReset.useMutation({
-    onSuccess: () => toast.success(`Enlace de acceso enviado a ${user.email}`),
+    onSuccess: () => {
+      onNotify({
+        initials: `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase(),
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        title: 'Enlace de acceso enviado',
+        emailSent: true,
+      });
+    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -713,5 +708,110 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── User Success Card ────────────────────────────────────────────────────────
+function UserSuccessCard({ initials, name, email, title, emailSent, emailError, onDone }: NotificationData & { onDone: () => void }): React.ReactElement {
+  const [visible, setVisible] = useState(false);
+  const DURATION = 4800;
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setVisible(true));
+    const timer = setTimeout(onDone, DURATION);
+    return () => { cancelAnimationFrame(raf); clearTimeout(timer); };
+  }, [onDone]);
+
+  const isSuccess = emailSent;
+  const barColor  = isSuccess ? 'linear-gradient(90deg,#6366F1,#8B5CF6,#06B6D4)' : 'linear-gradient(90deg,#F59E0B,#F97316)';
+  const cardBorder = isSuccess ? 'rgba(99,102,241,0.20)' : 'rgba(245,158,11,0.25)';
+  const badgeColor = isSuccess ? '#10B981' : '#F59E0B';
+  const badgeBg    = isSuccess ? 'rgba(16,185,129,0.10)' : 'rgba(245,158,11,0.10)';
+  const badgeBorder = isSuccess ? 'rgba(16,185,129,0.20)' : 'rgba(245,158,11,0.20)';
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      pointerEvents: 'none',
+    }}>
+      <div style={{
+        pointerEvents: 'all',
+        width: 380, maxWidth: 'calc(100vw - 32px)',
+        background: '#111118',
+        border: `1px solid ${cardBorder}`,
+        borderRadius: 20,
+        overflow: 'hidden',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.65), 0 8px 24px rgba(0,0,0,0.4)',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0) scale(1)' : 'translateY(22px) scale(0.95)',
+        transition: 'opacity 380ms cubic-bezier(0.16,1,0.3,1), transform 380ms cubic-bezier(0.16,1,0.3,1)',
+      }}>
+
+        {/* Body */}
+        <div style={{ padding: '20px 20px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+
+          {/* Avatar */}
+          <div style={{
+            flexShrink: 0, width: 46, height: 46, borderRadius: '50%',
+            background: 'linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#06B6D4 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontWeight: 800, fontSize: 15,
+            boxShadow: '0 4px 16px rgba(99,102,241,0.35)',
+          }}>
+            {initials}
+          </div>
+
+          {/* Info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: '0 0 3px', color: '#E2E2EE', fontWeight: 700, fontSize: 14, letterSpacing: '-0.2px' }}>
+              {title}
+            </p>
+            <p style={{ margin: '0 0 1px', color: '#8888AA', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {name}
+            </p>
+            <p style={{ margin: 0, color: isSuccess ? '#555568' : '#F59E0B', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {isSuccess ? email : (emailError ?? 'Correo no pudo enviarse')}
+            </p>
+          </div>
+
+          {/* Close + Badge */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={onDone}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#3D3D52', lineHeight: 1 }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            <span style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 10, fontWeight: 700,
+              color: badgeColor, background: badgeBg,
+              border: `1px solid ${badgeBorder}`,
+              borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap',
+            }}>
+              {isSuccess
+                ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
+                : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              }
+              {isSuccess ? 'Correo enviado' : 'Sin correo'}
+            </span>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ height: 3, background: 'rgba(255,255,255,0.04)' }}>
+          <div style={{
+            height: '100%',
+            width: visible ? '0%' : '100%',
+            background: barColor,
+            transition: `width ${DURATION}ms linear`,
+          }} />
+        </div>
+
+      </div>
+    </div>
   );
 }

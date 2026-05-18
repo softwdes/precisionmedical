@@ -559,11 +559,18 @@ function NuevoMovimientoModal({
     ? boxes.filter(b => isEEUUBox(b.name)).map(b => b.name)
     : boxes.filter(b => !isEEUUBox(b.name)).map(b => b.name);
 
+  const CITIES = ['La Paz', 'Oruro', 'Cochabamba'] as const;
+  const [ciudad, setCiudad] = useState('');
+
+  const isDeposit = tipo === 'DEPOSIT';
+
   useEffect(() => {
-    setClinic(clinicOptions[0] ?? '');
+    if (!isDeposit || country === 'EEUU') {
+      setClinic(clinicOptions[0] ?? '');
+    }
     setCurrency(country === 'Bolivia' ? 'BOB' : 'USD');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [country]);
+  }, [country, tipo]);
 
   const create = trpc.pettyCash.createMovement.useMutation({
     onSuccess: () => onSuccess(),
@@ -572,10 +579,14 @@ function NuevoMovimientoModal({
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!clinic.trim())                  errs.clinic      = 'Selecciona o ingresa una sede';
-    if (!amount || Number(amount) <= 0) errs.amount      = t('pettyCash.errAmount');
-    if (!description.trim())            errs.description = t('pettyCash.errDescription');
-    if (tipo === 'EXPENSE' && !category) errs.category   = t('pettyCash.errCategory');
+    if (isDeposit && country === 'Bolivia') {
+      if (!ciudad.trim()) errs.clinic = 'Selecciona una ciudad';
+    } else if (!isDeposit || country === 'EEUU') {
+      if (!clinic.trim()) errs.clinic = 'Selecciona o ingresa una sede';
+    }
+    if (!amount || Number(amount) <= 0) errs.amount = t('pettyCash.errAmount');
+    if (!description.trim()) errs.description = t('pettyCash.errDescription');
+    if (tipo === 'EXPENSE' && !category) errs.category = t('pettyCash.errCategory');
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -590,10 +601,9 @@ function NuevoMovimientoModal({
       }
     }
     setLowWarn(false);
-    create.mutate({ type: tipo, clinicName: clinic, amount: Number(amount), currency, category: category || 'OTHER', description, date });
+    const clinicName = (isDeposit && country === 'Bolivia') ? ciudad : clinic;
+    create.mutate({ type: tipo, clinicName, amount: Number(amount), currency, category: category || 'OTHER', description, date });
   };
-
-  const isDeposit = tipo === 'DEPOSIT';
 
   return (
     <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
@@ -609,7 +619,7 @@ function NuevoMovimientoModal({
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => { setTipo('DEPOSIT'); setCategory(''); }}
+                  onClick={() => { setTipo('DEPOSIT'); setCategory(''); setCiudad(''); }}
                   className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all cursor-pointer ${
                     isDeposit ? 'border-emerald-500 bg-emerald-500/[0.07]' : 'border-border hover:border-border/80'
                   }`}
@@ -619,7 +629,7 @@ function NuevoMovimientoModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTipo('EXPENSE')}
+                  onClick={() => { setTipo('EXPENSE'); setCiudad(''); }}
                   className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all cursor-pointer ${
                     !isDeposit ? 'border-rose-500 bg-rose-500/[0.07]' : 'border-border hover:border-border/80'
                   }`}
@@ -643,26 +653,39 @@ function NuevoMovimientoModal({
               <p className="text-[11px] text-text-3">{t('pettyCash.countryHint')}</p>
             </div>
 
-            {/* Clínica */}
-            <div className="space-y-1.5">
-              <Label>{t('pettyCash.clinicHeader')}</Label>
-              {clinicOptions.length > 0 ? (
-                <Select value={clinic} onValueChange={v => { setClinic(v); setErrors(r => ({ ...r, clinic: '' })); }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+            {/* Clínica / Ciudad según tipo de movimiento y país */}
+            {isDeposit && country === 'Bolivia' ? (
+              <div className="space-y-1.5">
+                <Label>Ciudad</Label>
+                <Select value={ciudad} onValueChange={v => { setCiudad(v); setErrors(r => ({ ...r, clinic: '' })); }}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar ciudad" /></SelectTrigger>
                   <SelectContent>
-                    {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {CITIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              ) : (
-                <Input
-                  placeholder={country === 'Bolivia' ? 'Ej. La Paz, Calacoto, Cochabamba…' : 'Nombre de la sede'}
-                  value={clinic}
-                  onChange={e => { setClinic(e.target.value); setErrors(r => ({ ...r, clinic: '' })); }}
-                />
-              )}
-              {errors.clinic && <p className="text-xs text-rose-500">{errors.clinic}</p>}
-              <p className="text-[11px] text-text-3">{t('pettyCash.clinicHint')}</p>
-            </div>
+                {errors.clinic && <p className="text-xs text-rose-500">{errors.clinic}</p>}
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>{t('pettyCash.clinicHeader')}</Label>
+                {clinicOptions.length > 0 ? (
+                  <Select value={clinic} onValueChange={v => { setClinic(v); setErrors(r => ({ ...r, clinic: '' })); }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {clinicOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    placeholder={country === 'Bolivia' ? 'Ej. La Paz, Calacoto, Cochabamba…' : 'Nombre de la sede'}
+                    value={clinic}
+                    onChange={e => { setClinic(e.target.value); setErrors(r => ({ ...r, clinic: '' })); }}
+                  />
+                )}
+                {errors.clinic && <p className="text-xs text-rose-500">{errors.clinic}</p>}
+                <p className="text-[11px] text-text-3">{t('pettyCash.clinicHint')}</p>
+              </div>
+            )}
 
             {/* Monto */}
             <div className="space-y-1.5">

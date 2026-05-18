@@ -886,20 +886,15 @@ function UserCreatedModal({ name, email, emailSent, role, onDone }: Notification
         </div>
 
         {/* Section 5: Progress bar */}
-        <div style={{ padding: '20px 20px 6px', animation: 'modal-fade-in-up 0.4s 1.3s ease-out both', opacity: 0 }}>
-          <div style={{ height: 4, background: 'var(--bg-2)', borderRadius: 999, overflow: 'hidden', position: 'relative' }}>
+        <div style={{ padding: '20px 20px 6px' }}>
+          <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden', width: '100%', margin: '8px 0 12px 0' }}>
             <div style={{
-              position: 'absolute', top: 0, left: 0,
-              height: '100%', width: '100%',
-              background: 'linear-gradient(90deg, #6366F1, #8B5CF6, #06B6D4)',
+              height: '100%',
+              width: '100%',
               borderRadius: 999,
-              animation: 'modal-shrink-bar 3s 0.8s linear forwards',
-            }} />
-            <div style={{
-              position: 'absolute', top: 0,
-              left: '-100%', width: '40%', height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.50), transparent)',
-              animation: 'modal-shimmer 1.8s 2s ease-in-out infinite',
+              background: 'linear-gradient(90deg, #6366F1, #8B5CF6, #06B6D4)',
+              transformOrigin: 'left center',
+              animation: 'modal-shrink-bar 3s 0.5s linear forwards',
             }} />
           </div>
           <p style={{ fontSize: 10, color: 'var(--text-2)', textAlign: 'center', margin: '5px 0 0' }}>

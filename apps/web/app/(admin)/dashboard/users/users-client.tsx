@@ -739,6 +739,7 @@ function UserCreatedModal({ name, email, emailSent, role, onDone }: Notification
   onDoneRef.current = onDone;
   const dismissedRef = useRef(false);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const gradientId = useRef(`cg-${Math.random().toString(36).slice(2)}`).current;
 
   const dismiss = useCallback(() => {
@@ -746,12 +747,16 @@ function UserCreatedModal({ name, email, emailSent, role, onDone }: Notification
     dismissedRef.current = true;
     clearTimeout(autoTimerRef.current);
     setExiting(true);
-    setTimeout(() => onDoneRef.current(), 300);
+    exitTimerRef.current = setTimeout(() => onDoneRef.current(), 300);
   }, []);
 
   useEffect(() => {
+    // auto-dismiss: 1.5s bar delay + 6s bar duration = 7.5s
     autoTimerRef.current = setTimeout(dismiss, 7500);
-    return () => clearTimeout(autoTimerRef.current);
+    return () => {
+      clearTimeout(autoTimerRef.current);
+      clearTimeout(exitTimerRef.current);
+    };
   }, [dismiss]);
 
   const roleLabel = ROLE_DISPLAY[role ?? ''] ?? role ?? '';

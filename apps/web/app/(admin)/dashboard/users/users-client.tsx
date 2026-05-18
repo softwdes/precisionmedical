@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -712,15 +713,19 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
 }
 
 // ─── User Success Card ────────────────────────────────────────────────────────
-function UserSuccessCard({ initials, name, email, title, emailSent, emailError, onDone }: NotificationData & { onDone: () => void }): React.ReactElement {
+function UserSuccessCard({ initials, name, email, title, emailSent, emailError, onDone }: NotificationData & { onDone: () => void }): React.ReactElement | null {
   const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const DURATION = 4800;
 
   useEffect(() => {
+    setMounted(true);
     const raf = requestAnimationFrame(() => setVisible(true));
     const timer = setTimeout(onDone, DURATION);
     return () => { cancelAnimationFrame(raf); clearTimeout(timer); };
   }, [onDone]);
+
+  if (!mounted) return null;
 
   const isSuccess = emailSent;
   const barColor  = isSuccess ? 'linear-gradient(90deg,#6366F1,#8B5CF6,#06B6D4)' : 'linear-gradient(90deg,#F59E0B,#F97316)';
@@ -729,7 +734,7 @@ function UserSuccessCard({ initials, name, email, title, emailSent, emailError, 
   const badgeBg    = isSuccess ? 'rgba(16,185,129,0.10)' : 'rgba(245,158,11,0.10)';
   const badgeBorder = isSuccess ? 'rgba(16,185,129,0.20)' : 'rgba(245,158,11,0.20)';
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -812,6 +817,7 @@ function UserSuccessCard({ initials, name, email, title, emailSent, emailError, 
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

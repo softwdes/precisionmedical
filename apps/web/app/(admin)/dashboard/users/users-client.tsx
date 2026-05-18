@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
@@ -714,16 +714,16 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
 
 // ─── User Success Card ────────────────────────────────────────────────────────
 function UserSuccessCard({ initials, name, email, title, emailSent, emailError, onDone }: NotificationData & { onDone: () => void }): React.ReactElement | null {
-  const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
   const DURATION = 4800;
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     setMounted(true);
-    const raf = requestAnimationFrame(() => setVisible(true));
-    const timer = setTimeout(onDone, DURATION);
-    return () => { cancelAnimationFrame(raf); clearTimeout(timer); };
-  }, [onDone]);
+    const timer = setTimeout(() => onDoneRef.current(), DURATION);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!mounted) return null;
 
@@ -735,89 +735,98 @@ function UserSuccessCard({ initials, name, email, title, emailSent, emailError, 
   const badgeBorder = isSuccess ? 'rgba(16,185,129,0.20)' : 'rgba(245,158,11,0.20)';
 
   return createPortal(
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      pointerEvents: 'none',
-    }}>
+    <>
+      <style>{`
+        @keyframes pm-card-in {
+          from { opacity: 0; transform: translateY(22px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes pm-drain {
+          from { width: 100%; }
+          to   { width: 0%; }
+        }
+      `}</style>
       <div style={{
-        pointerEvents: 'all',
-        width: 380, maxWidth: 'calc(100vw - 32px)',
-        background: '#111118',
-        border: `1px solid ${cardBorder}`,
-        borderRadius: 20,
-        overflow: 'hidden',
-        boxShadow: '0 32px 80px rgba(0,0,0,0.65), 0 8px 24px rgba(0,0,0,0.4)',
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0) scale(1)' : 'translateY(22px) scale(0.95)',
-        transition: 'opacity 380ms cubic-bezier(0.16,1,0.3,1), transform 380ms cubic-bezier(0.16,1,0.3,1)',
+        position: 'fixed', inset: 0, zIndex: 9999,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none',
       }}>
+        <div style={{
+          pointerEvents: 'all',
+          width: 380, maxWidth: 'calc(100vw - 32px)',
+          background: '#111118',
+          border: `1px solid ${cardBorder}`,
+          borderRadius: 20,
+          overflow: 'hidden',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.65), 0 8px 24px rgba(0,0,0,0.4)',
+          animation: 'pm-card-in 380ms cubic-bezier(0.16,1,0.3,1) both',
+        }}>
 
-        {/* Body */}
-        <div style={{ padding: '20px 20px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* Body */}
+          <div style={{ padding: '20px 20px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
 
-          {/* Avatar */}
-          <div style={{
-            flexShrink: 0, width: 46, height: 46, borderRadius: '50%',
-            background: 'linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#06B6D4 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'white', fontWeight: 800, fontSize: 15,
-            boxShadow: '0 4px 16px rgba(99,102,241,0.35)',
-          }}>
-            {initials}
-          </div>
-
-          {/* Info */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: '0 0 3px', color: '#E2E2EE', fontWeight: 700, fontSize: 14, letterSpacing: '-0.2px' }}>
-              {title}
-            </p>
-            <p style={{ margin: '0 0 1px', color: '#8888AA', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {name}
-            </p>
-            <p style={{ margin: 0, color: isSuccess ? '#555568' : '#F59E0B', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {isSuccess ? email : (emailError ?? 'Correo no pudo enviarse')}
-            </p>
-          </div>
-
-          {/* Close + Badge */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-            <button
-              onClick={onDone}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#3D3D52', lineHeight: 1 }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-            <span style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              fontSize: 10, fontWeight: 700,
-              color: badgeColor, background: badgeBg,
-              border: `1px solid ${badgeBorder}`,
-              borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap',
+            {/* Avatar */}
+            <div style={{
+              flexShrink: 0, width: 46, height: 46, borderRadius: '50%',
+              background: 'linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#06B6D4 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'white', fontWeight: 800, fontSize: 15,
+              boxShadow: '0 4px 16px rgba(99,102,241,0.35)',
             }}>
-              {isSuccess
-                ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
-                : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              }
-              {isSuccess ? 'Correo enviado' : 'Sin correo'}
-            </span>
+              {initials}
+            </div>
+
+            {/* Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: '0 0 3px', color: '#E2E2EE', fontWeight: 700, fontSize: 14, letterSpacing: '-0.2px' }}>
+                {title}
+              </p>
+              <p style={{ margin: '0 0 1px', color: '#8888AA', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {name}
+              </p>
+              <p style={{ margin: 0, color: isSuccess ? '#555568' : '#F59E0B', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {isSuccess ? email : (emailError ?? 'Correo no pudo enviarse')}
+              </p>
+            </div>
+
+            {/* Close + Badge */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={onDone}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#3D3D52', lineHeight: 1 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+              <span style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                fontSize: 10, fontWeight: 700,
+                color: badgeColor, background: badgeBg,
+                border: `1px solid ${badgeBorder}`,
+                borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap',
+              }}>
+                {isSuccess
+                  ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
+                  : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                }
+                {isSuccess ? 'Correo enviado' : 'Sin correo'}
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* Progress bar */}
-        <div style={{ height: 3, background: 'rgba(255,255,255,0.04)' }}>
-          <div style={{
-            height: '100%',
-            width: visible ? '0%' : '100%',
-            background: barColor,
-            transition: `width ${DURATION}ms linear`,
-          }} />
-        </div>
+          {/* Progress bar */}
+          <div style={{ height: 3, background: 'rgba(255,255,255,0.04)' }}>
+            <div style={{
+              height: '100%',
+              background: barColor,
+              animation: `pm-drain ${DURATION}ms linear forwards`,
+            }} />
+          </div>
 
+        </div>
       </div>
-    </div>,
+    </>,
     document.body,
   );
 }

@@ -559,9 +559,6 @@ function NuevoMovimientoModal({
     ? boxes.filter(b => isEEUUBox(b.name)).map(b => b.name)
     : boxes.filter(b => !isEEUUBox(b.name)).map(b => b.name);
 
-  const CITIES = ['La Paz', 'Oruro', 'Cochabamba'] as const;
-  const [ciudad, setCiudad] = useState('');
-
   const isDeposit = tipo === 'DEPOSIT';
 
   useEffect(() => {
@@ -579,9 +576,7 @@ function NuevoMovimientoModal({
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (isDeposit && country === 'Bolivia') {
-      if (!ciudad.trim()) errs.clinic = 'Selecciona una ciudad';
-    } else if (!isDeposit || country === 'EEUU') {
+    if (!isDeposit || country === 'EEUU') {
       if (!clinic.trim()) errs.clinic = 'Selecciona o ingresa una sede';
     }
     if (!amount || Number(amount) <= 0) errs.amount = t('pettyCash.errAmount');
@@ -601,7 +596,7 @@ function NuevoMovimientoModal({
       }
     }
     setLowWarn(false);
-    const clinicName = (isDeposit && country === 'Bolivia') ? ciudad : clinic;
+    const clinicName = (isDeposit && country === 'Bolivia') ? 'Bolivia' : clinic;
     create.mutate({ type: tipo, clinicName, amount: Number(amount), currency, category: category || 'OTHER', description, date });
   };
 
@@ -619,7 +614,7 @@ function NuevoMovimientoModal({
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => { setTipo('DEPOSIT'); setCategory(''); setCiudad(''); }}
+                  onClick={() => { setTipo('DEPOSIT'); setCategory(''); }}
                   className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all cursor-pointer ${
                     isDeposit ? 'border-emerald-500 bg-emerald-500/[0.07]' : 'border-border hover:border-border/80'
                   }`}
@@ -629,7 +624,7 @@ function NuevoMovimientoModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setTipo('EXPENSE'); setCiudad(''); }}
+                  onClick={() => setTipo('EXPENSE')}
                   className={`flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all cursor-pointer ${
                     !isDeposit ? 'border-rose-500 bg-rose-500/[0.07]' : 'border-border hover:border-border/80'
                   }`}
@@ -653,19 +648,8 @@ function NuevoMovimientoModal({
               <p className="text-[11px] text-text-3">{t('pettyCash.countryHint')}</p>
             </div>
 
-            {/* Clínica / Ciudad según tipo de movimiento y país */}
-            {isDeposit && country === 'Bolivia' ? (
-              <div className="space-y-1.5">
-                <Label>Ciudad</Label>
-                <Select value={ciudad} onValueChange={v => { setCiudad(v); setErrors(r => ({ ...r, clinic: '' })); }}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar ciudad" /></SelectTrigger>
-                  <SelectContent>
-                    {CITIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {errors.clinic && <p className="text-xs text-rose-500">{errors.clinic}</p>}
-              </div>
-            ) : (
+            {/* Clínica — solo se muestra para EEUU o gastos Bolivia */}
+            {(!isDeposit || country === 'EEUU') && (
               <div className="space-y-1.5">
                 <Label>{t('pettyCash.clinicHeader')}</Label>
                 {clinicOptions.length > 0 ? (
@@ -677,7 +661,7 @@ function NuevoMovimientoModal({
                   </Select>
                 ) : (
                   <Input
-                    placeholder={country === 'Bolivia' ? 'Ej. La Paz, Calacoto, Cochabamba…' : 'Nombre de la sede'}
+                    placeholder="Nombre de la sede"
                     value={clinic}
                     onChange={e => { setClinic(e.target.value); setErrors(r => ({ ...r, clinic: '' })); }}
                   />

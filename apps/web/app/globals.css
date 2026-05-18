@@ -217,14 +217,6 @@
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes modal-shrink-bar {
-  from { width: 100%; }
-  to   { width: 0%; }
-}
-@keyframes modal-shimmer {
-  from { left: -100%; }
-  to   { left: 200%; }
-}
 
 
 /* ====== Z-INDEX SCALE ====== */

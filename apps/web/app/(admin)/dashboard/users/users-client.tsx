@@ -740,24 +740,45 @@ function UserCreatedModal({ name, email, emailSent, role, onDone }: Notification
   const dismissedRef = useRef(false);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const barRef = useRef<HTMLDivElement>(null);
   const gradientId = useRef(`cg-${Math.random().toString(36).slice(2)}`).current;
 
   const dismiss = useCallback(() => {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
     clearTimeout(autoTimerRef.current);
+    clearInterval(progressIntervalRef.current);
     setExiting(true);
     exitTimerRef.current = setTimeout(() => onDoneRef.current(), 300);
   }, []);
 
   useEffect(() => {
-    // auto-dismiss: 1.5s bar delay + 6s bar duration = 7.5s
     autoTimerRef.current = setTimeout(dismiss, 4000);
     return () => {
       clearTimeout(autoTimerRef.current);
       clearTimeout(exitTimerRef.current);
+      clearInterval(progressIntervalRef.current);
     };
   }, [dismiss]);
+
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const totalMs = 3000;
+    const intervalMs = 30;
+    let elapsed = 0;
+    progressIntervalRef.current = setInterval(() => {
+      elapsed += intervalMs;
+      const pct = Math.max(0, 100 - (elapsed / totalMs * 100));
+      bar.style.width = `${pct}%`;
+      if (elapsed >= totalMs) {
+        clearInterval(progressIntervalRef.current);
+        bar.style.width = '0%';
+      }
+    }, intervalMs);
+    return () => clearInterval(progressIntervalRef.current);
+  }, []);
 
   const roleLabel = ROLE_DISPLAY[role ?? ''] ?? role ?? '';
 
@@ -886,20 +907,23 @@ function UserCreatedModal({ name, email, emailSent, role, onDone }: Notification
         </div>
 
         {/* Section 5: Progress bar */}
-        <div style={{ padding: '20px 20px 6px' }}>
-          <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden', width: '100%', margin: '8px 0 12px 0' }}>
-            <div style={{
-              height: '100%',
-              width: '100%',
-              borderRadius: 999,
-              background: 'linear-gradient(90deg, #6366F1, #8B5CF6, #06B6D4)',
-              transformOrigin: 'left center',
-              animation: 'modal-shrink-bar 3s 0.5s linear forwards',
-            }} />
-          </div>
-          <p style={{ fontSize: 10, color: 'var(--text-2)', textAlign: 'center', margin: '5px 0 0' }}>
+        <div style={{ padding: '16px 20px 8px 20px' }}>
+          <p style={{ fontSize: 11, color: '#6B7592', textAlign: 'center', margin: '0 0 8px 0' }}>
             Se cerrará en 4 segundos
           </p>
+          <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.10)', borderRadius: 999, overflow: 'hidden' }}>
+            <div
+              ref={barRef}
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: 999,
+                background: 'linear-gradient(90deg, #6366F1, #8B5CF6, #06B6D4)',
+                transformOrigin: 'left center',
+                transition: 'none',
+              }}
+            />
+          </div>
         </div>
 
         {/* Section 6: Close button */}

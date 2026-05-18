@@ -1,14 +1,15 @@
 'use client';
 
 import * as React from 'react';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 import { Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { api } from '@/lib/trpc/client';
 
 export default function ResetPasswordPage(): React.ReactElement {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -16,7 +17,20 @@ export default function ResetPasswordPage(): React.ReactElement {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
   const activateSelf = api.users.activateSelf.useMutation();
+
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (!code) { setSessionReady(true); return; }
+    const supabase = createBrowserClient();
+    supabase.auth.exchangeCodeForSession(code).then(({ error: err }) => {
+      if (err) setError('El enlace expiró o ya fue usado. Solicita uno nuevo.');
+      else router.replace('/reset-password');
+      setSessionReady(true);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -143,7 +157,13 @@ export default function ResetPasswordPage(): React.ReactElement {
               animation: 'fadeUp 600ms 150ms cubic-bezier(0.16, 1, 0.3, 1) both',
             }}
           >
-            {done ? (
+            {!sessionReady ? (
+              <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+                <svg style={{ animation: 'spin 1s linear infinite', margin: '0 auto' }} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+              </div>
+            ) : done ? (
               /* ── Success state ── */
               <div style={{ textAlign: 'center', padding: '0.5rem 0' }}>
                 <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 48, height: 48, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', marginBottom: '1rem' }}>

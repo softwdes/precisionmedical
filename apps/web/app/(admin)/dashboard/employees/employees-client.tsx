@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -15,6 +15,7 @@ import {
   Pencil, Trash2, Mail, Phone, MapPin, Briefcase, Calendar,
   DollarSign, FileText, Activity, Building2, UserCheck, CreditCard,
 } from 'lucide-react';
+import { SuccessModal } from '@/components/notifications/SuccessModal';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -25,6 +26,7 @@ type Department = inferRouterOutputs<AppRouter>['departments']['list'][number];
 type PositionKey = 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'SOFTWARE_DEVELOPER' | 'CLINIC_ADMIN' | 'MEDICAL_ASSISTANT' | 'COMMUNICATOR' | 'CLEANING_STAFF';
 
 const TYPE_COLORS: Record<string, 'success' | 'info' | 'secondary'> = { FULL_TIME: 'success', EXTERNAL: 'info', CONTRACTOR: 'secondary' };
+const TYPE_DISPLAY: Record<string, string> = { FULL_TIME: 'Tiempo completo', EXTERNAL: 'Externo', CONTRACTOR: 'Contratista' };
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = { ACTIVE: 'success', ON_LEAVE: 'warning', SUSPENDED: 'destructive', INACTIVE: 'secondary' };
 
 export function EmployeesClient({
@@ -645,11 +647,16 @@ function CreateEmployeeDialog({
 
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(INITIAL_FORM);
+  const [successData, setSuccessData] = useState<{ name: string; email: string; type: string } | null>(null);
 
   const resetForm = (): void => { setForm(INITIAL_FORM); setStep(1); };
 
   const create = trpc.employees.create.useMutation({
-    onSuccess: () => { toast.success(t('employees.created')); resetForm(); onCreated(); },
+    onSuccess: (result) => {
+      setSuccessData({ name: `${result.firstName} ${result.lastName}`, email: result.email, type: result.type });
+      resetForm();
+      onCreated();
+    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -667,6 +674,18 @@ function CreateEmployeeDialog({
   const f = (k: keyof typeof form, v: string): void => setForm(prev => ({ ...prev, [k]: v }));
 
   return (
+    <>
+    {successData && (
+      <SuccessModal
+        title="Nuevo empleado"
+        subtitle="EMPLEADO REGISTRADO EXITOSAMENTE"
+        name={successData.name}
+        card1={{ icon: <Mail size={20} />, label: 'Email registrado', value: successData.email, color: '#10B981' }}
+        card2={{ icon: <Briefcase size={20} />, label: 'Tipo de contrato', value: TYPE_DISPLAY[successData.type] ?? successData.type, color: '#6366F1' }}
+        onClose={() => setSuccessData(null)}
+        autoCloseMs={4000}
+      />
+    )}
     <Dialog open={open} onOpenChange={(o) => { if (!o) { resetForm(); onClose(); } }}>
       <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-xl overflow-hidden">
         <DialogHeader className="shrink-0">
@@ -797,6 +816,7 @@ function CreateEmployeeDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
 

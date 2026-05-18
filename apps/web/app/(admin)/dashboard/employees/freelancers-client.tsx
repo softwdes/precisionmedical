@@ -13,8 +13,11 @@ import {
 } from '@precision/ui';
 import {
   Plus, Search, MoreHorizontal, Users, DollarSign,
-  ChevronLeft, ChevronRight, Eye, Pencil, Trash2, Clock,
+  ChevronLeft, ChevronRight, Eye, Pencil, Trash2, Clock, Mail, Briefcase, CheckCircle,
 } from 'lucide-react';
+import { SuccessModal } from '@/components/notifications/SuccessModal';
+import { SuccessToast } from '@/components/notifications/SuccessToast';
+import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -499,10 +502,15 @@ function FreelancerFormDialog({
     notas:      (freelancer?.notas as string | null | undefined) ?? '',
   });
 
+  const [successData, setSuccessData] = useState<{ nombre: string; email: string; pais: string; modalidad: string } | null>(null);
+
   const f = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
   const create = trpc.freelancers.create.useMutation({
-    onSuccess: () => { toast.success(t('freelancers.saved')); onSaved(); },
+    onSuccess: () => {
+      setSuccessData({ nombre: form.nombre, email: form.email, pais: form.pais, modalidad: form.modalidad });
+      onSaved();
+    },
     onError:   (e) => toast.error(e.message),
   });
 
@@ -533,7 +541,21 @@ function FreelancerFormDialog({
 
   const canSubmit = form.nombre.length >= 2 && form.pais && form.modalidad && form.moneda;
 
+  const MODALIDAD_DISPLAY: Record<string, string> = { POR_HORA: 'Por hora', POR_SERVICIO: 'Por servicio' };
+
   return (
+    <>
+    {successData && (
+      <SuccessModal
+        title="Nuevo freelancer"
+        subtitle="FREELANCER REGISTRADO EXITOSAMENTE"
+        name={successData.nombre}
+        card1={successData.email ? { icon: <Mail size={20} />, label: 'Email', value: successData.email, color: '#10B981' } : undefined}
+        card2={{ icon: <Briefcase size={20} />, label: 'Modalidad · País', value: `${MODALIDAD_DISPLAY[successData.modalidad] ?? successData.modalidad} · ${successData.pais}`, color: '#6366F1' }}
+        onClose={() => setSuccessData(null)}
+        autoCloseMs={4000}
+      />
+    )}
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
@@ -639,6 +661,7 @@ function FreelancerFormDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
 
@@ -689,8 +712,23 @@ function NewPaymentDialog({
 
   const f = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
+  const { toasts: paymentToasts, addToast: addPaymentToast, removeToast: removePaymentToast } = useToastManager();
+
   const create = trpc.freelancers.createPayment.useMutation({
-    onSuccess: () => { toast.success(t('freelancers.paymentSaved')); onSaved(); },
+    onSuccess: () => {
+      const freelancerName = selectedFreelancer.nombre as string;
+      const detail = modalidad === 'POR_HORA'
+        ? `${horasNum}h × $${tarifaNum} = $${calculado.toFixed(2)}`
+        : `$${(parseFloat(form.monto) || 0).toFixed(2)}`;
+      addPaymentToast({
+        icon: <CheckCircle size={20} color="#10B981" />,
+        title: `${freelancerName} · ${form.moneda}`,
+        detail,
+        statusText: 'PAGO REGISTRADO',
+        barColor: '#10B981',
+      });
+      onSaved();
+    },
     onError:   (e) => toast.error(e.message),
   });
 
@@ -716,6 +754,8 @@ function NewPaymentDialog({
     (modalidad === 'POR_HORA' ? horasNum > 0 && tarifaNum > 0 : parseFloat(form.monto) > 0);
 
   return (
+    <>
+    <ToastPortal toasts={paymentToasts} removeToast={removePaymentToast} />
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
@@ -831,6 +871,7 @@ function NewPaymentDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
 

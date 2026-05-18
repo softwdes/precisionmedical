@@ -12,6 +12,7 @@ import {
   Card, CardContent,
 } from '@precision/ui';
 import { Plus, CheckCircle, RotateCcw, Clock, TrendingUp, Star } from 'lucide-react';
+import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -495,9 +496,28 @@ function CreatePaymentDialog({
   };
 
   const { data: employees } = trpc.employees.list.useQuery({ page: 1, pageSize: 100, status: 'ACTIVE' });
+  const { toasts: paymentToasts, addToast: addPaymentToast, removeToast: removePaymentToast } = useToastManager();
 
   const create = trpc.payments.create.useMutation({
-    onSuccess: () => { toast.success(t('payments.created')); resetForm(); onCreated(); },
+    onSuccess: () => {
+      const emp = employees?.items.find(e => e.id === form.employeeId);
+      const empName = emp ? `${emp.firstName} ${emp.lastName}` : 'Empleado';
+      const base = parseFloat(form.baseSalary) || 0;
+      const bonus = bonusEnabled ? (parseFloat(bonusAmount) || 0) : 0;
+      const total = base + bonus;
+      const detail = bonus > 0
+        ? `Base: $${base.toFixed(2)} + Bono: $${bonus.toFixed(2)} = $${total.toFixed(2)}`
+        : `$${total.toFixed(2)}`;
+      addPaymentToast({
+        icon: <CheckCircle size={20} color="#10B981" />,
+        title: `${empName} · ${form.currencyLocal}`,
+        detail,
+        statusText: 'PAGO PROGRAMADO',
+        barColor: '#10B981',
+      });
+      resetForm();
+      onCreated();
+    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -532,6 +552,8 @@ function CreatePaymentDialog({
   };
 
   return (
+    <>
+    <ToastPortal toasts={paymentToasts} removeToast={removePaymentToast} />
     <Dialog open={open} onOpenChange={(o) => { if (!o) { resetForm(); onClose(); } }}>
       <DialogContent className="flex flex-col w-full sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
         <style>{`
@@ -713,5 +735,6 @@ function CreatePaymentDialog({
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

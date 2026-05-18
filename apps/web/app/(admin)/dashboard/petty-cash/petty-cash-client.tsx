@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -14,6 +14,7 @@ import {
   Wallet, TrendingDown, AlertTriangle, Plus, Download, FileText,
   ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight,
 } from 'lucide-react';
+import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -519,7 +520,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
           open={showModal}
           boxes={initialBoxes}
           onClose={() => setShowModal(false)}
-          onSuccess={() => { setShowModal(false); refetchAll(); toast.success(t('pettyCash.successMovement')); }}
+          onSuccess={() => { setShowModal(false); refetchAll(); }}
         />
       )}
     </div>
@@ -549,6 +550,9 @@ function NuevoMovimientoModal({
   const [date,        setDate]        = useState(() => new Date().toISOString().split('T')[0]);
   const [errors,      setErrors]      = useState<Record<string, string>>({});
   const [lowWarn,     setLowWarn]     = useState(false);
+  const lowWarnRef = useRef(false);
+
+  const { toasts: movToasts, addToast: addMovToast, removeToast: removeMovToast } = useToastManager();
 
   const categoryOptions = useMemo(
     () => CATEGORY_KEYS.map(key => ({ value: key, label: t(`pettyCash.categories.${key}`) })),
@@ -570,7 +574,32 @@ function NuevoMovimientoModal({
   }, [country, tipo]);
 
   const create = trpc.pettyCash.createMovement.useMutation({
-    onSuccess: () => onSuccess(),
+    onSuccess: () => {
+      const isDepo = tipo === 'DEPOSIT';
+      const hadLowWarn = lowWarnRef.current;
+      const amtNum = Number(amount);
+      if (isDepo) {
+        addMovToast({
+          icon: <ArrowDownCircle size={20} color="#10B981" />,
+          title: `Depósito · ${currency}`,
+          detail: `$${amtNum.toFixed(2)} ingresado`,
+          statusText: 'MOVIMIENTO REGISTRADO',
+          barColor: '#10B981',
+        });
+      } else {
+        const barColor = hadLowWarn ? '#F59E0B' : '#F43F5E';
+        const iconColor = barColor;
+        addMovToast({
+          icon: <ArrowUpCircle size={20} color={iconColor} />,
+          title: `Gasto · ${currency}`,
+          detail: `$${amtNum.toFixed(2)} · ${clinic}`,
+          statusText: 'MOVIMIENTO REGISTRADO',
+          barColor,
+          warning: hadLowWarn ? '⚠ Saldo bajo después de este movimiento' : undefined,
+        });
+      }
+      onSuccess();
+    },
     onError:   (e) => toast.error(e.message),
   });
 
@@ -595,12 +624,15 @@ function NuevoMovimientoModal({
         return;
       }
     }
+    lowWarnRef.current = lowWarn;
     setLowWarn(false);
     const clinicName = (isDeposit && country === 'Bolivia') ? 'Bolivia' : clinic;
     create.mutate({ type: tipo, clinicName, amount: Number(amount), currency, category: category || 'OTHER', description, date });
   };
 
   return (
+    <>
+    <ToastPortal toasts={movToasts} removeToast={removeMovToast} />
     <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <div className="max-h-[80vh] overflow-y-auto pr-2 scroll-thin">
@@ -751,5 +783,6 @@ function NuevoMovimientoModal({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

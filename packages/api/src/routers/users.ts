@@ -273,7 +273,7 @@ export const usersRouter = router({
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email: user.email,
-        options: { redirectTo: `${appUrl}/reset-password` },
+        options: { redirectTo: `${appUrl}/api/auth/callback?next=/reset-password` },
       });
 
       if (linkError) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: linkError.message });

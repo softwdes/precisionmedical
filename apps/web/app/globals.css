@@ -185,22 +185,45 @@
 }
 
 
-/* ====== TOAST ANIMATIONS ====== */
-@keyframes toast-slide-in {
-  from { opacity: 0; transform: translateX(120%); }
-  to   { opacity: 1; transform: translateX(0); }
+/* ====== USER CREATED MODAL ANIMATIONS ====== */
+@keyframes modal-fade-in {
+  from { opacity: 0; } to { opacity: 1; }
 }
-@keyframes toast-slide-out {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(120%); }
+@keyframes modal-fade-out {
+  from { opacity: 1; } to { opacity: 0; }
 }
-@keyframes toast-fill-ring {
-  from { stroke-dashoffset: 125.6; }
+@keyframes modal-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes modal-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to   { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+}
+@keyframes modal-pop-in {
+  0%   { transform: scale(0); opacity: 0; }
+  70%  { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes modal-circle-draw {
+  from { stroke-dashoffset: 188.4; }
   to   { stroke-dashoffset: 0; }
 }
-@keyframes toast-progress {
+@keyframes modal-check-draw {
+  from { stroke-dashoffset: 60; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes modal-fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes modal-shrink-bar {
   from { width: 100%; }
   to   { width: 0%; }
+}
+@keyframes modal-shimmer {
+  from { left: -100%; }
+  to   { left: 200%; }
 }
 
 

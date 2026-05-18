@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Label,
 } from '@precision/ui';
-import { Plus, Search, Pencil, Trash2, MailCheck, AlertTriangle, Eye, KeyRound, UserPlus, UserCheck, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Eye, KeyRound, Mail, ShieldCheck, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -27,9 +27,19 @@ type NotificationData = {
   title: string;
   emailSent: boolean;
   emailError?: string | null;
+  role?: string;
 };
 
 type ToastItem = NotificationData & { id: string };
+
+const ROLE_DISPLAY: Record<string, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Admin',
+  EMPLOYEE: 'Empleado',
+  LAWYER: 'Abogado',
+  PROVIDER: 'Proveedor',
+  AUDITOR_AI: 'Auditor AI',
+};
 
 const PROTECTED_EMAIL = 'erick@precisionmedicalcare.com';
 
@@ -286,9 +296,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
       )}
 
       {toasts.length > 0 && createPortal(
-        <div style={{ position: 'fixed', top: 80, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
-          {toasts.map(t => <UserCreatedToast key={t.id} {...t} onDone={() => removeToast(t.id)} />)}
-        </div>,
+        <UserCreatedModal key={toasts[0].id} {...toasts[0]} onDone={() => removeToast(toasts[0].id)} />,
         document.body,
       )}
     </div>
@@ -318,6 +326,7 @@ function CreateUserDialog({ open, onClose, onCreated, onNotify }: { open: boolea
         title: 'Usuario creado exitosamente',
         emailSent: result.emailSent,
         emailError: result.emailError,
+        role: result.role,
       });
       onCreated();
     },
@@ -723,120 +732,193 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
   );
 }
 
-// ─── User Created Toast ──────────────────────────────────────────────────────
-function UserCreatedToast({ name, email, title, emailSent, onDone }: NotificationData & { onDone: () => void }): React.ReactElement {
+// ─── User Created Modal ──────────────────────────────────────────────────────
+function UserCreatedModal({ name, email, emailSent, role, onDone }: NotificationData & { onDone: () => void }): React.ReactElement {
   const [exiting, setExiting] = useState(false);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
   const dismissedRef = useRef(false);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const gradientId = useRef(`rg-${Math.random().toString(36).slice(2)}`).current;
+  const gradientId = useRef(`cg-${Math.random().toString(36).slice(2)}`).current;
 
   const dismiss = useCallback(() => {
     if (dismissedRef.current) return;
     dismissedRef.current = true;
     clearTimeout(autoTimerRef.current);
     setExiting(true);
-    setTimeout(() => onDoneRef.current(), 400);
+    setTimeout(() => onDoneRef.current(), 300);
   }, []);
 
   useEffect(() => {
-    autoTimerRef.current = setTimeout(dismiss, 5500);
+    autoTimerRef.current = setTimeout(dismiss, 7500);
     return () => clearTimeout(autoTimerRef.current);
   }, [dismiss]);
 
+  const roleLabel = ROLE_DISPLAY[role ?? ''] ?? role ?? '';
+
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      style={{
-        width: 360,
-        maxWidth: 'calc(100vw - 40px)',
-        background: 'var(--surface)',
-        border: '0.5px solid var(--border-strong)',
-        borderRadius: 14,
-        padding: 16,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-        animation: exiting
-          ? 'toast-slide-out 0.4s cubic-bezier(0.4,0,1,1) forwards'
-          : 'toast-slide-in 0.4s cubic-bezier(0.16,1,0.3,1) forwards',
-      }}
-    >
-      {/* SVG Circle */}
-      <div style={{ position: 'relative', width: 48, height: 48, flexShrink: 0 }}>
-        <svg
-          width="48"
-          height="48"
-          viewBox="0 0 48 48"
-          style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#6366F1" />
-              <stop offset="100%" stopColor="#06B6D4" />
-            </linearGradient>
-          </defs>
-          <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(99,102,241,0.12)" strokeWidth="3" />
-          <circle
-            cx="24" cy="24" r="20"
-            fill="none"
-            stroke={`url(#${gradientId})`}
-            strokeWidth="3"
-            strokeDasharray="125.6"
-            strokeDashoffset="125.6"
-            strokeLinecap="round"
-            style={{ animation: 'toast-fill-ring 1.2s 0.2s cubic-bezier(0.4,0,0.2,1) forwards' }}
-          />
-        </svg>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {emailSent
-            ? <UserPlus size={18} color="#6366F1" />
-            : <UserCheck size={18} color="#6366F1" />
-          }
+    <>
+      {/* Overlay */}
+      <div style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.55)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 9998,
+        animation: exiting ? 'modal-fade-out 0.3s ease-out forwards' : 'modal-fade-in 0.3s ease-out both',
+      }} />
+
+      {/* Modal */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Nuevo usuario creado"
+        style={{
+          position: 'fixed',
+          top: '50%', left: '50%',
+          width: 420, maxWidth: 'calc(100vw - 32px)',
+          background: 'var(--surface)',
+          border: '0.5px solid var(--border-strong)',
+          borderRadius: 20,
+          overflow: 'hidden',
+          zIndex: 9999,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+          animation: exiting
+            ? 'modal-out 0.3s cubic-bezier(0.4,0,1,1) forwards'
+            : 'modal-in 0.45s cubic-bezier(0.16,1,0.3,1) both',
+        }}
+      >
+        {/* Section 1: Header */}
+        <div style={{ padding: '18px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-1)', margin: 0 }}>Nuevo usuario</p>
+          <button
+            onClick={dismiss}
+            aria-label="Cerrar"
+            style={{ background: 'transparent', border: 'none', padding: 4, cursor: 'pointer', color: 'var(--text-3)', display: 'flex', alignItems: 'center' }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Section 2: Animated check circle + name */}
+        <div style={{ paddingTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: 80, height: 80, marginBottom: 16, animation: 'modal-pop-in 0.5s 0.2s ease-out both', opacity: 0 }}>
+            <div style={{
+              position: 'absolute', inset: 0, borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(6,182,212,0.12))',
+              border: '2px solid rgba(99,102,241,0.22)',
+            }} />
+            <svg width="80" height="80" viewBox="0 0 80 80" style={{ position: 'absolute', inset: 0 }}>
+              <defs>
+                <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#6366F1" />
+                  <stop offset="100%" stopColor="#06B6D4" />
+                </linearGradient>
+              </defs>
+              <circle
+                cx="40" cy="40" r="30"
+                fill="none"
+                stroke={`url(#${gradientId})`}
+                strokeWidth="2.5"
+                strokeDasharray="188.4"
+                strokeDashoffset="188.4"
+                strokeLinecap="round"
+                style={{ transformOrigin: '40px 40px', transform: 'rotate(-90deg)', animation: 'modal-circle-draw 1s 0.3s ease-out forwards' }}
+              />
+              <polyline
+                points="27,40 36,49 53,31"
+                fill="none"
+                stroke={`url(#${gradientId})`}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="60"
+                strokeDashoffset="60"
+                style={{ animation: 'modal-check-draw 0.4s 1.1s ease-out forwards' }}
+              />
+            </svg>
+          </div>
+
+          <p style={{ fontSize: 11, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.10em', margin: '0 0 4px', animation: 'modal-fade-in-up 0.4s 0.9s ease-out both', opacity: 0 }}>
+            USUARIO CREADO EXITOSAMENTE
+          </p>
+          <p style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-1)', margin: '0 0 20px', animation: 'modal-fade-in-up 0.4s 1.0s ease-out both', opacity: 0 }}>
+            {name}
+          </p>
+        </div>
+
+        {/* Section 4: Info cards */}
+        <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {emailSent && (
+            <div style={{
+              background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.22)',
+              borderRadius: 12, padding: '12px 16px',
+              display: 'flex', alignItems: 'center', gap: 12,
+              animation: 'modal-fade-in-up 0.4s 1.1s ease-out both', opacity: 0,
+            }}>
+              <Mail size={20} color="#10B981" style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: '#10B981', margin: 0 }}>Invitación enviada</p>
+                <p style={{ fontSize: 11, color: 'var(--text-2)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</p>
+              </div>
+              <Check size={16} color="#10B981" style={{ flexShrink: 0 }} />
+            </div>
+          )}
+          {roleLabel && (
+            <div style={{
+              background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.20)',
+              borderRadius: 12, padding: '12px 16px',
+              display: 'flex', alignItems: 'center', gap: 12,
+              animation: 'modal-fade-in-up 0.4s 1.2s ease-out both', opacity: 0,
+            }}>
+              <ShieldCheck size={20} color="#6366F1" style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: '#6366F1', margin: 0 }}>Rol asignado</p>
+                <p style={{ fontSize: 11, color: 'var(--text-2)', margin: 0 }}>{roleLabel}</p>
+              </div>
+              <Check size={16} color="#6366F1" style={{ flexShrink: 0 }} />
+            </div>
+          )}
+        </div>
+
+        {/* Section 5: Progress bar */}
+        <div style={{ padding: '20px 20px 6px', animation: 'modal-fade-in-up 0.4s 1.3s ease-out both', opacity: 0 }}>
+          <div style={{ height: 4, background: 'var(--bg-2)', borderRadius: 999, overflow: 'hidden', position: 'relative' }}>
+            <div style={{
+              position: 'absolute', top: 0, left: 0,
+              height: '100%', width: '100%',
+              background: 'linear-gradient(90deg, #6366F1, #8B5CF6, #06B6D4)',
+              borderRadius: 999,
+              animation: 'modal-shrink-bar 6s 1.5s linear forwards',
+            }} />
+            <div style={{
+              position: 'absolute', top: 0,
+              left: '-100%', width: '40%', height: '100%',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.50), transparent)',
+              animation: 'modal-shimmer 1.8s 2s ease-in-out infinite',
+            }} />
+          </div>
+          <p style={{ fontSize: 10, color: 'var(--text-2)', textAlign: 'center', margin: '5px 0 0' }}>
+            Se cerrará automáticamente
+          </p>
+        </div>
+
+        {/* Section 6: Close button */}
+        <div style={{ padding: '10px 20px 20px', animation: 'modal-fade-in-up 0.4s 1.4s ease-out both', opacity: 0 }}>
+          <button
+            onClick={dismiss}
+            style={{
+              width: '100%', padding: 12, borderRadius: 10,
+              fontWeight: 500, fontSize: 14, cursor: 'pointer',
+              background: 'transparent',
+              border: '1px solid var(--border-strong)',
+              color: 'var(--text-1)',
+              fontFamily: 'inherit',
+            }}
+          >
+            Cerrar
+          </button>
         </div>
       </div>
-
-      {/* Content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, margin: '0 0 2px', color: 'var(--text-1)' }}>
-          {title}
-        </p>
-        <p style={{ fontSize: 12, color: 'var(--text-2)', margin: '0 0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {name} · {email}
-        </p>
-        {emailSent && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <MailCheck size={13} color="#10B981" />
-            <span style={{ fontSize: 11, color: '#10B981', fontWeight: 500 }}>Invitación enviada</span>
-          </div>
-        )}
-      </div>
-
-      {/* Close button */}
-      <button
-        onClick={dismiss}
-        aria-label="Cerrar notificación"
-        style={{ background: 'transparent', border: 'none', padding: 4, cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-start', color: 'var(--text-3)' }}
-      >
-        <X size={15} />
-      </button>
-
-      {/* Progress bar */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'var(--bg-2)' }}>
-        <div style={{
-          height: '100%',
-          width: '100%',
-          background: 'linear-gradient(90deg, #6366F1, #8B5CF6, #06B6D4)',
-          borderRadius: '0 0 0 14px',
-          animation: 'toast-progress 5s 0.5s linear forwards',
-        }} />
-      </div>
-    </div>
+    </>
   );
 }

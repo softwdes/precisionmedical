@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Label,
 } from '@precision/ui';
-import { Plus, Search, Pencil, Trash2, MailCheck, AlertTriangle, Eye } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, MailCheck, AlertTriangle, Eye, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -403,6 +403,11 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
     onError: (e) => toast.error(e.message),
   });
 
+  const sendAccess = trpc.users.sendPasswordReset.useMutation({
+    onSuccess: () => toast.success(`Enlace de acceso enviado a ${user.email}`),
+    onError: (e) => toast.error(e.message),
+  });
+
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
     update.mutate({ id: user.id, ...form });
@@ -460,7 +465,17 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
               <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
             </div>
           </div>
-          <DialogFooter className="shrink-0">
+          <DialogFooter className="shrink-0 flex-col sm:flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              loading={sendAccess.isPending}
+              onClick={() => sendAccess.mutate({ id: user.id })}
+              className="sm:mr-auto"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              Enviar acceso
+            </Button>
             <Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
             <Button type="submit" loading={update.isPending}>{t('users.saveChanges')}</Button>
           </DialogFooter>

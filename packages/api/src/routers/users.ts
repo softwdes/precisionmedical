@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure, superAdminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
-import { sendWelcomeEmail } from '../email';
+import { sendWelcomeEmail, sendPasswordResetEmail } from '../email';
 
 export const usersRouter = router({
   ping: protectedProcedure.query(() => 'ok' as const),
@@ -255,6 +255,33 @@ export const usersRouter = router({
         createdAt: new Date().toISOString(),
       });
 
+      return { success: true };
+    }),
+
+  sendPasswordReset: superAdminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('email, firstName')
+        .eq('id', input.id)
+        .single();
+
+      if (!user) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email: user.email,
+        options: { redirectTo: `${appUrl}/reset-password` },
+      });
+
+      if (linkError) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: linkError.message });
+
+      const resetLink = linkData?.properties?.action_link;
+      if (!resetLink) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'No se pudo generar el enlace de acceso' });
+
+      await sendPasswordResetEmail({ to: user.email, resetLink });
       return { success: true };
     }),
 

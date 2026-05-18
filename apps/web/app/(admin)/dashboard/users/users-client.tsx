@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Label,
 } from '@precision/ui';
-import { Plus, Search, Pencil, Trash2, MailCheck, AlertTriangle, Eye, KeyRound } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, MailCheck, AlertTriangle, Eye, KeyRound, UserPlus, UserCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -28,6 +28,8 @@ type NotificationData = {
   emailSent: boolean;
   emailError?: string | null;
 };
+
+type ToastItem = NotificationData & { id: string };
 
 const PROTECTED_EMAIL = 'erick@precisionmedicalcare.com';
 
@@ -46,7 +48,13 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
-  const [notification, setNotification] = useState<NotificationData | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const addToast = useCallback((n: NotificationData) => {
+    setToasts(prev => [...prev, { ...n, id: `${Date.now()}-${Math.random()}` }]);
+  }, []);
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'),
@@ -253,7 +261,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
       )}
 
       {/* Dialogs */}
-      <CreateUserDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); void refetch(); }} onNotify={setNotification} />
+      <CreateUserDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); void refetch(); }} onNotify={addToast} />
 
       {viewingUserId && (
         <UserViewDialog userId={viewingUserId} onClose={() => setViewingUserId(null)} />
@@ -264,7 +272,7 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
           user={editingUser}
           onClose={() => setEditingUser(null)}
           onSaved={() => { setEditingUser(null); void refetch(); }}
-          onNotify={setNotification}
+          onNotify={addToast}
         />
       )}
 
@@ -277,8 +285,11 @@ export function UsersClient({ initial }: { initial: UsersListOutput }): React.Re
         />
       )}
 
-      {notification && (
-        <UserSuccessCard {...notification} onDone={() => setNotification(null)} />
+      {toasts.length > 0 && createPortal(
+        <div style={{ position: 'fixed', top: 80, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
+          {toasts.map(t => <UserCreatedToast key={t.id} {...t} onDone={() => removeToast(t.id)} />)}
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -304,7 +315,7 @@ function CreateUserDialog({ open, onClose, onCreated, onNotify }: { open: boolea
         initials: `${result.firstName.charAt(0)}${result.lastName.charAt(0)}`.toUpperCase(),
         name: `${result.firstName} ${result.lastName}`,
         email: result.email,
-        title: 'Usuario creado',
+        title: 'Usuario creado exitosamente',
         emailSent: result.emailSent,
         emailError: result.emailError,
       });
@@ -712,121 +723,120 @@ function DeleteConfirmDialog({ user, isPending, onConfirm, onClose }: {
   );
 }
 
-// ─── User Success Card ────────────────────────────────────────────────────────
-function UserSuccessCard({ initials, name, email, title, emailSent, emailError, onDone }: NotificationData & { onDone: () => void }): React.ReactElement | null {
-  const [mounted, setMounted] = useState(false);
-  const DURATION = 4800;
+// ─── User Created Toast ──────────────────────────────────────────────────────
+function UserCreatedToast({ name, email, title, emailSent, onDone }: NotificationData & { onDone: () => void }): React.ReactElement {
+  const [exiting, setExiting] = useState(false);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
+  const dismissedRef = useRef(false);
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const gradientId = useRef(`rg-${Math.random().toString(36).slice(2)}`).current;
 
-  useEffect(() => {
-    setMounted(true);
-    const timer = setTimeout(() => onDoneRef.current(), DURATION);
-    return () => clearTimeout(timer);
+  const dismiss = useCallback(() => {
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
+    clearTimeout(autoTimerRef.current);
+    setExiting(true);
+    setTimeout(() => onDoneRef.current(), 400);
   }, []);
 
-  if (!mounted) return null;
+  useEffect(() => {
+    autoTimerRef.current = setTimeout(dismiss, 5500);
+    return () => clearTimeout(autoTimerRef.current);
+  }, [dismiss]);
 
-  const isSuccess = emailSent;
-  const barColor  = isSuccess ? 'linear-gradient(90deg,#6366F1,#8B5CF6,#06B6D4)' : 'linear-gradient(90deg,#F59E0B,#F97316)';
-  const cardBorder = isSuccess ? 'rgba(99,102,241,0.20)' : 'rgba(245,158,11,0.25)';
-  const badgeColor = isSuccess ? '#10B981' : '#F59E0B';
-  const badgeBg    = isSuccess ? 'rgba(16,185,129,0.10)' : 'rgba(245,158,11,0.10)';
-  const badgeBorder = isSuccess ? 'rgba(16,185,129,0.20)' : 'rgba(245,158,11,0.20)';
-
-  return createPortal(
-    <>
-      <style>{`
-        @keyframes pm-card-in {
-          from { opacity: 0; transform: translateY(22px) scale(0.95); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes pm-drain {
-          from { width: 100%; }
-          to   { width: 0%; }
-        }
-      `}</style>
-      <div style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        pointerEvents: 'none',
-      }}>
-        <div style={{
-          pointerEvents: 'all',
-          width: 380, maxWidth: 'calc(100vw - 32px)',
-          background: '#111118',
-          border: `1px solid ${cardBorder}`,
-          borderRadius: 20,
-          overflow: 'hidden',
-          boxShadow: '0 32px 80px rgba(0,0,0,0.65), 0 8px 24px rgba(0,0,0,0.4)',
-          animation: 'pm-card-in 380ms cubic-bezier(0.16,1,0.3,1) both',
-        }}>
-
-          {/* Body */}
-          <div style={{ padding: '20px 20px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
-
-            {/* Avatar */}
-            <div style={{
-              flexShrink: 0, width: 46, height: 46, borderRadius: '50%',
-              background: 'linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#06B6D4 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'white', fontWeight: 800, fontSize: 15,
-              boxShadow: '0 4px 16px rgba(99,102,241,0.35)',
-            }}>
-              {initials}
-            </div>
-
-            {/* Info */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: '0 0 3px', color: '#E2E2EE', fontWeight: 700, fontSize: 14, letterSpacing: '-0.2px' }}>
-                {title}
-              </p>
-              <p style={{ margin: '0 0 1px', color: '#8888AA', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {name}
-              </p>
-              <p style={{ margin: 0, color: isSuccess ? '#555568' : '#F59E0B', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {isSuccess ? email : (emailError ?? 'Correo no pudo enviarse')}
-              </p>
-            </div>
-
-            {/* Close + Badge */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-              <button
-                onClick={onDone}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#3D3D52', lineHeight: 1 }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-              <span style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                fontSize: 10, fontWeight: 700,
-                color: badgeColor, background: badgeBg,
-                border: `1px solid ${badgeBorder}`,
-                borderRadius: 20, padding: '3px 9px', whiteSpace: 'nowrap',
-              }}>
-                {isSuccess
-                  ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
-                  : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                }
-                {isSuccess ? 'Correo enviado' : 'Sin correo'}
-              </span>
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          <div style={{ height: 3, background: 'rgba(255,255,255,0.04)' }}>
-            <div style={{
-              height: '100%',
-              background: barColor,
-              animation: `pm-drain ${DURATION}ms linear forwards`,
-            }} />
-          </div>
-
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      style={{
+        width: 360,
+        maxWidth: 'calc(100vw - 40px)',
+        background: 'var(--surface)',
+        border: '0.5px solid var(--border-strong)',
+        borderRadius: 14,
+        padding: 16,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        position: 'relative',
+        overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+        animation: exiting
+          ? 'toast-slide-out 0.4s cubic-bezier(0.4,0,1,1) forwards'
+          : 'toast-slide-in 0.4s cubic-bezier(0.16,1,0.3,1) forwards',
+      }}
+    >
+      {/* SVG Circle */}
+      <div style={{ position: 'relative', width: 48, height: 48, flexShrink: 0 }}>
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 48 48"
+          style={{ position: 'absolute', top: 0, left: 0, transform: 'rotate(-90deg)' }}
+        >
+          <defs>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#6366F1" />
+              <stop offset="100%" stopColor="#06B6D4" />
+            </linearGradient>
+          </defs>
+          <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(99,102,241,0.12)" strokeWidth="3" />
+          <circle
+            cx="24" cy="24" r="20"
+            fill="none"
+            stroke={`url(#${gradientId})`}
+            strokeWidth="3"
+            strokeDasharray="125.6"
+            strokeDashoffset="125.6"
+            strokeLinecap="round"
+            style={{ animation: 'toast-fill-ring 1.2s 0.2s cubic-bezier(0.4,0,0.2,1) forwards' }}
+          />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {emailSent
+            ? <UserPlus size={18} color="#6366F1" />
+            : <UserCheck size={18} color="#6366F1" />
+          }
         </div>
       </div>
-    </>,
-    document.body,
+
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 13, fontWeight: 500, margin: '0 0 2px', color: 'var(--text-1)' }}>
+          {title}
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--text-2)', margin: '0 0 6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {name} · {email}
+        </p>
+        {emailSent && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <MailCheck size={13} color="#10B981" />
+            <span style={{ fontSize: 11, color: '#10B981', fontWeight: 500 }}>Invitación enviada</span>
+          </div>
+        )}
+      </div>
+
+      {/* Close button */}
+      <button
+        onClick={dismiss}
+        aria-label="Cerrar notificación"
+        style={{ background: 'transparent', border: 'none', padding: 4, cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-start', color: 'var(--text-3)' }}
+      >
+        <X size={15} />
+      </button>
+
+      {/* Progress bar */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'var(--bg-2)' }}>
+        <div style={{
+          height: '100%',
+          width: '100%',
+          background: 'linear-gradient(90deg, #6366F1, #8B5CF6, #06B6D4)',
+          borderRadius: '0 0 0 14px',
+          animation: 'toast-progress 5s 0.5s linear forwards',
+        }} />
+      </div>
+    </div>
   );
 }

@@ -752,7 +752,7 @@ function UserCreatedModal({ name, email, emailSent, role, onDone }: Notification
 
   useEffect(() => {
     // auto-dismiss: 1.5s bar delay + 6s bar duration = 7.5s
-    autoTimerRef.current = setTimeout(dismiss, 7500);
+    autoTimerRef.current = setTimeout(dismiss, 10500);
     return () => {
       clearTimeout(autoTimerRef.current);
       clearTimeout(exitTimerRef.current);
@@ -893,7 +893,7 @@ function UserCreatedModal({ name, email, emailSent, role, onDone }: Notification
               height: '100%', width: '100%',
               background: 'linear-gradient(90deg, #6366F1, #8B5CF6, #06B6D4)',
               borderRadius: 999,
-              animation: 'modal-shrink-bar 6s 1.5s linear forwards',
+              animation: 'modal-shrink-bar 9s 1.5s linear forwards',
             }} />
             <div style={{
               position: 'absolute', top: 0,

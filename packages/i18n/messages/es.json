@@ -631,7 +631,8 @@
     "reverseWarning": "Esta acción no se puede deshacer",
     "reverseExplain": "Se creará un registro de reversal que anula esta operación en el historial.",
     "reverseButton": "Sí, revertir",
-    "notesPlaceholder": "Observaciones adicionales…"
+    "notesPlaceholder": "Observaciones adicionales…",
+    "alreadyReversed": "Esta operación ya fue revertida"
   },
   "attendance": {
     "title": "Asistencia",

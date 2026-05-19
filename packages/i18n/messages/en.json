@@ -631,7 +631,8 @@
     "reverseWarning": "This action cannot be undone",
     "reverseExplain": "A reversal record will be created that cancels this operation in the history.",
     "reverseButton": "Yes, reverse",
-    "notesPlaceholder": "Additional observations…"
+    "notesPlaceholder": "Additional observations…",
+    "alreadyReversed": "This operation has already been reversed"
   },
   "attendance": {
     "title": "Attendance",

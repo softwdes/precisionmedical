@@ -11,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Card, CardContent,
 } from '@precision/ui';
-import { Plus, ArrowLeftRight, Eye, TrendingUp, DollarSign, MoreHorizontal, Pencil, RotateCcw } from 'lucide-react';
+import { Plus, ArrowLeftRight, Eye, TrendingUp, DollarSign, Pencil, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -128,7 +128,6 @@ export function FxClient({
   const [detailOp,    setDetailOp]    = useState<FxOp | null>(null);
   const [editOp,      setEditOp]      = useState<FxOp | null>(null);
   const [reverseOp,   setReverseOp]   = useState<FxOp | null>(null);
-  const [menuOpen,    setMenuOpen]    = useState<string | null>(null);
 
   const periodOptions = useMemo(() =>
     Array.from({ length: 7 }, (_, i) => {
@@ -352,13 +351,11 @@ export function FxClient({
                         <span className="text-sm font-bold font-mono" style={{ color: '#10B981' }}>
                           = {tw ? `${fmtAmount(Number(op.amountTo), tw.currency)} ${tw.currency}` : '—'}
                         </span>
-                        <OpMenu
-                          op={op} open={menuOpen === op.id}
-                          onToggle={() => setMenuOpen(prev => prev === op.id ? null : op.id)}
-                          onClose={() => setMenuOpen(null)}
-                          onDetail={() => { setMenuOpen(null); setDetailOp(op); }}
-                          onEdit={()   => { setMenuOpen(null); setEditOp(op); }}
-                          onReverse={() => { setMenuOpen(null); setReverseOp(op); }}
+                        <RowActions
+                          op={op}
+                          onDetail={() => setDetailOp(op)}
+                          onEdit={() => setEditOp(op)}
+                          onReverse={() => setReverseOp(op)}
                           t={t}
                         />
                       </div>
@@ -424,13 +421,11 @@ export function FxClient({
                           {fmtDateTime(op.performedAt as string)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <OpMenu
-                            op={op} open={menuOpen === op.id}
-                            onToggle={() => setMenuOpen(prev => prev === op.id ? null : op.id)}
-                            onClose={() => setMenuOpen(null)}
-                            onDetail={() => { setMenuOpen(null); setDetailOp(op); }}
-                            onEdit={()   => { setMenuOpen(null); setEditOp(op); }}
-                            onReverse={() => { setMenuOpen(null); setReverseOp(op); }}
+                          <RowActions
+                            op={op}
+                            onDetail={() => setDetailOp(op)}
+                            onEdit={() => setEditOp(op)}
+                            onReverse={() => setReverseOp(op)}
                             t={t}
                           />
                         </TableCell>
@@ -485,86 +480,41 @@ export function FxClient({
         />
       )}
 
-      {/* close menus on outside click */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-      )}
     </div>
   );
 }
 
-// ─── OpMenu (⋯ dropdown) ────────────────────────────────────────
+// ─── Row action buttons (Eye · Pencil · RotateCcw) ───────────────
 
-function OpMenu({
-  op, open, onToggle, onClose, onDetail, onEdit, onReverse, t,
+function RowActions({
+  op, onDetail, onEdit, onReverse, t,
 }: {
   op:        FxOp;
-  open:      boolean;
-  onToggle:  () => void;
-  onClose:   () => void;
   onDetail:  () => void;
   onEdit:    () => void;
   onReverse: () => void;
   t:         ReturnType<typeof useTranslations>;
 }) {
   const isReversed = !!op.reversedById;
+  const btn = 'p-1.5 rounded transition-colors';
 
   return (
-    <div className="relative inline-block" style={{ zIndex: 20 }}>
-      <button
-        onClick={e => { e.stopPropagation(); onToggle(); }}
-        className="p-1.5 rounded text-text-muted hover:text-text-1 hover:bg-surface-hover transition-colors"
-        title="Acciones"
-      >
-        <MoreHorizontal className="h-4 w-4" />
+    <div className="flex items-center gap-0.5 justify-end">
+      <button onClick={onDetail} className={`${btn} text-text-muted hover:text-brand hover:bg-surface-hover`} title={t('fx.viewDetail')}>
+        <Eye className="h-3.5 w-3.5" />
       </button>
-
-      {open && (
-        <div
-          className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-border bg-surface shadow-lg py-1"
-          style={{ zIndex: 30 }}
-          onClick={e => e.stopPropagation()}
-        >
-          <MenuItem icon={<Eye className="h-3.5 w-3.5" />}       label={t('fx.viewDetail')} onClick={onDetail} />
-          <MenuItem icon={<Pencil className="h-3.5 w-3.5" />}    label={t('fx.editOp')}    onClick={onEdit} />
-          <div className="my-1 border-t border-border/60" />
-          <MenuItem
-            icon={<RotateCcw className="h-3.5 w-3.5" />}
-            label={t('fx.reverseOp')}
-            onClick={onReverse}
-            danger
-            disabled={isReversed}
-          />
-        </div>
-      )}
+      <button onClick={onEdit} className={`${btn} text-text-muted hover:text-amber-500 hover:bg-amber-500/10`} title={t('fx.editOp')}>
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+      <button
+        onClick={isReversed ? undefined : onReverse}
+        disabled={isReversed}
+        className={`${btn} ${isReversed ? 'opacity-30 cursor-not-allowed text-text-muted' : 'text-text-muted hover:text-rose-500 hover:bg-rose-500/10'}`}
+        title={isReversed ? t('fx.alreadyReversed') : t('fx.reverseOp')}
+      >
+        <RotateCcw className="h-3.5 w-3.5" />
+      </button>
     </div>
-  );
-}
-
-function MenuItem({
-  icon, label, onClick, danger, disabled,
-}: {
-  icon:      React.ReactNode;
-  label:     string;
-  onClick:   () => void;
-  danger?:   boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left
-        ${disabled
-          ? 'opacity-40 cursor-not-allowed text-text-3'
-          : danger
-            ? 'text-rose-500 hover:bg-rose-500/10'
-            : 'text-text-2 hover:bg-surface-hover hover:text-text-1'
-        }`}
-      onClick={disabled ? undefined : onClick}
-      disabled={disabled}
-    >
-      {icon}
-      {label}
-    </button>
   );
 }
 

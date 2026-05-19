@@ -605,7 +605,7 @@ function NuevoMovimientoModal({
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!isDeposit || country === 'EEUU') {
+    if (country === 'EEUU') {
       if (!clinic.trim()) errs.clinic = 'Selecciona o ingresa una sede';
     }
     if (!amount || Number(amount) <= 0) errs.amount = t('pettyCash.errAmount');
@@ -626,7 +626,7 @@ function NuevoMovimientoModal({
     }
     lowWarnRef.current = lowWarn;
     setLowWarn(false);
-    const clinicName = (isDeposit && country === 'Bolivia') ? 'Bolivia' : clinic;
+    const clinicName = country === 'Bolivia' ? 'Bolivia' : clinic;
     create.mutate({ type: tipo, clinicName, amount: Number(amount), currency, category: category || 'OTHER', description, date });
   };
 
@@ -680,8 +680,8 @@ function NuevoMovimientoModal({
               <p className="text-[11px] text-text-3">{t('pettyCash.countryHint')}</p>
             </div>
 
-            {/* Clínica — solo se muestra para EEUU o gastos Bolivia */}
-            {(!isDeposit || country === 'EEUU') && (
+            {/* Clínica — solo se muestra para EEUU */}
+            {country === 'EEUU' && (
               <div className="space-y-1.5">
                 <Label>{t('pettyCash.clinicHeader')}</Label>
                 {clinicOptions.length > 0 ? (

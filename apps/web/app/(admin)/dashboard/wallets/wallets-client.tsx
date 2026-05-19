@@ -15,6 +15,7 @@ import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
 
 type WalletItem = inferRouterOutputs<AppRouter>['wallets']['list'][number];
+type FxStat = { entradas: number; salidas: number; lastAt: string | null };
 
 const CURRENCY_TO_COUNTRY: Record<string, string> = {
   USD: 'US',
@@ -81,10 +82,14 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
   const [reconcileTarget, setReconcileTarget] = useState<WalletItem | null>(null);
 
   const { data: wallets, refetch } = trpc.wallets.list.useQuery(undefined, { initialData: initialWallets });
+  const { data: fxStats = {} } = trpc.wallets.getFxStats.useQuery();
 
   const totalUsd = wallets
     .filter(w => w.currency === 'USD')
-    .reduce((s, w) => s + Number(w.balance), 0);
+    .reduce((s, w) => {
+      const st = fxStats[w.id];
+      return s + Number(w.balance) + (st?.entradas ?? 0) - (st?.salidas ?? 0);
+    }, 0);
 
   const timeStr = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
 
@@ -144,6 +149,7 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
             <WalletCard
               key={wallet.id}
               wallet={wallet}
+              stats={fxStats[wallet.id]}
               onReconcile={() => setReconcileTarget(wallet)}
             />
           ))}
@@ -188,24 +194,23 @@ function EmptyState({ onAdd }: { onAdd: () => void }): React.ReactElement {
   );
 }
 
-function WalletCard({ wallet, onReconcile }: { wallet: WalletItem; onReconcile: () => void }): React.ReactElement {
-  const balance = Number(wallet.balance);
+function WalletCard({ wallet, stats, onReconcile }: { wallet: WalletItem; stats?: FxStat; onReconcile: () => void }): React.ReactElement {
+  const entradas = stats?.entradas ?? 0;
+  const salidas  = stats?.salidas  ?? 0;
+  const balance  = Number(wallet.balance) + entradas - salidas;
+
   const badge = CURRENCY_BADGE[wallet.currency] ?? { bg: 'rgba(255,255,255,0.06)', color: '#aaa', border: 'rgba(255,255,255,0.12)' };
 
-  const balanceColor = balance > 0
-    ? 'var(--text-1)'
-    : balance === 0
-    ? 'var(--text-3)'
-    : '#F43F5E';
-
+  const balanceColor = balance > 0 ? 'var(--text-1)' : balance === 0 ? 'var(--text-3)' : '#F43F5E';
   const statusDotColor = balance > 0 ? '#10B981' : balance === 0 ? '#F59E0B' : '#F43F5E';
   const statusText = balance > 0
-    ? 'Activa · sin movimientos FX aún'
+    ? 'Activa'
     : balance === 0
     ? 'Sin fondos · pendiente de depósito'
     : '⚠ Saldo negativo';
 
-  const prefix = getCurrencyPrefix(wallet.currency);
+  const lastMovement = stats?.lastAt
+    ?? (wallet.lastReconciledAt ? String(wallet.lastReconciledAt) : null);
 
   return (
     <div
@@ -272,13 +277,13 @@ function WalletCard({ wallet, onReconcile }: { wallet: WalletItem; onReconcile: 
         </p>
 
         {/* Mini stats */}
-        <div style={{ display: 'flex', gap: 20, marginBottom: 6 }}>
+        <div style={{ display: 'flex', gap: 20, marginBottom: 12 }}>
           <div>
             <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 2 }}>
               Entradas
             </p>
             <p style={{ fontSize: 13, fontWeight: 600, color: '#10B981', fontFamily: 'monospace' }}>
-              {formatBalance(0, wallet.currency)}
+              {formatBalance(entradas, wallet.currency)}
             </p>
           </div>
           <div>
@@ -286,15 +291,10 @@ function WalletCard({ wallet, onReconcile }: { wallet: WalletItem; onReconcile: 
               Salidas
             </p>
             <p style={{ fontSize: 13, fontWeight: 600, color: '#F43F5E', fontFamily: 'monospace' }}>
-              {formatBalance(0, wallet.currency)}
+              {formatBalance(salidas, wallet.currency)}
             </p>
           </div>
         </div>
-
-        {/* FX placeholder — Phase 2 hook */}
-        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.15)', fontStyle: 'italic', marginBottom: 8 }}>
-          Se conectará con FX/Divisas automáticamente
-        </p>
 
         {/* Status dot */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -327,8 +327,8 @@ function WalletCard({ wallet, onReconcile }: { wallet: WalletItem; onReconcile: 
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Clock style={{ width: 11, height: 11, color: 'var(--text-3)', flexShrink: 0 }} />
           <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
-            {wallet.lastReconciledAt
-              ? `Último: ${new Date(wallet.lastReconciledAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}`
+            {lastMovement
+              ? `Último: ${new Date(lastMovement).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}`
               : 'Sin movimientos'}
           </span>
         </div>

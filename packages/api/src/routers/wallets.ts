@@ -49,6 +49,31 @@ export const walletsRouter = router({
       return data;
     }),
 
+  getFxStats: protectedProcedure.query(async () => {
+    const { data, error } = await supabaseAdmin
+      .from('fx_operations')
+      .select('fromWalletId, toWalletId, amountFrom, amountTo, performedAt');
+    if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+    type Row = { fromWalletId: string; toWalletId: string; amountFrom: unknown; amountTo: unknown; performedAt: string };
+    const ops = (data ?? []) as Row[];
+    const stats: Record<string, { entradas: number; salidas: number; lastAt: string | null }> = {};
+
+    const touch = (id: string, at: string): void => {
+      stats[id] ??= { entradas: 0, salidas: 0, lastAt: null };
+      if (!stats[id]!.lastAt || at > stats[id]!.lastAt!) stats[id]!.lastAt = at;
+    };
+
+    for (const op of ops) {
+      touch(op.fromWalletId, op.performedAt);
+      stats[op.fromWalletId]!.salidas += Number(op.amountFrom);
+      touch(op.toWalletId, op.performedAt);
+      stats[op.toWalletId]!.entradas += Number(op.amountTo);
+    }
+
+    return stats;
+  }),
+
   reconcile: adminProcedure
     .input(z.object({
       id: z.string(),

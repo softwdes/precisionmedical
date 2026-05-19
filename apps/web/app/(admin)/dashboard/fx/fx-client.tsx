@@ -11,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Card, CardContent,
 } from '@precision/ui';
-import { Plus, ArrowLeftRight, Eye, TrendingUp, DollarSign, Pencil, RotateCcw } from 'lucide-react';
+import { Plus, ArrowLeftRight, Eye, TrendingUp, DollarSign, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -507,12 +507,11 @@ function RowActions({
         <Pencil className="h-3.5 w-3.5" />
       </button>
       <button
-        onClick={isReversed ? undefined : onReverse}
-        disabled={isReversed}
-        className={`${btn} ${isReversed ? 'opacity-30 cursor-not-allowed text-text-muted' : 'text-text-muted hover:text-rose-500 hover:bg-rose-500/10'}`}
-        title={isReversed ? t('fx.alreadyReversed') : t('fx.reverseOp')}
+        onClick={onReverse}
+        className={`${btn} ${isReversed ? 'text-rose-400 hover:text-rose-600 hover:bg-rose-500/10' : 'text-text-muted hover:text-rose-500 hover:bg-rose-500/10'}`}
+        title={isReversed ? t('fx.deleteRecord') : t('fx.reverseOp')}
       >
-        <RotateCcw className="h-3.5 w-3.5" />
+        {isReversed ? <Trash2 className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
       </button>
     </div>
   );
@@ -613,15 +612,18 @@ function ReverseDialog({
     onError:   (e) => toast.error(e.message),
   });
 
+  const isReversed = !!op.reversedById;
   const busy = reverse.isPending || del.isPending;
 
   return (
-    <FxSheetModal onClose={onClose} title={t('fx.reverseOp')}>
+    <FxSheetModal onClose={onClose} title={isReversed ? t('fx.deleteRecord') : t('fx.reverseOp')}>
       <div className="p-5 space-y-4 flex-1">
         <div className="rounded-lg p-3.5 space-y-1"
           style={{ background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.2)' }}>
           <p className="text-sm font-semibold text-rose-500">{t('fx.reverseWarning')}</p>
-          <p className="text-small text-text-3">{t('fx.reverseExplain')}</p>
+          <p className="text-small text-text-3">
+            {isReversed ? t('fx.deleteExplain') : t('fx.reverseExplain')}
+          </p>
         </div>
 
         <div className="rounded-lg p-3 text-sm text-text-2"
@@ -636,34 +638,48 @@ function ReverseDialog({
       </div>
 
       <div className="p-4 border-t border-border space-y-2">
-        {/* Primary actions */}
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose} disabled={busy}>{t('common.cancel')}</Button>
-          <Button
-            className="flex-1 bg-rose-600 hover:bg-rose-700 text-white border-0"
-            disabled={busy}
-            onClick={() => reverse.mutate({ id: op.id })}
-          >
-            {reverse.isPending ? t('common.processing') : t('fx.reverseButton')}
-          </Button>
-        </div>
+        {isReversed ? (
+          /* Already reversed — only show hard delete */
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onClose} disabled={busy}>{t('common.cancel')}</Button>
+            <Button
+              className="flex-1 bg-rose-600 hover:bg-rose-700 text-white border-0"
+              disabled={busy}
+              onClick={() => del.mutate({ id: op.id })}
+            >
+              {del.isPending ? t('common.processing') : t('fx.deleteRecord')}
+            </Button>
+          </div>
+        ) : (
+          /* Not yet reversed — show reverse + delete options */
+          <>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={onClose} disabled={busy}>{t('common.cancel')}</Button>
+              <Button
+                className="flex-1 bg-rose-600 hover:bg-rose-700 text-white border-0"
+                disabled={busy}
+                onClick={() => reverse.mutate({ id: op.id })}
+              >
+                {reverse.isPending ? t('common.processing') : t('fx.reverseButton')}
+              </Button>
+            </div>
 
-        {/* Separator */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 border-t border-border/50" />
-          <span className="text-[10px] text-text-muted uppercase tracking-wide">{t('common.or')}</span>
-          <div className="flex-1 border-t border-border/50" />
-        </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 border-t border-border/50" />
+              <span className="text-[10px] text-text-muted uppercase tracking-wide">{t('common.or')}</span>
+              <div className="flex-1 border-t border-border/50" />
+            </div>
 
-        {/* Hard delete */}
-        <Button
-          variant="outline"
-          className="w-full text-rose-500 border-rose-500/30 hover:bg-rose-500/10 hover:border-rose-500/60"
-          disabled={busy}
-          onClick={() => del.mutate({ id: op.id })}
-        >
-          {del.isPending ? t('common.processing') : t('fx.deleteRecord')}
-        </Button>
+            <Button
+              variant="outline"
+              className="w-full text-rose-500 border-rose-500/30 hover:bg-rose-500/10 hover:border-rose-500/60"
+              disabled={busy}
+              onClick={() => del.mutate({ id: op.id })}
+            >
+              {del.isPending ? t('common.processing') : t('fx.deleteRecord')}
+            </Button>
+          </>
+        )}
       </div>
     </FxSheetModal>
   );

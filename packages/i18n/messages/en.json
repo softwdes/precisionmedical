@@ -635,7 +635,8 @@
     "notesPlaceholder": "Additional observations…",
     "alreadyReversed": "This operation has already been reversed",
     "deleted": "Record deleted",
-    "deleteRecord": "Delete record permanently"
+    "deleteRecord": "Delete record permanently",
+    "deleteExplain": "This record will be permanently deleted. This action cannot be undone."
   },
   "attendance": {
     "title": "Attendance",

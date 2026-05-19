@@ -635,7 +635,8 @@
     "notesPlaceholder": "Observaciones adicionales…",
     "alreadyReversed": "Esta operación ya fue revertida",
     "deleted": "Registro eliminado",
-    "deleteRecord": "Eliminar registro permanentemente"
+    "deleteRecord": "Eliminar registro permanentemente",
+    "deleteExplain": "Se eliminará este registro de forma permanente. Esta acción no se puede deshacer."
   },
   "attendance": {
     "title": "Asistencia",

@@ -279,15 +279,29 @@ export const paymentsRouter = router({
     .query(async ({ input }) => {
       const period = input.period ?? new Date().toISOString().slice(0, 7);
 
-      const { data } = await supabaseAdmin
-        .from('payments')
-        .select('amountLocal, status, currencyLocal')
-        .eq('period', period);
+      const [paidResult, pendingResult, countResult] = await Promise.all([
+        // Paid this month only (period-filtered, excludes reversals)
+        supabaseAdmin
+          .from('payments')
+          .select('amountLocal')
+          .eq('period', period)
+          .eq('status', 'PAID')
+          .gt('amountLocal', 0),
+        // All pending payments across all periods
+        supabaseAdmin
+          .from('payments')
+          .select('amountLocal')
+          .eq('status', 'PENDING'),
+        // Total count of all real payments (excludes reversal records)
+        supabaseAdmin
+          .from('payments')
+          .select('*', { count: 'exact', head: true })
+          .gt('amountLocal', 0),
+      ]);
 
-      const items = data ?? [];
-      const totalPaid = items.filter(p => p.status === 'PAID' && Number(p.amountLocal) > 0).reduce((s, p) => s + Number(p.amountLocal), 0);
-      const totalPending = items.filter(p => p.status === 'PENDING' && Number(p.amountLocal) > 0).reduce((s, p) => s + Number(p.amountLocal), 0);
-      const count = items.length;
+      const totalPaid = (paidResult.data ?? []).reduce((s, p) => s + Number(p.amountLocal), 0);
+      const totalPending = (pendingResult.data ?? []).reduce((s, p) => s + Number(p.amountLocal), 0);
+      const count = countResult.count ?? 0;
 
       return { period, totalPaid, totalPending, count };
     }),

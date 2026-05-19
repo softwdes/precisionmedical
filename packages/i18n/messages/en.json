@@ -436,6 +436,7 @@
     "title": "Salary Payments",
     "newPayment": "New payment",
     "paidThisMonth": "Paid this month",
+    "paidPeriod": "Paid",
     "totalPayments": "Total payments",
     "all": "All",
     "scheduledDate": "Sched. date",

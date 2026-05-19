@@ -277,7 +277,9 @@ export const paymentsRouter = router({
   getSummary: protectedProcedure
     .input(z.object({ period: z.string().optional() }))
     .query(async ({ input }) => {
-      const period = input.period ?? new Date().toISOString().slice(0, 7);
+      const now = new Date();
+      const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const period = input.period ?? prevMonth.toISOString().slice(0, 7);
 
       const [paidResult, pendingResult, countResult] = await Promise.all([
         // Paid this month only (period-filtered, excludes reversals)

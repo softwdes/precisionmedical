@@ -136,7 +136,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
       <div className="flex flex-wrap items-center justify-between gap-y-2">
         <div>
           <h1 className="text-xl font-bold text-text-1">{t('payments.title')}</h1>
-          <p className="text-small text-text-3">{t('payments.periodLabel')}: {liveSummary.period}</p>
+          <p className="text-small text-text-3">{t('payments.periodLabel')}: {fmtPeriod(liveSummary.period, locale)}</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4" />
@@ -151,7 +151,9 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald/10"><CheckCircle className="h-4 w-4 text-emerald" /></div>
               <div>
-                <p className="text-tiny text-text-3 uppercase tracking-wide">{t('payments.paidThisMonth')}</p>
+                <p className="text-tiny text-text-3 uppercase tracking-wide">
+                  {t('payments.paidPeriod')} · {fmtPeriod(liveSummary.period, locale)}
+                </p>
                 <p className="text-lg font-bold text-text-1">${liveSummary.totalPaid.toLocaleString()}</p>
               </div>
             </div>

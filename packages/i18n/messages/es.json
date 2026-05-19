@@ -436,6 +436,7 @@
     "title": "Pagos de Salarios",
     "newPayment": "Nuevo pago",
     "paidThisMonth": "Pagado este mes",
+    "paidPeriod": "Pagado",
     "totalPayments": "Total pagos",
     "all": "Todos",
     "scheduledDate": "Fecha prog.",

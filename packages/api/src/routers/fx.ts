@@ -145,6 +145,7 @@ export const fxRouter = router({
       const { data, error } = await supabaseAdmin
         .from('fx_operations')
         .insert({
+          id:            crypto.randomUUID(),
           fromWalletId:  input.fromWalletId,
           toWalletId:    input.toWalletId,
           amountFrom:    input.amountFrom,
@@ -177,6 +178,7 @@ export const fxRouter = router({
       const { data, error } = await supabaseAdmin
         .from('fx_operations')
         .insert({
+          id:            crypto.randomUUID(),
           fromWalletId:  orig.toWalletId,
           toWalletId:    orig.fromWalletId,
           amountFrom:    orig.amountTo,

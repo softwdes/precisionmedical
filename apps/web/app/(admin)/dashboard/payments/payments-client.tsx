@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Card, CardContent,
 } from '@precision/ui';
-import { Plus, CheckCircle, RotateCcw, Clock, TrendingUp, Star } from 'lucide-react';
+import { Plus, CheckCircle, RotateCcw, Clock, TrendingUp, Star, Pencil, X, Trash2 } from 'lucide-react';
 import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
@@ -74,6 +74,9 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
   const [showMarkPaid, setShowMarkPaid] = useState<string | null>(null);
   const [showReverse, setShowReverse] = useState<string | null>(null);
   const [reverseReason, setReverseReason] = useState('');
+  const [showEdit, setShowEdit] = useState<string | null>(null);
+  const [showCancel, setShowCancel] = useState<string | null>(null);
+  const [showDeletePair, setShowDeletePair] = useState<string | null>(null);
 
   const STATUS_LABELS = {
     PAID: t('payments.statuses.PAID'),
@@ -98,6 +101,16 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
 
   const reverse = trpc.payments.reverse.useMutation({
     onSuccess: () => { toast.success(t('payments.reversed')); setShowReverse(null); void refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const cancelPayment = trpc.payments.cancel.useMutation({
+    onSuccess: () => { toast.success(t('payments.cancelled')); setShowCancel(null); void refetch(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deletePairMutation = trpc.payments.deletePair.useMutation({
+    onSuccess: () => { toast.success(t('payments.deleted')); setShowDeletePair(null); void refetch(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -226,13 +239,29 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
                       </span>
                       <div className="flex gap-1">
                         {payment.status === 'PENDING' && (
-                          <button
-                            onClick={() => setShowMarkPaid(payment.id)}
-                            className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-emerald/10 text-text-muted hover:text-emerald transition-colors"
-                            title={t('payments.markAsPaid')}
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => setShowEdit(payment.id)}
+                              className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-brand/10 text-text-muted hover:text-brand transition-colors"
+                              title={t('payments.editPayment')}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setShowMarkPaid(payment.id)}
+                              className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-emerald/10 text-text-muted hover:text-emerald transition-colors"
+                              title={t('payments.markAsPaid')}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setShowCancel(payment.id)}
+                              className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-rose/10 text-text-muted hover:text-rose transition-colors"
+                              title={t('payments.cancelPayment')}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </>
                         )}
                         {payment.status === 'PAID' && !payment.reversedById && (
                           <button
@@ -241,6 +270,15 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
                             title={t('payments.reversePayment')}
                           >
                             <RotateCcw className="h-4 w-4" />
+                          </button>
+                        )}
+                        {payment.status === 'REVERSED' && (
+                          <button
+                            onClick={() => setShowDeletePair(payment.id)}
+                            className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-rose/10 text-text-muted hover:text-rose transition-colors"
+                            title={t('payments.deletePair')}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         )}
                       </div>
@@ -363,13 +401,29 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
                       <TableCell>
                         <div className="flex gap-1">
                           {payment.status === 'PENDING' && (
-                            <button
-                              onClick={() => setShowMarkPaid(payment.id)}
-                              className="p-1.5 text-text-muted hover:text-emerald transition-colors rounded"
-                              title={t('payments.markAsPaid')}
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => setShowEdit(payment.id)}
+                                className="p-1.5 text-text-muted hover:text-brand transition-colors rounded"
+                                title={t('payments.editPayment')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => setShowMarkPaid(payment.id)}
+                                className="p-1.5 text-text-muted hover:text-emerald transition-colors rounded"
+                                title={t('payments.markAsPaid')}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => setShowCancel(payment.id)}
+                                className="p-1.5 text-text-muted hover:text-rose transition-colors rounded"
+                                title={t('payments.cancelPayment')}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </>
                           )}
                           {payment.status === 'PAID' && !payment.reversedById && (
                             <button
@@ -378,6 +432,15 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
                               title={t('payments.reversePayment')}
                             >
                               <RotateCcw className="h-4 w-4" />
+                            </button>
+                          )}
+                          {payment.status === 'REVERSED' && (
+                            <button
+                              onClick={() => setShowDeletePair(payment.id)}
+                              className="p-1.5 text-text-muted hover:text-rose transition-colors rounded"
+                              title={t('payments.deletePair')}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </button>
                           )}
                         </div>
@@ -457,7 +520,247 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!showCancel} onOpenChange={(o) => { if (!o) setShowCancel(null); }}>
+        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+          <DialogHeader className="shrink-0"><DialogTitle>{t('payments.cancelPayment')}</DialogTitle></DialogHeader>
+          <p className="text-small text-text-3 flex-1 py-2">{t('payments.cancelConfirm')}</p>
+          <DialogFooter className="shrink-0">
+            <Button variant="ghost" onClick={() => setShowCancel(null)}>{t('common.back')}</Button>
+            <Button variant="destructive" loading={cancelPayment.isPending}
+              onClick={() => showCancel && cancelPayment.mutate({ id: showCancel })}
+            >
+              {t('payments.cancelButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!showDeletePair} onOpenChange={(o) => { if (!o) setShowDeletePair(null); }}>
+        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+          <DialogHeader className="shrink-0"><DialogTitle>{t('payments.deletePair')}</DialogTitle></DialogHeader>
+          <div className="flex-1 py-2 space-y-2">
+            <p className="text-small text-text-3">{t('payments.deletePairConfirm')}</p>
+            <p className="text-[11px] text-rose font-medium">{t('payments.deletePairWarning')}</p>
+          </div>
+          <DialogFooter className="shrink-0">
+            <Button variant="ghost" onClick={() => setShowDeletePair(null)}>{t('common.back')}</Button>
+            <Button variant="destructive" loading={deletePairMutation.isPending}
+              onClick={() => showDeletePair && deletePairMutation.mutate({ id: showDeletePair })}
+            >
+              {t('payments.deleteButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {showEdit && (
+        <EditPaymentDialog
+          open={!!showEdit}
+          paymentId={showEdit}
+          payment={items.find(p => p.id === showEdit) ?? null}
+          onClose={() => setShowEdit(null)}
+          onUpdated={() => { setShowEdit(null); void refetch(); }}
+        />
+      )}
     </div>
+  );
+}
+
+// ─── Edit Payment Dialog ─────────────────────────────────────
+
+function EditPaymentDialog({
+  open, paymentId, payment, onClose, onUpdated,
+}: {
+  open: boolean;
+  paymentId: string;
+  payment: PaymentItem | null;
+  onClose: () => void;
+  onUpdated: () => void;
+}): React.ReactElement {
+  const t = useTranslations();
+
+  const baseSalaryInit = String(Number(payment?.base_salary) || '');
+  const bonusInit      = Math.abs(Number(payment?.bonus_amount) || 0);
+
+  const [form, setForm] = useState({
+    baseSalary:    baseSalaryInit,
+    scheduledDate: payment?.scheduledDate ? new Date(payment.scheduledDate as string).toISOString().slice(0, 10) : '',
+    notes:         payment?.notes ?? '',
+  });
+  const f = (k: keyof typeof form, v: string): void => setForm(p => ({ ...p, [k]: v }));
+
+  const [bonusEnabled, setBonusEnabled] = useState(bonusInit > 0);
+  const [bonusAmount,  setBonusAmount]  = useState(bonusInit > 0 ? String(bonusInit) : '');
+  const [bonusReason,  setBonusReason]  = useState(payment?.bonus_reason ?? '');
+  const [errors, setErrors]             = useState<Record<string, string>>({});
+
+  const baseSalaryNum  = parseFloat(form.baseSalary) || 0;
+  const bonusAmountNum = bonusEnabled ? (parseFloat(bonusAmount) || 0) : 0;
+  const totalAmount    = baseSalaryNum + bonusAmountNum;
+
+  const update = trpc.payments.update.useMutation({
+    onSuccess: () => { toast.success(t('payments.updated')); onUpdated(); },
+    onError:   (e) => toast.error(e.message),
+  });
+
+  const handleSubmit = (e: React.FormEvent): void => {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+    if (!form.scheduledDate)                                errs.scheduledDate = t('common.required');
+    if (!form.baseSalary || Number(form.baseSalary) <= 0)  errs.baseSalary    = t('payments.errAmountPositive');
+    if (bonusEnabled) {
+      if (!bonusAmount || Number(bonusAmount) <= 0)         errs.bonusAmount   = t('payments.errAmountPositive');
+      if (!bonusReason || bonusReason.trim().length < 3)    errs.bonusReason   = t('payments.errReasonMin');
+    }
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+
+    update.mutate({
+      id:           paymentId,
+      baseSalary:   Number(form.baseSalary),
+      bonusAmount:  bonusEnabled ? Number(bonusAmount) : undefined,
+      bonusReason:  bonusEnabled ? bonusReason.trim() : undefined,
+      scheduledDate: new Date(form.scheduledDate),
+      notes:        form.notes || undefined,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="flex flex-col w-full sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
+        <DialogHeader className="shrink-0">
+          <DialogTitle>{t('payments.editPayment')}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
+
+            {/* Salario base + Fecha */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>{t('payments.baseSalary')} *</Label>
+                <Input
+                  type="number" min="0.01" step="0.01" placeholder="0.00"
+                  className="min-h-[38px]"
+                  value={form.baseSalary}
+                  onChange={(e) => { f('baseSalary', e.target.value); setErrors(er => ({ ...er, baseSalary: '' })); }}
+                />
+                {errors.baseSalary && <p className="text-[11px] text-rose mt-0.5">{errors.baseSalary}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('payments.scheduledDateLabel')} *</Label>
+                <Input
+                  type="date" required className="min-h-[38px]"
+                  value={form.scheduledDate}
+                  onChange={(e) => { f('scheduledDate', e.target.value); setErrors(er => ({ ...er, scheduledDate: '' })); }}
+                />
+                {errors.scheduledDate && <p className="text-[11px] text-rose mt-0.5">{errors.scheduledDate}</p>}
+              </div>
+            </div>
+
+            {/* Bonus toggle */}
+            <div
+              className="flex items-center justify-between transition-all"
+              style={{
+                background:   bonusEnabled ? 'rgba(16,185,129,0.08)' : 'rgba(16,185,129,0.04)',
+                border:       bonusEnabled ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(16,185,129,0.15)',
+                borderRadius: '8px',
+                padding:      '10px 12px',
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 shrink-0" style={{ color: '#10B981' }} />
+                <span className="text-[13px] font-medium select-none" style={{ color: '#10B981' }}>
+                  {t('payments.bonusToggle')}
+                </span>
+              </div>
+              <BonusToggle
+                checked={bonusEnabled}
+                onChange={(v) => {
+                  setBonusEnabled(v);
+                  if (!v) { setBonusAmount(''); setBonusReason(''); setErrors(e => ({ ...e, bonusAmount: '', bonusReason: '' })); }
+                }}
+              />
+            </div>
+
+            {/* Bonus fields */}
+            {bonusEnabled && (
+              <div
+                className="grid grid-cols-1 gap-[10px] sm:grid-cols-2"
+                style={{
+                  border:       '0.5px solid rgba(16,185,129,0.25)',
+                  borderRadius: '8px',
+                  padding:      '12px',
+                  background:   'rgba(16,185,129,0.04)',
+                }}
+              >
+                <div className="space-y-1.5">
+                  <Label className="text-[12px]" style={{ color: '#10B981' }}>{t('payments.bonusAmount')}</Label>
+                  <Input
+                    type="number" min="0.01" step="0.01" placeholder="0.00"
+                    className="min-h-[38px]"
+                    style={{ border: errors.bonusAmount ? undefined : '1px solid rgba(16,185,129,0.30)', background: 'rgba(16,185,129,0.04)' }}
+                    value={bonusAmount}
+                    onChange={(e) => { setBonusAmount(e.target.value); setErrors(er => ({ ...er, bonusAmount: '' })); }}
+                  />
+                  {errors.bonusAmount && <p className="text-[11px] text-rose mt-0.5">{errors.bonusAmount}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[12px]" style={{ color: '#10B981' }}>{t('payments.bonusReason')}</Label>
+                  <Input
+                    type="text" className="min-h-[38px]"
+                    placeholder={t('payments.bonusReasonPlaceholder')}
+                    style={{ border: errors.bonusReason ? undefined : '1px solid rgba(16,185,129,0.30)', background: 'rgba(16,185,129,0.04)' }}
+                    value={bonusReason}
+                    onChange={(e) => { setBonusReason(e.target.value); setErrors(er => ({ ...er, bonusReason: '' })); }}
+                  />
+                  {errors.bonusReason && <p className="text-[11px] text-rose mt-0.5">{errors.bonusReason}</p>}
+                </div>
+              </div>
+            )}
+
+            {/* Total summary */}
+            {baseSalaryNum > 0 && (
+              <div
+                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                style={{
+                  background:   'linear-gradient(135deg, rgba(99,102,241,0.10), rgba(6,182,212,0.06))',
+                  border:       '1px solid rgba(99,102,241,0.25)',
+                  borderRadius: '8px',
+                  padding:      '12px 14px',
+                }}
+              >
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('payments.totalToPay')}</p>
+                  <p className="text-[11px] font-mono text-text-muted mt-0.5">
+                    {bonusEnabled && bonusAmountNum > 0
+                      ? `${fmtCurrency(baseSalaryNum)} ${t('payments.baseSalaryLabel')} + ${fmtCurrency(bonusAmountNum)} ${t('payments.bonusLabel').toLowerCase()}`
+                      : `${fmtCurrency(baseSalaryNum)} ${t('payments.baseSalaryLabel')}`
+                    }
+                  </p>
+                </div>
+                <p className="text-[20px] font-bold font-mono" style={{ color: '#6366F1' }}>
+                  {fmtCurrency(totalAmount)}
+                </p>
+              </div>
+            )}
+
+            {/* Notas */}
+            <div className="space-y-1.5">
+              <Label>{t('payments.notesLabel')}</Label>
+              <Textarea className="min-h-[38px]" value={form.notes} onChange={(e) => f('notes', e.target.value)} />
+            </div>
+
+          </div>
+
+          <DialogFooter className="shrink-0 pt-3">
+            <Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
+            <Button type="submit" loading={update.isPending}>{t('common.save')}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

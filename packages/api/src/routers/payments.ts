@@ -98,6 +98,103 @@ export const paymentsRouter = router({
       return data;
     }),
 
+  update: adminProcedure
+    .input(z.object({
+      id: z.string(),
+      baseSalary: z.number().positive(),
+      bonusAmount: z.number().positive().optional(),
+      bonusReason: z.string().min(3).optional(),
+      scheduledDate: z.coerce.date(),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { data: existing } = await supabaseAdmin
+        .from('payments')
+        .select('id, status')
+        .eq('id', input.id)
+        .single();
+
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (existing.status !== 'PENDING') throw new TRPCError({ code: 'BAD_REQUEST', message: 'Only PENDING payments can be edited' });
+
+      const amountLocal = input.baseSalary + (input.bonusAmount ?? 0);
+
+      const { data, error } = await supabaseAdmin
+        .from('payments')
+        .update({
+          base_salary: input.baseSalary,
+          bonus_amount: input.bonusAmount ?? null,
+          bonus_reason: input.bonusReason ?? null,
+          amountLocal,
+          amountUsdEquiv: amountLocal,
+          scheduledDate: input.scheduledDate.toISOString(),
+          notes: input.notes ?? null,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return data;
+    }),
+
+  cancel: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      const { data: existing } = await supabaseAdmin
+        .from('payments')
+        .select('id, status')
+        .eq('id', input.id)
+        .single();
+
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (existing.status !== 'PENDING') throw new TRPCError({ code: 'BAD_REQUEST', message: 'Only PENDING payments can be cancelled' });
+
+      const { data, error } = await supabaseAdmin
+        .from('payments')
+        .update({ status: 'CANCELLED', updatedAt: new Date().toISOString() })
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return data;
+    }),
+
+  deletePair: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      const { data: original } = await supabaseAdmin
+        .from('payments')
+        .select('id, status')
+        .eq('id', input.id)
+        .single();
+
+      if (!original) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (original.status !== 'REVERSED') throw new TRPCError({ code: 'BAD_REQUEST', message: 'Only REVERSED payments can be deleted' });
+
+      // Find the reversal record that points to this payment
+      const { data: reversal } = await supabaseAdmin
+        .from('payments')
+        .select('id')
+        .eq('reversedById', input.id)
+        .single();
+
+      // Delete reversal record first (it references the original)
+      if (reversal) {
+        await supabaseAdmin.from('payments').delete().eq('id', reversal.id);
+      }
+
+      const { error } = await supabaseAdmin
+        .from('payments')
+        .delete()
+        .eq('id', input.id);
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return { deleted: true };
+    }),
+
   markAsPaid: adminProcedure
     .input(z.object({
       id: z.string(),

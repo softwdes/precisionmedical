@@ -285,8 +285,8 @@ export const paymentsRouter = router({
         .eq('period', period);
 
       const items = data ?? [];
-      const totalPaid = items.filter(p => p.status === 'PAID').reduce((s, p) => s + Number(p.amountLocal), 0);
-      const totalPending = items.filter(p => p.status === 'PENDING').reduce((s, p) => s + Number(p.amountLocal), 0);
+      const totalPaid = items.filter(p => p.status === 'PAID' && Number(p.amountLocal) > 0).reduce((s, p) => s + Number(p.amountLocal), 0);
+      const totalPending = items.filter(p => p.status === 'PENDING' && Number(p.amountLocal) > 0).reduce((s, p) => s + Number(p.amountLocal), 0);
       const count = items.length;
 
       return { period, totalPaid, totalPending, count };

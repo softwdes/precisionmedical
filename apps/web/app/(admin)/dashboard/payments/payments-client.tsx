@@ -92,25 +92,31 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
     { initialData: initial },
   );
 
+  const { data: summaryData, refetch: refetchSummary } = trpc.payments.getSummary.useQuery(
+    {},
+    { initialData: summary },
+  );
+  const liveSummary = summaryData ?? summary;
+
   const items = (data?.items ?? []) as PaymentItem[];
 
   const markPaid = trpc.payments.markAsPaid.useMutation({
-    onSuccess: () => { toast.success(t('payments.markedAsPaid')); setShowMarkPaid(null); void refetch(); },
+    onSuccess: () => { toast.success(t('payments.markedAsPaid')); setShowMarkPaid(null); void refetch(); void refetchSummary(); },
     onError: (e) => toast.error(e.message),
   });
 
   const reverse = trpc.payments.reverse.useMutation({
-    onSuccess: () => { toast.success(t('payments.reversed')); setShowReverse(null); void refetch(); },
+    onSuccess: () => { toast.success(t('payments.reversed')); setShowReverse(null); void refetch(); void refetchSummary(); },
     onError: (e) => toast.error(e.message),
   });
 
   const cancelPayment = trpc.payments.cancel.useMutation({
-    onSuccess: () => { toast.success(t('payments.cancelled')); setShowCancel(null); void refetch(); },
+    onSuccess: () => { toast.success(t('payments.cancelled')); setShowCancel(null); void refetch(); void refetchSummary(); },
     onError: (e) => toast.error(e.message),
   });
 
   const deletePairMutation = trpc.payments.deletePair.useMutation({
-    onSuccess: () => { toast.success(t('payments.deleted')); setShowDeletePair(null); void refetch(); },
+    onSuccess: () => { toast.success(t('payments.deleted')); setShowDeletePair(null); void refetch(); void refetchSummary(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -130,7 +136,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
       <div className="flex flex-wrap items-center justify-between gap-y-2">
         <div>
           <h1 className="text-xl font-bold text-text-1">{t('payments.title')}</h1>
-          <p className="text-small text-text-3">{t('payments.periodLabel')}: {summary.period}</p>
+          <p className="text-small text-text-3">{t('payments.periodLabel')}: {liveSummary.period}</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4" />
@@ -146,7 +152,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald/10"><CheckCircle className="h-4 w-4 text-emerald" /></div>
               <div>
                 <p className="text-tiny text-text-3 uppercase tracking-wide">{t('payments.paidThisMonth')}</p>
-                <p className="text-lg font-bold text-text-1">${summary.totalPaid.toLocaleString()}</p>
+                <p className="text-lg font-bold text-text-1">${liveSummary.totalPaid.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -157,7 +163,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber/10"><Clock className="h-4 w-4 text-amber" /></div>
               <div>
                 <p className="text-tiny text-text-3 uppercase tracking-wide">{t('payments.statuses.PENDING')}</p>
-                <p className="text-lg font-bold text-text-1">${summary.totalPending.toLocaleString()}</p>
+                <p className="text-lg font-bold text-text-1">${liveSummary.totalPending.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -168,7 +174,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10"><TrendingUp className="h-4 w-4 text-brand" /></div>
               <div>
                 <p className="text-tiny text-text-3 uppercase tracking-wide">{t('payments.totalPayments')}</p>
-                <p className="text-lg font-bold text-text-1">{summary.count}</p>
+                <p className="text-lg font-bold text-text-1">{liveSummary.count}</p>
               </div>
             </div>
           </CardContent>
@@ -489,7 +495,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
       <CreatePaymentDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreated={() => { setShowCreate(false); void refetch(); }}
+        onCreated={() => { setShowCreate(false); void refetch(); void refetchSummary(); }}
       />
 
       <Dialog open={!!showMarkPaid} onOpenChange={(o) => { if (!o) setShowMarkPaid(null); }}>
@@ -560,7 +566,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
           paymentId={showEdit}
           payment={items.find(p => p.id === showEdit) ?? null}
           onClose={() => setShowEdit(null)}
-          onUpdated={() => { setShowEdit(null); void refetch(); }}
+          onUpdated={() => { setShowEdit(null); void refetch(); void refetchSummary(); }}
         />
       )}
     </div>

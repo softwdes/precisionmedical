@@ -26,11 +26,13 @@ export default async function FinanzasPage({
   let content: React.ReactElement;
 
   if (activeTab === 'fx') {
-    const [initial, wallets] = await Promise.all([
+    const [initial, wallets, initialSummary, initialHouses] = await Promise.all([
       api.fx.list({ page: 1, pageSize: 25 }),
       api.wallets.list(),
+      api.fx.getSummary({}),
+      api.fx.getExchangeHouses(),
     ]);
-    content = <FxClient initial={initial} wallets={wallets} />;
+    content = <FxClient initial={initial} wallets={wallets} initialSummary={initialSummary} initialHouses={initialHouses} />;
   } else if (activeTab === 'wallets') {
     const wallets = await api.wallets.list();
     content = <WalletsClient initialWallets={wallets} />;

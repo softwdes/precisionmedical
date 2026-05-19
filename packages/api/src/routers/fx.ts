@@ -192,6 +192,24 @@ export const fxRouter = router({
       return data;
     }),
 
+  delete: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      const { data: existing } = await supabaseAdmin
+        .from('fx_operations')
+        .select('id')
+        .eq('id', input.id)
+        .single();
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const { error } = await supabaseAdmin
+        .from('fx_operations')
+        .delete()
+        .eq('id', input.id);
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return { id: input.id };
+    }),
+
   reverse: adminProcedure
     .input(z.object({ id: z.string(), notes: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {

@@ -608,6 +608,13 @@ function ReverseDialog({
     onError:   (e) => toast.error(e.message),
   });
 
+  const del = trpc.fx.delete.useMutation({
+    onSuccess: () => { toast.success(t('fx.deleted')); onReversed(); },
+    onError:   (e) => toast.error(e.message),
+  });
+
+  const busy = reverse.isPending || del.isPending;
+
   return (
     <FxSheetModal onClose={onClose} title={t('fx.reverseOp')}>
       <div className="p-5 space-y-4 flex-1">
@@ -628,14 +635,34 @@ function ReverseDialog({
         </div>
       </div>
 
-      <div className="p-4 border-t border-border flex gap-2">
-        <Button variant="outline" className="flex-1" onClick={onClose}>{t('common.cancel')}</Button>
+      <div className="p-4 border-t border-border space-y-2">
+        {/* Primary actions */}
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={busy}>{t('common.cancel')}</Button>
+          <Button
+            className="flex-1 bg-rose-600 hover:bg-rose-700 text-white border-0"
+            disabled={busy}
+            onClick={() => reverse.mutate({ id: op.id })}
+          >
+            {reverse.isPending ? t('common.processing') : t('fx.reverseButton')}
+          </Button>
+        </div>
+
+        {/* Separator */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 border-t border-border/50" />
+          <span className="text-[10px] text-text-muted uppercase tracking-wide">{t('common.or')}</span>
+          <div className="flex-1 border-t border-border/50" />
+        </div>
+
+        {/* Hard delete */}
         <Button
-          className="flex-1 bg-rose-600 hover:bg-rose-700 text-white border-0"
-          disabled={reverse.isPending}
-          onClick={() => reverse.mutate({ id: op.id })}
+          variant="outline"
+          className="w-full text-rose-500 border-rose-500/30 hover:bg-rose-500/10 hover:border-rose-500/60"
+          disabled={busy}
+          onClick={() => del.mutate({ id: op.id })}
         >
-          {reverse.isPending ? t('common.processing') : t('fx.reverseButton')}
+          {del.isPending ? t('common.processing') : t('fx.deleteRecord')}
         </Button>
       </div>
     </FxSheetModal>

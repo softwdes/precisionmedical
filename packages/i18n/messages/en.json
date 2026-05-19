@@ -35,7 +35,8 @@
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
     "saving": "Saving…",
-    "processing": "Processing…"
+    "processing": "Processing…",
+    "or": "or"
   },
   "auth": {
     "login": "Log in",
@@ -632,7 +633,9 @@
     "reverseExplain": "A reversal record will be created that cancels this operation in the history.",
     "reverseButton": "Yes, reverse",
     "notesPlaceholder": "Additional observations…",
-    "alreadyReversed": "This operation has already been reversed"
+    "alreadyReversed": "This operation has already been reversed",
+    "deleted": "Record deleted",
+    "deleteRecord": "Delete record permanently"
   },
   "attendance": {
     "title": "Attendance",

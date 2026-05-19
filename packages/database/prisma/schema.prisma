@@ -367,7 +367,9 @@ model Wallet {
   
   lastReconciledAt DateTime?
   lastReconciledBy String?
-  
+  lastMovementAt   DateTime?
+  isActive         Boolean       @default(true)
+
   fxFromOps        FxOperation[] @relation("FromWallet")
   fxToOps          FxOperation[] @relation("ToWallet")
   payments         Payment[]

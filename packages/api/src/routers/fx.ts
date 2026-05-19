@@ -129,6 +129,33 @@ export const fxRouter = router({
     return [...new Set((data ?? []).map(d => d.exchangeHouse as string).filter(Boolean))];
   }),
 
+  update: adminProcedure
+    .input(z.object({
+      id:            z.string(),
+      notes:         z.string().optional().nullable(),
+      exchangeHouse: z.string().optional().nullable(),
+      receiptUrl:    z.string().url().optional().nullable().or(z.literal('')),
+    }))
+    .mutation(async ({ input }) => {
+      const { data: existing } = await supabaseAdmin
+        .from('fx_operations')
+        .select('id')
+        .eq('id', input.id)
+        .single();
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const { error } = await supabaseAdmin
+        .from('fx_operations')
+        .update({
+          notes:         input.notes         ?? null,
+          exchangeHouse: input.exchangeHouse ?? null,
+          receiptUrl:    input.receiptUrl || null,
+        })
+        .eq('id', input.id);
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return { id: input.id };
+    }),
+
   create: adminProcedure
     .input(z.object({
       fromWalletId:  z.string(),

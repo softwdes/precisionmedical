@@ -33,7 +33,9 @@
     "new": "New",
     "view": "View",
     "darkMode": "Dark mode",
-    "lightMode": "Light mode"
+    "lightMode": "Light mode",
+    "saving": "Saving…",
+    "processing": "Processing…"
   },
   "auth": {
     "login": "Log in",
@@ -623,7 +625,13 @@
     "registerFx": "Register FX →",
     "detail": "Operation detail",
     "origin": "Origin",
-    "destination": "Destination"
+    "destination": "Destination",
+    "editOp": "Edit operation",
+    "updated": "Operation updated",
+    "reverseWarning": "This action cannot be undone",
+    "reverseExplain": "A reversal record will be created that cancels this operation in the history.",
+    "reverseButton": "Yes, reverse",
+    "notesPlaceholder": "Additional observations…"
   },
   "attendance": {
     "title": "Attendance",

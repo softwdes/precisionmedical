@@ -33,7 +33,9 @@
     "new": "Nuevo",
     "view": "Ver",
     "darkMode": "Modo oscuro",
-    "lightMode": "Modo claro"
+    "lightMode": "Modo claro",
+    "saving": "Guardando…",
+    "processing": "Procesando…"
   },
   "auth": {
     "login": "Iniciar sesión",
@@ -623,7 +625,13 @@
     "registerFx": "Registrar FX →",
     "detail": "Detalle de operación",
     "origin": "Origen",
-    "destination": "Destino"
+    "destination": "Destino",
+    "editOp": "Editar operación",
+    "updated": "Operación actualizada",
+    "reverseWarning": "Esta acción no se puede deshacer",
+    "reverseExplain": "Se creará un registro de reversal que anula esta operación en el historial.",
+    "reverseButton": "Sí, revertir",
+    "notesPlaceholder": "Observaciones adicionales…"
   },
   "attendance": {
     "title": "Asistencia",

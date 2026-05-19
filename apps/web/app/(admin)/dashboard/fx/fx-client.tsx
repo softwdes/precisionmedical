@@ -11,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Card, CardContent,
 } from '@precision/ui';
-import { Plus, ArrowLeftRight, Eye, TrendingUp, DollarSign } from 'lucide-react';
+import { Plus, ArrowLeftRight, Eye, TrendingUp, DollarSign, MoreHorizontal, Pencil, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -126,6 +126,9 @@ export function FxClient({
   const [page,        setPage]        = useState(1);
   const [showCreate,  setShowCreate]  = useState(false);
   const [detailOp,    setDetailOp]    = useState<FxOp | null>(null);
+  const [editOp,      setEditOp]      = useState<FxOp | null>(null);
+  const [reverseOp,   setReverseOp]   = useState<FxOp | null>(null);
+  const [menuOpen,    setMenuOpen]    = useState<string | null>(null);
 
   const periodOptions = useMemo(() =>
     Array.from({ length: 7 }, (_, i) => {
@@ -327,9 +330,8 @@ export function FxClient({
                   return (
                     <div
                       key={op.id}
-                      className="px-4 py-3.5 cursor-pointer hover:bg-surface-hover transition-colors"
+                      className="hover:bg-surface-hover transition-colors"
                       style={{ borderRadius: 12, margin: 8, border: '1px solid var(--color-border)', padding: 14 }}
-                      onClick={() => setDetailOp(op)}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-text-1">
@@ -346,13 +348,19 @@ export function FxClient({
                         <span className="text-text-muted text-xs">×</span>
                         <span className="text-sm font-mono text-text-3">{Number(op.rate).toFixed(2)}</span>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mt-1">
                         <span className="text-sm font-bold font-mono" style={{ color: '#10B981' }}>
                           = {tw ? `${fmtAmount(Number(op.amountTo), tw.currency)} ${tw.currency}` : '—'}
                         </span>
-                        {op.exchangeHouse && (
-                          <span className="text-[11px] text-text-muted">{op.exchangeHouse as string}</span>
-                        )}
+                        <OpMenu
+                          op={op} open={menuOpen === op.id}
+                          onToggle={() => setMenuOpen(prev => prev === op.id ? null : op.id)}
+                          onClose={() => setMenuOpen(null)}
+                          onDetail={() => { setMenuOpen(null); setDetailOp(op); }}
+                          onEdit={()   => { setMenuOpen(null); setEditOp(op); }}
+                          onReverse={() => { setMenuOpen(null); setReverseOp(op); }}
+                          t={t}
+                        />
                       </div>
                     </div>
                   );
@@ -415,14 +423,16 @@ export function FxClient({
                         <TableCell className="font-mono text-[11px] text-text-muted whitespace-nowrap">
                           {fmtDateTime(op.performedAt as string)}
                         </TableCell>
-                        <TableCell>
-                          <button
-                            onClick={() => setDetailOp(op)}
-                            className="p-1.5 text-text-muted hover:text-brand transition-colors rounded"
-                            title={t('fx.viewDetail')}
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </button>
+                        <TableCell className="text-right">
+                          <OpMenu
+                            op={op} open={menuOpen === op.id}
+                            onToggle={() => setMenuOpen(prev => prev === op.id ? null : op.id)}
+                            onClose={() => setMenuOpen(null)}
+                            onDetail={() => { setMenuOpen(null); setDetailOp(op); }}
+                            onEdit={()   => { setMenuOpen(null); setEditOp(op); }}
+                            onReverse={() => { setMenuOpen(null); setReverseOp(op); }}
+                            t={t}
+                          />
                         </TableCell>
                       </TableRow>
                     );
@@ -456,7 +466,229 @@ export function FxClient({
       {detailOp && (
         <DetailModal op={detailOp} onClose={() => setDetailOp(null)} t={t} />
       )}
+
+      {editOp && (
+        <EditFxModal
+          op={editOp}
+          onClose={() => setEditOp(null)}
+          onSaved={() => { setEditOp(null); refetchAll(); }}
+          t={t}
+        />
+      )}
+
+      {reverseOp && (
+        <ReverseDialog
+          op={reverseOp}
+          onClose={() => setReverseOp(null)}
+          onReversed={() => { setReverseOp(null); refetchAll(); }}
+          t={t}
+        />
+      )}
+
+      {/* close menus on outside click */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
+      )}
     </div>
+  );
+}
+
+// ─── OpMenu (⋯ dropdown) ────────────────────────────────────────
+
+function OpMenu({
+  op, open, onToggle, onClose, onDetail, onEdit, onReverse, t,
+}: {
+  op:        FxOp;
+  open:      boolean;
+  onToggle:  () => void;
+  onClose:   () => void;
+  onDetail:  () => void;
+  onEdit:    () => void;
+  onReverse: () => void;
+  t:         ReturnType<typeof useTranslations>;
+}) {
+  const isReversed = !!op.reversedById;
+
+  return (
+    <div className="relative inline-block" style={{ zIndex: 20 }}>
+      <button
+        onClick={e => { e.stopPropagation(); onToggle(); }}
+        className="p-1.5 rounded text-text-muted hover:text-text-1 hover:bg-surface-hover transition-colors"
+        title="Acciones"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-1 w-44 rounded-lg border border-border bg-surface shadow-lg py-1"
+          style={{ zIndex: 30 }}
+          onClick={e => e.stopPropagation()}
+        >
+          <MenuItem icon={<Eye className="h-3.5 w-3.5" />}       label={t('fx.viewDetail')} onClick={onDetail} />
+          <MenuItem icon={<Pencil className="h-3.5 w-3.5" />}    label={t('fx.editOp')}    onClick={onEdit} />
+          <div className="my-1 border-t border-border/60" />
+          <MenuItem
+            icon={<RotateCcw className="h-3.5 w-3.5" />}
+            label={t('fx.reverseOp')}
+            onClick={onReverse}
+            danger
+            disabled={isReversed}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({
+  icon, label, onClick, danger, disabled,
+}: {
+  icon:      React.ReactNode;
+  label:     string;
+  onClick:   () => void;
+  danger?:   boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left
+        ${disabled
+          ? 'opacity-40 cursor-not-allowed text-text-3'
+          : danger
+            ? 'text-rose-500 hover:bg-rose-500/10'
+            : 'text-text-2 hover:bg-surface-hover hover:text-text-1'
+        }`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+// ─── Edit Metadata Modal ─────────────────────────────────────────
+
+function EditFxModal({
+  op, onClose, onSaved, t,
+}: {
+  op:      FxOp;
+  onClose: () => void;
+  onSaved: () => void;
+  t:       ReturnType<typeof useTranslations>;
+}) {
+  const [exchangeHouse, setExchangeHouse] = useState(op.exchangeHouse ?? '');
+  const [receiptUrl,    setReceiptUrl]    = useState((op.receiptUrl as string) ?? '');
+  const [notes,         setNotes]         = useState((op.notes as string) ?? '');
+
+  const fw = walletOf(op.fromWallet);
+  const tw = walletOf(op.toWallet);
+
+  const update = trpc.fx.update.useMutation({
+    onSuccess: () => { toast.success(t('fx.updated')); onSaved(); },
+    onError:   (e) => toast.error(e.message),
+  });
+
+  return (
+    <FxSheetModal onClose={onClose} title={t('fx.editOp')}>
+      <div className="overflow-y-auto flex-1 min-h-0">
+        <div className="p-5 space-y-4">
+
+          {/* Read-only pair info */}
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-text-2"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)' }}>
+            <span className="font-semibold">
+              {fw ? `${FLAGS[fw.currency] ?? ''} ${fw.currency}` : '?'} → {tw ? `${FLAGS[tw.currency] ?? ''} ${tw.currency}` : '?'}
+            </span>
+            <span className="ml-auto font-mono text-text-3">{Number(op.rate).toFixed(4)}</span>
+          </div>
+
+          <div className="space-y-1">
+            <Label>{t('fx.exchangeHouse')}</Label>
+            <Input value={exchangeHouse} onChange={e => setExchangeHouse(e.target.value)} placeholder="Ej. Casa de cambio X" />
+          </div>
+
+          <div className="space-y-1">
+            <Label>{t('fx.receiptUrl')}</Label>
+            <Input value={receiptUrl} onChange={e => setReceiptUrl(e.target.value)} placeholder="https://..." />
+          </div>
+
+          <div className="space-y-1">
+            <Label>{t('fx.notes')}</Label>
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t('fx.notesPlaceholder')} />
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 border-t border-border flex gap-2">
+        <Button variant="outline" className="flex-1" onClick={onClose}>{t('common.cancel')}</Button>
+        <Button
+          className="flex-1"
+          disabled={update.isPending}
+          onClick={() => update.mutate({
+            id: op.id,
+            exchangeHouse: exchangeHouse || null,
+            receiptUrl:    receiptUrl    || null,
+            notes:         notes         || null,
+          })}
+        >
+          {update.isPending ? t('common.saving') : t('common.save')}
+        </Button>
+      </div>
+    </FxSheetModal>
+  );
+}
+
+// ─── Reverse Confirmation Dialog ─────────────────────────────────
+
+function ReverseDialog({
+  op, onClose, onReversed, t,
+}: {
+  op:         FxOp;
+  onClose:    () => void;
+  onReversed: () => void;
+  t:          ReturnType<typeof useTranslations>;
+}) {
+  const fw = walletOf(op.fromWallet);
+  const tw = walletOf(op.toWallet);
+
+  const reverse = trpc.fx.reverse.useMutation({
+    onSuccess: () => { toast.success(t('fx.reversed')); onReversed(); },
+    onError:   (e) => toast.error(e.message),
+  });
+
+  return (
+    <FxSheetModal onClose={onClose} title={t('fx.reverseOp')}>
+      <div className="p-5 space-y-4 flex-1">
+        <div className="rounded-lg p-3.5 space-y-1"
+          style={{ background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.2)' }}>
+          <p className="text-sm font-semibold text-rose-500">{t('fx.reverseWarning')}</p>
+          <p className="text-small text-text-3">{t('fx.reverseExplain')}</p>
+        </div>
+
+        <div className="rounded-lg p-3 text-sm text-text-2"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border)' }}>
+          <p className="font-semibold mb-1">
+            {fw ? `${FLAGS[fw.currency] ?? ''} ${fw.currency}` : '?'} → {tw ? `${FLAGS[tw.currency] ?? ''} ${tw.currency}` : '?'}
+          </p>
+          <p className="font-mono text-text-3">
+            {fw ? fmtAmount(Number(op.amountFrom), fw.currency) : '—'} × {Number(op.rate).toFixed(4)} = {tw ? fmtAmount(Number(op.amountTo), tw.currency) : '—'}
+          </p>
+        </div>
+      </div>
+
+      <div className="p-4 border-t border-border flex gap-2">
+        <Button variant="outline" className="flex-1" onClick={onClose}>{t('common.cancel')}</Button>
+        <Button
+          className="flex-1 bg-rose-600 hover:bg-rose-700 text-white border-0"
+          disabled={reverse.isPending}
+          onClick={() => reverse.mutate({ id: op.id })}
+        >
+          {reverse.isPending ? t('common.processing') : t('fx.reverseButton')}
+        </Button>
+      </div>
+    </FxSheetModal>
   );
 }
 

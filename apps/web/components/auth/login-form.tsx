@@ -34,6 +34,7 @@ export function LoginForm(): React.ReactElement {
         return;
       }
 
+      void fetch('/api/auth/record-login', { method: 'POST' });
       router.push('/dashboard');
       router.refresh();
     } catch {

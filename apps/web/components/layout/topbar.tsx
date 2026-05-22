@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { cn } from '@precision/ui';
-import { PillToggle, Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@precision/ui';
+import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@precision/ui';
 import { useTheme } from '@/components/providers/theme-provider';
 import { Bell, Search, Menu, Moon, Sun, User, KeyRound, LogOut, Eye, EyeOff, Zap, Copy } from 'lucide-react';
 import { api as trpc } from '@/lib/trpc/client';
@@ -54,7 +54,6 @@ export function Topbar({
   const { theme, toggleTheme } = useTheme();
 
   const [time,        setTime]        = useState('');
-  const [locale,      setLocale]      = useState<'es' | 'en'>('es');
   const [notifOpen,   setNotifOpen]   = useState(false);
   const [cmdOpen,     setCmdOpen]     = useState(false);
   const [menuOpen,    setMenuOpen]    = useState(false);
@@ -74,16 +73,6 @@ export function Topbar({
   });
 
   const { data: me } = trpc.users.me.useQuery();
-  const updatePreferences = trpc.users.updatePreferences.useMutation();
-
-  // Sync locale: cookie first, then reconcile with DB preference on mount
-  useEffect(() => {
-    const cookieLocale = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('locale='))
-      ?.split('=')[1] as 'es' | 'en' | undefined;
-    if (cookieLocale === 'en' || cookieLocale === 'es') setLocale(cookieLocale);
-  }, []);
 
   useEffect(() => {
     if (!me?.preferredLocale) return;
@@ -124,13 +113,6 @@ export function Topbar({
     document.addEventListener('mousedown', onOutside);
     return () => document.removeEventListener('mousedown', onOutside);
   }, [menuOpen]);
-
-  const handleLocaleChange = (newLocale: 'es' | 'en'): void => {
-    setLocale(newLocale);
-    document.cookie = `locale=${newLocale};path=/;max-age=31536000`;
-    updatePreferences.mutate({ preferredLocale: newLocale });
-    window.location.reload();
-  };
 
   const handleLogout = async (): Promise<void> => {
     await fetch('/api/auth/signout');
@@ -232,13 +214,6 @@ export function Topbar({
             aria-label="Modo claro"
           ><Sun className="h-3 w-3" /></button>
         </div>
-
-        {/* Language */}
-        <PillToggle
-          options={[{ value: 'es', label: 'ES' }, { value: 'en', label: 'EN' }]}
-          value={locale}
-          onChange={handleLocaleChange}
-        />
 
         {/* Avatar + dropdown */}
         <div ref={menuRef} className="relative">

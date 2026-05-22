@@ -14,6 +14,7 @@ import {
   Bot,
   Settings,
   ChevronLeft,
+  Lock,
 } from 'lucide-react';
 
 interface NavItem {
@@ -41,7 +42,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
     { key: 'users',      href: '/dashboard/users',      icon: Users,      label: t('nav.users') },
     { key: 'employees',  href: '/dashboard/employees',  icon: UserCheck,  label: t('nav.employees') },
     { key: 'finanzas',   href: '/dashboard/finanzas',   icon: Banknote,   label: t('nav.finance') },
-    { key: 'metricas',   href: '/dashboard/metricas',   icon: BarChart3,  label: t('nav.metrics') },
+    { key: 'metricas',   href: '/dashboard/metricas',   icon: BarChart3,  label: t('nav.metrics'), phase: 2 },
   ];
 
   const NAV_INTELLIGENCE: NavItem[] = [
@@ -132,11 +133,12 @@ function NavGroup({ items, pathname }: { items: NavItem[]; pathname: string }): 
           <li key={item.key}>
             {isComingSoon ? (
               <span
-                className="relative flex items-center gap-3 rounded px-3 py-2 text-sm text-text-muted cursor-not-allowed opacity-50"
-                title={`Phase ${item.phase ?? ''}`}
+                className="relative flex items-center gap-3 rounded px-3 py-2 text-sm text-text-muted cursor-not-allowed opacity-40"
+                title="Próximamente"
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                <Lock className="h-3 w-3 shrink-0" />
               </span>
             ) : (
               <Link

@@ -56,7 +56,7 @@ export const attendanceRouter = router({
     }))
     .mutation(async ({ input }) => {
       const totalHours = input.clockIn && input.clockOut
-        ? ((input.clockOut.getTime() - input.clockIn.getTime()) / 3_600_000).toFixed(2)
+        ? Number(((input.clockOut.getTime() - input.clockIn.getTime()) / 3_600_000).toFixed(2))
         : null;
 
       const { data, error } = await supabaseAdmin

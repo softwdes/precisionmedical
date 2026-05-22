@@ -177,6 +177,8 @@ export const freelancersRouter = router({
         .eq('id', input.freelancerId)
         .single();
 
+      if (!freelancer) throw new TRPCError({ code: 'NOT_FOUND', message: 'Freelancer not found' });
+
       const { data, error } = await supabaseAdmin
         .from('freelancer_payments')
         .insert({

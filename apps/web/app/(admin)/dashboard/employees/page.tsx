@@ -41,7 +41,7 @@ export default async function EmployeesPage({
     ]);
     content = <FreelancersClient initial={initial} initialSummary={initialSummary} />;
   } else if (activeTab === 'horarios') {
-    const employees = await api.employees.list({ page: 1, pageSize: 200 });
+    const employees = await api.employees.list({ page: 1, pageSize: 100 });
     content = <HorariosClient initialEmployees={employees.items} />;
   } else if (activeTab === 'asistencia') {
     content = (

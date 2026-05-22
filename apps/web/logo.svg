@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#161D30"/>
+      <stop offset="100%" stop-color="#0A0E1A"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#6366F1"/>
+      <stop offset="55%"  stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <radialGradient id="dot" cx="35%" cy="35%" r="65%">
+      <stop offset="0%"   stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </radialGradient>
+    <radialGradient id="cg" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="clip">
+      <circle cx="512" cy="512" r="474"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="512" cy="512" r="500" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="500" fill="url(#cg)"/>
+
+  <!-- Border gradient ring -->
+  <circle cx="512" cy="512" r="490" fill="none"
+    stroke="url(#ring)" stroke-width="16" opacity="0.95"/>
+
+  <!-- Inner subtle ring -->
+  <circle cx="512" cy="512" r="470" fill="none"
+    stroke="#6366F1" stroke-width="1.5" opacity="0.14"/>
+
+  <g clip-path="url(#clip)">
+
+    <!-- ═══════════════════
+         LETTER  P
+         ═══════════════════ -->
+    <g fill="white">
+      <!-- Stem -->
+      <rect x="148" y="272" width="80" height="450" rx="14"/>
+      <!-- Bowl outer D-shape -->
+      <path d="M228,272 C228,272 438,272 438,395
+               C438,518 228,518 228,518 L228,272 Z"/>
+      <!-- Bowl inner carve -->
+      <path d="M228,342 C228,342 362,342 362,395
+               C362,448 228,448 228,448 L228,342 Z"
+            fill="#0A0E1A"/>
+      <!-- Restore stem -->
+      <rect x="148" y="272" width="84" height="450"/>
+      <rect x="148" y="272" width="80" height="450" rx="14"/>
+    </g>
+
+    <!-- ═══════════════════
+         LETTER  M  — Futura
+         Single closed path, perfectly symmetric
+         ═══════════════════ -->
+    <path d="
+      M 520,718
+      L 520,270
+      L 608,270
+      L 712,500
+      L 816,270
+      L 904,270
+      L 904,718
+      L 824,718
+      L 824,380
+      L 750,550
+      L 758,550
+      L 712,550
+      L 674,550
+      L 600,380
+      L 600,718
+      Z
+    " fill="white"/>
+
+  </g>
+
+  <!-- Accent dot -->
+  <circle cx="512" cy="800" r="34" fill="url(#dot)"/>
+  <circle cx="512" cy="800" r="48" fill="none"
+    stroke="#06B6D4" stroke-width="2" opacity="0.22"/>
+
+</svg>

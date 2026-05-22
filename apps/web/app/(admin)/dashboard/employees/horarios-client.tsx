@@ -330,30 +330,37 @@ function AssignModal({
 // ─── Exception Modal ──────────────────────────────────────────────────────────
 
 function ExceptionModal({
-  employeeName,
-  employeeId,
-  date,
+  employees,
+  preEmployeeId,
+  preEmployeeName,
+  preDate,
   onClose,
   onSaved,
 }: {
-  employeeName: string;
-  employeeId: string;
-  date: string;
+  employees: EmpSummary[];
+  preEmployeeId?: string;
+  preEmployeeName?: string;
+  preDate?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const [empId, setEmpId]       = useState(preEmployeeId ?? '');
+  const [date, setDate]         = useState(preDate ?? toISODate(new Date()));
   const [excType, setExcType]   = useState<'vacation' | 'absence' | 'holiday' | 'special'>('vacation');
   const [reason, setReason]     = useState('');
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
 
+  const canSave = empId && date;
+
   const handleSave = async () => {
+    if (!canSave) return;
     setSaving(true); setError('');
     try {
       const res = await fetch('/api/schedules/exceptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: employeeId, exception_type: excType, date, reason: reason || undefined }),
+        body: JSON.stringify({ employee_id: empId, exception_type: excType, date, reason: reason || undefined }),
       });
       if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
@@ -363,6 +370,7 @@ function ExceptionModal({
   };
 
   const EXC_TYPES = ['vacation','absence','holiday','special'] as const;
+  const fromHeader = !preEmployeeId;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -372,14 +380,34 @@ function ExceptionModal({
           <button onClick={onClose} className="text-text-3 hover:text-text-1 transition-colors"><X className="h-4 w-4" /></button>
         </div>
         <div className="space-y-4">
+          {/* Empleado — dropdown si viene del header, readonly si viene del grid */}
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Empleado</label>
-            <p className="text-[13px] font-semibold text-text-1 bg-white/[0.03] border border-border rounded-[8px] px-3 py-2">{employeeName}</p>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Empleado *</label>
+            {fromHeader ? (
+              <select value={empId} onChange={e => setEmpId(e.target.value)}
+                className={SEL_CLS} style={SEL_STYLE}>
+                <option value="" style={OPT_STYLE}>Seleccionar empleado…</option>
+                {employees.filter(e => e.status === 'ACTIVE').map(e => (
+                  <option key={e.id} value={e.id} style={OPT_STYLE}>{e.firstName} {e.lastName} — {e.employeeCode}</option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-[13px] font-semibold text-text-1 bg-white/[0.03] border border-border rounded-[8px] px-3 py-2">{preEmployeeName}</p>
+            )}
           </div>
+
+          {/* Fecha — date picker si viene del header, readonly si viene del grid */}
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Fecha</label>
-            <p className="text-[13px] font-mono text-text-2 bg-white/[0.03] border border-border rounded-[8px] px-3 py-2">{date}</p>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Fecha *</label>
+            {fromHeader ? (
+              <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]" />
+            ) : (
+              <p className="text-[13px] font-mono text-text-2 bg-white/[0.03] border border-border rounded-[8px] px-3 py-2">{date}</p>
+            )}
           </div>
+
+          {/* Tipo */}
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-2">Tipo</label>
             <div className="grid grid-cols-2 gap-2">
@@ -392,16 +420,19 @@ function ExceptionModal({
               ))}
             </div>
           </div>
+
+          {/* Motivo */}
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Motivo (opcional)</label>
             <textarea value={reason} onChange={e => setReason(e.target.value)} rows={2}
               className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 resize-none" />
           </div>
+
           {error && <p className="text-[12px] text-rose">{error}</p>}
           <div className="grid grid-cols-2 gap-3">
             <button type="button" onClick={onClose}
               className="rounded-[9px] border border-border bg-white/[0.04] py-2.5 text-[13px] font-semibold text-text-2 hover:bg-white/[0.07] min-h-[44px]">Cancelar</button>
-            <button type="button" onClick={handleSave} disabled={saving}
+            <button type="button" onClick={handleSave} disabled={!canSave || saving}
               className="rounded-[9px] py-2.5 text-[13px] font-semibold text-white disabled:opacity-40 min-h-[44px]"
               style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
               {saving ? 'Guardando…' : 'Guardar excepción'}
@@ -442,6 +473,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const [error, setError]                        = useState('');
   const [showAssign, setShowAssign]              = useState(false);
   const [preEmployee, setPreEmployee]            = useState<string | undefined>();
+  const [showExc, setShowExc]                    = useState(false);
   const [excModal, setExcModal]                  = useState<{ employeeId: string; name: string; date: string } | null>(null);
   const [toast, setToast]                        = useState('');
 
@@ -545,6 +577,13 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
             style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)', boxShadow: '0 4px 14px rgba(99,102,241,0.3)' }}>
             <Plus className="h-3.5 w-3.5" />
             Asignar horario
+          </button>
+
+          {/* Exception button */}
+          <button onClick={() => setShowExc(true)}
+            className="flex items-center gap-1.5 rounded-[9px] border border-border bg-white/[0.04] px-3 py-2 text-[12.5px] font-semibold text-text-2 transition-all hover:border-brand/25 hover:bg-brand/[0.07] hover:-translate-y-px min-h-[44px] sm:min-h-0">
+            <Plus className="h-3.5 w-3.5" />
+            Registrar excepción
           </button>
         </div>
       </div>
@@ -739,11 +778,22 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
         />
       )}
 
+      {/* Exception from header — full dropdowns */}
+      {showExc && (
+        <ExceptionModal
+          employees={initialEmployees}
+          onClose={() => setShowExc(false)}
+          onSaved={onSaved}
+        />
+      )}
+
+      {/* Exception from grid cell — pre-filled employee + date */}
       {excModal && (
         <ExceptionModal
-          employeeName={excModal.name}
-          employeeId={excModal.employeeId}
-          date={excModal.date}
+          employees={initialEmployees}
+          preEmployeeId={excModal.employeeId}
+          preEmployeeName={excModal.name}
+          preDate={excModal.date}
           onClose={() => setExcModal(null)}
           onSaved={onSaved}
         />

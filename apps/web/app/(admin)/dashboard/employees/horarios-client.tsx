@@ -344,23 +344,41 @@ function ExceptionModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [empId, setEmpId]       = useState(preEmployeeId ?? '');
-  const [date, setDate]         = useState(preDate ?? toISODate(new Date()));
-  const [excType, setExcType]   = useState<'vacation' | 'absence' | 'holiday' | 'special'>('vacation');
-  const [reason, setReason]     = useState('');
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState('');
+  const [empId, setEmpId]           = useState(preEmployeeId ?? '');
+  const [date, setDate]             = useState(preDate ?? toISODate(new Date()));
+  const [rangeType, setRangeType]   = useState<'single' | 'range'>('single');
+  const [dateEnd, setDateEnd]       = useState('');
+  const [excType, setExcType]       = useState<'vacation' | 'absence' | 'holiday' | 'special'>('vacation');
+  const [reason, setReason]         = useState('');
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState('');
 
-  const canSave = empId && date;
+  const canSave = empId && date && (rangeType === 'single' || (dateEnd && dateEnd >= date));
+
+  const handleRangeToggle = (t: 'single' | 'range') => {
+    setRangeType(t);
+    if (t === 'single') setDateEnd('');
+    if (t === 'range' && !dateEnd) {
+      // default end = start + 1 day
+      const d = new Date(date);
+      d.setDate(d.getDate() + 1);
+      setDateEnd(toISODate(d));
+    }
+  };
 
   const handleSave = async () => {
     if (!canSave) return;
     setSaving(true); setError('');
     try {
+      const body: Record<string, unknown> = {
+        employee_id: empId, exception_type: excType,
+        date, reason: reason || undefined,
+      };
+      if (rangeType === 'range' && dateEnd) body.date_end = dateEnd;
       const res = await fetch('/api/schedules/exceptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employee_id: empId, exception_type: excType, date, reason: reason || undefined }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
@@ -396,14 +414,40 @@ function ExceptionModal({
             )}
           </div>
 
-          {/* Fecha — date picker si viene del header, readonly si viene del grid */}
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Fecha *</label>
+          {/* Fecha + rango */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3">
+                {rangeType === 'single' ? 'Fecha *' : 'Fecha inicio *'}
+              </label>
+              {/* Range toggle pills */}
+              <div className="flex rounded-[7px] border border-white/[0.08] bg-white/[0.03] p-[2px] gap-0.5">
+                {(['single','range'] as const).map(t => (
+                  <button key={t} type="button" onClick={() => handleRangeToggle(t)}
+                    className={cn('rounded-[5px] px-2.5 py-1 text-[11px] font-semibold transition-all',
+                      rangeType === t ? 'bg-brand/10 text-brand' : 'text-text-3 hover:text-text-2')}>
+                    {t === 'single' ? 'Un día' : 'Varios días'}
+                  </button>
+                ))}
+              </div>
+            </div>
             {fromHeader ? (
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
                 className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]" />
             ) : (
               <p className="text-[13px] font-mono text-text-2 bg-white/[0.03] border border-border rounded-[8px] px-3 py-2">{date}</p>
+            )}
+            {rangeType === 'range' && (
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Fecha fin *</label>
+                <input type="date" value={dateEnd} min={date} onChange={e => setDateEnd(e.target.value)}
+                  className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]" />
+                {dateEnd && dateEnd >= date && (
+                  <p className="text-[11px] text-text-muted mt-1">
+                    {Math.round((new Date(dateEnd).getTime() - new Date(date).getTime()) / 86400000) + 1} día(s)
+                  </p>
+                )}
+              </div>
             )}
           </div>
 

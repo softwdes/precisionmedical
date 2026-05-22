@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@precision/ui';
@@ -68,6 +68,62 @@ const APPT_STATUS_MAP: Record<string, { key: string; color: string }> = {
 
 function Skeleton({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded-[8px] bg-white/[0.05]', className)} />;
+}
+
+function useCountUp(target: number, duration = 900): number {
+  const [displayed, setDisplayed] = useState(0);
+  const fromRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    const from = fromRef.current;
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const next = Math.round(from + (target - from) * eased);
+      fromRef.current = next;
+      setDisplayed(next);
+      if (progress < 1) { rafRef.current = requestAnimationFrame(tick); }
+      else { rafRef.current = null; }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; } };
+  }, [target, duration]);
+
+  return displayed;
+}
+
+function AnimatedKpiValue({ rawValue, formatter, className }: {
+  rawValue: number | null;
+  formatter: (n: number) => string;
+  className?: string;
+}) {
+  const animated = useCountUp(rawValue ?? 0);
+  return <div className={className}>{rawValue === null ? '—' : formatter(animated)}</div>;
+}
+
+function FadeInValue({ value, className }: { value: string; className?: string }) {
+  const [displayed, setDisplayed] = useState(value);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (value === displayed) return;
+    setVisible(false);
+    const timer = setTimeout(() => { setDisplayed(value); setVisible(true); }, 150);
+    return () => clearTimeout(timer);
+  }, [value, displayed]);
+
+  return (
+    <div
+      className={cn(className, 'transition-all duration-300')}
+      style={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(6px)' }}
+    >
+      {displayed}
+    </div>
+  );
 }
 
 function Sparkline({ data, color }: { data: readonly number[]; color: string }) {
@@ -349,6 +405,8 @@ export function DashboardClient({
     {
       label: t('appointments'),
       value: kpis ? kpis.todayAppointments.toLocaleString() : '—',
+      rawValue: kpis ? kpis.todayAppointments : null as number | null,
+      formatter: (n: number) => Math.round(n).toLocaleString() as string,
       icon: CalendarDays,
       color: '#06B6D4',
       bg: 'rgba(6,182,212,0.12)',
@@ -362,6 +420,8 @@ export function DashboardClient({
     {
       label: t('activePatients'),
       value: kpis ? kpis.activePatients.toLocaleString() : '—',
+      rawValue: kpis ? kpis.activePatients : null as number | null,
+      formatter: (n: number) => Math.round(n).toLocaleString() as string,
       icon: Users,
       color: '#10B981',
       bg: 'rgba(16,185,129,0.12)',
@@ -379,6 +439,8 @@ export function DashboardClient({
           ? `$${(kpis.monthlyRevenue / 1000).toFixed(1)}K`
           : `$${kpis.monthlyRevenue.toFixed(0)}`
         : '—',
+      rawValue: kpis ? kpis.monthlyRevenue : null as number | null,
+      formatter: (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n)}`) as string,
       icon: DollarSign,
       color: '#F59E0B',
       bg: 'rgba(245,158,11,0.12)',
@@ -392,6 +454,8 @@ export function DashboardClient({
     {
       label: t('topClinic'),
       value: kpis?.topClinic ? `${kpis.topClinic.name}` : '—',
+      rawValue: null as number | null,
+      formatter: null as ((n: number) => string) | null,
       icon: Building2,
       color: '#6366F1',
       bg: 'rgba(99,102,241,0.12)',
@@ -518,8 +582,17 @@ export function DashboardClient({
                 <div className="text-[10.5px] font-bold uppercase tracking-wider text-text-3 mb-1.5">{kpi.label}</div>
                 {kpisQ.isLoading && !kpisQ.data ? (
                   <Skeleton className="h-8 w-24 mb-1" />
+                ) : kpi.formatter !== null ? (
+                  <AnimatedKpiValue
+                    rawValue={kpi.rawValue}
+                    formatter={kpi.formatter}
+                    className="font-mono text-[28px] font-bold leading-none text-text-1 mb-1"
+                  />
                 ) : (
-                  <div className="font-mono text-[28px] font-bold leading-none text-text-1 mb-1">{kpi.value}</div>
+                  <FadeInValue
+                    value={kpi.value}
+                    className="font-mono text-[28px] font-bold leading-none text-text-1 mb-1"
+                  />
                 )}
                 <div className="text-[11.5px] text-text-3 mb-2">{kpi.sub}</div>
                 <Sparkline data={kpi.spark} color={kpi.color} />

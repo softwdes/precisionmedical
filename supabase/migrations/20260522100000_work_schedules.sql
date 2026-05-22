@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS work_schedules (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at    timestamptz DEFAULT now(),
-  employee_id   uuid NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  employee_id   text NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
   schedule_type text NOT NULL CHECK (schedule_type IN ('full_time','part_time')),
   start_time    time NOT NULL,
   end_time      time NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS work_schedules (
 CREATE TABLE IF NOT EXISTS schedule_exceptions (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at     timestamptz DEFAULT now(),
-  employee_id    uuid NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  employee_id    text NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
   exception_type text NOT NULL CHECK (exception_type IN ('vacation','absence','holiday','special')),
   date           date NOT NULL,
   reason         text,

@@ -238,11 +238,12 @@ function AssignModal({
                 type="button"
                 onClick={() => toggleDay(d)}
                 className={cn(
-                  'aspect-square rounded-[6px] text-[12px] font-semibold transition-all min-h-[44px]',
+                  'aspect-square rounded-[6px] text-[12px] font-semibold transition-all min-h-[44px] border',
                   active
-                    ? 'bg-brand/10 border border-brand/30 text-brand'
-                    : 'bg-white/[0.03] border border-white/[0.08] text-text-muted opacity-50 hover:opacity-80',
+                    ? 'text-white border-transparent'
+                    : 'bg-white/[0.03] border-white/[0.08] text-text-muted opacity-50 hover:opacity-80',
                 )}
+                style={active ? { background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' } : {}}
               >{DAY_SHORT[i]}</button>
             );
           })}

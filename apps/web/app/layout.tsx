@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { TRPCProvider } from '@/components/providers/trpc-provider';
 import { Toaster } from 'sonner';
+import { PWAInstallBanner } from '@/components/PWAInstallBanner';
 import './globals.css';
 
 const fontSans = Plus_Jakarta_Sans({
@@ -27,13 +28,30 @@ export const metadata: Metadata = {
     template: '%s | LM Super Admin',
     default: 'LM Super Admin · Precision Medical',
   },
-  description: 'Centralized operations platform for Precision Medical',
+  description: 'Sistema de gestión operativa Precision Medical',
+  manifest: '/manifest.json',
   robots: 'noindex,nofollow',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'LM Admin',
+  },
   icons: {
     icon: [{ url: '/icon', type: 'image/png', sizes: '32x32' }],
-    apple: [{ url: '/apple-icon', type: 'image/png', sizes: '180x180' }],
+    apple: [
+      { url: '/icons/icon-152.png', sizes: '152x152' },
+      { url: '/icons/icon-192.png', sizes: '192x192' },
+    ],
     shortcut: '/icon',
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#6366F1',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default async function RootLayout({
@@ -72,6 +90,7 @@ export default async function RootLayout({
             </ThemeProvider>
           </TRPCProvider>
         </NextIntlClientProvider>
+        <PWAInstallBanner />
       </body>
     </html>
   );

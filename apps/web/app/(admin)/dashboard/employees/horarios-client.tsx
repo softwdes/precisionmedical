@@ -5,6 +5,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@precision/ui';
 import { ChevronLeft, ChevronRight, Plus, Calendar, AlertCircle, X } from 'lucide-react';
 
+// ─── Select styles — CSS vars don't reach native <option> dropdowns ──────────
+const SEL_CLS = 'w-full rounded-[8px] border border-border px-3 py-2 text-[13px] focus:outline-none focus:border-brand/50 min-h-[44px]';
+const SEL_STYLE: React.CSSProperties = { backgroundColor: '#161D31', color: '#F5F7FB' };
+const OPT_STYLE: React.CSSProperties = { backgroundColor: '#161D31', color: '#F5F7FB' };
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface EmpSummary {
@@ -184,11 +189,12 @@ function AssignModal({
         <select
           value={empId}
           onChange={e => setEmpId(e.target.value)}
-          className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]"
+          className={SEL_CLS}
+          style={SEL_STYLE}
         >
-          <option value="">Seleccionar empleado…</option>
+          <option value="" style={OPT_STYLE}>Seleccionar empleado…</option>
           {employees.filter(e => e.status === 'ACTIVE').map(e => (
-            <option key={e.id} value={e.id}>{e.firstName} {e.lastName} — {e.employeeCode}</option>
+            <option key={e.id} value={e.id} style={OPT_STYLE}>{e.firstName} {e.lastName} — {e.employeeCode}</option>
           ))}
         </select>
       </div>
@@ -200,10 +206,11 @@ function AssignModal({
           <select
             value={schedType}
             onChange={e => handleTypeChange(e.target.value as 'full_time' | 'part_time')}
-            className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]"
+            className={SEL_CLS}
+            style={SEL_STYLE}
           >
-            <option value="full_time">Full time</option>
-            <option value="part_time">Part time</option>
+            <option value="full_time" style={OPT_STYLE}>Full time</option>
+            <option value="part_time" style={OPT_STYLE}>Part time</option>
           </select>
         </div>
         <div>
@@ -211,9 +218,10 @@ function AssignModal({
           <select
             value={clinic}
             onChange={e => setClinic(e.target.value)}
-            className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-brand/50 min-h-[44px]"
+            className={SEL_CLS}
+            style={SEL_STYLE}
           >
-            {CLINICS.map(c => <option key={c} value={c}>{c}</option>)}
+            {CLINICS.map(c => <option key={c} value={c} style={OPT_STYLE}>{c}</option>)}
           </select>
         </div>
       </div>
@@ -525,9 +533,10 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
 
           {/* Clinic filter */}
           <select value={clinicFilter} onChange={e => setClinicFilter(e.target.value)}
-            className="rounded-[8px] border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 text-[12px] text-text-2 focus:outline-none focus:border-brand/40 min-h-[44px] sm:min-h-0">
-            <option value="">Todas las clínicas</option>
-            {CLINICS.map(c => <option key={c} value={c}>{c}</option>)}
+            className="rounded-[8px] border border-white/[0.08] px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-brand/40 min-h-[44px] sm:min-h-0"
+            style={SEL_STYLE}>
+            <option value="" style={OPT_STYLE}>Todas las clínicas</option>
+            {CLINICS.map(c => <option key={c} value={c} style={OPT_STYLE}>{c}</option>)}
           </select>
 
           {/* Assign button */}

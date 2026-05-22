@@ -403,6 +403,25 @@ export function DashboardClient({
   // KPI cards
   const kpiCards = [
     {
+      label: t('monthlyRevenue'),
+      value: kpis
+        ? kpis.monthlyRevenue >= 1000
+          ? `$${(kpis.monthlyRevenue / 1000).toFixed(1)}K`
+          : `$${kpis.monthlyRevenue.toFixed(0)}`
+        : '—',
+      rawValue: kpis ? kpis.monthlyRevenue : null as number | null,
+      formatter: (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n)}`) as string,
+      icon: DollarSign,
+      color: '#F59E0B',
+      bg: 'rgba(245,158,11,0.12)',
+      border: 'rgba(245,158,11,0.25)',
+      trend: '+0%',
+      trendUp: true,
+      sub: t('revenueGoal'),
+      spark: kpis?.revenueSpark ?? [0, 0, 0, 0, 0, 0, 0],
+      href: '/dashboard/employees?tab=pagos',
+    },
+    {
       label: t('appointments'),
       value: kpis ? kpis.todayAppointments.toLocaleString() : '—',
       rawValue: kpis ? kpis.todayAppointments : null as number | null,
@@ -431,25 +450,6 @@ export function DashboardClient({
       sub: t('vsLastMonth'),
       spark: kpis?.patientsSpark ?? [0, 0, 0, 0, 0, 0, 0],
       href: '/dashboard',
-    },
-    {
-      label: t('monthlyRevenue'),
-      value: kpis
-        ? kpis.monthlyRevenue >= 1000
-          ? `$${(kpis.monthlyRevenue / 1000).toFixed(1)}K`
-          : `$${kpis.monthlyRevenue.toFixed(0)}`
-        : '—',
-      rawValue: kpis ? kpis.monthlyRevenue : null as number | null,
-      formatter: (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1)}K` : `$${Math.round(n)}`) as string,
-      icon: DollarSign,
-      color: '#F59E0B',
-      bg: 'rgba(245,158,11,0.12)',
-      border: 'rgba(245,158,11,0.25)',
-      trend: '+0%',
-      trendUp: true,
-      sub: t('revenueGoal'),
-      spark: kpis?.revenueSpark ?? [0, 0, 0, 0, 0, 0, 0],
-      href: '/dashboard/employees?tab=pagos',
     },
     {
       label: t('topClinic'),

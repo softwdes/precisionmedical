@@ -44,10 +44,11 @@ export default async function RootLayout({
   const messages = await getMessages();
   const cookieStore = await cookies();
   const theme = (cookieStore.get('theme')?.value ?? 'dark') as 'dark' | 'light';
+  const locale = (cookieStore.get('locale')?.value ?? 'es') as 'es' | 'en';
 
   return (
     <html
-      lang="es"
+      lang={locale}
       suppressHydrationWarning
       data-theme={theme}
       className={`${fontSans.variable} ${fontMono.variable}`}

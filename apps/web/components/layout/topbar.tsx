@@ -73,6 +73,10 @@ export function Topbar({
     refetchInterval: 30_000,
   });
 
+  const { data: me } = trpc.users.me.useQuery();
+  const updatePreferences = trpc.users.updatePreferences.useMutation();
+
+  // Sync locale: cookie first, then reconcile with DB preference on mount
   useEffect(() => {
     const cookieLocale = document.cookie
       .split('; ')
@@ -80,6 +84,19 @@ export function Topbar({
       ?.split('=')[1] as 'es' | 'en' | undefined;
     if (cookieLocale === 'en' || cookieLocale === 'es') setLocale(cookieLocale);
   }, []);
+
+  useEffect(() => {
+    if (!me?.preferredLocale) return;
+    const dbLocale = me.preferredLocale as 'es' | 'en';
+    const cookieLocale = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('locale='))
+      ?.split('=')[1] as 'es' | 'en' | undefined;
+    if (dbLocale !== cookieLocale) {
+      document.cookie = `locale=${dbLocale};path=/;max-age=31536000`;
+      window.location.reload();
+    }
+  }, [me?.preferredLocale]);
 
   useEffect(() => {
     const update = (): void => {
@@ -111,6 +128,7 @@ export function Topbar({
   const handleLocaleChange = (newLocale: 'es' | 'en'): void => {
     setLocale(newLocale);
     document.cookie = `locale=${newLocale};path=/;max-age=31536000`;
+    updatePreferences.mutate({ preferredLocale: newLocale });
     window.location.reload();
   };
 

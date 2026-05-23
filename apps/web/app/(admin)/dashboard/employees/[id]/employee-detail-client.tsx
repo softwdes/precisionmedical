@@ -9,7 +9,7 @@ import { api as trpc } from '@/lib/trpc/client';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, cn } from '@precision/ui';
 import {
   ArrowLeft, Mail, Phone, MapPin, Briefcase, Calendar, DollarSign,
-  FileText, Activity, Building2, UserCheck, CreditCard, Eye, EyeOff, QrCode, Upload, Trash2,
+  FileText, Activity, Building2, UserCheck, CreditCard, Eye, EyeOff, QrCode, Upload, Trash2, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
@@ -36,12 +36,10 @@ export function EmployeeDetailClient({ employee }: { employee: Employee }): Reac
   const [qrUrl, setQrUrl] = useState<string | null>((employee as { bankQrUrl?: string }).bankQrUrl ?? null);
   const [uploadingQr, setUploadingQr] = useState(false);
   const [removingQr, setRemovingQr] = useState(false);
+  const [isDraggingQr, setIsDraggingQr] = useState(false);
   const router = useRouter();
 
-  async function handleQrUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function uploadQrFile(file: File) {
     setUploadingQr(true);
     try {
       const fd = new FormData();
@@ -57,6 +55,21 @@ export function EmployeeDetailClient({ employee }: { employee: Employee }): Reac
     } finally {
       setUploadingQr(false);
     }
+  }
+
+  async function handleQrUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await uploadQrFile(file);
+  }
+
+  function handleQrDrop(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    setIsDraggingQr(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || uploadingQr) return;
+    void uploadQrFile(file);
   }
 
   async function handleQrRemove() {
@@ -254,43 +267,72 @@ export function EmployeeDetailClient({ employee }: { employee: Employee }): Reac
                 {t('employees.bankQr')}
               </div>
               {qrUrl ? (
-                <div className="flex items-start gap-3">
-                  <img
-                    src={qrUrl}
-                    alt="QR bancario"
-                    className="h-28 w-28 rounded-lg border border-border object-contain bg-white p-1 shrink-0"
-                  />
-                  <div className="flex flex-col gap-1.5 pt-1">
-                    <label className="cursor-pointer">
-                      <Button size="sm" variant="outline" disabled={uploadingQr} asChild>
-                        <span>
-                          <Upload className="h-3.5 w-3.5 mr-1.5" />
-                          {uploadingQr ? t('common.loading') : t('employees.replaceQr')}
-                          <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
-                        </span>
-                      </Button>
-                    </label>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive justify-start"
-                      loading={removingQr}
-                      onClick={handleQrRemove}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                      {t('employees.removeQr')}
-                    </Button>
+                <div className="flex flex-col items-center gap-2 w-full">
+                  <div className="w-full rounded-xl border border-border overflow-hidden bg-white dark:bg-white/5 p-3">
+                    <img
+                      src={qrUrl}
+                      alt="QR bancario"
+                      className="w-full max-h-56 object-contain"
+                    />
                   </div>
+                  <label
+                    className={cn(
+                      'cursor-pointer w-full flex items-center justify-center gap-2 rounded-lg border border-dashed py-2.5 transition-colors',
+                      isDraggingQr
+                        ? 'border-violet-400 bg-violet-100/80 dark:bg-violet-900/30'
+                        : 'border-violet-300/60 bg-violet-50/40 dark:bg-violet-950/20 dark:border-violet-800/40 hover:bg-violet-100/50 hover:border-violet-400',
+                      uploadingQr && 'opacity-60 pointer-events-none',
+                    )}
+                    onDragOver={(e) => { e.preventDefault(); setIsDraggingQr(true); }}
+                    onDragLeave={() => setIsDraggingQr(false)}
+                    onDrop={handleQrDrop}
+                  >
+                    {uploadingQr
+                      ? <Loader2 className="h-3.5 w-3.5 text-violet-500 animate-spin" />
+                      : <Upload className="h-3.5 w-3.5 text-violet-500" />
+                    }
+                    <span className="text-xs font-medium text-violet-600 dark:text-violet-400">
+                      {uploadingQr ? t('common.loading') : t('employees.replaceQr')}
+                    </span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} disabled={uploadingQr} />
+                  </label>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full text-destructive hover:text-destructive justify-center"
+                    loading={removingQr}
+                    onClick={handleQrRemove}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    {t('employees.removeQr')}
+                  </Button>
                 </div>
               ) : (
-                <label className="cursor-pointer inline-block">
-                  <Button size="sm" variant="outline" disabled={uploadingQr} asChild>
-                    <span>
-                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                <label
+                  className={cn(
+                    'cursor-pointer flex flex-col items-center justify-center w-full rounded-xl border-2 border-dashed py-8 gap-2.5 transition-colors',
+                    isDraggingQr
+                      ? 'border-violet-400 bg-violet-100/80 dark:bg-violet-900/30'
+                      : 'border-violet-300/60 bg-violet-50/50 dark:bg-violet-950/20 dark:border-violet-800/40 hover:bg-violet-100/60 hover:border-violet-400',
+                    uploadingQr && 'opacity-60 pointer-events-none',
+                  )}
+                  onDragOver={(e) => { e.preventDefault(); setIsDraggingQr(true); }}
+                  onDragLeave={() => setIsDraggingQr(false)}
+                  onDrop={handleQrDrop}
+                >
+                  {uploadingQr
+                    ? <Loader2 className="h-8 w-8 text-violet-400 animate-spin" />
+                    : <QrCode className="h-8 w-8 text-violet-400" />
+                  }
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-violet-700 dark:text-violet-300">
                       {uploadingQr ? t('common.loading') : t('employees.uploadQr')}
-                      <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
-                    </span>
-                  </Button>
+                    </p>
+                    <p className="text-xs text-violet-500/70 dark:text-violet-400/60 mt-0.5">
+                      {locale === 'en' ? 'Drag & drop or click to choose' : 'Arrastra o haz clic para elegir'}
+                    </p>
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} disabled={uploadingQr} />
                 </label>
               )}
             </div>

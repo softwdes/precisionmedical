@@ -123,50 +123,29 @@ export default function ClockPage({ userId }: { userId: string }) {
   }, []);
 
   async function loadProfile() {
-    // Fetch employee (columns match Prisma schema — no @map, camelCase)
+    // Resolve auth user email — employees are looked up by email, not by auth UUID
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser?.email) { setProfileError(true); setClockState('idle'); return; }
+
     const { data: emp } = await supabase
       .from('employees')
       .select('id, firstName, lastName, employeeCode, type')
-      .eq('userId', userId)
+      .eq('email', authUser.email)
       .maybeSingle();
 
-    if (!emp) {
-      // Try snake_case fallback in case Prisma mapped columns
-      const { data: empSnake } = await supabase
-        .from('employees')
-        .select('id, first_name, last_name, employee_code, type')
-        .eq('user_id', userId)
-        .maybeSingle();
+    if (!emp) { setProfileError(true); setClockState('idle'); return; }
 
-      if (!empSnake) {
-        setProfileError(true);
-        setClockState('idle');
-        return;
-      }
+    setEmployee(emp as Employee);
 
-      // Normalize snake_case to camelCase
-      setEmployee({
-        id: empSnake.id,
-        firstName: (empSnake as Record<string, string>).first_name,
-        lastName: (empSnake as Record<string, string>).last_name,
-        employeeCode: (empSnake as Record<string, string>).employee_code,
-        type: (empSnake as Record<string, string>).type,
-      });
-    } else {
-      setEmployee(emp as Employee);
-    }
-
-    const empId = emp?.id ?? (await supabase.from('employees').select('id').eq('userId', userId).maybeSingle()).data?.id;
-    if (!empId) { setProfileError(true); setClockState('idle'); return; }
-
+    // Role from internal users table (keyed by email)
     const { data: userData } = await supabase
       .from('users')
       .select('role')
-      .eq('id', userId)
+      .eq('email', authUser.email)
       .maybeSingle();
     setRole(userData?.role ?? 'EMPLOYEE');
 
-    await Promise.all([loadTodayRecord(empId), loadStats(empId)]);
+    await Promise.all([loadTodayRecord(emp.id), loadStats(emp.id)]);
   }
 
   async function loadTodayRecord(empId: string) {

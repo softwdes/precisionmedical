@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:web": "turbo dev --filter=@precision-medical/web",
+    "dev:timeclock": "turbo dev --filter=@precision-medical/timeclock",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",

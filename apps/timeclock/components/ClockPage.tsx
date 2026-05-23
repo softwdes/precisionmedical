@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { LogOut, Play, Square, Coffee, UserX, RefreshCw } from 'lucide-react';
+import { LogOut, Play, Square, Coffee, UserX, RefreshCw, Clock } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -350,10 +350,34 @@ export default function ClockPage({ userId }: { userId: string }) {
 
   if (clockState === 'loading') {
     return (
-      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <div className="spinner" />
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Cargando...</span>
+      <main style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', zIndex: 100, animation: 'tcBootFade 400ms ease both' }}>
+        <style>{`
+          @keyframes tcBootFade { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+          @keyframes tcDotPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(1.25); } }
+        `}</style>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          {/* Logo box */}
+          <div style={{
+            width: 56, height: 56, borderRadius: 16,
+            background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%)',
+            boxShadow: '0 0 32px rgba(99,102,241,0.50), 0 0 64px rgba(99,102,241,0.20)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Clock size={26} color="white" strokeWidth={2.5} />
+          </div>
+
+          {/* Text */}
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.3px', margin: 0 }}>PM Time Clock</p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>Precision Medical</p>
+          </div>
+
+          {/* 3 pulsing dots */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: '#6366F1', animation: `tcDotPulse 1.2s ease-in-out infinite`, animationDelay: `${i * 200}ms` }} />
+            ))}
+          </div>
         </div>
       </main>
     );

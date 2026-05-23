@@ -14,6 +14,7 @@ import {
   Plus, Search, ChevronRight, ChevronLeft, Trophy, Eye, EyeOff,
   Pencil, Trash2, Mail, Phone, MapPin, Briefcase, Calendar,
   DollarSign, FileText, Activity, Building2, UserCheck, CreditCard,
+  QrCode, Upload,
 } from 'lucide-react';
 import { SuccessModal } from '@/components/notifications/SuccessModal';
 import { toast } from 'sonner';
@@ -294,7 +295,9 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
   const [activeTab, setActiveTab] = useState<ViewTab>('overview');
   const [showAccount, setShowAccount] = useState(false);
 
-  const { data: emp, isLoading } = trpc.employees.getById.useQuery({ id: employeeId });
+  const [uploadingQr, setUploadingQr] = useState(false);
+
+  const { data: emp, isLoading, refetch: refetchEmp } = trpc.employees.getById.useQuery({ id: employeeId });
   const { data: activity = [] } = trpc.employees.listActivity.useQuery(
     { employeeId },
     { enabled: activeTab === 'activity' },
@@ -340,7 +343,26 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
   const department = emp?.department as { name: string } | null;
   const supervisor = emp?.supervisor as { id: string; firstName: string; lastName: string } | null;
   const documents = (emp?.documents as Array<{ id: string; type: string; url: string; createdAt: string }>) ?? [];
-  const empCast = emp as (EmpDetail & { city?: string; hourlyRate?: number; paymentMethod?: string; bankAccount?: string }) | undefined;
+  const empCast = emp as (EmpDetail & { city?: string; hourlyRate?: number; paymentMethod?: string; bankAccount?: string; bankQrUrl?: string }) | undefined;
+
+  async function handleQrUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingQr(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/employees/${employeeId}/qr`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('upload failed');
+      toast.success(t('employees.qrUploaded'));
+      void refetchEmp();
+    } catch {
+      toast.error(t('employees.qrUploadError'));
+    } finally {
+      setUploadingQr(false);
+    }
+  }
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -439,6 +461,41 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Bank QR */}
+                  <div className="mt-4">
+                    <p className="text-[10px] uppercase tracking-wider text-text-muted flex items-center gap-1.5 mb-2">
+                      <QrCode className="h-3 w-3" />{t('employees.bankQr')}
+                    </p>
+                    {empCast?.bankQrUrl ? (
+                      <div className="flex items-start gap-3">
+                        <img
+                          src={empCast.bankQrUrl}
+                          alt="QR bancario"
+                          className="h-32 w-32 rounded-lg border border-border object-contain bg-white p-1.5 shrink-0"
+                        />
+                        <label className="cursor-pointer mt-1">
+                          <Button size="sm" variant="outline" disabled={uploadingQr} asChild>
+                            <span>
+                              <Upload className="h-3.5 w-3.5 mr-1.5" />
+                              {uploadingQr ? t('common.loading') : t('employees.replaceQr')}
+                              <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
+                            </span>
+                          </Button>
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer inline-block">
+                        <Button size="sm" variant="outline" disabled={uploadingQr} asChild>
+                          <span>
+                            <Upload className="h-3.5 w-3.5 mr-1.5" />
+                            {uploadingQr ? t('common.loading') : t('employees.uploadQr')}
+                            <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
+                          </span>
+                        </Button>
+                      </label>
+                    )}
                   </div>
                 </div>
               )}

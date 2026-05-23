@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LogOut, Play, Square, Coffee, UserX, RefreshCw } from 'lucide-react';
@@ -76,7 +76,7 @@ function elapsedBreak(breakStart: string): string {
 
 export default function ClockPage({ userId }: { userId: string }) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Profile
   const [employee, setEmployee] = useState<Employee | null>(null);

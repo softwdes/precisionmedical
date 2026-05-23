@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@precision-medical/auth/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ function elapsedSince(iso: string) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AsistenciaClient() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [pills, setPills] = useState<Pill[]>([]);
   const [kpis, setKpis] = useState<KPIs>({ presentes: 0, enBreak: 0, ausentes: 0, sinHorario: 0 });
   const [loading, setLoading] = useState(true);

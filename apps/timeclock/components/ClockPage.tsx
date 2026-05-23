@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LogOut, Play, Square, Coffee, UserX, RefreshCw, Clock } from 'lucide-react';
@@ -74,9 +74,27 @@ function elapsedBreak(breakStart: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+// ─── Geo helpers ─────────────────────────────────────────────────────────────
+
+interface GeoPoint { lat: number; lng: number; accuracy: number; }
+
+function getLocation(): Promise<GeoPoint | null> {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      () => resolve(null),
+      { timeout: 8000, maximumAge: 30000, enableHighAccuracy: true },
+    );
+  });
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function ClockPage({ userId }: { userId: string }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const waypointIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Profile
   const [employee, setEmployee] = useState<Employee | null>(null);
@@ -102,6 +120,25 @@ export default function ClockPage({ userId }: { userId: string }) {
 
   // Stats
   const [stats, setStats] = useState<Stats>({ today: '0:00', week: '0:00', month: '0:00' });
+
+  // ─── Waypoint tracking ───────────────────────────────────────────────────────
+
+  function startWaypointTracking(recordId: string) {
+    if (waypointIntervalRef.current) clearInterval(waypointIntervalRef.current);
+    waypointIntervalRef.current = setInterval(() => { void saveWaypoint(recordId); }, 10 * 60 * 1000);
+  }
+
+  function stopWaypointTracking() {
+    if (waypointIntervalRef.current) { clearInterval(waypointIntervalRef.current); waypointIntervalRef.current = null; }
+  }
+
+  async function saveWaypoint(recordId: string) {
+    const loc = await getLocation();
+    if (!loc) return;
+    await supabase.from('attendance_waypoints').insert({ record_id: recordId, lat: loc.lat, lng: loc.lng, accuracy: loc.accuracy });
+  }
+
+  useEffect(() => () => stopWaypointTracking(), []);
 
   // ─── Live clock ticker ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -203,7 +240,10 @@ export default function ClockPage({ userId }: { userId: string }) {
     setLoading(true);
     setActionError('');
     try {
-      const { status, lateMinutes, scheduleId } = await determineStatus(employee!.id);
+      const [{ status, lateMinutes, scheduleId }, loc] = await Promise.all([
+        determineStatus(employee!.id),
+        getLocation(),
+      ]);
       const now = new Date();
 
       const { data, error } = await supabase
@@ -217,6 +257,7 @@ export default function ClockPage({ userId }: { userId: string }) {
           late_minutes: lateMinutes,
           schedule_id: scheduleId,
           recorded_by: userId,
+          ...(loc ? { check_in_lat: loc.lat, check_in_lng: loc.lng, check_in_acc: loc.accuracy } : {}),
         })
         .select()
         .single();
@@ -224,6 +265,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       if (error) throw error;
       setRecord(data as AttendanceRecord);
       setClockState('working');
+      startWaypointTracking(data.id as string);
 
       if (status === 'late') {
         setLateNotice(`Llegaste ${lateMinutes} min después de tu horario`);
@@ -287,15 +329,20 @@ export default function ClockPage({ userId }: { userId: string }) {
     if (!record?.check_in) return;
     setLoading(true);
     setActionError('');
+    stopWaypointTracking();
     try {
-      const now = new Date();
+      const [loc, now] = [await getLocation(), new Date()];
       const totalMs = now.getTime() - new Date(record.check_in).getTime();
       const breakMs = (record.break_minutes ?? 0) * 60000;
       const hoursWorked = Math.max(0, (totalMs - breakMs) / 3600000);
 
       const { data, error } = await supabase
         .from('attendance_records')
-        .update({ check_out: now.toISOString(), hours_worked: hoursWorked })
+        .update({
+          check_out: now.toISOString(),
+          hours_worked: hoursWorked,
+          ...(loc ? { check_out_lat: loc.lat, check_out_lng: loc.lng, check_out_acc: loc.accuracy } : {}),
+        })
         .eq('id', record.id)
         .select()
         .single();

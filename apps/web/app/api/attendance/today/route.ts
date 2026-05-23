@@ -7,6 +7,8 @@ interface RecordRow {
   id: string; employee_id: string; check_in: string | null; check_out: string | null;
   break_start: string | null; break_end: string | null; clinic_name: string;
   hours_worked: number | null; break_minutes: number; status: string; late_minutes: number;
+  check_in_lat: number | null; check_in_lng: number | null;
+  check_out_lat: number | null; check_out_lng: number | null;
 }
 
 export async function GET(_req: NextRequest): Promise<NextResponse> {
@@ -24,7 +26,7 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
       .is('deletedAt', null)
       .order('firstName'),
     admin.from('attendance_records')
-      .select('id, employee_id, check_in, check_out, break_start, break_end, clinic_name, hours_worked, break_minutes, status, late_minutes')
+      .select('id, employee_id, check_in, check_out, break_start, break_end, clinic_name, hours_worked, break_minutes, status, late_minutes, check_in_lat, check_in_lng, check_out_lat, check_out_lng')
       .eq('date', today),
   ]);
 
@@ -48,6 +50,10 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
       break_minutes: r?.break_minutes ?? 0,
       status: r?.status ?? null,
       late_minutes: r?.late_minutes ?? 0,
+      check_in_lat: r?.check_in_lat ?? null,
+      check_in_lng: r?.check_in_lng ?? null,
+      check_out_lat: r?.check_out_lat ?? null,
+      check_out_lng: r?.check_out_lng ?? null,
     };
   });
 

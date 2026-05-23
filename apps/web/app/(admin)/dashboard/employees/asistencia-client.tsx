@@ -9,8 +9,14 @@ import {
 } from '@precision/ui';
 import {
   UserCheck, Coffee, Clock, UserX, RefreshCw, Pencil,
-  FileText, Download, ChevronLeft, ChevronRight, AlertTriangle,
+  FileText, Download, ChevronLeft, ChevronRight, AlertTriangle, MapPin,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const AttendanceMap = dynamic(
+  () => import('@/components/attendance/AttendanceMap').then(m => ({ default: m.AttendanceMap })),
+  { ssr: false, loading: () => <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>Cargando mapa...</div> },
+);
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -27,6 +33,8 @@ interface TodayRow {
   break_start: string | null; break_end: string | null; clinic_name: string | null;
   hours_worked: number | null; break_minutes: number;
   status: 'on_time' | 'late' | 'absent' | null; late_minutes: number;
+  check_in_lat: number | null; check_in_lng: number | null;
+  check_out_lat: number | null; check_out_lng: number | null;
 }
 
 interface HistoryRow {
@@ -35,6 +43,14 @@ interface HistoryRow {
   check_in: string | null; check_out: string | null;
   clinic_name: string; hours_worked: number | null;
   break_minutes: number; status: string; late_minutes: number; notes: string | null;
+  check_in_lat: number | null; check_in_lng: number | null;
+  check_out_lat: number | null; check_out_lng: number | null;
+}
+
+interface MapTarget {
+  recordId: string; employeeName: string; date: string;
+  checkIn:  { lat: number; lng: number } | null;
+  checkOut: { lat: number; lng: number } | null;
 }
 
 interface EmployeeOption { id: string; firstName: string; lastName: string; employeeCode: string; }
@@ -178,6 +194,11 @@ export function AsistenciaClient() {
   const [corrNotes, setCorrNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // ── Map modal ──────────────────────────────────────────────────────────────
+  const [mapTarget, setMapTarget] = useState<MapTarget | null>(null);
+  const [mapWaypoints, setMapWaypoints] = useState<Array<{ lat: number; lng: number; recorded_at: string }>>([]);
+  const [loadingWaypoints, setLoadingWaypoints] = useState(false);
+
   // ── Live ticker (every 60s) ────────────────────────────────────────────────
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 60000);
@@ -299,6 +320,28 @@ export function AsistenciaClient() {
       else void fetchHistory();
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ── Open map modal ─────────────────────────────────────────────────────────
+  async function openMap(row: TodayRow | HistoryRow) {
+    const recordId = ('record_id' in row ? row.record_id : null) ?? ('id' in row ? row.id : null);
+    if (!recordId) return;
+    const date = 'date' in row ? row.date : todayStr();
+    setMapTarget({
+      recordId,
+      employeeName: `${row.firstName} ${row.lastName}`,
+      date,
+      checkIn:  row.check_in_lat  && row.check_in_lng  ? { lat: row.check_in_lat,  lng: row.check_in_lng  } : null,
+      checkOut: row.check_out_lat && row.check_out_lng ? { lat: row.check_out_lat, lng: row.check_out_lng } : null,
+    });
+    setMapWaypoints([]);
+    setLoadingWaypoints(true);
+    try {
+      const res = await fetch(`/api/attendance/${recordId}/waypoints`);
+      if (res.ok) setMapWaypoints(await res.json() as typeof mapWaypoints);
+    } finally {
+      setLoadingWaypoints(false);
     }
   }
 
@@ -568,11 +611,18 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                             <TodayBadge row={r} />
                           </TableCell>
                           <TableCell>
-                            {r.record_id && (
-                              <button onClick={() => openCorrection(r)} className="p-1 rounded text-text-muted hover:text-text-2 hover:bg-surface transition-colors">
-                                <Pencil size={13} />
-                              </button>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {r.record_id && (
+                                <button onClick={() => openCorrection(r)} className="p-1 rounded text-text-muted hover:text-text-2 hover:bg-surface transition-colors">
+                                  <Pencil size={13} />
+                                </button>
+                              )}
+                              {(r.check_in_lat ?? r.check_out_lat) && (
+                                <button onClick={() => void openMap(r)} className="p-1 rounded text-text-muted hover:text-indigo-400 hover:bg-surface transition-colors" title="Ver ubicación">
+                                  <MapPin size={13} />
+                                </button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -728,9 +778,16 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                         <TableCell className="text-[12px] font-mono text-text-2">{fmtHours(r.hours_worked)}</TableCell>
                         <TableCell><HistoryBadge row={r} /></TableCell>
                         <TableCell>
-                          <button onClick={() => openCorrection(r)} className="p-1 rounded text-text-muted hover:text-text-2 hover:bg-surface transition-colors">
-                            <Pencil size={13} />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => openCorrection(r)} className="p-1 rounded text-text-muted hover:text-text-2 hover:bg-surface transition-colors">
+                              <Pencil size={13} />
+                            </button>
+                            {(r.check_in_lat ?? r.check_out_lat) && (
+                              <button onClick={() => void openMap(r)} className="p-1 rounded text-text-muted hover:text-indigo-400 hover:bg-surface transition-colors" title="Ver ubicación">
+                                <MapPin size={13} />
+                              </button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -781,6 +838,75 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
           )}
         </>
       )}
+
+      {/* ═══════════ MAP MODAL ═══════════ */}
+      <Dialog open={!!mapTarget} onOpenChange={open => { if (!open) setMapTarget(null); }}>
+        <DialogContent className="max-w-2xl w-full">
+          <DialogHeader>
+            <DialogTitle className="text-[15px] flex items-center gap-2">
+              <MapPin size={15} className="text-indigo-400" />
+              Ubicación del registro
+            </DialogTitle>
+            {mapTarget && (
+              <p className="text-[12px] text-text-muted mt-1">
+                {mapTarget.employeeName} · {fmtDate(mapTarget.date)}
+              </p>
+            )}
+          </DialogHeader>
+
+          {mapTarget && (
+            <div className="space-y-3">
+              {/* Map */}
+              <div style={{ height: 340, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                {loadingWaypoints ? (
+                  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+                    Cargando...
+                  </div>
+                ) : !mapTarget.checkIn && !mapTarget.checkOut && mapWaypoints.length === 0 ? (
+                  <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <MapPin size={24} style={{ color: 'var(--color-text-muted)', opacity: 0.4 }} />
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Sin datos de ubicación para este registro</p>
+                    <p style={{ fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.6 }}>El empleado puede tener la ubicación desactivada</p>
+                  </div>
+                ) : (
+                  <AttendanceMap
+                    key={mapTarget.recordId}
+                    checkIn={mapTarget.checkIn}
+                    checkOut={mapTarget.checkOut}
+                    waypoints={mapWaypoints}
+                  />
+                )}
+              </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap items-center gap-4 text-[11px] text-text-muted px-1">
+                {mapTarget.checkIn && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-emerald-500 shrink-0" />
+                    <span>Entrada {mapTarget.checkIn ? `(${mapTarget.checkIn.lat.toFixed(4)}, ${mapTarget.checkIn.lng.toFixed(4)})` : ''}</span>
+                  </div>
+                )}
+                {mapTarget.checkOut && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-rose-500 shrink-0" />
+                    <span>Salida {mapTarget.checkOut ? `(${mapTarget.checkOut.lat.toFixed(4)}, ${mapTarget.checkOut.lng.toFixed(4)})` : ''}</span>
+                  </div>
+                )}
+                {mapWaypoints.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-indigo-500 shrink-0" />
+                    <span>{mapWaypoints.length} punto{mapWaypoints.length !== 1 ? 's' : ''} de ruta</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setMapTarget(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ═══════════ CORRECTION MODAL ═══════════ */}
       <Dialog open={!!correction} onOpenChange={open => { if (!open) setCorrection(null); }}>

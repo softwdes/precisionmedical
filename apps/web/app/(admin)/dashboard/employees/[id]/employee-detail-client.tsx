@@ -9,7 +9,7 @@ import { api as trpc } from '@/lib/trpc/client';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, cn } from '@precision/ui';
 import {
   ArrowLeft, Mail, Phone, MapPin, Briefcase, Calendar, DollarSign,
-  FileText, Activity, Building2, UserCheck, CreditCard, Eye, EyeOff,
+  FileText, Activity, Building2, UserCheck, CreditCard, Eye, EyeOff, QrCode, Upload, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
@@ -33,7 +33,46 @@ export function EmployeeDetailClient({ employee }: { employee: Employee }): Reac
   const locale = useLocale();
   const [tab, setTab] = useState<Tab>('overview');
   const [showAccount, setShowAccount] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string | null>((employee as { bankQrUrl?: string }).bankQrUrl ?? null);
+  const [uploadingQr, setUploadingQr] = useState(false);
+  const [removingQr, setRemovingQr] = useState(false);
   const router = useRouter();
+
+  async function handleQrUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingQr(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/employees/${employee.id}/qr`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('upload failed');
+      const json = await res.json() as { bankQrUrl: string };
+      setQrUrl(json.bankQrUrl);
+      toast.success(t('employees.qrUploaded'));
+      router.refresh();
+    } catch {
+      toast.error(t('employees.qrUploadError'));
+    } finally {
+      setUploadingQr(false);
+    }
+  }
+
+  async function handleQrRemove() {
+    setRemovingQr(true);
+    try {
+      const res = await fetch(`/api/employees/${employee.id}/qr`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('remove failed');
+      setQrUrl(null);
+      toast.success(t('employees.qrRemoved'));
+      router.refresh();
+    } catch {
+      toast.error(t('employees.qrRemoveError'));
+    } finally {
+      setRemovingQr(false);
+    }
+  }
 
   const TYPE_LABELS: Record<string, string> = {
     FULL_TIME: t('employees.types.FULL_TIME'),
@@ -206,6 +245,54 @@ export function EmployeeDetailClient({ employee }: { employee: Employee }): Reac
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Bank QR */}
+            <div className="py-2 border-b border-border/50 last:border-0">
+              <div className="flex items-center gap-2 text-small text-text-3 mb-2">
+                <QrCode className="h-3.5 w-3.5 shrink-0" />
+                {t('employees.bankQr')}
+              </div>
+              {qrUrl ? (
+                <div className="flex items-start gap-3">
+                  <img
+                    src={qrUrl}
+                    alt="QR bancario"
+                    className="h-28 w-28 rounded-lg border border-border object-contain bg-white p-1 shrink-0"
+                  />
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <label className="cursor-pointer">
+                      <Button size="sm" variant="outline" disabled={uploadingQr} asChild>
+                        <span>
+                          <Upload className="h-3.5 w-3.5 mr-1.5" />
+                          {uploadingQr ? t('common.loading') : t('employees.replaceQr')}
+                          <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
+                        </span>
+                      </Button>
+                    </label>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive justify-start"
+                      loading={removingQr}
+                      onClick={handleQrRemove}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      {t('employees.removeQr')}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <label className="cursor-pointer inline-block">
+                  <Button size="sm" variant="outline" disabled={uploadingQr} asChild>
+                    <span>
+                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                      {uploadingQr ? t('common.loading') : t('employees.uploadQr')}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
+                    </span>
+                  </Button>
+                </label>
+              )}
             </div>
           </CardContent>
         </Card>

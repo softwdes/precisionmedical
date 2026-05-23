@@ -176,6 +176,7 @@ model Employee {
   hourlyRate      Decimal?        @db.Decimal(10, 2)
   paymentMethod   PaymentMethod?
   bankAccount     String?         // encrypted at app level
+  bankQrUrl       String?
   
   status          EmployeeStatus  @default(ACTIVE)
   

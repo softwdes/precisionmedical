@@ -33,7 +33,7 @@ export const paymentsRouter = router({
       let query = supabaseAdmin
         .from('payments')
         .select(
-          'id, period, amountLocal, base_salary, bonus_amount, bonus_reason, currencyLocal, status, scheduledDate, paidDate, notes, employeeId, walletId, reversedById, employee:employees(id,firstName,lastName,employeeCode)',
+          'id, period, amountLocal, base_salary, bonus_amount, bonus_reason, currencyLocal, status, scheduledDate, paidDate, notes, employeeId, walletId, reversedById, employee:employees(id,firstName,lastName,employeeCode,bankQrUrl)',
           { count: 'exact' },
         )
         .range(from, to)

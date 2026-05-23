@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Card, CardContent,
 } from '@precision/ui';
-import { Plus, CheckCircle, RotateCcw, Clock, TrendingUp, Star, Pencil, X, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle, RotateCcw, Clock, TrendingUp, Star, Pencil, X, Trash2, QrCode } from 'lucide-react';
 import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
@@ -501,10 +501,49 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
       />
 
       <Dialog open={!!showMarkPaid} onOpenChange={(o) => { if (!o) setShowMarkPaid(null); }}>
-        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-md overflow-hidden">
           <DialogHeader className="shrink-0"><DialogTitle>{t('payments.markAsPaid')}</DialogTitle></DialogHeader>
-          <p className="text-small text-text-3 flex-1 py-2">{t('payments.markAsPaidConfirm')}</p>
-          <DialogFooter className="shrink-0">
+          {(() => {
+            const payment = items.find(i => i.id === showMarkPaid);
+            const emp = payment?.employee as { firstName?: string; lastName?: string; bankQrUrl?: string } | null;
+            return (
+              <div className="flex-1 overflow-y-auto min-h-0 py-2 space-y-4">
+                <p className="text-small text-text-3">{t('payments.markAsPaidConfirm')}</p>
+                {payment && (
+                  <div className="rounded-lg border border-border bg-surface p-3 text-small space-y-1.5">
+                    <div className="flex justify-between gap-2">
+                      <span className="text-text-3">{t('nav.employees')}</span>
+                      <span className="font-medium text-text-1">{emp?.firstName} {emp?.lastName}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-text-3">{t('payments.periodLabel')}</span>
+                      <span className="font-medium text-text-1">{payment.period}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-text-3">{t('common.total')}</span>
+                      <span className="font-semibold text-emerald">{payment.currencyLocal} {Number(payment.amountLocal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                )}
+                {emp?.bankQrUrl ? (
+                  <div className="flex flex-col items-center gap-2 pt-1">
+                    <div className="flex items-center gap-1.5 text-tiny text-text-3 uppercase tracking-wide font-medium">
+                      <QrCode className="h-3.5 w-3.5" />
+                      {t('payments.scanQrToPay')}
+                    </div>
+                    <img
+                      src={emp.bankQrUrl}
+                      alt="QR bancario"
+                      className="h-52 w-52 rounded-xl border border-border object-contain bg-white p-2"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-tiny text-text-muted text-center py-1">{t('payments.noQrConfigured')}</p>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter className="shrink-0 pt-2">
             <Button variant="ghost" onClick={() => setShowMarkPaid(null)}>{t('common.cancel')}</Button>
             <Button loading={markPaid.isPending} onClick={() => showMarkPaid && markPaid.mutate({ id: showMarkPaid })}>{t('common.confirm')}</Button>
           </DialogFooter>

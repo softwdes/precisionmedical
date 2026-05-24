@@ -617,10 +617,16 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                   <Pencil size={13} />
                                 </button>
                               )}
-                              {(r.check_in_lat ?? r.check_out_lat) && (
-                                <button onClick={() => void openMap(r)} className="p-1 rounded text-text-muted hover:text-indigo-400 hover:bg-surface transition-colors" title="Ver ubicación">
-                                  <MapPin size={13} />
-                                </button>
+                              {r.record_id && (
+                                (r.check_in_lat ?? r.check_out_lat) ? (
+                                  <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title="Ver ubicación" style={{ color: '#818CF8' }}>
+                                    <MapPin size={13} />
+                                  </button>
+                                ) : (
+                                  <span className="p-1 rounded cursor-default" title="Sin datos de ubicación" style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
+                                    <MapPin size={13} />
+                                  </span>
+                                )
                               )}
                             </div>
                           </TableCell>
@@ -782,10 +788,14 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                             <button onClick={() => openCorrection(r)} className="p-1 rounded text-text-muted hover:text-text-2 hover:bg-surface transition-colors">
                               <Pencil size={13} />
                             </button>
-                            {(r.check_in_lat ?? r.check_out_lat) && (
-                              <button onClick={() => void openMap(r)} className="p-1 rounded text-text-muted hover:text-indigo-400 hover:bg-surface transition-colors" title="Ver ubicación">
+                            {(r.check_in_lat ?? r.check_out_lat) ? (
+                              <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title="Ver ubicación" style={{ color: '#818CF8' }}>
                                 <MapPin size={13} />
                               </button>
+                            ) : (
+                              <span className="p-1 rounded cursor-default" title="Sin datos de ubicación" style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
+                                <MapPin size={13} />
+                              </span>
                             )}
                           </div>
                         </TableCell>

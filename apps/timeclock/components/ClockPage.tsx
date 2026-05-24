@@ -138,11 +138,14 @@ export default function ClockPage({ userId }: { userId: string }) {
   const GEO_TEXT = {
     title: isSpanish ? 'Permiso de ubicación' : 'Location permission',
     body:  isSpanish
-      ? 'Al fichar, el sistema registrará tu ubicación para verificar que estás en la clínica. Solo se guarda el punto de entrada y de salida.'
-      : 'When clocking in, the system will save your location to verify you are at the clinic. Only the clock-in and clock-out points are recorded.',
+      ? 'Al fichar, el sistema registrará tu ubicación.'
+      : 'When clocking in, the system will record your location.',
     note:  isSpanish
-      ? 'Puedes aceptar o rechazar — el fichaje funciona en ambos casos.'
-      : 'You can accept or decline — clocking in works either way.',
+      ? 'Debes aceptar para seguir con el marcado de horas.'
+      : 'You must accept to continue with time tracking.',
+    denied: isSpanish
+      ? 'Ubicación bloqueada. Ve a la configuración del navegador para activarla.'
+      : 'Location blocked. Enable it in your browser settings.',
   };
 
   // ─── Waypoint tracking ───────────────────────────────────────────────────────
@@ -625,8 +628,37 @@ export default function ClockPage({ userId }: { userId: string }) {
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
               {GEO_TEXT.body}
             </p>
-            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 5, fontStyle: 'italic' }}>
+            <p style={{ fontSize: 10, color: '#F87171', marginTop: 5, fontStyle: 'italic' }}>
               {GEO_TEXT.note}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Location denied banner ── */}
+      {locationPerm === 'denied' && (
+        <div style={{
+          ...sectionStyle,
+          background: 'rgba(244,63,94,0.08)',
+          border: '1px solid rgba(244,63,94,0.28)',
+          borderRadius: 12,
+          padding: '12px 16px',
+          display: 'flex',
+          gap: 12,
+          alignItems: 'flex-start',
+        }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(244,63,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+              <line x1="4" y1="4" x2="20" y2="20" stroke="#F43F5E" strokeWidth="2"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#F87171', margin: 0, letterSpacing: '0.01em' }}>
+              {isSpanish ? 'Ubicación bloqueada' : 'Location blocked'}
+            </p>
+            <p style={{ fontSize: 11, color: '#F87171', marginTop: 4, lineHeight: 1.5, opacity: 0.85 }}>
+              {GEO_TEXT.denied}
             </p>
           </div>
         </div>

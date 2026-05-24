@@ -121,6 +121,30 @@ export default function ClockPage({ userId }: { userId: string }) {
   // Stats
   const [stats, setStats] = useState<Stats>({ today: '0:00', week: '0:00', month: '0:00' });
 
+  // ─── Location permission banner ──────────────────────────────────────────────
+
+  const [locationPerm, setLocationPerm] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown');
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.permissions) return;
+    navigator.permissions.query({ name: 'geolocation' as PermissionName }).then(result => {
+      setLocationPerm(result.state as 'prompt' | 'granted' | 'denied');
+      result.addEventListener('change', () => setLocationPerm(result.state as 'prompt' | 'granted' | 'denied'));
+    }).catch(() => setLocationPerm('unknown'));
+  }, []);
+
+  const isSpanish = typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('es');
+
+  const GEO_TEXT = {
+    title: isSpanish ? 'Permiso de ubicación' : 'Location permission',
+    body:  isSpanish
+      ? 'Al fichar, el sistema registrará tu ubicación para verificar que estás en la clínica. Solo se guarda el punto de entrada y de salida.'
+      : 'When clocking in, the system will save your location to verify you are at the clinic. Only the clock-in and clock-out points are recorded.',
+    note:  isSpanish
+      ? 'Puedes aceptar o rechazar — el fichaje funciona en ambos casos.'
+      : 'You can accept or decline — clocking in works either way.',
+  };
+
   // ─── Waypoint tracking ───────────────────────────────────────────────────────
 
   function startWaypointTracking(recordId: string) {
@@ -572,6 +596,39 @@ export default function ClockPage({ userId }: { userId: string }) {
       {lateNotice && (
         <div style={{ ...sectionStyle, background: 'var(--amber-dim)', border: '1px solid var(--amber-border)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--amber)', textAlign: 'center', zIndex: 1 }}>
           {lateNotice}
+        </div>
+      )}
+
+      {/* ── Location permission banner ── */}
+      {locationPerm === 'prompt' && clockState === 'idle' && (
+        <div style={{
+          ...sectionStyle,
+          background: 'rgba(99,102,241,0.07)',
+          border: '1px solid rgba(99,102,241,0.22)',
+          borderRadius: 12,
+          padding: '12px 16px',
+          display: 'flex',
+          gap: 12,
+          alignItems: 'flex-start',
+        }}>
+          {/* Pin icon */}
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+          </div>
+          {/* Text */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#818CF8', margin: 0, letterSpacing: '0.01em' }}>
+              {GEO_TEXT.title}
+            </p>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+              {GEO_TEXT.body}
+            </p>
+            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 5, fontStyle: 'italic' }}>
+              {GEO_TEXT.note}
+            </p>
+          </div>
         </div>
       )}
 

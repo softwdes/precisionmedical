@@ -5,11 +5,12 @@ import { useState, useCallback } from 'react';
 import {
   Button, Badge, Input, Label, Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue, cn,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@precision/ui';
 import {
   ChevronDown, ChevronRight, FileText, Download, RefreshCw,
   AlertTriangle, BarChart3, Clock, TrendingUp, Coffee,
-  Calendar, CalendarOff, ChevronUp,
+  Calendar, CalendarOff, ChevronUp, ShieldCheck,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -768,6 +769,7 @@ export function ReporteHorasClient({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [confirmExport, setConfirmExport] = useState<'pdf' | 'excel' | null>(null);
 
   const toggleRow = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -841,7 +843,7 @@ export function ReporteHorasClient({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => exportPDF(reportData!)}
+                onClick={() => setConfirmExport('pdf')}
                 className="gap-1.5"
               >
                 <FileText className="h-3.5 w-3.5" />
@@ -850,7 +852,7 @@ export function ReporteHorasClient({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => exportExcel(reportData!)}
+                onClick={() => setConfirmExport('excel')}
                 className="gap-1.5"
               >
                 <Download className="h-3.5 w-3.5" />
@@ -1128,6 +1130,86 @@ export function ReporteHorasClient({
           )}
         </div>
       )}
+
+      {/* ── Confirm Export Dialog ── */}
+      <Dialog open={!!confirmExport} onOpenChange={(open) => { if (!open) setConfirmExport(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2.5">
+              <div className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-full shrink-0',
+                confirmExport === 'pdf' ? 'bg-indigo-500/10' : 'bg-emerald-500/10',
+              )}>
+                {confirmExport === 'pdf'
+                  ? <FileText className="h-4.5 w-4.5 text-indigo-500" />
+                  : <Download className="h-4.5 w-4.5 text-emerald-600" />
+                }
+              </div>
+              Descargar {confirmExport === 'pdf' ? 'PDF' : 'Excel'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-1">
+            {/* Info pills */}
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-border/60 px-2.5 py-1 text-xs text-text-2">
+                <ShieldCheck className="h-3 w-3 text-brand" />
+                Documento confidencial
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-border/60 px-2.5 py-1 text-xs text-text-2">
+                {summary?.totalEmployees ?? 0} empleados · {fmtHours(summary?.totalHours ?? 0)}
+              </span>
+            </div>
+
+            <p className="text-sm text-text-2 leading-relaxed">
+              Estás por exportar el reporte de horas del período{' '}
+              <span className="font-semibold text-text-1">
+                {fmtDateShort(displayFrom)} – {fmtDateShort(displayTo)}
+              </span>
+              {' '}como{' '}
+              <span className="font-semibold text-text-1">
+                {confirmExport === 'pdf' ? 'PDF para impresión' : 'archivo Excel (.xls)'}
+              </span>.
+            </p>
+
+            {confirmExport === 'pdf' && (
+              <p className="text-xs text-text-muted bg-border/30 rounded-lg px-3 py-2">
+                Se abrirá el diálogo de impresión del navegador. Elige "Guardar como PDF" para descargarlo.
+              </p>
+            )}
+            {confirmExport === 'excel' && (
+              <p className="text-xs text-text-muted bg-border/30 rounded-lg px-3 py-2">
+                El archivo incluye 2 hojas: <strong>Resumen</strong> por empleado y <strong>Detalle diario</strong> de cada fichaje.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setConfirmExport(null)}>
+              Cancelar
+            </Button>
+            <Button
+              className={cn(
+                'gap-1.5',
+                confirmExport === 'pdf'
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white',
+              )}
+              onClick={() => {
+                if (!reportData) return;
+                if (confirmExport === 'pdf') exportPDF(reportData);
+                else exportExcel(reportData);
+                setConfirmExport(null);
+              }}
+            >
+              {confirmExport === 'pdf'
+                ? <><FileText className="h-3.5 w-3.5" /> Abrir PDF</>
+                : <><Download className="h-3.5 w-3.5" /> Descargar Excel</>
+              }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

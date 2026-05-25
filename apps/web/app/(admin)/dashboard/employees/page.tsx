@@ -49,13 +49,19 @@ export default async function EmployeesPage({
   } else if (activeTab === 'asistencia') {
     content = <AsistenciaClient />;
   } else if (activeTab === 'reporte') {
-    const employees = await api.employees.list({ page: 1, pageSize: 200 });
-    content = <ReporteHorasClient initialEmployees={employees.items.map((e) => ({
-      id: e.id,
-      firstName: e.firstName,
-      lastName: e.lastName,
-      employeeCode: e.employeeCode,
-    }))} />;
+    let empOptions: Array<{ id: string; firstName: string; lastName: string; employeeCode: string }> = [];
+    try {
+      const employees = await api.employees.list({ page: 1, pageSize: 200 });
+      empOptions = employees.items.map((e) => ({
+        id: e.id,
+        firstName: e.firstName as string,
+        lastName: e.lastName as string,
+        employeeCode: e.employeeCode as string,
+      }));
+    } catch (err) {
+      console.error('[ReporteHoras] employees.list failed:', err);
+    }
+    content = <ReporteHorasClient initialEmployees={empOptions} />;
   } else {
     const [initial, departments] = await Promise.all([
       api.employees.list({ page: 1, pageSize: 25 }),

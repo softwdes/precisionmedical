@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Button, Badge, Input, Label, Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue, cn,
@@ -10,7 +10,7 @@ import {
 import {
   ChevronDown, ChevronRight, FileText, Download, RefreshCw,
   AlertTriangle, BarChart3, Clock, TrendingUp, Coffee,
-  Calendar, CalendarOff, ChevronUp, ShieldCheck,
+  Calendar, CalendarOff, ChevronUp, ShieldCheck, Search, Check,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -396,6 +396,160 @@ function exportPDF(data: ReportData): void {
   w.document.close();
   w.focus();
   setTimeout(() => { w.print(); }, 400);
+}
+
+// ─── Employee Combobox ────────────────────────────────────────────────────────
+
+function EmpCombobox({
+  options,
+  value,
+  onChange,
+}: {
+  options: EmpOption[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { setOpen(false); setSearch(''); }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open]);
+
+  const filtered = search.trim()
+    ? options.filter((e) =>
+        `${e.firstName} ${e.lastName} ${e.employeeCode}`
+          .toLowerCase()
+          .includes(search.toLowerCase().trim()),
+      )
+    : options;
+
+  const selected = value ? options.find((e) => e.id === value) : null;
+
+  const select = (id: string) => {
+    onChange(id);
+    setOpen(false);
+    setSearch('');
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* Trigger — same height/style as SelectTrigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={cn(
+          'flex h-9 w-56 items-center justify-between gap-2 rounded border bg-surface px-3 py-2 text-small transition-colors',
+          'hover:border-border-strong focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand',
+          open ? 'border-brand ring-2 ring-brand' : 'border-border',
+        )}
+      >
+        {selected ? (
+          <span className="flex items-center gap-2 min-w-0">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/15 text-[9px] font-bold text-brand shrink-0">
+              {selected.firstName.charAt(0)}{selected.lastName.charAt(0)}
+            </span>
+            <span className="truncate text-text-1">
+              {selected.firstName} {selected.lastName}
+            </span>
+          </span>
+        ) : (
+          <span className="text-text-muted truncate">Todos los empleados</span>
+        )}
+        <ChevronDown className={cn('h-3.5 w-3.5 text-text-muted shrink-0 transition-transform duration-150', open && 'rotate-180')} />
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute top-full left-0 z-50 mt-1 w-64 rounded-lg border border-border bg-surface shadow-lg overflow-hidden">
+
+          {/* Search input */}
+          <div className="p-2 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted pointer-events-none" />
+              <input
+                autoFocus
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nombre o código..."
+                className="w-full rounded-md border border-border bg-bg-0 pl-8 pr-3 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Options list */}
+          <div className="max-h-60 overflow-y-auto py-1">
+
+            {/* "All employees" — only shown when not searching */}
+            {!search && (
+              <button
+                type="button"
+                onClick={() => select('')}
+                className={cn(
+                  'flex w-full items-center justify-between px-3 py-2 text-xs hover:bg-bg-1 transition-colors',
+                  !value ? 'text-brand font-medium' : 'text-text-2',
+                )}
+              >
+                <span>Todos los empleados</span>
+                {!value && <Check className="h-3 w-3 text-brand" />}
+              </button>
+            )}
+
+            {/* Filtered results */}
+            {filtered.length === 0 ? (
+              <p className="px-3 py-4 text-center text-xs text-text-muted">
+                Sin resultados para &ldquo;{search}&rdquo;
+              </p>
+            ) : (
+              filtered.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => select(e.id)}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 px-3 py-2 text-xs transition-colors hover:bg-bg-1',
+                    value === e.id && 'bg-brand/5',
+                  )}
+                >
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/15 text-[9px] font-bold text-brand shrink-0">
+                    {e.firstName.charAt(0)}{e.lastName.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className={cn('truncate leading-tight', value === e.id ? 'font-semibold text-brand' : 'text-text-1')}>
+                      {e.firstName} {e.lastName}
+                    </p>
+                    <p className="font-mono text-[10px] text-text-muted">{e.employeeCode}</p>
+                  </div>
+                  {value === e.id && <Check className="h-3 w-3 text-brand shrink-0" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -929,23 +1083,14 @@ export function ReporteHorasClient({
           </Select>
         </div>
 
-        {/* Employee */}
+        {/* Employee combobox — searchable */}
         <div className="flex flex-col gap-1">
           <Label className="text-[10px] uppercase tracking-wider text-text-muted">Empleado</Label>
-          <Select value={empFilter} onValueChange={(v) => setEmpFilter(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className="w-52">
-              <SelectValue placeholder="Todos los empleados" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Todos los empleados</SelectItem>
-              {initialEmployees.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.firstName} {e.lastName}
-                  <span className="ml-1 text-text-muted font-mono text-[10px]">({e.employeeCode})</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <EmpCombobox
+            options={initialEmployees}
+            value={empFilter}
+            onChange={(id) => setEmpFilter(id)}
+          />
         </div>
       </div>
 

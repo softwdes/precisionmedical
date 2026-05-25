@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 import {
   Button, Badge, cn,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -213,9 +214,9 @@ export function AsistenciaClient() {
   const [mapWaypoints, setMapWaypoints] = useState<Array<{ lat: number; lng: number; recorded_at: string }>>([]);
   const [loadingWaypoints, setLoadingWaypoints] = useState(false);
 
-  // ── Live ticker (every 60s) ────────────────────────────────────────────────
+  // ── Live ticker (every 30s — refreshes elapsed time display) ─────────────
   useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 60000);
+    const id = setInterval(() => setTick(t => t + 1), 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -236,9 +237,27 @@ export function AsistenciaClient() {
     }
   }, []);
 
+  // ── Supabase Realtime — instant updates on attendance changes ──────────────
+  useEffect(() => {
+    const supabase = createBrowserClient();
+    const today = new Date().toISOString().split('T')[0]!;
+
+    const channel = supabase
+      .channel('attendance-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'attendance_records', filter: `date=eq.${today}` },
+        () => { void fetchToday(true); },
+      )
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [fetchToday]);
+
+  // ── Fallback polling every 30s (catches gaps if Realtime misses an event) ──
   useEffect(() => {
     void fetchToday();
-    const id = setInterval(() => void fetchToday(true), 60000);
+    const id = setInterval(() => void fetchToday(true), 30000);
     return () => clearInterval(id);
   }, [fetchToday]);
 

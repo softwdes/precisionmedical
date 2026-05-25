@@ -6,6 +6,7 @@ import { PaymentsClient } from '../payments/payments-client';
 import { FreelancersClient } from './freelancers-client';
 import { HorariosClient } from './horarios-client';
 import { AsistenciaClient } from './asistencia-client';
+import { ReporteHorasClient } from './reporte-horas-client';
 import { ModuleTabs } from '@/components/module-tabs';
 
 export const metadata = { title: 'Empleados' };
@@ -16,6 +17,7 @@ const TABS = [
   { key: 'pagos',       label: 'Pagos de Salarios',   href: '/dashboard/employees?tab=pagos' },
   { key: 'horarios',    label: 'Horarios',             href: '/dashboard/employees?tab=horarios' },
   { key: 'asistencia',  label: 'Asistencia',           href: '/dashboard/employees?tab=asistencia' },
+  { key: 'reporte',     label: 'Reporte de Horas',    href: '/dashboard/employees?tab=reporte' },
 ];
 
 export default async function EmployeesPage({
@@ -46,6 +48,14 @@ export default async function EmployeesPage({
     content = <HorariosClient initialEmployees={employees.items} />;
   } else if (activeTab === 'asistencia') {
     content = <AsistenciaClient />;
+  } else if (activeTab === 'reporte') {
+    const employees = await api.employees.list({ page: 1, pageSize: 200 });
+    content = <ReporteHorasClient initialEmployees={employees.items.map((e) => ({
+      id: e.id,
+      firstName: e.firstName,
+      lastName: e.lastName,
+      employeeCode: e.employeeCode,
+    }))} />;
   } else {
     const [initial, departments] = await Promise.all([
       api.employees.list({ page: 1, pageSize: 25 }),

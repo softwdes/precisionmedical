@@ -944,6 +944,7 @@ function EditEmployeeDialog({
     baseCurrency: (employee.baseCurrency ?? 'USD') as 'USD' | 'BOB' | 'PEN',
     paymentMethod: 'BANK_TRANSFER' as 'BANK_TRANSFER' | 'CASH' | 'ZELLE' | 'WIRE' | 'OTHER',
     bankAccount: '',
+    employment_type: ((employee as unknown as { employment_type?: string }).employment_type ?? 'non_exempt') as 'exempt' | 'non_exempt',
   });
 
   const update = trpc.employees.update.useMutation({
@@ -960,6 +961,7 @@ function EditEmployeeDialog({
         baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
         phone: form.phone || undefined,
         bankAccount: form.bankAccount || undefined,
+        employment_type: form.employment_type,
       },
     });
   };
@@ -1049,6 +1051,21 @@ function EditEmployeeDialog({
                   <SelectItem value="PE">Peru (PEN)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Tipo de contrato</Label>
+              <Select value={form.employment_type} onValueChange={(v) => f('employment_type', v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="non_exempt">Por hora (Non-exempt)</SelectItem>
+                  <SelectItem value="exempt">Asalariado (Exempt)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-text-muted">
+                {form.employment_type === 'exempt'
+                  ? 'Asalariado — sin cálculo de overtime'
+                  : 'Por hora — overtime sobre 40h/semana (FLSA)'}
+              </p>
             </div>
             <div className="border-t" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -21,6 +21,7 @@ const createEmployeeSchema = z.object({
   hourlyRate: z.number().positive().optional(),
   paymentMethod: z.enum(['BANK_TRANSFER', 'CASH', 'ZELLE', 'WIRE', 'OTHER']).optional(),
   bankAccount: z.string().optional(),
+  employment_type: z.enum(['exempt', 'non_exempt']).optional(),
 });
 
 export const employeesRouter = router({
@@ -41,7 +42,7 @@ export const employeesRouter = router({
 
       let query = supabaseAdmin
         .from('employees')
-        .select('id, employeeCode, firstName, lastName, email, phone, position, type, status, baseSalary, baseCurrency, startDate, countryId, departmentId, country:countries(code,name), department:departments(name)', { count: 'exact' })
+        .select('id, employeeCode, firstName, lastName, email, phone, position, type, status, baseSalary, baseCurrency, startDate, countryId, departmentId, employment_type, country:countries(code,name), department:departments(name)', { count: 'exact' })
         .is('deletedAt', null)
         .range(from, to)
         .order('createdAt', { ascending: false });

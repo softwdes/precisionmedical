@@ -23,7 +23,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   let query = admin
     .from('attendance_records')
-    .select('id, employee_id, date, check_in, check_out, break_start, break_end, clinic_name, hours_worked, break_minutes, status, late_minutes, notes, check_in_lat, check_in_lng, check_out_lat, check_out_lng', { count: 'exact' })
+    .select('id, employee_id, date, check_in, check_out, break_start, break_end, clinic_name, hours_worked, break_minutes, status, late_minutes, notes, check_in_lat, check_in_lng, check_out_lat, check_out_lng, location_status', { count: 'exact' })
     .order('date', { ascending: false })
     .order('check_in', { ascending: false, nullsFirst: false })
     .range(offset, offset + limit - 1);
@@ -71,6 +71,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       check_in_lng: (r.check_in_lng as number | null) ?? null,
       check_out_lat: (r.check_out_lat as number | null) ?? null,
       check_out_lng: (r.check_out_lng as number | null) ?? null,
+      location_status: (r.location_status as string | null) ?? null,
     };
   });
 

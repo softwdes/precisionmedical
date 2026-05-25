@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@precision/ui';
-import { ChevronLeft, ChevronRight, Plus, Calendar, AlertCircle, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Calendar, AlertCircle, X, Pencil } from 'lucide-react';
 
 // ─── Select styles — CSS vars don't reach native <option> dropdowns ──────────
 const SEL_CLS = 'w-full rounded-[8px] border border-border px-3 py-2 text-[13px] focus:outline-none focus:border-brand/50 min-h-[44px]';
@@ -32,6 +32,16 @@ interface ScheduleEntry {
     clinic_name: string;
   } | null;
   exceptions: { id: string; date: string; exception_type: string; reason: string | null }[];
+}
+
+interface InitialScheduleData {
+  employeeId:   string;
+  employeeName: string;
+  scheduleType: 'full_time' | 'part_time';
+  clinic:       string;
+  days:         number[];
+  startTime:    string;
+  endTime:      string;
 }
 
 const CLINICS = ['Provo','Pleasant Grove','Spanish Fork','West Valley','South Murray','Bolivia','Perú'];
@@ -126,21 +136,24 @@ function MobileSkeletonCard() {
 function AssignModal({
   employees,
   preEmployeeId,
+  initialData,
   onClose,
   onSaved,
 }: {
   employees: EmpSummary[];
   preEmployeeId?: string;
+  initialData?: InitialScheduleData;
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const isEdit = !!initialData;
   const today = toISODate(new Date());
-  const [empId, setEmpId]           = useState(preEmployeeId ?? '');
-  const [schedType, setSchedType]   = useState<'full_time' | 'part_time'>('full_time');
-  const [clinic, setClinic]         = useState('Provo');
-  const [days, setDays]             = useState<number[]>([1,2,3,4,5]);
-  const [startTime, setStartTime]   = useState('08:00');
-  const [endTime, setEndTime]       = useState('17:00');
+  const [empId, setEmpId]           = useState(initialData?.employeeId ?? preEmployeeId ?? '');
+  const [schedType, setSchedType]   = useState<'full_time' | 'part_time'>(initialData?.scheduleType ?? 'full_time');
+  const [clinic, setClinic]         = useState(initialData?.clinic ?? 'Provo');
+  const [days, setDays]             = useState<number[]>(initialData?.days ?? [1,2,3,4,5]);
+  const [startTime, setStartTime]   = useState(initialData?.startTime ?? '08:00');
+  const [endTime, setEndTime]       = useState(initialData?.endTime ?? '17:00');
   const [validFrom, setValidFrom]   = useState(today);
   const [validUntil, setValidUntil] = useState('');
   const [saving, setSaving]         = useState(false);
@@ -171,8 +184,10 @@ function AssignModal({
       if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
       // show toast info in parent
-      const detail = `${emp ? emp.firstName + ' ' + emp.lastName : ''} · ${schedType === 'full_time' ? 'Full time' : 'Part time'} · ${clinic}`;
-      window.dispatchEvent(new CustomEvent('horarios:saved', { detail }));
+      const subtitle = `${emp ? emp.firstName + ' ' + emp.lastName : ''} · ${schedType === 'full_time' ? 'Full time' : 'Part time'} · ${clinic}`;
+      window.dispatchEvent(new CustomEvent('horarios:saved', {
+        detail: { title: isEdit ? 'Horario actualizado' : 'Horario asignado', subtitle },
+      }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar');
     } finally {
@@ -186,17 +201,23 @@ function AssignModal({
       {/* Empleado */}
       <div>
         <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Empleado *</label>
-        <select
-          value={empId}
-          onChange={e => setEmpId(e.target.value)}
-          className={SEL_CLS}
-          style={SEL_STYLE}
-        >
-          <option value="" style={OPT_STYLE}>Seleccionar empleado…</option>
-          {employees.filter(e => e.status === 'ACTIVE').map(e => (
-            <option key={e.id} value={e.id} style={OPT_STYLE}>{e.firstName} {e.lastName} — {e.employeeCode}</option>
-          ))}
-        </select>
+        {isEdit ? (
+          <p className="flex items-center text-[13px] font-semibold text-text-1 bg-white/[0.03] border border-border rounded-[8px] px-3 py-2 min-h-[44px]">
+            {initialData.employeeName}
+          </p>
+        ) : (
+          <select
+            value={empId}
+            onChange={e => setEmpId(e.target.value)}
+            className={SEL_CLS}
+            style={SEL_STYLE}
+          >
+            <option value="" style={OPT_STYLE}>Seleccionar empleado…</option>
+            {employees.filter(e => e.status === 'ACTIVE').map(e => (
+              <option key={e.id} value={e.id} style={OPT_STYLE}>{e.firstName} {e.lastName} — {e.employeeCode}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Tipo + Clínica */}
@@ -290,7 +311,7 @@ function AssignModal({
         <button type="button" onClick={handleSave} disabled={!canSave || saving}
           className="rounded-[9px] py-2.5 text-[13px] font-semibold text-white transition-all disabled:opacity-40 min-h-[44px]"
           style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
-          {saving ? 'Guardando…' : 'Guardar horario'}
+          {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Guardar horario'}
         </button>
       </div>
     </div>
@@ -303,7 +324,7 @@ function AssignModal({
       <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="w-full max-w-md rounded-2xl border border-border bg-bg-1 p-6 shadow-2xl">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-[15px] font-bold text-text-1">Asignar horario</h2>
+            <h2 className="text-[15px] font-bold text-text-1">{isEdit ? 'Editar horario' : 'Asignar horario'}</h2>
             <button onClick={onClose} className="text-text-3 hover:text-text-1 transition-colors">
               <X className="h-4 w-4" />
             </button>
@@ -319,7 +340,7 @@ function AssignModal({
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
           <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mt-2 mb-4" />
           <div className="px-5 pb-2">
-            <h2 className="text-[15px] font-bold text-text-1 mb-5">Asignar horario</h2>
+            <h2 className="text-[15px] font-bold text-text-1 mb-5">{isEdit ? 'Editar horario' : 'Asignar horario'}</h2>
             {formContent}
           </div>
         </div>
@@ -491,7 +512,7 @@ function ExceptionModal({
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
 
-function SuccessToast({ detail, onClose }: { detail: string; onClose: () => void }) {
+function SuccessToast({ detail, title, onClose }: { detail: string; title: string; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
   return (
     <div className="fixed bottom-6 right-6 z-[60] flex items-start gap-3 rounded-[14px] border border-brand/25 bg-bg-1 p-4 shadow-2xl max-w-[320px] animate-fade-in">
@@ -499,7 +520,7 @@ function SuccessToast({ detail, onClose }: { detail: string; onClose: () => void
         <Calendar className="h-4 w-4" style={{ color: '#6366F1' }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-bold text-text-1">Horario asignado</p>
+        <p className="text-[13px] font-bold text-text-1">{title}</p>
         <p className="text-[11.5px] text-text-3 mt-0.5 truncate">{detail}</p>
         <p className="text-[10.5px] text-emerald mt-0.5">Semana actualizada</p>
       </div>
@@ -518,9 +539,11 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const [error, setError]                        = useState('');
   const [showAssign, setShowAssign]              = useState(false);
   const [preEmployee, setPreEmployee]            = useState<string | undefined>();
+  const [editTarget, setEditTarget]              = useState<ScheduleEntry | null>(null);
   const [showExc, setShowExc]                    = useState(false);
   const [excModal, setExcModal]                  = useState<{ employeeId: string; name: string; date: string } | null>(null);
   const [toast, setToast]                        = useState('');
+  const [toastTitle, setToastTitle]              = useState('Horario asignado');
 
   const weekDates = getWeekDates(currentWeekStart);
   const weekLabel = getWeekLabel(currentWeekStart);
@@ -544,8 +567,9 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
 
   useEffect(() => {
     const handler = (e: Event) => {
-      const evt = e as CustomEvent<string>;
-      setToast(evt.detail ?? 'Horario guardado');
+      const evt = e as CustomEvent<{ title: string; subtitle: string }>;
+      setToastTitle(evt.detail?.title ?? 'Horario guardado');
+      setToast(evt.detail?.subtitle ?? '');
     };
     window.addEventListener('horarios:saved', handler);
     return () => window.removeEventListener('horarios:saved', handler);
@@ -555,8 +579,9 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const nextWeek = () => { const d = new Date(currentWeekStart); d.setDate(d.getDate() + 7); setCurrentWeekStart(d); };
 
   const openAssign = (empId?: string) => { setPreEmployee(empId); setShowAssign(true); };
+  const openEdit   = (entry: ScheduleEntry) => setEditTarget(entry);
 
-  const onSaved = () => { setShowAssign(false); setExcModal(null); void fetchSchedules(); };
+  const onSaved = () => { setShowAssign(false); setEditTarget(null); setExcModal(null); void fetchSchedules(); };
 
   const getCellContent = (entry: ScheduleEntry, date: Date) => {
     const dateStr = toISODate(date);
@@ -681,17 +706,27 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                   <div key={entry.employee.id} className="grid border-b border-white/[0.05] last:border-0 min-h-[44px]"
                     style={{ gridTemplateColumns: '136px repeat(7,1fr)' }}>
                     {/* Employee col */}
-                    <div className="flex items-center gap-2 px-[10px] py-2">
+                    <div className="group flex items-center gap-2 px-[10px] py-2">
                       <div className="h-[26px] w-[26px] shrink-0 rounded-full flex items-center justify-center text-[9px] font-[500] text-white"
                         style={{ background: entry.employee.color }}>
                         {entry.employee.initials}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-[500] text-text-1 truncate leading-tight">{entry.employee.name}</p>
                         <p className="text-[9px] mt-0.5" style={{ color: entry.schedule?.schedule_type === 'full_time' ? '#10B981' : entry.schedule ? '#F59E0B' : '#6B7592' }}>
                           {entry.schedule?.schedule_type === 'full_time' ? 'Full time' : entry.schedule?.schedule_type === 'part_time' ? 'Part time' : 'Sin horario'}
                         </p>
                       </div>
+                      {entry.schedule && (
+                        <button
+                          onClick={() => openEdit(entry)}
+                          title="Editar horario"
+                          className="shrink-0 opacity-0 group-hover:opacity-100 flex h-[18px] w-[18px] items-center justify-center rounded transition-all hover:bg-white/[0.10]"
+                          style={{ color: '#818CF8' }}
+                        >
+                          <Pencil size={9} />
+                        </button>
+                      )}
                     </div>
                     {/* Day cells */}
                     {weekDates.map((date, di) => {
@@ -790,6 +825,16 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                         {entry.schedule ? `${formatTime(entry.schedule.start_time)}–${formatTime(entry.schedule.end_time)}` : 'Sin horario'}
                       </p>
                     </div>
+                    {entry.schedule && (
+                      <button
+                        onClick={() => openEdit(entry)}
+                        title="Editar horario"
+                        className="shrink-0 flex h-7 w-7 items-center justify-center rounded-[6px] border border-white/[0.08] bg-white/[0.03] transition-colors hover:bg-brand/[0.08] hover:border-brand/25"
+                        style={{ color: '#818CF8' }}
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    )}
                   </div>
                   <div className="grid grid-cols-7 gap-1">
                     {weekDates.map((date, di) => {
@@ -823,6 +868,23 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
         />
       )}
 
+      {editTarget?.schedule && (
+        <AssignModal
+          employees={initialEmployees}
+          initialData={{
+            employeeId:   editTarget.employee.id,
+            employeeName: editTarget.employee.name,
+            scheduleType: editTarget.schedule.schedule_type as 'full_time' | 'part_time',
+            clinic:       editTarget.schedule.clinic_name,
+            days:         editTarget.schedule.days_of_week,
+            startTime:    editTarget.schedule.start_time,
+            endTime:      editTarget.schedule.end_time,
+          }}
+          onClose={() => setEditTarget(null)}
+          onSaved={onSaved}
+        />
+      )}
+
       {/* Exception from header — full dropdowns */}
       {showExc && (
         <ExceptionModal
@@ -845,7 +907,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
       )}
 
       {/* ── Toast ── */}
-      {toast && <SuccessToast detail={toast} onClose={() => setToast('')} />}
+      {toast && <SuccessToast detail={toast} title={toastTitle} onClose={() => setToast('')} />}
     </div>
   );
 }

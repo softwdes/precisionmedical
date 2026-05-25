@@ -7,15 +7,24 @@ import { LogOut, Play, Square, Coffee, UserX, RefreshCw, Clock } from 'lucide-re
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CLINICS = [
-  'Provo Clinic',
-  'Pleasant Grove Clinic',
-  'Spanish Fork Clinic',
-  'West Valley Clinic',
-  'South Murray Clinic',
-  'Bolivia',
-  'Perú',
-] as const;
+interface ClinicConfig {
+  name: string;
+  lat: number | null;   // null = clínica remota (sin geofencing)
+  lng: number | null;
+  radiusM: number | null;
+}
+
+// ⚠️ Coordenadas aproximadas al centro de cada ciudad en Utah.
+// Actualizar con la dirección exacta de cada clínica cuando estén confirmadas.
+const CLINICS: ClinicConfig[] = [
+  { name: 'Provo Clinic',          lat: 40.2338, lng: -111.6585, radiusM: 300 },
+  { name: 'Pleasant Grove Clinic', lat: 40.3638, lng: -111.7385, radiusM: 300 },
+  { name: 'Spanish Fork Clinic',   lat: 40.1149, lng: -111.6549, radiusM: 300 },
+  { name: 'West Valley Clinic',    lat: 40.6916, lng: -112.0010, radiusM: 300 },
+  { name: 'South Murray Clinic',   lat: 40.6469, lng: -111.8980, radiusM: 300 },
+  { name: 'Bolivia',               lat: null,    lng: null,       radiusM: null },
+  { name: 'Perú',                  lat: null,    lng: null,       radiusM: null },
+];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +48,7 @@ interface AttendanceRecord {
   clinic_name: string;
   hours_worked: number | null;
   status: string;
+  location_status: LocationStatus | null;
 }
 
 interface Stats { today: string; week: string; month: string }
@@ -72,11 +82,11 @@ function elapsedBreak(breakStart: string): string {
   return `${mins}m`;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 // ─── Geo helpers ─────────────────────────────────────────────────────────────
 
 interface GeoPoint { lat: number; lng: number; accuracy: number; }
+
+type LocationStatus = 'verified' | 'out_of_range' | 'low_accuracy' | 'no_permission' | 'remote' | 'unknown';
 
 function getLocation(): Promise<GeoPoint | null> {
   return new Promise(resolve => {
@@ -87,6 +97,27 @@ function getLocation(): Promise<GeoPoint | null> {
       { timeout: 8000, maximumAge: 30000, enableHighAccuracy: true },
     );
   });
+}
+
+/** Distancia Haversine entre dos puntos GPS, en metros */
+function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Clasifica la ubicación del empleado respecto a la clínica seleccionada */
+function resolveLocationStatus(loc: GeoPoint | null, clinicName: string): LocationStatus {
+  const clinic = CLINICS.find(c => c.name === clinicName);
+  if (!clinic || clinic.lat === null || clinic.lng === null) return 'remote'; // sin coordenadas → remoto
+  if (!loc) return 'no_permission';                          // sin GPS / permiso negado
+  if (loc.accuracy > 500) return 'low_accuracy';             // PC sin GPS (WiFi muy impreciso)
+  const dist = distanceMeters(loc.lat, loc.lng, clinic.lat, clinic.lng);
+  return dist <= (clinic.radiusM ?? 300) ? 'verified' : 'out_of_range';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -271,6 +302,7 @@ export default function ClockPage({ userId }: { userId: string }) {
         determineStatus(employee!.id),
         getLocation(),
       ]);
+      const locationStatus = resolveLocationStatus(loc, selectedClinic);
       const now = new Date();
 
       const { data, error } = await supabase
@@ -284,6 +316,7 @@ export default function ClockPage({ userId }: { userId: string }) {
           late_minutes: lateMinutes,
           schedule_id: scheduleId,
           recorded_by: userId,
+          location_status: locationStatus,
           ...(loc ? { check_in_lat: loc.lat, check_in_lng: loc.lng, check_in_acc: loc.accuracy } : {}),
         })
         .select()
@@ -688,7 +721,7 @@ export default function ClockPage({ userId }: { userId: string }) {
           >
             <option value="" disabled>Seleccionar clínica...</option>
             {CLINICS.map(c => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c.name} value={c.name}>{c.name}</option>
             ))}
           </select>
         </div>

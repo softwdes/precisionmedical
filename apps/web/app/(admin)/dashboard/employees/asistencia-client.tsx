@@ -35,6 +35,7 @@ interface TodayRow {
   status: 'on_time' | 'late' | 'absent' | null; late_minutes: number;
   check_in_lat: number | null; check_in_lng: number | null;
   check_out_lat: number | null; check_out_lng: number | null;
+  location_status: string | null;
 }
 
 interface HistoryRow {
@@ -45,6 +46,7 @@ interface HistoryRow {
   break_minutes: number; status: string; late_minutes: number; notes: string | null;
   check_in_lat: number | null; check_in_lng: number | null;
   check_out_lat: number | null; check_out_lng: number | null;
+  location_status: string | null;
 }
 
 interface MapTarget {
@@ -108,6 +110,18 @@ function rowState(row: TodayRow): 'working' | 'break' | 'done' | 'absent' {
   if (row.check_in && row.break_start && !row.break_end) return 'break';
   if (row.check_in) return 'working';
   return 'absent';
+}
+
+/** Devuelve color e tooltip según el location_status del registro */
+function locationStatusMeta(status: string | null | undefined): { color: string; title: string } {
+  switch (status) {
+    case 'verified':      return { color: '#10B981', title: 'Verificado — dentro del radio de la clínica' };
+    case 'out_of_range':  return { color: '#F59E0B', title: 'Fuera de rango — ubicación lejos de la clínica' };
+    case 'low_accuracy':  return { color: '#60A5FA', title: 'Baja precisión — GPS inexacto (PC / WiFi débil)' };
+    case 'no_permission': return { color: '#F43F5E', title: 'Sin permiso — ubicación no autorizada' };
+    case 'remote':        return { color: '#A78BFA', title: 'Remoto — clínica internacional (Bolivia / Perú)' };
+    default:              return { color: '#818CF8', title: 'Ubicación registrada' };
+  }
 }
 
 function todayStr() { return new Date().toISOString().split('T')[0]!; }
@@ -619,11 +633,11 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                               )}
                               {r.record_id && (
                                 (r.check_in_lat ?? r.check_out_lat) ? (
-                                  <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title="Ver ubicación" style={{ color: '#818CF8' }}>
+                                  <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(r.location_status).title} style={{ color: locationStatusMeta(r.location_status).color }}>
                                     <MapPin size={13} />
                                   </button>
                                 ) : (
-                                  <span className="p-1 rounded cursor-default" title="Sin datos de ubicación" style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
+                                  <span className="p-1 rounded cursor-default" title={locationStatusMeta(r.location_status).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
                                     <MapPin size={13} />
                                   </span>
                                 )
@@ -789,11 +803,11 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                               <Pencil size={13} />
                             </button>
                             {(r.check_in_lat ?? r.check_out_lat) ? (
-                              <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title="Ver ubicación" style={{ color: '#818CF8' }}>
+                              <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(r.location_status).title} style={{ color: locationStatusMeta(r.location_status).color }}>
                                 <MapPin size={13} />
                               </button>
                             ) : (
-                              <span className="p-1 rounded cursor-default" title="Sin datos de ubicación" style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
+                              <span className="p-1 rounded cursor-default" title={locationStatusMeta(r.location_status).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
                                 <MapPin size={13} />
                               </span>
                             )}

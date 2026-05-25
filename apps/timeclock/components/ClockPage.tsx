@@ -169,10 +169,10 @@ export default function ClockPage({ userId }: { userId: string }) {
   const GEO_TEXT = {
     title: isSpanish ? 'Permiso de ubicación' : 'Location permission',
     body:  isSpanish
-      ? 'Permite tu ubicación, esto solo es una vez.'
+      ? 'Permite tu ubicación, esto es solo una vez.'
       : 'Allow your location — this is only once.',
     note:  isSpanish
-      ? 'Debes permitir para seguir con el marcado de tus horas.'
+      ? 'Permitir para seguir con el marcado de tus horas.'
       : 'You must allow it to continue with time tracking.',
     denied: isSpanish
       ? 'Ubicación bloqueada. Ve a la configuración del navegador para activarla.'

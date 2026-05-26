@@ -14,7 +14,7 @@ export const metadata = { title: 'Empleados' };
 const TABS = [
   { key: 'lista',       label: 'Empleados',          href: '/dashboard/employees' },
   { key: 'freelancers', label: 'Freelancers',         href: '/dashboard/employees?tab=freelancers' },
-  { key: 'pagos',       label: 'Pagos de Salarios',   href: '/dashboard/employees?tab=pagos' },
+  { key: 'pagos',       label: 'Pago de Salarios',    href: '/dashboard/employees?tab=pagos' },
   { key: 'horarios',    label: 'Horarios',             href: '/dashboard/employees?tab=horarios' },
   { key: 'asistencia',  label: 'Asistencia',           href: '/dashboard/employees?tab=asistencia' },
   { key: 'reporte',     label: 'Reporte de Horas',    href: '/dashboard/employees?tab=reporte' },

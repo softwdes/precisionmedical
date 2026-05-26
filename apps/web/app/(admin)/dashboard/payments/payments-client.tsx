@@ -925,7 +925,16 @@ function CreatePaymentDialog({
               <Label>{t('employees.employee')} *</Label>
               <Select
                 value={form.employeeId}
-                onValueChange={(v) => { f('employeeId', v); setErrors(e => ({ ...e, employeeId: '' })); }}
+                onValueChange={(v) => {
+                  const emp = employees?.items.find(e => e.id === v);
+                  setForm(p => ({
+                    ...p,
+                    employeeId:    v,
+                    baseSalary:    emp?.baseSalary != null ? String(emp.baseSalary) : p.baseSalary,
+                    currencyLocal: (emp?.baseCurrency as 'USD' | 'BOB' | 'PEN') ?? p.currencyLocal,
+                  }));
+                  setErrors(e => ({ ...e, employeeId: '' }));
+                }}
               >
                 <SelectTrigger className="min-h-[38px]">
                   <SelectValue placeholder={t('payments.employeePlaceholder')} />

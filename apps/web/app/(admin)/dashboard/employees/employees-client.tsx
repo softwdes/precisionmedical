@@ -25,6 +25,7 @@ type EmployeesListOutput = inferRouterOutputs<AppRouter>['employees']['list'];
 type EmployeeListItem = EmployeesListOutput['items'][number];
 type Department = inferRouterOutputs<AppRouter>['departments']['list'][number];
 type PositionKey = 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'SOFTWARE_DEVELOPER' | 'CLINIC_ADMIN' | 'MEDICAL_ASSISTANT' | 'COMMUNICATOR' | 'CLEANING_STAFF';
+const VALID_POSITIONS: readonly PositionKey[] = ['DOCTOR', 'NURSE', 'RECEPTIONIST', 'SOFTWARE_DEVELOPER', 'CLINIC_ADMIN', 'MEDICAL_ASSISTANT', 'COMMUNICATOR', 'CLEANING_STAFF'];
 
 const TYPE_COLORS: Record<string, 'success' | 'info' | 'secondary'> = { FULL_TIME: 'success', EXTERNAL: 'info', CONTRACTOR: 'secondary' };
 const TYPE_DISPLAY: Record<string, string> = { FULL_TIME: 'Tiempo completo', EXTERNAL: 'Externo', CONTRACTOR: 'Contratista' };
@@ -937,7 +938,9 @@ function EditEmployeeDialog({
     phone: employee.phone ?? '',
     type: employee.type as 'FULL_TIME' | 'EXTERNAL' | 'CONTRACTOR',
     departmentId: (employee.departmentId as string | null) ?? '',
-    position: employee.position as PositionKey,
+    position: (VALID_POSITIONS as readonly string[]).includes(employee.position ?? '')
+      ? employee.position as PositionKey
+      : '' as PositionKey,
     startDate: employee.startDate ? new Date(employee.startDate).toISOString().split('T')[0]! : '',
     countryId: (employee.countryId as string | null) ?? '',
     baseSalary: employee.baseSalary ? String(employee.baseSalary) : '',
@@ -952,7 +955,13 @@ function EditEmployeeDialog({
     onError: (e) => toast.error(e.message),
   });
 
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+
   const handleSubmit = (): void => {
+    const errs: Record<string, string> = {};
+    if (!form.position) errs.position = t('common.required');
+    if (Object.keys(errs).length > 0) { setEditErrors(errs); return; }
+    setEditErrors({});
     update.mutate({
       id: employee.id,
       data: {
@@ -1023,8 +1032,8 @@ function EditEmployeeDialog({
             </div>
             <div className="space-y-1.5">
               <Label>{t('employees.position')} *</Label>
-              <Select value={form.position} onValueChange={(v) => f('position', v)}>
-                <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
+              <Select value={form.position} onValueChange={(v) => { f('position', v); setEditErrors(e => ({ ...e, position: '' })); }}>
+                <SelectTrigger className={editErrors.position ? 'border-rose' : ''}><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="DOCTOR">{t('employees.positions.DOCTOR')}</SelectItem>
                   <SelectItem value="NURSE">{t('employees.positions.NURSE')}</SelectItem>
@@ -1036,6 +1045,7 @@ function EditEmployeeDialog({
                   <SelectItem value="CLEANING_STAFF">{t('employees.positions.CLEANING_STAFF')}</SelectItem>
                 </SelectContent>
               </Select>
+              {editErrors.position && <p className="text-[11px] text-rose mt-0.5">{editErrors.position}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>{t('employees.country')} *</Label>

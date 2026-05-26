@@ -121,7 +121,13 @@ export const employeesRouter = router({
     }),
 
   update: adminProcedure
-    .input(z.object({ id: z.string(), data: createEmployeeSchema.partial() }))
+    .input(z.object({
+      id: z.string(),
+      data: createEmployeeSchema.partial().extend({
+        // Allow legacy free-text positions stored before the enum was enforced
+        position: z.string().min(1).optional(),
+      }),
+    }))
     .mutation(async ({ input, ctx }) => {
       const { data: before } = await supabaseAdmin.from('employees').select('*').eq('id', input.id).single();
       if (!before) throw new TRPCError({ code: 'NOT_FOUND' });

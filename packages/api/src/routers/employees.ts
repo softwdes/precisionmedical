@@ -28,7 +28,7 @@ export const employeesRouter = router({
   list: protectedProcedure
     .input(z.object({
       page: z.number().int().positive().default(1),
-      pageSize: z.number().int().positive().max(100).default(25),
+      pageSize: z.number().int().positive().max(200).default(25),
       search: z.string().optional(),
       countryId: z.string().optional(),
       departmentId: z.string().optional(),

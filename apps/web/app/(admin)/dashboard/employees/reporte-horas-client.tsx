@@ -519,7 +519,9 @@ function EmpCombobox({
             {/* Filtered results */}
             {filtered.length === 0 ? (
               <p className="px-3 py-4 text-center text-xs text-text-muted">
-                Sin resultados para &ldquo;{search}&rdquo;
+                {search
+                  ? <>Sin resultados para &ldquo;{search}&rdquo;</>
+                  : 'No hay empleados disponibles'}
               </p>
             ) : (
               filtered.map((e) => (

@@ -78,7 +78,7 @@ export default async function RootLayout({
               {children}
               <Toaster
                 theme={theme}
-                position="bottom-right"
+                position="top-right"
                 toastOptions={{
                   style: {
                     background: 'var(--surface)',

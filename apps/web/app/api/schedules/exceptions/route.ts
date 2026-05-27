@@ -21,16 +21,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  let body: { employee_id: string; exception_type: string; date: string; date_end?: string; reason?: string };
+  let body: { employee_id: string; exception_type: string; date: string; date_end?: string; reason?: string; start_time?: string; end_time?: string };
   try { body = await req.json() as typeof body; }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
-  const { employee_id, exception_type, date, date_end, reason } = body;
+  const { employee_id, exception_type, date, date_end, reason, start_time, end_time } = body;
   if (!employee_id || !exception_type || !date) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
   if (date_end && date_end < date) {
     return NextResponse.json({ error: 'date_end must be >= date' }, { status: 400 });
+  }
+  if (exception_type === 'partial' && (!start_time || !end_time)) {
+    return NextResponse.json({ error: 'start_time and end_time are required for partial exceptions' }, { status: 400 });
+  }
+  if (start_time && end_time && start_time >= end_time) {
+    return NextResponse.json({ error: 'start_time must be before end_time' }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -41,6 +47,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     exception_type,
     date: d,
     reason: reason ?? null,
+    start_time: start_time ?? null,
+    end_time: end_time ?? null,
     approved_by: user.id,
   }));
 

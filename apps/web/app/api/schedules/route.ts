@@ -27,6 +27,8 @@ interface ExceptionRow {
   date: string;
   exception_type: string;
   reason: string | null;
+  start_time: string | null;
+  end_time: string | null;
 }
 
 function toColor(id: string): string {
@@ -67,7 +69,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .or(`valid_until.is.null,valid_until.gte.${weekStart}`),
 
     admin.from('schedule_exceptions')
-      .select('id, employee_id, date, exception_type, reason')
+      .select('id, employee_id, date, exception_type, reason, start_time, end_time')
       .gte('date', weekStart)
       .lte('date', weekEndStr),
   ]);
@@ -98,7 +100,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       schedule: sched
         ? { id: sched.id, schedule_type: sched.schedule_type, start_time: sched.start_time, end_time: sched.end_time, days_of_week: sched.days_of_week, clinic_name: sched.clinic_name }
         : null,
-      exceptions: excs.map((e: ExceptionRow) => ({ id: e.id, date: e.date, exception_type: e.exception_type, reason: e.reason })),
+      exceptions: excs.map((e: ExceptionRow) => ({ id: e.id, date: e.date, exception_type: e.exception_type, reason: e.reason, start_time: e.start_time ?? null, end_time: e.end_time ?? null })),
     };
   }).filter(Boolean);
 

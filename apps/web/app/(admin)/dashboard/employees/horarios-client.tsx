@@ -31,7 +31,7 @@ interface ScheduleEntry {
     days_of_week: number[];
     clinic_name: string;
   } | null;
-  exceptions: { id: string; date: string; exception_type: string; reason: string | null }[];
+  exceptions: { id: string; date: string; exception_type: string; reason: string | null; start_time: string | null; end_time: string | null }[];
 }
 
 interface InitialScheduleData {
@@ -51,10 +51,11 @@ const DAY_NUMS  = [1,2,3,4,5,6,7];
 const DAY_SHORT = ['L','M','X','J','V','S','D'];
 
 const EXC_CONFIG: Record<string, { label: string; color: string }> = {
-  vacation: { label: 'Vacación',  color: '#F43F5E' },
-  absence:  { label: 'Ausencia',  color: '#F43F5E' },
-  holiday:  { label: 'Feriado',   color: '#8B5CF6' },
-  special:  { label: 'Especial',  color: '#8B5CF6' },
+  vacation: { label: 'Vacación',   color: '#F43F5E' },
+  absence:  { label: 'Ausencia',   color: '#F43F5E' },
+  holiday:  { label: 'Feriado',    color: '#8B5CF6' },
+  special:  { label: 'Especial',   color: '#8B5CF6' },
+  partial:  { label: 'Por horas',  color: '#F97316' },
 };
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -89,6 +90,18 @@ function toISODate(d: Date): string {
 
 function formatTime(t: string): string {
   return t.slice(0, 5);
+}
+
+// Returns the remaining work windows around a partial absence, e.g. "08:00–10:00 / 13:00–17:00"
+function formatPartialWorkHours(schedStart: string, schedEnd: string, absStart: string, absEnd: string): string {
+  const s  = schedStart.slice(0, 5);
+  const e  = schedEnd.slice(0, 5);
+  const as = absStart.slice(0, 5);
+  const ae = absEnd.slice(0, 5);
+  const parts: string[] = [];
+  if (as > s)  parts.push(`${s}–${as}`);
+  if (ae < e)  parts.push(`${ae}–${e}`);
+  return parts.join(' / ') || '—';
 }
 
 // ─── Mes / Día helpers ────────────────────────────────────────────────────────
@@ -398,7 +411,7 @@ function ExceptionModal({
   preEmployeeId?: string;
   preEmployeeName?: string;
   preDate?: string;
-  initialException?: { id: string; excType: 'vacation' | 'absence' | 'holiday' | 'special'; excReason: string | null };
+  initialException?: { id: string; excType: 'vacation' | 'absence' | 'holiday' | 'special' | 'partial'; excReason: string | null; excStartTime?: string | null; excEndTime?: string | null };
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -407,14 +420,19 @@ function ExceptionModal({
   const [date, setDate]             = useState(preDate ?? toISODate(new Date()));
   const [rangeType, setRangeType]   = useState<'single' | 'range'>('single');
   const [dateEnd, setDateEnd]       = useState('');
-  const [excType, setExcType]       = useState<'vacation' | 'absence' | 'holiday' | 'special'>(initialException?.excType ?? 'vacation');
+  const [excType, setExcType]       = useState<'vacation' | 'absence' | 'holiday' | 'special' | 'partial'>(initialException?.excType ?? 'vacation');
+  const [startTime, setStartTime]   = useState(initialException?.excStartTime ?? '');
+  const [endTime, setEndTime]       = useState(initialException?.excEndTime ?? '');
   const [reason, setReason]         = useState(initialException?.excReason ?? '');
   const [saving, setSaving]         = useState(false);
   const [deleting, setDeleting]     = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [error, setError]           = useState('');
 
-  const canSave = empId && date && (rangeType === 'single' || (dateEnd && dateEnd >= date));
+  const isPartial = excType === 'partial';
+  const canSave = empId && date
+    && (rangeType === 'single' || (dateEnd && dateEnd >= date))
+    && (!isPartial || (startTime && endTime && startTime < endTime));
 
   const handleRangeToggle = (t: 'single' | 'range') => {
     setRangeType(t);
@@ -426,7 +444,7 @@ function ExceptionModal({
     }
   };
 
-  const excLabels: Record<string, string> = { vacation: 'Vacación', absence: 'Ausencia', holiday: 'Feriado', special: 'Turno especial' };
+  const excLabels: Record<string, string> = { vacation: 'Vacación', absence: 'Ausencia', holiday: 'Feriado', special: 'Turno especial', partial: 'Por horas' };
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -437,7 +455,12 @@ function ExceptionModal({
         res = await fetch(`/api/schedules/exceptions/${initialException.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ exception_type: excType, reason: reason || null }),
+          body: JSON.stringify({
+            exception_type: excType,
+            reason: reason || null,
+            start_time: isPartial ? startTime : null,
+            end_time: isPartial ? endTime : null,
+          }),
         });
       } else {
         const body: Record<string, unknown> = {
@@ -445,6 +468,7 @@ function ExceptionModal({
           date, reason: reason || undefined,
         };
         if (rangeType === 'range' && dateEnd) body.date_end = dateEnd;
+        if (isPartial) { body.start_time = startTime; body.end_time = endTime; }
         res = await fetch('/api/schedules/exceptions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -455,7 +479,8 @@ function ExceptionModal({
       onSaved();
       const emp = employees.find(e => e.id === empId);
       const empName = emp ? `${emp.firstName} ${emp.lastName}` : (preEmployeeName ?? '');
-      const subtitle = [empName, excLabels[excType] ?? excType, rangeType === 'range' && dateEnd ? `${date} → ${dateEnd}` : date].filter(Boolean).join(' · ');
+      const timeLabel = isPartial ? ` ${startTime}–${endTime}` : '';
+      const subtitle = [empName, (excLabels[excType] ?? excType) + timeLabel, rangeType === 'range' && dateEnd ? `${date} → ${dateEnd}` : date].filter(Boolean).join(' · ');
       window.dispatchEvent(new CustomEvent('horarios:saved', {
         detail: { title: isEdit ? 'Excepción actualizada' : 'Excepción registrada', subtitle },
       }));
@@ -479,7 +504,7 @@ function ExceptionModal({
     } finally { setDeleting(false); }
   };
 
-  const EXC_TYPES = ['vacation','absence','holiday','special'] as const;
+  const EXC_TYPES = ['vacation','absence','holiday','special','partial'] as const;
   const fromHeader = !preEmployeeId;
 
   return (
@@ -551,14 +576,38 @@ function ExceptionModal({
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-2">Tipo</label>
             <div className="grid grid-cols-2 gap-2">
               {EXC_TYPES.map(t => (
-                <button key={t} type="button" onClick={() => setExcType(t)}
+                <button key={t} type="button"
+                  onClick={() => { setExcType(t); if (t !== 'partial') { setStartTime(''); setEndTime(''); } }}
                   className={cn('rounded-[8px] border py-2 text-[12px] font-semibold transition-all min-h-[44px]',
-                    excType === t ? 'border-brand/40 bg-brand/10 text-brand' : 'border-border bg-white/[0.03] text-text-3 hover:text-text-2')}>
+                    excType === t
+                      ? t === 'partial' ? 'border-orange-400/40 bg-orange-400/10 text-orange-400' : 'border-brand/40 bg-brand/10 text-brand'
+                      : 'border-border bg-white/[0.03] text-text-3 hover:text-text-2')}>
                   {EXC_CONFIG[t]?.label}
                 </button>
               ))}
             </div>
           </div>
+
+          {isPartial && (
+            <div className="rounded-[10px] border border-orange-400/20 bg-orange-400/[0.05] p-3 space-y-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-400/80">Rango de horas ausente</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-text-3 mb-1">De *</label>
+                  <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+                    className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-orange-400/50 min-h-[44px]" />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-text-3 mb-1">Hasta *</label>
+                  <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
+                    className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-orange-400/50 min-h-[44px]" />
+                </div>
+              </div>
+              {startTime && endTime && startTime >= endTime && (
+                <p className="text-[11px] text-rose">La hora de fin debe ser mayor a la de inicio.</p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1">Motivo (opcional)</label>
@@ -653,7 +702,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const [editTarget, setEditTarget]              = useState<ScheduleEntry | null>(null);
   const [showExc, setShowExc]                    = useState(false);
   const [excModal, setExcModal]                  = useState<{ employeeId: string; name: string; date: string } | null>(null);
-  const [editExcModal, setEditExcModal]          = useState<{ employeeId: string; name: string; date: string; excId: string; excType: 'vacation' | 'absence' | 'holiday' | 'special'; excReason: string | null } | null>(null);
+  const [editExcModal, setEditExcModal]          = useState<{ employeeId: string; name: string; date: string; excId: string; excType: 'vacation' | 'absence' | 'holiday' | 'special' | 'partial'; excReason: string | null; excStartTime: string | null; excEndTime: string | null } | null>(null);
   const [toast, setToast]                        = useState('');
   const [toastTitle, setToastTitle]              = useState('Horario asignado');
 
@@ -763,7 +812,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
     const dayNum  = date.getDay() === 0 ? 7 : date.getDay();
     const exc = entry.exceptions.find(e => e.date === dateStr);
     const cfg = exc ? EXC_CONFIG[exc.exception_type] : null;
-    if (exc && cfg) return { type: 'exception' as const, label: cfg.label, color: cfg.color, excId: exc.id, excType: exc.exception_type as 'vacation' | 'absence' | 'holiday' | 'special', excReason: exc.reason };
+    if (exc && cfg) return { type: 'exception' as const, label: cfg.label, color: cfg.color, excId: exc.id, excType: exc.exception_type as 'vacation' | 'absence' | 'holiday' | 'special' | 'partial', excReason: exc.reason, excStartTime: exc.start_time, excEndTime: exc.end_time };
     if (entry.schedule?.days_of_week.includes(dayNum)) {
       return {
         type: 'work' as const,
@@ -968,7 +1017,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                                 <button
                                   onClick={() => {
                                     if (cell.type === 'work') setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date) });
-                                    else if (cell.type === 'exception') setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null });
+                                    else if (cell.type === 'exception') setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null, excStartTime: cell.excStartTime ?? null, excEndTime: cell.excEndTime ?? null });
                                   }}
                                   className="w-full rounded-[5px] px-[4px] py-[3px] text-[9px] text-center transition-all hover:brightness-110"
                                   style={{
@@ -1128,9 +1177,18 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                           {cell.type === 'work' && (
                             <span className="text-[13px] font-mono font-[500]" style={{ color: cell.color }}>{cell.label}</span>
                           )}
-                          {cell.type === 'exception' && (
+                          {cell.type === 'exception' && cell.excType === 'partial' && cell.excStartTime && cell.excEndTime && entry.schedule ? (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[12px] font-semibold" style={{ color: '#F97316' }}>
+                                Ausencia {formatTime(cell.excStartTime)}–{formatTime(cell.excEndTime)}
+                              </span>
+                              <span className="text-[11px] font-mono" style={{ color: entry.schedule.schedule_type === 'full_time' ? '#10B981' : '#F59E0B' }}>
+                                {formatPartialWorkHours(entry.schedule.start_time, entry.schedule.end_time, cell.excStartTime, cell.excEndTime)}
+                              </span>
+                            </div>
+                          ) : cell.type === 'exception' ? (
                             <span className="text-[12px] font-semibold" style={{ color: cell.color }}>{cell.label}</span>
-                          )}
+                          ) : null}
                           {cell.type === 'off' && (
                             <span className="text-[12px] text-text-muted opacity-40">—</span>
                           )}
@@ -1148,7 +1206,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                           )}
                           {cell.type === 'exception' && (
                             <button
-                              onClick={() => setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null })}
+                              onClick={() => setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null, excStartTime: cell.excStartTime ?? null, excEndTime: cell.excEndTime ?? null })}
                               title="Editar excepción"
                               className="flex items-center gap-1.5 text-[11px] hover:opacity-70 transition-opacity">
                               <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: cell.color }} />
@@ -1353,7 +1411,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
           preEmployeeId={editExcModal.employeeId}
           preEmployeeName={editExcModal.name}
           preDate={editExcModal.date}
-          initialException={{ id: editExcModal.excId, excType: editExcModal.excType, excReason: editExcModal.excReason }}
+          initialException={{ id: editExcModal.excId, excType: editExcModal.excType, excReason: editExcModal.excReason, excStartTime: editExcModal.excStartTime, excEndTime: editExcModal.excEndTime }}
           onClose={() => setEditExcModal(null)}
           onSaved={onSaved}
         />

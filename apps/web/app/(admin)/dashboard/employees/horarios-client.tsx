@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@precision/ui';
-import { ChevronLeft, ChevronRight, Plus, Calendar, AlertCircle, X, Pencil } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Calendar, AlertCircle, X, Pencil, Trash2 } from 'lucide-react';
 
 // ─── Select styles — CSS vars don't reach native <option> dropdowns ──────────
 const SEL_CLS = 'w-full rounded-[8px] border border-border px-3 py-2 text-[13px] focus:outline-none focus:border-brand/50 min-h-[44px]';
@@ -390,6 +390,7 @@ function ExceptionModal({
   preEmployeeId,
   preEmployeeName,
   preDate,
+  initialException,
   onClose,
   onSaved,
 }: {
@@ -397,16 +398,20 @@ function ExceptionModal({
   preEmployeeId?: string;
   preEmployeeName?: string;
   preDate?: string;
+  initialException?: { id: string; excType: 'vacation' | 'absence' | 'holiday' | 'special'; excReason: string | null };
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const isEdit = !!initialException;
   const [empId, setEmpId]           = useState(preEmployeeId ?? '');
   const [date, setDate]             = useState(preDate ?? toISODate(new Date()));
   const [rangeType, setRangeType]   = useState<'single' | 'range'>('single');
   const [dateEnd, setDateEnd]       = useState('');
-  const [excType, setExcType]       = useState<'vacation' | 'absence' | 'holiday' | 'special'>('vacation');
-  const [reason, setReason]         = useState('');
+  const [excType, setExcType]       = useState<'vacation' | 'absence' | 'holiday' | 'special'>(initialException?.excType ?? 'vacation');
+  const [reason, setReason]         = useState(initialException?.excReason ?? '');
   const [saving, setSaving]         = useState(false);
+  const [deleting, setDeleting]     = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
   const [error, setError]           = useState('');
 
   const canSave = empId && date && (rangeType === 'single' || (dateEnd && dateEnd >= date));
@@ -421,32 +426,57 @@ function ExceptionModal({
     }
   };
 
+  const excLabels: Record<string, string> = { vacation: 'Vacación', absence: 'Ausencia', holiday: 'Feriado', special: 'Turno especial' };
+
   const handleSave = async () => {
     if (!canSave) return;
     setSaving(true); setError('');
     try {
-      const body: Record<string, unknown> = {
-        employee_id: empId, exception_type: excType,
-        date, reason: reason || undefined,
-      };
-      if (rangeType === 'range' && dateEnd) body.date_end = dateEnd;
-      const res = await fetch('/api/schedules/exceptions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      let res: Response;
+      if (isEdit) {
+        res = await fetch(`/api/schedules/exceptions/${initialException.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exception_type: excType, reason: reason || null }),
+        });
+      } else {
+        const body: Record<string, unknown> = {
+          employee_id: empId, exception_type: excType,
+          date, reason: reason || undefined,
+        };
+        if (rangeType === 'range' && dateEnd) body.date_end = dateEnd;
+        res = await fetch('/api/schedules/exceptions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      }
       if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
       const emp = employees.find(e => e.id === empId);
-      const empName = emp ? `${emp.firstName} ${emp.lastName}` : '';
-      const excLabels: Record<string, string> = { vacation: 'Vacación', absence: 'Ausencia', holiday: 'Feriado', special: 'Turno especial' };
+      const empName = emp ? `${emp.firstName} ${emp.lastName}` : (preEmployeeName ?? '');
       const subtitle = [empName, excLabels[excType] ?? excType, rangeType === 'range' && dateEnd ? `${date} → ${dateEnd}` : date].filter(Boolean).join(' · ');
       window.dispatchEvent(new CustomEvent('horarios:saved', {
-        detail: { title: 'Excepción registrada', subtitle },
+        detail: { title: isEdit ? 'Excepción actualizada' : 'Excepción registrada', subtitle },
       }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar');
     } finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!initialException) return;
+    setDeleting(true); setError('');
+    try {
+      const res = await fetch(`/api/schedules/exceptions/${initialException.id}`, { method: 'DELETE' });
+      if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
+      onSaved();
+      window.dispatchEvent(new CustomEvent('horarios:saved', {
+        detail: { title: 'Excepción eliminada', subtitle: preEmployeeName ?? '' },
+      }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al eliminar');
+    } finally { setDeleting(false); }
   };
 
   const EXC_TYPES = ['vacation','absence','holiday','special'] as const;
@@ -456,8 +486,16 @@ function ExceptionModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-1 p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[15px] font-bold text-text-1">Registrar excepción</h2>
-          <button onClick={onClose} className="text-text-3 hover:text-text-1 transition-colors"><X className="h-4 w-4" /></button>
+          <h2 className="text-[15px] font-bold text-text-1">{isEdit ? 'Editar excepción' : 'Registrar excepción'}</h2>
+          <div className="flex items-center gap-2">
+            {isEdit && !confirmDel && (
+              <button onClick={() => setConfirmDel(true)} title="Eliminar excepción"
+                className="text-rose/60 hover:text-rose transition-colors p-1 rounded-[6px] hover:bg-rose/10">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+            <button onClick={onClose} className="text-text-3 hover:text-text-1 transition-colors"><X className="h-4 w-4" /></button>
+          </div>
         </div>
         <div className="space-y-4">
           <div>
@@ -529,15 +567,32 @@ function ExceptionModal({
           </div>
 
           {error && <p className="text-[12px] text-rose">{error}</p>}
-          <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={onClose}
-              className="rounded-[9px] border border-border bg-white/[0.04] py-2.5 text-[13px] font-semibold text-text-2 hover:bg-white/[0.07] min-h-[44px]">Cancelar</button>
-            <button type="button" onClick={handleSave} disabled={!canSave || saving}
-              className="rounded-[9px] py-2.5 text-[13px] font-semibold text-white disabled:opacity-40 min-h-[44px]"
-              style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
-              {saving ? 'Guardando…' : 'Guardar excepción'}
-            </button>
-          </div>
+
+          {confirmDel ? (
+            <div className="rounded-[10px] border border-rose/30 bg-rose/[0.06] p-3 space-y-3">
+              <p className="text-[12px] text-text-2 text-center">¿Eliminar esta excepción? Esta acción no se puede deshacer.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setConfirmDel(false)}
+                  className="rounded-[9px] border border-border bg-white/[0.04] py-2.5 text-[13px] font-semibold text-text-2 hover:bg-white/[0.07] min-h-[44px]">
+                  Cancelar
+                </button>
+                <button type="button" onClick={handleDelete} disabled={deleting}
+                  className="rounded-[9px] py-2.5 text-[13px] font-semibold text-white bg-rose/80 hover:bg-rose disabled:opacity-40 min-h-[44px] transition-colors">
+                  {deleting ? 'Eliminando…' : 'Sí, eliminar'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={onClose}
+                className="rounded-[9px] border border-border bg-white/[0.04] py-2.5 text-[13px] font-semibold text-text-2 hover:bg-white/[0.07] min-h-[44px]">Cancelar</button>
+              <button type="button" onClick={handleSave} disabled={!canSave || saving}
+                className="rounded-[9px] py-2.5 text-[13px] font-semibold text-white disabled:opacity-40 min-h-[44px]"
+                style={{ background: 'linear-gradient(135deg,#6366F1,#8B5CF6)' }}>
+                {saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Guardar excepción'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -598,6 +653,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const [editTarget, setEditTarget]              = useState<ScheduleEntry | null>(null);
   const [showExc, setShowExc]                    = useState(false);
   const [excModal, setExcModal]                  = useState<{ employeeId: string; name: string; date: string } | null>(null);
+  const [editExcModal, setEditExcModal]          = useState<{ employeeId: string; name: string; date: string; excId: string; excType: 'vacation' | 'absence' | 'holiday' | 'special'; excReason: string | null } | null>(null);
   const [toast, setToast]                        = useState('');
   const [toastTitle, setToastTitle]              = useState('Horario asignado');
 
@@ -695,7 +751,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const openEdit   = (entry: ScheduleEntry) => setEditTarget(entry);
 
   const onSaved = () => {
-    setShowAssign(false); setEditTarget(null); setExcModal(null); setShowExc(false);
+    setShowAssign(false); setEditTarget(null); setExcModal(null); setShowExc(false); setEditExcModal(null);
     if (view === 'Día')  void fetchDaySchedules();
     else if (view === 'Mes') void fetchMonthSchedules();
     else void fetchSchedules();
@@ -707,7 +763,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
     const dayNum  = date.getDay() === 0 ? 7 : date.getDay();
     const exc = entry.exceptions.find(e => e.date === dateStr);
     const cfg = exc ? EXC_CONFIG[exc.exception_type] : null;
-    if (exc && cfg) return { type: 'exception' as const, label: cfg.label, color: cfg.color };
+    if (exc && cfg) return { type: 'exception' as const, label: cfg.label, color: cfg.color, excId: exc.id, excType: exc.exception_type as 'vacation' | 'absence' | 'holiday' | 'special', excReason: exc.reason };
     if (entry.schedule?.days_of_week.includes(dayNum)) {
       return {
         type: 'work' as const,
@@ -910,7 +966,10 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                             return (
                               <div key={di} className={cn('border-l border-white/[0.05] p-[3px] flex items-center', isWeekend && 'opacity-40')}>
                                 <button
-                                  onClick={() => cell.type === 'work' && setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date) })}
+                                  onClick={() => {
+                                    if (cell.type === 'work') setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date) });
+                                    else if (cell.type === 'exception') setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null });
+                                  }}
                                   className="w-full rounded-[5px] px-[4px] py-[3px] text-[9px] text-center transition-all hover:brightness-110"
                                   style={{
                                     background: `rgba(${cell.type === 'exception' ? (cell.color === '#F43F5E' ? '244,63,94' : '139,92,246') : (cell.color === '#10B981' ? '16,185,129' : '245,158,11')},0.10)`,
@@ -1088,10 +1147,13 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                             </button>
                           )}
                           {cell.type === 'exception' && (
-                            <span className="flex items-center gap-1.5 text-[11px]" style={{ color: cell.color }}>
+                            <button
+                              onClick={() => setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null })}
+                              title="Editar excepción"
+                              className="flex items-center gap-1.5 text-[11px] hover:opacity-70 transition-opacity">
                               <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: cell.color }} />
-                              Excepción
-                            </span>
+                              <span style={{ color: cell.color }}>Excepción</span>
+                            </button>
                           )}
                           {cell.type === 'off' && (
                             <span className="text-[11px] text-text-muted opacity-40">Libre</span>
@@ -1281,6 +1343,18 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
           preEmployeeName={excModal.name}
           preDate={excModal.date}
           onClose={() => setExcModal(null)}
+          onSaved={onSaved}
+        />
+      )}
+
+      {editExcModal && (
+        <ExceptionModal
+          employees={initialEmployees}
+          preEmployeeId={editExcModal.employeeId}
+          preEmployeeName={editExcModal.name}
+          preDate={editExcModal.date}
+          initialException={{ id: editExcModal.excId, excType: editExcModal.excType, excReason: editExcModal.excReason }}
+          onClose={() => setEditExcModal(null)}
           onSaved={onSaved}
         />
       )}

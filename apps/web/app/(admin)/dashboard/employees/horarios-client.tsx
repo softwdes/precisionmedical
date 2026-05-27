@@ -695,7 +695,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const openEdit   = (entry: ScheduleEntry) => setEditTarget(entry);
 
   const onSaved = () => {
-    setShowAssign(false); setEditTarget(null); setExcModal(null);
+    setShowAssign(false); setEditTarget(null); setExcModal(null); setShowExc(false);
     if (view === 'Día')  void fetchDaySchedules();
     else if (view === 'Mes') void fetchMonthSchedules();
     else void fetchSchedules();

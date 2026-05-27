@@ -437,6 +437,13 @@ function ExceptionModal({
       });
       if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
+      const emp = employees.find(e => e.id === empId);
+      const empName = emp ? `${emp.firstName} ${emp.lastName}` : '';
+      const excLabels: Record<string, string> = { vacation: 'Vacación', absence: 'Ausencia', holiday: 'Feriado', special: 'Turno especial' };
+      const subtitle = [empName, excLabels[excType] ?? excType, rangeType === 'range' && dateEnd ? `${date} → ${dateEnd}` : date].filter(Boolean).join(' · ');
+      window.dispatchEvent(new CustomEvent('horarios:saved', {
+        detail: { title: 'Excepción registrada', subtitle },
+      }));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar');
     } finally { setSaving(false); }
@@ -549,7 +556,7 @@ function SuccessToast({ detail, title, onClose }: { detail: string; title: strin
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-bold text-text-1">{title}</p>
         <p className="text-[11.5px] text-text-3 mt-0.5 truncate">{detail}</p>
-        <p className="text-[10.5px] text-emerald mt-0.5">Semana actualizada</p>
+        <p className="text-[10.5px] text-emerald mt-0.5">Guardado correctamente</p>
       </div>
       <button onClick={onClose} className="text-text-muted hover:text-text-2 mt-0.5"><X className="h-3.5 w-3.5" /></button>
     </div>

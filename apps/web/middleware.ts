@@ -3,7 +3,7 @@ import { updateSession } from '@precision-medical/auth/middleware';
 import { dbRoleToRole } from './lib/permissions';
 
 const ROLE_COOKIE = 'pm_role';
-const TIMECLOCK_URL = process.env.NEXT_PUBLIC_TIMECLOCK_URL ?? 'https://clock.precisionmedical.com';
+const TIMECLOCK_URL = process.env.NEXT_PUBLIC_TIMECLOCK_URL ?? 'https://pmtc.lienmaster.net';
 
 function detectLocaleFromHeader(request: NextRequest): 'es' | 'en' {
   const acceptLanguage = request.headers.get('accept-language') ?? '';

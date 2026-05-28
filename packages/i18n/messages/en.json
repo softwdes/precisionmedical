@@ -331,6 +331,10 @@
   "settings": {
     "title": "Settings",
     "subtitle": "General system parameters",
+    "tabs": {
+      "general": "General",
+      "clinics": "Clinics"
+    },
     "general": "General",
     "integrations": "Integrations",
     "api": "API & Webhooks",

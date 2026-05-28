@@ -442,15 +442,24 @@ export default function ClockPage({ userId }: { userId: string }) {
     const jsDay = new Date().getDay();
     const dbDay = jsDay === 0 ? 7 : jsDay;
 
-    const { data: schedule } = await supabase
+    // Bring all active schedules (an employee can legitimately have more
+    // than one — different days/clinics) and pick the one that covers
+    // today's day-of-week. Most recent wins if multiple match.
+    // maybeSingle() throws PGRST116 ("multiple rows returned") if 2+ rows
+    // exist, which used to block clock-in entirely on admin misconfig.
+    const { data: schedules } = await supabase
       .from('work_schedules')
       .select('id, start_time, days_of_week')
       .eq('employee_id', empId)
       .eq('is_active', true)
-      .maybeSingle();
+      .order('created_at', { ascending: false });
 
-    if (!schedule || !Array.isArray(schedule.days_of_week) || !schedule.days_of_week.includes(dbDay)) {
-      return { status: 'on_time', lateMinutes: 0, scheduleId: schedule?.id ?? null };
+    const schedule = (schedules ?? []).find(
+      s => Array.isArray(s.days_of_week) && (s.days_of_week as number[]).includes(dbDay),
+    ) ?? null;
+
+    if (!schedule) {
+      return { status: 'on_time', lateMinutes: 0, scheduleId: null };
     }
 
     const [h, m] = (schedule.start_time as string).split(':').map(Number);

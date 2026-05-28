@@ -568,7 +568,7 @@ function ExceptionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-bg-1 p-6 shadow-2xl">
+      <div className="w-full max-w-xl rounded-2xl border border-border bg-bg-1 p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-[15px] font-bold text-text-1">{isEdit ? 'Editar excepción' : 'Registrar excepción'}</h2>
           <div className="flex items-center gap-2">

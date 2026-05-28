@@ -59,7 +59,8 @@ function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-function fmtDecimal(hours: number) {
+/** Renders a decimal-hours number (e.g. 8.5) as a HH:MM clock string ("8:30"). */
+function fmtHoursAsClock(hours: number) {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
   return `${h}:${String(m).padStart(2, '0')}`;
@@ -139,6 +140,11 @@ export default function ClockPage({ userId }: { userId: string }) {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [role, setRole] = useState('EMPLOYEE');
   const [profileError, setProfileError] = useState(false);
+  // Distinct from profileError: when an authenticated user with a
+  // non-EMPLOYEE role lands here (e.g. ADMIN/SUPER_ADMIN browses
+  // directly to clock.precisionmedical.com), we show a redirect-to-
+  // admin screen instead of the generic "cuenta no configurada".
+  const [wrongRoleError, setWrongRoleError] = useState(false);
 
   // Clock
   const [clockState, setClockState] = useState<ClockState>('loading');
@@ -149,6 +155,9 @@ export default function ClockPage({ userId }: { userId: string }) {
   // UI
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState('');
+  // Tracks which handler failed so the "Reintentar" button retries the
+  // correct action (not always clock-in like before).
+  const [retryAction, setRetryAction] = useState<'clockIn' | 'break' | 'return' | 'clockOut' | null>(null);
   const [shakeClinic, setShakeClinic] = useState(false);
   const [lateNotice, setLateNotice] = useState('');
 
@@ -242,9 +251,14 @@ export default function ClockPage({ userId }: { userId: string }) {
   }, []);
 
   // ─── Load on mount ───────────────────────────────────────────────────────────
+  // Intentional mount-only effect. loadProfile is stable for the component
+  // lifetime (closes over supabase from useMemo and React state setters,
+  // which are guaranteed stable by React). Listing it as a dep would
+  // require either useCallback with every setter as a sub-dep or a ref,
+  // both of which obscure intent — this is genuinely "run once on mount".
   useEffect(() => {
     void loadProfile();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadProfile() {
@@ -252,23 +266,36 @@ export default function ClockPage({ userId }: { userId: string }) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser?.email) { setProfileError(true); setClockState('idle'); return; }
 
-    const { data: emp } = await supabase
-      .from('employees')
-      .select('id, firstName, lastName, employeeCode, type')
-      .eq('email', authUser.email)
-      .maybeSingle();
+    // Fetch employee record + role in parallel. We need the role even
+    // when there's no employee record, to distinguish "admin landed on
+    // the wrong app" from "employee account not set up yet".
+    const [{ data: emp }, { data: userData }] = await Promise.all([
+      supabase
+        .from('employees')
+        .select('id, firstName, lastName, employeeCode, type')
+        .eq('email', authUser.email)
+        .maybeSingle(),
+      supabase
+        .from('users')
+        .select('role')
+        .eq('email', authUser.email)
+        .maybeSingle(),
+    ]);
 
-    if (!emp) { setProfileError(true); setClockState('idle'); return; }
+    const userRole = userData?.role ?? 'EMPLOYEE';
+    setRole(userRole);
+
+    if (!emp) {
+      if (userRole !== 'EMPLOYEE') {
+        setWrongRoleError(true);
+      } else {
+        setProfileError(true);
+      }
+      setClockState('idle');
+      return;
+    }
 
     setEmployee(emp as Employee);
-
-    // Role from internal users table (keyed by email)
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('email', authUser.email)
-      .maybeSingle();
-    setRole(userData?.role ?? 'EMPLOYEE');
 
     await Promise.all([loadClinics(), loadTodayRecord(emp.id), loadStats(emp.id)]);
   }
@@ -333,7 +360,7 @@ export default function ClockPage({ userId }: { userId: string }) {
     const todayH  = rows.filter(r => r.date === today).reduce((s, r) => s + Number(r.hours_worked ?? 0), 0);
     const weekH   = rows.filter(r => r.date >= weekStart).reduce((s, r) => s + Number(r.hours_worked ?? 0), 0);
     const monthH  = rows.reduce((s, r) => s + Number(r.hours_worked ?? 0), 0);
-    setStats({ today: fmtDecimal(todayH), week: fmtDecimal(weekH), month: fmtDecimal(monthH) });
+    setStats({ today: fmtHoursAsClock(todayH), week: fmtHoursAsClock(weekH), month: fmtHoursAsClock(monthH) });
   }
 
   // ─── Clock actions ───────────────────────────────────────────────────────────
@@ -346,6 +373,7 @@ export default function ClockPage({ userId }: { userId: string }) {
     }
     setLoading(true);
     setActionError('');
+    setRetryAction(null);
     try {
       const [{ status, lateMinutes, scheduleId }, loc] = await Promise.all([
         determineStatus(employee!.id),
@@ -394,6 +422,7 @@ export default function ClockPage({ userId }: { userId: string }) {
         setTimeout(() => setActionError(''), 2500);
       } else {
         setActionError('Error al guardar. Verifica tu conexión.');
+        setRetryAction('clockIn');
       }
     } finally {
       setLoading(false);
@@ -404,6 +433,7 @@ export default function ClockPage({ userId }: { userId: string }) {
     if (!record) return;
     setLoading(true);
     setActionError('');
+    setRetryAction(null);
     try {
       const { data, error } = await supabase
         .from('attendance_records')
@@ -416,6 +446,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       setClockState('break');
     } catch {
       setActionError('Error al guardar. Verifica tu conexión.');
+      setRetryAction('break');
     } finally {
       setLoading(false);
     }
@@ -425,6 +456,7 @@ export default function ClockPage({ userId }: { userId: string }) {
     if (!record?.break_start) return;
     setLoading(true);
     setActionError('');
+    setRetryAction(null);
     try {
       const now = new Date();
       const breakMins = Math.floor((now.getTime() - new Date(record.break_start).getTime()) / 60000);
@@ -442,6 +474,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       setClockState('working');
     } catch {
       setActionError('Error al guardar. Verifica tu conexión.');
+      setRetryAction('return');
     } finally {
       setLoading(false);
     }
@@ -451,6 +484,7 @@ export default function ClockPage({ userId }: { userId: string }) {
     if (!record?.check_in) return;
     setLoading(true);
     setActionError('');
+    setRetryAction(null);
     stopWaypointTracking();
     try {
       const [loc, now] = [await getLocation(), new Date()];
@@ -474,6 +508,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       void loadStats(employee!.id);
     } catch {
       setActionError('Error al guardar. Verifica tu conexión.');
+      setRetryAction('clockOut');
     } finally {
       setLoading(false);
     }
@@ -556,6 +591,30 @@ export default function ClockPage({ userId }: { userId: string }) {
               <div key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: '#6366F1', animation: `tcDotPulse 1.2s ease-in-out infinite`, animationDelay: `${i * 200}ms` }} />
             ))}
           </div>
+        </div>
+      </main>
+    );
+  }
+
+  // ─── Render: wrong role (admin/lawyer/etc landed on timeclock) ───────────────
+
+  if (wrongRoleError) {
+    return (
+      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)', padding: '24px 20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center', maxWidth: 300 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: 'var(--indigo-dim)', border: '1px solid rgba(99,102,241,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Clock size={24} color="var(--indigo)" />
+          </div>
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>App solo para empleados</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
+              Estás autenticado como <strong style={{ color: 'var(--text-primary)' }}>{role.toLowerCase().replace('_', ' ')}</strong>.
+              Para administrar el sistema, ingresa desde el panel admin en tu navegador.
+            </p>
+          </div>
+          <button onClick={handleLogout} style={{ padding: '10px 24px', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer' }}>
+            Cerrar sesión
+          </button>
         </div>
       </main>
     );
@@ -700,7 +759,7 @@ export default function ClockPage({ userId }: { userId: string }) {
           <div style={{ borderRadius: 12, padding: '12px 20px', background: 'var(--indigo-dim)', border: '1px solid rgba(99,102,241,0.25)', textAlign: 'center' }}>
             <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--indigo)' }}>Jornada completada</p>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'monospace' }}>
-              {record.check_in ? fmtTime(record.check_in) : '—'} → {record.check_out ? fmtTime(record.check_out) : '—'} · {record.hours_worked ? fmtDecimal(Number(record.hours_worked)) : '—'}h trabajadas
+              {record.check_in ? fmtTime(record.check_in) : '—'} → {record.check_out ? fmtTime(record.check_out) : '—'} · {record.hours_worked ? fmtHoursAsClock(Number(record.hours_worked)) : '—'}h trabajadas
             </p>
           </div>
         )}
@@ -887,13 +946,23 @@ export default function ClockPage({ userId }: { userId: string }) {
       {actionError && (
         <div style={{ ...sectionStyle, background: 'var(--rose-dim)', border: '1px solid var(--rose-border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <span style={{ fontSize: 12, color: 'var(--rose)' }}>{actionError}</span>
-          <button
-            onClick={() => { setActionError(''); void handleClockIn(); }}
-            style={{ background: 'none', border: 'none', color: 'var(--rose)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500, flexShrink: 0 }}
-          >
-            <RefreshCw size={12} />
-            Reintentar
-          </button>
+          {retryAction && (
+            <button
+              onClick={() => {
+                setActionError('');
+                const action = retryAction;
+                setRetryAction(null);
+                if (action === 'clockIn')  void handleClockIn();
+                if (action === 'break')    void handleBreak();
+                if (action === 'return')   void handleReturnFromBreak();
+                if (action === 'clockOut') void handleClockOut();
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--rose)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500, flexShrink: 0 }}
+            >
+              <RefreshCw size={12} />
+              Reintentar
+            </button>
+          )}
         </div>
       )}
 

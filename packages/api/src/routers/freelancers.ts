@@ -9,7 +9,7 @@ const createFreelancerSchema = z.object({
   email:      z.string().email().optional().or(z.literal('')),
   phone:      z.string().optional(),
   pais:       z.string().min(1),
-  modalidad:  z.enum(['POR_HORA', 'POR_SERVICIO']),
+  modalidad:  z.enum(['POR_HORA', 'POR_SERVICIO', 'CONTRATISTA']),
   tarifaBase: z.number().positive().optional(),
   moneda:     z.enum(['USD', 'BOB', 'PEN']).default('USD'),
   notas:      z.string().optional(),
@@ -33,7 +33,7 @@ export const freelancersRouter = router({
       page:      z.number().int().positive().default(1),
       pageSize:  z.number().int().positive().max(100).default(25),
       search:    z.string().optional(),
-      modalidad: z.enum(['POR_HORA', 'POR_SERVICIO']).optional(),
+      modalidad: z.enum(['POR_HORA', 'POR_SERVICIO', 'CONTRATISTA']).optional(),
     }))
     .query(async ({ input }) => {
       const { page, pageSize, search, modalidad } = input;

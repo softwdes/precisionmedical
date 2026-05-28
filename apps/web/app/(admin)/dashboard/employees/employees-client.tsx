@@ -27,8 +27,8 @@ type Department = inferRouterOutputs<AppRouter>['departments']['list'][number];
 type PositionKey = 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'SOFTWARE_DEVELOPER' | 'CLINIC_ADMIN' | 'MEDICAL_ASSISTANT' | 'COMMUNICATOR' | 'CLEANING_STAFF';
 const VALID_POSITIONS: readonly PositionKey[] = ['DOCTOR', 'NURSE', 'RECEPTIONIST', 'SOFTWARE_DEVELOPER', 'CLINIC_ADMIN', 'MEDICAL_ASSISTANT', 'COMMUNICATOR', 'CLEANING_STAFF'];
 
-const TYPE_COLORS: Record<string, 'success' | 'info' | 'secondary'> = { FULL_TIME: 'success', EXTERNAL: 'info', CONTRACTOR: 'secondary' };
-const TYPE_DISPLAY: Record<string, string> = { FULL_TIME: 'Tiempo completo', EXTERNAL: 'Externo', CONTRACTOR: 'Contratista' };
+const TYPE_COLORS: Record<string, 'success' | 'info' | 'secondary'> = { FULL_TIME: 'success', PART_TIME: 'info' };
+const TYPE_DISPLAY: Record<string, string> = { FULL_TIME: 'Tiempo completo', PART_TIME: 'Medio tiempo' };
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = { ACTIVE: 'success', ON_LEAVE: 'warning', SUSPENDED: 'destructive', INACTIVE: 'secondary' };
 
 export function EmployeesClient({
@@ -51,8 +51,7 @@ export function EmployeesClient({
 
   const TYPE_LABELS = {
     FULL_TIME: t('employees.types.FULL_TIME'),
-    EXTERNAL: t('employees.types.EXTERNAL'),
-    CONTRACTOR: t('employees.types.CONTRACTOR'),
+    PART_TIME: t('employees.types.PART_TIME'),
   };
 
   const STATUS_LABELS = {
@@ -65,7 +64,7 @@ export function EmployeesClient({
   const { data, refetch } = trpc.employees.list.useQuery(
     {
       page, pageSize: 25, search: search || undefined,
-      type: (typeFilter as 'FULL_TIME' | 'EXTERNAL' | 'CONTRACTOR' | undefined) || undefined,
+      type: (typeFilter as 'FULL_TIME' | 'PART_TIME' | undefined) || undefined,
       status: (statusFilter as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'ON_LEAVE' | undefined) || undefined,
       departmentId: deptFilter || undefined,
     },
@@ -307,8 +306,7 @@ function EmployeeViewDialog({ employeeId, onClose }: { employeeId: string; onClo
 
   const TYPE_LABELS: Record<string, string> = {
     FULL_TIME: t('employees.types.FULL_TIME'),
-    EXTERNAL: t('employees.types.EXTERNAL'),
-    CONTRACTOR: t('employees.types.CONTRACTOR'),
+    PART_TIME: t('employees.types.PART_TIME'),
   };
   const POSITION_LABELS: Record<string, string> = {
     DOCTOR: t('employees.positions.DOCTOR'),
@@ -821,8 +819,7 @@ function CreateEmployeeDialog({
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="FULL_TIME">{t('employees.types.FULL_TIME')}</SelectItem>
-                    <SelectItem value="EXTERNAL">{t('employees.types.EXTERNAL')}</SelectItem>
-                    <SelectItem value="CONTRACTOR">{t('employees.types.CONTRACTOR')}</SelectItem>
+                    <SelectItem value="PART_TIME">{t('employees.types.PART_TIME')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -908,7 +905,7 @@ function CreateEmployeeDialog({
           <Button type="button" variant="ghost" onClick={() => { onClose(); setStep(1); }}>{t('common.cancel')}</Button>
           {step < 2 ? (
             <Button type="button" onClick={() => setStep(s => s + 1)} disabled={
-              step === 1 && (!form.firstName || !form.lastName || !form.email)
+              step === 1 && (!form.firstName || !form.lastName || !form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
             }>
               {t('common.next')}
             </Button>
@@ -936,7 +933,7 @@ function EditEmployeeDialog({
     lastName: employee.lastName,
     email: employee.email,
     phone: employee.phone ?? '',
-    type: employee.type as 'FULL_TIME' | 'EXTERNAL' | 'CONTRACTOR',
+    type: employee.type as 'FULL_TIME' | 'PART_TIME',
     departmentId: (employee.departmentId as string | null) ?? '',
     position: (VALID_POSITIONS as readonly string[]).includes(employee.position ?? '')
       ? employee.position as PositionKey
@@ -1011,8 +1008,7 @@ function EditEmployeeDialog({
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="FULL_TIME">{t('employees.types.FULL_TIME')}</SelectItem>
-                    <SelectItem value="EXTERNAL">{t('employees.types.EXTERNAL')}</SelectItem>
-                    <SelectItem value="CONTRACTOR">{t('employees.types.CONTRACTOR')}</SelectItem>
+                    <SelectItem value="PART_TIME">{t('employees.types.PART_TIME')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1114,7 +1110,7 @@ function EditEmployeeDialog({
           <Button type="button" variant="ghost" onClick={() => { onClose(); setStep(1); }}>{t('common.cancel')}</Button>
           {step < 2 ? (
             <Button type="button" onClick={() => setStep(s => s + 1)} disabled={
-              step === 1 && (!form.firstName || !form.lastName || !form.email)
+              step === 1 && (!form.firstName || !form.lastName || !form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
             }>
               {t('common.next')}
             </Button>

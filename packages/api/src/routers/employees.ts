@@ -11,7 +11,7 @@ const createEmployeeSchema = z.object({
   phone: z.string().optional(),
   countryId: z.string(),
   city: z.string().optional(),
-  type: z.enum(['FULL_TIME', 'EXTERNAL', 'CONTRACTOR']),
+  type: z.enum(['FULL_TIME', 'PART_TIME']),
   startDate: z.coerce.date(),
   departmentId: z.string(),
   position: z.enum(['DOCTOR', 'NURSE', 'RECEPTIONIST', 'SOFTWARE_DEVELOPER', 'CLINIC_ADMIN', 'MEDICAL_ASSISTANT', 'COMMUNICATOR', 'CLEANING_STAFF']),
@@ -32,7 +32,7 @@ export const employeesRouter = router({
       search: z.string().optional(),
       countryId: z.string().optional(),
       departmentId: z.string().optional(),
-      type: z.enum(['FULL_TIME', 'EXTERNAL', 'CONTRACTOR']).optional(),
+      type: z.enum(['FULL_TIME', 'PART_TIME']).optional(),
       status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'ON_LEAVE']).optional(),
     }))
     .query(async ({ input }) => {

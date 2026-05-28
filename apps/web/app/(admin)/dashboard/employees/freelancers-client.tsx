@@ -27,9 +27,10 @@ type FreelancerItem = ListOutput['items'][number];
 type SummaryOutput  = inferRouterOutputs<AppRouter>['freelancers']['getSummary'];
 type PaymentItem    = inferRouterOutputs<AppRouter>['freelancers']['listPayments'][number];
 
-const MODALIDAD_VARIANT: Record<string, 'info' | 'secondary'> = {
+const MODALIDAD_VARIANT: Record<string, 'info' | 'secondary' | 'success'> = {
   POR_HORA:     'info',
   POR_SERVICIO: 'secondary',
+  CONTRATISTA:  'success',
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -77,10 +78,11 @@ export function FreelancersClient({
   const MODALIDAD_LABELS: Record<string, string> = {
     POR_HORA:     t('freelancers.modalidades.POR_HORA'),
     POR_SERVICIO: t('freelancers.modalidades.POR_SERVICIO'),
+    CONTRATISTA:  t('freelancers.modalidades.CONTRATISTA'),
   };
 
   const { data, refetch } = trpc.freelancers.list.useQuery(
-    { page, pageSize: 25, search: search || undefined, modalidad: (modalidadFilter as 'POR_HORA' | 'POR_SERVICIO' | undefined) || undefined },
+    { page, pageSize: 25, search: search || undefined, modalidad: (modalidadFilter as 'POR_HORA' | 'POR_SERVICIO' | 'CONTRATISTA' | undefined) || undefined },
     { initialData: initial },
   );
 
@@ -171,6 +173,7 @@ export function FreelancersClient({
             <SelectItem value="ALL">{t('freelancers.allModalidades')}</SelectItem>
             <SelectItem value="POR_HORA">{t('freelancers.modalidades.POR_HORA')}</SelectItem>
             <SelectItem value="POR_SERVICIO">{t('freelancers.modalidades.POR_SERVICIO')}</SelectItem>
+            <SelectItem value="CONTRATISTA">{t('freelancers.modalidades.CONTRATISTA')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -527,7 +530,7 @@ function FreelancerFormDialog({
       email:      form.email || undefined,
       phone:      form.phone || undefined,
       pais:       form.pais,
-      modalidad:  form.modalidad as 'POR_HORA' | 'POR_SERVICIO',
+      modalidad:  form.modalidad as 'POR_HORA' | 'POR_SERVICIO' | 'CONTRATISTA',
       tarifaBase: form.modalidad === 'POR_HORA' && form.tarifaBase ? Number(form.tarifaBase) : undefined,
       moneda:     form.moneda as 'USD' | 'BOB' | 'PEN',
       notas:      form.notas || undefined,
@@ -541,7 +544,7 @@ function FreelancerFormDialog({
 
   const canSubmit = form.nombre.length >= 2 && form.pais && form.modalidad && form.moneda;
 
-  const MODALIDAD_DISPLAY: Record<string, string> = { POR_HORA: 'Por hora', POR_SERVICIO: 'Por servicio' };
+  const MODALIDAD_DISPLAY: Record<string, string> = { POR_HORA: 'Por hora', POR_SERVICIO: 'Por servicio', CONTRATISTA: 'Contratista' };
 
   return (
     <>
@@ -623,6 +626,7 @@ function FreelancerFormDialog({
               <SelectContent>
                 <SelectItem value="POR_HORA">{t('freelancers.modalidades.POR_HORA')}</SelectItem>
                 <SelectItem value="POR_SERVICIO">{t('freelancers.modalidades.POR_SERVICIO')}</SelectItem>
+                <SelectItem value="CONTRATISTA">{t('freelancers.modalidades.CONTRATISTA')}</SelectItem>
               </SelectContent>
             </Select>
           </div>

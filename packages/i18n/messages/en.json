@@ -229,8 +229,7 @@
     "system": "System",
     "types": {
       "FULL_TIME": "Full-time",
-      "EXTERNAL": "External",
-      "CONTRACTOR": "Contractor"
+      "PART_TIME": "Part-time"
     },
     "statuses": {
       "ACTIVE": "Active",
@@ -280,7 +279,8 @@
     "notasPlaceholder": "Optional observations...",
     "modalidades": {
       "POR_HORA": "Hourly",
-      "POR_SERVICIO": "Per service"
+      "POR_SERVICIO": "Per service",
+      "CONTRATISTA": "Contractor"
     },
     "totalPagado": "Total paid",
     "ultimoPago": "Last payment",

@@ -229,8 +229,7 @@
     "system": "Sistema",
     "types": {
       "FULL_TIME": "Tiempo completo",
-      "EXTERNAL": "Externo",
-      "CONTRACTOR": "Contratista"
+      "PART_TIME": "Medio tiempo"
     },
     "statuses": {
       "ACTIVE": "Activo",
@@ -280,7 +279,8 @@
     "notasPlaceholder": "Observaciones opcionales...",
     "modalidades": {
       "POR_HORA": "Por hora",
-      "POR_SERVICIO": "Por servicio"
+      "POR_SERVICIO": "Por servicio",
+      "CONTRATISTA": "Contratista"
     },
     "totalPagado": "Total pagado",
     "ultimoPago": "Último pago",

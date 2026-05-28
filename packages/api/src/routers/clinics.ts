@@ -8,7 +8,7 @@ export const clinicsRouter = router({
   list: adminProcedure.query(async () => {
     const { data, error } = await supabaseAdmin
       .from('clinics')
-      .select('id, name, display_name, country, lat, lng, radius_m, is_active, address, phone, updated_at')
+      .select('id, name, display_name, country, lat, lng, radius_m, is_active, strict_geofencing, address, phone, updated_at')
       .order('country', { ascending: true })
       .order('display_name', { ascending: true });
 
@@ -27,6 +27,7 @@ export const clinicsRouter = router({
       lng: z.number().min(-180).max(180).nullable().optional(),
       radius_m: z.number().int().min(10).max(50000).nullable().optional(),
       is_active: z.boolean().optional(),
+      strict_geofencing: z.boolean().optional(),
       address: z.string().optional(),
       phone: z.string().optional(),
     }))

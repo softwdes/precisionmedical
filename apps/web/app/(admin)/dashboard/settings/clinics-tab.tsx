@@ -7,7 +7,7 @@ import {
   Button, Badge,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@precision/ui';
-import { MapPin, Pencil, AlertCircle } from 'lucide-react';
+import { MapPin, Pencil, AlertCircle, Lock } from 'lucide-react';
 import { useRole } from '@/contexts/role-context';
 import { ClinicEditDialog, type Clinic } from './clinic-edit-dialog';
 
@@ -103,9 +103,21 @@ export function ClinicsTab(): React.ReactElement {
                         {c.radius_m !== null ? `${c.radius_m} m` : '—'}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={c.is_active ? 'success' : 'secondary'}>
-                          {c.is_active ? 'Activa' : 'Inactiva'}
-                        </Badge>
+                        <div className="flex flex-col gap-1 items-start">
+                          <Badge variant={c.is_active ? 'success' : 'secondary'}>
+                            {c.is_active ? 'Activa' : 'Inactiva'}
+                          </Badge>
+                          {c.strict_geofencing && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded"
+                              style={{ background: 'rgba(244,63,94,0.12)', color: '#F43F5E', border: '1px solid rgba(244,63,94,0.28)' }}
+                              title="Geofencing estricto activo: empleados fuera del rango no pueden marcar"
+                            >
+                              <Lock className="h-2.5 w-2.5" />
+                              Estricto
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {canEdit && (

@@ -20,6 +20,8 @@ interface Clinic {
   lng: number | null;
   radius_m: number | null;
   is_active: boolean;
+  /** When true, clock-in is blocked if location_status is not verified/remote. */
+  strict_geofencing: boolean;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -368,7 +370,7 @@ export default function ClockPage({ userId }: { userId: string }) {
   async function loadClinics() {
     const { data } = await supabase
       .from('clinics')
-      .select('id, name, display_name, country, lat, lng, radius_m, is_active')
+      .select('id, name, display_name, country, lat, lng, radius_m, is_active, strict_geofencing')
       .eq('is_active', true)
       .order('country', { ascending: true })
       .order('display_name', { ascending: true });
@@ -445,6 +447,22 @@ export default function ClockPage({ userId }: { userId: string }) {
         getLocation(),
       ]);
       const locationStatus = resolveLocationStatus(loc, selectedClinic, clinics);
+
+      // Strict geofencing enforcement: if the clinic opted in, block
+      // clock-in when location is clearly outside the radius or GPS
+      // was denied. low_accuracy stays permitted (could be legit indoor
+      // signal). verified/remote always pass.
+      const clinicCfg = clinics.find(c => c.name === selectedClinic);
+      if (clinicCfg?.strict_geofencing && (locationStatus === 'out_of_range' || locationStatus === 'no_permission')) {
+        const msg = locationStatus === 'out_of_range'
+          ? 'Estás fuera del rango de la clínica. Acércate al edificio e intenta de nuevo.'
+          : 'Debes habilitar la ubicación del navegador para marcar entrada en esta clínica.';
+        setActionError(msg);
+        setRetryAction('clockIn');
+        setLoading(false);
+        return;
+      }
+
       const now = new Date();
 
       const { data, error } = await supabase

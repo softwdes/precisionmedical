@@ -40,6 +40,7 @@ export interface Clinic {
   lng: number | null;
   radius_m: number | null;
   is_active: boolean;
+  strict_geofencing: boolean;
   address?: string | null;
   phone?: string | null;
 }
@@ -78,6 +79,7 @@ export function ClinicEditDialog({
     lng: clinic.lng,
     radius_m: clinic.radius_m ?? 250,
     is_active: clinic.is_active,
+    strict_geofencing: clinic.strict_geofencing,
     address: clinic.address ?? '',
     phone: clinic.phone ?? '',
   });
@@ -192,6 +194,7 @@ export function ClinicEditDialog({
       lng: form.lng,
       radius_m: form.radius_m,
       is_active: form.is_active,
+      strict_geofencing: form.strict_geofencing,
       address: form.address || undefined,
       phone: form.phone || undefined,
     });
@@ -329,6 +332,71 @@ export function ClinicEditDialog({
                 }}
               />
             </button>
+          </div>
+
+          {/* Strict geofencing toggle */}
+          <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-text-1">Geofencing estricto</p>
+                <p className="text-tiny text-text-muted">
+                  Bloquea el clock-in si el empleado está fuera del rango o no permite GPS.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.strict_geofencing}
+                onClick={() => setForm(f => ({ ...f, strict_geofencing: !f.strict_geofencing }))}
+                disabled={form.lat === null || form.lng === null}
+                title={(form.lat === null || form.lng === null) ? 'Define las coordenadas primero' : ''}
+                style={{
+                  width: 38,
+                  height: 22,
+                  borderRadius: 11,
+                  background: form.strict_geofencing ? '#F43F5E' : 'rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  position: 'relative',
+                  cursor: (form.lat === null || form.lng === null) ? 'not-allowed' : 'pointer',
+                  opacity: (form.lat === null || form.lng === null) ? 0.4 : 1,
+                  transition: 'background 150ms',
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: form.strict_geofencing ? 18 : 2,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: 'white',
+                    transition: 'left 180ms ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  }}
+                />
+              </button>
+            </div>
+            {form.strict_geofencing && (
+              <div className="flex items-start gap-2 rounded border border-rose-500/25 bg-rose-500/5 px-3 py-2">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <p className="text-tiny text-rose-400 leading-relaxed">
+                  Activa solo cuando hayas confirmado las coordenadas exactas y el radio.
+                  Si las coords son aproximadas, vas a bloquear empleados legítimos.
+                </p>
+              </div>
+            )}
+            {(form.lat === null || form.lng === null) && (
+              <p className="text-tiny text-text-muted italic">
+                No se puede activar sin coordenadas GPS. Define lat/lng primero.
+              </p>
+            )}
           </div>
         </div>
 

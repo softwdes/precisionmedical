@@ -92,6 +92,18 @@ function formatTime(t: string): string {
   return t.slice(0, 5);
 }
 
+// Generates 30-min time slots between start and end (inclusive), e.g. "08:00"→"17:00" = [08:00,08:30…17:00]
+function generateTimeSlots(start: string, end: string): string[] {
+  const [sh, sm] = start.slice(0, 5).split(':').map(Number);
+  const [eh, em] = end.slice(0, 5).split(':').map(Number);
+  const startMin = Math.ceil((sh! * 60 + sm!) / 30) * 30;
+  const endMin   = eh! * 60 + em!;
+  const slots: string[] = [];
+  for (let m = startMin; m <= endMin; m += 30)
+    slots.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+  return slots;
+}
+
 // Returns the remaining work windows around a partial absence, e.g. "08:00–10:00 / 13:00–17:00"
 function formatPartialWorkHours(schedStart: string, schedEnd: string, absStart: string, absEnd: string): string {
   const s  = schedStart.slice(0, 5);
@@ -403,6 +415,9 @@ function ExceptionModal({
   preEmployeeId,
   preEmployeeName,
   preDate,
+  schedStartTime,
+  schedEndTime,
+  allSchedules,
   initialException,
   onClose,
   onSaved,
@@ -411,6 +426,9 @@ function ExceptionModal({
   preEmployeeId?: string;
   preEmployeeName?: string;
   preDate?: string;
+  schedStartTime?: string;
+  schedEndTime?: string;
+  allSchedules?: ScheduleEntry[];
   initialException?: { id: string; excType: 'vacation' | 'absence' | 'holiday' | 'special' | 'partial'; excReason: string | null; excStartTime?: string | null; excEndTime?: string | null };
   onClose: () => void;
   onSaved: () => void;
@@ -430,6 +448,21 @@ function ExceptionModal({
   const [error, setError]           = useState('');
 
   const isPartial = excType === 'partial';
+
+  // Derive schedule bounds: from prop → from allSchedules lookup → fallback 06:00–22:00
+  const { slotStart, slotEnd } = React.useMemo(() => {
+    if (schedStartTime && schedEndTime) return { slotStart: schedStartTime, slotEnd: schedEndTime };
+    if (allSchedules && empId) {
+      const s = allSchedules.find(e => e.employee.id === empId)?.schedule;
+      if (s) return { slotStart: s.start_time, slotEnd: s.end_time };
+    }
+    return { slotStart: '06:00', slotEnd: '22:00' };
+  }, [schedStartTime, schedEndTime, allSchedules, empId]);
+
+  const allSlots   = React.useMemo(() => generateTimeSlots(slotStart, slotEnd), [slotStart, slotEnd]);
+  const deSlots    = allSlots.slice(0, -1);                                        // exclude last (needs 30min after)
+  const hastaSlots = allSlots.filter(s => !startTime || s > startTime);            // only after selected De
+
   const canSave = empId && date
     && (rangeType === 'single' || (dateEnd && dateEnd >= date))
     && (!isPartial || (startTime && endTime && startTime < endTime));
@@ -590,21 +623,38 @@ function ExceptionModal({
 
           {isPartial && (
             <div className="rounded-[10px] border border-orange-400/20 bg-orange-400/[0.05] p-3 space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-400/80">Rango de horas ausente</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-400/80">
+                Rango de horas ausente
+                {slotStart && slotEnd && <span className="ml-1 normal-case font-normal text-text-muted">({formatTime(slotStart)}–{formatTime(slotEnd)})</span>}
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] text-text-3 mb-1">De *</label>
-                  <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
-                    className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-orange-400/50 min-h-[44px]" />
+                  <select
+                    value={startTime}
+                    onChange={e => { setStartTime(e.target.value); if (endTime && endTime <= e.target.value) setEndTime(''); }}
+                    className={SEL_CLS} style={SEL_STYLE}>
+                    <option value="" style={OPT_STYLE}>— hora —</option>
+                    {deSlots.map(s => <option key={s} value={s} style={OPT_STYLE}>{s}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[11px] text-text-3 mb-1">Hasta *</label>
-                  <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
-                    className="w-full rounded-[8px] border border-border bg-white/[0.04] px-3 py-2 text-[13px] text-text-1 focus:outline-none focus:border-orange-400/50 min-h-[44px]" />
+                  <select
+                    value={endTime}
+                    onChange={e => setEndTime(e.target.value)}
+                    disabled={!startTime}
+                    className={SEL_CLS} style={SEL_STYLE}>
+                    <option value="" style={OPT_STYLE}>— hora —</option>
+                    {hastaSlots.map(s => <option key={s} value={s} style={OPT_STYLE}>{s}</option>)}
+                  </select>
                 </div>
               </div>
-              {startTime && endTime && startTime >= endTime && (
-                <p className="text-[11px] text-rose">La hora de fin debe ser mayor a la de inicio.</p>
+              {startTime && endTime && (
+                <p className="text-[11px] text-orange-400/70">
+                  Ausente {formatTime(startTime)}–{formatTime(endTime)}
+                  {slotStart && slotEnd && ` · Activo: ${formatPartialWorkHours(slotStart, slotEnd, startTime, endTime)}`}
+                </p>
               )}
             </div>
           )}
@@ -701,8 +751,8 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const [preEmployee, setPreEmployee]            = useState<string | undefined>();
   const [editTarget, setEditTarget]              = useState<ScheduleEntry | null>(null);
   const [showExc, setShowExc]                    = useState(false);
-  const [excModal, setExcModal]                  = useState<{ employeeId: string; name: string; date: string } | null>(null);
-  const [editExcModal, setEditExcModal]          = useState<{ employeeId: string; name: string; date: string; excId: string; excType: 'vacation' | 'absence' | 'holiday' | 'special' | 'partial'; excReason: string | null; excStartTime: string | null; excEndTime: string | null } | null>(null);
+  const [excModal, setExcModal]                  = useState<{ employeeId: string; name: string; date: string; schedStartTime?: string; schedEndTime?: string } | null>(null);
+  const [editExcModal, setEditExcModal]          = useState<{ employeeId: string; name: string; date: string; excId: string; excType: 'vacation' | 'absence' | 'holiday' | 'special' | 'partial'; excReason: string | null; excStartTime: string | null; excEndTime: string | null; schedStartTime?: string; schedEndTime?: string } | null>(null);
   const [toast, setToast]                        = useState('');
   const [toastTitle, setToastTitle]              = useState('Horario asignado');
 
@@ -1016,8 +1066,8 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                               <div key={di} className={cn('border-l border-white/[0.05] p-[3px] flex items-center', isWeekend && 'opacity-40')}>
                                 <button
                                   onClick={() => {
-                                    if (cell.type === 'work') setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date) });
-                                    else if (cell.type === 'exception') setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null, excStartTime: cell.excStartTime ?? null, excEndTime: cell.excEndTime ?? null });
+                                    if (cell.type === 'work') setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date), schedStartTime: entry.schedule?.start_time, schedEndTime: entry.schedule?.end_time });
+                                    else if (cell.type === 'exception') setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null, excStartTime: cell.excStartTime ?? null, excEndTime: cell.excEndTime ?? null, schedStartTime: entry.schedule?.start_time, schedEndTime: entry.schedule?.end_time });
                                   }}
                                   className="w-full rounded-[5px] px-[4px] py-[3px] text-[9px] text-center transition-all hover:brightness-110"
                                   style={{
@@ -1197,7 +1247,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                         <div className="border-l border-white/[0.05] flex items-center px-3 py-2">
                           {cell.type === 'work' && (
                             <button
-                              onClick={() => setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay) })}
+                              onClick={() => setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay), schedStartTime: entry.schedule?.start_time, schedEndTime: entry.schedule?.end_time })}
                               title="Registrar excepción"
                               className="flex items-center gap-1.5 text-[11px] text-text-3 hover:text-brand transition-colors">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald shrink-0" />
@@ -1206,7 +1256,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                           )}
                           {cell.type === 'exception' && (
                             <button
-                              onClick={() => setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null, excStartTime: cell.excStartTime ?? null, excEndTime: cell.excEndTime ?? null })}
+                              onClick={() => setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(currentDay), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null, excStartTime: cell.excStartTime ?? null, excEndTime: cell.excEndTime ?? null, schedStartTime: entry.schedule?.start_time, schedEndTime: entry.schedule?.end_time })}
                               title="Editar excepción"
                               className="flex items-center gap-1.5 text-[11px] hover:opacity-70 transition-opacity">
                               <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: cell.color }} />
@@ -1389,6 +1439,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
       {showExc && (
         <ExceptionModal
           employees={initialEmployees}
+          allSchedules={view === 'Día' ? daySchedules : schedules}
           onClose={() => setShowExc(false)}
           onSaved={onSaved}
         />
@@ -1400,6 +1451,8 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
           preEmployeeId={excModal.employeeId}
           preEmployeeName={excModal.name}
           preDate={excModal.date}
+          schedStartTime={excModal.schedStartTime}
+          schedEndTime={excModal.schedEndTime}
           onClose={() => setExcModal(null)}
           onSaved={onSaved}
         />
@@ -1411,6 +1464,8 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
           preEmployeeId={editExcModal.employeeId}
           preEmployeeName={editExcModal.name}
           preDate={editExcModal.date}
+          schedStartTime={editExcModal.schedStartTime}
+          schedEndTime={editExcModal.schedEndTime}
           initialException={{ id: editExcModal.excId, excType: editExcModal.excType, excReason: editExcModal.excReason, excStartTime: editExcModal.excStartTime, excEndTime: editExcModal.excEndTime }}
           onClose={() => setEditExcModal(null)}
           onSaved={onSaved}

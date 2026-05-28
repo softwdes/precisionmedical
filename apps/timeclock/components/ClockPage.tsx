@@ -352,8 +352,21 @@ export default function ClockPage({ userId }: { userId: string }) {
         setLateNotice(`Llegaste ${lateMinutes} min después de tu horario`);
         setTimeout(() => setLateNotice(''), 3000);
       }
-    } catch {
-      setActionError('Error al guardar. Verifica tu conexión.');
+    } catch (err) {
+      // Partial UNIQUE index uniq_open_attendance fires when there's
+      // already an open shift (no check_out) for today. Resync the UI
+      // instead of letting the user retry into the same error.
+      const pgError = err as { code?: string; message?: string } | null;
+      const isDuplicateOpen =
+        pgError?.code === '23505' ||
+        (pgError?.message ?? '').includes('uniq_open_attendance');
+      if (isDuplicateOpen) {
+        setActionError('Ya tienes un turno abierto hoy. Sincronizando...');
+        await loadTodayRecord(employee!.id);
+        setTimeout(() => setActionError(''), 2500);
+      } else {
+        setActionError('Error al guardar. Verifica tu conexión.');
+      }
     } finally {
       setLoading(false);
     }

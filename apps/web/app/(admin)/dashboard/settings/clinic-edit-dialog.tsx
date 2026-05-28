@@ -112,8 +112,10 @@ export function ClinicEditDialog({
       }).addTo(map);
     }
 
-    // Fix Leaflet sizing when dialog finishes mounting (needs explicit recalc)
-    setTimeout(() => map.invalidateSize(), 50);
+    // Fix Leaflet sizing when dialog finishes mounting (needs explicit recalc).
+    // The dialog uses Radix Portal + animation, so 50ms is sometimes too short.
+    // We fire invalidateSize a few times in the first 500ms to be safe.
+    [50, 200, 500].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
 
     return () => {
       map.remove();

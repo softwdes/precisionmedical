@@ -481,6 +481,14 @@ function ExceptionModal({
   const deSlots    = allSlots.slice(0, -1);                                        // exclude last (needs 30min after)
   const hastaSlots = allSlots.filter(s => !startTime || s > startTime);            // only after selected De
 
+  // Derived hour/min parts — kept in sync with startTime / endTime strings
+  const startHour = startTime.slice(0, 2);
+  const startMin  = startTime.slice(3, 5);
+  const endHour   = endTime.slice(0, 2);
+  const endMin    = endTime.slice(3, 5);
+  const deHours    = [...new Set(deSlots.map(s => s.slice(0, 2)))];
+  const hastaHours = [...new Set(hastaSlots.map(s => s.slice(0, 2)))];
+
   const canSave = empId && date
     && (rangeType === 'single' || (dateEnd && dateEnd >= date))
     && (!isPartial || (startTime && endTime && startTime < endTime));
@@ -645,27 +653,74 @@ function ExceptionModal({
                 Rango de horas ausente
                 {slotStart && slotEnd && <span className="ml-1 normal-case font-normal text-text-muted">({formatTime(slotStart)}–{formatTime(slotEnd)})</span>}
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] text-text-3 mb-1">De *</label>
+              {/* ── De ── */}
+              <div className="space-y-1">
+                <label className="block text-[11px] text-text-3">De *</label>
+                <div className="flex items-center gap-2">
                   <select
-                    value={startTime}
-                    onChange={e => { setStartTime(e.target.value); if (endTime && endTime <= e.target.value) setEndTime(''); }}
-                    className={SEL_CLS} style={SEL_STYLE}>
-                    <option value="" style={OPT_STYLE}>— hora —</option>
-                    {deSlots.map(s => <option key={s} value={s} style={OPT_STYLE}>{s}</option>)}
+                    value={startHour}
+                    onChange={e => {
+                      const h = e.target.value;
+                      const mins = deSlots.filter(s => s.startsWith(h + ':')).map(s => s.slice(3, 5));
+                      const m = mins.includes(startMin) ? startMin : (mins[0] ?? '00');
+                      const newStart = `${h}:${m}`;
+                      setStartTime(newStart);
+                      if (endTime && endTime <= newStart) setEndTime('');
+                    }}
+                    style={{ ...SEL_STYLE, width: '72px' }}
+                    className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px]">
+                    <option value="" style={OPT_STYLE}>—</option>
+                    {deHours.map(h => <option key={h} value={h} style={OPT_STYLE}>{Number(h)}</option>)}
                   </select>
+                  <span className="text-[12px] text-text-muted shrink-0">h</span>
+                  <select
+                    value={startMin}
+                    disabled={!startHour}
+                    onChange={e => {
+                      const newStart = `${startHour}:${e.target.value}`;
+                      setStartTime(newStart);
+                      if (endTime && endTime <= newStart) setEndTime('');
+                    }}
+                    style={{ ...SEL_STYLE, width: '72px' }}
+                    className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
+                    <option value="" style={OPT_STYLE}>—</option>
+                    {(startHour ? deSlots.filter(s => s.startsWith(startHour + ':')).map(s => s.slice(3, 5)) : ['00','30'])
+                      .map(m => <option key={m} value={m} style={OPT_STYLE}>{m}</option>)}
+                  </select>
+                  <span className="text-[12px] text-text-muted shrink-0">min</span>
                 </div>
-                <div>
-                  <label className="block text-[11px] text-text-3 mb-1">Hasta *</label>
+              </div>
+
+              {/* ── Hasta ── */}
+              <div className="space-y-1">
+                <label className="block text-[11px] text-text-3">Hasta *</label>
+                <div className="flex items-center gap-2">
                   <select
-                    value={endTime}
-                    onChange={e => setEndTime(e.target.value)}
+                    value={endHour}
                     disabled={!startTime}
-                    className={SEL_CLS} style={SEL_STYLE}>
-                    <option value="" style={OPT_STYLE}>— hora —</option>
-                    {hastaSlots.map(s => <option key={s} value={s} style={OPT_STYLE}>{s}</option>)}
+                    onChange={e => {
+                      const h = e.target.value;
+                      const mins = hastaSlots.filter(s => s.startsWith(h + ':')).map(s => s.slice(3, 5));
+                      const m = mins.includes(endMin) ? endMin : (mins[0] ?? '00');
+                      setEndTime(`${h}:${m}`);
+                    }}
+                    style={{ ...SEL_STYLE, width: '72px' }}
+                    className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
+                    <option value="" style={OPT_STYLE}>—</option>
+                    {hastaHours.map(h => <option key={h} value={h} style={OPT_STYLE}>{Number(h)}</option>)}
                   </select>
+                  <span className="text-[12px] text-text-muted shrink-0">h</span>
+                  <select
+                    value={endMin}
+                    disabled={!endHour}
+                    onChange={e => setEndTime(`${endHour}:${e.target.value}`)}
+                    style={{ ...SEL_STYLE, width: '72px' }}
+                    className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
+                    <option value="" style={OPT_STYLE}>—</option>
+                    {(endHour ? hastaSlots.filter(s => s.startsWith(endHour + ':')).map(s => s.slice(3, 5)) : ['00','30'])
+                      .map(m => <option key={m} value={m} style={OPT_STYLE}>{m}</option>)}
+                  </select>
+                  <span className="text-[12px] text-text-muted shrink-0">min</span>
                 </div>
               </div>
               {startTime && endTime && (

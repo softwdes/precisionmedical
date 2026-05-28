@@ -145,37 +145,7 @@ export const usersRouter = router({
         createdAt: new Date().toISOString(),
       });
 
-      // 3. Generate activation link
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'invite',
-        email: input.email,
-        options: { redirectTo: `${appUrl}/auth/invite` },
-      });
-      if (linkError) console.error('[users.create] generateLink failed:', linkError.message);
-
-      const activationLink = linkData?.properties?.action_link;
-      if (!activationLink) {
-        console.error('[users.create] No action_link returned — email will not have a valid activation button');
-      }
-
-      // 4. Send welcome email via Resend and surface the result
-      let emailSent = false;
-      let emailError: string | null = null;
-      try {
-        await sendWelcomeEmail({
-          to: input.email,
-          firstName: input.firstName,
-          role: input.role,
-          activationLink: activationLink ?? `${appUrl}/login`,
-        });
-        emailSent = true;
-      } catch (emailErr: unknown) {
-        emailError = emailErr instanceof Error ? emailErr.message : String(emailErr);
-        console.error('[users.create] Welcome email failed:', emailError);
-      }
-
-      return { ...data, emailSent, emailError };
+      return data;
     }),
 
   update: superAdminProcedure
@@ -263,25 +233,40 @@ export const usersRouter = router({
     .mutation(async ({ input }) => {
       const { data: user } = await supabaseAdmin
         .from('users')
-        .select('email, firstName')
+        .select('email, firstName, role, status')
         .eq('id', input.id)
         .single();
 
       if (!user) throw new TRPCError({ code: 'NOT_FOUND' });
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+      const isFirstAccess = user.status === 'PENDING_VERIFICATION';
+
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'recovery',
+        type: isFirstAccess ? 'invite' : 'recovery',
         email: user.email,
-        options: { redirectTo: `${appUrl}/api/auth/callback?next=/reset-password` },
+        options: {
+          redirectTo: isFirstAccess
+            ? `${appUrl}/auth/invite`
+            : `${appUrl}/api/auth/callback?next=/reset-password`,
+        },
       });
 
       if (linkError) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: linkError.message });
 
-      const resetLink = linkData?.properties?.action_link;
-      if (!resetLink) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'No se pudo generar el enlace de acceso' });
+      const actionLink = linkData?.properties?.action_link;
+      if (!actionLink) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'No se pudo generar el enlace de acceso' });
 
-      await sendPasswordResetEmail({ to: user.email, resetLink });
+      if (isFirstAccess) {
+        await sendWelcomeEmail({
+          to: user.email,
+          firstName: user.firstName,
+          role: user.role as string,
+          activationLink: actionLink,
+        });
+      } else {
+        await sendPasswordResetEmail({ to: user.email, resetLink: actionLink });
+      }
       return { success: true };
     }),
 

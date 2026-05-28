@@ -225,6 +225,19 @@ export function UsersClient({
 
   function ActionButtons({ user }: { user: UserRow }) {
     const isProtected = user.email === PROTECTED_EMAIL;
+    const sendAccess = trpc.users.sendPasswordReset.useMutation({
+      onSuccess: () => {
+        addToast({
+          initials: `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase(),
+          name: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          header: 'Acceso enviado',
+          title: 'Enlace de acceso enviado',
+          emailSent: true,
+        });
+      },
+      onError: (e) => toast.error(e.message),
+    });
     return (
       <div className="flex items-center gap-1">
         <button
@@ -240,6 +253,16 @@ export function UsersClient({
           title="Editar usuario"
         >
           <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); sendAccess.mutate({ id: user.id }); }}
+          disabled={sendAccess.isPending}
+          className="p-1.5 rounded text-text-muted hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
+          title="Enviar acceso"
+        >
+          {sendAccess.isPending
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <KeyRound className="h-3.5 w-3.5" />}
         </button>
         {!isProtected && (
           <button
@@ -439,7 +462,7 @@ export function UsersClient({
       {/* Dialogs (only in usuarios tab) */}
       {activeTab === 'usuarios' && (
         <>
-          <CreateUserDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); void refetch(); }} onNotify={addToast} />
+          <CreateUserDialog open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); void refetch(); }} />
 
           {viewingUserId && (
             <UserViewDialog userId={viewingUserId} onClose={() => setViewingUserId(null)} />
@@ -450,7 +473,6 @@ export function UsersClient({
               user={editingUser}
               onClose={() => setEditingUser(null)}
               onSaved={() => { setEditingUser(null); void refetch(); }}
-              onNotify={addToast}
             />
           )}
 
@@ -492,7 +514,7 @@ export function UsersClient({
 }
 
 // ─── Create Dialog ─────────────────────────────────────────────────────────────
-function CreateUserDialog({ open, onClose, onCreated, onNotify }: { open: boolean; onClose: () => void; onCreated: () => void; onNotify: (n: NotificationData) => void }): React.ReactElement {
+function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({ email: '', firstName: '', lastName: '', role: 'EMPLOYEE' as const, phone: '' });
 
@@ -507,16 +529,7 @@ function CreateUserDialog({ open, onClose, onCreated, onNotify }: { open: boolea
 
   const create = trpc.users.create.useMutation({
     onSuccess: (result) => {
-      onNotify({
-        initials: `${result.firstName.charAt(0)}${result.lastName.charAt(0)}`.toUpperCase(),
-        name: `${result.firstName} ${result.lastName}`,
-        email: result.email,
-        header: 'Nuevo usuario',
-        title: 'Usuario creado exitosamente',
-        emailSent: result.emailSent,
-        emailError: result.emailError,
-        role: result.role,
-      });
+      toast.success(`${result.firstName} ${result.lastName} creado`);
       onCreated();
     },
     onError: (e) => toast.error(e.message),
@@ -574,7 +587,7 @@ function CreateUserDialog({ open, onClose, onCreated, onNotify }: { open: boolea
 }
 
 // ─── Edit Dialog ──────────────────────────────────────────────────────────────
-function EditUserDialog({ user, onClose, onSaved, onNotify }: { user: UserRow; onClose: () => void; onSaved: () => void; onNotify: (n: NotificationData) => void }): React.ReactElement {
+function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: () => void; onSaved: () => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({
     firstName: user.firstName,
@@ -597,20 +610,6 @@ function EditUserDialog({ user, onClose, onSaved, onNotify }: { user: UserRow; o
 
   const update = trpc.users.update.useMutation({
     onSuccess: () => { toast.success('Usuario actualizado'); onSaved(); },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const sendAccess = trpc.users.sendPasswordReset.useMutation({
-    onSuccess: () => {
-      onNotify({
-        initials: `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase(),
-        name: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        header: 'Acceso enviado',
-        title: 'Enlace de acceso enviado',
-        emailSent: true,
-      });
-    },
     onError: (e) => toast.error(e.message),
   });
 
@@ -671,17 +670,7 @@ function EditUserDialog({ user, onClose, onSaved, onNotify }: { user: UserRow; o
               <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
             </div>
           </div>
-          <DialogFooter className="shrink-0 flex-col sm:flex-row gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              loading={sendAccess.isPending}
-              onClick={() => sendAccess.mutate({ id: user.id })}
-              className="sm:mr-auto"
-            >
-              <KeyRound className="h-3.5 w-3.5" />
-              Enviar acceso
-            </Button>
+          <DialogFooter className="shrink-0">
             <Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
             <Button type="submit" loading={update.isPending}>{t('users.saveChanges')}</Button>
           </DialogFooter>

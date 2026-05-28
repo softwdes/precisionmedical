@@ -181,6 +181,7 @@ export function UsersClient({
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRow | null>(null);
+  const [sendingAccessUser, setSendingAccessUser] = useState<UserRow | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const addToast = useCallback((n: NotificationData) => {
@@ -225,19 +226,6 @@ export function UsersClient({
 
   function ActionButtons({ user }: { user: UserRow }) {
     const isProtected = user.email === PROTECTED_EMAIL;
-    const sendAccess = trpc.users.sendPasswordReset.useMutation({
-      onSuccess: () => {
-        addToast({
-          initials: `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase(),
-          name: `${user.firstName} ${user.lastName}`,
-          email: user.email,
-          header: 'Acceso enviado',
-          title: 'Enlace de acceso enviado',
-          emailSent: true,
-        });
-      },
-      onError: (e) => toast.error(e.message),
-    });
     return (
       <div className="flex items-center gap-1">
         <button
@@ -255,14 +243,11 @@ export function UsersClient({
           <Pencil className="h-3.5 w-3.5" />
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); sendAccess.mutate({ id: user.id }); }}
-          disabled={sendAccess.isPending}
-          className="p-1.5 rounded text-text-muted hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
+          onClick={(e) => { e.stopPropagation(); setSendingAccessUser(user); }}
+          className="p-1.5 rounded text-text-muted hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors"
           title="Enviar acceso"
         >
-          {sendAccess.isPending
-            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            : <KeyRound className="h-3.5 w-3.5" />}
+          <KeyRound className="h-3.5 w-3.5" />
         </button>
         {!isProtected && (
           <button
@@ -482,6 +467,24 @@ export function UsersClient({
               isPending={deleteUser.isPending}
               onConfirm={() => deleteUser.mutate({ id: deletingUser.id })}
               onClose={() => setDeletingUser(null)}
+            />
+          )}
+
+          {sendingAccessUser && (
+            <SendAccessConfirmDialog
+              user={sendingAccessUser}
+              onClose={() => setSendingAccessUser(null)}
+              onSent={() => {
+                addToast({
+                  initials: `${sendingAccessUser.firstName.charAt(0)}${sendingAccessUser.lastName.charAt(0)}`.toUpperCase(),
+                  name: `${sendingAccessUser.firstName} ${sendingAccessUser.lastName}`,
+                  email: sendingAccessUser.email,
+                  header: 'Acceso enviado',
+                  title: 'Enlace de acceso enviado',
+                  emailSent: true,
+                });
+                setSendingAccessUser(null);
+              }}
             />
           )}
         </>
@@ -850,6 +853,64 @@ function UserViewDialog({ userId, onClose }: { userId: string; onClose: () => vo
             </>
           ) : null}
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Send Access Confirm Dialog ───────────────────────────────────────────────
+function SendAccessConfirmDialog({ user, onClose, onSent }: {
+  user: UserRow;
+  onClose: () => void;
+  onSent: () => void;
+}): React.ReactElement {
+  const sendAccess = trpc.users.sendPasswordReset.useMutation({
+    onSuccess: onSent,
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-emerald-500" />
+            Enviar acceso
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-1 overflow-y-auto flex-1 min-h-0">
+          {/* User card */}
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-brand text-xs font-bold text-white shrink-0">
+              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-text-1 truncate">{user.firstName} {user.lastName}</p>
+              <p className="text-xs text-text-3 truncate">{user.email}</p>
+            </div>
+          </div>
+          {/* Message */}
+          <p className="text-sm text-text-2 leading-relaxed">
+            Se enviará un enlace de acceso al correo registrado. El usuario podrá establecer su contraseña y entrar al sistema.
+          </p>
+          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-start gap-2">
+              <Mail className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              El enlace expira en 24 horas y solo puede usarse una vez.
+            </p>
+          </div>
+        </div>
+        <DialogFooter className="shrink-0">
+          <Button variant="ghost" onClick={onClose} disabled={sendAccess.isPending}>Cancelar</Button>
+          <Button
+            loading={sendAccess.isPending}
+            onClick={() => sendAccess.mutate({ id: user.id })}
+            style={{ background: '#10b981', color: '#fff' }}
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            Enviar acceso
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

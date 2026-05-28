@@ -5,26 +5,22 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LogOut, Play, Square, Coffee, UserX, RefreshCw, Clock } from 'lucide-react';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ClinicConfig {
+// Clinics now live in DB (public.clinics). The `name` column is the
+// legacy key (preserves matches with attendance_records.clinic_name
+// and work_schedules.clinic_name). `display_name` is what we show to
+// the employee in the dropdown.
+interface Clinic {
+  id: string;
   name: string;
-  lat: number | null;   // null = clínica remota (sin geofencing)
+  display_name: string;
+  country: string;
+  lat: number | null;     // null = no geofence (remote)
   lng: number | null;
-  radiusM: number | null;
+  radius_m: number | null;
+  is_active: boolean;
 }
-
-// ⚠️ Coordenadas aproximadas al centro de cada ciudad en Utah.
-// Actualizar con la dirección exacta de cada clínica cuando estén confirmadas.
-const CLINICS: ClinicConfig[] = [
-  { name: 'Provo Clinic',          lat: 40.2338, lng: -111.6585, radiusM: 300 },
-  { name: 'Pleasant Grove Clinic', lat: 40.3638, lng: -111.7385, radiusM: 300 },
-  { name: 'Spanish Fork Clinic',   lat: 40.1149, lng: -111.6549, radiusM: 300 },
-  { name: 'West Valley Clinic',    lat: 40.6916, lng: -112.0010, radiusM: 300 },
-  { name: 'South Murray Clinic',   lat: 40.6469, lng: -111.8980, radiusM: 300 },
-  { name: 'Bolivia',               lat: null,    lng: null,       radiusM: null },
-  { name: 'Perú',                  lat: null,    lng: null,       radiusM: null },
-];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,13 +119,13 @@ function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number):
 }
 
 /** Clasifica la ubicación del empleado respecto a la clínica seleccionada */
-function resolveLocationStatus(loc: GeoPoint | null, clinicName: string): LocationStatus {
-  const clinic = CLINICS.find(c => c.name === clinicName);
+function resolveLocationStatus(loc: GeoPoint | null, clinicName: string, clinics: Clinic[]): LocationStatus {
+  const clinic = clinics.find(c => c.name === clinicName);
   if (!clinic || clinic.lat === null || clinic.lng === null) return 'remote'; // sin coordenadas → remoto
   if (!loc) return 'no_permission';                          // sin GPS / permiso negado
   if (loc.accuracy > 500) return 'low_accuracy';             // PC sin GPS (WiFi muy impreciso)
   const dist = distanceMeters(loc.lat, loc.lng, clinic.lat, clinic.lng);
-  return dist <= (clinic.radiusM ?? 300) ? 'verified' : 'out_of_range';
+  return dist <= (clinic.radius_m ?? 300) ? 'verified' : 'out_of_range';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -148,6 +144,7 @@ export default function ClockPage({ userId }: { userId: string }) {
   const [clockState, setClockState] = useState<ClockState>('loading');
   const [record, setRecord] = useState<AttendanceRecord | null>(null);
   const [selectedClinic, setSelectedClinic] = useState('');
+  const [clinics, setClinics] = useState<Clinic[]>([]);
 
   // UI
   const [loading, setLoading] = useState(false);
@@ -273,7 +270,17 @@ export default function ClockPage({ userId }: { userId: string }) {
       .maybeSingle();
     setRole(userData?.role ?? 'EMPLOYEE');
 
-    await Promise.all([loadTodayRecord(emp.id), loadStats(emp.id)]);
+    await Promise.all([loadClinics(), loadTodayRecord(emp.id), loadStats(emp.id)]);
+  }
+
+  async function loadClinics() {
+    const { data } = await supabase
+      .from('clinics')
+      .select('id, name, display_name, country, lat, lng, radius_m, is_active')
+      .eq('is_active', true)
+      .order('country', { ascending: true })
+      .order('display_name', { ascending: true });
+    setClinics((data ?? []) as Clinic[]);
   }
 
   async function loadTodayRecord(empId: string) {
@@ -344,7 +351,7 @@ export default function ClockPage({ userId }: { userId: string }) {
         determineStatus(employee!.id),
         getLocation(),
       ]);
-      const locationStatus = resolveLocationStatus(loc, selectedClinic);
+      const locationStatus = resolveLocationStatus(loc, selectedClinic, clinics);
       const now = new Date();
 
       const { data, error } = await supabase
@@ -591,6 +598,13 @@ export default function ClockPage({ userId }: { userId: string }) {
     ? elapsedBreak(record.break_start)
     : '—';
 
+  // Map the legacy clinic_name stored in the record to the friendly
+  // display_name (e.g. "Bolivia" -> "La Paz, Bolivia"). Fallback to
+  // raw name if the clinic isn't in the loaded list anymore.
+  const clinicDisplay = record?.clinic_name
+    ? (clinics.find(c => c.name === record.clinic_name)?.display_name ?? record.clinic_name)
+    : '—';
+
   const sectionStyle: React.CSSProperties = { width: '100%', maxWidth: 360, position: 'relative', zIndex: 1 };
 
   return (
@@ -628,7 +642,7 @@ export default function ClockPage({ userId }: { userId: string }) {
             )}
           </p>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {emp.type} · {record?.clinic_name ?? '—'}
+            {emp.type} · {clinicDisplay}
           </p>
         </div>
         <button
@@ -807,8 +821,8 @@ export default function ClockPage({ userId }: { userId: string }) {
             }}
           >
             <option value="" disabled>Seleccionar clínica...</option>
-            {CLINICS.map(c => (
-              <option key={c.name} value={c.name}>{c.name}</option>
+            {clinics.map(c => (
+              <option key={c.id} value={c.name}>{c.display_name}</option>
             ))}
           </select>
         </div>

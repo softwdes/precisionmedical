@@ -258,6 +258,15 @@ export default function ClockPage({ userId }: { userId: string }) {
     setRecord(data as AttendanceRecord);
     setSelectedClinic(data.clinic_name);
 
+    // Restart waypoint tracking on reload while shift is still active.
+    // Without this, closing the app mid-shift kills the interval and no
+    // more waypoints are recorded until the next clock-in. Matches the
+    // behavior of the original clock-in flow (tracking stays on through
+    // breaks; stopped only by clock-out).
+    if (data.check_in && !data.check_out) {
+      startWaypointTracking(data.id as string);
+    }
+
     if (data.check_out) setClockState('done');
     else if (data.break_start && !data.break_end) setClockState('break');
     else if (data.check_in) setClockState('working');

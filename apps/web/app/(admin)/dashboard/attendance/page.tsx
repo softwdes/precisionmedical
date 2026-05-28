@@ -1,17 +1,12 @@
-import { Suspense } from 'react';
-import { api } from '@/lib/trpc/server';
-import { AttendanceClient } from './attendance-client';
+import { redirect } from 'next/navigation';
 
-export const metadata = { title: 'Asistencia' };
-
-export default async function AttendancePage(): Promise<React.ReactElement> {
-  const [initial, employees] = await Promise.all([
-    api.attendance.list({ page: 1, pageSize: 25 }),
-    api.employees.list({ page: 1, pageSize: 200 }),
-  ]);
-  return (
-    <Suspense fallback={<div className="p-6 text-text-3">Cargando...</div>}>
-      <AttendanceClient initial={initial} employees={employees.items} />
-    </Suspense>
-  );
+// Legacy route — the previous implementation read from attendance_sync
+// (a different table not tied to the PM Time Clock). All attendance
+// data with GPS/clinic context now lives in attendance_records and is
+// surfaced under Empleados → Asistencia.
+//
+// This redirect preserves any bookmark/external link pointing to
+// /dashboard/attendance.
+export default function AttendanceLegacyRedirect(): never {
+  redirect('/dashboard/employees?tab=asistencia');
 }

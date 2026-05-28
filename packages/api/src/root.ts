@@ -9,7 +9,6 @@ import { notificationsRouter } from './routers/notifications';
 import { searchRouter } from './routers/search';
 import { walletsRouter } from './routers/wallets';
 import { fxRouter } from './routers/fx';
-import { attendanceRouter } from './routers/attendance';
 import { metricsRouter } from './routers/metrics';
 import { tasksRouter } from './routers/tasks';
 import { lawyersRouter } from './routers/lawyers';
@@ -32,7 +31,6 @@ export const appRouter = router({
   search: searchRouter,
   wallets: walletsRouter,
   fx: fxRouter,
-  attendance: attendanceRouter,
   metrics: metricsRouter,
   tasks: tasksRouter,
   lawyers: lawyersRouter,

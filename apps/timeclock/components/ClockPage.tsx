@@ -32,6 +32,8 @@ interface Employee {
   lastName: string;
   employeeCode: string;
   type: string;
+  /** Country code from the joined countries table ('US' | 'BO' | 'PE'). */
+  country_code: string | null;
 }
 
 interface AttendanceRecord {
@@ -237,6 +239,19 @@ export default function ClockPage({ userId }: { userId: string }) {
 
   useEffect(() => () => stopWaypointTracking(), []);
 
+  // ─── Auto-select clinic when employee's country only has one ────────────────
+  // For Bolivia and Perú employees (one clinic per country), pre-fill
+  // the dropdown so they don't have to tap it. The dropdown is rendered
+  // disabled below when lockedToSingleClinic is true.
+  useEffect(() => {
+    if (employee?.country_code && clinics.length > 0) {
+      const ownCountryClinics = clinics.filter(c => c.country === employee.country_code);
+      if (ownCountryClinics.length === 1 && !selectedClinic) {
+        setSelectedClinic(ownCountryClinics[0].name);
+      }
+    }
+  }, [employee?.country_code, clinics, selectedClinic]);
+
   // ─── Live clock ticker ───────────────────────────────────────────────────────
   useEffect(() => {
     const tick = () => {
@@ -269,10 +284,13 @@ export default function ClockPage({ userId }: { userId: string }) {
     // Fetch employee record + role in parallel. We need the role even
     // when there's no employee record, to distinguish "admin landed on
     // the wrong app" from "employee account not set up yet".
-    const [{ data: emp }, { data: userData }] = await Promise.all([
+    // Employee join brings country.code so the clinic dropdown can be
+    // filtered by country (Bolivia/Perú employees only see their one
+    // clinic; US employees see the 5 Utah clinics).
+    const [{ data: rawEmp }, { data: userData }] = await Promise.all([
       supabase
         .from('employees')
-        .select('id, firstName, lastName, employeeCode, type')
+        .select('id, firstName, lastName, employeeCode, type, country:countries(code)')
         .eq('email', authUser.email)
         .maybeSingle(),
       supabase
@@ -285,7 +303,7 @@ export default function ClockPage({ userId }: { userId: string }) {
     const userRole = userData?.role ?? 'EMPLOYEE';
     setRole(userRole);
 
-    if (!emp) {
+    if (!rawEmp) {
       if (userRole !== 'EMPLOYEE') {
         setWrongRoleError(true);
       } else {
@@ -295,9 +313,56 @@ export default function ClockPage({ userId }: { userId: string }) {
       return;
     }
 
-    setEmployee(emp as Employee);
+    // Normalize the country join (supabase-js may return obj or array
+    // depending on relation cardinality)
+    const countryField = (rawEmp as { country?: { code: string } | { code: string }[] | null }).country;
+    const countryCode = countryField
+      ? Array.isArray(countryField)
+        ? countryField[0]?.code ?? null
+        : countryField.code
+      : null;
+
+    const emp: Employee = {
+      id: rawEmp.id as string,
+      firstName: rawEmp.firstName as string,
+      lastName: rawEmp.lastName as string,
+      employeeCode: rawEmp.employeeCode as string,
+      type: rawEmp.type as string,
+      country_code: countryCode,
+    };
+    setEmployee(emp);
 
     await Promise.all([loadClinics(), loadTodayRecord(emp.id), loadStats(emp.id)]);
+
+    // After today's record is loaded, if there's no active shift yet
+    // and the employee is in a multi-clinic country (US), try to
+    // pre-select the clinic from today's active schedule. This keeps
+    // the UX the user described: "shows their assigned clinic by
+    // default, but they can change it".
+    await loadDefaultClinicFromSchedule(emp.id);
+  }
+
+  async function loadDefaultClinicFromSchedule(empId: string) {
+    // Only pre-fill if we're in idle (no shift today yet) and the
+    // selector is empty. If today's record already restored a clinic,
+    // don't overwrite it.
+    const jsDay = new Date().getDay();
+    const dbDay = jsDay === 0 ? 7 : jsDay;
+    const { data: schedules } = await supabase
+      .from('work_schedules')
+      .select('clinic_name, days_of_week')
+      .eq('employee_id', empId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    const todaySchedule = (schedules ?? []).find(
+      s => Array.isArray(s.days_of_week) && (s.days_of_week as number[]).includes(dbDay),
+    );
+    if (!todaySchedule) return;
+
+    // Use functional setSelectedClinic to avoid stale closure on the
+    // (possibly already-set) value from loadTodayRecord.
+    setSelectedClinic(prev => prev ? prev : (todaySchedule.clinic_name as string));
   }
 
   async function loadClinics() {
@@ -664,6 +729,17 @@ export default function ClockPage({ userId }: { userId: string }) {
     ? (clinics.find(c => c.name === record.clinic_name)?.display_name ?? record.clinic_name)
     : '—';
 
+  // Clinics shown in the dropdown are filtered to the employee's
+  // country. Bolivia/Perú employees only see their one clinic;
+  // US employees see all 5 Utah clinics.
+  const visibleClinics = employee?.country_code
+    ? clinics.filter(c => c.country === employee.country_code)
+    : clinics;
+
+  // If only one option is available (BO/PE employees), the dropdown
+  // is locked and auto-selected.
+  const lockedToSingleClinic = visibleClinics.length === 1;
+
   const sectionStyle: React.CSSProperties = { width: '100%', maxWidth: 360, position: 'relative', zIndex: 1 };
 
   return (
@@ -863,7 +939,7 @@ export default function ClockPage({ userId }: { userId: string }) {
           <select
             value={selectedClinic}
             onChange={e => setSelectedClinic(e.target.value)}
-            disabled={clocked}
+            disabled={clocked || lockedToSingleClinic}
             className={shakeClinic ? 'shake' : ''}
             style={{
               width: '100%',
@@ -874,13 +950,13 @@ export default function ClockPage({ userId }: { userId: string }) {
               border: `1px solid ${shakeClinic ? 'var(--rose-border)' : 'var(--border)'}`,
               color: selectedClinic ? 'white' : 'var(--text-muted)',
               fontSize: 14,
-              cursor: clocked ? 'default' : 'pointer',
+              cursor: (clocked || lockedToSingleClinic) ? 'default' : 'pointer',
               outline: 'none',
-              opacity: clocked ? 0.6 : 1,
+              opacity: (clocked || lockedToSingleClinic) ? 0.7 : 1,
             }}
           >
             <option value="" disabled>Seleccionar clínica...</option>
-            {clinics.map(c => (
+            {visibleClinics.map(c => (
               <option key={c.id} value={c.name}>{c.display_name}</option>
             ))}
           </select>

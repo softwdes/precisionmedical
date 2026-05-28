@@ -14,15 +14,16 @@ import {
   Bot,
   Settings,
   ChevronLeft,
-  Lock,
 } from 'lucide-react';
+import { useRole } from '@/contexts/role-context';
+import { can } from '@/lib/permissions';
 
 interface NavItem {
   key: string;
   href: string;
   icon: React.ElementType;
   label: string;
-  phase?: number;
+  module: 'dashboard' | 'usuarios' | 'empleados' | 'finanzas' | 'metricas' | 'agentes_ia' | 'configuracion';
 }
 
 interface SidebarProps {
@@ -33,25 +34,32 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
   const t = useTranslations();
+  const role = useRole();
 
   const NAV_MAIN: NavItem[] = [
-    { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard') },
+    { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard'), module: 'dashboard' },
   ];
 
   const NAV_MODULES: NavItem[] = [
-    { key: 'users',      href: '/dashboard/users',      icon: Users,      label: t('nav.users') },
-    { key: 'employees',  href: '/dashboard/employees',  icon: UserCheck,  label: t('nav.employees') },
-    { key: 'finanzas',   href: '/dashboard/finanzas',   icon: Banknote,   label: t('nav.finance') },
-    { key: 'metricas',   href: '/dashboard/metricas',   icon: BarChart3,  label: t('nav.metrics'), phase: 2 },
+    { key: 'users',     href: '/dashboard/users',     icon: Users,     label: t('nav.users'),     module: 'usuarios'  },
+    { key: 'employees', href: '/dashboard/employees', icon: UserCheck, label: t('nav.employees'), module: 'empleados' },
+    { key: 'finanzas',  href: '/dashboard/finanzas',  icon: Banknote,  label: t('nav.finance'),   module: 'finanzas'  },
+    { key: 'metricas',  href: '/dashboard/metricas',  icon: BarChart3, label: t('nav.metrics'),   module: 'metricas'  },
   ];
 
   const NAV_INTELLIGENCE: NavItem[] = [
-    { key: 'ai-agents', href: '/dashboard/ai-agents', icon: Bot, label: t('nav.aiAgents') },
+    { key: 'ai-agents', href: '/dashboard/ai-agents', icon: Bot, label: t('nav.aiAgents'), module: 'agentes_ia' },
   ];
 
   const NAV_SYSTEM: NavItem[] = [
-    { key: 'settings', href: '/dashboard/settings', icon: Settings, label: t('nav.settings') },
+    { key: 'settings', href: '/dashboard/settings', icon: Settings, label: t('nav.settings'), module: 'configuracion' },
   ];
+
+  // Filter items based on role permissions
+  const visibleMain       = NAV_MAIN.filter(item => can(role, item.module));
+  const visibleModules    = NAV_MODULES.filter(item => can(role, item.module));
+  const visibleIntelligence = NAV_INTELLIGENCE.filter(item => can(role, item.module));
+  const visibleSystem     = NAV_SYSTEM.filter(item => can(role, item.module));
 
   return (
     <>
@@ -89,30 +97,37 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
-          <NavGroup items={NAV_MAIN} pathname={pathname} />
+          {visibleMain.length > 0 && (
+            <NavGroup items={visibleMain} pathname={pathname} />
+          )}
 
-          <div className="mt-4">
-            <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-              {t('nav.modules') as string}
-            </p>
-            <NavGroup items={NAV_MODULES} pathname={pathname} />
-          </div>
+          {visibleModules.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
+                {t('nav.modules') as string}
+              </p>
+              <NavGroup items={visibleModules} pathname={pathname} />
+            </div>
+          )}
 
-          <div className="mt-4">
-            <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-              {t('nav.inteligencia') as string}
-            </p>
-            <NavGroup items={NAV_INTELLIGENCE} pathname={pathname} />
-          </div>
+          {visibleIntelligence.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
+                {t('nav.inteligencia') as string}
+              </p>
+              <NavGroup items={visibleIntelligence} pathname={pathname} />
+            </div>
+          )}
 
-          <div className="mt-4">
-            <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-              {t('nav.system') as string}
-            </p>
-            <NavGroup items={NAV_SYSTEM} pathname={pathname} />
-          </div>
+          {visibleSystem.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
+                {t('nav.system') as string}
+              </p>
+              <NavGroup items={visibleSystem} pathname={pathname} />
+            </div>
+          )}
         </nav>
-
       </aside>
     </>
   );
@@ -127,36 +142,24 @@ function NavGroup({ items, pathname }: { items: NavItem[]; pathname: string }): 
             ? pathname === '/dashboard'
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
-        const isComingSoon = (item.phase ?? 1) > 1;
 
         return (
           <li key={item.key}>
-            {isComingSoon ? (
-              <span
-                className="relative flex items-center gap-3 rounded px-3 py-2 text-sm text-text-muted cursor-not-allowed opacity-40"
-                title="Próximamente"
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1">{item.label}</span>
-                <Lock className="h-3 w-3 shrink-0" />
-              </span>
-            ) : (
-              <Link
-                href={item.href}
-                className={cn(
-                  'relative flex items-center gap-3 rounded px-3 py-2 text-sm transition-all duration-250 ease-out-expo',
-                  isActive
-                    ? 'bg-brand/10 text-brand font-semibold'
-                    : 'text-text-2 hover:bg-surface hover:text-text-1',
-                )}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-brand" />
-                )}
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
-              </Link>
-            )}
+            <Link
+              href={item.href}
+              className={cn(
+                'relative flex items-center gap-3 rounded px-3 py-2 text-sm transition-all duration-250 ease-out-expo',
+                isActive
+                  ? 'bg-brand/10 text-brand font-semibold'
+                  : 'text-text-2 hover:bg-surface hover:text-text-1',
+              )}
+            >
+              {isActive && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r-full bg-brand" />
+              )}
+              <Icon className="h-4 w-4 shrink-0" />
+              <span>{item.label}</span>
+            </Link>
           </li>
         );
       })}

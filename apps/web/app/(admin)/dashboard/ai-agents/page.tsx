@@ -1,6 +1,9 @@
 import { getTranslations } from 'next-intl/server';
+import { redirect } from 'next/navigation';
 import { api } from '@/lib/trpc/server';
 import { AiAgentsClient } from './ai-agents-client';
+import { getCurrentUserRole } from '@/lib/auth/get-role';
+import { getPermission, can } from '@/lib/permissions';
 
 export async function generateMetadata(): Promise<{ title: string }> {
   const t = await getTranslations();
@@ -8,6 +11,13 @@ export async function generateMetadata(): Promise<{ title: string }> {
 }
 
 export default async function AiAgentsPage(): Promise<React.ReactElement> {
+  const role = await getCurrentUserRole();
+  const agentsPerm = getPermission(role, 'agentes_ia');
+
+  if (!can(role, 'agentes_ia')) {
+    redirect('/no-access');
+  }
+
   const [settings, findings, runs, costs, lastRun] = await Promise.allSettled([
     api.aiAgents.getAuditSettings(),
     api.aiAgents.listFindings({ status: 'pending' }),
@@ -23,6 +33,7 @@ export default async function AiAgentsPage(): Promise<React.ReactElement> {
       initialRuns={runs.status === 'fulfilled' ? runs.value : []}
       initialCosts={costs.status === 'fulfilled' ? costs.value : null}
       initialLastRun={lastRun.status === 'fulfilled' ? lastRun.value : null}
+      agentsPerm={agentsPerm}
     />
   );
 }

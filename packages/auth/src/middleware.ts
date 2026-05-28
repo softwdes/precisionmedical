@@ -1,7 +1,10 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
+import type { User } from '@supabase/supabase-js';
 
-export async function updateSession(request: NextRequest): Promise<NextResponse> {
+export async function updateSession(
+  request: NextRequest,
+): Promise<{ response: NextResponse; user: User | null }> {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -40,16 +43,16 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/login';
     redirectUrl.searchParams.set('redirectTo', pathname);
-    return NextResponse.redirect(redirectUrl);
+    return { response: NextResponse.redirect(redirectUrl), user: null };
   }
 
   if (user && isAuthRoute) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/dashboard';
-    return NextResponse.redirect(redirectUrl);
+    return { response: NextResponse.redirect(redirectUrl), user };
   }
 
   void isPublicRoute;
 
-  return supabaseResponse;
+  return { response: supabaseResponse, user };
 }

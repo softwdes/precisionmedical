@@ -2,6 +2,18 @@ import { redirect } from 'next/navigation';
 import { createServerClient, createAdminClient } from '@precision-medical/auth/server';
 import { AppLayout } from '@/components/layout/app-layout';
 import { BootAnimation } from '@/components/layout/boot-animation';
+import { dbRoleToRole } from '@/lib/permissions';
+import type { Role } from '@/lib/permissions';
+
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Admin',
+  CONTADOR: 'Contador',
+  EMPLOYEE: 'Empleado',
+  LAWYER: 'Abogado',
+  PROVIDER: 'Proveedor',
+  AUDITOR_AI: 'IA Auditor',
+};
 
 export default async function AdminLayout({
   children,
@@ -25,26 +37,20 @@ export default async function AdminLayout({
     .single();
 
   if (error || !user) {
-    // Sign out before redirecting to avoid redirect loop
     redirect('/api/auth/signout');
   }
 
-  const roleLabels: Record<string, string> = {
-    SUPER_ADMIN: 'Super Admin',
-    ADMIN: 'Admin',
-    EMPLOYEE: 'Employee',
-    LAWYER: 'Lawyer',
-    PROVIDER: 'Provider',
-    AUDITOR_AI: 'AI Auditor',
-  };
+  const role: Role = dbRoleToRole(user.role as string);
 
   return (
     <BootAnimation>
       <AppLayout
         userName={`${user.firstName} ${user.lastName}`}
-        userRole={roleLabels[user.role] ?? user.role}
+        userRole={ROLE_LABELS[user.role as string] ?? user.role}
         userEmail={supabaseUser.email ?? ''}
         avatarUrl={user.avatarUrl ?? undefined}
+        role={role}
+        userId={supabaseUser.id}
       >
         {children}
       </AppLayout>

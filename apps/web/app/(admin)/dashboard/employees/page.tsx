@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import * as React from 'react';
+import { redirect } from 'next/navigation';
 import { api } from '@/lib/trpc/server';
 import { EmployeesClient } from './employees-client';
 import { PaymentsClient } from '../payments/payments-client';
@@ -8,10 +9,10 @@ import { HorariosClient } from './horarios-client';
 import { AsistenciaClient } from './asistencia-client';
 import { ReporteHorasClient } from './reporte-horas-client';
 import { ModuleTabs } from '@/components/module-tabs';
+import { getCurrentUserRole } from '@/lib/auth/get-role';
+import { getPermission, can } from '@/lib/permissions';
 
-export const metadata = { title: 'Empleados' };
-
-const TABS = [
+const ALL_TABS = [
   { key: 'lista',       label: 'Empleados',          href: '/dashboard/employees' },
   { key: 'freelancers', label: 'Freelancers',         href: '/dashboard/employees?tab=freelancers' },
   { key: 'pagos',       label: 'Pago de Salarios',    href: '/dashboard/employees?tab=pagos' },
@@ -20,30 +21,48 @@ const TABS = [
   { key: 'reporte',     label: 'Reporte de Horas',    href: '/dashboard/employees?tab=reporte' },
 ];
 
+// Tabs visible when empleados = 'payroll_only'
+const PAYROLL_TABS = ['asistencia', 'reporte'];
+
+export const metadata = { title: 'Empleados' };
+
 export default async function EmployeesPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.ReactElement> {
+  const role = await getCurrentUserRole();
+  const empPerm = getPermission(role, 'empleados');
+
+  // No access → redirect
+  if (!can(role, 'empleados')) {
+    redirect('/no-access');
+  }
+
+  // Filter tabs based on permission level
+  const TABS = empPerm === 'payroll_only'
+    ? ALL_TABS.filter(t => PAYROLL_TABS.includes(t.key))
+    : ALL_TABS;
+
   const params    = await searchParams;
-  const tab       = (params.tab as string) ?? 'lista';
-  const activeTab = TABS.some(t => t.key === tab) ? tab : 'lista';
+  const tab       = (params.tab as string) ?? (empPerm === 'payroll_only' ? 'asistencia' : 'lista');
+  const activeTab = TABS.some(t => t.key === tab) ? tab : TABS[0]?.key ?? 'lista';
 
   let content: React.ReactElement;
 
-  if (activeTab === 'pagos') {
+  if (activeTab === 'pagos' && empPerm !== 'payroll_only') {
     const [initial, summary] = await Promise.all([
       api.payments.list({ page: 1, pageSize: 25 }),
       api.payments.getSummary({}),
     ]);
     content = <PaymentsClient initial={initial} summary={summary} />;
-  } else if (activeTab === 'freelancers') {
+  } else if (activeTab === 'freelancers' && empPerm !== 'payroll_only') {
     const [initial, initialSummary] = await Promise.all([
       api.freelancers.list({ page: 1, pageSize: 25 }),
       api.freelancers.getSummary(),
     ]);
     content = <FreelancersClient initial={initial} initialSummary={initialSummary} />;
-  } else if (activeTab === 'horarios') {
+  } else if (activeTab === 'horarios' && empPerm !== 'payroll_only') {
     const employees = await api.employees.list({ page: 1, pageSize: 100 });
     content = <HorariosClient initialEmployees={employees.items} />;
   } else if (activeTab === 'asistencia') {

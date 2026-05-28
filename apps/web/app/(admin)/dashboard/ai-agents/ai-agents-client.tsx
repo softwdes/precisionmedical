@@ -83,6 +83,7 @@ interface Props {
   initialRuns: AuditRun[];
   initialCosts: AgentCosts | null;
   initialLastRun: { id: string; completed_at: string; findings_count: number; critical_count: number; warning_count: number; info_count: number } | null;
+  agentsPerm?: string;
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -203,6 +204,7 @@ export function AiAgentsClient({
   initialRuns,
   initialCosts,
   initialLastRun,
+  agentsPerm = 'write',
 }: Props): React.ReactElement {
   const t = useTranslations();
   const [tab, setTab] = useState<Tab>('dashboard');
@@ -236,6 +238,17 @@ export function AiAgentsClient({
     { key: 'costs', label: t('aiAgents.costsTab') },
   ];
 
+  const visibleTabs = agentsPerm === 'cifo_only'
+    ? tabs.filter(t => t.key === 'cifo')
+    : tabs;
+
+  // Force cifo tab for cifo_only permission
+  React.useEffect(() => {
+    if (agentsPerm === 'cifo_only' && tab !== 'cifo') {
+      setTab('cifo');
+    }
+  }, [agentsPerm, tab]);
+
   return (
     <div className="px-3 py-4 sm:px-6 sm:py-6 space-y-0 min-h-0">
       {/* Module header */}
@@ -246,7 +259,7 @@ export function AiAgentsClient({
 
       {/* Tab bar */}
       <div className="flex items-center gap-0 border-b border-border overflow-x-auto scrollbar-none -mx-3 sm:-mx-6 px-3 sm:px-6 mb-6">
-        {tabs.map(({ key, label, badge }) => (
+        {visibleTabs.map(({ key, label, badge }) => (
           <button
             key={key}
             onClick={() => setTab(key)}

@@ -72,6 +72,7 @@ model User {
 enum UserRole {
   SUPER_ADMIN
   ADMIN
+  CONTADOR
   EMPLOYEE
   LAWYER
   PROVIDER

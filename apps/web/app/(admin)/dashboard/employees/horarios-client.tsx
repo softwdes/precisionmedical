@@ -653,75 +653,70 @@ function ExceptionModal({
                 Rango de horas ausente
                 {slotStart && slotEnd && <span className="ml-1 normal-case font-normal text-text-muted">({formatTime(slotStart)}–{formatTime(slotEnd)})</span>}
               </p>
-              {/* ── De ── */}
-              <div className="space-y-1">
-                <label className="block text-[11px] text-text-3">De *</label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={startHour}
-                    onChange={e => {
-                      const h = e.target.value;
-                      const mins = deSlots.filter(s => s.startsWith(h + ':')).map(s => s.slice(3, 5));
-                      const m = mins.includes(startMin) ? startMin : (mins[0] ?? '00');
-                      const newStart = `${h}:${m}`;
-                      setStartTime(newStart);
-                      if (endTime && endTime <= newStart) setEndTime('');
-                    }}
-                    style={{ ...SEL_STYLE, width: '72px' }}
-                    className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px]">
-                    <option value="" style={OPT_STYLE}>—</option>
-                    {deHours.map(h => <option key={h} value={h} style={OPT_STYLE}>{Number(h)}</option>)}
-                  </select>
-                  <span className="text-[12px] text-text-muted shrink-0">h</span>
-                  <select
-                    value={startMin}
-                    disabled={!startHour}
-                    onChange={e => {
-                      const newStart = `${startHour}:${e.target.value}`;
-                      setStartTime(newStart);
-                      if (endTime && endTime <= newStart) setEndTime('');
-                    }}
-                    style={{ ...SEL_STYLE, width: '72px' }}
-                    className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
-                    <option value="" style={OPT_STYLE}>—</option>
-                    {(startHour ? deSlots.filter(s => s.startsWith(startHour + ':')).map(s => s.slice(3, 5)) : ['00','30'])
-                      .map(m => <option key={m} value={m} style={OPT_STYLE}>{m}</option>)}
-                  </select>
-                  <span className="text-[12px] text-text-muted shrink-0">min</span>
-                </div>
-              </div>
+              {/* ── De · Hasta en una sola fila ── */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] font-semibold text-text-3 shrink-0">De</span>
+                <select
+                  value={startHour}
+                  onChange={e => {
+                    const h = e.target.value;
+                    const mins = deSlots.filter(s => s.startsWith(h + ':')).map(s => s.slice(3, 5));
+                    const m = mins.includes(startMin) ? startMin : (mins[0] ?? '00');
+                    const newStart = `${h}:${m}`;
+                    setStartTime(newStart);
+                    if (endTime && endTime <= newStart) setEndTime('');
+                  }}
+                  style={{ ...SEL_STYLE, width: '64px' }}
+                  className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px]">
+                  <option value="" style={OPT_STYLE}>—</option>
+                  {deHours.map(h => <option key={h} value={h} style={OPT_STYLE}>{Number(h)}</option>)}
+                </select>
+                <span className="text-[11px] text-text-muted">h</span>
+                <select
+                  value={startMin}
+                  disabled={!startHour}
+                  onChange={e => {
+                    const newStart = `${startHour}:${e.target.value}`;
+                    setStartTime(newStart);
+                    if (endTime && endTime <= newStart) setEndTime('');
+                  }}
+                  style={{ ...SEL_STYLE, width: '64px' }}
+                  className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
+                  <option value="" style={OPT_STYLE}>—</option>
+                  {(startHour ? deSlots.filter(s => s.startsWith(startHour + ':')).map(s => s.slice(3, 5)) : ['00','30'])
+                    .map(m => <option key={m} value={m} style={OPT_STYLE}>{m}</option>)}
+                </select>
+                <span className="text-[11px] text-text-muted">min</span>
 
-              {/* ── Hasta ── */}
-              <div className="space-y-1">
-                <label className="block text-[11px] text-text-3">Hasta *</label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={endHour}
-                    disabled={!startTime}
-                    onChange={e => {
-                      const h = e.target.value;
-                      const mins = hastaSlots.filter(s => s.startsWith(h + ':')).map(s => s.slice(3, 5));
-                      const m = mins.includes(endMin) ? endMin : (mins[0] ?? '00');
-                      setEndTime(`${h}:${m}`);
-                    }}
-                    style={{ ...SEL_STYLE, width: '72px' }}
-                    className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
-                    <option value="" style={OPT_STYLE}>—</option>
-                    {hastaHours.map(h => <option key={h} value={h} style={OPT_STYLE}>{Number(h)}</option>)}
-                  </select>
-                  <span className="text-[12px] text-text-muted shrink-0">h</span>
-                  <select
-                    value={endMin}
-                    disabled={!endHour}
-                    onChange={e => setEndTime(`${endHour}:${e.target.value}`)}
-                    style={{ ...SEL_STYLE, width: '72px' }}
-                    className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
-                    <option value="" style={OPT_STYLE}>—</option>
-                    {(endHour ? hastaSlots.filter(s => s.startsWith(endHour + ':')).map(s => s.slice(3, 5)) : ['00','30'])
-                      .map(m => <option key={m} value={m} style={OPT_STYLE}>{m}</option>)}
-                  </select>
-                  <span className="text-[12px] text-text-muted shrink-0">min</span>
-                </div>
+                <span className="text-[11px] text-text-muted mx-1">→</span>
+
+                <span className="text-[11px] font-semibold text-text-3 shrink-0">Hasta</span>
+                <select
+                  value={endHour}
+                  disabled={!startTime}
+                  onChange={e => {
+                    const h = e.target.value;
+                    const mins = hastaSlots.filter(s => s.startsWith(h + ':')).map(s => s.slice(3, 5));
+                    const m = mins.includes(endMin) ? endMin : (mins[0] ?? '00');
+                    setEndTime(`${h}:${m}`);
+                  }}
+                  style={{ ...SEL_STYLE, width: '64px' }}
+                  className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
+                  <option value="" style={OPT_STYLE}>—</option>
+                  {hastaHours.map(h => <option key={h} value={h} style={OPT_STYLE}>{Number(h)}</option>)}
+                </select>
+                <span className="text-[11px] text-text-muted">h</span>
+                <select
+                  value={endMin}
+                  disabled={!endHour}
+                  onChange={e => setEndTime(`${endHour}:${e.target.value}`)}
+                  style={{ ...SEL_STYLE, width: '64px' }}
+                  className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
+                  <option value="" style={OPT_STYLE}>—</option>
+                  {(endHour ? hastaSlots.filter(s => s.startsWith(endHour + ':')).map(s => s.slice(3, 5)) : ['00','30'])
+                    .map(m => <option key={m} value={m} style={OPT_STYLE}>{m}</option>)}
+                </select>
+                <span className="text-[11px] text-text-muted">min</span>
               </div>
               {startTime && endTime && (
                 <p className="text-[11px] text-orange-400/70">

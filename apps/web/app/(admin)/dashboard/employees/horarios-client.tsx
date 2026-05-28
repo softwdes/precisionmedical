@@ -116,6 +116,24 @@ function formatPartialWorkHours(schedStart: string, schedEnd: string, absStart: 
   return parts.join(' / ') || '—';
 }
 
+// Compact time: "10:00"→"10"  "10:30"→"10:30"
+function fmtShort(t: string): string {
+  const [h, m] = t.slice(0, 5).split(':');
+  return m === '00' ? String(Number(h)) : `${Number(h)}:${m}`;
+}
+
+// Compact active windows: "8–10/13–17"
+function formatPartialShort(schedStart: string, schedEnd: string, absStart: string, absEnd: string): string {
+  const s  = schedStart.slice(0, 5);
+  const e  = schedEnd.slice(0, 5);
+  const as = absStart.slice(0, 5);
+  const ae = absEnd.slice(0, 5);
+  const parts: string[] = [];
+  if (as > s)  parts.push(`${fmtShort(s)}–${fmtShort(as)}`);
+  if (ae < e)  parts.push(`${fmtShort(ae)}–${fmtShort(e)}`);
+  return parts.join('/') || '—';
+}
+
 // ─── Mes / Día helpers ────────────────────────────────────────────────────────
 
 function getMonthWeekStarts(monthStart: Date): Date[] {
@@ -1062,6 +1080,12 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                           const cell       = getCellContent(entry, date);
                           const isWeekend  = di >= 5;
                           if (cell.type === 'exception' || cell.type === 'work') {
+                            const colorRgb = cell.color === '#F43F5E' ? '244,63,94'
+                              : cell.color === '#8B5CF6' ? '139,92,246'
+                              : cell.color === '#F97316' ? '249,115,22'
+                              : cell.color === '#10B981' ? '16,185,129' : '245,158,11';
+                            const isPartialCell = cell.type === 'exception' && cell.excType === 'partial' && cell.excStartTime && cell.excEndTime;
+                            const activeColor = entry.schedule?.schedule_type === 'full_time' ? '#10B981' : '#F59E0B';
                             return (
                               <div key={di} className={cn('border-l border-white/[0.05] p-[3px] flex items-center', isWeekend && 'opacity-40')}>
                                 <button
@@ -1069,13 +1093,25 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
                                     if (cell.type === 'work') setExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date), schedStartTime: entry.schedule?.start_time, schedEndTime: entry.schedule?.end_time });
                                     else if (cell.type === 'exception') setEditExcModal({ employeeId: entry.employee.id, name: entry.employee.name, date: toISODate(date), excId: cell.excId, excType: cell.excType, excReason: cell.excReason ?? null, excStartTime: cell.excStartTime ?? null, excEndTime: cell.excEndTime ?? null, schedStartTime: entry.schedule?.start_time, schedEndTime: entry.schedule?.end_time });
                                   }}
-                                  className="w-full rounded-[5px] px-[4px] py-[3px] text-[9px] text-center transition-all hover:brightness-110"
+                                  className="w-full rounded-[5px] px-[4px] py-[3px] text-center transition-all hover:brightness-110 flex flex-col items-center gap-[1px]"
                                   style={{
-                                    background: `rgba(${cell.type === 'exception' ? (cell.color === '#F43F5E' ? '244,63,94' : '139,92,246') : (cell.color === '#10B981' ? '16,185,129' : '245,158,11')},0.10)`,
-                                    border: `1px solid rgba(${cell.type === 'exception' ? (cell.color === '#F43F5E' ? '244,63,94' : '139,92,246') : (cell.color === '#10B981' ? '16,185,129' : '245,158,11')},0.25)`,
-                                    color: cell.color,
+                                    background: `rgba(${colorRgb},0.10)`,
+                                    border: `1px solid rgba(${colorRgb},0.25)`,
                                   }}>
-                                  {cell.label}
+                                  {isPartialCell ? (
+                                    <>
+                                      <span className="text-[9px] font-semibold leading-tight" style={{ color: '#F97316' }}>
+                                        {fmtShort(cell.excStartTime!)}–{fmtShort(cell.excEndTime!)}
+                                      </span>
+                                      {entry.schedule && (
+                                        <span className="text-[7.5px] leading-tight" style={{ color: activeColor }}>
+                                          {formatPartialShort(entry.schedule.start_time, entry.schedule.end_time, cell.excStartTime!, cell.excEndTime!)}
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-[9px]" style={{ color: cell.color }}>{cell.label}</span>
+                                  )}
                                 </button>
                               </div>
                             );

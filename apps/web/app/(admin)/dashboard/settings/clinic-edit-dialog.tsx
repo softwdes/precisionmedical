@@ -3,11 +3,30 @@
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+// Note: NOT importing 'leaflet/dist/leaflet.css' here — Next.js App Router
+// sometimes drops third-party CSS imports from client components in the
+// production bundle. We inject the stylesheet from CDN below.
+
+const LEAFLET_CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+const LEAFLET_CSS_ID  = 'pm-leaflet-css';
+
+function ensureLeafletCss(): Promise<void> {
+  return new Promise((resolve) => {
+    if (document.getElementById(LEAFLET_CSS_ID)) { resolve(); return; }
+    const link = document.createElement('link');
+    link.id = LEAFLET_CSS_ID;
+    link.rel = 'stylesheet';
+    link.href = LEAFLET_CSS_URL;
+    link.crossOrigin = '';
+    link.onload = () => resolve();
+    link.onerror = () => resolve(); // resolve anyway, map will still try
+    document.head.appendChild(link);
+  });
+}
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle,
-  DialogFooter,
+  DialogDescription, DialogFooter,
 } from '@precision/ui';
 import { MapPin, Save } from 'lucide-react';
 import { toast } from 'sonner';
@@ -76,52 +95,60 @@ export function ClinicEditDialog({
     onError: (e) => toast.error(e.message),
   });
 
-  // Initialize Leaflet map once
+  // Initialize Leaflet map once — waits for CSS to load from CDN before init
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+    let cancelled = false;
 
-    const initialCenter: [number, number] =
-      form.lat !== null && form.lng !== null
-        ? [form.lat, form.lng]
-        : COUNTRY_DEFAULT_CENTER[clinic.country] ?? [0, 0];
-    const initialZoom = form.lat !== null && form.lng !== null ? 16 : 12;
+    void (async () => {
+      await ensureLeafletCss();
+      if (cancelled) return;
+      if (!mapRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapRef.current, { zoomControl: true }).setView(initialCenter, initialZoom);
+      const initialCenter: [number, number] =
+        form.lat !== null && form.lng !== null
+          ? [form.lat, form.lng]
+          : COUNTRY_DEFAULT_CENTER[clinic.country] ?? [0, 0];
+      const initialZoom = form.lat !== null && form.lng !== null ? 16 : 12;
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap',
-    }).addTo(map);
+      const map = L.map(mapRef.current, { zoomControl: true }).setView(initialCenter, initialZoom);
 
-    // Click anywhere on the map → update lat/lng
-    map.on('click', (e: L.LeafletMouseEvent) => {
-      setForm((f) => ({ ...f, lat: e.latlng.lat, lng: e.latlng.lng }));
-    });
-
-    mapInstanceRef.current = map;
-
-    // Initial marker + circle if we already have coords
-    if (form.lat !== null && form.lng !== null) {
-      markerRef.current = L.marker([form.lat, form.lng], { icon: PIN_ICON }).addTo(map);
-      circleRef.current = L.circle([form.lat, form.lng], {
-        radius: form.radius_m,
-        color: '#6366F1',
-        fillColor: '#6366F1',
-        fillOpacity: 0.12,
-        weight: 2,
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap',
       }).addTo(map);
-    }
 
-    // Fix Leaflet sizing when dialog finishes mounting (needs explicit recalc).
-    // The dialog uses Radix Portal + animation, so 50ms is sometimes too short.
-    // We fire invalidateSize a few times in the first 500ms to be safe.
-    [50, 200, 500].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
+      // Click anywhere on the map → update lat/lng
+      map.on('click', (e: L.LeafletMouseEvent) => {
+        setForm((f) => ({ ...f, lat: e.latlng.lat, lng: e.latlng.lng }));
+      });
+
+      mapInstanceRef.current = map;
+
+      // Initial marker + circle if we already have coords
+      if (form.lat !== null && form.lng !== null) {
+        markerRef.current = L.marker([form.lat, form.lng], { icon: PIN_ICON }).addTo(map);
+        circleRef.current = L.circle([form.lat, form.lng], {
+          radius: form.radius_m,
+          color: '#6366F1',
+          fillColor: '#6366F1',
+          fillOpacity: 0.12,
+          weight: 2,
+        }).addTo(map);
+      }
+
+      // Fix Leaflet sizing when dialog finishes mounting (Radix Portal +
+      // animation can leave the div with height 0 on first measure).
+      [50, 200, 500].forEach(ms => setTimeout(() => map.invalidateSize(), ms));
+    })();
 
     return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-      markerRef.current = null;
-      circleRef.current = null;
+      cancelled = true;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+        circleRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -178,6 +205,9 @@ export function ClinicEditDialog({
             <MapPin className="h-4 w-4 text-brand" />
             Editar clínica — {clinic.display_name}
           </DialogTitle>
+          <DialogDescription>
+            Ajusta las coordenadas GPS y el radio de geofencing para verificar la asistencia de empleados.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">

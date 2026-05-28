@@ -568,7 +568,7 @@ function ExceptionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-1 p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-bg-1 p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-[15px] font-bold text-text-1">{isEdit ? 'Editar excepción' : 'Registrar excepción'}</h2>
           <div className="flex items-center gap-2">
@@ -666,7 +666,7 @@ function ExceptionModal({
                     setStartTime(newStart);
                     if (endTime && endTime <= newStart) setEndTime('');
                   }}
-                  style={{ ...SEL_STYLE, width: '64px' }}
+                  style={{ ...SEL_STYLE, width: '58px' }}
                   className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px]">
                   <option value="" style={OPT_STYLE}>—</option>
                   {deHours.map(h => <option key={h} value={h} style={OPT_STYLE}>{Number(h)}</option>)}
@@ -680,7 +680,7 @@ function ExceptionModal({
                     setStartTime(newStart);
                     if (endTime && endTime <= newStart) setEndTime('');
                   }}
-                  style={{ ...SEL_STYLE, width: '64px' }}
+                  style={{ ...SEL_STYLE, width: '58px' }}
                   className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
                   <option value="" style={OPT_STYLE}>—</option>
                   {(startHour ? deSlots.filter(s => s.startsWith(startHour + ':')).map(s => s.slice(3, 5)) : ['00','30'])
@@ -700,7 +700,7 @@ function ExceptionModal({
                     const m = mins.includes(endMin) ? endMin : (mins[0] ?? '00');
                     setEndTime(`${h}:${m}`);
                   }}
-                  style={{ ...SEL_STYLE, width: '64px' }}
+                  style={{ ...SEL_STYLE, width: '58px' }}
                   className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
                   <option value="" style={OPT_STYLE}>—</option>
                   {hastaHours.map(h => <option key={h} value={h} style={OPT_STYLE}>{Number(h)}</option>)}
@@ -710,7 +710,7 @@ function ExceptionModal({
                   value={endMin}
                   disabled={!endHour}
                   onChange={e => setEndTime(`${endHour}:${e.target.value}`)}
-                  style={{ ...SEL_STYLE, width: '64px' }}
+                  style={{ ...SEL_STYLE, width: '58px' }}
                   className="rounded-[8px] border border-border px-2 py-2 text-[13px] focus:outline-none focus:border-orange-400/50 min-h-[44px] disabled:opacity-40">
                   <option value="" style={OPT_STYLE}>—</option>
                   {(endHour ? hastaSlots.filter(s => s.startsWith(endHour + ':')).map(s => s.slice(3, 5)) : ['00','30'])

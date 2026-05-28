@@ -243,7 +243,10 @@ export const usersRouter = router({
       const isFirstAccess = user.status === 'PENDING_VERIFICATION';
 
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: isFirstAccess ? 'invite' : 'recovery',
+        // magiclink (not invite) for first access: invite fails when the auth
+        // user already exists, which is always our case since users.create
+        // already calls admin.createUser. magiclink can be regenerated freely.
+        type: isFirstAccess ? 'magiclink' : 'recovery',
         email: user.email,
         options: {
           redirectTo: isFirstAccess

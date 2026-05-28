@@ -896,7 +896,7 @@ function SendAccessConfirmDialog({ user, onClose, onSent }: {
           <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
             <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-start gap-2">
               <Mail className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              El enlace expira en 24 horas y solo puede usarse una vez.
+              El enlace expira en 1 hora y solo puede usarse una vez.
             </p>
           </div>
         </div>

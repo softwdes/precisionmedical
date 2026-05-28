@@ -78,7 +78,7 @@ export async function sendWelcomeEmail({
     </div>
     <div style="height:1px;background:linear-gradient(90deg,transparent,#1E1E2E,transparent);margin-bottom:16px;"></div>
     <p style="color:#3D3D52;font-size:11px;margin:0;text-align:center;line-height:1.8;">
-      Este enlace expira en <strong style="color:#555568;">24 horas</strong>.<br/>
+      Este enlace expira en <strong style="color:#555568;">1 hora</strong>.<br/>
       Si no solicitaste esta cuenta, puedes ignorar este mensaje.
     </p>
   `);

@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@precision/ui';
 import { ChevronLeft, ChevronRight, Plus, Calendar, AlertCircle, X, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // ─── Select styles — CSS vars don't reach native <option> dropdowns ──────────
 const SEL_CLS = 'w-full rounded-[8px] border border-border px-3 py-2 text-[13px] focus:outline-none focus:border-brand/50 min-h-[44px]';
@@ -288,9 +289,7 @@ function AssignModal({
       if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
       const subtitle = `${emp ? emp.firstName + ' ' + emp.lastName : ''} · ${schedType === 'full_time' ? 'Full time' : 'Part time'} · ${clinic}`;
-      window.dispatchEvent(new CustomEvent('horarios:saved', {
-        detail: { title: isEdit ? 'Horario actualizado' : 'Horario asignado', subtitle },
-      }));
+      toast.success(isEdit ? 'Horario actualizado' : 'Horario asignado', { description: subtitle });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar');
     } finally {
@@ -540,9 +539,7 @@ function ExceptionModal({
       const empName = emp ? `${emp.firstName} ${emp.lastName}` : (preEmployeeName ?? '');
       const timeLabel = isPartial ? ` ${startTime}–${endTime}` : '';
       const subtitle = [empName, (excLabels[excType] ?? excType) + timeLabel, rangeType === 'range' && dateEnd ? `${date} → ${dateEnd}` : date].filter(Boolean).join(' · ');
-      window.dispatchEvent(new CustomEvent('horarios:saved', {
-        detail: { title: isEdit ? 'Excepción actualizada' : 'Excepción registrada', subtitle },
-      }));
+      toast.success(isEdit ? 'Excepción actualizada' : 'Excepción registrada', { description: subtitle });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar');
     } finally { setSaving(false); }
@@ -555,9 +552,7 @@ function ExceptionModal({
       const res = await fetch(`/api/schedules/exceptions/${initialException.id}`, { method: 'DELETE' });
       if (!res.ok) { const d = await res.json() as { error?: string }; throw new Error(d.error ?? 'Error'); }
       onSaved();
-      window.dispatchEvent(new CustomEvent('horarios:saved', {
-        detail: { title: 'Excepción eliminada', subtitle: preEmployeeName ?? '' },
-      }));
+      toast.success('Excepción eliminada', { description: preEmployeeName ?? '' });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al eliminar');
     } finally { setDeleting(false); }
@@ -766,25 +761,6 @@ function ExceptionModal({
   );
 }
 
-// ─── Toast ─────────────────────────────────────────────────────────────────────
-
-function SuccessToast({ detail, title, onClose }: { detail: string; title: string; onClose: () => void }) {
-  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
-  return (
-    <div className="fixed bottom-6 right-6 z-[60] flex items-start gap-3 rounded-[14px] border border-brand/25 bg-bg-1 p-4 shadow-2xl max-w-[320px] animate-fade-in">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]" style={{ background: 'rgba(99,102,241,0.15)' }}>
-        <Calendar className="h-4 w-4" style={{ color: '#6366F1' }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-bold text-text-1">{title}</p>
-        <p className="text-[11.5px] text-text-3 mt-0.5 truncate">{detail}</p>
-        <p className="text-[10.5px] text-emerald mt-0.5">Guardado correctamente</p>
-      </div>
-      <button onClick={onClose} className="text-text-muted hover:text-text-2 mt-0.5"><X className="h-3.5 w-3.5" /></button>
-    </div>
-  );
-}
-
 // ─── Legend ───────────────────────────────────────────────────────────────────
 
 function ScheduleLegend() {
@@ -821,9 +797,6 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const [showExc, setShowExc]                    = useState(false);
   const [excModal, setExcModal]                  = useState<{ employeeId: string; name: string; date: string; schedStartTime?: string; schedEndTime?: string } | null>(null);
   const [editExcModal, setEditExcModal]          = useState<{ employeeId: string; name: string; date: string; excId: string; excType: 'vacation' | 'absence' | 'holiday' | 'special' | 'partial'; excReason: string | null; excStartTime: string | null; excEndTime: string | null; schedStartTime?: string; schedEndTime?: string } | null>(null);
-  const [toast, setToast]                        = useState('');
-  const [toastTitle, setToastTitle]              = useState('Horario asignado');
-
   // ── New view state ──────────────────────────────────────────────────────────
   const [view, setView]                 = useState<'Semana' | 'Día' | 'Mes'>('Semana');
 
@@ -895,16 +868,6 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   useEffect(() => { void fetchSchedules(); }, [fetchSchedules]);
   useEffect(() => { if (view === 'Día') void fetchDaySchedules(); }, [view, fetchDaySchedules]);
   useEffect(() => { if (view === 'Mes') void fetchMonthSchedules(); }, [view, fetchMonthSchedules]);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const evt = e as CustomEvent<{ title: string; subtitle: string }>;
-      setToastTitle(evt.detail?.title ?? 'Horario guardado');
-      setToast(evt.detail?.subtitle ?? '');
-    };
-    window.addEventListener('horarios:saved', handler);
-    return () => window.removeEventListener('horarios:saved', handler);
-  }, []);
 
   // ── Navigation ───────────────────────────────────────────────────────────────
   const prevWeek  = () => { const d = new Date(currentWeekStart); d.setDate(d.getDate() - 7); setCurrentWeekStart(d); };
@@ -1558,8 +1521,6 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
         />
       )}
 
-      {/* ── Toast ── */}
-      {toast && <SuccessToast detail={toast} title={toastTitle} onClose={() => setToast('')} />}
     </div>
   );
 }

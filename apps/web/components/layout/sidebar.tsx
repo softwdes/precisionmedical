@@ -10,7 +10,6 @@ import {
   Users,
   UserCheck,
   Banknote,
-  BarChart3,
   Bot,
   Settings,
   ChevronLeft,
@@ -44,7 +43,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
     { key: 'users',     href: '/dashboard/users',     icon: Users,     label: t('nav.users'),     module: 'usuarios'  },
     { key: 'employees', href: '/dashboard/employees', icon: UserCheck, label: t('nav.employees'), module: 'empleados' },
     { key: 'finanzas',  href: '/dashboard/finanzas',  icon: Banknote,  label: t('nav.finance'),   module: 'finanzas'  },
-    { key: 'metricas',  href: '/dashboard/metricas',  icon: BarChart3, label: t('nav.metrics'),   module: 'metricas'  },
+    // { key: 'metricas',  href: '/dashboard/metricas',  icon: BarChart3, label: t('nav.metrics'),   module: 'metricas'  }, // Deshabilitado temporalmente — pendiente de implementacion
   ];
 
   const NAV_INTELLIGENCE: NavItem[] = [

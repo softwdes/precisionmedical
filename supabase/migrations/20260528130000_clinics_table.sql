@@ -1,53 +1,66 @@
 -- =============================================================
--- Clinics: first-class entity for geofencing & assignment
+-- Clinics: extend existing Prisma-managed table with geofencing
 -- =============================================================
--- Until now the list of clinics lived as a hardcoded array in
--- apps/timeclock/components/ClockPage.tsx — every coordinate or
--- name change required a deploy. Other tables (work_schedules,
--- attendance_records, employees) reference clinics by free-form
--- "clinic_name" text. This migration keeps that contract intact
--- (clinics.name preserves the legacy strings) while moving the
--- geo data to the DB so the admin can edit coords without code
--- changes.
+-- The table public.clinics already exists (created by Prisma —
+-- see packages/database/prisma/schema.prisma model Clinic, with
+-- id text/name/address/phone). Nothing in the codebase reads
+-- Clinic via Prisma ORM today; appointments router queries it via
+-- supabase-js for (id, name, address, phone).
 --
--- Future steps:
---   * Admin UI to CRUD clinics (Configuración → Clínicas).
---   * Eventually migrate columns to FK clinic_id (separate effort,
---     invasive — out of scope here).
+-- This migration:
+--   * Adds geofencing columns the timeclock needs
+--   * Preserves existing columns so appointments.listClinics
+--     keeps working
+--   * Seeds the 7 known clinics idempotently (UPSERT by name)
+--
+-- Follow-up: update the Prisma model to mirror the new columns
+-- next time `prisma db pull` runs (non-blocking).
 -- =============================================================
 
-CREATE TABLE IF NOT EXISTS public.clinics (
-  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  name          text        NOT NULL UNIQUE,             -- legacy key, matches *_records.clinic_name
-  display_name  text        NOT NULL,                    -- what employees see in the dropdown
-  country       text        NOT NULL,                    -- 'US' | 'BO' | 'PE'
-  lat           double precision,                        -- null = no geofence (remote)
-  lng           double precision,
-  radius_m      integer,                                 -- null = no geofence; default sugerido 250
-  is_active     boolean     NOT NULL DEFAULT true,
-  created_at    timestamptz NOT NULL DEFAULT now(),
-  updated_at    timestamptz NOT NULL DEFAULT now()
-);
+-- ── Add geofencing columns if missing ─────────────────────────
+ALTER TABLE public.clinics
+  ADD COLUMN IF NOT EXISTS display_name  text,
+  ADD COLUMN IF NOT EXISTS country       text,
+  ADD COLUMN IF NOT EXISTS lat           double precision,
+  ADD COLUMN IF NOT EXISTS lng           double precision,
+  ADD COLUMN IF NOT EXISTS radius_m      integer,
+  ADD COLUMN IF NOT EXISTS is_active     boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS created_at    timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS updated_at    timestamptz NOT NULL DEFAULT now();
 
+-- ── Indexes ───────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_clinics_active  ON public.clinics (is_active);
 CREATE INDEX IF NOT EXISTS idx_clinics_country ON public.clinics (country);
 
--- ── Seed: 5 Utah + La Paz + Arequipa ──────────────────────────
--- Utah coords are approximations to the city center (same values
--- the hardcoded array had). Update with the real clinic address
--- when confirmed.
--- Bolivia/Perú left without coords for now (location_status =
--- 'remote' — same behavior as before). Admin can fill them in via
--- Supabase Studio when the addresses are confirmed.
-INSERT INTO public.clinics (name, display_name, country, lat, lng, radius_m) VALUES
-  ('Provo Clinic',           'Provo Clinic',          'US',  40.2338, -111.6585, 300),
-  ('Pleasant Grove Clinic',  'Pleasant Grove Clinic', 'US',  40.3638, -111.7385, 300),
-  ('Spanish Fork Clinic',    'Spanish Fork Clinic',   'US',  40.1149, -111.6549, 300),
-  ('West Valley Clinic',     'West Valley Clinic',    'US',  40.6916, -112.0010, 300),
-  ('South Murray Clinic',    'South Murray Clinic',   'US',  40.6469, -111.8980, 300),
-  ('Bolivia',                'La Paz, Bolivia',       'BO',  NULL,    NULL,      NULL),
-  ('Perú',                   'Arequipa, Perú',        'PE',  NULL,    NULL,      NULL)
-ON CONFLICT (name) DO NOTHING;
+-- ── Seed: 7 known clinics (idempotent UPSERT by name) ─────────
+-- Note: clinics.id is text (Prisma cuid). gen_random_uuid() is NOT
+-- used here — we let the Prisma default expression apply via
+-- defaults already set on existing rows, or insert with no id and
+-- let any existing default trigger create one. Since the column
+-- has a Prisma default of cuid() at the application layer (not DB),
+-- we provide an explicit id via a deterministic generator.
+-- Easiest: rely on the existing rows; for new ones use gen_random_uuid()
+-- cast to text (cuid format is opaque to PG; we use uuid as text).
+INSERT INTO public.clinics (id, name, display_name, country, lat, lng, radius_m) VALUES
+  (gen_random_uuid()::text, 'Provo Clinic',           'Provo Clinic',          'US',  40.2338, -111.6585, 300),
+  (gen_random_uuid()::text, 'Pleasant Grove Clinic',  'Pleasant Grove Clinic', 'US',  40.3638, -111.7385, 300),
+  (gen_random_uuid()::text, 'Spanish Fork Clinic',    'Spanish Fork Clinic',   'US',  40.1149, -111.6549, 300),
+  (gen_random_uuid()::text, 'West Valley Clinic',     'West Valley Clinic',    'US',  40.6916, -112.0010, 300),
+  (gen_random_uuid()::text, 'South Murray Clinic',    'South Murray Clinic',   'US',  40.6469, -111.8980, 300),
+  (gen_random_uuid()::text, 'Bolivia',                'La Paz, Bolivia',       'BO',  NULL,    NULL,      NULL),
+  (gen_random_uuid()::text, 'Perú',                   'Arequipa, Perú',        'PE',  NULL,    NULL,      NULL)
+ON CONFLICT (name) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  country      = EXCLUDED.country,
+  -- Preserve coords already set by admin; only fill when currently NULL
+  lat          = COALESCE(public.clinics.lat,      EXCLUDED.lat),
+  lng          = COALESCE(public.clinics.lng,      EXCLUDED.lng),
+  radius_m     = COALESCE(public.clinics.radius_m, EXCLUDED.radius_m);
+
+-- Any pre-existing Prisma rows without display_name get it filled
+-- from name, then we lock display_name NOT NULL.
+UPDATE public.clinics SET display_name = name WHERE display_name IS NULL;
+ALTER TABLE public.clinics ALTER COLUMN display_name SET NOT NULL;
 
 -- ── updated_at trigger ────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.touch_clinics_updated_at()
@@ -74,6 +87,7 @@ CREATE POLICY "clinics_select_all_authenticated"
   ON public.clinics FOR SELECT TO authenticated
   USING (true);
 
--- INSERT/UPDATE/DELETE restringidos al service role (admin app
--- usa supabaseAdmin desde routers tRPC). Si se necesita editar
--- via Supabase Studio basta con login como service role.
+-- INSERT/UPDATE/DELETE remain unrestricted from anon/auth (no
+-- policies). Admin app uses supabaseAdmin (service role) which
+-- bypasses RLS. Future admin UI can either expose a tRPC endpoint
+-- with role check or add explicit policies here.

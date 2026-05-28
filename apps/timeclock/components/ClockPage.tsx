@@ -179,17 +179,38 @@ export default function ClockPage({ userId }: { userId: string }) {
   const isSpanish = typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('es');
 
   const GEO_TEXT = {
-    title: isSpanish ? 'Permiso de ubicación' : 'Location permission',
+    title: isSpanish ? 'Verificar tu ubicación' : 'Verify your location',
     body:  isSpanish
-      ? 'Permite tu ubicación, esto es solo una vez.'
-      : 'Allow your location — this is only once.',
+      ? 'Permite tu ubicación para verificar que estás en la clínica.'
+      : 'Allow location so we can verify you are at the clinic.',
     note:  isSpanish
-      ? 'Permitir para seguir con el marcado de tus horas.'
-      : 'You must allow it to continue with time tracking.',
+      ? 'Tu registro se guarda igual; esto solo añade verificación.'
+      : 'Your record is saved either way; this just adds verification.',
     denied: isSpanish
-      ? 'Ubicación bloqueada. Ve a la configuración del navegador para activarla.'
-      : 'Location blocked. Enable it in your browser settings.',
+      ? 'Ubicación bloqueada. Tus registros se guardarán sin verificación.'
+      : 'Location blocked. Records will be saved without verification.',
   };
+
+  // Warning chip shown next to the status card when location_status is
+  // anything other than verified/remote. Records are NOT blocked — admin
+  // sees the flag in reports for audit.
+  const locationNotVerified =
+    record?.location_status &&
+    !['verified', 'remote'].includes(record.location_status);
+
+  const locationWarningText = (() => {
+    if (!locationNotVerified) return '';
+    switch (record?.location_status) {
+      case 'out_of_range':
+        return isSpanish ? 'Fuera del rango de la clínica' : 'Outside clinic range';
+      case 'low_accuracy':
+        return isSpanish ? 'GPS impreciso' : 'Low GPS accuracy';
+      case 'no_permission':
+        return isSpanish ? 'Sin permiso de ubicación' : 'No location permission';
+      default:
+        return isSpanish ? 'Ubicación no verificada' : 'Location not verified';
+    }
+  })();
 
   // ─── Waypoint tracking ───────────────────────────────────────────────────────
 
@@ -670,6 +691,29 @@ export default function ClockPage({ userId }: { userId: string }) {
           </div>
         )}
       </div>
+
+      {/* ── Location warning chip (record exists + status not verified/remote) ── */}
+      {locationNotVerified && clockState !== 'idle' && (
+        <div style={{
+          ...sectionStyle,
+          background: 'var(--amber-dim)',
+          border: '1px solid var(--amber-border)',
+          borderRadius: 8,
+          padding: '8px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 11,
+          color: 'var(--amber)',
+        }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>{locationWarningText}</span>
+        </div>
+      )}
 
       {/* ── Late notice ── */}
       {lateNotice && (

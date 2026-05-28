@@ -82,6 +82,18 @@ function elapsedBreak(breakStart: string): string {
   return `${mins}m`;
 }
 
+/**
+ * Returns YYYY-MM-DD in the user's local timezone.
+ * Using toISOString() converts to UTC, which shifts the date forward
+ * for evening clock-ins in Utah (UTC-6/-7) — a 6pm Tuesday turns into
+ * Wednesday in UTC, breaking same-day lookups, daily stats and joins
+ * with attendance_records.date from the admin app.
+ * 'en-CA' locale formats as YYYY-MM-DD by spec, respecting timezone.
+ */
+function localDateString(d: Date): string {
+  return d.toLocaleDateString('en-CA');
+}
+
 // ─── Geo helpers ─────────────────────────────────────────────────────────────
 
 interface GeoPoint { lat: number; lng: number; accuracy: number; }
@@ -244,7 +256,7 @@ export default function ClockPage({ userId }: { userId: string }) {
   }
 
   async function loadTodayRecord(empId: string) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateString(new Date());
     const { data } = await supabase
       .from('attendance_records')
       .select('*')
@@ -275,11 +287,11 @@ export default function ClockPage({ userId }: { userId: string }) {
 
   async function loadStats(empId: string) {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = localDateString(now);
     const jsDay = now.getDay();
     const monday = new Date(now);
     monday.setDate(now.getDate() - (jsDay === 0 ? 6 : jsDay - 1));
-    const weekStart = monday.toISOString().split('T')[0];
+    const weekStart = localDateString(monday);
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const { data } = await supabase
@@ -320,7 +332,7 @@ export default function ClockPage({ userId }: { userId: string }) {
           employee_id: employee!.id,
           clinic_name: selectedClinic,
           check_in: now.toISOString(),
-          date: now.toISOString().split('T')[0],
+          date: localDateString(now),
           status,
           late_minutes: lateMinutes,
           schedule_id: scheduleId,

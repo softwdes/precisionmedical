@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/providers/theme-provider';
 import { TRPCProvider } from '@/components/providers/trpc-provider';
 import { Toaster } from 'sonner';
 import { PWAInstallBanner } from '@/components/PWAInstallBanner';
+import { SWRegister } from '@/components/SWRegister';
 import './globals.css';
 
 const fontSans = Plus_Jakarta_Sans({
@@ -102,6 +103,7 @@ export default async function RootLayout({
           </TRPCProvider>
         </NextIntlClientProvider>
         <PWAInstallBanner />
+        <SWRegister />
       </body>
     </html>
   );

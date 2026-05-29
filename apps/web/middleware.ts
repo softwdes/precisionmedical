@@ -99,6 +99,15 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Excludes (in order):
+    // - _next/static, _next/image, favicon.ico — Next.js internals
+    // - api/auth — Supabase auth callbacks (mustn't be wrapped)
+    // - manifest.json, sw.js, workbox-*.js — PWA files served as
+    //   pure static. The middleware previously ran on these and
+    //   added Set-Cookie headers which made Chrome's installability
+    //   checker reject the manifest ("no manifest detected") even
+    //   though the file existed.
+    // - image extensions — static assets
+    '/((?!_next/static|_next/image|favicon\\.ico|api/auth|manifest\\.json|sw\\.js|workbox-.*\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

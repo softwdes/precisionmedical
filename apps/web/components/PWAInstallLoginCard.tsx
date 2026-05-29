@@ -35,12 +35,11 @@ const PREPARING_TIMEOUT_MS = 12_000;
  * boxShadow halo.
  */
 export function PWAInstallLoginCard(): React.ReactElement | null {
+  // ─── All hooks MUST be declared before any early return ──────────
+  // React's Rules of Hooks: hook order must be identical across every
+  // render of the same component. Returning null before useState/
+  // useEffect would change the hook count and crash.
   const { event, platform, standalone, dismissedRecently, install, dismiss } = usePWAInstall();
-
-  if (platform !== 'android' && platform !== 'ios') return null;
-  if (standalone) return null;
-  if (dismissedRecently) return null;
-
   const isIos = platform === 'ios';
 
   // Stops the "Preparando instalación..." spinner from looping forever
@@ -52,6 +51,11 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
     const id = setTimeout(() => setStalled(true), PREPARING_TIMEOUT_MS);
     return () => clearTimeout(id);
   }, [event, isIos]);
+
+  // ─── Visibility gate (safe to early-return AFTER hooks) ──────────
+  if (platform !== 'android' && platform !== 'ios') return null;
+  if (standalone) return null;
+  if (dismissedRecently) return null;
 
   /**
    * Only ever called when the gradient button is visible, and that

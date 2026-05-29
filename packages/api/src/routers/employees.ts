@@ -205,4 +205,34 @@ export const employeesRouter = router({
 
     return { total: total ?? 0, byType: typeCounts };
   }),
+
+  // Used by the user-creation dialog to populate the "From employee"
+  // dropdown. Filters to active employees that don't yet have a linked
+  // user (userId IS NULL) AND whose email doesn't already exist in
+  // public.users (to avoid the second condition triggering a CONFLICT
+  // at insert time).
+  availableForUser: adminProcedure.query(async () => {
+    const { data: emps, error } = await supabaseAdmin
+      .from('employees')
+      .select('id, firstName, lastName, email, phone, employeeCode')
+      .eq('status', 'ACTIVE')
+      .is('deletedAt', null)
+      .is('userId', null)
+      .order('firstName', { ascending: true });
+
+    if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+    const rows = emps ?? [];
+    if (rows.length === 0) return [];
+
+    // Filter out emails already taken by an existing (non-deleted) user
+    const emails = [...new Set(rows.map(e => e.email as string))];
+    const { data: existingUsers } = await supabaseAdmin
+      .from('users')
+      .select('email')
+      .in('email', emails)
+      .is('deletedAt', null);
+
+    const takenEmails = new Set((existingUsers ?? []).map(u => u.email as string));
+    return rows.filter(e => !takenEmails.has(e.email as string));
+  }),
 });

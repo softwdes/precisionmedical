@@ -91,24 +91,44 @@ export const usersRouter = router({
       lastName: z.string().min(1),
       role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']),
       phone: z.string().optional(),
+      /** If provided, the resulting user is linked back to the employee row
+       *  via employees.userId. Source of truth for email/firstName/lastName
+       *  is the employee record; client should send the same values it read. */
+      employeeId: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
+      const { employeeId, ...userFields } = input;
+
       // Block if an active (non-deleted) user already has this email
       const { data: existingActive } = await supabaseAdmin
-        .from('users').select('id').eq('email', input.email).is('deletedAt', null).maybeSingle();
+        .from('users').select('id').eq('email', userFields.email).is('deletedAt', null).maybeSingle();
       if (existingActive) throw new TRPCError({ code: 'CONFLICT', message: 'Email already exists' });
+
+      // If linking to an employee, verify it exists and isn't already linked
+      if (employeeId) {
+        const { data: emp } = await supabaseAdmin
+          .from('employees')
+          .select('id, userId, email')
+          .eq('id', employeeId)
+          .maybeSingle();
+        if (!emp) throw new TRPCError({ code: 'NOT_FOUND', message: 'Empleado no encontrado' });
+        if (emp.userId) throw new TRPCError({ code: 'CONFLICT', message: 'Este empleado ya tiene un usuario vinculado' });
+        if (emp.email !== userFields.email) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'El email no coincide con el del empleado' });
+        }
+      }
 
       // Clean up any lingering soft-deleted record to free the UNIQUE constraint
       const { data: existingDeleted } = await supabaseAdmin
-        .from('users').select('id').eq('email', input.email).not('deletedAt', 'is', null).maybeSingle();
+        .from('users').select('id').eq('email', userFields.email).not('deletedAt', 'is', null).maybeSingle();
       if (existingDeleted) {
         await supabaseAdmin.from('users').delete().eq('id', existingDeleted.id);
       }
 
       // 1. Create auth user (no email sent by Supabase — we handle email via Resend)
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email: input.email,
-        user_metadata: { firstName: input.firstName, lastName: input.lastName },
+        email: userFields.email,
+        user_metadata: { firstName: userFields.firstName, lastName: userFields.lastName },
         email_confirm: false,
       });
       if (authError) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Auth creation failed: ${authError.message}` });
@@ -118,7 +138,7 @@ export const usersRouter = router({
         .from('users')
         .insert({
           id: authData.user.id,
-          ...input,
+          ...userFields,
           status: 'PENDING_VERIFICATION',
           preferredLocale: 'es',
           preferredTheme: 'dark',
@@ -135,13 +155,29 @@ export const usersRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
       }
 
+      // 3. If linking to an employee, set employees.userId = newUserId.
+      // We treat the link failure as non-fatal — the user is already created
+      // and functional. We log the discrepancy in audit_logs so admin sees it.
+      let linkedEmployeeId: string | null = null;
+      if (employeeId) {
+        const { error: linkError } = await supabaseAdmin
+          .from('employees')
+          .update({ userId: data.id })
+          .eq('id', employeeId);
+        if (linkError) {
+          console.error('[users.create] employee link failed:', linkError.message);
+        } else {
+          linkedEmployeeId = employeeId;
+        }
+      }
+
       await supabaseAdmin.from('audit_logs').insert({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'user.created',
         entityType: 'User',
         entityId: data.id,
-        after: { ...data, passwordHash: undefined },
+        after: { ...data, passwordHash: undefined, linkedEmployeeId },
         createdAt: new Date().toISOString(),
       });
 

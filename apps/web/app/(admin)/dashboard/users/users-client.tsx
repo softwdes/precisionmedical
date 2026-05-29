@@ -521,6 +521,13 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
   const t = useTranslations();
   const [form, setForm] = useState({ email: '', firstName: '', lastName: '', role: 'EMPLOYEE' as const, phone: '' });
 
+  // Toggle: create from an existing employee (prefills + links)
+  const [fromEmployee, setFromEmployee] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+
+  const { data: availableEmployees = [], isLoading: loadingEmployees } =
+    trpc.employees.availableForUser.useQuery(undefined, { enabled: fromEmployee && open });
+
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'),
     ADMIN: t('users.roles.ADMIN'),
@@ -538,9 +545,39 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
     onError: (e) => toast.error(e.message),
   });
 
+  // When admin picks an employee from the dropdown, prefill the form
+  // with the employee data and mark those fields as read-only.
+  function handlePickEmployee(empId: string): void {
+    setSelectedEmployeeId(empId);
+    const emp = availableEmployees.find(e => e.id === empId);
+    if (!emp) return;
+    setForm(f => ({
+      ...f,
+      email:     emp.email as string,
+      firstName: emp.firstName as string,
+      lastName:  emp.lastName as string,
+      phone:     (emp.phone as string | null) ?? '',
+      role:      'EMPLOYEE',
+    }));
+  }
+
+  // Toggling fromEmployee OFF clears employee link & resets the form
+  function handleToggleFromEmployee(v: boolean): void {
+    setFromEmployee(v);
+    if (!v) {
+      setSelectedEmployeeId('');
+      setForm({ email: '', firstName: '', lastName: '', role: 'EMPLOYEE', phone: '' });
+    }
+  }
+
+  const fieldsLocked = fromEmployee && selectedEmployeeId !== '';
+
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
-    create.mutate(form);
+    create.mutate({
+      ...form,
+      ...(fromEmployee && selectedEmployeeId ? { employeeId: selectedEmployeeId } : {}),
+    });
   };
 
   return (
@@ -551,19 +588,103 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
+            {/* From-employee toggle */}
+            <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface/50 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-text-1">Desde empleado existente</p>
+                <p className="text-tiny text-text-muted">
+                  Selecciona un empleado para prellenar y vincular su user con el registro.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={fromEmployee}
+                onClick={() => handleToggleFromEmployee(!fromEmployee)}
+                style={{
+                  width: 38, height: 22, borderRadius: 11,
+                  background: fromEmployee ? '#6366F1' : 'rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  position: 'relative', cursor: 'pointer', flexShrink: 0,
+                  transition: 'background 150ms', padding: 0,
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute', top: 2,
+                    left: fromEmployee ? 18 : 2,
+                    width: 16, height: 16, borderRadius: '50%',
+                    background: 'white', transition: 'left 180ms ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  }}
+                />
+              </button>
+            </div>
+
+            {/* Employee picker (only when toggle is ON) */}
+            {fromEmployee && (
+              <div className="space-y-1.5">
+                <Label>Empleado *</Label>
+                {loadingEmployees ? (
+                  <p className="text-tiny text-text-muted py-2">Cargando empleados...</p>
+                ) : availableEmployees.length === 0 ? (
+                  <div className="rounded border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-tiny text-amber-600 dark:text-amber-400">
+                    No hay empleados disponibles sin usuario asignado. Crea uno desde el módulo Empleados primero.
+                  </div>
+                ) : (
+                  <Select value={selectedEmployeeId} onValueChange={handlePickEmployee}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un empleado..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableEmployees.map(emp => (
+                        <SelectItem key={emp.id as string} value={emp.id as string}>
+                          {emp.firstName} {emp.lastName} · {emp.employeeCode}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>{t('employees.firstName')}</Label>
-                <Input required value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} />
+                <Input
+                  required
+                  value={form.firstName}
+                  onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))}
+                  readOnly={fieldsLocked}
+                  className={fieldsLocked ? 'opacity-70 cursor-not-allowed' : ''}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>{t('employees.lastName')}</Label>
-                <Input required value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))} />
+                <Input
+                  required
+                  value={form.lastName}
+                  onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))}
+                  readOnly={fieldsLocked}
+                  className={fieldsLocked ? 'opacity-70 cursor-not-allowed' : ''}
+                />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label>{t('auth.email')}</Label>
-              <Input type="email" required value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} />
+              <Input
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
+                readOnly={fieldsLocked}
+                className={fieldsLocked ? 'opacity-70 cursor-not-allowed' : ''}
+              />
+              {fieldsLocked && (
+                <p className="text-tiny text-text-muted italic">
+                  El email viene del empleado. Para cambiarlo, edita el empleado primero.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>{t('users.role')}</Label>
@@ -576,12 +697,23 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
             </div>
             <div className="space-y-1.5">
               <Label>{t('employees.phone')} <span className="text-text-muted font-normal">({t('common.optional')})</span></Label>
-              <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
+              <Input
+                value={form.phone}
+                onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))}
+                readOnly={fieldsLocked}
+                className={fieldsLocked ? 'opacity-70 cursor-not-allowed' : ''}
+              />
             </div>
           </div>
           <DialogFooter className="shrink-0">
             <Button type="button" variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-            <Button type="submit" loading={create.isPending}>{t('users.createUser')}</Button>
+            <Button
+              type="submit"
+              loading={create.isPending}
+              disabled={fromEmployee && !selectedEmployeeId}
+            >
+              {t('users.createUser')}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

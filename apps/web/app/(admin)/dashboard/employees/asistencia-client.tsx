@@ -272,7 +272,11 @@ export function AsistenciaClient() {
   // ── Supabase Realtime — instant updates on attendance changes ──────────────
   useEffect(() => {
     const supabase = createBrowserClient();
-    const today = new Date().toISOString().split('T')[0]!;
+    // Utah local date — must match how the timeclock writes
+    // attendance_records.date (en-CA + America/Denver). toISOString()
+    // would give UTC, which after ~6pm Utah shifts to the next day
+    // and the realtime filter wouldn't match any incoming row.
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
 
     const channel = supabase
       .channel('attendance-live')

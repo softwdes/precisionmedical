@@ -1,68 +1,35 @@
 'use client';
 
 import * as React from 'react';
-import { useEffect, useState } from 'react';
-import { Download, Info, Loader2, Share, Smartphone, X } from 'lucide-react';
+import { Download, Share, Smartphone, X } from 'lucide-react';
 import { usePWAInstall } from '@/lib/use-pwa-install';
 import { toast } from 'sonner';
-
-// How long we keep showing the "Preparando..." spinner before
-// concluding that Chrome won't fire beforeinstallprompt anytime soon
-// (PWA already installed elsewhere, criteria not met, etc) and
-// switching to honest manual-path messaging instead.
-const PREPARING_TIMEOUT_MS = 12_000;
 
 /**
  * Prominent install card shown on the login page on mobile devices.
  *
- * Unlike the floating banner (which appears post-login only when
- * Chrome has captured beforeinstallprompt), this card ALWAYS renders
- * on mobile because the login page is the right moment to ask: the
- * user is committing to using the app and won't be deeper in flow.
+ * Design principle: be honest and predictable. We've cycled through
+ * spinners, fake buttons, and stall-timers — all of them either
+ * misled the user (tap → nothing) or got stuck in a loop. So this
+ * component is dead simple:
  *
- * Three render paths:
- *   - Android Chrome with captured event → "Instalar" button that
- *     triggers the native dialog directly.
- *   - Android Chrome without event yet (first visit, low engagement)
- *     → instructions to use Menu ⋮ → Install app. Without this
- *     fallback the user sees nothing on the login screen when Chrome
- *     hasn't fired beforeinstallprompt yet.
- *   - iOS Safari → manual instructions (Share → Add to Home Screen);
- *     iOS has no programmatic install API.
- *
- * Visual language is unified with the login form card and the floating
- * post-login banner: dark glass + indigo→violet→cyan gradient border +
- * boxShadow halo.
+ *   1) Always render the platform-appropriate manual instructions
+ *      as the primary call to action. They work 100% of the time.
+ *   2) If Chrome happens to have fired beforeinstallprompt, show
+ *      a BONUS button above the instructions so the user can install
+ *      in one tap. If the event never fires, the bonus button simply
+ *      doesn't appear — no spinner, no timeout, no waiting state.
+ *   3) iOS never gets a button (Safari has no install API).
  */
 export function PWAInstallLoginCard(): React.ReactElement | null {
-  // ─── All hooks MUST be declared before any early return ──────────
-  // React's Rules of Hooks: hook order must be identical across every
-  // render of the same component. Returning null before useState/
-  // useEffect would change the hook count and crash.
   const { event, platform, standalone, dismissedRecently, install, dismiss } = usePWAInstall();
-  const isIos = platform === 'ios';
 
-  // Stops the "Preparando instalación..." spinner from looping forever
-  // if Chrome never fires beforeinstallprompt on this device.
-  const [stalled, setStalled] = useState(false);
-  useEffect(() => {
-    if (isIos) return;              // iOS has no event ever; not relevant
-    if (event) { setStalled(false); return; } // Real button shown — no need to time out
-    const id = setTimeout(() => setStalled(true), PREPARING_TIMEOUT_MS);
-    return () => clearTimeout(id);
-  }, [event, isIos]);
-
-  // ─── Visibility gate (safe to early-return AFTER hooks) ──────────
   if (platform !== 'android' && platform !== 'ios') return null;
   if (standalone) return null;
   if (dismissedRecently) return null;
 
-  /**
-   * Only ever called when the gradient button is visible, and that
-   * only happens when Chrome has captured beforeinstallprompt. So the
-   * 'unavailable' branch is defensive only — in practice we shouldn't
-   * see it from this UI.
-   */
+  const isIos = platform === 'ios';
+
   const handleInstall = async (): Promise<void> => {
     const outcome = await install();
     if (outcome === 'accepted') {
@@ -81,15 +48,11 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
         zIndex: 2,
         width: 420,
         maxWidth: '90vw',
-        // Tight spacing under the security pills. The pills themselves
-        // have marginTop: 1.75rem from the form card; this card sits
-        // close to them so it lands above the fold on mobile.
         marginTop: '0.75rem',
         animation: 'fadeUp 500ms 220ms cubic-bezier(0.16, 1, 0.3, 1) both',
       }}
     >
-      {/* Gradient border layer — same pattern as the login form card,
-          giving visual coherence with the rest of the login screen. */}
+      {/* Gradient border layer — same pattern as the login form card */}
       <div
         style={{
           position: 'absolute',
@@ -149,25 +112,39 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
             {isIos ? 'Instala LM Admin en tu iPhone' : 'Instala LM Admin en tu Android'}
           </p>
 
+          {/*
+           * Primary instructions — ALWAYS visible, ALWAYS work.
+           * Styled as informational text, not a button, so the user
+           * knows to follow the manual path. No deception.
+           */}
           <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
-            {isIos
-              ? 'Para instalar en iPhone, abre esta página en Safari, toca el botón Compartir ↑ y selecciona «Añadir a inicio».'
-              : 'Acceso rápido desde tu pantalla de inicio sin abrir Chrome cada vez.'}
+            {isIos ? (
+              <>
+                Abre en Safari, toca el botón <strong style={{ color: '#A5B4FC' }}>Compartir</strong>
+                {' '}<span style={{ color: '#A5B4FC' }}>↑</span>{' '}
+                (cuadrado con flecha abajo) y selecciona
+                {' '}<strong style={{ color: '#A5B4FC' }}>«Añadir a inicio»</strong>.
+              </>
+            ) : (
+              <>
+                Toca el menú <strong style={{ color: '#A5B4FC' }}>⋮</strong> de Chrome
+                arriba a la derecha y selecciona
+                {' '}<strong style={{ color: '#A5B4FC' }}>«Instalar app»</strong>
+                {' '}o{' '}
+                <strong style={{ color: '#A5B4FC' }}>«Añadir a pantalla de inicio»</strong>.
+              </>
+            )}
           </p>
 
           {/*
-            Three render states for the action area:
-            - Android with captured event: real "Instalar" button that
-              triggers the native install dialog one-tap.
-            - Android WITHOUT captured event yet: subtle "Preparando..."
-              indicator with a spinner — no fake button. Chrome decides
-              when to fire beforeinstallprompt; we cannot force it. As
-              soon as it does, this re-renders into the real button.
-            - iOS: no action area (Safari has no install API; the body
-              text above already carries the instructions).
-          */}
-          {!isIos && event ? (
-            // Happy path: Chrome captured the event. One-tap install.
+           * BONUS one-tap button. Only renders when Chrome has actually
+           * captured beforeinstallprompt — guaranteed to work when shown.
+           * If Chrome never fires the event (PWA already installed
+           * elsewhere, criteria not met, browser cache, etc.), this
+           * simply doesn't appear and the manual path above remains.
+           * No timers, no fake buttons, no stuck states.
+           */}
+          {!isIos && event && (
             <button
               onClick={() => void handleInstall()}
               style={{
@@ -188,53 +165,9 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
               }}
             >
               <Download size={12} />
-              Instalar
+              Instalar con un toque
             </button>
-          ) : !isIos && !stalled ? (
-            // Waiting state: Chrome is still evaluating. Quiet spinner —
-            // not styled like a button to avoid misleading taps.
-            <div
-              style={{
-                marginTop: 10,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 7,
-                fontSize: 11,
-                color: '#6B7592',
-                fontStyle: 'italic',
-              }}
-            >
-              <Loader2 size={12} style={{ animation: 'pmPwaSpin 1s linear infinite' }} />
-              Preparando instalación...
-              <style>{`@keyframes pmPwaSpin { to { transform: rotate(360deg); } }`}</style>
-            </div>
-          ) : !isIos ? (
-            // Stalled state: Chrome won't fire the event soon. Be honest
-            // and point the user to the manual path with a clearly-info
-            // (not button) visual treatment.
-            <div
-              style={{
-                marginTop: 10,
-                padding: '8px 11px',
-                borderRadius: 8,
-                background: 'rgba(99,102,241,0.07)',
-                border: '1px dashed rgba(99,102,241,0.28)',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 8,
-              }}
-            >
-              <Info size={13} color="#818CF8" style={{ flexShrink: 0, marginTop: 1 }} />
-              <p style={{ fontSize: 11, color: '#8B95B5', lineHeight: 1.5, margin: 0 }}>
-                Chrome aún no detecta esta app como instalable. Abre el menú
-                <strong style={{ color: '#A5B4FC' }}> ⋮ </strong>
-                arriba a la derecha y toca
-                <strong style={{ color: '#A5B4FC' }}> «Instalar app»</strong>
-                o
-                <strong style={{ color: '#A5B4FC' }}> «Añadir a pantalla de inicio»</strong>.
-              </p>
-            </div>
-          ) : null}
+          )}
         </div>
 
         <button

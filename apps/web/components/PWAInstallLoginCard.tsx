@@ -8,18 +8,20 @@ import { toast } from 'sonner';
 /**
  * Prominent install card shown on the login page on mobile devices.
  *
- * Two render paths only (mirrors the timeclock InstallPWABanner so
- * both apps feel identical):
- *   - Android Chrome with captured beforeinstallprompt event →
- *     "Instalar" button that triggers the native dialog directly.
- *   - iOS Safari → manual instructions (Share → Add to Home Screen)
- *     because iOS has no programmatic install API.
+ * Unlike the floating banner (which appears post-login only when
+ * Chrome has captured beforeinstallprompt), this card ALWAYS renders
+ * on mobile because the login page is the right moment to ask: the
+ * user is committing to using the app and won't be deeper in flow.
  *
- * Android without a captured event yet is INTENTIONALLY hidden:
- * showing manual menu instructions was confusing users who expected
- * the same one-tap button they see in timeclock. The card reappears
- * automatically once Chrome fires the event (usually within seconds
- * of interaction on the login form).
+ * Three render paths:
+ *   - Android Chrome with captured event → "Instalar" button that
+ *     triggers the native dialog directly.
+ *   - Android Chrome without event yet (first visit, low engagement)
+ *     → instructions to use Menu ⋮ → Install app. Without this
+ *     fallback the user sees nothing on the login screen when Chrome
+ *     hasn't fired beforeinstallprompt yet.
+ *   - iOS Safari → manual instructions (Share → Add to Home Screen);
+ *     iOS has no programmatic install API.
  *
  * Visual language is unified with the login form card and the floating
  * post-login banner: dark glass + indigo→violet→cyan gradient border +
@@ -28,14 +30,11 @@ import { toast } from 'sonner';
 export function PWAInstallLoginCard(): React.ReactElement | null {
   const { event, platform, standalone, dismissedRecently, install, dismiss } = usePWAInstall();
 
+  if (platform !== 'android' && platform !== 'ios') return null;
   if (standalone) return null;
   if (dismissedRecently) return null;
 
   const isIos = platform === 'ios';
-  const isAndroidWithEvent = platform === 'android' && event !== null;
-
-  // Hide unless we can offer an actionable install path.
-  if (!isIos && !isAndroidWithEvent) return null;
 
   const handleInstall = async (): Promise<void> => {
     const outcome = await install();
@@ -126,7 +125,7 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
               (cuadrado con flecha ↑) y selecciona <strong style={{ color: '#A5B4FC' }}>«Añadir a inicio»</strong>.
               Así no dejas la sesión abierta en el navegador.
             </p>
-          ) : (
+          ) : event ? (
             <>
               <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
                 Acceso rápido desde tu pantalla de inicio sin abrir Chrome cada vez.
@@ -153,6 +152,12 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
                 Instalar
               </button>
             </>
+          ) : (
+            <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
+              Toca el menú <strong style={{ color: '#A5B4FC' }}>⋮</strong> de Chrome arriba
+              y selecciona <strong style={{ color: '#A5B4FC' }}>«Instalar app»</strong> o
+              <strong style={{ color: '#A5B4FC' }}>«Añadir a pantalla de inicio»</strong>.
+            </p>
           )}
         </div>
 

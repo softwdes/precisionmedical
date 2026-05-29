@@ -47,6 +47,10 @@ export function PWAInstallBanner(): React.ReactElement | null {
         zIndex: 9999,
         maxWidth: '360px',
         width: 'calc(100vw - 32px)',
+        // The keyframe below applies translate(-50%, ...) on every frame,
+        // which both keeps the banner horizontally centered (because of
+        // left:50%) and animates it up. `both` keeps the final transform
+        // so it stays centered after the animation finishes.
         animation: 'pmInstallFadeUp 500ms cubic-bezier(0.16, 1, 0.3, 1) both',
       }}
     >
@@ -60,8 +64,11 @@ export function PWAInstallBanner(): React.ReactElement | null {
         }
       `}</style>
 
-      {/* Outer wrapper: holds the gradient border (B) and the inner card. */}
-      <div style={{ position: 'relative', transform: 'translateX(-50%)' }}>
+      {/* Outer wrapper: holds the gradient border (B) and the inner card.
+          NO transform here — that's owned by the fixed-positioned parent
+          via its animation. Adding another translateX(-50%) here would
+          double-shift the banner off-center to the left. */}
+      <div style={{ position: 'relative' }}>
         {/* Gradient border layer — sits behind, slightly inset, so its
             edges peek out as a 1px conic-ish frame around the card. */}
         <div

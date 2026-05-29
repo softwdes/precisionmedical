@@ -234,15 +234,18 @@ export default function ClockPage({ userId }: { userId: string }) {
   // anything other than verified/remote. Records are NOT blocked — admin
   // sees the flag in reports for audit.
   //
-  // Special case: on desktop we hide the `low_accuracy` chip. Desktops
-  // don't have GPS hardware, so every reading falls back to WiFi/IP and
-  // looks imprecise — flagging it adds noise without informational value.
-  // The status is still persisted to attendance_records.location_status,
-  // so the admin can audit it from reports if needed.
+  // Suppressions (status still persists in DB; only the UI chip is hidden):
+  //  - low_accuracy on desktop: every desktop falls back to WiFi/IP, the
+  //    chip would always be on without value.
+  //  - Any warning for Bolivia/Perú clinics: their geofencing is at
+  //    city granularity, not building-specific. Warnings add noise
+  //    without actionable info there.
   const locationNotVerified = (() => {
     const status = record?.location_status;
     if (!status || ['verified', 'remote'].includes(status)) return false;
     if (status === 'low_accuracy' && !isMobileUserAgent()) return false;
+    const recClinic = clinics.find(c => c.name === record?.clinic_name);
+    if (recClinic && (recClinic.country === 'BO' || recClinic.country === 'PE')) return false;
     return true;
   })();
 

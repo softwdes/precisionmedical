@@ -79,11 +79,22 @@ export default async function RootLayout({
               <Toaster
                 theme={theme}
                 position="top-right"
+                richColors
+                closeButton
+                expand
+                duration={4000}
+                visibleToasts={4}
                 toastOptions={{
-                  style: {
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border-strong)',
-                    color: 'var(--text-1)',
+                  classNames: {
+                    toast: 'pm-toast',
+                    title: 'pm-toast-title',
+                    description: 'pm-toast-description',
+                    success: 'pm-toast-success',
+                    error: 'pm-toast-error',
+                    warning: 'pm-toast-warning',
+                    info: 'pm-toast-info',
+                    closeButton: 'pm-toast-close',
+                    actionButton: 'pm-toast-action',
                   },
                 }}
               />

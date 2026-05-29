@@ -233,9 +233,18 @@ export default function ClockPage({ userId }: { userId: string }) {
   // Warning chip shown next to the status card when location_status is
   // anything other than verified/remote. Records are NOT blocked — admin
   // sees the flag in reports for audit.
-  const locationNotVerified =
-    record?.location_status &&
-    !['verified', 'remote'].includes(record.location_status);
+  //
+  // Special case: on desktop we hide the `low_accuracy` chip. Desktops
+  // don't have GPS hardware, so every reading falls back to WiFi/IP and
+  // looks imprecise — flagging it adds noise without informational value.
+  // The status is still persisted to attendance_records.location_status,
+  // so the admin can audit it from reports if needed.
+  const locationNotVerified = (() => {
+    const status = record?.location_status;
+    if (!status || ['verified', 'remote'].includes(status)) return false;
+    if (status === 'low_accuracy' && !isMobileUserAgent()) return false;
+    return true;
+  })();
 
   const locationWarningText = (() => {
     if (!locationNotVerified) return '';

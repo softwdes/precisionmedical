@@ -54,7 +54,10 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
         zIndex: 2,
         width: 420,
         maxWidth: '90vw',
-        marginTop: '1.25rem',
+        // Tight spacing under the security pills. The pills themselves
+        // have marginTop: 1.75rem from the form card; this card sits
+        // close to them so it lands above the fold on mobile.
+        marginTop: '0.75rem',
         animation: 'fadeUp 500ms 220ms cubic-bezier(0.16, 1, 0.3, 1) both',
       }}
     >

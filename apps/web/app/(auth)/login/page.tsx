@@ -486,9 +486,12 @@ export default function LoginPage(): React.ReactElement {
           >
             {(
               [
-                { Icon: ShieldCheck, label: 'HIPAA Compliant' },
-                { Icon: Lock,        label: 'SSL / TLS'       },
-                { Icon: Key,         label: '2FA Ready'       },
+                // Short labels keep the 3 pills symmetric and on a single
+                // line even on 320px viewports; otherwise "HIPAA Compliant"
+                // wrapped and pushed the install card below the fold.
+                { Icon: ShieldCheck, label: 'HIPAA' },
+                { Icon: Lock,        label: 'SSL'   },
+                { Icon: Key,         label: '2FA'   },
               ] as const
             ).map(({ Icon, label }) => (
               <div

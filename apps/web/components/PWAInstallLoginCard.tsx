@@ -8,18 +8,21 @@ import { toast } from 'sonner';
 /**
  * Prominent install card shown on the login page on mobile devices.
  *
- * Design principle: be honest and predictable. We've cycled through
- * spinners, fake buttons, and stall-timers — all of them either
- * misled the user (tap → nothing) or got stuck in a loop. So this
- * component is dead simple:
+ * Decision after multiple iterations: ONE pretty gradient button is
+ * always visible. The user wanted a consistent, attractive CTA — not
+ * conditional spinners, callouts, or info boxes that look different
+ * each time they reload. So the button is always there.
  *
- *   1) Always render the platform-appropriate manual instructions
- *      as the primary call to action. They work 100% of the time.
- *   2) If Chrome happens to have fired beforeinstallprompt, show
- *      a BONUS button above the instructions so the user can install
- *      in one tap. If the event never fires, the bonus button simply
- *      doesn't appear — no spinner, no timeout, no waiting state.
- *   3) iOS never gets a button (Safari has no install API).
+ * The button's BEHAVIOR adapts based on what's available:
+ *   - Android Chrome with captured beforeinstallprompt → one-tap
+ *     native install dialog. The happy path.
+ *   - Android Chrome without event → toast with menu instructions.
+ *     We can't bypass Chrome's security here; the toast is the
+ *     honest fallback. After repeated install/uninstall cycles
+ *     Chrome enters a cooldown and won't fire the event again for
+ *     up to ~90 days.
+ *   - iOS Safari → toast with Share → Add to Home Screen steps.
+ *     iOS has no install API ever.
  */
 export function PWAInstallLoginCard(): React.ReactElement | null {
   const { event, platform, standalone, dismissedRecently, install, dismiss } = usePWAInstall();
@@ -30,12 +33,29 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
 
   const isIos = platform === 'ios';
 
-  const handleInstall = async (): Promise<void> => {
+  const handleClick = async (): Promise<void> => {
+    if (isIos) {
+      toast.info(
+        'En Safari: toca el botón Compartir ↑ (cuadrado con flecha) y selecciona «Añadir a inicio».',
+        { duration: 8000 },
+      );
+      return;
+    }
+
     const outcome = await install();
     if (outcome === 'accepted') {
       toast.success('LM Admin instalado');
     } else if (outcome === 'dismissed') {
       dismiss();
+    } else if (outcome === 'unavailable') {
+      // Chrome hasn't (yet) declared this PWA installable on this
+      // device. Usually means: insufficient engagement, or the user
+      // installed+uninstalled recently and Chrome is in a cooldown.
+      // The menu path always works.
+      toast.info(
+        'Toca el menú ⋮ de Chrome arriba a la derecha y selecciona «Instalar app». Si no aparece, sigue interactuando con la página unos segundos y vuelve a intentar.',
+        { duration: 9000 },
+      );
     }
   };
 
@@ -52,7 +72,7 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
         animation: 'fadeUp 500ms 220ms cubic-bezier(0.16, 1, 0.3, 1) both',
       }}
     >
-      {/* Gradient border layer — same pattern as the login form card */}
+      {/* Gradient border layer */}
       <div
         style={{
           position: 'absolute',
@@ -109,65 +129,44 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
               letterSpacing: '0.01em',
             }}
           >
-            {isIos ? 'Instala LM Admin en tu iPhone' : 'Instala LM Admin en tu Android'}
+            {isIos ? 'Instala LM Admin en tu iPhone' : 'Instala LM Admin'}
+          </p>
+          <p
+            style={{
+              fontSize: 11.5,
+              color: '#8B95B5',
+              marginTop: 5,
+              lineHeight: 1.5,
+            }}
+          >
+            Acceso rápido desde tu pantalla de inicio sin abrir el navegador cada vez.
           </p>
 
-          {/*
-           * Primary instructions — ALWAYS visible, ALWAYS work.
-           * Styled as informational text, not a button, so the user
-           * knows to follow the manual path. No deception.
-           */}
-          <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
-            {isIos ? (
-              <>
-                Abre en Safari, toca el botón <strong style={{ color: '#A5B4FC' }}>Compartir</strong>
-                {' '}<span style={{ color: '#A5B4FC' }}>↑</span>{' '}
-                (cuadrado con flecha abajo) y selecciona
-                {' '}<strong style={{ color: '#A5B4FC' }}>«Añadir a inicio»</strong>.
-              </>
-            ) : (
-              <>
-                Toca el menú <strong style={{ color: '#A5B4FC' }}>⋮</strong> de Chrome
-                arriba a la derecha y selecciona
-                {' '}<strong style={{ color: '#A5B4FC' }}>«Instalar app»</strong>
-                {' '}o{' '}
-                <strong style={{ color: '#A5B4FC' }}>«Añadir a pantalla de inicio»</strong>.
-              </>
-            )}
-          </p>
-
-          {/*
-           * BONUS one-tap button. Only renders when Chrome has actually
-           * captured beforeinstallprompt — guaranteed to work when shown.
-           * If Chrome never fires the event (PWA already installed
-           * elsewhere, criteria not met, browser cache, etc.), this
-           * simply doesn't appear and the manual path above remains.
-           * No timers, no fake buttons, no stuck states.
-           */}
-          {!isIos && event && (
-            <button
-              onClick={() => void handleInstall()}
-              style={{
-                marginTop: 10,
-                padding: '7px 14px',
-                borderRadius: 8,
-                background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-                color: 'white',
-                fontSize: 12,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
-                letterSpacing: '0.01em',
-              }}
-            >
-              <Download size={12} />
-              Instalar con un toque
-            </button>
-          )}
+          {/* The pretty button. Always visible. */}
+          <button
+            onClick={() => void handleClick()}
+            style={{
+              marginTop: 10,
+              padding: '7px 14px',
+              borderRadius: 8,
+              background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+              color: 'white',
+              fontSize: 12,
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
+              letterSpacing: '0.01em',
+            }}
+          >
+            {isIos
+              ? <><Share size={12} /> Cómo instalar</>
+              : <><Download size={12} /> {event ? 'Instalar' : 'Instalar'}</>
+            }
+          </button>
         </div>
 
         <button

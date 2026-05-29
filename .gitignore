@@ -29,12 +29,22 @@ Thumbs.db
 # Supabase
 supabase/.temp/
 
-# PWA generated files (next-pwa)
-**/public/sw.js
-**/public/sw.js.map
-**/public/workbox-*.js
-**/public/workbox-*.js.map
-**/public/worker-*.js
-**/public/worker-*.js.map
-**/public/swe-worker-*.js
-**/public/swe-worker-*.js.map
+# PWA generated files
+# apps/web uses Serwist, which DOES regenerate the SW on every Vercel
+# build correctly — those artifacts stay ignored.
+apps/web/public/sw.js
+apps/web/public/sw.js.map
+apps/web/public/workbox-*.js
+apps/web/public/workbox-*.js.map
+apps/web/public/worker-*.js
+apps/web/public/worker-*.js.map
+apps/web/public/swe-worker-*.js
+apps/web/public/swe-worker-*.js.map
+
+# apps/timeclock uses @ducanh2912/next-pwa which silently fails to
+# generate the SW during Vercel build (monorepo + Next 15 issue, while
+# the local build works fine). We track the SW + workbox runtime
+# manually so production has them. Regenerate locally with:
+#   pnpm build --filter=@precision-medical/timeclock
+# then commit any changes to apps/timeclock/public/{sw,workbox-*,swe-worker-*}.js
+# Follow-up: migrate timeclock to @serwist/next (same as apps/web).

@@ -318,6 +318,37 @@ export default function ClockPage({ userId }: { userId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ─── Realtime: cross-device sync ─────────────────────────────────────────
+  // Subscribe to the employee's attendance_records changes so a clock-in /
+  // break / clock-out done on one device (e.g. mobile) is reflected on
+  // other open sessions (e.g. PC) without manual refresh. RLS already
+  // limits the channel to this employee's own rows.
+  //
+  // Caveat: if the employee really has two devices open at the same time,
+  // both will run the waypoint setInterval. That double-writes points to
+  // attendance_waypoints. We accept that here — it's an edge case.
+  useEffect(() => {
+    if (!employee) return;
+    const channel = supabase
+      .channel(`employee-${employee.id}-records`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'attendance_records',
+          filter: `employee_id=eq.${employee.id}`,
+        },
+        () => {
+          void loadTodayRecord(employee.id);
+          void loadStats(employee.id);
+        },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee?.id]);
+
   async function loadProfile() {
     // Resolve auth user email — employees are looked up by email, not by auth UUID
     const { data: { user: authUser } } = await supabase.auth.getUser();

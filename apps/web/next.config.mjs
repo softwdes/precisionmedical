@@ -1,4 +1,3 @@
-import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 import withSerwistInit from '@serwist/next';
 
@@ -11,7 +10,8 @@ const withSerwist = withSerwistInit({
   additionalPrecacheEntries: [{ url: '/offline', revision: '1' }],
 });
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   transpilePackages: [
     '@precision/ui',
     '@precision-medical/auth',

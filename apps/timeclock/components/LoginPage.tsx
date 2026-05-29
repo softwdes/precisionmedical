@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Clock, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Smartphone } from 'lucide-react';
 import { useT } from '@/lib/i18n';
+import { InstallPWABanner } from '@/components/InstallPWABanner';
 
 export default function LoginPage({ expired }: { expired?: boolean }) {
   const router = useRouter();
@@ -283,6 +284,11 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
                 <span style={{ color:'#6B7592', fontWeight:600, fontSize:12 }}>{label}</span>
               </div>
             ))}
+          </div>
+
+          {/* Install PWA banner (mobile only; hidden when installed/dismissed) */}
+          <div style={{ marginTop: '1.5rem', width: '100%', maxWidth: 420, display: 'flex', justifyContent: 'center' }}>
+            <InstallPWABanner />
           </div>
 
           {/* Footer */}

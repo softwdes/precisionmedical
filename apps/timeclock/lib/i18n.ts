@@ -77,6 +77,14 @@ interface Dict {
   statWeek: string;
   statMonth: string;
 
+  // ─── PWA install banner ─────────────────────────────────────────────
+  pwaInstallTitle: string;
+  pwaInstallBody: string;
+  pwaInstallButton: string;
+  pwaInstallDismiss: string;
+  pwaIosTitle: string;
+  pwaIosBody: string;
+
   // ─── BCP 47 tag for Intl APIs (toLocaleTimeString, etc.) ────────────
   intl: string;
 }
@@ -139,6 +147,13 @@ const dict: Record<Locale, Dict> = {
     statWeek: 'Semana',
     statMonth: 'Mes',
 
+    pwaInstallTitle: 'Instala PM Time Clock',
+    pwaInstallBody: 'Acceso rápido desde tu pantalla de inicio.',
+    pwaInstallButton: 'Instalar',
+    pwaInstallDismiss: 'Cerrar',
+    pwaIosTitle: 'Instala en tu iPhone',
+    pwaIosBody: 'Toca el botón Compartir y selecciona «Añadir a inicio».',
+
     intl: 'es',
   },
   en: {
@@ -197,6 +212,13 @@ const dict: Record<Locale, Dict> = {
     statToday: 'Today',
     statWeek: 'Week',
     statMonth: 'Month',
+
+    pwaInstallTitle: 'Install PM Time Clock',
+    pwaInstallBody: 'Quick access from your home screen.',
+    pwaInstallButton: 'Install',
+    pwaInstallDismiss: 'Close',
+    pwaIosTitle: 'Install on your iPhone',
+    pwaIosBody: 'Tap the Share button and select "Add to Home Screen".',
 
     intl: 'en',
   },

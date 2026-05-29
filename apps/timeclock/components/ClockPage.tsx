@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LogOut, Play, Square, Coffee, UserX, RefreshCw, Clock } from 'lucide-react';
 import { useT } from '@/lib/i18n';
+import { InstallPWABanner } from '@/components/InstallPWABanner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1118,6 +1119,9 @@ export default function ClockPage({ userId }: { userId: string }) {
           </div>
         ))}
       </div>
+
+      {/* ── Install PWA banner (mobile only; hidden when installed/dismissed) ── */}
+      <InstallPWABanner />
 
     </main>
   );

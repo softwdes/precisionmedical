@@ -70,8 +70,10 @@ interface HistoryRow {
 
 interface MapTarget {
   recordId: string; employeeName: string; date: string;
-  checkIn:  { lat: number; lng: number } | null;
-  checkOut: { lat: number; lng: number } | null;
+  // `at` is the ISO timestamp of the event, used by AttendanceMap to
+  // place check_in/check_out within the playback trajectory.
+  checkIn:  { lat: number; lng: number; at: string } | null;
+  checkOut: { lat: number; lng: number; at: string } | null;
 }
 
 interface EmployeeOption { id: string; firstName: string; lastName: string; employeeCode: string; }
@@ -401,8 +403,10 @@ export function AsistenciaClient() {
       recordId,
       employeeName: `${row.firstName} ${row.lastName}`,
       date,
-      checkIn:  row.check_in_lat  && row.check_in_lng  ? { lat: row.check_in_lat,  lng: row.check_in_lng  } : null,
-      checkOut: row.check_out_lat && row.check_out_lng ? { lat: row.check_out_lat, lng: row.check_out_lng } : null,
+      checkIn:  row.check_in && row.check_in_lat && row.check_in_lng
+        ? { lat: row.check_in_lat, lng: row.check_in_lng, at: row.check_in } : null,
+      checkOut: row.check_out && row.check_out_lat && row.check_out_lng
+        ? { lat: row.check_out_lat, lng: row.check_out_lng, at: row.check_out } : null,
     });
     setMapWaypoints([]);
     setLoadingWaypoints(true);
@@ -1098,14 +1102,14 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
 
           {mapTarget && (
             <div className="space-y-3">
-              {/* Map */}
-              <div style={{ height: 340, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+              {/* Map (taller to fit play controls below the map) */}
+              <div style={{ height: 480, borderRadius: 10, overflow: 'hidden' }}>
                 {loadingWaypoints ? (
-                  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+                  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 13, border: '1px solid var(--color-border)', borderRadius: 10 }}>
                     Cargando...
                   </div>
                 ) : !mapTarget.checkIn && !mapTarget.checkOut && mapWaypoints.length === 0 ? (
-                  <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, border: '1px solid var(--color-border)', borderRadius: 10 }}>
                     <MapPin size={24} style={{ color: 'var(--color-text-muted)', opacity: 0.4 }} />
                     <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Sin datos de ubicación para este registro</p>
                     <p style={{ fontSize: 11, color: 'var(--color-text-muted)', opacity: 0.6 }}>El empleado puede tener la ubicación desactivada</p>

@@ -84,6 +84,11 @@ interface Dict {
   pwaInstallDismiss: string;
   pwaIosTitle: string;
   pwaIosBody: string;
+  pwaIosStep1: string;
+  pwaIosStep2: string;
+  pwaIosStep3: string;
+  pwaIosWebViewTitle: string;
+  pwaIosWebViewBody: string;
 
   // ─── BCP 47 tag for Intl APIs (toLocaleTimeString, etc.) ────────────
   intl: string;
@@ -152,7 +157,12 @@ const dict: Record<Locale, Dict> = {
     pwaInstallButton: 'Instalar',
     pwaInstallDismiss: 'Cerrar',
     pwaIosTitle: 'Instala en tu iPhone',
-    pwaIosBody: 'Toca el botón Compartir y selecciona «Añadir a inicio».',
+    pwaIosBody: 'Sigue estos 3 pasos:',
+    pwaIosStep1: 'Toca el ícono Compartir',
+    pwaIosStep2: 'Elige «Añadir a inicio»',
+    pwaIosStep3: 'Confirma con «Añadir»',
+    pwaIosWebViewTitle: 'Abre en Safari para instalar',
+    pwaIosWebViewBody: 'Toca el menú (•••) y selecciona «Abrir en Safari». Desde ahí podrás añadirla a tu pantalla de inicio.',
 
     intl: 'es',
   },
@@ -218,7 +228,12 @@ const dict: Record<Locale, Dict> = {
     pwaInstallButton: 'Install',
     pwaInstallDismiss: 'Close',
     pwaIosTitle: 'Install on your iPhone',
-    pwaIosBody: 'Tap the Share button and select "Add to Home Screen".',
+    pwaIosBody: 'Follow these 3 steps:',
+    pwaIosStep1: 'Tap the Share icon',
+    pwaIosStep2: 'Choose "Add to Home Screen"',
+    pwaIosStep3: 'Confirm with "Add"',
+    pwaIosWebViewTitle: 'Open in Safari to install',
+    pwaIosWebViewBody: 'Tap the menu (•••) and select "Open in Safari". From there you can add it to your home screen.',
 
     intl: 'en',
   },

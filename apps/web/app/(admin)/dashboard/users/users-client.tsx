@@ -748,6 +748,20 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
     onError: (e) => toast.error(e.message),
   });
 
+  // Fetch sidecar: linked employee + candidate (same email, available)
+  const { data: details, refetch: refetchDetails } = trpc.users.getById.useQuery({ id: user.id });
+  const linkedEmployee = details?.linkedEmployee ?? null;
+  const candidateEmployee = details?.candidateEmployee ?? null;
+
+  const linkMut = trpc.users.linkEmployee.useMutation({
+    onSuccess: () => { toast.success('Empleado vinculado'); void refetchDetails(); },
+    onError: (e) => toast.error(e.message),
+  });
+  const unlinkMut = trpc.users.unlinkEmployee.useMutation({
+    onSuccess: () => { toast.success('Empleado desvinculado'); void refetchDetails(); },
+    onError: (e) => toast.error(e.message),
+  });
+
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
     update.mutate({ id: user.id, ...form });
@@ -803,6 +817,63 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <div className="space-y-1.5">
               <Label>{t('employees.phone')} <span className="text-text-muted font-normal">({t('common.optional')})</span></Label>
               <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
+            </div>
+
+            {/* ── Empleado vinculado ── */}
+            <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2">
+              <p className="text-sm font-medium text-text-1">Empleado vinculado</p>
+
+              {linkedEmployee ? (
+                <div className="flex items-center justify-between gap-3 rounded border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+                  <div className="min-w-0 flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-text-1 truncate">
+                        {linkedEmployee.firstName} {linkedEmployee.lastName}
+                      </p>
+                      <p className="text-tiny text-text-muted font-mono truncate">
+                        {linkedEmployee.employeeCode}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={unlinkMut.isPending}
+                    onClick={() => unlinkMut.mutate({ userId: user.id })}
+                  >
+                    Desvincular
+                  </Button>
+                </div>
+              ) : candidateEmployee ? (
+                <div className="flex items-center justify-between gap-3 rounded border border-indigo-500/20 bg-indigo-500/5 px-3 py-2">
+                  <div className="min-w-0 flex items-center gap-2">
+                    <ShieldCheck className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-text-1 truncate">
+                        {candidateEmployee.firstName} {candidateEmployee.lastName}
+                      </p>
+                      <p className="text-tiny text-text-muted font-mono truncate">
+                        {candidateEmployee.employeeCode} · mismo email
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    loading={linkMut.isPending}
+                    onClick={() => linkMut.mutate({ userId: user.id, employeeId: candidateEmployee.id as string })}
+                  >
+                    Vincular
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-tiny text-text-muted italic leading-relaxed">
+                  Sin empleado disponible con el mismo email (<code className="text-text-3">{user.email}</code>).
+                  Crea el empleado con ese email desde el módulo Empleados para poder vincularlo.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter className="shrink-0">

@@ -81,7 +81,33 @@ export const usersRouter = router({
         .single();
 
       if (error || !data) throw new TRPCError({ code: 'NOT_FOUND' });
-      return data;
+
+      // Sidecar: employee currently linked to this user + an available
+      // candidate (same email, active, not yet linked). Both nullable.
+      // Powers the "Empleado vinculado" section of EditUserDialog without
+      // extra round-trips.
+      const [{ data: linkedEmp }, { data: candidateEmp }] = await Promise.all([
+        supabaseAdmin
+          .from('employees')
+          .select('id, firstName, lastName, email, employeeCode')
+          .eq('userId', data.id)
+          .is('deletedAt', null)
+          .maybeSingle(),
+        supabaseAdmin
+          .from('employees')
+          .select('id, firstName, lastName, email, employeeCode')
+          .eq('email', data.email)
+          .is('userId', null)
+          .is('deletedAt', null)
+          .eq('status', 'ACTIVE')
+          .maybeSingle(),
+      ]);
+
+      return {
+        ...data,
+        linkedEmployee: linkedEmp ?? null,
+        candidateEmployee: candidateEmp ?? null,
+      };
     }),
 
   create: superAdminProcedure
@@ -215,6 +241,86 @@ export const usersRouter = router({
       });
 
       return data;
+    }),
+
+  // Vincula un user existente con un employee existente.
+  // Validaciones:
+  //  - employee existe, no soft-deleted
+  //  - employee no esta ya vinculado a otro user
+  //  - emails coinciden (strict policy)
+  linkEmployee: superAdminProcedure
+    .input(z.object({
+      userId: z.string(),
+      employeeId: z.string(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const [{ data: user }, { data: emp }] = await Promise.all([
+        supabaseAdmin.from('users').select('id, email').eq('id', input.userId).maybeSingle(),
+        supabaseAdmin.from('employees').select('id, email, userId').eq('id', input.employeeId).is('deletedAt', null).maybeSingle(),
+      ]);
+
+      if (!user) throw new TRPCError({ code: 'NOT_FOUND', message: 'Usuario no encontrado' });
+      if (!emp)  throw new TRPCError({ code: 'NOT_FOUND', message: 'Empleado no encontrado' });
+      if (emp.userId && emp.userId !== input.userId) {
+        throw new TRPCError({ code: 'CONFLICT', message: 'El empleado ya esta vinculado a otro usuario' });
+      }
+      if (emp.email !== user.email) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `Los emails no coinciden (usuario: ${user.email as string}, empleado: ${emp.email as string})`,
+        });
+      }
+
+      const { error } = await supabaseAdmin
+        .from('employees')
+        .update({ userId: input.userId })
+        .eq('id', input.employeeId);
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.from('audit_logs').insert({
+        actorUserId: ctx.user.id,
+        actorRole: ctx.user.role,
+        action: 'user.employee_linked',
+        entityType: 'User',
+        entityId: input.userId,
+        after: { employeeId: input.employeeId },
+        createdAt: new Date().toISOString(),
+      });
+
+      return { success: true };
+    }),
+
+  // Desvincula al empleado que actualmente apunta a este user.
+  // No borra el user ni el employee — solo limpia el FK.
+  unlinkEmployee: superAdminProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const { data: emp } = await supabaseAdmin
+        .from('employees')
+        .select('id')
+        .eq('userId', input.userId)
+        .is('deletedAt', null)
+        .maybeSingle();
+
+      if (!emp) throw new TRPCError({ code: 'NOT_FOUND', message: 'Este usuario no tiene empleado vinculado' });
+
+      const { error } = await supabaseAdmin
+        .from('employees')
+        .update({ userId: null })
+        .eq('id', emp.id);
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.from('audit_logs').insert({
+        actorUserId: ctx.user.id,
+        actorRole: ctx.user.role,
+        action: 'user.employee_unlinked',
+        entityType: 'User',
+        entityId: input.userId,
+        before: { employeeId: emp.id },
+        createdAt: new Date().toISOString(),
+      });
+
+      return { success: true };
     }),
 
   listActivity: adminProcedure

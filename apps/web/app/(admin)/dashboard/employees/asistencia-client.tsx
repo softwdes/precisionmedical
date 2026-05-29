@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 import {
   Button, Badge, cn,
@@ -10,7 +10,7 @@ import {
 } from '@precision/ui';
 import {
   UserCheck, Coffee, Clock, UserX, RefreshCw, Pencil,
-  FileText, Download, ChevronLeft, ChevronRight, AlertTriangle, MapPin,
+  FileText, Download, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle, MapPin,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -28,6 +28,19 @@ const CLINICS = [
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/** One shift record within a day (sub-row when expanded). */
+interface ShiftRecord {
+  id: string;
+  check_in: string | null; check_out: string | null;
+  break_start: string | null; break_end: string | null;
+  clinic_name: string;
+  hours_worked: number | null; break_minutes: number;
+  status: string; late_minutes: number;
+  check_in_lat: number | null; check_in_lng: number | null;
+  check_out_lat: number | null; check_out_lng: number | null;
+  location_status: string | null;
+}
+
 interface TodayRow {
   employee_id: string; firstName: string; lastName: string; employeeCode: string;
   record_id: string | null; check_in: string | null; check_out: string | null;
@@ -37,6 +50,11 @@ interface TodayRow {
   check_in_lat: number | null; check_in_lng: number | null;
   check_out_lat: number | null; check_out_lng: number | null;
   location_status: string | null;
+  /** All shifts of the day for this employee, ordered by check_in ASC.
+   *  The top-level fields above mirror the "primary" shift (open one
+   *  if any, else most recent). dayRecords lets the UI expand a row to
+   *  show every shift when the employee has > 1 today. */
+  dayRecords: ShiftRecord[];
 }
 
 interface HistoryRow {
@@ -191,6 +209,15 @@ export function AsistenciaClient() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [tick, setTick] = useState(0);
+  // Tracks which employees have their multi-shift row expanded
+  const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
+  const toggleExpanded = (empId: string): void => {
+    setExpandedEmployees(prev => {
+      const next = new Set(prev);
+      if (next.has(empId)) next.delete(empId); else next.add(empId);
+      return next;
+    });
+  };
 
   // ── Historial state ────────────────────────────────────────────────────────
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
@@ -437,6 +464,30 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
   const todayHeader = new Date().toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
   const totalActive = todayRows.filter(r => rowState(r) !== 'absent').length;
 
+  // Synthesizes a TodayRow that points at one specific shift, so the existing
+  // openMap/openCorrection helpers (which expect a TodayRow/HistoryRow) work
+  // for sub-rows without needing parallel implementations.
+  function shiftAsRow(parent: TodayRow, shift: ShiftRecord): TodayRow {
+    return {
+      ...parent,
+      record_id: shift.id,
+      check_in: shift.check_in,
+      check_out: shift.check_out,
+      break_start: shift.break_start,
+      break_end: shift.break_end,
+      clinic_name: shift.clinic_name,
+      hours_worked: shift.hours_worked,
+      break_minutes: shift.break_minutes,
+      status: shift.status as 'on_time' | 'late' | 'absent' | null,
+      late_minutes: shift.late_minutes,
+      check_in_lat: shift.check_in_lat,
+      check_in_lng: shift.check_in_lng,
+      check_out_lat: shift.check_out_lat,
+      check_out_lng: shift.check_out_lng,
+      location_status: shift.location_status,
+    };
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5 py-2">
@@ -611,64 +662,142 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                     ) : todayRows.map(r => {
                       const state = rowState(r);
                       const leftColor = state === 'working' ? '#10B981' : state === 'break' ? '#F59E0B' : 'transparent';
+                      const shiftCount = r.dayRecords?.length ?? 0;
+                      const hasMultiple = shiftCount > 1;
+                      const isExpanded = expandedEmployees.has(r.employee_id);
+
                       return (
-                        <TableRow
-                          key={r.employee_id}
-                          className="border-b border-border transition-colors hover:bg-surface/40"
-                          style={{
-                            borderLeft: `3px solid ${leftColor}`,
-                            opacity: state === 'done' ? 0.65 : 1,
-                          }}
-                        >
-                          <TableCell className="pl-3">
-                            <div className="flex items-center gap-2.5">
-                              <div
-                                className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white shrink-0"
-                                style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}
-                              >
-                                {initials(r.firstName, r.lastName)}
-                              </div>
-                              <div>
-                                <p className="text-[13px] font-medium text-text-1 leading-none">{r.firstName} {r.lastName}</p>
-                                <p className="text-[10px] text-text-muted mt-0.5">{r.employeeCode}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-[13px] text-text-2">{r.clinic_name ?? '—'}</TableCell>
-                          <TableCell className="text-[13px] text-text-2 font-mono">{fmtTime(r.check_in)}</TableCell>
-                          <TableCell className="text-[13px] text-text-2 font-mono">{fmtTime(r.check_out)}</TableCell>
-                          <TableCell className="text-[13px] font-mono" style={{ color: state === 'working' ? '#10B981' : 'var(--color-text-2)' }}>
-                            {state === 'working' && r.check_in
-                              ? elapsed(r.check_in, r.break_minutes)
-                              : state === 'break' && r.check_in
-                                ? elapsed(r.check_in, r.break_minutes)
-                                : fmtHours(r.hours_worked)
-                            }
-                          </TableCell>
-                          <TableCell>
-                            <TodayBadge row={r} />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {r.record_id && (
-                                <button onClick={() => openCorrection(r)} className="p-1 rounded text-text-muted hover:text-text-2 hover:bg-surface transition-colors">
-                                  <Pencil size={13} />
-                                </button>
-                              )}
-                              {r.record_id && (
-                                (r.check_in_lat ?? r.check_out_lat) ? (
-                                  <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(r.location_status).title} style={{ color: locationStatusMeta(r.location_status).color }}>
-                                    <MapPin size={13} />
-                                  </button>
+                        <React.Fragment key={r.employee_id}>
+                          <TableRow
+                            className={`border-b border-border transition-colors hover:bg-surface/40 ${hasMultiple ? 'cursor-pointer' : ''}`}
+                            style={{
+                              borderLeft: `3px solid ${leftColor}`,
+                              opacity: state === 'done' ? 0.65 : 1,
+                            }}
+                            onClick={hasMultiple ? () => toggleExpanded(r.employee_id) : undefined}
+                          >
+                            <TableCell className="pl-3">
+                              <div className="flex items-center gap-2.5">
+                                {/* Chevron only if there's more than one shift today */}
+                                {hasMultiple ? (
+                                  <ChevronRight
+                                    size={14}
+                                    className="text-text-muted shrink-0 transition-transform"
+                                    style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0)' }}
+                                  />
                                 ) : (
-                                  <span className="p-1 rounded cursor-default" title={locationStatusMeta(r.location_status).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
-                                    <MapPin size={13} />
-                                  </span>
-                                )
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                                  <span style={{ width: 14, display: 'inline-block', flexShrink: 0 }} />
+                                )}
+                                <div
+                                  className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white shrink-0"
+                                  style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}
+                                >
+                                  {initials(r.firstName, r.lastName)}
+                                </div>
+                                <div>
+                                  <p className="text-[13px] font-medium text-text-1 leading-none flex items-center gap-1.5">
+                                    {r.firstName} {r.lastName}
+                                    {hasMultiple && (
+                                      <span
+                                        className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
+                                        style={{ background: 'rgba(99,102,241,0.12)', color: '#818CF8', border: '0.5px solid rgba(99,102,241,0.28)' }}
+                                      >
+                                        {shiftCount} turnos
+                                      </span>
+                                    )}
+                                  </p>
+                                  <p className="text-[10px] text-text-muted mt-0.5">{r.employeeCode}</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-[13px] text-text-2">{r.clinic_name ?? '—'}</TableCell>
+                            <TableCell className="text-[13px] text-text-2 font-mono">{fmtTime(r.check_in)}</TableCell>
+                            <TableCell className="text-[13px] text-text-2 font-mono">{fmtTime(r.check_out)}</TableCell>
+                            <TableCell className="text-[13px] font-mono" style={{ color: state === 'working' ? '#10B981' : 'var(--color-text-2)' }}>
+                              {state === 'working' && r.check_in
+                                ? elapsed(r.check_in, r.break_minutes)
+                                : state === 'break' && r.check_in
+                                  ? elapsed(r.check_in, r.break_minutes)
+                                  : fmtHours(r.hours_worked)
+                              }
+                            </TableCell>
+                            <TableCell>
+                              <TodayBadge row={r} />
+                            </TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-1">
+                                {r.record_id && (
+                                  <button onClick={() => openCorrection(r)} className="p-1 rounded text-text-muted hover:text-text-2 hover:bg-surface transition-colors">
+                                    <Pencil size={13} />
+                                  </button>
+                                )}
+                                {r.record_id && (
+                                  (r.check_in_lat ?? r.check_out_lat) ? (
+                                    <button onClick={() => void openMap(r)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(r.location_status).title} style={{ color: locationStatusMeta(r.location_status).color }}>
+                                      <MapPin size={13} />
+                                    </button>
+                                  ) : (
+                                    <span className="p-1 rounded cursor-default" title={locationStatusMeta(r.location_status).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
+                                      <MapPin size={13} />
+                                    </span>
+                                  )
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+
+                          {/* Sub-rows: one per shift, only when expanded and >1 shift */}
+                          {hasMultiple && isExpanded && r.dayRecords.map((shift, idx) => {
+                            const shiftRow = shiftAsRow(r, shift);
+                            const shiftState = rowState(shiftRow);
+                            return (
+                              <TableRow
+                                key={`${r.employee_id}-shift-${shift.id}`}
+                                className="border-b border-border/60 bg-surface/30"
+                                style={{ borderLeft: `3px solid ${leftColor}`, opacity: 0.92 }}
+                              >
+                                <TableCell className="pl-3">
+                                  <div className="flex items-center gap-2.5 pl-[34px]">
+                                    <span
+                                      className="text-[10px] font-medium px-1.5 py-0.5 rounded text-text-muted"
+                                      style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid var(--border)' }}
+                                    >
+                                      Turno {idx + 1}
+                                    </span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-[12px] text-text-2">{shift.clinic_name ?? '—'}</TableCell>
+                                <TableCell className="text-[12px] text-text-2 font-mono">{fmtTime(shift.check_in)}</TableCell>
+                                <TableCell className="text-[12px] text-text-2 font-mono">{fmtTime(shift.check_out)}</TableCell>
+                                <TableCell className="text-[12px] font-mono" style={{ color: shiftState === 'working' ? '#10B981' : 'var(--color-text-2)' }}>
+                                  {shiftState === 'working' && shift.check_in
+                                    ? elapsed(shift.check_in, shift.break_minutes ?? 0)
+                                    : fmtHours(shift.hours_worked)
+                                  }
+                                </TableCell>
+                                <TableCell>
+                                  <TodayBadge row={shiftRow} />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <button onClick={() => openCorrection(shiftRow)} className="p-1 rounded text-text-muted hover:text-text-2 hover:bg-surface transition-colors">
+                                      <Pencil size={13} />
+                                    </button>
+                                    {(shift.check_in_lat ?? shift.check_out_lat) ? (
+                                      <button onClick={() => void openMap(shiftRow)} className="p-1 rounded hover:bg-surface transition-colors" title={locationStatusMeta(shift.location_status).title} style={{ color: locationStatusMeta(shift.location_status).color }}>
+                                        <MapPin size={13} />
+                                      </button>
+                                    ) : (
+                                      <span className="p-1 rounded cursor-default" title={locationStatusMeta(shift.location_status).title} style={{ color: 'var(--color-text-muted)', opacity: 0.35 }}>
+                                        <MapPin size={13} />
+                                      </span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </React.Fragment>
                       );
                     })}
                   </TableBody>
@@ -682,26 +811,49 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                 ) : todayRows.map(r => {
                   const state = rowState(r);
                   const leftColor = state === 'working' ? '#10B981' : state === 'break' ? '#F59E0B' : 'transparent';
+                  const shiftCount = r.dayRecords?.length ?? 0;
+                  const hasMultiple = shiftCount > 1;
+                  const isExpanded = expandedEmployees.has(r.employee_id);
+
                   return (
                     <div
                       key={r.employee_id}
                       className="rounded-xl border border-border bg-surface p-3.5"
                       style={{ borderLeft: `3px solid ${leftColor}`, opacity: state === 'done' ? 0.65 : 1 }}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div
+                        className={`flex items-start justify-between gap-2 ${hasMultiple ? 'cursor-pointer' : ''}`}
+                        onClick={hasMultiple ? () => toggleExpanded(r.employee_id) : undefined}
+                      >
                         <div className="flex items-center gap-2.5">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}>
                             {initials(r.firstName, r.lastName)}
                           </div>
                           <div>
-                            <p className="text-[13px] font-medium text-text-1">{r.firstName} {r.lastName}</p>
+                            <p className="text-[13px] font-medium text-text-1 flex items-center gap-1.5">
+                              {r.firstName} {r.lastName}
+                              {hasMultiple && (
+                                <span
+                                  className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
+                                  style={{ background: 'rgba(99,102,241,0.12)', color: '#818CF8', border: '0.5px solid rgba(99,102,241,0.28)' }}
+                                >
+                                  {shiftCount} turnos
+                                </span>
+                              )}
+                            </p>
                             <p className="text-[10px] text-text-muted">{r.employeeCode}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <TodayBadge row={r} />
-                          {r.record_id && (
-                            <button onClick={() => openCorrection(r)} className="p-1 rounded text-text-muted">
+                          {hasMultiple ? (
+                            <ChevronDown
+                              size={14}
+                              className="text-text-muted shrink-0 transition-transform"
+                              style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)' }}
+                            />
+                          ) : r.record_id && (
+                            <button onClick={(e) => { e.stopPropagation(); openCorrection(r); }} className="p-1 rounded text-text-muted">
                               <Pencil size={12} />
                             </button>
                           )}
@@ -715,6 +867,44 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                         <span className="text-text-muted">Entrada <span className="font-mono text-text-2">{fmtTime(r.check_in)}</span></span>
                         <span className="text-text-muted">Salida <span className="font-mono text-text-2">{fmtTime(r.check_out)}</span></span>
                       </div>
+
+                      {/* Mobile: expanded shifts */}
+                      {hasMultiple && isExpanded && (
+                        <div className="mt-3 pt-3 border-t border-border space-y-2">
+                          {r.dayRecords.map((shift, idx) => {
+                            const shiftRow = shiftAsRow(r, shift);
+                            const shiftState = rowState(shiftRow);
+                            return (
+                              <div key={shift.id} className="rounded-lg bg-surface/50 border border-border/60 p-2.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded text-text-muted" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                                    Turno {idx + 1}
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <TodayBadge row={shiftRow} />
+                                    <button onClick={() => openCorrection(shiftRow)} className="p-1 rounded text-text-muted">
+                                      <Pencil size={11} />
+                                    </button>
+                                    {(shift.check_in_lat ?? shift.check_out_lat) ? (
+                                      <button onClick={() => void openMap(shiftRow)} className="p-1 rounded" style={{ color: locationStatusMeta(shift.location_status).color }}>
+                                        <MapPin size={11} />
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </div>
+                                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                                  <span className="text-text-muted">Clínica <span className="text-text-2">{shift.clinic_name ?? '—'}</span></span>
+                                  <span className="text-text-muted">Horas <span className="font-mono text-text-2" style={{ color: shiftState === 'working' ? '#10B981' : undefined }}>
+                                    {shiftState === 'working' && shift.check_in ? elapsed(shift.check_in, shift.break_minutes ?? 0) : fmtHours(shift.hours_worked)}
+                                  </span></span>
+                                  <span className="text-text-muted">Entrada <span className="font-mono text-text-2">{fmtTime(shift.check_in)}</span></span>
+                                  <span className="text-text-muted">Salida <span className="font-mono text-text-2">{fmtTime(shift.check_out)}</span></span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

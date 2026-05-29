@@ -36,14 +36,37 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
 
   const isIos = platform === 'ios';
 
+  /**
+   * Single click handler for all three render states. Outcomes:
+   *   - accepted   → user installed via native dialog
+   *   - dismissed  → user rejected the native dialog; respect for 7 days
+   *   - unavailable → either iOS (no install API ever) or Android where
+   *                   Chrome hasn't fired beforeinstallprompt yet. We
+   *                   show a platform-aware toast pointing to the manual
+   *                   path so the user always gets feedback on tap.
+   */
   const handleInstall = async (): Promise<void> => {
     const outcome = await install();
     if (outcome === 'accepted') {
       toast.success('LM Admin instalado');
     } else if (outcome === 'dismissed') {
       dismiss();
+    } else if (outcome === 'unavailable') {
+      if (isIos) {
+        toast.info('Toca el botón Compartir ↑ abajo en Safari y selecciona «Añadir a inicio».');
+      } else {
+        toast.info('Toca el menú ⋮ de Chrome arriba y selecciona «Instalar app».');
+      }
     }
   };
+
+  // Picks the right icon + label per state, but they all share the
+  // same gradient button shell below. Keeps the visual story uniform.
+  const cta = isIos
+    ? { Icon: Share, label: 'Compartir ↑ → Añadir a inicio' }
+    : event
+      ? { Icon: Download, label: 'Instalar' }
+      : { Icon: MoreVertical, label: 'Menú ⋮ → Instalar app' };
 
   return (
     <div
@@ -122,93 +145,38 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
             {isIos ? 'Instala LM Admin en tu iPhone' : 'Instala LM Admin en tu Android'}
           </p>
 
-          {isIos ? (
-            <>
-              <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
-                Así no dejas la sesión abierta en el navegador y abres
-                la app directo desde tu pantalla de inicio.
-              </p>
-              {/* Visual callout mirroring the Android states. iOS has no
-                  install API so this is informational — points the user
-                  to Safari's Share menu. */}
-              <div
-                style={{
-                  marginTop: 10,
-                  padding: '7px 12px',
-                  borderRadius: 8,
-                  background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-                  color: 'white',
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                <Share size={12} />
-                Compartir ↑ → Añadir a inicio
-              </div>
-            </>
-          ) : event ? (
-            <>
-              <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
-                Acceso rápido desde tu pantalla de inicio sin abrir Chrome cada vez.
-              </p>
-              <button
-                onClick={() => void handleInstall()}
-                style={{
-                  marginTop: 10,
-                  padding: '7px 14px',
-                  borderRadius: 8,
-                  background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-                  color: 'white',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
-                }}
-              >
-                <Download size={12} />
-                Instalar
-              </button>
-            </>
-          ) : (
-            <>
-              <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
-                Acceso rápido desde tu pantalla de inicio sin abrir Chrome cada vez.
-              </p>
-              {/* Visual callout with the same gradient treatment as the
-                  real "Instalar" button. Not clickable — we can't trigger
-                  install without Chrome's beforeinstallprompt event — but
-                  matches the button case visually and points the user to
-                  the menu in one glance. */}
-              <div
-                style={{
-                  marginTop: 10,
-                  padding: '7px 12px',
-                  borderRadius: 8,
-                  background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-                  color: 'white',
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                <MoreVertical size={12} />
-                Menú ⋮ → Instalar app
-              </div>
-            </>
-          )}
+          <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
+            {isIos
+              ? 'Así no dejas la sesión abierta en el navegador y abres la app directo desde tu inicio.'
+              : 'Acceso rápido desde tu pantalla de inicio sin abrir Chrome cada vez.'}
+          </p>
+
+          {/* Single CTA button. Always clickable so the user gets
+              feedback on tap. handleInstall picks the right behavior:
+              triggers native install if Chrome captured the event,
+              otherwise shows a toast with the manual path. */}
+          <button
+            onClick={() => void handleInstall()}
+            style={{
+              marginTop: 10,
+              padding: '7px 12px',
+              borderRadius: 8,
+              background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+              color: 'white',
+              fontSize: 11.5,
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
+              letterSpacing: '0.01em',
+            }}
+          >
+            <cta.Icon size={12} />
+            {cta.label}
+          </button>
         </div>
 
         <button

@@ -10,19 +10,23 @@ import {
   Users,
   UserCheck,
   Banknote,
+  BarChart3,
   Bot,
   Settings,
   ChevronLeft,
+  Lock,
 } from 'lucide-react';
 import { useRole } from '@/contexts/role-context';
-import { can } from '@/lib/permissions';
+import { can, type Role, type LmModule } from '@/lib/permissions';
 
 interface NavItem {
   key: string;
   href: string;
   icon: React.ElementType;
   label: string;
-  module: 'dashboard' | 'usuarios' | 'empleados' | 'finanzas' | 'metricas' | 'agentes_ia' | 'configuracion';
+  module: LmModule;
+  /** When true, item is shown but not clickable (e.g. module not yet implemented). */
+  disabled?: boolean;
 }
 
 interface SidebarProps {
@@ -43,7 +47,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
     { key: 'users',     href: '/dashboard/users',     icon: Users,     label: t('nav.users'),     module: 'usuarios'  },
     { key: 'employees', href: '/dashboard/employees', icon: UserCheck, label: t('nav.employees'), module: 'empleados' },
     { key: 'finanzas',  href: '/dashboard/finanzas',  icon: Banknote,  label: t('nav.finance'),   module: 'finanzas'  },
-    // { key: 'metricas',  href: '/dashboard/metricas',  icon: BarChart3, label: t('nav.metrics'),   module: 'metricas'  }, // Deshabilitado temporalmente — pendiente de implementacion
+    // Visible pero bloqueado hasta que se implemente el módulo. Se quita el `disabled` cuando esté listo.
+    { key: 'metricas',  href: '/dashboard/metricas',  icon: BarChart3, label: t('nav.metrics'),   module: 'metricas', disabled: true },
   ];
 
   const NAV_INTELLIGENCE: NavItem[] = [
@@ -53,12 +58,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
   const NAV_SYSTEM: NavItem[] = [
     { key: 'settings', href: '/dashboard/settings', icon: Settings, label: t('nav.settings'), module: 'configuracion' },
   ];
-
-  // Filter items based on role permissions
-  const visibleMain       = NAV_MAIN.filter(item => can(role, item.module));
-  const visibleModules    = NAV_MODULES.filter(item => can(role, item.module));
-  const visibleIntelligence = NAV_INTELLIGENCE.filter(item => can(role, item.module));
-  const visibleSystem     = NAV_SYSTEM.filter(item => can(role, item.module));
 
   return (
     <>
@@ -94,53 +93,67 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
           </button>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation — all items visible; lack of access shown as disabled state */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
-          {visibleMain.length > 0 && (
-            <NavGroup items={visibleMain} pathname={pathname} />
-          )}
+          <NavGroup items={NAV_MAIN} pathname={pathname} role={role} />
 
-          {visibleModules.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-                {t('nav.modules') as string}
-              </p>
-              <NavGroup items={visibleModules} pathname={pathname} />
-            </div>
-          )}
+          <div className="mt-4">
+            <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
+              {t('nav.modules') as string}
+            </p>
+            <NavGroup items={NAV_MODULES} pathname={pathname} role={role} />
+          </div>
 
-          {visibleIntelligence.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-                {t('nav.inteligencia') as string}
-              </p>
-              <NavGroup items={visibleIntelligence} pathname={pathname} />
-            </div>
-          )}
+          <div className="mt-4">
+            <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
+              {t('nav.inteligencia') as string}
+            </p>
+            <NavGroup items={NAV_INTELLIGENCE} pathname={pathname} role={role} />
+          </div>
 
-          {visibleSystem.length > 0 && (
-            <div className="mt-4">
-              <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
-                {t('nav.system') as string}
-              </p>
-              <NavGroup items={visibleSystem} pathname={pathname} />
-            </div>
-          )}
+          <div className="mt-4">
+            <p className="mb-1 px-2 text-tiny font-bold uppercase tracking-widest text-text-muted">
+              {t('nav.system') as string}
+            </p>
+            <NavGroup items={NAV_SYSTEM} pathname={pathname} role={role} />
+          </div>
         </nav>
       </aside>
     </>
   );
 }
 
-function NavGroup({ items, pathname }: { items: NavItem[]; pathname: string }): React.ReactElement {
+function NavGroup({ items, pathname, role }: { items: NavItem[]; pathname: string; role: Role }): React.ReactElement {
   return (
     <ul className="space-y-0.5">
       {items.map((item) => {
+        const Icon = item.icon;
+        const hasAccess = can(role, item.module);
+        const isBlocked = item.disabled || !hasAccess;
+        const blockReason = item.disabled
+          ? 'Próximamente — módulo en desarrollo'
+          : 'Sin acceso a este módulo para tu rol';
+
+        if (isBlocked) {
+          return (
+            <li key={item.key}>
+              <div
+                className="relative flex items-center gap-3 rounded px-3 py-2 text-sm text-text-muted opacity-40 cursor-not-allowed select-none"
+                title={blockReason}
+                aria-disabled="true"
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                <Lock className="h-3 w-3 shrink-0 opacity-70" />
+              </div>
+            </li>
+          );
+        }
+
         const isActive =
           item.href === '/dashboard'
             ? pathname === '/dashboard'
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const Icon = item.icon;
 
         return (
           <li key={item.key}>

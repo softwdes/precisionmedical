@@ -72,6 +72,19 @@ export default async function RootLayout({
       data-theme={theme}
       className={`${fontSans.variable} ${fontMono.variable}`}
     >
+      <head>
+        {/*
+          Explicit manifest link.
+          metadata.manifest from `export const metadata` SHOULD emit
+          this automatically, but in production we observed Chrome
+          reporting "no manifest detected" — likely a Next.js bug or
+          conflict with @serwist/next + next-intl in this combo.
+          Hard-coding the link in the head guarantees Chrome can
+          discover the PWA, which unblocks beforeinstallprompt and
+          makes the install flow actually work.
+        */}
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className="font-sans antialiased">
         <NextIntlClientProvider messages={messages}>
           <TRPCProvider>

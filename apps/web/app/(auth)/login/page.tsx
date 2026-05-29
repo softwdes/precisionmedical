@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Key } from 'lucide-react';
-import { PWAInstallLoginCard } from '@/components/PWAInstallLoginCard';
 
 export default function LoginPage(): React.ReactElement {
   const router = useRouter();
@@ -511,9 +510,6 @@ export default function LoginPage(): React.ReactElement {
               </div>
             ))}
           </div>
-
-          {/* ── Install PWA card (mobile only; hidden when installed / dismissed) ── */}
-          <PWAInstallLoginCard />
 
           {/* ── Footer ── */}
           <p

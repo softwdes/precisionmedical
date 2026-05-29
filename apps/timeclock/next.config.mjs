@@ -1,7 +1,7 @@
 import withPWA from '@ducanh2912/next-pwa';
-import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co' }],
   },
@@ -9,13 +9,16 @@ const nextConfig: NextConfig = {
 
 export default withPWA({
   dest: 'public',
+  register: true,
+  sw: 'sw.js',
+  scope: '/',
   disable: process.env.NODE_ENV === 'development',
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   workboxOptions: {
     runtimeCaching: [
       {
-        urlPattern: ({ url }: { url: URL }) => url.hostname.includes('supabase.co'),
+        urlPattern: ({ url }) => url.hostname.includes('supabase.co'),
         handler: 'NetworkOnly',
       },
       {

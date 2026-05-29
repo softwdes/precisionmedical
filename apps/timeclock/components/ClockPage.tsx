@@ -558,9 +558,14 @@ export default function ClockPage({ userId }: { userId: string }) {
     setActionError('');
     setRetryAction(null);
     try {
+      // Clear break_end at the same time we set the new break_start. Without
+      // this, a stale break_end from a previous break in the same shift
+      // would leave the record in an inconsistent state (break_end < break_start).
+      // The accumulated break time is preserved in break_minutes, which
+      // handleReturnFromBreak keeps incrementing across multiple breaks.
       const { data, error } = await supabase
         .from('attendance_records')
-        .update({ break_start: new Date().toISOString() })
+        .update({ break_start: new Date().toISOString(), break_end: null })
         .eq('id', record.id)
         .select()
         .single();

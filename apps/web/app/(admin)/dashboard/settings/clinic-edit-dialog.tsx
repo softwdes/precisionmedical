@@ -28,7 +28,7 @@ import {
   Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from '@precision/ui';
-import { MapPin, Save } from 'lucide-react';
+import { MapPin, Save, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export interface Clinic {
@@ -88,6 +88,67 @@ export function ClinicEditDialog({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
+
+  const [geocoding, setGeocoding] = useState(false);
+
+  /**
+   * Geocode the typed address via Nominatim (OpenStreetMap). Updates
+   * lat/lng on success — the existing effect that watches those fields
+   * repaints the marker/circle automatically. Also pans/zooms the map.
+   *
+   * Country-biased to avoid US/BO/PE matches bleeding into each other
+   * (e.g. "Provo" exists in Costa Rica too). Limit 1 result for now;
+   * Nominatim's first hit is usually the most relevant for clear
+   * street addresses. If we ever want a result picker UI, raise the
+   * limit and render a list.
+   */
+  async function geocodeAddress(): Promise<void> {
+    const query = form.address.trim();
+    if (!query) {
+      toast.error('Ingresa una dirección primero');
+      return;
+    }
+    setGeocoding(true);
+    try {
+      const url =
+        'https://nominatim.openstreetmap.org/search?' +
+        new URLSearchParams({
+          q: query,
+          format: 'json',
+          limit: '1',
+          countrycodes: clinic.country.toLowerCase(),
+          addressdetails: '1',
+        }).toString();
+
+      const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+      if (!res.ok) throw new Error('Nominatim request failed');
+
+      const results = (await res.json()) as Array<{
+        lat: string;
+        lon: string;
+        display_name: string;
+      }>;
+
+      if (results.length === 0) {
+        toast.error('No se encontró la dirección. Verifica el texto o ajusta haciendo clic en el mapa.');
+        return;
+      }
+
+      const first = results[0]!;
+      const lat = parseFloat(first.lat);
+      const lng = parseFloat(first.lon);
+      setForm((f) => ({ ...f, lat, lng }));
+
+      const map = mapInstanceRef.current;
+      if (map) map.setView([lat, lng], 17);
+
+      toast.success(`Encontrado: ${first.display_name}`);
+    } catch {
+      toast.error('Error al buscar la dirección');
+    } finally {
+      setGeocoding(false);
+    }
+  }
 
   const updateMutation = trpc.clinics.update.useMutation({
     onSuccess: () => {
@@ -277,11 +338,36 @@ export function ClinicEditDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Dirección <span className="text-text-muted font-normal">(opcional)</span></Label>
-              <Input
-                value={form.address}
-                onChange={(e) => setForm(f => ({ ...f, address: e.target.value }))}
-                placeholder="Calle, ciudad, código postal"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={form.address}
+                  onChange={(e) => setForm(f => ({ ...f, address: e.target.value }))}
+                  onKeyDown={(e) => {
+                    // Pressing Enter inside the address field triggers
+                    // geocoding instead of submitting the (non-form) dialog.
+                    if (e.key === 'Enter') { e.preventDefault(); void geocodeAddress(); }
+                  }}
+                  placeholder="Calle, ciudad, código postal"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void geocodeAddress()}
+                  disabled={!form.address.trim() || geocoding}
+                  title="Localizar dirección en el mapa"
+                >
+                  {geocoding
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <Search className="h-3.5 w-3.5" />
+                  }
+                  Buscar
+                </Button>
+              </div>
+              <p className="text-tiny text-text-muted">
+                Escribe la dirección y haz clic en Buscar para fijar las coordenadas automáticamente.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Teléfono <span className="text-text-muted font-normal">(opcional)</span></Label>

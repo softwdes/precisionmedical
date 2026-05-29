@@ -1,9 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { Download, Loader2, Share, Smartphone, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Download, Info, Loader2, Share, Smartphone, X } from 'lucide-react';
 import { usePWAInstall } from '@/lib/use-pwa-install';
 import { toast } from 'sonner';
+
+// How long we keep showing the "Preparando..." spinner before
+// concluding that Chrome won't fire beforeinstallprompt anytime soon
+// (PWA already installed elsewhere, criteria not met, etc) and
+// switching to honest manual-path messaging instead.
+const PREPARING_TIMEOUT_MS = 12_000;
 
 /**
  * Prominent install card shown on the login page on mobile devices.
@@ -35,6 +42,16 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
   if (dismissedRecently) return null;
 
   const isIos = platform === 'ios';
+
+  // Stops the "Preparando instalación..." spinner from looping forever
+  // if Chrome never fires beforeinstallprompt on this device.
+  const [stalled, setStalled] = useState(false);
+  useEffect(() => {
+    if (isIos) return;              // iOS has no event ever; not relevant
+    if (event) { setStalled(false); return; } // Real button shown — no need to time out
+    const id = setTimeout(() => setStalled(true), PREPARING_TIMEOUT_MS);
+    return () => clearTimeout(id);
+  }, [event, isIos]);
 
   /**
    * Only ever called when the gradient button is visible, and that
@@ -146,6 +163,7 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
               text above already carries the instructions).
           */}
           {!isIos && event ? (
+            // Happy path: Chrome captured the event. One-tap install.
             <button
               onClick={() => void handleInstall()}
               style={{
@@ -168,7 +186,9 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
               <Download size={12} />
               Instalar
             </button>
-          ) : !isIos ? (
+          ) : !isIos && !stalled ? (
+            // Waiting state: Chrome is still evaluating. Quiet spinner —
+            // not styled like a button to avoid misleading taps.
             <div
               style={{
                 marginTop: 10,
@@ -180,13 +200,35 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
                 fontStyle: 'italic',
               }}
             >
-              <Loader2 size={12} className="pm-pwa-spin" style={{ animation: 'pmPwaSpin 1s linear infinite' }} />
+              <Loader2 size={12} style={{ animation: 'pmPwaSpin 1s linear infinite' }} />
               Preparando instalación...
-              <style>{`
-                @keyframes pmPwaSpin {
-                  to { transform: rotate(360deg); }
-                }
-              `}</style>
+              <style>{`@keyframes pmPwaSpin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+          ) : !isIos ? (
+            // Stalled state: Chrome won't fire the event soon. Be honest
+            // and point the user to the manual path with a clearly-info
+            // (not button) visual treatment.
+            <div
+              style={{
+                marginTop: 10,
+                padding: '8px 11px',
+                borderRadius: 8,
+                background: 'rgba(99,102,241,0.07)',
+                border: '1px dashed rgba(99,102,241,0.28)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+              }}
+            >
+              <Info size={13} color="#818CF8" style={{ flexShrink: 0, marginTop: 1 }} />
+              <p style={{ fontSize: 11, color: '#8B95B5', lineHeight: 1.5, margin: 0 }}>
+                Chrome aún no detecta esta app como instalable. Abre el menú
+                <strong style={{ color: '#A5B4FC' }}> ⋮ </strong>
+                arriba a la derecha y toca
+                <strong style={{ color: '#A5B4FC' }}> «Instalar app»</strong>
+                o
+                <strong style={{ color: '#A5B4FC' }}> «Añadir a pantalla de inicio»</strong>.
+              </p>
             </div>
           ) : null}
         </div>

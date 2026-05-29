@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, Share, Smartphone, X } from 'lucide-react';
+import { Download, MoreVertical, Share, Smartphone, X } from 'lucide-react';
 import { usePWAInstall } from '@/lib/use-pwa-install';
 import { toast } from 'sonner';
 
@@ -120,11 +120,34 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
           </p>
 
           {isIos ? (
-            <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
-              Toca el botón <strong style={{ color: '#A5B4FC' }}>Compartir</strong> abajo
-              (cuadrado con flecha ↑) y selecciona <strong style={{ color: '#A5B4FC' }}>«Añadir a inicio»</strong>.
-              Así no dejas la sesión abierta en el navegador.
-            </p>
+            <>
+              <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
+                Así no dejas la sesión abierta en el navegador y abres
+                la app directo desde tu pantalla de inicio.
+              </p>
+              {/* Visual callout mirroring the Android states. iOS has no
+                  install API so this is informational — points the user
+                  to Safari's Share menu. */}
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: '7px 12px',
+                  borderRadius: 8,
+                  background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                  color: 'white',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                <Share size={12} />
+                Compartir ↑ → Añadir a inicio
+              </div>
+            </>
           ) : event ? (
             <>
               <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
@@ -153,11 +176,35 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
               </button>
             </>
           ) : (
-            <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
-              Toca el menú <strong style={{ color: '#A5B4FC' }}>⋮</strong> de Chrome arriba
-              y selecciona <strong style={{ color: '#A5B4FC' }}>«Instalar app»</strong> o
-              <strong style={{ color: '#A5B4FC' }}>«Añadir a pantalla de inicio»</strong>.
-            </p>
+            <>
+              <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
+                Acceso rápido desde tu pantalla de inicio sin abrir Chrome cada vez.
+              </p>
+              {/* Visual callout with the same gradient treatment as the
+                  real "Instalar" button. Not clickable — we can't trigger
+                  install without Chrome's beforeinstallprompt event — but
+                  matches the button case visually and points the user to
+                  the menu in one glance. */}
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: '7px 12px',
+                  borderRadius: 8,
+                  background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                  color: 'white',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                <MoreVertical size={12} />
+                Menú ⋮ → Instalar app
+              </div>
+            </>
           )}
         </div>
 

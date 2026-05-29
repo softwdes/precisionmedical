@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LogOut, Play, Square, Coffee, UserX, RefreshCw, Clock } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,8 +60,8 @@ function initials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false });
+function fmtTime(iso: string, locale: string) {
+  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 /** Renders a decimal-hours number (e.g. 8.5) as a HH:MM clock string ("8:30"). */
@@ -139,6 +140,7 @@ export default function ClockPage({ userId }: { userId: string }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const waypointIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { t, locale } = useT();
 
   // Profile
   const [employee, setEmployee] = useState<Employee | null>(null);
@@ -186,21 +188,6 @@ export default function ClockPage({ userId }: { userId: string }) {
     }).catch(() => setLocationPerm('unknown'));
   }, []);
 
-  const isSpanish = typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('es');
-
-  const GEO_TEXT = {
-    title: isSpanish ? 'Verificar tu ubicación' : 'Verify your location',
-    body:  isSpanish
-      ? 'Permite tu ubicación para verificar que estás en la clínica.'
-      : 'Allow location so we can verify you are at the clinic.',
-    note:  isSpanish
-      ? 'Tu registro se guarda igual; esto solo añade verificación.'
-      : 'Your record is saved either way; this just adds verification.',
-    denied: isSpanish
-      ? 'Ubicación bloqueada. Tus registros se guardarán sin verificación.'
-      : 'Location blocked. Records will be saved without verification.',
-  };
-
   // Warning chip shown next to the status card when location_status is
   // anything other than verified/remote. Records are NOT blocked — admin
   // sees the flag in reports for audit.
@@ -211,14 +198,10 @@ export default function ClockPage({ userId }: { userId: string }) {
   const locationWarningText = (() => {
     if (!locationNotVerified) return '';
     switch (record?.location_status) {
-      case 'out_of_range':
-        return isSpanish ? 'Fuera del rango de la clínica' : 'Outside clinic range';
-      case 'low_accuracy':
-        return isSpanish ? 'GPS impreciso' : 'Low GPS accuracy';
-      case 'no_permission':
-        return isSpanish ? 'Sin permiso de ubicación' : 'No location permission';
-      default:
-        return isSpanish ? 'Ubicación no verificada' : 'Location not verified';
+      case 'out_of_range':  return t.locOutOfRange;
+      case 'low_accuracy':  return t.locLowAccuracy;
+      case 'no_permission': return t.locNoPermission;
+      default:              return t.locUnknown;
     }
   })();
 
@@ -255,17 +238,19 @@ export default function ClockPage({ userId }: { userId: string }) {
   }, [employee?.country_code, clinics, selectedClinic]);
 
   // ─── Live clock ticker ───────────────────────────────────────────────────────
+  // Reruns when locale changes so the date string respects browser language
+  // once useT() resolves after mount.
   useEffect(() => {
     const tick = () => {
       const now = new Date();
-      setTime(now.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
-      setDate(now.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+      setTime(now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
+      setDate(now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
       setTick(t => t + 1);
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [locale]);
 
   // ─── Load on mount ───────────────────────────────────────────────────────────
   // Intentional mount-only effect. loadProfile is stable for the component
@@ -455,8 +440,8 @@ export default function ClockPage({ userId }: { userId: string }) {
       const clinicCfg = clinics.find(c => c.name === selectedClinic);
       if (clinicCfg?.strict_geofencing && (locationStatus === 'out_of_range' || locationStatus === 'no_permission')) {
         const msg = locationStatus === 'out_of_range'
-          ? 'Estás fuera del rango de la clínica. Acércate al edificio e intenta de nuevo.'
-          : 'Debes habilitar la ubicación del navegador para marcar entrada en esta clínica.';
+          ? t.geoStrictOutOfRange
+          : t.geoStrictNoPermission;
         setActionError(msg);
         setRetryAction('clockIn');
         setLoading(false);
@@ -488,7 +473,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       startWaypointTracking(data.id as string);
 
       if (status === 'late') {
-        setLateNotice(`Llegaste ${lateMinutes} min después de tu horario`);
+        setLateNotice(t.lateBy(lateMinutes));
         setTimeout(() => setLateNotice(''), 3000);
       }
     } catch (err) {
@@ -500,11 +485,11 @@ export default function ClockPage({ userId }: { userId: string }) {
         pgError?.code === '23505' ||
         (pgError?.message ?? '').includes('uniq_open_attendance');
       if (isDuplicateOpen) {
-        setActionError('Ya tienes un turno abierto hoy. Sincronizando...');
+        setActionError(t.duplicateOpenShift);
         await loadTodayRecord(employee!.id);
         setTimeout(() => setActionError(''), 2500);
       } else {
-        setActionError('Error al guardar. Verifica tu conexión.');
+        setActionError(t.saveError);
         setRetryAction('clockIn');
       }
     } finally {
@@ -528,7 +513,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       setRecord(data as AttendanceRecord);
       setClockState('break');
     } catch {
-      setActionError('Error al guardar. Verifica tu conexión.');
+      setActionError(t.saveError);
       setRetryAction('break');
     } finally {
       setLoading(false);
@@ -556,7 +541,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       setRecord(data as AttendanceRecord);
       setClockState('working');
     } catch {
-      setActionError('Error al guardar. Verifica tu conexión.');
+      setActionError(t.saveError);
       setRetryAction('return');
     } finally {
       setLoading(false);
@@ -590,7 +575,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       setClockState('done');
       void loadStats(employee!.id);
     } catch {
-      setActionError('Error al guardar. Verifica tu conexión.');
+      setActionError(t.saveError);
       setRetryAction('clockOut');
     } finally {
       setLoading(false);
@@ -689,14 +674,13 @@ export default function ClockPage({ userId }: { userId: string }) {
             <Clock size={24} color="var(--indigo)" />
           </div>
           <div>
-            <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>App solo para empleados</p>
+            <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>{t.wrongRoleTitle}</p>
             <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.5 }}>
-              Estás autenticado como <strong style={{ color: 'var(--text-primary)' }}>{role.toLowerCase().replace('_', ' ')}</strong>.
-              Para administrar el sistema, ingresa desde el panel admin en tu navegador.
+              {t.wrongRoleBody(role.toLowerCase().replace('_', ' '))}
             </p>
           </div>
           <button onClick={handleLogout} style={{ padding: '10px 24px', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer' }}>
-            Cerrar sesión
+            {t.signOut}
           </button>
         </div>
       </main>
@@ -713,11 +697,11 @@ export default function ClockPage({ userId }: { userId: string }) {
             <UserX size={24} color="var(--rose)" />
           </div>
           <div>
-            <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Cuenta no configurada</p>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>Contacta a tu administrador</p>
+            <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>{t.profileErrorTitle}</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6 }}>{t.profileErrorBody}</p>
           </div>
           <button onClick={handleLogout} style={{ padding: '10px 24px', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer' }}>
-            Cerrar sesión
+            {t.signOut}
           </button>
         </div>
       </main>
@@ -803,7 +787,7 @@ export default function ClockPage({ userId }: { userId: string }) {
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 10px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}
         >
           <LogOut size={12} />
-          Salir
+          {t.exit}
         </button>
       </div>
 
@@ -821,7 +805,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       <div style={sectionStyle}>
         {clockState === 'idle' && (
           <div style={{ borderRadius: 12, padding: '12px 20px', textAlign: 'center', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)' }}>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sin registro hoy</p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.noRecordToday}</p>
           </div>
         )}
 
@@ -829,10 +813,10 @@ export default function ClockPage({ userId }: { userId: string }) {
           <div style={{ borderRadius: 12, padding: '12px 20px', background: 'var(--green-dim)', border: '1px solid var(--green-border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <span className="pulse-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--green)' }}>Trabajando</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--green)' }}>{t.working}</span>
             </div>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 4, fontFamily: 'monospace' }}>
-              Entrada: {record?.check_in ? fmtTime(record.check_in) : '—'} · Hoy: {workingDisplay}
+              {t.entryLabel}: {record?.check_in ? fmtTime(record.check_in, locale) : '—'} · {t.todayShort}: {workingDisplay}
             </p>
           </div>
         )}
@@ -841,19 +825,19 @@ export default function ClockPage({ userId }: { userId: string }) {
           <div style={{ borderRadius: 12, padding: '12px 20px', background: 'var(--amber-dim)', border: '1px solid var(--amber-border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--amber)', display: 'inline-block', flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--amber)' }}>En break</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--amber)' }}>{t.onBreak}</span>
             </div>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 4, fontFamily: 'monospace' }}>
-              Break: {breakDisplay} · Entrada: {record?.check_in ? fmtTime(record.check_in) : '—'}
+              {t.breakLabel}: {breakDisplay} · {t.entryLabel}: {record?.check_in ? fmtTime(record.check_in, locale) : '—'}
             </p>
           </div>
         )}
 
         {clockState === 'done' && record && (
           <div style={{ borderRadius: 12, padding: '12px 20px', background: 'var(--indigo-dim)', border: '1px solid rgba(99,102,241,0.25)', textAlign: 'center' }}>
-            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--indigo)' }}>Jornada completada</p>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--indigo)' }}>{t.shiftComplete}</p>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'monospace' }}>
-              {record.check_in ? fmtTime(record.check_in) : '—'} → {record.check_out ? fmtTime(record.check_out) : '—'} · {record.hours_worked ? fmtHoursAsClock(Number(record.hours_worked)) : '—'}h trabajadas
+              {record.check_in ? fmtTime(record.check_in, locale) : '—'} → {record.check_out ? fmtTime(record.check_out, locale) : '—'} · {record.hours_worked ? fmtHoursAsClock(Number(record.hours_worked)) : '—'}{t.hoursWorkedSuffix}
             </p>
           </div>
         )}
@@ -910,13 +894,13 @@ export default function ClockPage({ userId }: { userId: string }) {
           {/* Text */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 12, fontWeight: 600, color: '#818CF8', margin: 0, letterSpacing: '0.01em' }}>
-              {GEO_TEXT.title}
+              {t.geoTitle}
             </p>
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
-              {GEO_TEXT.body}
+              {t.geoBody}
             </p>
             <p style={{ fontSize: 10, color: '#F87171', marginTop: 5, fontStyle: 'italic' }}>
-              {GEO_TEXT.note}
+              {t.geoNote}
             </p>
           </div>
         </div>
@@ -942,10 +926,10 @@ export default function ClockPage({ userId }: { userId: string }) {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 12, fontWeight: 600, color: '#F87171', margin: 0, letterSpacing: '0.01em' }}>
-              {isSpanish ? 'Ubicación bloqueada' : 'Location blocked'}
+              {t.geoBlockedTitle}
             </p>
             <p style={{ fontSize: 11, color: '#F87171', marginTop: 4, lineHeight: 1.5, opacity: 0.85 }}>
-              {GEO_TEXT.denied}
+              {t.geoBlockedBody}
             </p>
           </div>
         </div>
@@ -973,7 +957,7 @@ export default function ClockPage({ userId }: { userId: string }) {
               opacity: (clocked || lockedToSingleClinic) ? 0.7 : 1,
             }}
           >
-            <option value="" disabled>Seleccionar clínica...</option>
+            <option value="" disabled>{t.selectClinic}</option>
             {visibleClinics.map(c => (
               <option key={c.id} value={c.name}>{c.display_name}</option>
             ))}
@@ -990,7 +974,7 @@ export default function ClockPage({ userId }: { userId: string }) {
             style={{ width: '100%', height: 52, borderRadius: 14, background: 'var(--green-dim)', border: '1px solid var(--green-border)', color: 'var(--green)', fontSize: 15, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'background 0.15s' }}
           >
             {loading ? <span style={{ width: 18, height: 18, border: '2px solid var(--green-border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} /> : <Play size={16} />}
-            {loading ? 'Guardando...' : 'Clock In'}
+            {loading ? t.saving : t.clockInBtn}
           </button>
         )}
 
@@ -1002,7 +986,7 @@ export default function ClockPage({ userId }: { userId: string }) {
               style={{ flex: 1, height: 48, borderRadius: 12, background: 'var(--amber-dim)', border: '1px solid var(--amber-border)', color: 'var(--amber)', fontSize: 13, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
               {loading ? <span style={{ width: 16, height: 16, border: '2px solid var(--amber-border)', borderTopColor: 'var(--amber)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} /> : <Coffee size={15} />}
-              Break
+              {t.breakBtn}
             </button>
             <button
               onClick={handleClockOut}
@@ -1010,7 +994,7 @@ export default function ClockPage({ userId }: { userId: string }) {
               style={{ flex: 1, height: 48, borderRadius: 12, background: 'var(--rose-dim)', border: '1px solid var(--rose-border)', color: 'var(--rose)', fontSize: 13, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
               {loading ? <span style={{ width: 16, height: 16, border: '2px solid var(--rose-border)', borderTopColor: 'var(--rose)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} /> : <Square size={15} />}
-              Clock Out
+              {t.clockOutBtn}
             </button>
           </div>
         )}
@@ -1022,7 +1006,7 @@ export default function ClockPage({ userId }: { userId: string }) {
             style={{ width: '100%', height: 52, borderRadius: 14, background: 'var(--green-dim)', border: '1px solid var(--green-border)', color: 'var(--green)', fontSize: 14, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           >
             {loading ? <span style={{ width: 18, height: 18, border: '2px solid var(--green-border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} /> : <Play size={16} />}
-            {loading ? 'Guardando...' : 'Volver al trabajo'}
+            {loading ? t.saving : t.backToWork}
           </button>
         )}
 
@@ -1031,7 +1015,7 @@ export default function ClockPage({ userId }: { userId: string }) {
             onClick={handleNewShift}
             style={{ width: '100%', height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
           >
-            + Nuevo turno
+            {t.newShift}
           </button>
         )}
       </div>
@@ -1054,7 +1038,7 @@ export default function ClockPage({ userId }: { userId: string }) {
               style={{ background: 'none', border: 'none', color: 'var(--rose)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500, flexShrink: 0 }}
             >
               <RefreshCw size={12} />
-              Reintentar
+              {t.retry}
             </button>
           )}
         </div>
@@ -1063,9 +1047,9 @@ export default function ClockPage({ userId }: { userId: string }) {
       {/* ── F: Stats bar ── */}
       <div style={{ ...sectionStyle, display: 'flex', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         {([
-          { label: 'Hoy',    value: stats.today },
-          { label: 'Semana', value: stats.week },
-          { label: 'Mes',    value: stats.month },
+          { label: t.statToday, value: stats.today },
+          { label: t.statWeek,  value: stats.week  },
+          { label: t.statMonth, value: stats.month },
         ] as const).map((s, i, arr) => (
           <div
             key={s.label}

@@ -1,17 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Clock, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Smartphone } from 'lucide-react';
+import { useT } from '@/lib/i18n';
 
 export default function LoginPage({ expired }: { expired?: boolean }) {
   const router = useRouter();
+  const { t } = useT();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState(expired ? 'Tu sesión expiró. Inicia sesión de nuevo.' : '');
+  const [error, setError]       = useState('');
+
+  // Sync the "session expired" message with the active locale.
+  // Without this, the error stays in the initial (Spanish) text if
+  // the browser is English and the locale flips after mount.
+  useEffect(() => {
+    if (expired) setError(t.sessionExpired);
+  }, [expired, t.sessionExpired]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,7 +29,7 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError) {
-      setError('Email o contraseña incorrectos');
+      setError(t.invalidCredentials);
       setLoading(false);
       return;
     }
@@ -248,9 +257,9 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
                       <svg style={{ animation:'spin 1s linear infinite' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                         <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                       </svg>
-                      Ingresando...
+                      {t.signingIn}
                     </>
-                  ) : 'Ingresar'}
+                  ) : t.signIn}
                 </button>
               </form>
             </div>
@@ -259,7 +268,7 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
           {/* System status */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:16, marginBottom:10 }}>
             <div style={{ width:6, height:6, borderRadius:'50%', background:'#6366F1', boxShadow:'0 0 6px #6366F1, 0 0 12px rgba(99,102,241,0.4)', animation:'systemPulse 2s ease-in-out infinite' }} />
-            <span style={{ fontSize:11, color:'#4A5474', fontWeight:600, letterSpacing:'0.04em' }}>Sistema operativo</span>
+            <span style={{ fontSize:11, color:'#4A5474', fontWeight:600, letterSpacing:'0.04em' }}>{t.systemOnline}</span>
           </div>
 
           {/* Security pills */}
@@ -278,7 +287,7 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
 
           {/* Footer */}
           <p style={{ color:'#2C3248', fontSize:11, textTransform:'uppercase', letterSpacing:'0.1em', marginTop:'2rem', animation:'fadeUp 400ms 380ms cubic-bezier(0.16,1,0.3,1) both' }}>
-            Precision Medical · PM Time Clock · Solo uso interno
+            {t.footer}
           </p>
         </div>
       </div>

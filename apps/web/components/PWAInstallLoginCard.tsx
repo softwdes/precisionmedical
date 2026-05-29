@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, MoreVertical, Share, Smartphone, X } from 'lucide-react';
+import { Download, Loader2, Share, Smartphone, X } from 'lucide-react';
 import { usePWAInstall } from '@/lib/use-pwa-install';
 import { toast } from 'sonner';
 
@@ -37,13 +37,10 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
   const isIos = platform === 'ios';
 
   /**
-   * Single click handler for all three render states. Outcomes:
-   *   - accepted   → user installed via native dialog
-   *   - dismissed  → user rejected the native dialog; respect for 7 days
-   *   - unavailable → either iOS (no install API ever) or Android where
-   *                   Chrome hasn't fired beforeinstallprompt yet. We
-   *                   show a platform-aware toast pointing to the manual
-   *                   path so the user always gets feedback on tap.
+   * Only ever called when the gradient button is visible, and that
+   * only happens when Chrome has captured beforeinstallprompt. So the
+   * 'unavailable' branch is defensive only — in practice we shouldn't
+   * see it from this UI.
    */
   const handleInstall = async (): Promise<void> => {
     const outcome = await install();
@@ -51,22 +48,8 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
       toast.success('LM Admin instalado');
     } else if (outcome === 'dismissed') {
       dismiss();
-    } else if (outcome === 'unavailable') {
-      if (isIos) {
-        toast.info('Toca el botón Compartir ↑ abajo en Safari y selecciona «Añadir a inicio».');
-      } else {
-        toast.info('Toca el menú ⋮ de Chrome arriba y selecciona «Instalar app».');
-      }
     }
   };
-
-  // Picks the right icon + label per state, but they all share the
-  // same gradient button shell below. Keeps the visual story uniform.
-  const cta = isIos
-    ? { Icon: Share, label: 'Compartir ↑ → Añadir a inicio' }
-    : event
-      ? { Icon: Download, label: 'Instalar' }
-      : { Icon: MoreVertical, label: 'Menú ⋮ → Instalar app' };
 
   return (
     <div
@@ -147,36 +130,65 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
 
           <p style={{ fontSize: 11.5, color: '#8B95B5', marginTop: 5, lineHeight: 1.5 }}>
             {isIos
-              ? 'Así no dejas la sesión abierta en el navegador y abres la app directo desde tu inicio.'
+              ? 'Para instalar en iPhone, abre esta página en Safari, toca el botón Compartir ↑ y selecciona «Añadir a inicio».'
               : 'Acceso rápido desde tu pantalla de inicio sin abrir Chrome cada vez.'}
           </p>
 
-          {/* Single CTA button. Always clickable so the user gets
-              feedback on tap. handleInstall picks the right behavior:
-              triggers native install if Chrome captured the event,
-              otherwise shows a toast with the manual path. */}
-          <button
-            onClick={() => void handleInstall()}
-            style={{
-              marginTop: 10,
-              padding: '7px 12px',
-              borderRadius: 8,
-              background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-              color: 'white',
-              fontSize: 11.5,
-              fontWeight: 600,
-              border: 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
-              letterSpacing: '0.01em',
-            }}
-          >
-            <cta.Icon size={12} />
-            {cta.label}
-          </button>
+          {/*
+            Three render states for the action area:
+            - Android with captured event: real "Instalar" button that
+              triggers the native install dialog one-tap.
+            - Android WITHOUT captured event yet: subtle "Preparando..."
+              indicator with a spinner — no fake button. Chrome decides
+              when to fire beforeinstallprompt; we cannot force it. As
+              soon as it does, this re-renders into the real button.
+            - iOS: no action area (Safari has no install API; the body
+              text above already carries the instructions).
+          */}
+          {!isIos && event ? (
+            <button
+              onClick={() => void handleInstall()}
+              style={{
+                marginTop: 10,
+                padding: '7px 14px',
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                color: 'white',
+                fontSize: 12,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
+                letterSpacing: '0.01em',
+              }}
+            >
+              <Download size={12} />
+              Instalar
+            </button>
+          ) : !isIos ? (
+            <div
+              style={{
+                marginTop: 10,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                fontSize: 11,
+                color: '#6B7592',
+                fontStyle: 'italic',
+              }}
+            >
+              <Loader2 size={12} className="pm-pwa-spin" style={{ animation: 'pmPwaSpin 1s linear infinite' }} />
+              Preparando instalación...
+              <style>{`
+                @keyframes pmPwaSpin {
+                  to { transform: rotate(360deg); }
+                }
+              `}</style>
+            </div>
+          ) : null}
         </div>
 
         <button

@@ -125,10 +125,15 @@ function locationStatusMeta(status: string | null | undefined): { color: string;
   }
 }
 
-function todayStr() { return new Date().toISOString().split('T')[0]!; }
+// Utah local date — aligns with attendance_records.date (written in employee's
+// local TZ by the timeclock). Using toISOString() would compute UTC and after
+// ~6pm Utah would jump to the next day, hiding today's records.
+function todayStr() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+}
 function daysAgo(n: number) {
   const d = new Date(); d.setDate(d.getDate() - n);
-  return d.toISOString().split('T')[0]!;
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
 }
 
 // ─── Skeletons ───────────────────────────────────────────────────────────────

@@ -18,7 +18,11 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = createAdminClient();
-  const today = new Date().toISOString().split('T')[0]!;
+  // Utah local date — must match how the timeclock writes attendance_records.date
+  // (see apps/timeclock/components/ClockPage.tsx#localDateString). Using
+  // toISOString() here would compute UTC, which after ~6pm Utah shifts to the
+  // next day and breaks same-day lookups.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
 
   const [{ data: employees }, { data: records }] = await Promise.all([
     admin.from('employees')

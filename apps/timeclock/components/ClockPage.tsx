@@ -102,15 +102,57 @@ interface GeoPoint { lat: number; lng: number; accuracy: number; }
 
 type LocationStatus = 'verified' | 'out_of_range' | 'low_accuracy' | 'no_permission' | 'remote' | 'unknown';
 
-function getLocation(): Promise<GeoPoint | null> {
+/** Accuracy (meters) above which we flag a reading as low_accuracy.
+ *  Raised from 500 to 1500 to reduce false positives on indoor mobile
+ *  GPS, while still catching desktop/IP-based geolocation which is
+ *  typically tens of kilometers off. */
+const LOW_ACCURACY_THRESHOLD_M = 1500;
+
+const MAX_GPS_RETRIES   = 3;
+const GPS_RETRY_DELAY_MS = 1500;
+
+function isMobileUserAgent(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function singleGetLocation(forceFresh: boolean): Promise<GeoPoint | null> {
   return new Promise(resolve => {
     if (!navigator.geolocation) { resolve(null); return; }
     navigator.geolocation.getCurrentPosition(
       p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
       () => resolve(null),
-      { timeout: 8000, maximumAge: 30000, enableHighAccuracy: true },
+      { timeout: 8000, maximumAge: forceFresh ? 0 : 30000, enableHighAccuracy: true },
     );
   });
+}
+
+/** Reads GPS with smart retry on mobile.
+ *
+ *  Mobile GPS typically improves over time (cold fix vs warm fix): the
+ *  first reading after opening the page can be from a cached WiFi-based
+ *  guess, and a second reading 1-2s later already has satellite lock.
+ *  We retry up to 3 times if the reading is still classified as
+ *  low_accuracy and keep the best (lowest accuracy) reading. After the
+ *  first attempt we force a fresh read (maximumAge: 0).
+ *
+ *  Desktop short-circuits: no GPS hardware, retrying yields the same
+ *  imprecise WiFi/IP reading. We return whatever we got in one shot. */
+async function getLocation(): Promise<GeoPoint | null> {
+  if (!isMobileUserAgent()) {
+    return singleGetLocation(false);
+  }
+
+  let best: GeoPoint | null = null;
+  for (let attempt = 0; attempt < MAX_GPS_RETRIES; attempt++) {
+    const loc = await singleGetLocation(attempt > 0);
+    if (loc && (!best || loc.accuracy < best.accuracy)) best = loc;
+    if (best && best.accuracy <= LOW_ACCURACY_THRESHOLD_M) return best; // good enough
+    if (attempt < MAX_GPS_RETRIES - 1) {
+      await new Promise(r => setTimeout(r, GPS_RETRY_DELAY_MS));
+    }
+  }
+  return best;
 }
 
 /** Distancia Haversine entre dos puntos GPS, en metros */
@@ -129,7 +171,7 @@ function resolveLocationStatus(loc: GeoPoint | null, clinicName: string, clinics
   const clinic = clinics.find(c => c.name === clinicName);
   if (!clinic || clinic.lat === null || clinic.lng === null) return 'remote'; // sin coordenadas → remoto
   if (!loc) return 'no_permission';                          // sin GPS / permiso negado
-  if (loc.accuracy > 500) return 'low_accuracy';             // PC sin GPS (WiFi muy impreciso)
+  if (loc.accuracy > LOW_ACCURACY_THRESHOLD_M) return 'low_accuracy'; // GPS impreciso (desktop sin GPS / indoor sin lock)
   const dist = distanceMeters(loc.lat, loc.lng, clinic.lat, clinic.lng);
   return dist <= (clinic.radius_m ?? 300) ? 'verified' : 'out_of_range';
 }

@@ -7,15 +7,19 @@ import {
   Card, CardContent, CardHeader, CardTitle, Badge, Button, Label, Input,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue, cn,
 } from '@precision/ui';
-import { CheckCircle, Globe, Database, Mail, Shield } from 'lucide-react';
+import { CheckCircle, Globe, Database, Mail, Shield, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import { ClinicsTab } from './clinics-tab';
+import { PushNotificationToggle } from '@/components/PushNotificationToggle';
+import { useRole } from '@/contexts/role-context';
 
 type Tab = 'general' | 'clinics';
 
 export default function SettingsPage(): React.ReactElement {
   const t = useTranslations();
   const locale = useLocale();
+  const role = useRole();
+  const isSuperAdmin = role === 'super_admin';
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [general, setGeneral] = useState({ companyName: 'Precision Medical', timezone: 'America/Denver', dateFormat: 'MM/DD/YYYY' });
 
@@ -96,6 +100,33 @@ export default function SettingsPage(): React.ReactElement {
               </div>
             </CardContent>
           </Card>
+
+          {/* Push Notifications — Super Admin only.
+              Receives system alerts (e.g. salary payments due) directly
+              on the device via Web Push when the PWA is installed. */}
+          {isSuperAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-brand" />
+                  Notificaciones push
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-small text-text-3">
+                  Recibe alertas directas en este dispositivo cuando un salario está
+                  por vencer (3 días antes y el mismo día). Requiere la PWA instalada
+                  y permisos del navegador.
+                </p>
+                <PushNotificationToggle />
+                <p className="text-tiny text-text-muted">
+                  Las notificaciones se envían diariamente a las 8:00 AM hora Utah.
+                  Para desinstalar borra el sitio de Chrome o usa el botón de
+                  desactivar.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Integrations */}
           <Card>

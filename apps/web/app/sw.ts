@@ -63,3 +63,64 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// ─── Web Push Notifications ────────────────────────────────────────
+// Listens for push events from the salary-alerts cron (and any other
+// future backend push sender) and renders a system notification.
+
+interface PushPayload {
+  title: string;
+  body: string;
+  url?: string;
+  tag?: string;
+  icon?: string;
+}
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let payload: PushPayload;
+  try {
+    payload = event.data.json() as PushPayload;
+  } catch {
+    // If the backend ever sends a plain string, use it as the body.
+    payload = { title: 'LM Admin', body: event.data.text() };
+  }
+
+  const notificationPromise = self.registration.showNotification(payload.title, {
+    body: payload.body,
+    icon: payload.icon ?? '/icons/icon-192.png',
+    badge: '/icons/icon-72.png',
+    tag: payload.tag ?? 'lm-admin',
+    // Surfaces the destination URL to the click handler below.
+    data: { url: payload.url ?? '/dashboard' },
+    // Keep the notification visible until the user interacts. Critical
+    // alerts like "salaries due today" shouldn't auto-dismiss.
+    requireInteraction: true,
+  });
+
+  event.waitUntil(notificationPromise);
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data as { url?: string } | undefined)?.url ?? '/dashboard';
+
+  // Focus an existing tab if one is already open on the app; otherwise
+  // open a new window. Avoids stacking duplicate tabs every tap.
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          const url = new URL(client.url);
+          if (url.origin === self.location.origin && 'focus' in client) {
+            void (client as WindowClient).focus();
+            void (client as WindowClient).navigate(targetUrl).catch(() => {});
+            return;
+          }
+        }
+        void self.clients.openWindow(targetUrl);
+      }),
+  );
+});

@@ -42,24 +42,39 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const inThreeDays = utahDate(3);
 
   // ── 2. Query pending payments scheduled for either date ────────
-  // Payment.scheduledDate is a timestamp — we range-match each day.
-  async function findPaymentsForDate(dateStr: string) {
-    const start = `${dateStr}T00:00:00.000Z`;
-    const end = `${dateStr}T23:59:59.999Z`;
-    const { data, error } = await admin
-      .from('payments')
-      .select('id, employeeId, amountLocal, currencyLocal, scheduledDate, status, period')
-      .eq('status', 'PENDING')
-      .gte('scheduledDate', start)
-      .lte('scheduledDate', end);
-    if (error) throw new Error(`payments query failed: ${error.message}`);
-    return data ?? [];
+  // Payment.scheduledDate is a timestamptz (UTC in storage). A user
+  // who runs INSERT ... scheduledDate = NOW() at 9pm Utah time creates
+  // a row whose UTC date is the NEXT day — and the original ${dateStr}
+  // UTC range would miss it.
+  //
+  // Fix: query a wider UTC window (yesterday → +4 days) and filter
+  // in JS by converting each scheduledDate to a Utah-local YYYY-MM-DD
+  // and comparing to the target date string. Same result regardless
+  // of when in the day the payment was scheduled.
+  const windowStart = new Date();
+  windowStart.setDate(windowStart.getDate() - 1);
+  const windowEnd = new Date();
+  windowEnd.setDate(windowEnd.getDate() + 4);
+
+  const { data: allPaymentsRaw, error: pErr } = await admin
+    .from('payments')
+    .select('id, employeeId, amountLocal, currencyLocal, scheduledDate, status, period')
+    .eq('status', 'PENDING')
+    .gte('scheduledDate', windowStart.toISOString())
+    .lte('scheduledDate', windowEnd.toISOString());
+  if (pErr) throw new Error(`payments query failed: ${pErr.message}`);
+  const allPayments = allPaymentsRaw ?? [];
+
+  function utahDateOf(iso: string): string {
+    return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
   }
 
-  const [dueToday, dueInThreeDays] = await Promise.all([
-    findPaymentsForDate(today),
-    findPaymentsForDate(inThreeDays),
-  ]);
+  function findPaymentsForDate(dateStr: string) {
+    return allPayments.filter((p) => utahDateOf(p.scheduledDate as string) === dateStr);
+  }
+
+  const dueToday = findPaymentsForDate(today);
+  const dueInThreeDays = findPaymentsForDate(inThreeDays);
 
   // ── 3. Resolve super admin subscriptions ───────────────────────
   const { data: superAdmins } = await admin

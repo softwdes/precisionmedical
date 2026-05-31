@@ -30,7 +30,7 @@ function markDismissedToday(): void {
   }
 }
 
-type BucketVariant = 'overdue' | 'today' | 'tomorrow' | 'two-days' | 'three-days';
+type BucketVariant = 'overdue' | 'upcoming';
 
 interface BucketProps {
   variant: BucketVariant;
@@ -44,23 +44,20 @@ interface BucketProps {
     currency: string;
     /** Only present for overdue rows. Positive = days past due. */
     daysOverdue?: number;
+    /** Only present for upcoming rows: "Hoy" / "Mañana" / "En N días". */
+    dueLabel?: string;
   }>;
 }
 
-// Visual hierarchy: deeper/redder = more urgent. Overdue most urgent
-// (deep red with glow), then today (rose), then a graduated amber
-// scale for 1/2/3 days out.
+// Visual hierarchy: overdue (deep red + glow, most urgent), then
+// upcoming (amber, planning-mode urgency).
 const VARIANT_STYLE: Record<BucketVariant, { label: string; color: string; bg: string; border: string }> = {
-  overdue:      { label: 'Vencidos',         color: '#DC2626', bg: 'rgba(220,38,38,0.13)',  border: 'rgba(220,38,38,0.40)'  },
-  today:        { label: 'Vence hoy',        color: '#F43F5E', bg: 'rgba(244,63,94,0.10)',  border: 'rgba(244,63,94,0.30)'  },
-  tomorrow:     { label: 'Vence mañana',     color: '#FB923C', bg: 'rgba(251,146,60,0.10)', border: 'rgba(251,146,60,0.30)' },
-  'two-days':   { label: 'Vence en 2 días',  color: '#F59E0B', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.30)' },
-  'three-days': { label: 'Vence en 3 días',  color: '#FBBF24', bg: 'rgba(251,191,36,0.10)', border: 'rgba(251,191,36,0.30)' },
+  overdue:  { label: 'Vencidos',          color: '#DC2626', bg: 'rgba(220,38,38,0.13)',  border: 'rgba(220,38,38,0.40)'  },
+  upcoming: { label: 'Próximos a vencer', color: '#F59E0B', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.30)' },
 };
 
 function Bucket({ variant, count, totalAmount, currency, rows }: BucketProps): React.ReactElement {
   const isOverdue = variant === 'overdue';
-  const isToday = variant === 'today';
   const accent = VARIANT_STYLE[variant];
   const label = accent.label;
   const overflow = count - rows.length;
@@ -82,9 +79,8 @@ function Bucket({ variant, count, totalAmount, currency, rows }: BucketProps): R
               height: 8,
               borderRadius: '50%',
               background: accent.color,
-              // Glow the dot for the two most urgent buckets so they
-              // stand out at a glance.
-              boxShadow: isOverdue || isToday ? `0 0 8px ${accent.color}` : 'none',
+              // Glow the dot on overdue — it's the most urgent state.
+              boxShadow: isOverdue ? `0 0 8px ${accent.color}` : 'none',
             }}
           />
           <span
@@ -121,6 +117,9 @@ function Bucket({ variant, count, totalAmount, currency, rows }: BucketProps): R
           >
             <span style={{ color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
               {r.employeeName}
+              {/* Overdue rows: "hace Nd" pill. Upcoming rows:
+                  "Hoy" / "Mañana" / "En N días" pill. Same styling for
+                  visual consistency, just different text. */}
               {r.daysOverdue != null && r.daysOverdue > 0 && (
                 <span
                   style={{
@@ -134,6 +133,21 @@ function Bucket({ variant, count, totalAmount, currency, rows }: BucketProps): R
                   }}
                 >
                   hace {r.daysOverdue}d
+                </span>
+              )}
+              {r.dueLabel && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: accent.color,
+                    background: accent.bg,
+                    border: `1px solid ${accent.border}`,
+                    borderRadius: 4,
+                    padding: '1px 5px',
+                  }}
+                >
+                  {r.dueLabel}
                 </span>
               )}
             </span>
@@ -192,14 +206,8 @@ export function SalaryAlertModal(): React.ReactElement | null {
   if (isLoading) return null;
   if (!data) return null;
 
-  // Visibility gate across all 5 buckets — modal appears if ANY has
-  // payments to surface.
-  const totalCount =
-    (data.overdue?.count ?? 0) +
-    data.dueToday.count +
-    (data.dueTomorrow?.count ?? 0) +
-    (data.dueInTwoDays?.count ?? 0) +
-    data.dueInThreeDays.count;
+  // Visibility gate — modal appears if EITHER bucket has payments.
+  const totalCount = (data.overdue?.count ?? 0) + (data.upcoming?.count ?? 0);
   if (totalCount === 0) return null;
 
   function close(): void {
@@ -337,10 +345,9 @@ export function SalaryAlertModal(): React.ReactElement | null {
             </button>
           </div>
 
-          {/* Buckets — ordered by urgency: overdue > today > tomorrow >
-              +2d > +3d. Each bucket only renders if it has payments.
-              The outer max-height + overflow keeps the modal usable
-              even if 5 full buckets stack up. */}
+          {/* Two-bucket model: VENCIDOS (all overdue) y PRÓXIMOS A
+              VENCER (hoy → +3 dias). max-height + overflow para casos
+              de muchas filas. */}
           <div
             style={{
               display: 'flex',
@@ -359,40 +366,13 @@ export function SalaryAlertModal(): React.ReactElement | null {
                 rows={data.overdue.rows}
               />
             )}
-            {data.dueToday.count > 0 && (
+            {data.upcoming && data.upcoming.count > 0 && (
               <Bucket
-                variant="today"
-                count={data.dueToday.count}
-                totalAmount={data.dueToday.totalAmount}
-                currency={data.dueToday.currency}
-                rows={data.dueToday.rows}
-              />
-            )}
-            {data.dueTomorrow && data.dueTomorrow.count > 0 && (
-              <Bucket
-                variant="tomorrow"
-                count={data.dueTomorrow.count}
-                totalAmount={data.dueTomorrow.totalAmount}
-                currency={data.dueTomorrow.currency}
-                rows={data.dueTomorrow.rows}
-              />
-            )}
-            {data.dueInTwoDays && data.dueInTwoDays.count > 0 && (
-              <Bucket
-                variant="two-days"
-                count={data.dueInTwoDays.count}
-                totalAmount={data.dueInTwoDays.totalAmount}
-                currency={data.dueInTwoDays.currency}
-                rows={data.dueInTwoDays.rows}
-              />
-            )}
-            {data.dueInThreeDays.count > 0 && (
-              <Bucket
-                variant="three-days"
-                count={data.dueInThreeDays.count}
-                totalAmount={data.dueInThreeDays.totalAmount}
-                currency={data.dueInThreeDays.currency}
-                rows={data.dueInThreeDays.rows}
+                variant="upcoming"
+                count={data.upcoming.count}
+                totalAmount={data.upcoming.totalAmount}
+                currency={data.upcoming.currency}
+                rows={data.upcoming.rows}
               />
             )}
           </div>

@@ -490,8 +490,6 @@ export const dashboardRouter = router({
       return d.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
     };
     const today = utahDate(0);
-    const tomorrow = utahDate(1);
-    const inTwoDays = utahDate(2);
     const inThreeDays = utahDate(3);
 
     // Pull pending payments in a wide UTC window:
@@ -516,13 +514,19 @@ export const dashboardRouter = router({
     const utahDateOf = (iso: string): string =>
       new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
 
+    // Two-bucket model:
+    //   - overdue: ALL pending payments before today (no date limit
+    //     within the year-back window — we want every arrear surfaced).
+    //   - upcoming: pending payments in [today, today + 3 days] range
+    //     inclusive. Includes today + the next 3 days as one cohesive
+    //     "coming up" bucket so the admin sees everything to plan for.
     // ISO date strings (YYYY-MM-DD) compare lexicographically the same
     // way they compare chronologically — no need for Date math here.
     const overdue = all.filter((p) => utahDateOf(p.scheduledDate as string) < today);
-    const dueToday = all.filter((p) => utahDateOf(p.scheduledDate as string) === today);
-    const dueTomorrow = all.filter((p) => utahDateOf(p.scheduledDate as string) === tomorrow);
-    const dueInTwoDays = all.filter((p) => utahDateOf(p.scheduledDate as string) === inTwoDays);
-    const dueInThreeDays = all.filter((p) => utahDateOf(p.scheduledDate as string) === inThreeDays);
+    const upcoming = all.filter((p) => {
+      const d = utahDateOf(p.scheduledDate as string);
+      return d >= today && d <= inThreeDays;
+    });
 
     // Days difference between two YYYY-MM-DD strings, taken at noon UTC
     // to avoid DST drift. Returns positive when `to` is later than `from`.
@@ -536,10 +540,7 @@ export const dashboardRouter = router({
     const employeeIds = [
       ...new Set([
         ...overdue.map((p) => p.employeeId as string),
-        ...dueToday.map((p) => p.employeeId as string),
-        ...dueTomorrow.map((p) => p.employeeId as string),
-        ...dueInTwoDays.map((p) => p.employeeId as string),
-        ...dueInThreeDays.map((p) => p.employeeId as string),
+        ...upcoming.map((p) => p.employeeId as string),
       ]),
     ];
 
@@ -571,21 +572,32 @@ export const dashboardRouter = router({
     // Cap at 10 entries per bucket; the modal will note the overflow.
     const MAX_LIST = 10;
 
-    // Sort overdue by oldest first (most days overdue at the top — those
-    // are the most urgent to process).
+    // Sort overdue by oldest first (most days overdue at top — most urgent).
     const overdueSorted = [...overdue].sort((a, b) =>
       utahDateOf(a.scheduledDate as string).localeCompare(utahDateOf(b.scheduledDate as string)),
     );
+    // Sort upcoming by soonest first (today before tomorrow before +2d...).
+    const upcomingSorted = [...upcoming].sort((a, b) =>
+      utahDateOf(a.scheduledDate as string).localeCompare(utahDateOf(b.scheduledDate as string)),
+    );
+
+    // Per-row label "Hoy" / "Mañana" / "En N días" based on days from today.
+    function upcomingLabel(scheduledUtahDate: string): string {
+      const diff = daysBetween(today, scheduledUtahDate);
+      if (diff === 0) return 'Hoy';
+      if (diff === 1) return 'Mañana';
+      return `En ${diff} días`;
+    }
 
     const overdueRows = overdueSorted.slice(0, MAX_LIST).map((p) => ({
       ...mapToRow(p),
       // Positive number — how many days past the scheduled date.
       daysOverdue: daysBetween(utahDateOf(p.scheduledDate as string), today),
     }));
-    const todayRows = dueToday.slice(0, MAX_LIST).map(mapToRow);
-    const tomorrowRows = dueTomorrow.slice(0, MAX_LIST).map(mapToRow);
-    const twoDaysRows = dueInTwoDays.slice(0, MAX_LIST).map(mapToRow);
-    const threeDaysRows = dueInThreeDays.slice(0, MAX_LIST).map(mapToRow);
+    const upcomingRows = upcomingSorted.slice(0, MAX_LIST).map((p) => ({
+      ...mapToRow(p),
+      dueLabel: upcomingLabel(utahDateOf(p.scheduledDate as string)),
+    }));
 
     // Totals are computed across ALL pending in the bucket, not just
     // the first 10 — the user wants the full $ figure.
@@ -599,31 +611,13 @@ export const dashboardRouter = router({
         currency: overdueSorted[0]?.currencyLocal as string | undefined ?? 'USD',
         rows: overdueRows,
       },
-      dueToday: {
-        count: dueToday.length,
-        totalAmount: sumOf(dueToday),
-        // We use the currency of the first row as the display currency;
-        // if mixed currencies exist, the modal shows the more common one.
-        currency: dueToday[0]?.currencyLocal as string | undefined ?? 'USD',
-        rows: todayRows,
-      },
-      dueTomorrow: {
-        count: dueTomorrow.length,
-        totalAmount: sumOf(dueTomorrow),
-        currency: dueTomorrow[0]?.currencyLocal as string | undefined ?? 'USD',
-        rows: tomorrowRows,
-      },
-      dueInTwoDays: {
-        count: dueInTwoDays.length,
-        totalAmount: sumOf(dueInTwoDays),
-        currency: dueInTwoDays[0]?.currencyLocal as string | undefined ?? 'USD',
-        rows: twoDaysRows,
-      },
-      dueInThreeDays: {
-        count: dueInThreeDays.length,
-        totalAmount: sumOf(dueInThreeDays),
-        currency: dueInThreeDays[0]?.currencyLocal as string | undefined ?? 'USD',
-        rows: threeDaysRows,
+      upcoming: {
+        count: upcoming.length,
+        totalAmount: sumOf(upcoming),
+        // First row's currency. If mixed currencies, modal shows the
+        // currency of the soonest payment (sort-order winner).
+        currency: upcomingSorted[0]?.currencyLocal as string | undefined ?? 'USD',
+        rows: upcomingRows,
       },
     };
   }),

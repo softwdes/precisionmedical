@@ -201,9 +201,12 @@ export const pettyCashRouter = router({
     }),
 
   kpis: protectedProcedure.query(async () => {
+    // Solo cajas activas. Las desactivadas no cuentan para KPIs ni
+    // para alertas de saldo bajo.
     const { data: boxes } = await supabaseAdmin
       .from('cash_boxes')
-      .select('id, name, balance, lowBalanceThreshold, currency');
+      .select('id, name, balance, lowBalanceThreshold, currency')
+      .eq('is_active', true);
     const safeBoxes = boxes ?? [];
     const eeuuBoxes = safeBoxes.filter(b => isEEUUName(b.name));
     const boliviaBoxes = safeBoxes.filter(b => !isEEUUName(b.name));
@@ -216,9 +219,32 @@ export const pettyCashRouter = router({
       .from('cash_transactions').select('amount, category').eq('type', 'EXPENSE').gte('performedAt', monthStart);
     const monthlyExpenses = (expenses ?? []).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
     const monthlyCount = expenses?.length ?? 0;
-    const lowBoxes = safeBoxes
-      .filter(b => Number(b.balance) < Number(b.lowBalanceThreshold))
-      .map(b => ({ name: b.name, balance: Number(b.balance), threshold: Number(b.lowBalanceThreshold), country: inferCountry(b.name) }));
+
+    // Antes de marcar como "saldo bajo", validamos que la caja tenga
+    // al menos una transaccion (= esta "aperturada"). Cajas recien
+    // creadas con balance=0 no deben aparecer aqui.
+    const belowThreshold = safeBoxes.filter(b => Number(b.balance) < Number(b.lowBalanceThreshold));
+    let lowBoxes: Array<{ name: string; balance: number; threshold: number; country: 'EEUU' | 'Bolivia' }> = [];
+
+    if (belowThreshold.length > 0) {
+      const ids = belowThreshold.map(b => b.id as string);
+      const { data: txData } = await supabaseAdmin
+        .from('cash_transactions')
+        .select('cashBoxId')
+        .in('cashBoxId', ids);
+      const seen = new Set<string>();
+      for (const t of (txData ?? []) as Array<{ cashBoxId: string }>) {
+        seen.add(t.cashBoxId);
+      }
+      lowBoxes = belowThreshold
+        .filter(b => seen.has(b.id as string))
+        .map(b => ({
+          name: b.name as string,
+          balance: Number(b.balance),
+          threshold: Number(b.lowBalanceThreshold),
+          country: inferCountry(b.name as string),
+        }));
+    }
 
     return { total, eeuu, bolivia, monthlyExpenses, monthlyCount, lowBoxes, eeuuBoxCount: eeuuBoxes.length, boliviaBoxCount: boliviaBoxes.length };
   }),

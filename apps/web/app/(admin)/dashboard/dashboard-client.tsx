@@ -954,7 +954,11 @@ export function DashboardClient({
                     <p className="text-small font-semibold text-text-2">{CASH_BOX_DISPLAY[box.name] ?? box.name}</p>
                     <p className="font-mono text-base font-bold text-text-1">${Number(box.balance).toLocaleString()}</p>
                   </div>
-                  {Number(box.balance) <= Number(box.lowBalanceThreshold) && (
+                  {/* Solo alerta si la caja YA fue aperturada (tiene al
+                      menos 1 transaccion). Cajas recien creadas con
+                      balance=0 no deberian disparar alerta — todavia
+                      no estan en operacion. */}
+                  {Number(box.balance) <= Number(box.lowBalanceThreshold) && box.hasTransactions && (
                     <AlertTriangle className="h-4 w-4 text-amber" />
                   )}
                 </Link>

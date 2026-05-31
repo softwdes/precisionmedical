@@ -209,11 +209,38 @@ export const dashboardRouter = router({
 
   // ── Cash Boxes ───────────────────────────────────────────────────────────
   cashBoxes: protectedProcedure.query(async () => {
+    // Solo cajas activas — las desactivadas no se muestran en
+    // dashboard. Y para cada caja, calculamos hasTransactions porque
+    // el cliente solo dispara alerta de saldo bajo cuando la caja
+    // YA fue aperturada (tiene al menos 1 transaccion). Cajas recien
+    // creadas con balance=0 no deben mostrar alerta — todavia no
+    // estan operativas.
     const { data } = await supabaseAdmin
       .from('cash_boxes')
       .select('id, name, balance, lowBalanceThreshold, currency, updatedAt')
+      .eq('is_active', true)
       .order('name');
-    return data ?? [];
+
+    const boxes = data ?? [];
+    if (boxes.length === 0) return [];
+
+    // Contar transacciones por caja. Una sola query con .in() para
+    // todas las cajas activas — barata aun con varias decenas.
+    const boxIds = boxes.map((b) => b.id as string);
+    const { data: txData } = await supabaseAdmin
+      .from('cash_transactions')
+      .select('cashBoxId')
+      .in('cashBoxId', boxIds);
+
+    const txByBox = new Map<string, number>();
+    for (const tx of (txData ?? []) as Array<{ cashBoxId: string }>) {
+      txByBox.set(tx.cashBoxId, (txByBox.get(tx.cashBoxId) ?? 0) + 1);
+    }
+
+    return boxes.map((b) => ({
+      ...b,
+      hasTransactions: (txByBox.get(b.id as string) ?? 0) > 0,
+    }));
   }),
 
   // ── Today's Appointments ─────────────────────────────────────────────────

@@ -4,14 +4,16 @@ import { api } from '@/lib/trpc/server';
 import { PettyCashClient } from '../petty-cash/petty-cash-client';
 import { FxClient } from '../fx/fx-client';
 import { WalletsClient } from '../wallets/wallets-client';
+import { CashBoxesClient } from './cash-boxes-client';
 import { ModuleTabs } from '@/components/module-tabs';
 
 export const metadata = { title: 'Finanzas' };
 
 const TABS = [
   { key: 'caja-chica', label: 'Caja Chica',  href: '/dashboard/finanzas' },
-  { key: 'fx',         label: 'FX / Divisas', href: '/dashboard/finanzas?tab=fx' },
-  { key: 'wallets',    label: 'Wallets',       href: '/dashboard/finanzas?tab=wallets' },
+  { key: 'cajas',      label: 'Gestionar cajas', href: '/dashboard/finanzas?tab=cajas' },
+  { key: 'fx',         label: 'FX / Divisas',    href: '/dashboard/finanzas?tab=fx' },
+  { key: 'wallets',    label: 'Wallets',         href: '/dashboard/finanzas?tab=wallets' },
 ];
 
 export default async function FinanzasPage({
@@ -25,7 +27,9 @@ export default async function FinanzasPage({
 
   let content: React.ReactElement;
 
-  if (activeTab === 'fx') {
+  if (activeTab === 'cajas') {
+    content = <CashBoxesClient />;
+  } else if (activeTab === 'fx') {
     const [initial, wallets, initialSummary, initialHouses] = await Promise.all([
       api.fx.list({ page: 1, pageSize: 25 }),
       api.wallets.list(),

@@ -16,15 +16,30 @@ function inferCountry(name: string): 'EEUU' | 'Bolivia' {
 }
 
 export const pettyCashRouter = router({
-  listBoxes: protectedProcedure.query(async () => {
-    const { data, error } = await supabaseAdmin
-      .from('cash_boxes')
-      .select('id, name, currency, balance, lowBalanceThreshold, updatedAt')
-      .order('name');
+  listBoxes: protectedProcedure
+    .input(
+      z
+        .object({
+          includeInactive: z.boolean().optional().default(false),
+        })
+        .optional(),
+    )
+    .query(async ({ input }) => {
+      let query = supabaseAdmin
+        .from('cash_boxes')
+        .select('id, name, currency, balance, lowBalanceThreshold, is_active, clinicId, responsibleUserId, updatedAt')
+        .order('name');
 
-    if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
-    return data ?? [];
-  }),
+      // Default: only active. The management UI passes includeInactive
+      // when the user wants to see archived boxes too.
+      if (!input?.includeInactive) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error } = await query;
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return data ?? [];
+    }),
 
   getBox: protectedProcedure
     .input(z.object({ id: z.string() }))
@@ -327,5 +342,154 @@ export const pettyCashRouter = router({
 
       await supabaseAdmin.from('cash_boxes').update({ balance: newBalance, updatedAt: new Date().toISOString() }).eq('id', original.cashBoxId);
       return tx;
+    }),
+
+  // ─── CRUD de cash boxes ────────────────────────────────────────────
+  // Super Admin only — affects real money flow and accounting.
+
+  createBox: adminProcedure
+    .input(
+      z.object({
+        name: z.string().min(2).max(80),
+        clinicId: z.string().optional(),
+        currency: z.enum(['USD', 'BOB', 'PEN']),
+        // Opening balance: optional, defaults to 0. If > 0, we
+        // immediately record an "Apertura" DEPOSIT so the box gets
+        // its first transaction (which our alert logic uses to
+        // distinguish "never opened" from "fully spent").
+        openingBalance: z.number().min(0).default(0),
+        lowBalanceThreshold: z.number().positive().default(100),
+        responsibleUserId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      // Name must be unique (enforced by DB but check upfront for
+      // better error message).
+      const { data: existing } = await supabaseAdmin
+        .from('cash_boxes')
+        .select('id')
+        .eq('name', input.name)
+        .maybeSingle();
+      if (existing) {
+        throw new TRPCError({ code: 'CONFLICT', message: 'Ya existe una caja con ese nombre' });
+      }
+
+      const newBoxId = crypto.randomUUID();
+      const { data: box, error } = await supabaseAdmin
+        .from('cash_boxes')
+        .insert({
+          id: newBoxId,
+          name: input.name,
+          clinicId: input.clinicId ?? null,
+          currency: input.currency,
+          balance: input.openingBalance,
+          lowBalanceThreshold: input.lowBalanceThreshold,
+          responsibleUserId: input.responsibleUserId ?? null,
+          is_active: true,
+          updatedAt: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      // If opening balance > 0, record the apertura transaction so
+      // the box is considered "opened" by the alert logic.
+      if (input.openingBalance > 0) {
+        await supabaseAdmin.from('cash_transactions').insert({
+          id: crypto.randomUUID(),
+          cashBoxId: newBoxId,
+          type: 'DEPOSIT',
+          amount: input.openingBalance,
+          category: 'OTHER',
+          description: 'Apertura de caja',
+          performedById: ctx.user.id,
+          performedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      return box;
+    }),
+
+  updateBox: adminProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(2).max(80).optional(),
+        clinicId: z.string().nullable().optional(),
+        lowBalanceThreshold: z.number().positive().optional(),
+        responsibleUserId: z.string().nullable().optional(),
+        // Intentionally NO `currency` here: changing currency on a
+        // box with balance would silently corrupt accounting. NO
+        // direct `balance` edit either — that's reserved for
+        // DEPOSIT/EXPENSE transactions to preserve audit trail.
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { id, ...patch } = input;
+
+      // If renaming, ensure uniqueness.
+      if (patch.name) {
+        const { data: clash } = await supabaseAdmin
+          .from('cash_boxes')
+          .select('id')
+          .eq('name', patch.name)
+          .neq('id', id)
+          .maybeSingle();
+        if (clash) {
+          throw new TRPCError({ code: 'CONFLICT', message: 'Ya existe otra caja con ese nombre' });
+        }
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('cash_boxes')
+        .update({ ...patch, updatedAt: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return data;
+    }),
+
+  toggleBoxActive: adminProcedure
+    .input(z.object({ id: z.string(), isActive: z.boolean() }))
+    .mutation(async ({ input }) => {
+      const { data, error } = await supabaseAdmin
+        .from('cash_boxes')
+        .update({ is_active: input.isActive, updatedAt: new Date().toISOString() })
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return data;
+    }),
+
+  deleteBox: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      // Hard delete allowed ONLY if there are zero transactions.
+      // Otherwise the user must deactivate instead — preserves audit.
+      const { count } = await supabaseAdmin
+        .from('cash_transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('cashBoxId', input.id);
+
+      if ((count ?? 0) > 0) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Esta caja tiene transacciones. Usa "Desactivar" en vez de eliminar.',
+        });
+      }
+
+      const { error } = await supabaseAdmin
+        .from('cash_boxes')
+        .delete()
+        .eq('id', input.id);
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return { success: true };
     }),
 });

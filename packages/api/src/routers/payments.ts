@@ -27,17 +27,22 @@ export const paymentsRouter = router({
     }))
     .query(async ({ input }) => {
       const { page, pageSize, employeeId, period, status } = input;
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
 
+      // Sort order request: PENDING first (by scheduledDate ASC — soonest
+      // due first), then PAID (by paidDate DESC — newest first), then any
+      // other status by createdAt DESC. Postgres ORDER BY can't express
+      // this in PostgREST's .order() chain cleanly, so we fetch up to a
+      // safety cap and sort + paginate in JS. The cap is well above
+      // realistic dataset size for a clinic team (a couple years of
+      // monthly payroll for ~50 employees ≈ 1200 rows).
       let query = supabaseAdmin
         .from('payments')
         .select(
-          'id, period, amountLocal, base_salary, bonus_amount, bonus_reason, currencyLocal, status, scheduledDate, paidDate, notes, employeeId, walletId, reversedById, employee:employees(id,firstName,lastName,employeeCode,bankQrUrl)',
+          'id, period, amountLocal, base_salary, bonus_amount, bonus_reason, currencyLocal, status, scheduledDate, paidDate, createdAt, notes, employeeId, walletId, reversedById, employee:employees(id,firstName,lastName,employeeCode,bankQrUrl)',
           { count: 'exact' },
         )
-        .range(from, to)
-        .order('createdAt', { ascending: false });
+        .order('createdAt', { ascending: false })
+        .range(0, 1999);
 
       if (employeeId) query = query.eq('employeeId', employeeId);
       if (period) query = query.eq('period', period);
@@ -46,12 +51,45 @@ export const paymentsRouter = router({
       const { data, error, count } = await query;
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
+      // Status priority: lower number → higher in the list.
+      const statusPriority = (s: string): number => {
+        if (s === 'PENDING') return 0;
+        if (s === 'PAID') return 1;
+        return 2;
+      };
+      const ts = (s: string | null): number => (s ? new Date(s).getTime() : 0);
+
+      const sorted = [...(data ?? [])].sort((a, b) => {
+        const pa = statusPriority(a.status as string);
+        const pb = statusPriority(b.status as string);
+        if (pa !== pb) return pa - pb;
+
+        // Tie-break by status-specific date.
+        if (a.status === 'PENDING') {
+          // Soonest due first: ASC. Treat nulls as far-future.
+          const dA = a.scheduledDate ? ts(a.scheduledDate as string) : Number.MAX_SAFE_INTEGER;
+          const dB = b.scheduledDate ? ts(b.scheduledDate as string) : Number.MAX_SAFE_INTEGER;
+          return dA - dB;
+        }
+        if (a.status === 'PAID') {
+          // Most recently paid first: DESC. Nulls last.
+          return ts(b.paidDate as string | null) - ts(a.paidDate as string | null);
+        }
+        // Other statuses (CANCELLED, REVERSED, SCHEDULED, PARTIAL):
+        // most recently created first.
+        return ts(b.createdAt as string) - ts(a.createdAt as string);
+      });
+
+      // Paginate AFTER sorting so PENDING really stays on page 1.
+      const from = (page - 1) * pageSize;
+      const items = sorted.slice(from, from + pageSize);
+
       return {
-        items: data ?? [],
-        total: count ?? 0,
+        items,
+        total: count ?? sorted.length,
         page,
         pageSize,
-        totalPages: Math.ceil((count ?? 0) / pageSize),
+        totalPages: Math.ceil((count ?? sorted.length) / pageSize),
       };
     }),
 

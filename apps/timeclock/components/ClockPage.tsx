@@ -53,7 +53,28 @@ interface AttendanceRecord {
   location_status: LocationStatus | null;
 }
 
-interface Stats { today: string; week: string; month: string }
+interface Stats {
+  today: string; week: string; month: string;
+  // Raw hours used to compute progress bars vs employee's goal
+  todayH: number; weekH: number; monthH: number;
+}
+
+/** Active work schedule for today (used to render the schedule-context card). */
+interface ActiveSchedule {
+  start_time: string;            // HH:MM:SS
+  end_time:   string;            // HH:MM:SS
+  clinic_name: string;
+  days_of_week: number[];
+}
+
+const GOAL_HOURS = {
+  FULL_TIME: { daily: 8, weekly: 40, monthly: 160 },
+  PART_TIME: { daily: 4, weekly: 20, monthly: 80 },
+} as const;
+
+function goalsFor(empType: string): { daily: number; weekly: number; monthly: number } {
+  return GOAL_HOURS[empType as keyof typeof GOAL_HOURS] ?? GOAL_HOURS.FULL_TIME;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,6 +104,31 @@ function elapsedWorking(checkIn: string, breakMinutes: number): string {
 function elapsedBreak(breakStart: string): string {
   const mins = Math.floor((Date.now() - new Date(breakStart).getTime()) / 60000);
   return `${mins}m`;
+}
+
+/** Greeting key based on local hour. The actual string comes from i18n (t.greetXxx). */
+type GreetingKey = 'morning' | 'afternoon' | 'evening' | 'night';
+function greetingFor(d: Date): GreetingKey {
+  const h = d.getHours();
+  if (h >= 5  && h < 12) return 'morning';
+  if (h >= 12 && h < 19) return 'afternoon';
+  if (h >= 19 && h < 23) return 'evening';
+  return 'night';
+}
+
+/** Format Date as "Domingo, 31 de mayo de 2026" (properly cased — no CSS capitalize). */
+function fmtLongDate(d: Date, locale: string): string {
+  // Intl already lowercases prepositions correctly; we just capitalize the
+  // very first letter (weekday). Avoids CSS text-transform: capitalize which
+  // wrongly uppercases every word ("31 De Mayo De 2026").
+  const s = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** "HH:MM" from a 24h time string like "09:00:00" or "09:00". */
+function shortTime(t: string): string {
+  const [h, m] = t.split(':');
+  return `${h?.padStart(2, '0') ?? '00'}:${m?.padStart(2, '0') ?? '00'}`;
 }
 
 /**
@@ -200,6 +246,8 @@ export default function ClockPage({ userId }: { userId: string }) {
   const [record, setRecord] = useState<AttendanceRecord | null>(null);
   const [selectedClinic, setSelectedClinic] = useState('');
   const [clinics, setClinics] = useState<Clinic[]>([]);
+  // Today's active work schedule for the schedule-context card (when idle)
+  const [activeSchedule, setActiveSchedule] = useState<ActiveSchedule | null>(null);
 
   // UI
   const [loading, setLoading] = useState(false);
@@ -217,7 +265,7 @@ export default function ClockPage({ userId }: { userId: string }) {
   const [, setTick] = useState(0);
 
   // Stats
-  const [stats, setStats] = useState<Stats>({ today: '0:00', week: '0:00', month: '0:00' });
+  const [stats, setStats] = useState<Stats>({ today: '0:00', week: '0:00', month: '0:00', todayH: 0, weekH: 0, monthH: 0 });
 
   // ─── Location permission banner ──────────────────────────────────────────────
 
@@ -299,7 +347,9 @@ export default function ClockPage({ userId }: { userId: string }) {
     const tick = () => {
       const now = new Date();
       setTime(now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }));
-      setDate(now.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+      // fmtLongDate avoids CSS text-transform: capitalize (which wrongly
+      // uppercased prepositions: "31 De Mayo De 2026"). Now: "Domingo, 31 de mayo de 2026".
+      setDate(fmtLongDate(now, locale));
       setTick(t => t + 1);
     };
     tick();
@@ -416,14 +466,13 @@ export default function ClockPage({ userId }: { userId: string }) {
   }
 
   async function loadDefaultClinicFromSchedule(empId: string) {
-    // Only pre-fill if we're in idle (no shift today yet) and the
-    // selector is empty. If today's record already restored a clinic,
-    // don't overwrite it.
+    // Brings start_time + end_time too so the schedule-context card
+    // can display countdown to the shift + expected end-of-day.
     const jsDay = new Date().getDay();
     const dbDay = jsDay === 0 ? 7 : jsDay;
     const { data: schedules } = await supabase
       .from('work_schedules')
-      .select('clinic_name, days_of_week')
+      .select('clinic_name, days_of_week, start_time, end_time')
       .eq('employee_id', empId)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
@@ -431,7 +480,17 @@ export default function ClockPage({ userId }: { userId: string }) {
     const todaySchedule = (schedules ?? []).find(
       s => Array.isArray(s.days_of_week) && (s.days_of_week as number[]).includes(dbDay),
     );
-    if (!todaySchedule) return;
+    if (!todaySchedule) {
+      setActiveSchedule(null);
+      return;
+    }
+
+    setActiveSchedule({
+      start_time:  todaySchedule.start_time  as string,
+      end_time:    todaySchedule.end_time    as string,
+      clinic_name: todaySchedule.clinic_name as string,
+      days_of_week: todaySchedule.days_of_week as number[],
+    });
 
     // Use functional setSelectedClinic to avoid stale closure on the
     // (possibly already-set) value from loadTodayRecord.
@@ -498,7 +557,10 @@ export default function ClockPage({ userId }: { userId: string }) {
     const todayH  = rows.filter(r => r.date === today).reduce((s, r) => s + Number(r.hours_worked ?? 0), 0);
     const weekH   = rows.filter(r => r.date >= weekStart).reduce((s, r) => s + Number(r.hours_worked ?? 0), 0);
     const monthH  = rows.reduce((s, r) => s + Number(r.hours_worked ?? 0), 0);
-    setStats({ today: fmtHoursAsClock(todayH), week: fmtHoursAsClock(weekH), month: fmtHoursAsClock(monthH) });
+    setStats({
+      today: fmtHoursAsClock(todayH), week: fmtHoursAsClock(weekH), month: fmtHoursAsClock(monthH),
+      todayH, weekH, monthH,
+    });
   }
 
   // ─── Clock actions ───────────────────────────────────────────────────────────
@@ -822,6 +884,47 @@ export default function ClockPage({ userId }: { userId: string }) {
     ? (clinics.find(c => c.name === record.clinic_name)?.display_name ?? record.clinic_name)
     : '—';
 
+  // Employee-friendly type label ("Tiempo completo" / "Full time" etc.)
+  const empTypeLabel =
+    emp.type === 'FULL_TIME' ? t.empTypeFullTime :
+    emp.type === 'PART_TIME' ? t.empTypePartTime :
+    emp.type; // fallback to raw value if unexpected
+
+  // Greeting + first name (used in the welcome row above the clock)
+  const greetKey = greetingFor(new Date());
+  const greetMsg =
+    greetKey === 'morning'   ? t.greetMorning(emp.firstName) :
+    greetKey === 'afternoon' ? t.greetAfternoon(emp.firstName) :
+    greetKey === 'evening'   ? t.greetEvening(emp.firstName) :
+                               t.greetNight(emp.firstName);
+
+  // Schedule-context calc (countdown + shift line). Null when no schedule.
+  const scheduleCtx = (() => {
+    if (!activeSchedule) return null;
+    const [sH = 0, sM = 0] = activeSchedule.start_time.split(':').map(Number);
+    const [eH = 0, eM = 0] = activeSchedule.end_time.split(':').map(Number);
+    const now = new Date();
+    const startToday = new Date(now); startToday.setHours(sH, sM, 0, 0);
+    const endToday   = new Date(now); endToday.setHours(eH, eM, 0, 0);
+    const diffMin = Math.round((startToday.getTime() - now.getTime()) / 60000);
+    const durationH = Math.max(0, Math.round((endToday.getTime() - startToday.getTime()) / 3_600_000));
+    const startLabel = shortTime(activeSchedule.start_time);
+    const endLabel   = shortTime(activeSchedule.end_time);
+    const empClinic  = clinics.find(c => c.name === activeSchedule.clinic_name)?.display_name ?? activeSchedule.clinic_name;
+    let countdown: string;
+    if (diffMin > 0)        countdown = t.scheduleStartsIn(diffMin);
+    else if (diffMin === 0) countdown = t.scheduleStarting;
+    else                    countdown = t.scheduleStartedMinAgo(Math.abs(diffMin));
+    return { countdown, startLabel, endLabel, empClinic, durationH };
+  })();
+
+  // Stats progress vs employee's goals
+  const goals = goalsFor(emp.type);
+  const pct = (h: number, g: number): number => g > 0 ? Math.min(100, Math.round((h / g) * 100)) : 0;
+  const pctToday = pct(stats.todayH, goals.daily);
+  const pctWeek  = pct(stats.weekH,  goals.weekly);
+  const pctMonth = pct(stats.monthH, goals.monthly);
+
   // Clinics shown in the dropdown are filtered to the employee's
   // country. Bolivia/Perú employees only see their one clinic;
   // US employees see all 5 Utah clinics.
@@ -870,7 +973,7 @@ export default function ClockPage({ userId }: { userId: string }) {
             )}
           </p>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {emp.type} · {clinicDisplay}
+            {empTypeLabel}{clinicDisplay !== '—' ? ` · ${clinicDisplay}` : ''}
           </p>
         </div>
         <button
@@ -882,12 +985,17 @@ export default function ClockPage({ userId }: { userId: string }) {
         </button>
       </div>
 
-      {/* ── B: Live clock ── */}
+      {/* ── B: Greeting + live clock + date ── */}
       <div style={{ ...sectionStyle, textAlign: 'center' }}>
-        <p style={{ fontSize: 64, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace', letterSpacing: '-2px', lineHeight: 1 }}>
+        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2)', letterSpacing: '0.01em' }}>
+          <span style={{ color: 'var(--indigo)', fontWeight: 600 }}>{greetMsg}</span>{' '}
+          <span style={{ opacity: 0.7 }}>👋</span>
+        </p>
+        <p style={{ fontSize: 52, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace', letterSpacing: '-1.8px', lineHeight: 1, marginTop: 6 }}>
           {time || '00:00:00'}
         </p>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, textTransform: 'capitalize' }}>
+        {/* No more textTransform: capitalize — fmtLongDate already cases it correctly */}
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
           {date}
         </p>
       </div>
@@ -934,6 +1042,55 @@ export default function ClockPage({ userId }: { userId: string }) {
         )}
       </div>
 
+      {/* ── C2: Schedule context card (only when idle and a schedule exists for today) ── */}
+      {scheduleCtx && clockState === 'idle' && (
+        <div
+          style={{
+            ...sectionStyle,
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.10), rgba(6,182,212,0.06))',
+            border: '1px solid rgba(99,102,241,0.25)',
+            borderRadius: 12,
+            padding: '12px 14px',
+            display: 'flex',
+            gap: 12,
+            alignItems: 'flex-start',
+          }}
+        >
+          <div
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: 'rgba(99,102,241,0.18)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, marginTop: 1,
+            }}
+          >
+            <Clock size={15} color="#A5B4FC" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#A5B4FC', margin: 0 }}>
+                {scheduleCtx.countdown}
+              </p>
+              <span
+                style={{
+                  fontSize: 11, fontWeight: 600,
+                  padding: '3px 8px', borderRadius: 99,
+                  background: 'rgba(245,158,11,0.15)', color: 'var(--amber)',
+                  border: '0.5px solid rgba(245,158,11,0.30)',
+                  flexShrink: 0,
+                  fontFamily: 'monospace',
+                }}
+              >
+                {scheduleCtx.startLabel}
+              </span>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+              {t.scheduleTodayLine(scheduleCtx.durationH, scheduleCtx.empClinic, scheduleCtx.endLabel)}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Location warning chip (record exists + status not verified/remote) ── */}
       {locationNotVerified && clockState !== 'idle' && (
         <div style={{
@@ -968,32 +1125,23 @@ export default function ClockPage({ userId }: { userId: string }) {
       {locationPerm === 'prompt' && clockState === 'idle' && (
         <div style={{
           ...sectionStyle,
-          background: 'rgba(99,102,241,0.07)',
-          border: '1px solid rgba(99,102,241,0.22)',
+          background: 'rgba(99,102,241,0.06)',
+          border: '1px solid rgba(99,102,241,0.18)',
           borderRadius: 12,
-          padding: '12px 16px',
+          padding: '10px 14px',
           display: 'flex',
-          gap: 12,
-          alignItems: 'flex-start',
+          gap: 10,
+          alignItems: 'center',
         }}>
-          {/* Pin icon */}
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(99,102,241,0.13)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A5B4FC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
             </svg>
           </div>
-          {/* Text */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#818CF8', margin: 0, letterSpacing: '0.01em' }}>
-              {t.geoTitle}
-            </p>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
-              {t.geoBody}
-            </p>
-            <p style={{ fontSize: 10, color: '#F87171', marginTop: 5, fontStyle: 'italic' }}>
-              {t.geoNote}
-            </p>
-          </div>
+          {/* Neutral one-liner: no red text, no "clinic" wording (works for US/BO/PE/future sites). */}
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
+            <strong style={{ color: '#A5B4FC' }}>{t.geoTitle}</strong> {t.geoBannerNeutral}
+          </p>
         </div>
       )}
 
@@ -1037,7 +1185,7 @@ export default function ClockPage({ userId }: { userId: string }) {
             style={{
               width: '100%',
               height: 44,
-              padding: '10px 14px',
+              padding: '10px 36px',
               borderRadius: 10,
               background: 'rgba(255,255,255,0.07)',
               border: `1px solid ${shakeClinic ? 'var(--rose-border)' : 'var(--border)'}`,
@@ -1046,6 +1194,15 @@ export default function ClockPage({ userId }: { userId: string }) {
               cursor: (clocked || lockedToSingleClinic) ? 'default' : 'pointer',
               outline: 'none',
               opacity: (clocked || lockedToSingleClinic) ? 0.7 : 1,
+              // Centered text + custom chevron on the right
+              textAlign: 'center' as const,
+              textAlignLast: 'center' as const,
+              WebkitAppearance: 'none' as const,
+              MozAppearance: 'none' as const,
+              appearance: 'none' as const,
+              backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
             }}
           >
             <option value="" disabled>{t.selectClinic}</option>
@@ -1135,22 +1292,35 @@ export default function ClockPage({ userId }: { userId: string }) {
         </div>
       )}
 
-      {/* ── F: Stats bar ── */}
+      {/* ── F: Stats bar with progress vs employee goals ── */}
       <div style={{ ...sectionStyle, display: 'flex', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         {([
-          { label: t.statToday, value: stats.today },
-          { label: t.statWeek,  value: stats.week  },
-          { label: t.statMonth, value: stats.month },
+          { label: t.statToday, value: stats.today, pct: pctToday, goal: goals.daily },
+          { label: t.statWeek,  value: stats.week,  pct: pctWeek,  goal: goals.weekly },
+          { label: t.statMonth, value: stats.month, pct: pctMonth, goal: goals.monthly },
         ] as const).map((s, i, arr) => (
           <div
             key={s.label}
-            style={{ flex: 1, padding: '10px 8px', textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}
+            style={{ flex: 1, padding: '12px 10px 10px', textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}
           >
-            <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace', lineHeight: 1 }}>
+            <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace', lineHeight: 1 }}>
               {s.value}
             </p>
             <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {s.label}
+            </p>
+            {/* Mini progress bar towards the goal (8h / 40h / 160h for FT) */}
+            <div style={{ marginTop: 6, height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 99, overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: `${s.pct}%`, height: '100%', borderRadius: 99,
+                  background: 'linear-gradient(90deg, var(--indigo), var(--cyan, #06B6D4))',
+                  transition: 'width 400ms ease',
+                }}
+              />
+            </div>
+            <p style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 4, opacity: 0.75 }}>
+              {t.statProgressOf(s.pct, s.goal)}
             </p>
           </div>
         ))}

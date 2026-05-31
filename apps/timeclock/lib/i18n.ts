@@ -18,10 +18,30 @@ interface Dict {
   systemOnline: string;
   footer: string;
 
+  // ─── Greeting (by hour of day) ──────────────────────────────────────
+  greetMorning:   (name: string) => string;
+  greetAfternoon: (name: string) => string;
+  greetEvening:   (name: string) => string;
+  greetNight:     (name: string) => string;
+
+  // ─── Employee type labels ───────────────────────────────────────────
+  empTypeFullTime: string;
+  empTypePartTime: string;
+
+  // ─── Schedule context card (when idle) ──────────────────────────────
+  scheduleStartsIn:    (mins: number) => string;
+  scheduleStartedMinAgo: (mins: number) => string;
+  scheduleStarting:    string;                          // "ya es hora"
+  scheduleTodayLine:   (durH: number, clinic: string, end: string) => string;
+
+  // ─── Stats progress vs goal ────────────────────────────────────────
+  statProgressOf: (pct: number, goalH: number) => string;
+
   // ─── Geo banner (prompt) ────────────────────────────────────────────
   geoTitle: string;
   geoBody: string;
   geoNote: string;
+  geoBannerNeutral: string;       // unified one-liner replacing geoBody+geoNote
 
   // ─── Geo banner (denied) ────────────────────────────────────────────
   geoBlockedTitle: string;
@@ -96,6 +116,18 @@ interface Dict {
 
 const dict: Record<Locale, Dict> = {
   es: {
+    greetMorning:   (n) => `Buenos días, ${n}`,
+    greetAfternoon: (n) => `Buenas tardes, ${n}`,
+    greetEvening:   (n) => `Buenas noches, ${n}`,
+    greetNight:     (n) => `Hola, ${n}`,
+    empTypeFullTime: 'Tiempo completo',
+    empTypePartTime: 'Tiempo parcial',
+    scheduleStartsIn:      (m) => `Tu turno comienza en ${m} min`,
+    scheduleStartedMinAgo: (m) => `Tu turno comenzó hace ${m} min`,
+    scheduleStarting:      'Tu turno es ahora',
+    scheduleTodayLine:     (h, c, e) => `Hoy: ${h}h en ${c} hasta las ${e}`,
+    statProgressOf:        (p, g) => `${p}% de ${g}h`,
+    geoBannerNeutral: 'para verificar tu lugar de trabajo. El registro se guarda igual sin permiso.',
     sessionExpired: 'Tu sesión expiró. Inicia sesión de nuevo.',
     invalidCredentials: 'Email o contraseña incorrectos',
     signingIn: 'Ingresando...',
@@ -167,6 +199,18 @@ const dict: Record<Locale, Dict> = {
     intl: 'es',
   },
   en: {
+    greetMorning:   (n) => `Good morning, ${n}`,
+    greetAfternoon: (n) => `Good afternoon, ${n}`,
+    greetEvening:   (n) => `Good evening, ${n}`,
+    greetNight:     (n) => `Hello, ${n}`,
+    empTypeFullTime: 'Full time',
+    empTypePartTime: 'Part time',
+    scheduleStartsIn:      (m) => `Your shift starts in ${m} min`,
+    scheduleStartedMinAgo: (m) => `Your shift started ${m} min ago`,
+    scheduleStarting:      'Your shift is starting now',
+    scheduleTodayLine:     (h, c, e) => `Today: ${h}h at ${c} until ${e}`,
+    statProgressOf:        (p, g) => `${p}% of ${g}h`,
+    geoBannerNeutral: 'to verify your work location. Your record is saved either way.',
     sessionExpired: 'Your session expired. Sign in again.',
     invalidCredentials: 'Incorrect email or password',
     signingIn: 'Signing in...',

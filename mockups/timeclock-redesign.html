@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PM Time Clock — Redesign Preview</title>
+  <style>
+    /* ─── Brand vars del proyecto real ─── */
+    :root {
+      --bg-1:           #060810;
+      --surface:        rgba(255,255,255,0.04);
+      --surface-2:      rgba(255,255,255,0.07);
+      --border:         rgba(255,255,255,0.08);
+      --text-1:         #F5F7FB;
+      --text-2:         rgba(245,247,251,0.78);
+      --text-muted:     rgba(245,247,251,0.45);
+      --indigo:         #6366F1;
+      --indigo-soft:    #A5B4FC;
+      --violet:         #8B5CF6;
+      --cyan:           #06B6D4;
+      --emerald:        #10B981;
+      --amber:          #F59E0B;
+      --rose:           #F43F5E;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif; }
+    body {
+      background: #0A0A14;
+      color: var(--text-1);
+      min-height: 100vh;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+    }
+
+    /* ─── Toolbar para comparar ─── */
+    .toolbar {
+      display: flex; gap: 16px; align-items: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 10px 16px; font-size: 13px;
+    }
+    .toolbar h1 { font-size: 14px; font-weight: 600; }
+    .toolbar button {
+      padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-2); cursor: pointer;
+      font-size: 12px; font-weight: 500; font-family: inherit;
+    }
+    .toolbar button.active {
+      background: linear-gradient(135deg, var(--indigo), var(--violet));
+      color: white; border-color: transparent;
+    }
+
+    /* ─── Frames lado a lado ─── */
+    .frames {
+      display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; align-items: flex-start;
+    }
+    .frame-label {
+      text-align: center; font-size: 11px; font-weight: 600;
+      color: var(--text-muted); letter-spacing: 0.08em;
+      text-transform: uppercase; margin-bottom: 12px;
+    }
+    .frame-label span {
+      display: inline-block; padding: 4px 10px; border-radius: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .phone {
+      width: 380px;
+      background: var(--bg-1);
+      border-radius: 28px;
+      padding: 24px 20px;
+      border: 8px solid #1a1a25;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* ─── Componentes shared ─── */
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--indigo), var(--violet));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;
+    }
+    .badge-admin {
+      display: inline-block; font-size: 9px; font-weight: 700;
+      padding: 2px 6px; border-radius: 4px; letter-spacing: 0.04em;
+      background: rgba(99,102,241,0.18); color: var(--indigo-soft); border: 0.5px solid rgba(99,102,241,0.4);
+    }
+    .btn-salir {
+      margin-left: auto; padding: 5px 10px; border-radius: 6px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 11px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .card {
+      padding: 12px 16px; border-radius: 12px;
+      background: var(--surface); border: 1px solid var(--border);
+    }
+    .dropdown {
+      width: 100%; padding: 10px 14px; border-radius: 10px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--border);
+      color: white; font-size: 14px; cursor: pointer; outline: none;
+      font-family: inherit;
+    }
+    .dropdown-new {
+      width: 100%; padding: 10px 36px; border-radius: 10px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--border);
+      color: white; font-size: 14px; cursor: pointer; outline: none;
+      font-family: inherit;
+      text-align: center;
+      text-align-last: center;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+    .btn-primary {
+      width: 100%; height: 52px; border-radius: 14px;
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.28);
+      color: var(--emerald); font-size: 15px; font-weight: 500;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      cursor: pointer; font-family: inherit;
+    }
+    .stats { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .stat { flex: 1; padding: 10px 8px; text-align: center; border-right: 1px solid var(--border); }
+    .stat:last-child { border-right: none; }
+    .stat-value { font-size: 18px; font-weight: 600; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+    .stat-label { font-size: 10px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* ─── ANTES — todo igual al actual ─── */
+    .clock-old {
+      font-size: 60px; font-weight: 700; color: var(--text-1);
+      font-family: 'JetBrains Mono', monospace; letter-spacing: -2px; line-height: 1;
+      text-align: center;
+    }
+    .date-old { font-size: 13px; color: var(--text-muted); margin-top: 6px; text-transform: capitalize; text-align: center; }
+    .status-old { text-align: center; }
+    .status-old p { font-size: 12px; color: var(--text-muted); }
+    .geo-banner-old {
+      background: rgba(99,102,241,0.07);
+      border: 1px solid rgba(99,102,241,0.22);
+      border-radius: 12px; padding: 12px 16px;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .geo-banner-old .icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(99,102,241,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .geo-banner-old h4 { font-size: 12px; font-weight: 600; color: var(--indigo-soft); }
+    .geo-banner-old p { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+    .geo-banner-old .nota { font-size: 10px; color: #F87171; margin-top: 5px; font-style: italic; }
+    .type-old { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+    /* ─── DESPUÉS — cambios aplicados ─── */
+    .greeting-new {
+      font-size: 13px; font-weight: 500; color: var(--text-2);
+      text-align: center; letter-spacing: 0.01em;
+    }
+    .greeting-new .name { color: var(--indigo-soft); font-weight: 600; }
+    .clock-new {
+      font-size: 52px; font-weight: 700; color: var(--text-1);
+      font-family: 'JetBrains Mono', monospace; letter-spacing: -1.8px; line-height: 1;
+      text-align: center; margin-top: 4px;
+    }
+    .date-new { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-align: center; }
+    .schedule-context {
+      background: linear-gradient(135deg, rgba(99,102,241,0.10), rgba(6,182,212,0.06));
+      border: 1px solid rgba(99,102,241,0.25);
+      border-radius: 12px; padding: 14px 16px;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .schedule-context .icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(99,102,241,0.18); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .schedule-context .head {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    }
+    .schedule-context h4 { font-size: 12px; font-weight: 600; color: var(--indigo-soft); }
+    .schedule-context .countdown {
+      font-size: 11px; font-weight: 600;
+      padding: 3px 8px; border-radius: 99px;
+      background: rgba(245,158,11,0.15); color: var(--amber);
+      border: 0.5px solid rgba(245,158,11,0.30);
+    }
+    .schedule-context p { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+    .schedule-context strong { color: var(--text-2); font-weight: 600; }
+    .geo-banner-new {
+      background: rgba(99,102,241,0.06);
+      border: 1px solid rgba(99,102,241,0.18);
+      border-radius: 12px; padding: 10px 14px;
+      display: flex; gap: 10px; align-items: center;
+    }
+    .geo-banner-new .icon { width: 28px; height: 28px; border-radius: 7px; background: rgba(99,102,241,0.13); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .geo-banner-new p { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+    .geo-banner-new strong { color: var(--indigo-soft); }
+    .type-new { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+    /* Stats con barra de progreso mini */
+    .stats-new { display: flex; flex-direction: column; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .stats-new-row { display: flex; }
+    .stat-new { flex: 1; padding: 12px 10px 10px; text-align: center; border-right: 1px solid var(--border); position: relative; }
+    .stat-new:last-child { border-right: none; }
+    .stat-new .value { font-size: 17px; font-weight: 600; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+    .stat-new .label { font-size: 10px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .stat-new .progress {
+      margin-top: 6px; height: 3px; background: rgba(255,255,255,0.06);
+      border-radius: 99px; overflow: hidden;
+    }
+    .stat-new .progress-bar {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, var(--indigo), var(--cyan));
+    }
+    .stat-new .progress-text {
+      font-size: 9px; color: var(--text-muted); margin-top: 4px; opacity: 0.7;
+    }
+
+    .icon-svg svg { display: block; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <h1>PM Time Clock — Redesign Preview</h1>
+    <span style="color: var(--text-muted); font-size: 11px;">Antes vs Después</span>
+  </div>
+
+  <div class="frames">
+
+    <!-- ═══════════ ANTES ═══════════ -->
+    <div>
+      <div class="frame-label"><span>Antes (actual en producción)</span></div>
+      <div class="phone">
+
+        <!-- Header -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="avatar">ES</div>
+          <div>
+            <div style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+              Erick Salinas Diaz <span class="badge-admin">Admin</span>
+            </div>
+            <p class="type-old">FULL_TIME · —</p>
+          </div>
+          <button class="btn-salir">↪ Salir</button>
+        </div>
+
+        <!-- Reloj -->
+        <div>
+          <div class="clock-old">10:18:29</div>
+          <div class="date-old">Domingo, 31 De Mayo De 2026</div>
+        </div>
+
+        <!-- Status -->
+        <div class="card status-old">
+          <p>Sin registro hoy</p>
+        </div>
+
+        <!-- Banner ubicación -->
+        <div class="geo-banner-old">
+          <div class="icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2" stroke-linecap="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <div>
+            <h4>Verificar tu ubicación</h4>
+            <p>Permite tu ubicación para verificar que estás en la clínica.</p>
+            <p class="nota">Tu registro se guarda igual; esto solo añade verificación.</p>
+          </div>
+        </div>
+
+        <!-- Dropdown -->
+        <select class="dropdown" disabled>
+          <option>Arequipa, Perú</option>
+        </select>
+
+        <!-- Botón -->
+        <button class="btn-primary">▷ Marcar entrada</button>
+
+        <!-- Stats -->
+        <div class="stats">
+          <div class="stat"><div class="stat-value">0:00</div><div class="stat-label">Hoy</div></div>
+          <div class="stat"><div class="stat-value">6:50</div><div class="stat-label">Semana</div></div>
+          <div class="stat"><div class="stat-value">8:04</div><div class="stat-label">Mes</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ DESPUÉS ═══════════ -->
+    <div>
+      <div class="frame-label"><span style="border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.06); color: var(--emerald);">Después (propuesta)</span></div>
+      <div class="phone">
+
+        <!-- Header (#5: tipo formateado, "—" oculto cuando no aplica) -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="avatar">ES</div>
+          <div>
+            <div style="font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+              Erick Salinas Diaz <span class="badge-admin">Admin</span>
+            </div>
+            <p class="type-new">Tiempo completo</p>
+          </div>
+          <button class="btn-salir">↪ Salir</button>
+        </div>
+
+        <!-- (#2) Saludo + Reloj reducido + (#4) Fecha bien capitalizada -->
+        <div>
+          <div class="greeting-new">Buenos días, <span class="name">Erick</span> 👋</div>
+          <div class="clock-new">10:18:29</div>
+          <div class="date-new">Domingo, 31 de mayo de 2026</div>
+        </div>
+
+        <!-- (#1) Schedule context — info útil del turno -->
+        <div class="schedule-context">
+          <div class="icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A5B4FC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div style="flex: 1;">
+            <div class="head">
+              <h4>Tu turno comienza en 12 min</h4>
+              <span class="countdown">10:30</span>
+            </div>
+            <p>Hoy: <strong>8h en Arequipa, Perú</strong> hasta las <strong>18:30</strong></p>
+          </div>
+        </div>
+
+        <!-- (#6) Banner ubicación más sutil (sin rojo agresivo) -->
+        <div class="geo-banner-new">
+          <div class="icon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A5B4FC" stroke-width="2" stroke-linecap="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <p><strong>Permite tu ubicación</strong> para verificar tu lugar de trabajo. El registro se guarda igual sin permiso.</p>
+        </div>
+
+        <!-- Dropdown — texto centrado -->
+        <select class="dropdown-new" disabled>
+          <option>Arequipa, Perú</option>
+        </select>
+
+        <!-- Botón (igual) -->
+        <button class="btn-primary">▷ Marcar entrada</button>
+
+        <!-- (#3) Stats con barras de progreso vs meta -->
+        <div class="stats-new">
+          <div class="stats-new-row">
+            <div class="stat-new">
+              <div class="value">0:00</div>
+              <div class="label">Hoy</div>
+              <div class="progress"><div class="progress-bar" style="width: 0%;"></div></div>
+              <div class="progress-text">0% de 8h</div>
+            </div>
+            <div class="stat-new">
+              <div class="value">6:50</div>
+              <div class="label">Semana</div>
+              <div class="progress"><div class="progress-bar" style="width: 17%;"></div></div>
+              <div class="progress-text">17% de 40h</div>
+            </div>
+            <div class="stat-new">
+              <div class="value">8:04</div>
+              <div class="label">Mes</div>
+              <div class="progress"><div class="progress-bar" style="width: 5%;"></div></div>
+              <div class="progress-text">5% de 160h</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="max-width: 780px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; font-size: 13px; color: var(--text-2); line-height: 1.6;">
+    <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--text-1);">Cambios aplicados en este mockup</h3>
+    <ol style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+      <li><strong>Saludo dinámico</strong> según hora ("Buenos días/tardes/noches, Erick 👋")</li>
+      <li><strong>Schedule context</strong>: card indigo nueva con countdown a la hora de entrada + duración esperada + clínica + hora de salida</li>
+      <li><strong>Reloj reducido</strong> de 60px a 52px — sigue siendo prominente pero da espacio al schedule context</li>
+      <li><strong>Fecha bien capitalizada</strong>: "Domingo, 31 de mayo de 2026" (antes era "31 De Mayo De 2026" con "de" en mayúscula)</li>
+      <li><strong>Tipo formateado</strong>: "Tiempo completo" en vez de "FULL_TIME" + se quita el "· —" cuando no hay clínica activa</li>
+      <li><strong>Banner ubicación más sutil</strong>: una sola línea, sin texto rojo agresivo, indigo claro consistente. Texto neutro <em>"verificar tu lugar de trabajo"</em> en vez de "clínica" (aplica a Utah, Bolivia, Perú y futuras sedes)</li>
+      <li><strong>Stats con barras de progreso</strong> vs meta (8h/40h/160h) — visualización rápida de avance</li>
+      <li><strong>Dropdown de clínica centrado</strong> — el "Arequipa, Perú" o cualquier clínica luce balanceada en vez de pegada a la izquierda</li>
+    </ol>
+    <p style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 12px;">
+      Mockup standalone — no toca el código real. Si te gusta, lo implemento en el componente <code style="color: var(--indigo-soft);">ClockPage.tsx</code> real.
+    </p>
+  </div>
+</body>
+</html>

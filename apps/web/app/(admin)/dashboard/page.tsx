@@ -1,9 +1,6 @@
 import { api } from '@/lib/trpc/server';
 import { DashboardClient } from './dashboard-client';
-// SalaryAlertModal removido temporalmente — causaba React error #418
-// (hydration mismatch). Bell badge + notifications drawer siguen
-// funcionando como capa de alerta. Restaurar cuando se identifique
-// la causa raiz del mismatch.
+import { SalaryAlertModal } from '@/components/SalaryAlertModal';
 
 export const metadata = { title: 'Dashboard — Precision Medical' };
 
@@ -35,16 +32,19 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
   }
 
   return (
-    <DashboardClient
-      kpis={unwrap(kpis, null)}
-      activity={unwrap(activity, [])}
-      cashBoxes={unwrap(cashBoxes, [])}
-      appointmentsToday={unwrap(appointmentsToday, null)}
-      patientDistribution={unwrap(patientDistribution, null)}
-      systemStatus={unwrap(systemStatus, null)}
-      agentStatus={unwrap(agentStatus, null)}
-      commissionsSummary={unwrap(commissionsSummary, null)}
-      topReferrers={unwrap(topReferrers, null)}
-    />
+    <>
+      <DashboardClient
+        kpis={unwrap(kpis, null)}
+        activity={unwrap(activity, [])}
+        cashBoxes={unwrap(cashBoxes, [])}
+        appointmentsToday={unwrap(appointmentsToday, null)}
+        patientDistribution={unwrap(patientDistribution, null)}
+        systemStatus={unwrap(systemStatus, null)}
+        agentStatus={unwrap(agentStatus, null)}
+        commissionsSummary={unwrap(commissionsSummary, null)}
+        topReferrers={unwrap(topReferrers, null)}
+      />
+      <SalaryAlertModal />
+    </>
   );
 }

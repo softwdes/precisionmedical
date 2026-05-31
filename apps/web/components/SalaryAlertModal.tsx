@@ -24,6 +24,11 @@ function wasDismissedToday(): boolean {
 
 function markDismissedToday(): void {
   try {
+    // Diagnostic trace — temp, hasta confirmar quien llama esto en
+    // page load. Si nadie deberia llamarlo y aparece en el stack,
+    // ahi esta el bug.
+    // eslint-disable-next-line no-console
+    console.warn('[SalaryAlertModal] markDismissedToday() called', new Error('trace').stack);
     localStorage.setItem(DISMISS_KEY_PREFIX + utahToday(), '1');
   } catch {
     /* localStorage may be blocked; modal will reappear, acceptable */

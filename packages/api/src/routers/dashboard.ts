@@ -470,4 +470,108 @@ export const dashboardRouter = router({
 
       return Object.entries(dayMap).map(([day, v]) => ({ day, ...v }));
     }),
+
+  /**
+   * Salary payments due today + in 3 days from now, in Utah local
+   * timezone. Used by the dashboard alert modal that prompts the
+   * Super Admin to process payments before they're overdue.
+   *
+   * Returns counts, totals, and a per-payment list of employee info
+   * (name, amount, currency) so the modal can show "who" not just
+   * "how many". Capped at 10 per bucket to keep the modal scannable;
+   * if there are more, the UI shows a "+ X más" hint.
+   */
+  salaryAlerts: protectedProcedure.query(async () => {
+    // Compute today / +3 days as YYYY-MM-DD in America/Denver. The
+    // payments cron writes the same way so this filter matches.
+    const utahDate = (offset: number): string => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return d.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+    };
+    const today = utahDate(0);
+    const inThreeDays = utahDate(3);
+
+    // Pull pending payments in a wider UTC window and filter in JS
+    // by Utah date — same approach as the cron, for the same reason
+    // (UTC midnight cuts into Utah late evening).
+    const windowStart = new Date();
+    windowStart.setDate(windowStart.getDate() - 1);
+    const windowEnd = new Date();
+    windowEnd.setDate(windowEnd.getDate() + 4);
+
+    const { data: paymentsRaw } = await supabaseAdmin
+      .from('payments')
+      .select('id, scheduledDate, amountLocal, currencyLocal, employeeId')
+      .eq('status', 'PENDING')
+      .gte('scheduledDate', windowStart.toISOString())
+      .lte('scheduledDate', windowEnd.toISOString());
+
+    const all = paymentsRaw ?? [];
+    const utahDateOf = (iso: string): string =>
+      new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+
+    const dueToday = all.filter((p) => utahDateOf(p.scheduledDate as string) === today);
+    const dueInThreeDays = all.filter((p) => utahDateOf(p.scheduledDate as string) === inThreeDays);
+
+    // Join employee names for the rows we'll actually surface.
+    const employeeIds = [
+      ...new Set([
+        ...dueToday.map((p) => p.employeeId as string),
+        ...dueInThreeDays.map((p) => p.employeeId as string),
+      ]),
+    ];
+
+    let nameById: Record<string, { firstName: string; lastName: string }> = {};
+    if (employeeIds.length > 0) {
+      const { data: emps } = await supabaseAdmin
+        .from('employees')
+        .select('id, firstName, lastName')
+        .in('id', employeeIds);
+      for (const e of (emps ?? []) as Array<{ id: string; firstName: string; lastName: string }>) {
+        nameById[e.id] = { firstName: e.firstName, lastName: e.lastName };
+      }
+    }
+
+    // Inline mapper — keeping the shape unnamed so the inferred
+    // return type can be exported by tRPC without needing a separate
+    // interface export.
+    const mapToRow = (p: typeof all[number]) => {
+      const emp = nameById[p.employeeId as string];
+      const name = emp ? `${emp.firstName} ${emp.lastName}` : '—';
+      return {
+        paymentId: p.id as string,
+        employeeName: name,
+        amount: Number(p.amountLocal ?? 0),
+        currency: p.currencyLocal as string,
+      };
+    };
+
+    // Cap at 10 entries per bucket; the modal will note the overflow.
+    const MAX_LIST = 10;
+    const todayRows = dueToday.slice(0, MAX_LIST).map(mapToRow);
+    const threeDaysRows = dueInThreeDays.slice(0, MAX_LIST).map(mapToRow);
+
+    // Totals are computed across ALL pending in the bucket, not just
+    // the first 10 — the user wants the full $ figure.
+    const sumOf = (rows: typeof all): number =>
+      rows.reduce((s, p) => s + Number(p.amountLocal ?? 0), 0);
+
+    return {
+      dueToday: {
+        count: dueToday.length,
+        totalAmount: sumOf(dueToday),
+        // We use the currency of the first row as the display currency;
+        // if mixed currencies exist, the modal shows the more common one.
+        currency: dueToday[0]?.currencyLocal as string | undefined ?? 'USD',
+        rows: todayRows,
+      },
+      dueInThreeDays: {
+        count: dueInThreeDays.length,
+        totalAmount: sumOf(dueInThreeDays),
+        currency: dueInThreeDays[0]?.currencyLocal as string | undefined ?? 'USD',
+        rows: threeDaysRows,
+      },
+    };
+  }),
 });

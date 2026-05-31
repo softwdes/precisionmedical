@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import { Bell, X, Check, CheckCheck } from 'lucide-react';
@@ -21,12 +22,28 @@ interface NotificationsDrawerProps {
 export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps): React.ReactElement {
   const t = useTranslations('notifications');
   const locale = useLocale();
+  const router = useRouter();
   const { data: notifications = [], refetch } = trpc.notifications.list.useQuery(undefined, { enabled: open });
 
   const markAsRead = trpc.notifications.markAsRead.useMutation({ onSuccess: () => void refetch() });
   const markAllAsRead = trpc.notifications.markAllAsRead.useMutation({ onSuccess: () => void refetch() });
 
   const unread = notifications.filter((n) => !n.readAt);
+
+  /**
+   * Click handler for a notification row: marks as read, closes the
+   * drawer, and (if the notification carries a linkUrl) navigates
+   * the user to that destination. linkUrl is set by the producer
+   * (e.g. salary-alerts cron sets it to /dashboard/employees?tab=pagos).
+   */
+  function handleNotificationClick(n: typeof notifications[number]): void {
+    if (!n.readAt) markAsRead.mutate({ id: n.id });
+    const target = (n as typeof n & { linkUrl?: string | null }).linkUrl;
+    if (target) {
+      onClose();
+      router.push(target);
+    }
+  }
 
   return (
     <>
@@ -86,7 +103,7 @@ export function NotificationsDrawer({ open, onClose }: NotificationsDrawerProps)
                     'flex items-start gap-3 px-4 py-3 border-b border-border/50 last:border-0 cursor-pointer hover:bg-surface transition-colors',
                     !n.readAt && 'bg-brand/5',
                   )}
-                  onClick={() => { if (!n.readAt) markAsRead.mutate({ id: n.id }); }}
+                  onClick={() => handleNotificationClick(n)}
                 >
                   <div className="text-base mt-0.5 shrink-0">{TYPE_ICONS[n.type] ?? '🔔'}</div>
                   <div className="flex-1 min-w-0">

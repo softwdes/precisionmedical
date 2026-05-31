@@ -72,14 +72,6 @@ export default async function RootLayout({
       data-theme={theme}
       className={`${fontSans.variable} ${fontMono.variable}`}
     >
-      {/*
-        Explicit manifest link. metadata.manifest SHOULD emit this
-        automatically, but in production we observed Chrome reporting
-        "no manifest detected" — probable conflict with @serwist/next
-        + next-intl. Next.js hoists raw <link> tags to <head> for us;
-        DO NOT wrap in <head> (causes hydration mismatch — React 418).
-      */}
-      <link rel="manifest" href="/manifest.json" />
       <body className="font-sans antialiased">
         <NextIntlClientProvider messages={messages}>
           <TRPCProvider>

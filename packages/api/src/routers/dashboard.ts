@@ -490,6 +490,8 @@ export const dashboardRouter = router({
       return d.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
     };
     const today = utahDate(0);
+    const tomorrow = utahDate(1);
+    const inTwoDays = utahDate(2);
     const inThreeDays = utahDate(3);
 
     // Pull pending payments in a wide UTC window:
@@ -518,6 +520,8 @@ export const dashboardRouter = router({
     // way they compare chronologically — no need for Date math here.
     const overdue = all.filter((p) => utahDateOf(p.scheduledDate as string) < today);
     const dueToday = all.filter((p) => utahDateOf(p.scheduledDate as string) === today);
+    const dueTomorrow = all.filter((p) => utahDateOf(p.scheduledDate as string) === tomorrow);
+    const dueInTwoDays = all.filter((p) => utahDateOf(p.scheduledDate as string) === inTwoDays);
     const dueInThreeDays = all.filter((p) => utahDateOf(p.scheduledDate as string) === inThreeDays);
 
     // Days difference between two YYYY-MM-DD strings, taken at noon UTC
@@ -533,6 +537,8 @@ export const dashboardRouter = router({
       ...new Set([
         ...overdue.map((p) => p.employeeId as string),
         ...dueToday.map((p) => p.employeeId as string),
+        ...dueTomorrow.map((p) => p.employeeId as string),
+        ...dueInTwoDays.map((p) => p.employeeId as string),
         ...dueInThreeDays.map((p) => p.employeeId as string),
       ]),
     ];
@@ -577,6 +583,8 @@ export const dashboardRouter = router({
       daysOverdue: daysBetween(utahDateOf(p.scheduledDate as string), today),
     }));
     const todayRows = dueToday.slice(0, MAX_LIST).map(mapToRow);
+    const tomorrowRows = dueTomorrow.slice(0, MAX_LIST).map(mapToRow);
+    const twoDaysRows = dueInTwoDays.slice(0, MAX_LIST).map(mapToRow);
     const threeDaysRows = dueInThreeDays.slice(0, MAX_LIST).map(mapToRow);
 
     // Totals are computed across ALL pending in the bucket, not just
@@ -598,6 +606,18 @@ export const dashboardRouter = router({
         // if mixed currencies exist, the modal shows the more common one.
         currency: dueToday[0]?.currencyLocal as string | undefined ?? 'USD',
         rows: todayRows,
+      },
+      dueTomorrow: {
+        count: dueTomorrow.length,
+        totalAmount: sumOf(dueTomorrow),
+        currency: dueTomorrow[0]?.currencyLocal as string | undefined ?? 'USD',
+        rows: tomorrowRows,
+      },
+      dueInTwoDays: {
+        count: dueInTwoDays.length,
+        totalAmount: sumOf(dueInTwoDays),
+        currency: dueInTwoDays[0]?.currencyLocal as string | undefined ?? 'USD',
+        rows: twoDaysRows,
       },
       dueInThreeDays: {
         count: dueInThreeDays.length,

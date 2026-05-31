@@ -31,19 +31,30 @@ function markDismissedToday(): void {
 }
 
 interface BucketProps {
-  variant: 'today' | 'three-days';
+  variant: 'overdue' | 'today' | 'three-days';
   count: number;
   totalAmount: number;
   currency: string;
-  rows: Array<{ paymentId: string; employeeName: string; amount: number; currency: string }>;
+  rows: Array<{
+    paymentId: string;
+    employeeName: string;
+    amount: number;
+    currency: string;
+    /** Only present for overdue rows. Positive = days past due. */
+    daysOverdue?: number;
+  }>;
 }
 
 function Bucket({ variant, count, totalAmount, currency, rows }: BucketProps): React.ReactElement {
+  const isOverdue = variant === 'overdue';
   const isToday = variant === 'today';
-  const accent = isToday
-    ? { color: '#F43F5E', bg: 'rgba(244,63,94,0.10)', border: 'rgba(244,63,94,0.30)' }
-    : { color: '#F59E0B', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.30)' };
+  // Visual hierarchy: overdue (deep red, glow) > today (rose) > 3 days (amber)
+  const accent =
+    isOverdue ? { color: '#DC2626', bg: 'rgba(220,38,38,0.13)', border: 'rgba(220,38,38,0.40)' } :
+    isToday   ? { color: '#F43F5E', bg: 'rgba(244,63,94,0.10)', border: 'rgba(244,63,94,0.30)' } :
+                { color: '#F59E0B', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.30)' };
 
+  const label = isOverdue ? 'Vencidos' : isToday ? 'Vence hoy' : 'Vence en 3 días';
   const overflow = count - rows.length;
 
   return (
@@ -75,7 +86,7 @@ function Bucket({ variant, count, totalAmount, currency, rows }: BucketProps): R
               color: accent.color,
             }}
           >
-            {isToday ? 'Vence hoy' : 'Vence en 3 días'}
+            {label}
           </span>
         </div>
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -98,7 +109,24 @@ function Bucket({ variant, count, totalAmount, currency, rows }: BucketProps): R
               padding: '4px 0',
             }}
           >
-            <span style={{ color: 'var(--text-2)' }}>{r.employeeName}</span>
+            <span style={{ color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              {r.employeeName}
+              {r.daysOverdue != null && r.daysOverdue > 0 && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: accent.color,
+                    background: accent.bg,
+                    border: `1px solid ${accent.border}`,
+                    borderRadius: 4,
+                    padding: '1px 5px',
+                  }}
+                >
+                  hace {r.daysOverdue}d
+                </span>
+              )}
+            </span>
             <span style={{ fontFamily: 'monospace', color: 'var(--text-1)', fontWeight: 500 }}>
               ${r.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })} {r.currency}
             </span>
@@ -154,7 +182,10 @@ export function SalaryAlertModal(): React.ReactElement | null {
   if (isLoading) return null;
   if (!data) return null;
 
-  const totalCount = data.dueToday.count + data.dueInThreeDays.count;
+  // Include overdue in the visibility gate so the modal still appears
+  // when only severely-late payments exist (no due-today, no +3d).
+  const totalCount =
+    (data.overdue?.count ?? 0) + data.dueToday.count + data.dueInThreeDays.count;
   if (totalCount === 0) return null;
 
   function close(): void {
@@ -292,8 +323,17 @@ export function SalaryAlertModal(): React.ReactElement | null {
             </button>
           </div>
 
-          {/* Buckets */}
+          {/* Buckets — overdue first (most urgent), then today, then +3 days */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {data.overdue && data.overdue.count > 0 && (
+              <Bucket
+                variant="overdue"
+                count={data.overdue.count}
+                totalAmount={data.overdue.totalAmount}
+                currency={data.overdue.currency}
+                rows={data.overdue.rows}
+              />
+            )}
             {data.dueToday.count > 0 && (
               <Bucket
                 variant="today"

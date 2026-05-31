@@ -492,11 +492,14 @@ export const dashboardRouter = router({
     const today = utahDate(0);
     const inThreeDays = utahDate(3);
 
-    // Pull pending payments in a wider UTC window and filter in JS
-    // by Utah date — same approach as the cron, for the same reason
-    // (UTC midnight cuts into Utah late evening).
+    // Pull pending payments in a wide UTC window:
+    //   - 365 days back covers any overdue PENDING (severe arrears
+    //     should still be surfaced for the admin to act on).
+    //   - +4 days forward covers today + the 3-day pre-alert window.
+    // We filter in JS by Utah-local date — same approach as the cron,
+    // for the same reason (UTC midnight cuts into Utah late evening).
     const windowStart = new Date();
-    windowStart.setDate(windowStart.getDate() - 1);
+    windowStart.setDate(windowStart.getDate() - 365);
     const windowEnd = new Date();
     windowEnd.setDate(windowEnd.getDate() + 4);
 
@@ -511,12 +514,24 @@ export const dashboardRouter = router({
     const utahDateOf = (iso: string): string =>
       new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
 
+    // ISO date strings (YYYY-MM-DD) compare lexicographically the same
+    // way they compare chronologically — no need for Date math here.
+    const overdue = all.filter((p) => utahDateOf(p.scheduledDate as string) < today);
     const dueToday = all.filter((p) => utahDateOf(p.scheduledDate as string) === today);
     const dueInThreeDays = all.filter((p) => utahDateOf(p.scheduledDate as string) === inThreeDays);
+
+    // Days difference between two YYYY-MM-DD strings, taken at noon UTC
+    // to avoid DST drift. Returns positive when `to` is later than `from`.
+    function daysBetween(from: string, to: string): number {
+      const fromMs = new Date(`${from}T12:00:00Z`).getTime();
+      const toMs = new Date(`${to}T12:00:00Z`).getTime();
+      return Math.round((toMs - fromMs) / 86_400_000);
+    }
 
     // Join employee names for the rows we'll actually surface.
     const employeeIds = [
       ...new Set([
+        ...overdue.map((p) => p.employeeId as string),
         ...dueToday.map((p) => p.employeeId as string),
         ...dueInThreeDays.map((p) => p.employeeId as string),
       ]),
@@ -549,6 +564,18 @@ export const dashboardRouter = router({
 
     // Cap at 10 entries per bucket; the modal will note the overflow.
     const MAX_LIST = 10;
+
+    // Sort overdue by oldest first (most days overdue at the top — those
+    // are the most urgent to process).
+    const overdueSorted = [...overdue].sort((a, b) =>
+      utahDateOf(a.scheduledDate as string).localeCompare(utahDateOf(b.scheduledDate as string)),
+    );
+
+    const overdueRows = overdueSorted.slice(0, MAX_LIST).map((p) => ({
+      ...mapToRow(p),
+      // Positive number — how many days past the scheduled date.
+      daysOverdue: daysBetween(utahDateOf(p.scheduledDate as string), today),
+    }));
     const todayRows = dueToday.slice(0, MAX_LIST).map(mapToRow);
     const threeDaysRows = dueInThreeDays.slice(0, MAX_LIST).map(mapToRow);
 
@@ -558,6 +585,12 @@ export const dashboardRouter = router({
       rows.reduce((s, p) => s + Number(p.amountLocal ?? 0), 0);
 
     return {
+      overdue: {
+        count: overdue.length,
+        totalAmount: sumOf(overdue),
+        currency: overdueSorted[0]?.currencyLocal as string | undefined ?? 'USD',
+        rows: overdueRows,
+      },
       dueToday: {
         count: dueToday.length,
         totalAmount: sumOf(dueToday),

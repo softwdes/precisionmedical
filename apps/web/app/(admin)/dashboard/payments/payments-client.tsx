@@ -77,6 +77,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
   const [showEdit, setShowEdit] = useState<string | null>(null);
   const [showCancel, setShowCancel] = useState<string | null>(null);
   const [showDeletePair, setShowDeletePair] = useState<string | null>(null);
+  const [showDeleteCancelled, setShowDeleteCancelled] = useState<string | null>(null);
 
   const STATUS_LABELS = {
     PAID: t('payments.statuses.PAID'),
@@ -117,6 +118,11 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
 
   const deletePairMutation = trpc.payments.deletePair.useMutation({
     onSuccess: () => { toast.success(t('payments.deleted')); setShowDeletePair(null); void refetch(); void refetchSummary(); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteCancelledMutation = trpc.payments.deleteCancelled.useMutation({
+    onSuccess: () => { toast.success(t('payments.deleted')); setShowDeleteCancelled(null); void refetch(); void refetchSummary(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -289,6 +295,15 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
                             <Trash2 className="h-4 w-4" />
                           </button>
                         )}
+                        {payment.status === 'CANCELLED' && (
+                          <button
+                            onClick={() => setShowDeleteCancelled(payment.id)}
+                            className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-rose/10 text-text-muted hover:text-rose transition-colors"
+                            title={t('payments.deleteCancelled')}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -451,6 +466,15 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
                               <Trash2 className="h-4 w-4" />
                             </button>
                           )}
+                          {payment.status === 'CANCELLED' && (
+                            <button
+                              onClick={() => setShowDeleteCancelled(payment.id)}
+                              className="p-1.5 text-text-muted hover:text-rose transition-colors rounded"
+                              title={t('payments.deleteCancelled')}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -594,6 +618,24 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
             <Button variant="ghost" onClick={() => setShowDeletePair(null)}>{t('common.back')}</Button>
             <Button variant="destructive" loading={deletePairMutation.isPending}
               onClick={() => showDeletePair && deletePairMutation.mutate({ id: showDeletePair })}
+            >
+              {t('payments.deleteButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!showDeleteCancelled} onOpenChange={(o) => { if (!o) setShowDeleteCancelled(null); }}>
+        <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-sm overflow-hidden">
+          <DialogHeader className="shrink-0"><DialogTitle>{t('payments.deleteCancelled')}</DialogTitle></DialogHeader>
+          <div className="flex-1 py-2 space-y-2">
+            <p className="text-small text-text-3">{t('payments.deleteCancelledConfirm')}</p>
+            <p className="text-[11px] text-rose font-medium">{t('payments.deleteCancelledWarning')}</p>
+          </div>
+          <DialogFooter className="shrink-0">
+            <Button variant="ghost" onClick={() => setShowDeleteCancelled(null)}>{t('common.back')}</Button>
+            <Button variant="destructive" loading={deleteCancelledMutation.isPending}
+              onClick={() => showDeleteCancelled && deleteCancelledMutation.mutate({ id: showDeleteCancelled })}
             >
               {t('payments.deleteButton')}
             </Button>

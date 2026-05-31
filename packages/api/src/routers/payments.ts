@@ -162,6 +162,38 @@ export const paymentsRouter = router({
       return data;
     }),
 
+  /**
+   * Hard-deletes a CANCELLED payment. For payments that were created
+   * by mistake and then cancelled — admins want to wipe them so they
+   * don't clutter the list/filters. Guarded to CANCELLED only so we
+   * can't accidentally lose audit history of PAID/REVERSED rows.
+   */
+  deleteCancelled: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      const { data: existing } = await supabaseAdmin
+        .from('payments')
+        .select('id, status')
+        .eq('id', input.id)
+        .single();
+
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (existing.status !== 'CANCELLED') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Only CANCELLED payments can be deleted',
+        });
+      }
+
+      const { error } = await supabaseAdmin
+        .from('payments')
+        .delete()
+        .eq('id', input.id);
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return { success: true };
+    }),
+
   deletePair: adminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {

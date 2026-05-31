@@ -1,4 +1,3 @@
-import { defaultCache } from '@serwist/next/worker';
 import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist';
 import { CacheFirst, ExpirationPlugin, NetworkOnly, Serwist, StaleWhileRevalidate } from 'serwist';
 
@@ -10,13 +9,21 @@ declare global {
 
 declare const self: WorkerGlobalScope & typeof globalThis;
 
+/**
+ * Minimal SW for the admin: enable installability + cache static
+ * assets + handle Web Push. Aggressive page caching was causing
+ * "no-response" errors when a navigation 401/redirected and the
+ * /offline fallback wasn't reliably precached. Since the admin
+ * requires login + live data, offline support isn't a goal —
+ * navigation requests pass through to the network without fallback.
+ */
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
-    // Never cache Supabase or API routes — always live data
+    // Supabase + API routes: always live, never cache.
     {
       matcher: /^https:\/\/.*\.supabase\.co\/.*/i,
       handler: new NetworkOnly(),
@@ -25,7 +32,9 @@ const serwist = new Serwist({
       matcher: /\/api\/.*/i,
       handler: new NetworkOnly(),
     },
-    // Google Fonts
+    // Static-ish assets only. NO navigation caching, NO defaultCache
+    // (which was wrapping document requests and tripping on auth
+    // redirects).
     {
       matcher: /^https:\/\/fonts\.googleapis\.com\/.*/i,
       handler: new CacheFirst({
@@ -40,7 +49,6 @@ const serwist = new Serwist({
         plugins: [new ExpirationPlugin({ maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 })],
       }),
     },
-    // Next.js static assets
     {
       matcher: /\/_next\/static\/.*/i,
       handler: new CacheFirst({
@@ -55,11 +63,10 @@ const serwist = new Serwist({
         plugins: [new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 })],
       }),
     },
-    ...defaultCache,
   ],
-  fallbacks: {
-    entries: [{ url: '/offline', matcher: ({ request }) => request.destination === 'document' }],
-  },
+  // No fallbacks. If the network fails for a navigation, let the
+  // browser show its own error. Avoids the no-response loop from
+  // pre-emptively caching pages that depend on session cookies.
 });
 
 serwist.addEventListeners();

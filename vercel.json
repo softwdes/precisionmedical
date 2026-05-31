@@ -2,11 +2,5 @@
   "buildCommand": "pnpm --filter=@precision-medical/database db:generate && pnpm build --filter=@precision-medical/web",
   "outputDirectory": "apps/web/.next",
   "installCommand": "pnpm install",
-  "framework": "nextjs",
-  "crons": [
-    {
-      "path": "/api/cron/salary-alerts",
-      "schedule": "0 14 * * *"
-    }
-  ]
+  "framework": "nextjs"
 }

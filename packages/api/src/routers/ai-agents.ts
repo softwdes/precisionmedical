@@ -304,12 +304,27 @@ export const aiAgentsRouter = router({
     const findings: AuditFindingInsert[] = [];
 
     const [cashResult, paymentsResult, fxResult, commissionsResult] = await Promise.allSettled([
-      supabaseAdmin
-        .from('cash_boxes')
-        .select('id, name, currency, balance, lowBalanceThreshold')
-        .then(({ data: boxes }) => (boxes ?? []).filter(
-          (b: { balance: number; lowBalanceThreshold: number }) => Number(b.balance) < Number(b.lowBalanceThreshold),
-        )),
+      // Audit findings de caja chica: solo cajas activas Y aperturadas
+      // (con al menos 1 transaccion). Cajas desactivadas o recien
+      // creadas sin uso no son hallazgos validos.
+      (async () => {
+        const { data: boxes } = await supabaseAdmin
+          .from('cash_boxes')
+          .select('id, name, currency, balance, lowBalanceThreshold')
+          .eq('is_active', true);
+        const below = (boxes ?? []).filter(
+          (b: { balance: number; lowBalanceThreshold: number }) =>
+            Number(b.balance) < Number(b.lowBalanceThreshold),
+        );
+        if (below.length === 0) return [];
+        const ids = below.map((b: { id: string }) => b.id);
+        const { data: txData } = await supabaseAdmin
+          .from('cash_transactions')
+          .select('cashBoxId')
+          .in('cashBoxId', ids);
+        const seen = new Set((txData ?? []).map((t: { cashBoxId: string }) => t.cashBoxId));
+        return below.filter((b: { id: string }) => seen.has(b.id));
+      })(),
       supabaseAdmin
         .from('payments')
         .select('id, employeeId, amountLocal, currencyLocal, period, createdAt')

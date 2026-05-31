@@ -48,7 +48,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Raw bucket types
   type EmpRow      = { id: string; firstName: string; lastName: string; type: string; position: string; baseSalary: string | null; baseCurrency: string; countryId: string; departmentId: string };
-  type CashRow     = { name: string; balance: string; lowBalanceThreshold: string; currency: string };
+  type CashRow     = { id: string; name: string; balance: string; lowBalanceThreshold: string; currency: string };
   type CountryRow  = { id: string; code: string };
   type DeptRow     = { id: string; name: string };
   type PmtMonthRow = { amountLocal: string; bonus_amount: string | null };
@@ -78,10 +78,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
 
   await Promise.allSettled([
-    // Cash boxes (petty cash)
+    // Cash boxes (petty cash) — solo cajas activas (is_active=true);
+    // las desactivadas NO deben aparecer en el contexto del CIFO ni
+    // generar "low:true" en la respuesta de la IA.
     admin.from('cash_boxes')
-      .select('name, balance, lowBalanceThreshold, currency')
-      .eq('isActive', true)
+      .select('id, name, balance, lowBalanceThreshold, currency')
+      .eq('is_active', true)
       .then(({ data }) => { if (data) cashBoxRows = data as CashRow[]; }),
 
     // Active employees with lookup IDs
@@ -232,13 +234,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     balance:  Number(w.balance),
   }));
 
-  // Cash boxes — annotate low balance
+  // Cash boxes — annotate low balance.
+  // Solo marcamos low:true en cajas activas Y aperturadas (con >=1
+  // transaccion). Cajas recien creadas sin uso nunca disparan "low".
+  const cashBoxIds = cashBoxRows.map(b => b.id);
+  const aperturadas = new Set<string>();
+  if (cashBoxIds.length > 0) {
+    const { data: txRows } = await admin
+      .from('cash_transactions')
+      .select('cashBoxId')
+      .in('cashBoxId', cashBoxIds);
+    for (const t of (txRows ?? []) as Array<{ cashBoxId: string }>) {
+      aperturadas.add(t.cashBoxId);
+    }
+  }
   const cash_boxes = cashBoxRows.map(b => ({
     name:      b.name,
     balance:   Number(b.balance),
     threshold: Number(b.lowBalanceThreshold),
     currency:  b.currency,
-    low:       Number(b.balance) < Number(b.lowBalanceThreshold),
+    low:       aperturadas.has(b.id)
+                 && Number(b.balance) < Number(b.lowBalanceThreshold),
   }));
 
   // Commissions — summary

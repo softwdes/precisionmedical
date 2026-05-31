@@ -99,8 +99,9 @@ export const pettyCashRouter = router({
       receiptUrl: z.string().url().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { data: box } = await supabaseAdmin.from('cash_boxes').select('balance').eq('id', input.cashBoxId).single();
+      const { data: box } = await supabaseAdmin.from('cash_boxes').select('balance, is_active').eq('id', input.cashBoxId).single();
       if (!box) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (!box.is_active) throw new TRPCError({ code: 'BAD_REQUEST', message: 'La caja esta desactivada. Reactivala antes de registrar movimientos.' });
 
       const newBalance = Number(box.balance) + input.amount;
 
@@ -137,8 +138,9 @@ export const pettyCashRouter = router({
       receiptUrl: z.string().url(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { data: box } = await supabaseAdmin.from('cash_boxes').select('balance, lowBalanceThreshold').eq('id', input.cashBoxId).single();
+      const { data: box } = await supabaseAdmin.from('cash_boxes').select('balance, lowBalanceThreshold, is_active').eq('id', input.cashBoxId).single();
       if (!box) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (!box.is_active) throw new TRPCError({ code: 'BAD_REQUEST', message: 'La caja esta desactivada. Reactivala antes de registrar movimientos.' });
       if (Number(box.balance) < input.amount) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Insufficient balance' });
 
       const newBalance = Number(box.balance) - input.amount;
@@ -305,13 +307,16 @@ export const pettyCashRouter = router({
       date: z.string(),
     }))
     .mutation(async ({ input, ctx }) => {
-      let { data: box } = await supabaseAdmin.from('cash_boxes').select('id, balance, lowBalanceThreshold').eq('name', input.clinicName).single();
+      let { data: box } = await supabaseAdmin.from('cash_boxes').select('id, balance, lowBalanceThreshold, is_active').eq('name', input.clinicName).single();
       if (!box) {
         const { data: nb, error: ce } = await supabaseAdmin.from('cash_boxes')
           .insert({ id: crypto.randomUUID(), name: input.clinicName, currency: input.currency, balance: 0, lowBalanceThreshold: 100, updatedAt: new Date().toISOString() })
-          .select('id, balance, lowBalanceThreshold').single();
+          .select('id, balance, lowBalanceThreshold, is_active').single();
         if (ce || !nb) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create cash box' });
         box = nb;
+      }
+      if (!box.is_active) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'La caja esta desactivada. Reactivala antes de registrar movimientos.' });
       }
       const txAmount = input.type === 'DEPOSIT' ? input.amount : -input.amount;
       const newBalance = Number(box.balance) + txAmount;

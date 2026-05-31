@@ -56,15 +56,28 @@ export async function runAuditScan(
 
   const [cashResult, paymentsResult, fxResult, commissionsResult] = await Promise.allSettled([
     // CHECK 1: Cash boxes below threshold
-    supabase
-      .from('cash_boxes')
-      .select('id, name, currency, balance, lowBalanceThreshold')
-      .then(({ data: boxes }) =>
-        (boxes ?? []).filter(
-          (b: { balance: number; lowBalanceThreshold: number }) =>
-            Number(b.balance) < Number(b.lowBalanceThreshold),
-        ),
-      ),
+    //   - solo cajas activas (is_active=true)
+    //   - solo cajas "aperturadas" con >=1 transaccion
+    //   Cajas desactivadas o recien creadas sin uso NO son hallazgos
+    //   validos y disparaban falsos positivos al auditor.
+    (async () => {
+      const { data: boxes } = await supabase
+        .from('cash_boxes')
+        .select('id, name, currency, balance, lowBalanceThreshold')
+        .eq('is_active', true);
+      const below = (boxes ?? []).filter(
+        (b: { balance: number; lowBalanceThreshold: number }) =>
+          Number(b.balance) < Number(b.lowBalanceThreshold),
+      );
+      if (below.length === 0) return [];
+      const ids = below.map((b: { id: string }) => b.id);
+      const { data: txData } = await supabase
+        .from('cash_transactions')
+        .select('cashBoxId')
+        .in('cashBoxId', ids);
+      const seen = new Set((txData ?? []).map((t: { cashBoxId: string }) => t.cashBoxId));
+      return below.filter((b: { id: string }) => seen.has(b.id));
+    })(),
 
     // CHECK 2 + 3: Duplicate payments within 24h for same employee / amount / period
     supabase

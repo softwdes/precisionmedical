@@ -631,6 +631,61 @@ export const dashboardRouter = router({
     const sumOf = (rows: typeof all): number =>
       rows.reduce((s, p) => s + Number(p.amountLocal ?? 0), 0);
 
+    // Cajas chicas con saldo bajo. Mismas reglas que el resto del
+    // sistema: solo cajas activas (is_active=true) Y aperturadas
+    // (>=1 transaccion). Sirve como bucket adicional en el modal de
+    // alertas del dashboard para que el super admin vea tanto los
+    // pagos pendientes como los problemas de liquidez en una sola
+    // vista.
+    let lowCashBoxRows: Array<{
+      boxId: string;
+      boxName: string;
+      balance: number;
+      threshold: number;
+      currency: string;
+    }> = [];
+    let lowCashBoxesTotalCount = 0;
+
+    const { data: activeBoxes } = await supabaseAdmin
+      .from('cash_boxes')
+      .select('id, name, balance, lowBalanceThreshold, currency')
+      .eq('is_active', true);
+
+    const belowThresholdBoxes = (activeBoxes ?? []).filter(
+      (b) => Number(b.balance) < Number(b.lowBalanceThreshold),
+    );
+
+    if (belowThresholdBoxes.length > 0) {
+      const boxIds = belowThresholdBoxes.map((b) => b.id as string);
+      const { data: txData } = await supabaseAdmin
+        .from('cash_transactions')
+        .select('cashBoxId')
+        .in('cashBoxId', boxIds);
+      const aperturadas = new Set<string>();
+      for (const t of (txData ?? []) as Array<{ cashBoxId: string }>) {
+        aperturadas.add(t.cashBoxId);
+      }
+      const eligible = belowThresholdBoxes.filter((b) => aperturadas.has(b.id as string));
+      lowCashBoxesTotalCount = eligible.length;
+
+      // Orden: ratio balance/umbral asc — la más afectada primero.
+      // Normaliza entre USD y BOB para no privilegiar montos grandes.
+      lowCashBoxRows = eligible
+        .sort(
+          (a, b) =>
+            Number(a.balance) / Number(a.lowBalanceThreshold) -
+            Number(b.balance) / Number(b.lowBalanceThreshold),
+        )
+        .slice(0, MAX_LIST)
+        .map((b) => ({
+          boxId: b.id as string,
+          boxName: b.name as string,
+          balance: Number(b.balance),
+          threshold: Number(b.lowBalanceThreshold),
+          currency: b.currency as string,
+        }));
+    }
+
     return {
       overdue: {
         count: overdue.length,
@@ -645,6 +700,10 @@ export const dashboardRouter = router({
         // currency of the soonest payment (sort-order winner).
         currency: upcomingSorted[0]?.currencyLocal as string | undefined ?? 'USD',
         rows: upcomingRows,
+      },
+      lowCashBoxes: {
+        count: lowCashBoxesTotalCount,
+        rows: lowCashBoxRows,
       },
     };
   }),

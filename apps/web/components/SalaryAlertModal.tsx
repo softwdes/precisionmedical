@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api as trpc } from '@/lib/trpc/client';
-import { AlertCircle, Calendar, X, ArrowRight } from 'lucide-react';
+import { AlertCircle, Calendar, X, ArrowRight, Wallet } from 'lucide-react';
 import { useRole } from '@/contexts/role-context';
 
 const DISMISS_KEY_PREFIX = 'pm-salary-modal-dismissed-';
@@ -50,10 +50,13 @@ interface BucketProps {
 }
 
 // Visual hierarchy: overdue (deep red + glow, most urgent), then
-// upcoming (amber, planning-mode urgency).
-const VARIANT_STYLE: Record<BucketVariant, { label: string; color: string; bg: string; border: string }> = {
-  overdue:  { label: 'Vencidos',          color: '#DC2626', bg: 'rgba(220,38,38,0.13)',  border: 'rgba(220,38,38,0.40)'  },
-  upcoming: { label: 'Próximos a vencer', color: '#F59E0B', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.30)' },
+// upcoming (amber, planning-mode urgency), then lowCashBox (orange,
+// liquidity blocker — distinto del rojo/ámbar para que se lea como
+// otra categoría: tesorería, no nómina).
+const VARIANT_STYLE: Record<BucketVariant | 'lowCashBox', { label: string; color: string; bg: string; border: string }> = {
+  overdue:     { label: 'Vencidos',          color: '#DC2626', bg: 'rgba(220,38,38,0.13)',  border: 'rgba(220,38,38,0.40)'  },
+  upcoming:    { label: 'Próximos a vencer', color: '#F59E0B', bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.30)' },
+  lowCashBox:  { label: 'Cajas chicas bajas', color: '#F97316', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.38)' },
 };
 
 function Bucket({ variant, count, totalAmount, currency, rows }: BucketProps): React.ReactElement {
@@ -174,6 +177,112 @@ function Bucket({ variant, count, totalAmount, currency, rows }: BucketProps): R
   );
 }
 
+interface CashBoxBucketProps {
+  count: number;
+  rows: Array<{
+    boxId: string;
+    boxName: string;
+    balance: number;
+    threshold: number;
+    currency: string;
+  }>;
+}
+
+function CashBoxBucket({ count, rows }: CashBoxBucketProps): React.ReactElement {
+  const accent = VARIANT_STYLE.lowCashBox;
+  const overflow = count - rows.length;
+
+  return (
+    <div
+      style={{
+        padding: '14px',
+        borderRadius: 12,
+        background: accent.bg,
+        border: `1px solid ${accent.border}`,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: accent.color,
+            }}
+          />
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: accent.color,
+            }}
+          >
+            {accent.label}
+          </span>
+        </div>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          {count} caja{count === 1 ? '' : 's'}
+        </span>
+      </div>
+
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: 4, margin: 0, padding: 0, listStyle: 'none' }}>
+        {rows.map((r) => {
+          const symbol = r.currency === 'BOB' ? 'Bs.' : r.currency === 'PEN' ? 'S/' : '$';
+          return (
+            <li
+              key={r.boxId}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: 12,
+                padding: '4px 0',
+              }}
+            >
+              <span style={{ color: 'var(--text-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {r.boxName}
+                {/* Pill estilo "min Bs. 100" — el umbral de referencia. */}
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: accent.color,
+                    background: accent.bg,
+                    border: `1px solid ${accent.border}`,
+                    borderRadius: 4,
+                    padding: '1px 5px',
+                  }}
+                >
+                  min {symbol} {r.threshold.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                </span>
+              </span>
+              <span style={{ fontFamily: 'monospace', color: 'var(--text-1)', fontWeight: 500 }}>
+                {symbol} {r.balance.toLocaleString('en-US', { maximumFractionDigits: 0 })} {r.currency}
+              </span>
+            </li>
+          );
+        })}
+        {overflow > 0 && (
+          <li
+            style={{
+              fontSize: 11,
+              color: 'var(--text-muted)',
+              fontStyle: 'italic',
+              paddingTop: 4,
+              borderTop: '1px solid rgba(255,255,255,0.05)',
+            }}
+          >
+            y {overflow} más...
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
 /**
  * Dashboard alert that prompts the Super Admin to review pending
  * salary payments. Appears once per Utah-local day; closing it (X
@@ -206,9 +315,18 @@ export function SalaryAlertModal(): React.ReactElement | null {
   if (isLoading) return null;
   if (!data) return null;
 
-  // Visibility gate — modal appears if EITHER bucket has payments.
-  const totalCount = (data.overdue?.count ?? 0) + (data.upcoming?.count ?? 0);
+  // Visibility gate — modal appears if ANY of the three buckets has rows.
+  const totalCount =
+    (data.overdue?.count ?? 0) +
+    (data.upcoming?.count ?? 0) +
+    (data.lowCashBoxes?.count ?? 0);
   if (totalCount === 0) return null;
+
+  // Si NO hay pagos y solo hay cajas bajas, el CTA principal y el copy
+  // cambian para apuntar al modulo correcto (Finanzas en vez de pagos).
+  const hasPayments = (data.overdue?.count ?? 0) + (data.upcoming?.count ?? 0) > 0;
+  const hasLowCashBoxes = (data.lowCashBoxes?.count ?? 0) > 0;
+  const onlyCashBoxes = !hasPayments && hasLowCashBoxes;
 
   function close(): void {
     markDismissedToday();
@@ -219,6 +337,12 @@ export function SalaryAlertModal(): React.ReactElement | null {
     markDismissedToday();
     setDismissed(true);
     router.push('/dashboard/employees?tab=pagos');
+  }
+
+  function goToFinanzas(): void {
+    markDismissedToday();
+    setDismissed(true);
+    router.push('/dashboard/finanzas?tab=cajas');
   }
 
   return (
@@ -315,7 +439,11 @@ export function SalaryAlertModal(): React.ReactElement | null {
                   letterSpacing: '-0.01em',
                 }}
               >
-                Salarios pendientes
+                {onlyCashBoxes
+                  ? 'Caja chica baja'
+                  : hasLowCashBoxes
+                  ? 'Pagos pendientes y caja chica baja'
+                  : 'Salarios pendientes'}
               </p>
               <p
                 style={{
@@ -325,7 +453,9 @@ export function SalaryAlertModal(): React.ReactElement | null {
                   lineHeight: 1.4,
                 }}
               >
-                Tienes pagos próximos a vencer. Procesalos a tiempo.
+                {onlyCashBoxes
+                  ? 'Una o más cajas están por debajo del mínimo. Repón saldo.'
+                  : 'Pagos próximos a vencer. Procesalos a tiempo.'}
               </p>
             </div>
             <button
@@ -375,12 +505,19 @@ export function SalaryAlertModal(): React.ReactElement | null {
                 rows={data.upcoming.rows}
               />
             )}
+            {data.lowCashBoxes && data.lowCashBoxes.count > 0 && (
+              <CashBoxBucket
+                count={data.lowCashBoxes.count}
+                rows={data.lowCashBoxes.rows}
+              />
+            )}
           </div>
 
-          {/* CTA */}
+          {/* CTA principal — apunta al modulo del problema. Si solo
+              hay cajas bajas, lleva a Finanzas; sino a Pagos. */}
           <button
             type="button"
-            onClick={goToPayments}
+            onClick={onlyCashBoxes ? goToFinanzas : goToPayments}
             style={{
               marginTop: 18,
               width: '100%',
@@ -400,10 +537,39 @@ export function SalaryAlertModal(): React.ReactElement | null {
               letterSpacing: '0.01em',
             }}
           >
-            <Calendar size={14} />
-            Ver pagos pendientes
+            {onlyCashBoxes ? <Wallet size={14} /> : <Calendar size={14} />}
+            {onlyCashBoxes ? 'Ver cajas chicas' : 'Ver pagos pendientes'}
             <ArrowRight size={14} />
           </button>
+
+          {/* CTA secundario — solo cuando hay AMBOS problemas. Da acceso
+              rápido a la otra vista sin tener que cerrar y navegar. */}
+          {hasPayments && hasLowCashBoxes && (
+            <button
+              type="button"
+              onClick={goToFinanzas}
+              style={{
+                marginTop: 8,
+                width: '100%',
+                padding: '9px 16px',
+                borderRadius: 10,
+                background: 'rgba(249,115,22,0.10)',
+                color: '#F97316',
+                fontSize: 12,
+                fontWeight: 600,
+                border: '1px solid rgba(249,115,22,0.35)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                letterSpacing: '0.01em',
+              }}
+            >
+              <Wallet size={13} />
+              Ver cajas chicas
+            </button>
+          )}
 
           <button
             type="button"

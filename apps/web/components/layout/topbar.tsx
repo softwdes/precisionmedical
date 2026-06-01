@@ -13,6 +13,7 @@ import { createClient as createSupabaseClient } from '@precision-medical/auth/cl
 import { NotificationsDrawer } from './notifications-drawer';
 import { CommandPalette } from './command-palette';
 import { toast } from 'sonner';
+import { clearSessionGuard } from '@/lib/useSessionGuard';
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -118,6 +119,7 @@ export function Topbar({
   }, [menuOpen]);
 
   const handleLogout = async (): Promise<void> => {
+    clearSessionGuard();
     await fetch('/api/auth/signout');
     router.push('/login');
     router.refresh();

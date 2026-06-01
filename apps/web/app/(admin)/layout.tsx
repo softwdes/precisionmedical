@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient, createAdminClient } from '@precision-medical/auth/server';
 import { AppLayout } from '@/components/layout/app-layout';
 import { BootAnimation } from '@/components/layout/boot-animation';
+import { SessionGuard } from '@/components/layout/session-guard';
 import { dbRoleToRole } from '@/lib/permissions';
 import type { Role } from '@/lib/permissions';
 
@@ -44,6 +45,8 @@ export default async function AdminLayout({
 
   return (
     <BootAnimation>
+      {/* Auto-logout after 12h of session lifetime → /login?expired=true */}
+      <SessionGuard maxAgeHours={12} />
       <AppLayout
         userName={`${user.firstName} ${user.lastName}`}
         userRole={ROLE_LABELS[user.role as string] ?? user.role}

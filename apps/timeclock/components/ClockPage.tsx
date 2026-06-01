@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { LogOut, Play, Square, Coffee, UserX, RefreshCw, Clock } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { InstallPWABanner } from '@/components/InstallPWABanner';
+import { useSessionGuard, clearSessionGuard } from '@/lib/useSessionGuard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -230,6 +231,9 @@ export default function ClockPage({ userId }: { userId: string }) {
   const supabase = useMemo(() => createClient(), []);
   const waypointIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { t, locale } = useT();
+
+  // Auto sign-out after 12h of session lifetime → /login?expired=true
+  useSessionGuard(12);
 
   // Profile
   const [employee, setEmployee] = useState<Employee | null>(null);
@@ -770,6 +774,7 @@ export default function ClockPage({ userId }: { userId: string }) {
   }
 
   async function handleLogout() {
+    clearSessionGuard();
     await supabase.auth.signOut();
     router.push('/login');
   }

@@ -12,7 +12,15 @@ export default function LoginPage(): React.ReactElement {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // Initialize error with a "session expired" message if redirected here
+  // from useSessionGuard after 12h. ?expired=true is set by the hook.
+  const [error, setError] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search);
+    return params.get('expired') === 'true'
+      ? 'Tu sesión expiró por seguridad. Inicia sesión de nuevo.'
+      : '';
+  });
   const [rememberMe, setRememberMe] = useState(false);
 
   // Detect invite/recovery tokens synchronously so we never render the form

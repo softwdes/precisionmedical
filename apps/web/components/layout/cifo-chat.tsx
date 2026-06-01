@@ -249,7 +249,8 @@ export function CifoChat(): React.ReactElement {
       {/* ── Popup ── */}
       <div
         className={cn(
-          'fixed bottom-[88px] right-6 z-[90] w-[min(360px,calc(100vw-32px))] rounded-2xl border border-border bg-bg-1 shadow-2xl flex flex-col overflow-hidden',
+          // Popup: en movil se eleva sobre el bottom nav (64px nav + 24px FAB + 8px gap).
+          'fixed bottom-[164px] md:bottom-[88px] right-6 z-[90] w-[min(360px,calc(100vw-32px))] rounded-2xl border border-border bg-bg-1 shadow-2xl flex flex-col overflow-hidden',
           'transition-all duration-300 ease-out-expo origin-bottom-right',
           open ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto' : 'opacity-0 scale-95 translate-y-4 pointer-events-none',
         )}
@@ -427,7 +428,7 @@ export function CifoChat(): React.ReactElement {
       {/* ── FAB ── */}
       <button
         onClick={() => { setOpen(v => !v); if (listening) stopListening(); }}
-        className="fixed bottom-6 right-6 z-[90] flex h-14 w-14 items-center justify-center rounded-[18px] text-white cifo-fab"
+        className="fixed bottom-[84px] md:bottom-6 right-6 z-[90] flex h-14 w-14 items-center justify-center rounded-[18px] text-white cifo-fab"
         style={{ background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 55%, #06B6D4 100%)', boxShadow: '0 12px 32px rgba(99,102,241,0.45)' }}
         aria-label={open ? t('close') : t('open')}
       >

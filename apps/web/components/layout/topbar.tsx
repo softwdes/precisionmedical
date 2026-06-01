@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@precision/ui';
 import { Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@precision/ui';
 import { useTheme } from '@/components/providers/theme-provider';
-import { Bell, Search, Menu, Moon, Sun, User, KeyRound, LogOut, Eye, EyeOff, Zap, Copy } from 'lucide-react';
+import { Bell, Search, Moon, Sun, User, KeyRound, LogOut, Eye, EyeOff, Zap, Copy } from 'lucide-react';
 import { api as trpc } from '@/lib/trpc/client';
 import { createClient as createSupabaseClient } from '@precision-medical/auth/client';
 import { NotificationsDrawer } from './notifications-drawer';
@@ -43,7 +43,10 @@ function generateSecurePassword(): string {
 }
 
 export function Topbar({
-  onMenuClick,
+  // `onMenuClick` queda en la API por compatibilidad, pero en movil el
+  // bottom nav maneja la apertura del drawer y en desktop el sidebar
+  // siempre esta visible. No se usa internamente.
+  onMenuClick: _onMenuClick,
   userName  = 'Erick Salinas',
   userRole  = 'Super Admin',
   userEmail = '',
@@ -157,13 +160,10 @@ export function Topbar({
   return (
     <>
       <header className="sticky top-0 z-sticky flex h-14 items-center gap-3 border-b border-border bg-bg-0/80 px-4 backdrop-blur-md">
-        <button
-          onClick={onMenuClick}
-          className="flex h-8 w-8 items-center justify-center rounded text-text-3 hover:bg-surface hover:text-text-1 md:hidden"
-          aria-label="Open menu"
-        >
-          <Menu className="h-4 w-4" />
-        </button>
+        {/* Hamburger removido en movil — el bottom nav tiene el slot
+            "Mas" que abre el drawer. En desktop el sidebar es fijo y no
+            necesita toggle, asi que el boton no se renderiza nunca.
+            Mantenemos onMenuClick como prop por compatibilidad. */}
 
         <button
           onClick={() => setCmdOpen(true)}

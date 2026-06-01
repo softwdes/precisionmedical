@@ -15,6 +15,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const date_to     = sp.get('date_to') ?? '';
   const clinic_name = sp.get('clinic_name') ?? '';
   const status      = sp.get('status') ?? '';
+  // 'all' (default) | 'missing' (sin GPS) | 'present' (con GPS verificado)
+  const gps         = sp.get('gps') ?? '';
   const page        = Math.max(1, parseInt(sp.get('page') ?? '1'));
   const limit       = Math.min(100, parseInt(sp.get('limit') ?? '20'));
   const offset      = (page - 1) * limit;
@@ -33,6 +35,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (date_to)     query = query.lte('date', date_to);
   if (clinic_name) query = query.eq('clinic_name', clinic_name);
   if (status)      query = query.eq('status', status);
+
+  // Filtro GPS:
+  //   missing → rechazo de permiso O sin coords aunque haya check_in
+  //   present → tiene coords en check_in (excluye remote sin coords)
+  if (gps === 'missing') {
+    // PostgREST: or() necesita la sintaxis especial. Sin GPS = status
+    // no_permission, O bien check_in existe pero lat es NULL.
+    query = query.or('location_status.eq.no_permission,and(check_in.not.is.null,check_in_lat.is.null)');
+  } else if (gps === 'present') {
+    query = query.not('check_in_lat', 'is', null);
+  }
 
   const { data: records, count, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

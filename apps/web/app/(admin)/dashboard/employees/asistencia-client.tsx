@@ -10,7 +10,7 @@ import {
 } from '@precision/ui';
 import {
   UserCheck, Coffee, Clock, UserX, RefreshCw, Pencil,
-  FileText, Download, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle, MapPin,
+  FileText, Download, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle, MapPin, MapPinOff,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -236,6 +236,8 @@ export function AsistenciaClient() {
   const [filterDateTo, setFilterDateTo] = useState(todayStr());
   const [filterStatus, setFilterStatus] = useState('');
   const [filterClinic, setFilterClinic] = useState('');
+  // '' = todos | 'missing' = solo sin GPS | 'present' = solo con GPS
+  const [filterGps, setFilterGps] = useState('');
 
   // ── Correction modal ───────────────────────────────────────────────────────
   const [correction, setCorrection] = useState<CorrectionTarget | null>(null);
@@ -371,6 +373,7 @@ export function AsistenciaClient() {
       if (filterDateTo)   params.set('date_to', filterDateTo);
       if (filterStatus)   params.set('status', filterStatus);
       if (filterClinic)   params.set('clinic_name', filterClinic);
+      if (filterGps)      params.set('gps', filterGps);
       const res = await fetch(`/api/attendance/history?${params}`);
       if (!res.ok) return;
       const json = await res.json() as { rows: HistoryRow[]; total: number; totalPages: number };
@@ -380,23 +383,44 @@ export function AsistenciaClient() {
     } finally {
       setLoadingHistory(false);
     }
-  }, [historyPage, filterEmployee, filterDateFrom, filterDateTo, filterStatus, filterClinic]);
+  }, [historyPage, filterEmployee, filterDateFrom, filterDateTo, filterStatus, filterClinic, filterGps]);
 
   useEffect(() => {
     if (view === 'historial') void fetchHistory();
   }, [view, fetchHistory]);
 
   // ── KPIs ───────────────────────────────────────────────────────────────────
+  // Helper: ¿este empleado marcó hoy sin compartir ubicacion GPS? Lo
+  // detectamos en CUALQUIER turno del dia (el "primary" puede tener
+  // GPS pero otro turno no), porque un solo rechazo ya es un evento
+  // auditable. Casos contados:
+  //   - location_status === 'no_permission' (rechazo explicito)
+  //   - check_in_lat NULL en una marcada YA hecha (sin coords aunque
+  //     el status haya quedado como otra cosa por bug del timeclock)
+  function rowMissingGPS(row: TodayRow): boolean {
+    const shifts = row.dayRecords && row.dayRecords.length > 0
+      ? row.dayRecords
+      : [{
+          check_in: row.check_in,
+          check_in_lat: row.check_in_lat,
+          location_status: row.location_status,
+        }];
+    return shifts.some(s =>
+      s.check_in != null && (s.location_status === 'no_permission' || s.check_in_lat == null),
+    );
+  }
+
   const kpis = useMemo(() => {
-    let presentes = 0, enBreak = 0, tardanzas = 0, sinFichar = 0;
+    let presentes = 0, enBreak = 0, tardanzas = 0, sinFichar = 0, sinGPS = 0;
     for (const r of todayRows) {
       const s = rowState(r);
       if (s === 'working') presentes++;
       else if (s === 'break') enBreak++;
       else if (s === 'absent') sinFichar++;
       if (r.status === 'late' && r.check_in) tardanzas++;
+      if (rowMissingGPS(r)) sinGPS++;
     }
-    return { presentes, enBreak, tardanzas, sinFichar };
+    return { presentes, enBreak, tardanzas, sinFichar, sinGPS };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todayRows, tick]);
 
@@ -700,14 +724,15 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
             </div>
           )}
 
-          {/* KPI cards */}
+          {/* KPI cards — 5 columnas en desktop (2 en mobile, 3 en tablet) */}
           {loadingToday ? <KpiSkeleton /> : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {[
-                { icon: UserCheck, label: 'Presentes',   value: kpis.presentes,  color: '#10B981', dim: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.20)' },
-                { icon: Coffee,    label: 'En break',     value: kpis.enBreak,    color: '#F59E0B', dim: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.20)' },
-                { icon: Clock,     label: 'Tardanzas',    value: kpis.tardanzas,  color: '#F43F5E', dim: 'rgba(244,63,94,0.08)',   border: 'rgba(244,63,94,0.20)' },
-                { icon: UserX,     label: 'Sin fichar',   value: kpis.sinFichar,  color: 'var(--color-text-muted)', dim: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.07)' },
+                { icon: UserCheck,   label: 'Presentes',   value: kpis.presentes,  color: '#10B981', dim: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.20)' },
+                { icon: Coffee,      label: 'En break',     value: kpis.enBreak,    color: '#F59E0B', dim: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.20)' },
+                { icon: Clock,       label: 'Tardanzas',    value: kpis.tardanzas,  color: '#F43F5E', dim: 'rgba(244,63,94,0.08)',   border: 'rgba(244,63,94,0.20)' },
+                { icon: UserX,       label: 'Sin fichar',   value: kpis.sinFichar,  color: 'var(--color-text-muted)', dim: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.07)' },
+                { icon: MapPinOff,   label: 'Sin GPS',      value: kpis.sinGPS,     color: '#EF4444', dim: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.28)' },
               ].map(({ icon: Icon, label, value, color, dim, border }) => (
                 <div key={label} className="rounded-xl p-4 flex flex-col gap-1.5" style={{ background: dim, border: `1px solid ${border}` }}>
                   <div className="flex items-center justify-between">
@@ -832,7 +857,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                   {initials(r.firstName, r.lastName)}
                                 </div>
                                 <div>
-                                  <p className="text-[13px] font-medium text-text-1 leading-none flex items-center gap-1.5">
+                                  <p className="text-[13px] font-medium text-text-1 leading-none flex items-center gap-1.5 flex-wrap">
                                     {r.firstName} {r.lastName}
                                     {hasMultiple && (
                                       <span
@@ -840,6 +865,16 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                         style={{ background: 'rgba(99,102,241,0.12)', color: '#818CF8', border: '0.5px solid rgba(99,102,241,0.28)' }}
                                       >
                                         {shiftCount} turnos
+                                      </span>
+                                    )}
+                                    {rowMissingGPS(r) && (
+                                      <span
+                                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                                        style={{ background: 'rgba(239,68,68,0.12)', color: '#FCA5A5', border: '0.5px solid rgba(239,68,68,0.40)' }}
+                                        title="Marcó sin compartir ubicación GPS"
+                                      >
+                                        <MapPinOff size={9} />
+                                        SIN GPS
                                       </span>
                                     )}
                                   </p>
@@ -985,7 +1020,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                             {initials(r.firstName, r.lastName)}
                           </div>
                           <div>
-                            <p className="text-[13px] font-medium text-text-1 flex items-center gap-1.5">
+                            <p className="text-[13px] font-medium text-text-1 flex items-center gap-1.5 flex-wrap">
                               {r.firstName} {r.lastName}
                               {hasMultiple && (
                                 <span
@@ -993,6 +1028,15 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                   style={{ background: 'rgba(99,102,241,0.12)', color: '#818CF8', border: '0.5px solid rgba(99,102,241,0.28)' }}
                                 >
                                   {shiftCount} turnos
+                                </span>
+                              )}
+                              {rowMissingGPS(r) && (
+                                <span
+                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                                  style={{ background: 'rgba(239,68,68,0.12)', color: '#FCA5A5', border: '0.5px solid rgba(239,68,68,0.40)' }}
+                                >
+                                  <MapPinOff size={9} />
+                                  SIN GPS
                                 </span>
                               )}
                             </p>
@@ -1131,9 +1175,22 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               </SelectContent>
             </Select>
 
+            {/* Filtro GPS — para auditar quienes rechazaron compartir
+                ubicacion. Detecta location_status='no_permission' y
+                tambien marcadas con check_in pero sin lat (defensa
+                contra inconsistencias). */}
+            <Select value={filterGps} onValueChange={v => { setFilterGps(v); setHistoryPage(1); }}>
+              <SelectTrigger className="h-8 text-xs w-full sm:w-[150px]"><SelectValue placeholder="GPS: Todos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">GPS: Todos</SelectItem>
+                <SelectItem value="missing">Solo sin GPS</SelectItem>
+                <SelectItem value="present">Solo con GPS</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Button size="sm" onClick={() => void fetchHistory()} className="h-8 text-xs px-3">Aplicar</Button>
             <button
-              onClick={() => { setFilterEmployee(''); setFilterDateFrom(daysAgo(7)); setFilterDateTo(todayStr()); setFilterStatus(''); setFilterClinic(''); setHistoryPage(1); }}
+              onClick={() => { setFilterEmployee(''); setFilterDateFrom(daysAgo(7)); setFilterDateTo(todayStr()); setFilterStatus(''); setFilterClinic(''); setFilterGps(''); setHistoryPage(1); }}
               className="text-xs text-text-muted hover:text-text-2 transition-colors px-1"
             >
               Limpiar
@@ -1163,7 +1220,11 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                           Sin registros para los filtros seleccionados
                         </TableCell>
                       </TableRow>
-                    ) : historyRows.map(r => (
+                    ) : historyRows.map(r => {
+                      // En historial, el rechazo se detecta por location_status=no_permission
+                      // o por check_in presente con lat NULL.
+                      const histMissingGPS = r.check_in != null && (r.location_status === 'no_permission' || r.check_in_lat == null);
+                      return (
                       <TableRow key={r.id} className="border-b border-border hover:bg-surface/40 transition-colors">
                         <TableCell className="text-[12px] text-text-2 pl-4">{fmtDate(r.date)}</TableCell>
                         <TableCell>
@@ -1172,7 +1233,19 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                               {initials(r.firstName, r.lastName)}
                             </div>
                             <div>
-                              <p className="text-[12px] font-medium text-text-1 leading-none">{r.firstName} {r.lastName}</p>
+                              <p className="text-[12px] font-medium text-text-1 leading-none flex items-center gap-1.5 flex-wrap">
+                                {r.firstName} {r.lastName}
+                                {histMissingGPS && (
+                                  <span
+                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                                    style={{ background: 'rgba(239,68,68,0.12)', color: '#FCA5A5', border: '0.5px solid rgba(239,68,68,0.40)' }}
+                                    title="Marcó sin compartir ubicación GPS"
+                                  >
+                                    <MapPinOff size={9} />
+                                    SIN GPS
+                                  </span>
+                                )}
+                              </p>
                               <p className="text-[10px] text-text-muted">{r.employeeCode}</p>
                             </div>
                           </div>
@@ -1199,7 +1272,8 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -1208,11 +1282,24 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               <div className="md:hidden space-y-2">
                 {historyRows.length === 0 ? (
                   <p className="text-center py-12 text-sm text-text-muted">Sin registros para los filtros seleccionados</p>
-                ) : historyRows.map(r => (
+                ) : historyRows.map(r => {
+                  const histMissingGPS = r.check_in != null && (r.location_status === 'no_permission' || r.check_in_lat == null);
+                  return (
                   <div key={r.id} className="rounded-xl border border-border bg-surface p-3.5">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-[13px] font-medium text-text-1">{r.firstName} {r.lastName}</p>
+                        <p className="text-[13px] font-medium text-text-1 flex items-center gap-1.5 flex-wrap">
+                          {r.firstName} {r.lastName}
+                          {histMissingGPS && (
+                            <span
+                              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
+                              style={{ background: 'rgba(239,68,68,0.12)', color: '#FCA5A5', border: '0.5px solid rgba(239,68,68,0.40)' }}
+                            >
+                              <MapPinOff size={9} />
+                              SIN GPS
+                            </span>
+                          )}
+                        </p>
                         <p className="text-[10px] text-text-muted">{fmtDate(r.date)} · {r.clinic_name}</p>
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -1226,7 +1313,8 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                       <span className="text-text-muted">Horas <span className="font-mono text-text-2">{fmtHours(r.hours_worked)}</span></span>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Pagination */}

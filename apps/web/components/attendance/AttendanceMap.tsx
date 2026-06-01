@@ -3,20 +3,39 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Pause, Gauge } from 'lucide-react';
 
-interface GeoPoint   { lat: number; lng: number; at?: string }
-interface Waypoint   { lat: number; lng: number; recorded_at: string }
+interface GeoPoint { lat: number; lng: number; at?: string }
+interface Waypoint { lat: number; lng: number; recorded_at: string }
+
+/**
+ * Un turno del dia. El componente acepta:
+ *   - Modo legacy: `checkIn`/`checkOut`/`waypoints` (un solo turno).
+ *   - Modo dia completo: `shifts` (array de turnos cronologicos).
+ *
+ * Cuando `shifts` esta presente, se ignoran las props legacy.
+ */
+export interface Shift {
+  id: string;
+  checkIn: GeoPoint | null;
+  checkOut: GeoPoint | null;
+  waypoints: Waypoint[];
+}
 
 interface Props {
-  checkIn:   GeoPoint | null;
-  checkOut:  GeoPoint | null;
-  waypoints: Waypoint[];
+  // Modo single-shift (legacy)
+  checkIn?: GeoPoint | null;
+  checkOut?: GeoPoint | null;
+  waypoints?: Waypoint[];
+  // Modo multi-shift (dia completo)
+  shifts?: Shift[];
 }
 
 interface TimePoint {
   lat: number;
   lng: number;
-  t: number;                                     // epoch ms
-  kind: 'check_in' | 'waypoint' | 'check_out';
+  t: number;
+  kind: 'check_in' | 'waypoint' | 'check_out' | 'gap';
+  /** Indice del turno al que pertenece este punto (0-based). */
+  shiftIdx: number;
 }
 
 const DEFAULT_CENTER: [number, number] = [40.2338, -111.6585];  // Provo, Utah
@@ -26,13 +45,11 @@ function fmtClock(t: number): string {
   return new Date(t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 }
 
-/** Linear interpolation between two TimePoints at time `t` (clamped to range). */
 function interpAt(traj: TimePoint[], t: number): { lat: number; lng: number } | null {
   if (traj.length === 0) return null;
   if (t <= traj[0]!.t) return { lat: traj[0]!.lat, lng: traj[0]!.lng };
   const last = traj[traj.length - 1]!;
   if (t >= last.t) return { lat: last.lat, lng: last.lng };
-  // Binary-ish linear scan: trajectories are short (<200 points)
   for (let i = 1; i < traj.length; i++) {
     const a = traj[i - 1]!;
     const b = traj[i]!;
@@ -48,36 +65,68 @@ function interpAt(traj: TimePoint[], t: number): { lat: number; lng: number } | 
   return { lat: last.lat, lng: last.lng };
 }
 
-export function AttendanceMap({ checkIn, checkOut, waypoints }: Props) {
+export function AttendanceMap({ checkIn, checkOut, waypoints, shifts }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef         = useRef<L.Map | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
   const movingMarkerRef = useRef<L.Marker | null>(null);
-  const leafletRef      = useRef<typeof import('leaflet') | null>(null);
+  const leafletRef = useRef<typeof import('leaflet') | null>(null);
 
-  // Build the time-ordered trajectory once per props change
+  // Normalizamos a un array de shifts. Si vienen las props legacy,
+  // las envolvemos en un solo shift.
+  const normalizedShifts: Shift[] = useMemo(() => {
+    if (shifts && shifts.length > 0) return shifts;
+    return [{
+      id: 'legacy',
+      checkIn: checkIn ?? null,
+      checkOut: checkOut ?? null,
+      waypoints: waypoints ?? [],
+    }];
+  }, [shifts, checkIn, checkOut, waypoints]);
+
+  const isMultiShift = normalizedShifts.length > 1;
+
+  // Construye la trayectoria combinada en orden temporal.
+  // Cada turno aporta: check_in -> waypoints -> check_out.
+  // Entre dos turnos consecutivos, marcamos el final del primero y
+  // el inicio del siguiente como kind='gap' para que el render de
+  // la polyline pinte ese tramo de manera distinta (punteado gris).
   const trajectory = useMemo<TimePoint[]>(() => {
     const pts: TimePoint[] = [];
-    if (checkIn && checkIn.at) {
-      pts.push({ lat: checkIn.lat, lng: checkIn.lng, t: new Date(checkIn.at).getTime(), kind: 'check_in' });
-    }
-    for (const wp of waypoints) {
-      pts.push({ lat: wp.lat, lng: wp.lng, t: new Date(wp.recorded_at).getTime(), kind: 'waypoint' });
-    }
-    if (checkOut && checkOut.at) {
-      pts.push({ lat: checkOut.lat, lng: checkOut.lng, t: new Date(checkOut.at).getTime(), kind: 'check_out' });
-    }
+    normalizedShifts.forEach((shift, idx) => {
+      if (shift.checkIn?.at) {
+        pts.push({
+          lat: shift.checkIn.lat, lng: shift.checkIn.lng,
+          t: new Date(shift.checkIn.at).getTime(),
+          kind: 'check_in', shiftIdx: idx,
+        });
+      }
+      for (const wp of shift.waypoints) {
+        pts.push({
+          lat: wp.lat, lng: wp.lng,
+          t: new Date(wp.recorded_at).getTime(),
+          kind: 'waypoint', shiftIdx: idx,
+        });
+      }
+      if (shift.checkOut?.at) {
+        pts.push({
+          lat: shift.checkOut.lat, lng: shift.checkOut.lng,
+          t: new Date(shift.checkOut.at).getTime(),
+          kind: 'check_out', shiftIdx: idx,
+        });
+      }
+    });
     return pts.sort((a, b) => a.t - b.t);
-  }, [checkIn, checkOut, waypoints]);
+  }, [normalizedShifts]);
 
-  const startMs    = trajectory[0]?.t ?? 0;
-  const endMs      = trajectory[trajectory.length - 1]?.t ?? 0;
+  const startMs = trajectory[0]?.t ?? 0;
+  const endMs = trajectory[trajectory.length - 1]?.t ?? 0;
   const durationMs = Math.max(0, endMs - startMs);
-  const hasPath    = trajectory.length >= 2 && durationMs > 0;
+  const hasPath = trajectory.length >= 2 && durationMs > 0;
 
   // Player state
-  const [playing, setPlaying]     = useState(false);
-  const [currentMs, setCurrentMs] = useState(0);     // offset from startMs
-  const [speed, setSpeed]         = useState<typeof SPEEDS[number]>(5);
+  const [playing, setPlaying] = useState(false);
+  const [currentMs, setCurrentMs] = useState(0);
+  const [speed, setSpeed] = useState<typeof SPEEDS[number]>(5);
 
   // ── Initialize Leaflet map once ──────────────────────────────────────────
   useEffect(() => {
@@ -86,67 +135,107 @@ export function AttendanceMap({ checkIn, checkOut, waypoints }: Props) {
     void import('leaflet').then(L => {
       leafletRef.current = L;
 
-      // Inject Leaflet CSS once (next.js bundler strips third-party CSS)
       if (!document.getElementById('leaflet-css')) {
         const link = document.createElement('link');
-        link.id   = 'leaflet-css';
-        link.rel  = 'stylesheet';
+        link.id = 'leaflet-css';
+        link.rel = 'stylesheet';
         link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
         document.head.appendChild(link);
       }
 
-      const center: [number, number] =
-        checkIn   ? [checkIn.lat,  checkIn.lng]  :
-        waypoints[0] ? [waypoints[0].lat, waypoints[0].lng] :
-        checkOut  ? [checkOut.lat, checkOut.lng] :
-                    DEFAULT_CENTER;
+      // Centro inicial: primer punto disponible.
+      const firstPoint = normalizedShifts.flatMap((s) => [
+        s.checkIn ? [s.checkIn.lat, s.checkIn.lng] as [number, number] : null,
+        ...s.waypoints.map((w) => [w.lat, w.lng] as [number, number]),
+        s.checkOut ? [s.checkOut.lat, s.checkOut.lng] as [number, number] : null,
+      ]).find((p): p is [number, number] => p !== null);
 
       const map = L.map(containerRef.current!, { zoomControl: true, attributionControl: false })
-        .setView(center, 15);
+        .setView(firstPoint ?? DEFAULT_CENTER, 15);
       mapRef.current = map;
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-      // Check-in pin (emerald)
-      if (checkIn) {
-        L.marker([checkIn.lat, checkIn.lng], {
-          icon: L.divIcon({
-            html: `<div style="width:14px;height:14px;border-radius:50%;background:#10B981;border:2px solid white;box-shadow:0 2px 8px rgba(16,185,129,0.6)"></div>`,
-            className: '', iconSize: [14, 14], iconAnchor: [7, 7],
-          }),
-        }).addTo(map).bindPopup('<b>Entrada</b>');
-      }
-
-      // Check-out pin (rose)
-      if (checkOut) {
-        L.marker([checkOut.lat, checkOut.lng], {
-          icon: L.divIcon({
-            html: `<div style="width:14px;height:14px;border-radius:50%;background:#F43F5E;border:2px solid white;box-shadow:0 2px 8px rgba(244,63,94,0.6)"></div>`,
-            className: '', iconSize: [14, 14], iconAnchor: [7, 7],
-          }),
-        }).addTo(map).bindPopup('<b>Salida</b>');
-      }
-
-      // Waypoints + polyline
       const allPoints: [number, number][] = [];
-      if (checkIn)  allPoints.push([checkIn.lat,  checkIn.lng]);
-      for (const wp of waypoints) allPoints.push([wp.lat, wp.lng]);
-      if (checkOut) allPoints.push([checkOut.lat, checkOut.lng]);
 
-      if (waypoints.length > 0) {
-        L.polyline(allPoints, { color: '#6366F1', weight: 2.5, opacity: 0.65, dashArray: '5 5' }).addTo(map);
+      // Render por turno: pines numerados, polyline solida intra-shift.
+      normalizedShifts.forEach((shift, idx) => {
+        const shiftNum = idx + 1;
+        const points: [number, number][] = [];
 
-        for (const wp of waypoints) {
+        // Check-in pin (emerald) — con numero si hay multiple turnos.
+        if (shift.checkIn) {
+          const html = isMultiShift
+            ? `<div style="position:relative;width:18px;height:18px;border-radius:50%;background:#10B981;border:2px solid white;box-shadow:0 2px 8px rgba(16,185,129,0.6);display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;">${shiftNum}</div>`
+            : `<div style="width:14px;height:14px;border-radius:50%;background:#10B981;border:2px solid white;box-shadow:0 2px 8px rgba(16,185,129,0.6)"></div>`;
+          const size: [number, number] = isMultiShift ? [18, 18] : [14, 14];
+          const anchor: [number, number] = isMultiShift ? [9, 9] : [7, 7];
+          L.marker([shift.checkIn.lat, shift.checkIn.lng], {
+            icon: L.divIcon({ html, className: '', iconSize: size, iconAnchor: anchor }),
+          }).addTo(map).bindPopup(
+            isMultiShift
+              ? `<b>Entrada · Turno ${shiftNum}</b>${shift.checkIn.at ? `<br><span style="font-family:monospace">${fmtClock(new Date(shift.checkIn.at).getTime())}</span>` : ''}`
+              : '<b>Entrada</b>',
+          );
+          points.push([shift.checkIn.lat, shift.checkIn.lng]);
+          allPoints.push([shift.checkIn.lat, shift.checkIn.lng]);
+        }
+
+        // Waypoints
+        for (const wp of shift.waypoints) {
           L.marker([wp.lat, wp.lng], {
             icon: L.divIcon({
               html: `<div style="width:8px;height:8px;border-radius:50%;background:#6366F1;border:1.5px solid white;opacity:0.85"></div>`,
               className: '', iconSize: [8, 8], iconAnchor: [4, 4],
             }),
           }).addTo(map).bindPopup(fmtClock(new Date(wp.recorded_at).getTime()));
+          points.push([wp.lat, wp.lng]);
+          allPoints.push([wp.lat, wp.lng]);
+        }
+
+        // Check-out pin (rose) — con numero si hay multiple turnos.
+        if (shift.checkOut) {
+          const html = isMultiShift
+            ? `<div style="position:relative;width:18px;height:18px;border-radius:50%;background:#F43F5E;border:2px solid white;box-shadow:0 2px 8px rgba(244,63,94,0.6);display:flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;">${shiftNum}</div>`
+            : `<div style="width:14px;height:14px;border-radius:50%;background:#F43F5E;border:2px solid white;box-shadow:0 2px 8px rgba(244,63,94,0.6)"></div>`;
+          const size: [number, number] = isMultiShift ? [18, 18] : [14, 14];
+          const anchor: [number, number] = isMultiShift ? [9, 9] : [7, 7];
+          L.marker([shift.checkOut.lat, shift.checkOut.lng], {
+            icon: L.divIcon({ html, className: '', iconSize: size, iconAnchor: anchor }),
+          }).addTo(map).bindPopup(
+            isMultiShift
+              ? `<b>Salida · Turno ${shiftNum}</b>${shift.checkOut.at ? `<br><span style="font-family:monospace">${fmtClock(new Date(shift.checkOut.at).getTime())}</span>` : ''}`
+              : '<b>Salida</b>',
+          );
+          points.push([shift.checkOut.lat, shift.checkOut.lng]);
+          allPoints.push([shift.checkOut.lat, shift.checkOut.lng]);
+        }
+
+        // Polyline solida dentro del turno (color brand, opacidad alta).
+        if (points.length >= 2) {
+          L.polyline(points, { color: '#6366F1', weight: 3, opacity: 0.75 }).addTo(map);
+        }
+      });
+
+      // Polylines punteadas entre turnos (gap "off-shift").
+      // Solo se dibujan en modo multi-shift y cuando los dos turnos
+      // consecutivos tienen puntos finales/iniciales con coords.
+      if (isMultiShift) {
+        for (let i = 0; i < normalizedShifts.length - 1; i++) {
+          const a = normalizedShifts[i]!;
+          const b = normalizedShifts[i + 1]!;
+          const from = a.checkOut ?? (a.waypoints.length > 0 ? { lat: a.waypoints[a.waypoints.length - 1]!.lat, lng: a.waypoints[a.waypoints.length - 1]!.lng } : a.checkIn);
+          const to = b.checkIn ?? (b.waypoints.length > 0 ? { lat: b.waypoints[0]!.lat, lng: b.waypoints[0]!.lng } : b.checkOut);
+          if (from && to) {
+            L.polyline(
+              [[from.lat, from.lng], [to.lat, to.lng]],
+              { color: '#6B7280', weight: 2, opacity: 0.55, dashArray: '4 6' },
+            ).addTo(map).bindPopup('Tiempo off-shift');
+          }
         }
       }
 
-      // Animated marker (shown only when we have a real trajectory)
+      // Animated marker
       if (hasPath) {
         movingMarkerRef.current = L.marker([trajectory[0]!.lat, trajectory[0]!.lng], {
           icon: L.divIcon({
@@ -193,8 +282,6 @@ export function AttendanceMap({ checkIn, checkOut, waypoints }: Props) {
       const delta = now - lastTick;
       lastTick = now;
       setCurrentMs(prev => {
-        // 1s of wall time = `speed` real-time minutes. Tunable. Default speed=5
-        // means 1s = 5 real minutes (an 8h shift takes ~96s to replay).
         const advance = delta * speed * 60;
         const next = prev + advance;
         if (next >= durationMs) {
@@ -212,19 +299,41 @@ export function AttendanceMap({ checkIn, checkOut, waypoints }: Props) {
 
   function togglePlay() {
     if (!hasPath) return;
-    if (currentMs >= durationMs) setCurrentMs(0); // rewind on play after end
+    if (currentMs >= durationMs) setCurrentMs(0);
     setPlaying(p => !p);
   }
 
-  // Current displayed timestamp (for the clock label)
   const currentT = startMs + currentMs;
   const pct = durationMs > 0 ? Math.min(100, (currentMs / durationMs) * 100) : 0;
+
+  // ¿En que turno esta el marcador animado ahora mismo? Lo usamos para
+  // pintar un label "Turno N · Off-shift" segun corresponda.
+  const currentShiftLabel = useMemo<string>(() => {
+    if (!isMultiShift || !hasPath) return '';
+    const t = currentT;
+    for (let i = 0; i < normalizedShifts.length; i++) {
+      const s = normalizedShifts[i]!;
+      const sStart = s.checkIn?.at ? new Date(s.checkIn.at).getTime() : null;
+      const sEnd = s.checkOut?.at ? new Date(s.checkOut.at).getTime() : null;
+      if (sStart != null && sEnd != null && t >= sStart && t <= sEnd) {
+        return `Turno ${i + 1}`;
+      }
+      if (sStart != null && sEnd != null && i < normalizedShifts.length - 1) {
+        const nextStart = normalizedShifts[i + 1]!.checkIn?.at
+          ? new Date(normalizedShifts[i + 1]!.checkIn!.at!).getTime()
+          : null;
+        if (nextStart != null && t > sEnd && t < nextStart) {
+          return 'Off-shift';
+        }
+      }
+    }
+    return '';
+  }, [currentT, normalizedShifts, isMultiShift, hasPath]);
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div ref={containerRef} style={{ width: '100%', flex: 1, minHeight: 0, borderRadius: 8 }} />
 
-      {/* Player controls — only shown when we have an actual trajectory */}
       {hasPath && (
         <div
           style={{
@@ -297,7 +406,6 @@ export function AttendanceMap({ checkIn, checkOut, waypoints }: Props) {
             {fmtClock(endMs)}
           </span>
 
-          {/* Speed selector */}
           <div
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
@@ -329,10 +437,24 @@ export function AttendanceMap({ checkIn, checkOut, waypoints }: Props) {
         </div>
       )}
 
-      {/* Live time label (centered above progress when playing) */}
       {hasPath && playing && (
         <p style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', fontFamily: 'monospace' }}>
           ⏱ {fmtClock(currentT)}
+          {currentShiftLabel && (
+            <span
+              style={{
+                marginLeft: 8,
+                padding: '1px 6px',
+                borderRadius: 4,
+                background: currentShiftLabel === 'Off-shift' ? 'rgba(107,114,128,0.18)' : 'rgba(99,102,241,0.15)',
+                color: currentShiftLabel === 'Off-shift' ? '#9CA3AF' : '#A5B4FC',
+                fontSize: 10,
+                fontWeight: 600,
+              }}
+            >
+              {currentShiftLabel}
+            </span>
+          )}
         </p>
       )}
     </div>

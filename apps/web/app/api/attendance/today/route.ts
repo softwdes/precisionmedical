@@ -2,6 +2,12 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/admin';
 
+// Asistencia en vivo — nunca cachear. Sin esto, el edge runtime de
+// Next.js 15 puede servir respuestas viejas durante ventanas cortas,
+// haciendo que las marcadas recien hechas no aparezcan al refrescar.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface EmpRow { id: string; firstName: string; lastName: string; employeeCode: string; }
 interface RecordRow {
   id: string; employee_id: string; check_in: string | null; check_out: string | null;
@@ -149,5 +155,13 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
     return order(a) - order(b) || `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
   });
 
-  return NextResponse.json({ rows, allEmployees: (employees ?? []) as EmpRow[] });
+  return NextResponse.json(
+    { rows, allEmployees: (employees ?? []) as EmpRow[] },
+    {
+      headers: {
+        // Reforzamos no-cache tambien a nivel de respuesta para CDNs/proxies.
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      },
+    },
+  );
 }

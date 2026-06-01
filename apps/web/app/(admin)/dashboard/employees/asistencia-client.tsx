@@ -210,6 +210,10 @@ export function AsistenciaClient() {
   const [loadingToday, setLoadingToday] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  // null = sin error, string = mensaje de error a mostrar. Antes el
+  // fetch silencioso fallaba sin pista visual; ahora ponemos un banner
+  // discreto arriba de la tabla.
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   // Tracks which employees have their multi-shift row expanded
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
@@ -248,6 +252,21 @@ export function AsistenciaClient() {
   const [mapWaypoints, setMapWaypoints] = useState<Array<{ lat: number; lng: number; recorded_at: string }>>([]);
   const [loadingWaypoints, setLoadingWaypoints] = useState(false);
 
+  // ── Day map modal (multi-shift, todo el dia del empleado) ──────────────
+  interface DayMapShift {
+    id: string;
+    checkIn: { lat: number; lng: number; at: string } | null;
+    checkOut: { lat: number; lng: number; at: string } | null;
+    waypoints: Array<{ lat: number; lng: number; recorded_at: string }>;
+  }
+  interface DayMapTarget {
+    employeeName: string;
+    date: string;
+    shifts: DayMapShift[];
+  }
+  const [dayMapTarget, setDayMapTarget] = useState<DayMapTarget | null>(null);
+  const [loadingDayMap, setLoadingDayMap] = useState(false);
+
   // ── Live ticker (every 30s — refreshes elapsed time display) ─────────────
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 30000);
@@ -259,12 +278,32 @@ export function AsistenciaClient() {
     if (!silent) setLoadingToday(true);
     else setRefreshing(true);
     try {
-      const res = await fetch('/api/attendance/today');
-      if (!res.ok) return;
+      // cache:'no-store' + headers para evitar respuestas cacheadas por
+      // el navegador o proxies intermedios.
+      const res = await fetch('/api/attendance/today', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+      });
+      if (!res.ok) {
+        // 401 = sesion expirada; 5xx = bug servidor. Cualquiera de los
+        // dos merece feedback visible — antes esto se tragaba en silencio.
+        if (res.status === 401) {
+          setFetchError('Sesión expirada. Recarga la página para continuar.');
+        } else {
+          setFetchError(`No se pudieron cargar las marcadas (error ${res.status}). Reintentando...`);
+        }
+        return;
+      }
       const json = await res.json() as { rows: TodayRow[]; allEmployees: EmployeeOption[] };
       setTodayRows(json.rows);
       setAllEmployees(json.allEmployees);
       setLastUpdated(new Date());
+      // Si veniamos de un error y ahora si funciono, limpiar el banner.
+      setFetchError(null);
+    } catch (err) {
+      // Network error (sin internet, DNS, etc.).
+      setFetchError('Sin conexión. Reintentando automáticamente...');
+      void err;
     } finally {
       setLoadingToday(false);
       setRefreshing(false);
@@ -297,6 +336,29 @@ export function AsistenciaClient() {
     void fetchToday();
     const id = setInterval(() => void fetchToday(true), 30000);
     return () => clearInterval(id);
+  }, [fetchToday]);
+
+  // ── Refresh on tab focus ─────────────────────────────────────────────────
+  // Chrome throttles setInterval a ~1/min cuando la pestaña esta en
+  // background, asi que cuando el admin vuelve a la pestaña podria
+  // estar viendo datos de hace varios minutos. Al detectar el foco,
+  // forzamos un fetch inmediato — esto cubre el caso "tenia el tab
+  // abierto, fui a hacer otra cosa, vuelvo y quiero ver lo ultimo".
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        void fetchToday(true);
+      }
+    }
+    function handleFocus() {
+      void fetchToday(true);
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [fetchToday]);
 
   // ── Fetch history ──────────────────────────────────────────────────────────
@@ -415,6 +477,43 @@ export function AsistenciaClient() {
       if (res.ok) setMapWaypoints(await res.json() as typeof mapWaypoints);
     } finally {
       setLoadingWaypoints(false);
+    }
+  }
+
+  // ── Open day map (todos los turnos del empleado en un solo mapa) ──────────
+  async function openDayMap(employeeId: string, employeeName: string, date: string) {
+    setDayMapTarget({ employeeName, date, shifts: [] });
+    setLoadingDayMap(true);
+    try {
+      const res = await fetch(`/api/attendance/day/${employeeId}?date=${date}`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) {
+        setDayMapTarget(null);
+        return;
+      }
+      const json = await res.json() as {
+        employeeName: string;
+        date: string;
+        shifts: Array<{
+          id: string;
+          check_in: { lat: number; lng: number; at: string } | null;
+          check_out: { lat: number; lng: number; at: string } | null;
+          waypoints: Array<{ lat: number; lng: number; recorded_at: string }>;
+        }>;
+      };
+      setDayMapTarget({
+        employeeName: json.employeeName,
+        date: json.date,
+        shifts: json.shifts.map(s => ({
+          id: s.id,
+          checkIn: s.check_in,
+          checkOut: s.check_out,
+          waypoints: s.waypoints,
+        })),
+      });
+    } finally {
+      setLoadingDayMap(false);
     }
   }
 
@@ -571,6 +670,36 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
       {/* ═══════════ HOY VIEW ═══════════ */}
       {view === 'hoy' && (
         <>
+          {/* Banner de error visible — antes el fetch fallaba en silencio.
+              Aparece solo cuando hay un error; al volver a un fetch
+              exitoso, fetchError se limpia automaticamente y el banner
+              desaparece. */}
+          {fetchError && (
+            <div
+              role="alert"
+              className="flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[12px]"
+              style={{
+                background: 'rgba(244,63,94,0.08)',
+                borderColor: 'rgba(244,63,94,0.28)',
+                color: '#FCA5A5',
+              }}
+            >
+              <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+              <span style={{ flex: 1 }}>{fetchError}</span>
+              <button
+                onClick={() => void fetchToday(false)}
+                className="px-2 py-0.5 rounded text-[11px] font-medium"
+                style={{
+                  background: 'rgba(244,63,94,0.15)',
+                  border: '1px solid rgba(244,63,94,0.30)',
+                  color: '#FCA5A5',
+                }}
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
+
           {/* KPI cards */}
           {loadingToday ? <KpiSkeleton /> : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -750,6 +879,24 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                     </span>
                                   )
                                 )}
+                                {/* Boton "Dia completo" — solo cuando hay >1 turno hoy.
+                                    Abre el modal con TODOS los turnos del dia
+                                    encadenados en el mismo mapa. */}
+                                {hasMultiple && (
+                                  <button
+                                    onClick={() => void openDayMap(r.employee_id, `${r.firstName} ${r.lastName}`, todayStr())}
+                                    className="ml-1 px-1.5 py-1 rounded text-[10px] font-medium transition-colors flex items-center gap-1"
+                                    title="Ver todos los turnos del dia en el mapa"
+                                    style={{
+                                      background: 'rgba(99,102,241,0.10)',
+                                      border: '1px solid rgba(99,102,241,0.28)',
+                                      color: '#A5B4FC',
+                                    }}
+                                  >
+                                    <MapPin size={11} />
+                                    Día
+                                  </button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -875,6 +1022,22 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                         <span className="text-text-muted">Entrada <span className="font-mono text-text-2">{fmtTime(r.check_in)}</span></span>
                         <span className="text-text-muted">Salida <span className="font-mono text-text-2">{fmtTime(r.check_out)}</span></span>
                       </div>
+
+                      {/* Boton "Dia completo" — solo en multi-turno, mobile */}
+                      {hasMultiple && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); void openDayMap(r.employee_id, `${r.firstName} ${r.lastName}`, todayStr()); }}
+                          className="mt-2.5 w-full rounded-lg px-2.5 py-1.5 text-[11px] font-medium flex items-center justify-center gap-1.5"
+                          style={{
+                            background: 'rgba(99,102,241,0.10)',
+                            border: '1px solid rgba(99,102,241,0.28)',
+                            color: '#A5B4FC',
+                          }}
+                        >
+                          <MapPin size={12} />
+                          Ver día completo en mapa
+                        </button>
+                      )}
 
                       {/* Mobile: expanded shifts */}
                       {hasMultiple && isExpanded && (
@@ -1150,6 +1313,86 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
 
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setMapTarget(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════ DAY MAP MODAL (multi-shift) ═══════════ */}
+      <Dialog open={!!dayMapTarget} onOpenChange={open => { if (!open) setDayMapTarget(null); }}>
+        <DialogContent className="max-w-2xl w-full">
+          <DialogHeader>
+            <DialogTitle className="text-[15px] flex items-center gap-2">
+              <MapPin size={15} className="text-indigo-400" />
+              Día completo en el mapa
+            </DialogTitle>
+            {dayMapTarget && (
+              <p className="text-[12px] text-text-muted mt-1">
+                {dayMapTarget.employeeName} · {fmtDate(dayMapTarget.date)}
+                {dayMapTarget.shifts.length > 0 && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: 'rgba(99,102,241,0.15)', color: '#A5B4FC', border: '0.5px solid rgba(99,102,241,0.28)' }}>
+                    {dayMapTarget.shifts.length} turnos
+                  </span>
+                )}
+              </p>
+            )}
+          </DialogHeader>
+
+          {dayMapTarget && (
+            <div className="space-y-3">
+              <div style={{ height: 480, borderRadius: 10, overflow: 'hidden' }}>
+                {loadingDayMap ? (
+                  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)', fontSize: 13, border: '1px solid var(--color-border)', borderRadius: 10 }}>
+                    Cargando turnos del día...
+                  </div>
+                ) : dayMapTarget.shifts.length === 0 ? (
+                  <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, border: '1px solid var(--color-border)', borderRadius: 10 }}>
+                    <MapPin size={24} style={{ color: 'var(--color-text-muted)', opacity: 0.4 }} />
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Sin datos de ubicación para los turnos de hoy</p>
+                  </div>
+                ) : dayMapTarget.shifts.every(s => !s.checkIn && !s.checkOut && s.waypoints.length === 0) ? (
+                  <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, border: '1px solid var(--color-border)', borderRadius: 10 }}>
+                    <MapPin size={24} style={{ color: 'var(--color-text-muted)', opacity: 0.4 }} />
+                    <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Ningún turno tiene coordenadas registradas</p>
+                  </div>
+                ) : (
+                  <AttendanceMap
+                    key={`day-${dayMapTarget.shifts.map(s => s.id).join('-')}`}
+                    shifts={dayMapTarget.shifts}
+                  />
+                )}
+              </div>
+
+              {/* Leyenda multi-turno */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-text-muted px-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500 shrink-0 flex items-center justify-center text-[8px] font-bold text-white">1</div>
+                  <span>Entrada (numerada por turno)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-rose-500 shrink-0 flex items-center justify-center text-[8px] font-bold text-white">1</div>
+                  <span>Salida</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-indigo-500 shrink-0" />
+                  <span>Punto de ruta</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-[2px] bg-indigo-500" />
+                  <span>Trabajando</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-[2px] bg-gray-500" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #6B7280 0 3px, transparent 3px 6px)', background: 'transparent' }} />
+                  <span style={{ background: 'transparent', position: 'relative' }}>
+                    <span style={{ display: 'inline-block', width: 16, height: 2, marginRight: 6, verticalAlign: 'middle', borderTop: '2px dashed #6B7280' }} />
+                    Off-shift
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setDayMapTarget(null)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

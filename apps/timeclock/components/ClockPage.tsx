@@ -164,16 +164,72 @@ function isMobileUserAgent(): boolean {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
+/** Buckets used to pick which "how to enable location" instructions to show. */
+type GeoBrowser =
+  | 'chrome-android'
+  | 'samsung-internet'
+  | 'ios-safari'      // Safari with URL bar visible — has "aA" button to manage permissions
+  | 'ios-pwa'         // Added to home screen, runs standalone — NO URL bar, must use iOS Settings
+  | 'ios-webview'
+  | 'desktop-chrome'
+  | 'generic';
+
+function detectGeoBrowser(): GeoBrowser {
+  if (typeof navigator === 'undefined') return 'generic';
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  if (isIOS) {
+    const webViewMarkers = /FBAN|FBAV|Instagram|Twitter|Line|MicroMessenger|WhatsApp|LinkedIn|GSA\//;
+    if (webViewMarkers.test(ua)) return 'ios-webview';
+    if (!/Safari\//.test(ua) || /CriOS|FxiOS|EdgiOS/.test(ua)) return 'ios-webview';
+    // PWA "Add to Home Screen" -> launches in standalone mode (no URL bar).
+    // navigator.standalone is the iOS-specific flag; display-mode covers the spec way.
+    // When standalone, the user can't touch "aA" in a URL bar (there is none) — they
+    // must go to iOS Settings → Privacy → Location Services → <app> to change permissions.
+    const isStandalone =
+      (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+      (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches);
+    return isStandalone ? 'ios-pwa' : 'ios-safari';
+  }
+  if (/Android/i.test(ua)) {
+    if (/SamsungBrowser/i.test(ua)) return 'samsung-internet';
+    return 'chrome-android'; // covers Chrome/Edge/Brave on Android — same UI for location settings
+  }
+  if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) return 'desktop-chrome';
+  return 'generic';
+}
+
+/** Last reason geo failed — used to render a more specific message in the
+ *  "denied" banner ("phone GPS is off" vs "browser is denying us"). */
+type GeoFailKind = 'denied' | 'unavailable' | 'timeout' | 'unknown' | null;
+let lastGeoFail: GeoFailKind = null;
+
 function singleGetLocation(forceFresh: boolean): Promise<GeoPoint | null> {
   return new Promise(resolve => {
-    if (!navigator.geolocation) { resolve(null); return; }
+    if (!navigator.geolocation) { lastGeoFail = 'unavailable'; resolve(null); return; }
     navigator.geolocation.getCurrentPosition(
-      p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-      () => resolve(null),
+      p => {
+        lastGeoFail = null;
+        resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy });
+      },
+      err => {
+        // GeolocationPositionError codes:
+        //   1 = PERMISSION_DENIED — browser/site permission off
+        //   2 = POSITION_UNAVAILABLE — system GPS off / no fix
+        //   3 = TIMEOUT
+        lastGeoFail =
+          err.code === 1 ? 'denied' :
+          err.code === 2 ? 'unavailable' :
+          err.code === 3 ? 'timeout' :
+                           'unknown';
+        resolve(null);
+      },
       { timeout: 8000, maximumAge: forceFresh ? 0 : 30000, enableHighAccuracy: true },
     );
   });
 }
+
+export function getLastGeoFail(): GeoFailKind { return lastGeoFail; }
 
 /** Reads GPS with smart retry on mobile.
  *
@@ -267,6 +323,9 @@ export default function ClockPage({ userId }: { userId: string }) {
   const [date, setDate] = useState('');
   // tick forces re-render every second for live elapsed counters
   const [, setTick] = useState(0);
+
+  // Geo troubleshoot banner — expand state
+  const [geoStepsOpen, setGeoStepsOpen] = useState(false);
 
   // Stats
   const [stats, setStats] = useState<Stats>({ today: '0:00', week: '0:00', month: '0:00', todayH: 0, weekH: 0, monthH: 0 });
@@ -1150,34 +1209,118 @@ export default function ClockPage({ userId }: { userId: string }) {
         </div>
       )}
 
-      {/* ── Location denied banner ── */}
-      {locationPerm === 'denied' && (
-        <div style={{
-          ...sectionStyle,
-          background: 'rgba(244,63,94,0.08)',
-          border: '1px solid rgba(244,63,94,0.28)',
-          borderRadius: 12,
-          padding: '12px 16px',
-          display: 'flex',
-          gap: 12,
-          alignItems: 'flex-start',
-        }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(244,63,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
-              <line x1="4" y1="4" x2="20" y2="20" stroke="#F43F5E" strokeWidth="2"/>
-            </svg>
+      {/* ── Location denied banner (expandible con instrucciones por browser) ── */}
+      {locationPerm === 'denied' && (() => {
+        const browser = detectGeoBrowser();
+        const steps =
+          browser === 'chrome-android'    ? t.geoStepsChromeAndroid   :
+          browser === 'samsung-internet'  ? t.geoStepsSamsungInternet :
+          browser === 'ios-pwa'           ? t.geoStepsIosPwa          :  // installed: must use iOS Settings
+          browser === 'ios-safari'        ? t.geoStepsIosSafari       :
+          browser === 'ios-webview'       ? t.geoStepsIosWebView      :
+          browser === 'desktop-chrome'    ? t.geoStepsDesktopChrome   :
+                                            t.geoStepsGeneric;
+        // If the last geo attempt failed with POSITION_UNAVAILABLE,
+        // it's almost always the OS-level location service being off,
+        // not the browser permission. Distinct hint helps the user
+        // look in the right place (Settings → Location, not browser).
+        const systemOff = getLastGeoFail() === 'unavailable';
+
+        return (
+          <div style={{
+            ...sectionStyle,
+            background: 'rgba(244,63,94,0.08)',
+            border: '1px solid rgba(244,63,94,0.28)',
+            borderRadius: 12,
+            padding: '12px 14px',
+          }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(244,63,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+                  <line x1="4" y1="4" x2="20" y2="20" stroke="#F43F5E" strokeWidth="2"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: '#F87171', margin: 0, letterSpacing: '0.01em' }}>
+                  {t.geoBlockedTitle}
+                </p>
+                <p style={{ fontSize: 11, color: '#F87171', marginTop: 4, lineHeight: 1.5, opacity: 0.85 }}>
+                  {systemOff ? t.geoBlockedSystemOff : t.geoBlockedBody}
+                </p>
+                <button
+                  onClick={() => setGeoStepsOpen(o => !o)}
+                  style={{
+                    marginTop: 8,
+                    background: 'rgba(244,63,94,0.10)',
+                    border: '1px solid rgba(244,63,94,0.30)',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    color: '#FCA5A5',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  {geoStepsOpen ? '▾' : '▸'} {t.geoBlockedHowTo}
+                </button>
+              </div>
+            </div>
+
+            {geoStepsOpen && (
+              <div style={{
+                marginTop: 10,
+                paddingTop: 10,
+                borderTop: '1px solid rgba(244,63,94,0.18)',
+              }}>
+                <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {steps.map((step, idx) => (
+                    <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 11, color: 'var(--text-2)', lineHeight: 1.45 }}>
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 17, height: 17, borderRadius: '50%', flexShrink: 0,
+                          background: 'rgba(244,63,94,0.18)',
+                          color: '#FCA5A5',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 9, fontWeight: 700,
+                          marginTop: 1,
+                        }}
+                      >
+                        {idx + 1}
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                <button
+                  onClick={() => window.location.reload()}
+                  style={{
+                    marginTop: 10,
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
+                    border: 'none',
+                    color: 'white',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    boxShadow: '0 4px 12px rgba(99,102,241,0.40)',
+                  }}
+                >
+                  {t.geoBlockedRetry}
+                </button>
+              </div>
+            )}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#F87171', margin: 0, letterSpacing: '0.01em' }}>
-              {t.geoBlockedTitle}
-            </p>
-            <p style={{ fontSize: 11, color: '#F87171', marginTop: 4, lineHeight: 1.5, opacity: 0.85 }}>
-              {t.geoBlockedBody}
-            </p>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── D: Clinic selector ── */}
       {clockState !== 'done' && (

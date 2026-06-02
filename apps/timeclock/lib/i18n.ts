@@ -46,6 +46,17 @@ interface Dict {
   // ─── Geo banner (denied) ────────────────────────────────────────────
   geoBlockedTitle: string;
   geoBlockedBody: string;
+  geoBlockedHowTo: string;             // collapsed-state CTA "Cómo activarla"
+  geoBlockedRetry: string;              // after expand: "Ya la activé, intentar de nuevo"
+  geoBlockedSystemOff: string;          // when error code = POSITION_UNAVAILABLE
+  // Step-by-step instructions per browser. Each is an array of short lines.
+  geoStepsChromeAndroid:  string[];
+  geoStepsSamsungInternet: string[];
+  geoStepsIosSafari:      string[];
+  geoStepsIosPwa:         string[];   // installed to home screen — must use iOS Settings
+  geoStepsIosWebView:     string[];
+  geoStepsDesktopChrome:  string[];
+  geoStepsGeneric:        string[];
 
   // ─── Location warning chip ──────────────────────────────────────────
   locOutOfRange: string;
@@ -141,6 +152,49 @@ const dict: Record<Locale, Dict> = {
 
     geoBlockedTitle: 'Ubicación bloqueada',
     geoBlockedBody: 'Tus registros se guardarán sin verificación.',
+    geoBlockedHowTo: 'Cómo activarla',
+    geoBlockedRetry: 'Ya la activé, intentar de nuevo',
+    geoBlockedSystemOff: 'La ubicación del teléfono está apagada. Activala en Ajustes → Ubicación.',
+    geoStepsChromeAndroid: [
+      'Toca el candado 🔒 a la izquierda de la URL',
+      'Toca «Permisos» → «Ubicación»',
+      'Elige «Permitir»',
+      'Recarga la página',
+    ],
+    geoStepsSamsungInternet: [
+      'Toca el menú ≡ abajo a la derecha',
+      'Configuración → Sitios y descargas → Permisos del sitio',
+      'Ubicación → Permitir para este sitio',
+      'Recarga la página',
+    ],
+    geoStepsIosSafari: [
+      'Toca «aA» a la izquierda de la URL',
+      '«Ajustes del sitio web» → «Ubicación»',
+      'Elige «Permitir»',
+      'Recarga la página',
+    ],
+    geoStepsIosPwa: [
+      'Sal de la app (botón Home)',
+      'Abre «Ajustes» del iPhone',
+      'Privacidad y seguridad → Servicios de ubicación',
+      'Asegúrate que «Servicios de ubicación» esté activado',
+      'Busca «PM Clock» en la lista y elige «Al usar la app»',
+      'Vuelve a abrir PM Clock',
+    ],
+    geoStepsIosWebView: [
+      'Abre este link en Safari (no en Instagram/WhatsApp/etc.)',
+      'En Safari, dale permiso de ubicación cuando lo pida',
+    ],
+    geoStepsDesktopChrome: [
+      'Toca el candado 🔒 a la izquierda de la URL',
+      '«Permisos del sitio» → «Ubicación» → «Permitir»',
+      'Recarga la página',
+    ],
+    geoStepsGeneric: [
+      'Busca el ícono de candado o información en tu navegador',
+      'Cambia el permiso de ubicación a «Permitir»',
+      'Recarga la página',
+    ],
 
     locOutOfRange: 'Fuera del rango de la clínica',
     locLowAccuracy: 'GPS impreciso',
@@ -224,6 +278,49 @@ const dict: Record<Locale, Dict> = {
 
     geoBlockedTitle: 'Location blocked',
     geoBlockedBody: 'Records will be saved without verification.',
+    geoBlockedHowTo: 'How to enable it',
+    geoBlockedRetry: 'I enabled it, try again',
+    geoBlockedSystemOff: 'Your phone’s location service is off. Turn it on in Settings → Location.',
+    geoStepsChromeAndroid: [
+      'Tap the lock 🔒 on the left of the URL',
+      'Tap "Permissions" → "Location"',
+      'Choose "Allow"',
+      'Reload the page',
+    ],
+    geoStepsSamsungInternet: [
+      'Tap the menu ≡ at the bottom right',
+      'Settings → Sites and downloads → Site permissions',
+      'Location → Allow for this site',
+      'Reload the page',
+    ],
+    geoStepsIosSafari: [
+      'Tap "aA" on the left of the URL',
+      '"Website Settings" → "Location"',
+      'Choose "Allow"',
+      'Reload the page',
+    ],
+    geoStepsIosPwa: [
+      'Leave the app (Home button)',
+      'Open iPhone "Settings"',
+      'Privacy & Security → Location Services',
+      'Make sure "Location Services" is on',
+      'Find "PM Clock" in the list and choose "While Using the App"',
+      'Reopen PM Clock',
+    ],
+    geoStepsIosWebView: [
+      'Open this link in Safari (not Instagram/WhatsApp/etc.)',
+      'In Safari, allow location when prompted',
+    ],
+    geoStepsDesktopChrome: [
+      'Click the lock 🔒 on the left of the URL',
+      '"Site settings" → "Location" → "Allow"',
+      'Reload the page',
+    ],
+    geoStepsGeneric: [
+      'Look for the lock or info icon in your browser',
+      'Change the location permission to "Allow"',
+      'Reload the page',
+    ],
 
     locOutOfRange: 'Outside clinic range',
     locLowAccuracy: 'Low GPS accuracy',

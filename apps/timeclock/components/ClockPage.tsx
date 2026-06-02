@@ -1419,7 +1419,12 @@ export default function ClockPage({ userId }: { userId: string }) {
           locationPerm === 'granted' ? t.geoStatusActive :
           locationPerm === 'denied'  ? t.geoStatusBlocked :
                                        t.geoStatusUnverified;
-        const onClick = async (): Promise<void> => {
+        // IMPORTANTE — iOS Safari pierde el contexto de user-gesture si hay
+        // CUALQUIER await/Promise antes de getCurrentPosition. Por eso este
+        // handler NO es async y llama a la API nativa de forma sincronica para
+        // el caso prompt/unknown. En Android Chrome funciona ambos modos, pero
+        // iOS solo muestra el prompt si la llamada nace directamente del click.
+        const onClick = (): void => {
           if (locationPerm === 'denied') {
             // Expand troubleshoot + scroll to it
             setGeoStepsOpen(true);
@@ -1430,12 +1435,30 @@ export default function ClockPage({ userId }: { userId: string }) {
             }, 60);
             return;
           }
-          // granted or prompt/unknown: trigger a getCurrentPosition. If the
-          // browser hasn't asked yet, this surfaces the native prompt. If it
-          // already granted, the browser updates locationPerm and we get a
-          // green chip → user sees confirmation immediately.
-          await getLocation();
-          await refreshLocationPerm();
+          if (!navigator.geolocation) {
+            void refreshLocationPerm();
+            return;
+          }
+          // Llamada SINCRONA — sin await previo. Esto es lo unico que dispara
+          // el prompt nativo en iOS Safari y en iOS PWA standalone.
+          navigator.geolocation.getCurrentPosition(
+            () => {
+              // Permiso concedido (o ya lo estaba). Refrescamos el estado y
+              // disparamos un getLocation con retry para guardar la lectura
+              // buena en el state del componente.
+              void (async () => {
+                await refreshLocationPerm();
+                await getLocation();
+              })();
+            },
+            () => {
+              // Usuario denego, o GPS apagado, o timeout. Re-leemos el permiso
+              // por si paso a 'denied' — eso re-renderizara la pill en rojo y
+              // mostrara las instrucciones para reactivar.
+              void refreshLocationPerm();
+            },
+            { timeout: 8000, maximumAge: 0, enableHighAccuracy: true },
+          );
         };
         const ctaLabel =
           locationPerm === 'granted' ? t.geoStatusRefresh :
@@ -1466,7 +1489,7 @@ export default function ClockPage({ userId }: { userId: string }) {
               {statusLabel}
             </span>
             <button
-              onClick={() => void onClick()}
+              onClick={onClick}
               style={{
                 marginLeft: 'auto',
                 background: 'transparent',

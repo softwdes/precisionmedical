@@ -1227,7 +1227,7 @@ export default function ClockPage({ userId }: { userId: string }) {
         const systemOff = getLastGeoFail() === 'unavailable';
 
         return (
-          <div style={{
+          <div data-geo-blocked-banner style={{
             ...sectionStyle,
             background: 'rgba(244,63,94,0.08)',
             border: '1px solid rgba(244,63,94,0.28)',
@@ -1360,6 +1360,98 @@ export default function ClockPage({ userId }: { userId: string }) {
           </select>
         </div>
       )}
+
+      {/*
+        ── D2: GPS status pill (siempre visible, accionable) ──
+        Sirve dos propositos:
+          1. confirmar al empleado que la ubicacion esta OK (chip verde)
+          2. dar un punto de accion siempre disponible si algo se rompio
+             (denied: expande el banner; prompt/unknown: pide permiso)
+      */}
+      {clockState !== 'done' && (() => {
+        const statusColor =
+          locationPerm === 'granted' ? '#10B981' :
+          locationPerm === 'denied'  ? '#F43F5E' :
+                                       '#F59E0B';
+        const statusLabel =
+          locationPerm === 'granted' ? t.geoStatusActive :
+          locationPerm === 'denied'  ? t.geoStatusBlocked :
+                                       t.geoStatusUnverified;
+        const onClick = async (): Promise<void> => {
+          if (locationPerm === 'denied') {
+            // Expand troubleshoot + scroll to it
+            setGeoStepsOpen(true);
+            // microtask to allow the banner to render before scrolling
+            setTimeout(() => {
+              const banners = document.querySelectorAll('[data-geo-blocked-banner]');
+              banners[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 60);
+            return;
+          }
+          // granted or prompt/unknown: trigger a getCurrentPosition. If the
+          // browser hasn't asked yet, this surfaces the native prompt. If it
+          // already granted, the browser updates locationPerm and we get a
+          // green chip → user sees confirmation immediately.
+          await getLocation();
+          // Re-query permission state so locationPerm refreshes
+          if (typeof navigator !== 'undefined' && navigator.permissions) {
+            try {
+              const r = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+              setLocationPerm(r.state as 'prompt' | 'granted' | 'denied');
+            } catch { /* ignore */ }
+          }
+        };
+        const ctaLabel =
+          locationPerm === 'granted' ? t.geoStatusRefresh :
+          locationPerm === 'denied'  ? t.geoStatusRetryHowTo :
+                                       t.geoStatusRetryAllow;
+        return (
+          <div
+            style={{
+              ...sectionStyle,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 12px',
+              borderRadius: 10,
+              background: `${statusColor}10`,
+              border: `1px solid ${statusColor}33`,
+              fontSize: 12,
+            }}
+          >
+            <span
+              style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: statusColor, flexShrink: 0,
+                boxShadow: `0 0 8px ${statusColor}80`,
+              }}
+            />
+            <span style={{ color: statusColor, fontWeight: 600, fontSize: 11 }}>
+              {statusLabel}
+            </span>
+            <button
+              onClick={() => void onClick()}
+              style={{
+                marginLeft: 'auto',
+                background: 'transparent',
+                border: 'none',
+                color: statusColor,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '2px 8px',
+                borderRadius: 6,
+                fontFamily: 'inherit',
+                opacity: 0.85,
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.opacity = '1'; }}
+              onMouseOut={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+            >
+              {ctaLabel} →
+            </button>
+          </div>
+        );
+      })()}
 
       {/* ── E: Action buttons ── */}
       <div style={sectionStyle}>

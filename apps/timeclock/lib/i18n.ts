@@ -50,6 +50,12 @@ interface Dict {
   geoBlockedRetry: string;              // after expand: "Ya la activé, intentar de nuevo"
   geoBlockedSystemOff: string;          // when error code = POSITION_UNAVAILABLE
   // Step-by-step instructions per browser. Each is an array of short lines.
+  geoStatusActive:        string;       // "Ubicación activa"
+  geoStatusBlocked:       string;       // "Ubicación bloqueada"
+  geoStatusUnverified:    string;       // "Sin verificar"
+  geoStatusRetryAllow:    string;       // "Permitir ubicación"
+  geoStatusRetryHowTo:    string;       // "Ver cómo activarla"
+  geoStatusRefresh:       string;       // "Refrescar"
   geoStepsChromeAndroid:  string[];
   geoStepsSamsungInternet: string[];
   geoStepsIosSafari:      string[];
@@ -155,6 +161,12 @@ const dict: Record<Locale, Dict> = {
     geoBlockedHowTo: 'Cómo activarla',
     geoBlockedRetry: 'Ya la activé, intentar de nuevo',
     geoBlockedSystemOff: 'La ubicación del teléfono está apagada. Activala en Ajustes → Ubicación.',
+    geoStatusActive:     'Ubicación activa',
+    geoStatusBlocked:    'Ubicación bloqueada',
+    geoStatusUnverified: 'Ubicación sin verificar',
+    geoStatusRetryAllow: 'Permitir ubicación',
+    geoStatusRetryHowTo: 'Ver cómo activarla',
+    geoStatusRefresh:    'Refrescar',
     geoStepsChromeAndroid: [
       'Toca el candado 🔒 a la izquierda de la URL',
       'Toca «Permisos» → «Ubicación»',
@@ -281,6 +293,12 @@ const dict: Record<Locale, Dict> = {
     geoBlockedHowTo: 'How to enable it',
     geoBlockedRetry: 'I enabled it, try again',
     geoBlockedSystemOff: 'Your phone’s location service is off. Turn it on in Settings → Location.',
+    geoStatusActive:     'Location active',
+    geoStatusBlocked:    'Location blocked',
+    geoStatusUnverified: 'Location not verified',
+    geoStatusRetryAllow: 'Allow location',
+    geoStatusRetryHowTo: 'See how to enable it',
+    geoStatusRefresh:    'Refresh',
     geoStepsChromeAndroid: [
       'Tap the lock 🔒 on the left of the URL',
       'Tap "Permissions" → "Location"',

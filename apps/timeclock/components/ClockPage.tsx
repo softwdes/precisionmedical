@@ -1441,6 +1441,17 @@ export default function ClockPage({ userId }: { userId: string }) {
           }
           // Llamada SINCRONA — sin await previo. Esto es lo unico que dispara
           // el prompt nativo en iOS Safari y en iOS PWA standalone.
+          //
+          // CASOS QUE PUEDE FALLAR SILENCIOSAMENTE:
+          //   - iOS con Servicios de Ubicacion desactivados a nivel sistema:
+          //     getCurrentPosition se llama, callback de error dispara
+          //     INMEDIATAMENTE con code=1 (PERMISSION_DENIED) y NO se muestra
+          //     ningun popup. Para el usuario parece "el boton no hace nada".
+          //   - Sitio web previamente denegado en Settings > Safari > Sitios web
+          //     > Ubicacion: mismo resultado, no hay forma de re-prompt.
+          // Por eso en el callback de error forzamos el estado 'denied' y
+          // expandimos las instrucciones — al menos el usuario VE que algo paso
+          // (la pill se pone roja) y le aparecen los pasos para reactivar.
           navigator.geolocation.getCurrentPosition(
             () => {
               // Permiso concedido (o ya lo estaba). Refrescamos el estado y
@@ -1451,11 +1462,24 @@ export default function ClockPage({ userId }: { userId: string }) {
                 await getLocation();
               })();
             },
-            () => {
-              // Usuario denego, o GPS apagado, o timeout. Re-leemos el permiso
-              // por si paso a 'denied' — eso re-renderizara la pill en rojo y
-              // mostrara las instrucciones para reactivar.
-              void refreshLocationPerm();
+            (err) => {
+              // code 1 = PERMISSION_DENIED — sistema o sitio bloquearon. iOS
+              // NO mostro popup, hay que mandarlo a Settings manualmente.
+              // code 2 = POSITION_UNAVAILABLE — GPS hardware off, no fix.
+              // code 3 = TIMEOUT — pidio pero tardo >8s. Inusual.
+              if (err.code === 1) {
+                // Forzamos 'denied' aunque navigator.permissions no se entere
+                // (iOS Safari historicamente no soporta la API correctamente).
+                setLocationPerm('denied');
+                setGeoStepsOpen(true);
+                setTimeout(() => {
+                  const banners = document.querySelectorAll('[data-geo-blocked-banner]');
+                  banners[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 80);
+              } else {
+                // Otros errores — re-leemos permiso por si cambio
+                void refreshLocationPerm();
+              }
             },
             { timeout: 8000, maximumAge: 0, enableHighAccuracy: true },
           );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { LogOut, Play, Square, Coffee, UserX, RefreshCw, Clock } from 'lucide-react';
@@ -334,13 +334,51 @@ export default function ClockPage({ userId }: { userId: string }) {
 
   const [locationPerm, setLocationPerm] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown');
 
+  // One-shot re-query of the geolocation permission. Called from:
+  //   - initial mount (so the pill renders the right state on first paint)
+  //   - the in-page "Refrescar / Permitir" button
+  //   - visibilitychange when the tab becomes visible again (covers the
+  //     "user went to iOS Settings, fixed the permission, came back" case
+  //     where iOS PWA standalone does NOT fire the permissions 'change' event)
+  //   - after each successful clock action (clock in / break / clock out)
+  //     in case the OS-level permission shifted silently
+  const refreshLocationPerm = useCallback(async (): Promise<void> => {
+    if (typeof navigator === 'undefined' || !navigator.permissions) return;
+    try {
+      const result = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+      setLocationPerm(result.state as 'prompt' | 'granted' | 'denied');
+    } catch {
+      setLocationPerm('unknown');
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.permissions) return;
+
+    let changeListener: (() => void) | null = null;
+
     navigator.permissions.query({ name: 'geolocation' as PermissionName }).then(result => {
       setLocationPerm(result.state as 'prompt' | 'granted' | 'denied');
-      result.addEventListener('change', () => setLocationPerm(result.state as 'prompt' | 'granted' | 'denied'));
+      // Native change events: reliable on Android Chrome, unreliable on iOS Safari/PWA.
+      // We keep the listener anyway as a best-effort.
+      changeListener = () => setLocationPerm(result.state as 'prompt' | 'granted' | 'denied');
+      result.addEventListener('change', changeListener);
     }).catch(() => setLocationPerm('unknown'));
-  }, []);
+
+    // Fallback for iOS PWA standalone: re-query whenever the tab becomes
+    // visible again. This is what catches the "I went to Settings and fixed
+    // the permission, now I'm back" case where Apple doesn't fire 'change'.
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'visible') {
+        void refreshLocationPerm();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [refreshLocationPerm]);
 
   // Warning chip shown next to the status card when location_status is
   // anything other than verified/remote. Records are NOT blocked — admin
@@ -682,6 +720,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       setRecord(data as AttendanceRecord);
       setClockState('working');
       startWaypointTracking(data.id as string);
+      void refreshLocationPerm(); // catch silent permission flips post-action
 
       if (status === 'late') {
         setLateNotice(t.lateBy(lateMinutes));
@@ -728,6 +767,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       if (error) throw error;
       setRecord(data as AttendanceRecord);
       setClockState('break');
+      void refreshLocationPerm();
     } catch {
       setActionError(t.saveError);
       setRetryAction('break');
@@ -756,6 +796,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       if (error) throw error;
       setRecord(data as AttendanceRecord);
       setClockState('working');
+      void refreshLocationPerm();
     } catch {
       setActionError(t.saveError);
       setRetryAction('return');
@@ -790,6 +831,7 @@ export default function ClockPage({ userId }: { userId: string }) {
       setRecord(data as AttendanceRecord);
       setClockState('done');
       void loadStats(employee!.id);
+      void refreshLocationPerm();
     } catch {
       setActionError(t.saveError);
       setRetryAction('clockOut');
@@ -1393,13 +1435,7 @@ export default function ClockPage({ userId }: { userId: string }) {
           // already granted, the browser updates locationPerm and we get a
           // green chip → user sees confirmation immediately.
           await getLocation();
-          // Re-query permission state so locationPerm refreshes
-          if (typeof navigator !== 'undefined' && navigator.permissions) {
-            try {
-              const r = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
-              setLocationPerm(r.state as 'prompt' | 'granted' | 'denied');
-            } catch { /* ignore */ }
-          }
+          await refreshLocationPerm();
         };
         const ctaLabel =
           locationPerm === 'granted' ? t.geoStatusRefresh :

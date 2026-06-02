@@ -1404,13 +1404,14 @@ export default function ClockPage({ userId }: { userId: string }) {
       )}
 
       {/*
-        ── D2: GPS status pill (siempre visible, accionable) ──
-        Sirve dos propositos:
-          1. confirmar al empleado que la ubicacion esta OK (chip verde)
-          2. dar un punto de accion siempre disponible si algo se rompio
-             (denied: expande el banner; prompt/unknown: pide permiso)
+        ── D2: GPS status pill (solo cuando hay algo significativo) ──
+        Solo se renderiza si:
+          - granted: confirmar al empleado que la ubicacion esta OK (verde)
+          - denied:  necesita reactivar, expande instrucciones (rojo)
+        Para prompt/unknown la ocultamos — el clock in la pedira cuando
+        haga falta, y mostrarla por defecto resulta molesto.
       */}
-      {clockState !== 'done' && (() => {
+      {clockState !== 'done' && (locationPerm === 'granted' || locationPerm === 'denied') && (() => {
         const statusColor =
           locationPerm === 'granted' ? '#10B981' :
           locationPerm === 'denied'  ? '#F43F5E' :

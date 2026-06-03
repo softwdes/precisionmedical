@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -9,12 +10,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Card, CardContent,
+  Card, CardContent, PillToggle,
 } from '@precision/ui';
 import {
   Plus, Search, MoreHorizontal, Users, DollarSign,
   ChevronLeft, ChevronRight, Eye, Pencil, Trash2, Clock, Mail, Briefcase, CheckCircle,
+  List, BarChart3,
 } from 'lucide-react';
+import { FreelancersReportClient } from './freelancers-report-client';
 import { SuccessModal } from '@/components/notifications/SuccessModal';
 import { SuccessToast } from '@/components/notifications/SuccessToast';
 import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
@@ -65,6 +68,32 @@ export function FreelancersClient({
   const t      = useTranslations();
   const locale = useLocale();
 
+  const router       = useRouter();
+  const pathname     = usePathname();
+  const searchParams = useSearchParams();
+
+  // Initialize view from URL (?view=reportes) for deeplinkability
+  const initialView: 'lista' | 'reportes' =
+    searchParams.get('view') === 'reportes' ? 'reportes' : 'lista';
+
+  const [view, setViewState] = useState<'lista' | 'reportes'>(initialView);
+
+  // Wrapper that updates both state and URL — replace (not push) to avoid history clutter
+  const setView = (next: 'lista' | 'reportes') => {
+    setViewState(next);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === 'reportes') params.set('view', 'reportes');
+    else params.delete('view');
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  // Sync state if user navigates with browser back/forward
+  useEffect(() => {
+    const urlView = searchParams.get('view') === 'reportes' ? 'reportes' : 'lista';
+    if (urlView !== view) setViewState(urlView);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const [page,             setPage]             = useState(1);
   const [search,           setSearch]           = useState('');
   const [modalidadFilter,  setModalidadFilter]  = useState('');
@@ -74,6 +103,12 @@ export function FreelancersClient({
   const [newPaymentFor,    setNewPaymentFor]    = useState<FreelancerItem | null>(null);
   const [deleteFreelancer, setDeleteFreelancer] = useState<FreelancerItem | null>(null);
   const [viewPaymentsFor,  setViewPaymentsFor]  = useState<FreelancerItem | null>(null);
+
+  // For the report sub-tab — fetch ALL freelancers (not paginated) for the filter selector
+  const { data: allFreelancersData } = trpc.freelancers.list.useQuery(
+    { page: 1, pageSize: 200 },
+    { enabled: view === 'reportes' },
+  );
 
   const MODALIDAD_LABELS: Record<string, string> = {
     POR_HORA:     t('freelancers.modalidades.POR_HORA'),
@@ -122,17 +157,36 @@ export function FreelancersClient({
   return (
     <div className="p-6 space-y-4">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Header — siempre visible (Lista + Reportes) */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-text-1">{t('freelancers.title')}</h1>
           <p className="text-small text-text-3">{data?.total ?? 0} {t('freelancers.records')}</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" />
-          {t('freelancers.addNew')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <PillToggle<'lista' | 'reportes'>
+            options={[
+              { value: 'lista',    label: t('freelancers.viewLista'),    icon: <List className="h-3.5 w-3.5" /> },
+              { value: 'reportes', label: t('freelancers.viewReportes'), icon: <BarChart3 className="h-3.5 w-3.5" /> },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4" />
+            {t('freelancers.addNew')}
+          </Button>
+        </div>
       </div>
+
+      {/* ─── SUB-TAB: REPORTES ────────────────────────────────────── */}
+      {view === 'reportes' && (
+        <FreelancersReportClient allFreelancers={allFreelancersData?.items ?? data?.items ?? []} />
+      )}
+
+      {/* ─── SUB-TAB: LISTA ──────────────────────────────────────── */}
+      {view === 'lista' && (
+      <>
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -316,7 +370,11 @@ export function FreelancersClient({
         </div>
       )}
 
-      {/* Modals */}
+      </>
+      )}
+      {/* ─── FIN SUB-TAB LISTA ───────────────────────────────────── */}
+
+      {/* Modals — siempre disponibles (Nuevo freelancer funciona en ambas vistas) */}
       <FreelancerFormDialog
         open={showCreate}
         onClose={() => setShowCreate(false)}

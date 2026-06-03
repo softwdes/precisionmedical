@@ -15,9 +15,10 @@ import {
 import {
   Plus, Search, MoreHorizontal, Users, DollarSign,
   ChevronLeft, ChevronRight, Eye, Pencil, Trash2, Clock, Mail, Briefcase, CheckCircle,
-  List, BarChart3,
+  List, BarChart3, Wallet,
 } from 'lucide-react';
 import { FreelancersReportClient } from './freelancers-report-client';
+import { FreelancersPagosClient } from './freelancers-pagos-client';
 import { SuccessModal } from '@/components/notifications/SuccessModal';
 import { SuccessToast } from '@/components/notifications/SuccessToast';
 import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
@@ -72,24 +73,25 @@ export function FreelancersClient({
   const pathname     = usePathname();
   const searchParams = useSearchParams();
 
-  // Initialize view from URL (?view=reportes) for deeplinkability
-  const initialView: 'lista' | 'reportes' =
-    searchParams.get('view') === 'reportes' ? 'reportes' : 'lista';
+  // Initialize view from URL (?view=reportes|pagos) for deeplinkability
+  type ViewType = 'lista' | 'reportes' | 'pagos';
+  const parseView = (v: string | null): ViewType =>
+    v === 'reportes' ? 'reportes' : v === 'pagos' ? 'pagos' : 'lista';
 
-  const [view, setViewState] = useState<'lista' | 'reportes'>(initialView);
+  const [view, setViewState] = useState<ViewType>(parseView(searchParams.get('view')));
 
   // Wrapper that updates both state and URL — replace (not push) to avoid history clutter
-  const setView = (next: 'lista' | 'reportes') => {
+  const setView = (next: ViewType) => {
     setViewState(next);
     const params = new URLSearchParams(searchParams.toString());
-    if (next === 'reportes') params.set('view', 'reportes');
-    else params.delete('view');
+    if (next === 'lista') params.delete('view');
+    else params.set('view', next);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   // Sync state if user navigates with browser back/forward
   useEffect(() => {
-    const urlView = searchParams.get('view') === 'reportes' ? 'reportes' : 'lista';
+    const urlView = parseView(searchParams.get('view'));
     if (urlView !== view) setViewState(urlView);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -104,10 +106,10 @@ export function FreelancersClient({
   const [deleteFreelancer, setDeleteFreelancer] = useState<FreelancerItem | null>(null);
   const [viewPaymentsFor,  setViewPaymentsFor]  = useState<FreelancerItem | null>(null);
 
-  // For the report sub-tab — fetch ALL freelancers (not paginated) for the filter selector
+  // For report/pagos sub-tabs — fetch ALL freelancers (not paginated) for selectors
   const { data: allFreelancersData } = trpc.freelancers.list.useQuery(
     { page: 1, pageSize: 200 },
-    { enabled: view === 'reportes' },
+    { enabled: view === 'reportes' || view === 'pagos' },
   );
 
   const MODALIDAD_LABELS: Record<string, string> = {
@@ -163,11 +165,12 @@ export function FreelancersClient({
           <h1 className="text-xl font-bold text-text-1">{t('freelancers.title')}</h1>
           <p className="text-small text-text-3">{data?.total ?? 0} {t('freelancers.records')}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <PillToggle<'lista' | 'reportes'>
+        <div className="flex items-center gap-2 flex-wrap">
+          <PillToggle<'lista' | 'reportes' | 'pagos'>
             options={[
               { value: 'lista',    label: t('freelancers.viewLista'),    icon: <List className="h-3.5 w-3.5" /> },
               { value: 'reportes', label: t('freelancers.viewReportes'), icon: <BarChart3 className="h-3.5 w-3.5" /> },
+              { value: 'pagos',    label: t('freelancers.viewPagos'),    icon: <Wallet className="h-3.5 w-3.5" /> },
             ]}
             value={view}
             onChange={setView}
@@ -182,6 +185,11 @@ export function FreelancersClient({
       {/* ─── SUB-TAB: REPORTES ────────────────────────────────────── */}
       {view === 'reportes' && (
         <FreelancersReportClient allFreelancers={allFreelancersData?.items ?? data?.items ?? []} />
+      )}
+
+      {/* ─── SUB-TAB: PAGOS PENDIENTES ────────────────────────────── */}
+      {view === 'pagos' && (
+        <FreelancersPagosClient allFreelancers={allFreelancersData?.items ?? data?.items ?? []} />
       )}
 
       {/* ─── SUB-TAB: LISTA ──────────────────────────────────────── */}
@@ -561,6 +569,7 @@ function FreelancerFormDialog({
     tarifaBase: freelancer?.tarifaBase != null ? String(freelancer.tarifaBase) : '',
     moneda:     (freelancer?.moneda as string | undefined)     ?? 'USD',
     notas:      (freelancer?.notas as string | null | undefined) ?? '',
+    bankQrUrl:  (freelancer?.bankQrUrl as string | null | undefined) ?? '',
   });
 
   const [successData, setSuccessData] = useState<{ nombre: string; email: string; pais: string; modalidad: string } | null>(null);
@@ -592,6 +601,7 @@ function FreelancerFormDialog({
       tarifaBase: form.modalidad === 'POR_HORA' && form.tarifaBase ? Number(form.tarifaBase) : undefined,
       moneda:     form.moneda as 'USD' | 'BOB' | 'PEN',
       notas:      form.notas || undefined,
+      bankQrUrl:  form.bankQrUrl || undefined,
     };
     if (isEdit && freelancer) {
       update.mutate({ id: freelancer.id, data: payload });
@@ -703,6 +713,25 @@ function FreelancerFormDialog({
               />
             </div>
           )}
+
+          {/* QR bancario (URL) */}
+          <div className="space-y-1.5">
+            <Label>{t('freelancers.bankQrUrl')}</Label>
+            <Input
+              type="url"
+              value={form.bankQrUrl ?? ''}
+              onChange={(e) => f('bankQrUrl', e.target.value)}
+              placeholder={t('freelancers.bankQrUrlPlaceholder')}
+            />
+            {form.bankQrUrl && (
+              <img
+                src={form.bankQrUrl}
+                alt="QR preview"
+                className="h-24 w-24 mt-1 rounded border border-border object-contain bg-white p-1"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            )}
+          </div>
 
           {/* Notas */}
           <div className="space-y-1.5">

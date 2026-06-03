@@ -13,6 +13,7 @@ const createFreelancerSchema = z.object({
   tarifaBase: z.number().positive().optional(),
   moneda:     z.enum(['USD', 'BOB', 'PEN']).default('USD'),
   notas:      z.string().optional(),
+  bankQrUrl:  z.string().url().optional().or(z.literal('')),
 });
 
 const createPaymentSchema = z.object({
@@ -23,7 +24,25 @@ const createPaymentSchema = z.object({
   monto:         z.number().positive(),
   moneda:        z.enum(['USD', 'BOB', 'PEN']),
   fechaServicio: z.coerce.date(),
-  fechaPago:     z.coerce.date(),
+  fechaPago:     z.coerce.date().optional(),   // optional para PENDING
+  scheduledDate: z.coerce.date().optional(),   // requerido si status=PENDING
+  status:        z.enum(['PENDING', 'PAID']).default('PAID'), // default mantiene compat con flujo actual
+  bonusAmount:   z.number().positive().optional(),
+  bonusReason:   z.string().min(3).optional(),
+  notas:         z.string().optional(),
+});
+
+const updatePaymentSchema = z.object({
+  id:            z.string(),
+  descripcion:   z.string().min(3).optional(),
+  horas:         z.number().positive().optional(),
+  tarifaHora:    z.number().positive().optional(),
+  monto:         z.number().positive().optional(),
+  moneda:        z.enum(['USD', 'BOB', 'PEN']).optional(),
+  fechaServicio: z.coerce.date().optional(),
+  scheduledDate: z.coerce.date().optional(),
+  bonusAmount:   z.number().positive().optional(),
+  bonusReason:   z.string().min(3).optional(),
   notas:         z.string().optional(),
 });
 
@@ -86,7 +105,8 @@ export const freelancersRouter = router({
         .insert({
           id:        randomUUID(),
           ...input,
-          email:     input.email || null,
+          email:     input.email     || null,
+          bankQrUrl: input.bankQrUrl || null,
           updatedAt: new Date().toISOString(),
         })
         .select()
@@ -112,7 +132,12 @@ export const freelancersRouter = router({
     .mutation(async ({ input, ctx }) => {
       const { data, error } = await supabaseAdmin
         .from('freelancers')
-        .update({ ...input.data, email: input.data.email || null, updatedAt: new Date().toISOString() })
+        .update({
+          ...input.data,
+          email:     input.data.email     === '' ? null : input.data.email,
+          bankQrUrl: input.data.bankQrUrl === '' ? null : input.data.bankQrUrl,
+          updatedAt: new Date().toISOString(),
+        })
         .eq('id', input.id)
         .select()
         .single();
@@ -375,6 +400,20 @@ export const freelancersRouter = router({
 
       if (!freelancer) throw new TRPCError({ code: 'NOT_FOUND', message: 'Freelancer not found' });
 
+      // Validación según status:
+      // - PAID  → fechaPago obligatoria (registro post-hoc)
+      // - PENDING → scheduledDate obligatoria, fechaPago no aplica
+      if (input.status === 'PAID' && !input.fechaPago) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'fechaPago is required for PAID status' });
+      }
+      if (input.status === 'PENDING' && !input.scheduledDate) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'scheduledDate is required for PENDING status' });
+      }
+
+      const fechaPagoStr     = input.status === 'PAID' && input.fechaPago     ? input.fechaPago.toISOString().split('T')[0] : null;
+      const scheduledDateStr = input.scheduledDate                            ? input.scheduledDate.toISOString().split('T')[0] : null;
+      const paidDateStr      = input.status === 'PAID' && input.fechaPago     ? input.fechaPago.toISOString().split('T')[0] : null;
+
       const { data, error } = await supabaseAdmin
         .from('freelancer_payments')
         .insert({
@@ -386,8 +425,13 @@ export const freelancersRouter = router({
           tarifaHora:    input.tarifaHora ?? null,
           monto:         input.monto,
           moneda:        input.moneda,
+          status:        input.status,
           fechaServicio: input.fechaServicio.toISOString().split('T')[0],
-          fechaPago:     input.fechaPago.toISOString().split('T')[0],
+          scheduledDate: scheduledDateStr,
+          fechaPago:     fechaPagoStr,
+          paidDate:      paidDateStr,
+          bonusAmount:   input.bonusAmount ?? null,
+          bonusReason:   input.bonusReason ?? null,
           notas:         input.notas ?? null,
           createdAt:     new Date().toISOString(),
         })
@@ -399,9 +443,262 @@ export const freelancersRouter = router({
       await supabaseAdmin.from('audit_logs').insert({
         actorUserId: ctx.user.id,
         actorRole:   ctx.user.role,
-        action:      'freelancer.payment.created',
+        action:      input.status === 'PENDING' ? 'freelancer.payment.scheduled' : 'freelancer.payment.created',
         entityType:  'FreelancerPayment',
         entityId:    data.id,
+        after:       data,
+        createdAt:   new Date().toISOString(),
+      });
+
+      return data;
+    }),
+
+  // ─── PAGOS PENDIENTES — listado con filtros y orden PENDING-first ──────────
+  listPagos: protectedProcedure
+    .input(z.object({
+      page:     z.number().int().positive().default(1),
+      pageSize: z.number().int().positive().max(100).default(25),
+      status:   z.enum(['PENDING','PAID','CANCELLED','REVERSED']).optional(),
+    }))
+    .query(async ({ input }) => {
+      const { page, pageSize, status } = input;
+
+      let q = supabaseAdmin
+        .from('freelancer_payments')
+        .select(
+          'id, descripcion, modalidad, horas, tarifaHora, monto, moneda, status, ' +
+          'fechaServicio, scheduledDate, fechaPago, paidDate, bonusAmount, bonusReason, ' +
+          'reversedById, notas, createdAt, freelancerId, ' +
+          'freelancer:freelancers!inner(id, nombre, pais, modalidad, moneda, bankQrUrl, status)',
+          { count: 'exact' },
+        );
+
+      if (status) q = q.eq('status', status);
+
+      const { data, error, count } = await q;
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      // Orden manual: PENDING primero (por scheduledDate ASC), luego el resto por createdAt DESC
+      const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+      const sorted = [...rows].sort((a, b) => {
+        const sw = (s: unknown): number => s === 'PENDING' ? 0 : s === 'PAID' ? 1 : 2;
+        const wa = sw(a.status), wb = sw(b.status);
+        if (wa !== wb) return wa - wb;
+        if (a.status === 'PENDING') {
+          const ts = (d: unknown): number => typeof d === 'string' ? new Date(d).getTime() : Number.MAX_SAFE_INTEGER;
+          return ts(a.scheduledDate) - ts(b.scheduledDate);
+        }
+        const ta = typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0;
+        const tb = typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      });
+
+      const from = (page - 1) * pageSize;
+      const paged = sorted.slice(from, from + pageSize);
+
+      return {
+        items:      paged,
+        total:      count ?? 0,
+        page,
+        pageSize,
+        totalPages: Math.ceil((count ?? 0) / pageSize),
+      };
+    }),
+
+  getPagosSummary: protectedProcedure
+    .input(z.object({}).optional())
+    .query(async () => {
+      const now        = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]!;
+      const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]!;
+
+      const [{ data: paid }, { data: pending }, { count: total }] = await Promise.all([
+        supabaseAdmin.from('freelancer_payments').select('monto, moneda').eq('status', 'PAID')
+          .gte('paidDate', monthStart).lte('paidDate', monthEnd),
+        supabaseAdmin.from('freelancer_payments').select('monto, moneda').eq('status', 'PENDING'),
+        supabaseAdmin.from('freelancer_payments').select('id', { count: 'exact', head: true }),
+      ]);
+
+      const sumByCurrency = (rows: Array<{ monto: number | string; moneda: string }> | null) => {
+        const out: Record<string, number> = {};
+        for (const r of rows ?? []) out[r.moneda] = (out[r.moneda] ?? 0) + Number(r.monto);
+        return out;
+      };
+
+      return {
+        period:        `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+        paidThisMonth: sumByCurrency(paid as Array<{ monto: number; moneda: string }> | null),
+        pending:       sumByCurrency(pending as Array<{ monto: number; moneda: string }> | null),
+        count:         total ?? 0,
+        countPending:  (pending ?? []).length,
+      };
+    }),
+
+  markPagoAsPaid: adminProcedure
+    .input(z.object({ id: z.string(), paidDate: z.coerce.date().optional() }))
+    .mutation(async ({ input, ctx }) => {
+      const { data: existing } = await supabaseAdmin
+        .from('freelancer_payments').select('*').eq('id', input.id).single();
+
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Pago no encontrado' });
+      if (existing.status !== 'PENDING')
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Solo pagos PENDING pueden marcarse como pagados' });
+
+      const paidStr = (input.paidDate ?? new Date()).toISOString().split('T')[0]!;
+
+      const { data, error } = await supabaseAdmin
+        .from('freelancer_payments')
+        .update({ status: 'PAID', paidDate: paidStr, fechaPago: paidStr })
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.from('audit_logs').insert({
+        actorUserId: ctx.user.id,
+        actorRole:   ctx.user.role,
+        action:      'freelancer.payment.marked_paid',
+        entityType:  'FreelancerPayment',
+        entityId:    input.id,
+        before:      existing,
+        after:       data,
+        createdAt:   new Date().toISOString(),
+      });
+
+      return data;
+    }),
+
+  cancelPago: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const { data: existing } = await supabaseAdmin
+        .from('freelancer_payments').select('*').eq('id', input.id).single();
+
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Pago no encontrado' });
+      if (existing.status !== 'PENDING')
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Solo pagos PENDING pueden cancelarse' });
+
+      const { data, error } = await supabaseAdmin
+        .from('freelancer_payments')
+        .update({ status: 'CANCELLED' })
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.from('audit_logs').insert({
+        actorUserId: ctx.user.id,
+        actorRole:   ctx.user.role,
+        action:      'freelancer.payment.cancelled',
+        entityType:  'FreelancerPayment',
+        entityId:    input.id,
+        before:      existing,
+        after:       data,
+        createdAt:   new Date().toISOString(),
+      });
+
+      return data;
+    }),
+
+  reversePago: adminProcedure
+    .input(z.object({ id: z.string(), reason: z.string().min(3) }))
+    .mutation(async ({ input, ctx }) => {
+      const { data: existing } = await supabaseAdmin
+        .from('freelancer_payments').select('*').eq('id', input.id).single();
+
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Pago no encontrado' });
+      if (existing.status !== 'PAID')
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Solo pagos PAID pueden reversarse' });
+      if (existing.reversedById)
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Este pago ya fue reversado' });
+
+      // Crea el pago "espejo" con monto negativo (append-only)
+      const reverseId = randomUUID();
+      const today     = new Date().toISOString().split('T')[0]!;
+
+      const { error: revErr } = await supabaseAdmin
+        .from('freelancer_payments')
+        .insert({
+          id:            reverseId,
+          freelancerId:  existing.freelancerId,
+          descripcion:   `REVERSAL: ${existing.descripcion} — ${input.reason}`,
+          modalidad:     existing.modalidad,
+          horas:         existing.horas,
+          tarifaHora:    existing.tarifaHora,
+          monto:         -Math.abs(Number(existing.monto)),
+          moneda:        existing.moneda,
+          status:        'REVERSED',
+          fechaServicio: existing.fechaServicio,
+          fechaPago:     today,
+          paidDate:      today,
+          reversedById:  existing.id,
+          notas:         `Reversal of payment ${existing.id}`,
+          createdAt:     new Date().toISOString(),
+        });
+
+      if (revErr) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: revErr.message });
+
+      // Marca el original como REVERSED y apunta al espejo
+      const { data: updated, error: updErr } = await supabaseAdmin
+        .from('freelancer_payments')
+        .update({ status: 'REVERSED', reversedById: reverseId })
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (updErr) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: updErr.message });
+
+      await supabaseAdmin.from('audit_logs').insert({
+        actorUserId: ctx.user.id,
+        actorRole:   ctx.user.role,
+        action:      'freelancer.payment.reversed',
+        entityType:  'FreelancerPayment',
+        entityId:    input.id,
+        before:      existing,
+        after:       updated,
+        metadata:    { reason: input.reason, reverseId },
+        createdAt:   new Date().toISOString(),
+      });
+
+      return updated;
+    }),
+
+  updatePago: adminProcedure
+    .input(updatePaymentSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { data: existing } = await supabaseAdmin
+        .from('freelancer_payments').select('*').eq('id', input.id).single();
+
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Pago no encontrado' });
+      if (existing.status !== 'PENDING')
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Solo pagos PENDING pueden editarse' });
+
+      const patch: Record<string, unknown> = {};
+      if (input.descripcion   !== undefined) patch.descripcion   = input.descripcion;
+      if (input.horas         !== undefined) patch.horas         = input.horas;
+      if (input.tarifaHora    !== undefined) patch.tarifaHora    = input.tarifaHora;
+      if (input.monto         !== undefined) patch.monto         = input.monto;
+      if (input.moneda        !== undefined) patch.moneda        = input.moneda;
+      if (input.fechaServicio !== undefined) patch.fechaServicio = input.fechaServicio.toISOString().split('T')[0];
+      if (input.scheduledDate !== undefined) patch.scheduledDate = input.scheduledDate.toISOString().split('T')[0];
+      if (input.bonusAmount   !== undefined) patch.bonusAmount   = input.bonusAmount;
+      if (input.bonusReason   !== undefined) patch.bonusReason   = input.bonusReason;
+      if (input.notas         !== undefined) patch.notas         = input.notas;
+
+      const { data, error } = await supabaseAdmin
+        .from('freelancer_payments').update(patch).eq('id', input.id).select().single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      await supabaseAdmin.from('audit_logs').insert({
+        actorUserId: ctx.user.id,
+        actorRole:   ctx.user.role,
+        action:      'freelancer.payment.updated',
+        entityType:  'FreelancerPayment',
+        entityId:    input.id,
+        before:      existing,
         after:       data,
         createdAt:   new Date().toISOString(),
       });

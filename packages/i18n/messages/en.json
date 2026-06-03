@@ -278,9 +278,12 @@
     "byDepartment": "By department",
     "bonusesTitle": "Bonuses in period",
     "noBonuses": "No bonuses in period",
+    "paymentsTableTitle": "Payments in period",
+    "noPaymentsInPeriod": "No payments in period",
     "exportCSV": "Export CSV",
     "print": "Print",
-    "noDataReport": "No payments in selected range"
+    "noDataReport": "No payments in selected range",
+    "fechaPago": "Payment date"
   },
   "freelancers": {
     "tab": "Freelancers",

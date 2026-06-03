@@ -368,7 +368,7 @@ export const employeesRouter = router({
       }
       const byDepartment = Object.values(byDeptMap);
 
-      // 6) Tabla de bonos del periodo
+      // 6) Tabla de bonos del periodo (filtrada a los que tienen bono)
       const bonuses = payments
         .filter(p => Number(p.bonus_amount ?? 0) > 0)
         .map(p => ({
@@ -381,6 +381,31 @@ export const employeesRouter = router({
           paidDate:     p.paidDate,
         }));
 
+      // 7) Tabla completa de pagos del periodo (TODOS los pagos PAID en el rango)
+      // Ordenada por fecha de pago descendente (mas reciente primero).
+      const paymentsTable = payments
+        .slice()
+        .sort((a, b) => {
+          const da = a.paidDate ?? '';
+          const db = b.paidDate ?? '';
+          return db.localeCompare(da);
+        })
+        .map(p => ({
+          id:           p.id,
+          employeeId:   p.employee?.id ?? '',
+          employeeName: p.employee ? `${p.employee.firstName} ${p.employee.lastName}` : '—',
+          employeeCode: p.employee?.employeeCode ?? '',
+          department:   p.employee?.department?.name ?? '—',
+          country:      p.employee?.country?.name ?? '—',
+          period:       p.period,
+          base:         Number(p.base_salary ?? p.amountLocal ?? 0),
+          bonus:        Number(p.bonus_amount ?? 0),
+          bonusReason:  p.bonus_reason,
+          total:        Number(p.amountLocal),
+          currency:     p.currencyLocal,
+          paidDate:     p.paidDate,
+        }));
+
       return {
         range: { from, to },
         kpisByCurrency,
@@ -388,6 +413,7 @@ export const employeesRouter = router({
         byCountry,
         byDepartment,
         bonuses,
+        paymentsTable,
         totalPayments: payments.length,
       };
     }),

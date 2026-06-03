@@ -278,9 +278,12 @@
     "byDepartment": "Por departamento",
     "bonusesTitle": "Bonos del periodo",
     "noBonuses": "Sin bonos en el periodo",
+    "paymentsTableTitle": "Pagos del periodo",
+    "noPaymentsInPeriod": "Sin pagos en el periodo",
     "exportCSV": "Exportar CSV",
     "print": "Imprimir",
-    "noDataReport": "No hay pagos en el rango seleccionado"
+    "noDataReport": "No hay pagos en el rango seleccionado",
+    "fechaPago": "Fecha de pago"
   },
   "freelancers": {
     "tab": "Freelancers",

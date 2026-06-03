@@ -144,18 +144,24 @@ export function EmployeesReportClient({
     return parts.length > 0 ? parts.join(' · ') : 'Sin filtros adicionales';
   }, [departmentId, country, departments]);
 
-  // CSV export
+  // CSV export — exporta la tabla completa de pagos (no solo bonos) para contabilidad
   const exportCSV = (): void => {
     if (!report) return;
-    const headers = ['Empleado','Bono','Moneda','Razón','Fecha pago'];
+    const headers = ['Empleado','Codigo','Departamento','Pais','Periodo','Base','Bono','Razon bono','Total','Moneda','Fecha pago'];
     const csv = [
       headers.join(','),
-      ...report.bonuses.map(b => [
-        `"${b.employeeName.replace(/"/g, '""')}"`,
-        b.amount,
-        b.currency,
-        `"${(b.reason ?? '').replace(/"/g, '""')}"`,
-        b.paidDate ?? '',
+      ...report.paymentsTable.map(p => [
+        `"${p.employeeName.replace(/"/g, '""')}"`,
+        p.employeeCode,
+        `"${p.department.replace(/"/g, '""')}"`,
+        `"${p.country.replace(/"/g, '""')}"`,
+        p.period,
+        p.base,
+        p.bonus,
+        `"${(p.bonusReason ?? '').replace(/"/g, '""')}"`,
+        p.total,
+        p.currency,
+        p.paidDate ?? '',
       ].join(',')),
     ].join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
@@ -193,7 +199,7 @@ export function EmployeesReportClient({
           <p className="text-small text-text-3">{t('employees.reportSubtitle')}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportCSV} disabled={!report || report.bonuses.length === 0}>
+          <Button variant="outline" size="sm" onClick={exportCSV} disabled={!report || report.paymentsTable.length === 0}>
             <Download className="h-3.5 w-3.5" />
             {t('employees.exportCSV')}
           </Button>
@@ -385,7 +391,72 @@ export function EmployeesReportClient({
             </Card>
           </div>
 
-          {/* Tabla de bonos */}
+          {/* Tabla completa de pagos del periodo */}
+          <Card className="print:break-before-page">
+            <CardContent className="p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b border-border">
+                <h3 className="text-small font-semibold text-text-1 flex items-center gap-2">
+                  <DollarSign className="h-3.5 w-3.5 text-text-3" />
+                  {t('employees.paymentsTableTitle')} ({report.paymentsTable.length})
+                </h3>
+              </div>
+              {report.paymentsTable.length === 0 ? (
+                <p className="text-tiny text-text-muted text-center py-8">{t('employees.noPaymentsInPeriod')}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead style={{ minWidth: 180 }}>{t('employees.employee')}</TableHead>
+                        <TableHead className="text-right">{t('employees.baseSalary')}</TableHead>
+                        <TableHead className="text-right">{t('employees.kpiBonuses')}</TableHead>
+                        <TableHead className="text-right">{t('common.total')}</TableHead>
+                        <TableHead>{t('employees.fechaPago')}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {report.paymentsTable.map(p => (
+                        <TableRow key={p.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2.5">
+                              <div className="h-7 w-7 rounded-full bg-brand/10 text-brand text-tiny font-bold flex items-center justify-center shrink-0">
+                                {p.employeeName.split(' ').slice(0, 2).map(s => s[0]).join('').toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-small font-medium text-text-1">{p.employeeName}</p>
+                                <p className="text-tiny text-text-muted font-mono">{p.employeeCode}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right text-small text-text-2 font-mono">
+                            {fmtAmount(p.base, p.currency)}
+                          </TableCell>
+                          <TableCell className="text-right text-small font-mono">
+                            {p.bonus > 0 ? (
+                              <span
+                                title={p.bonusReason ?? ''}
+                                className="text-emerald-500"
+                              >
+                                +{fmtAmount(p.bonus, p.currency)}
+                              </span>
+                            ) : (
+                              <span className="text-text-muted">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className={`text-right text-small font-mono font-bold ${CURRENCY_COLOR[p.currency] ?? 'text-text-1'}`}>
+                            {fmtAmount(p.total, p.currency)} <span className="text-tiny text-text-3">{p.currency}</span>
+                          </TableCell>
+                          <TableCell className="text-small text-text-2 whitespace-nowrap">{fmtDate(p.paidDate)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Tabla de bonos (solo los que tienen bono) */}
           <Card className="print:break-before-page">
             <CardContent className="p-0 overflow-hidden">
               <div className="px-4 py-3 border-b border-border">

@@ -590,12 +590,19 @@ function FreelancerFormDialog({
       const fd = new FormData();
       fd.append('file', file);
       const res = await fetch(`/api/freelancers/${freelancer.id}/qr`, { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('upload failed');
+      if (!res.ok) {
+        // Extrae el mensaje real del servidor (ej: "Bucket not found")
+        const errorPayload = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string };
+        throw new Error(errorPayload.error ?? `HTTP ${res.status}`);
+      }
       const json = await res.json() as { bankQrUrl: string };
       setQrUrl(json.bankQrUrl);
       toast.success(t('employees.qrUploaded'));
-    } catch {
-      toast.error(t('employees.qrUploadError'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      // eslint-disable-next-line no-console
+      console.error('[QR Upload]', err);
+      toast.error(`${t('employees.qrUploadError')}: ${msg}`);
     } finally {
       setUploadingQr(false);
     }
@@ -621,11 +628,17 @@ function FreelancerFormDialog({
     setUploadingQr(true);
     try {
       const res = await fetch(`/api/freelancers/${freelancer.id}/qr`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('delete failed');
+      if (!res.ok) {
+        const errorPayload = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as { error?: string };
+        throw new Error(errorPayload.error ?? `HTTP ${res.status}`);
+      }
       setQrUrl(null);
       toast.success(t('employees.qrRemoved'));
-    } catch {
-      toast.error(t('employees.qrRemoveError'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      // eslint-disable-next-line no-console
+      console.error('[QR Delete]', err);
+      toast.error(`${t('employees.qrRemoveError')}: ${msg}`);
     } finally {
       setUploadingQr(false);
     }

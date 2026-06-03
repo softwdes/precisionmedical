@@ -508,17 +508,37 @@ function ThreeDotMenu({
   t:           ReturnType<typeof useTranslations>;
 }) {
   const isOpen = openMenuId === id;
+  // Auto-flip: si la fila está cerca del bottom del viewport, abre hacia arriba
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [openUpward, setOpenUpward] = useState(false);
+  const MENU_HEIGHT_ESTIMATE = 180; // 4 items + separator ≈ 180px
+
+  const handleClick = (e: React.MouseEvent): void => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < MENU_HEIGHT_ESTIMATE);
+    }
+    onOpen(e);
+  };
+
   return (
     <div className="relative inline-block">
       <button
-        onClick={onOpen}
+        ref={btnRef}
+        onClick={handleClick}
         className="flex h-7 w-7 items-center justify-center rounded text-text-muted hover:text-text-1 hover:bg-border/60 transition-colors"
         title={t('common.actions')}
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
       {isOpen && (
-        <div className="absolute right-0 top-8 z-50 min-w-[160px] rounded-lg border border-border bg-surface shadow-lg py-1">
+        <div
+          className={[
+            'absolute right-0 z-50 min-w-[160px] rounded-lg border border-border bg-surface shadow-lg py-1',
+            openUpward ? 'bottom-8' : 'top-8',
+          ].join(' ')}
+        >
           <MenuItem icon={Eye}     label={t('freelancers.verPagos')}  onClick={onVerPagos}  />
           <MenuItem icon={Plus}    label={t('freelancers.nuevoPago')} onClick={onNuevoPago} />
           <div className="my-1 border-t border-border/50" />
@@ -695,12 +715,12 @@ function FreelancerFormDialog({
       />
     )}
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex flex-col w-full sm:max-w-lg overflow-hidden" style={{ maxHeight: '90dvh' }}>
+        <DialogHeader className="shrink-0">
           <DialogTitle>{isEdit ? t('freelancers.editTitle') : t('freelancers.newTitle')}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
           {/* Nombre */}
           <div className="space-y-1.5">
             <Label>{t('freelancers.nombre')} *</Label>
@@ -867,7 +887,7 @@ function FreelancerFormDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 pt-3">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSubmit} loading={isPending} disabled={!canSubmit}>
             {t('common.save')}

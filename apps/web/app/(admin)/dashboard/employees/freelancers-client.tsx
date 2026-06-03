@@ -15,8 +15,9 @@ import {
 import {
   Plus, Search, MoreHorizontal, Users, DollarSign,
   ChevronLeft, ChevronRight, Eye, Pencil, Trash2, Clock, Mail, Briefcase, CheckCircle,
-  List, BarChart3, Wallet,
+  List, BarChart3, Wallet, QrCode, Upload, Loader2,
 } from 'lucide-react';
+import { cn } from '@precision/ui';
 import { FreelancersReportClient } from './freelancers-report-client';
 import { FreelancersPagosClient } from './freelancers-pagos-client';
 import { SuccessModal } from '@/components/notifications/SuccessModal';
@@ -559,6 +560,7 @@ function FreelancerFormDialog({
   onSaved:     () => void;
   t:           ReturnType<typeof useTranslations>;
 }) {
+  const locale = useLocale();
   const isEdit = !!freelancer;
   const [form, setForm] = useState({
     nombre:     (freelancer?.nombre as string | undefined)     ?? '',
@@ -569,12 +571,65 @@ function FreelancerFormDialog({
     tarifaBase: freelancer?.tarifaBase != null ? String(freelancer.tarifaBase) : '',
     moneda:     (freelancer?.moneda as string | undefined)     ?? 'USD',
     notas:      (freelancer?.notas as string | null | undefined) ?? '',
-    bankQrUrl:  (freelancer?.bankQrUrl as string | null | undefined) ?? '',
   });
+
+  // QR upload state (only meaningful when editing — needs freelancer.id)
+  const [qrUrl,        setQrUrl]        = useState<string | null>((freelancer?.bankQrUrl as string | null | undefined) ?? null);
+  const [uploadingQr,  setUploadingQr]  = useState(false);
+  const [isDraggingQr, setIsDraggingQr] = useState(false);
 
   const [successData, setSuccessData] = useState<{ nombre: string; email: string; pais: string; modalidad: string } | null>(null);
 
   const f = (k: keyof typeof form, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  // Upload helpers (only used in edit mode — needs freelancer.id)
+  const uploadQrFile = async (file: File): Promise<void> => {
+    if (!freelancer?.id) return;
+    setUploadingQr(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/freelancers/${freelancer.id}/qr`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('upload failed');
+      const json = await res.json() as { bankQrUrl: string };
+      setQrUrl(json.bankQrUrl);
+      toast.success(t('employees.qrUploaded'));
+    } catch {
+      toast.error(t('employees.qrUploadError'));
+    } finally {
+      setUploadingQr(false);
+    }
+  };
+
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await uploadQrFile(file);
+  };
+
+  const handleQrDrop = (e: React.DragEvent<HTMLLabelElement>): void => {
+    e.preventDefault();
+    setIsDraggingQr(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || uploadingQr) return;
+    void uploadQrFile(file);
+  };
+
+  const removeQr = async (): Promise<void> => {
+    if (!freelancer?.id) return;
+    setUploadingQr(true);
+    try {
+      const res = await fetch(`/api/freelancers/${freelancer.id}/qr`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete failed');
+      setQrUrl(null);
+      toast.success(t('employees.qrRemoved'));
+    } catch {
+      toast.error(t('employees.qrRemoveError'));
+    } finally {
+      setUploadingQr(false);
+    }
+  };
 
   const create = trpc.freelancers.create.useMutation({
     onSuccess: () => {
@@ -601,7 +656,6 @@ function FreelancerFormDialog({
       tarifaBase: form.modalidad === 'POR_HORA' && form.tarifaBase ? Number(form.tarifaBase) : undefined,
       moneda:     form.moneda as 'USD' | 'BOB' | 'PEN',
       notas:      form.notas || undefined,
-      bankQrUrl:  form.bankQrUrl || undefined,
     };
     if (isEdit && freelancer) {
       update.mutate({ id: freelancer.id, data: payload });
@@ -714,22 +768,78 @@ function FreelancerFormDialog({
             </div>
           )}
 
-          {/* QR bancario (URL) */}
+          {/* QR bancario — drag & drop upload (idéntico a empleados) */}
           <div className="space-y-1.5">
-            <Label>{t('freelancers.bankQrUrl')}</Label>
-            <Input
-              type="url"
-              value={form.bankQrUrl ?? ''}
-              onChange={(e) => f('bankQrUrl', e.target.value)}
-              placeholder={t('freelancers.bankQrUrlPlaceholder')}
-            />
-            {form.bankQrUrl && (
-              <img
-                src={form.bankQrUrl}
-                alt="QR preview"
-                className="h-24 w-24 mt-1 rounded border border-border object-contain bg-white p-1"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-              />
+            <Label className="flex items-center gap-1.5">
+              <QrCode className="h-3.5 w-3.5 text-text-3" />
+              {t('employees.bankQr')}
+            </Label>
+            {!isEdit ? (
+              <div className="rounded-lg border border-dashed border-border bg-surface px-3 py-3 text-tiny text-text-muted text-center">
+                Guarda primero el freelancer para poder subir el QR
+              </div>
+            ) : qrUrl ? (
+              <div className="flex flex-col items-center gap-2 w-full">
+                <div className="w-full rounded-xl border border-border overflow-hidden bg-white dark:bg-white/5 p-3">
+                  <img src={qrUrl} alt="QR bancario" className="w-full max-h-44 object-contain" />
+                </div>
+                <div className="flex gap-2 w-full">
+                  <label
+                    className={cn(
+                      'cursor-pointer flex-1 flex items-center justify-center gap-2 rounded-lg border border-dashed py-2 transition-colors',
+                      isDraggingQr
+                        ? 'border-violet-400 bg-violet-100/80 dark:bg-violet-900/30'
+                        : 'border-violet-300/60 bg-violet-50/40 dark:bg-violet-950/20 dark:border-violet-800/40 hover:bg-violet-100/50 hover:border-violet-400',
+                      uploadingQr && 'opacity-60 pointer-events-none',
+                    )}
+                    onDragOver={(e) => { e.preventDefault(); setIsDraggingQr(true); }}
+                    onDragLeave={() => setIsDraggingQr(false)}
+                    onDrop={handleQrDrop}
+                  >
+                    {uploadingQr
+                      ? <Loader2 className="h-3.5 w-3.5 text-violet-500 animate-spin" />
+                      : <Upload className="h-3.5 w-3.5 text-violet-500" />}
+                    <span className="text-xs font-medium text-violet-600 dark:text-violet-400">
+                      {uploadingQr ? t('common.loading') : t('employees.replaceQr')}
+                    </span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} disabled={uploadingQr} />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={removeQr}
+                    disabled={uploadingQr}
+                    className="px-3 rounded-lg border border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10 text-xs font-medium disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <label
+                className={cn(
+                  'cursor-pointer flex flex-col items-center justify-center w-full rounded-xl border-2 border-dashed py-6 gap-2 transition-colors',
+                  isDraggingQr
+                    ? 'border-violet-400 bg-violet-100/80 dark:bg-violet-900/30'
+                    : 'border-violet-300/60 bg-violet-50/50 dark:bg-violet-950/20 dark:border-violet-800/40 hover:bg-violet-100/60 hover:border-violet-400',
+                  uploadingQr && 'opacity-60 pointer-events-none',
+                )}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingQr(true); }}
+                onDragLeave={() => setIsDraggingQr(false)}
+                onDrop={handleQrDrop}
+              >
+                {uploadingQr
+                  ? <Loader2 className="h-7 w-7 text-violet-400 animate-spin" />
+                  : <QrCode className="h-7 w-7 text-violet-400" />}
+                <div className="text-center">
+                  <p className="text-sm font-medium text-violet-700 dark:text-violet-300">
+                    {uploadingQr ? t('common.loading') : t('employees.uploadQr')}
+                  </p>
+                  <p className="text-xs text-violet-500/70 dark:text-violet-400/60 mt-0.5">
+                    {locale === 'en' ? 'Drag & drop or click to choose' : 'Arrastra o haz clic para elegir'}
+                  </p>
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={handleQrUpload} disabled={uploadingQr} />
+              </label>
             )}
           </div>
 

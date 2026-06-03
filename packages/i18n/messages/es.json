@@ -372,8 +372,6 @@
     "bonusReasonPlaceholder": "Ej: cumplió meta, trabajo extra",
     "totalToPay": "Total a pagar",
     "noPagosPendientes": "No hay pagos pendientes",
-    "bankQrUrl": "URL del QR bancario",
-    "bankQrUrlPlaceholder": "https://... (imagen del QR para pagar)",
     "paid": "Pagado",
     "marked": "Marcado como pagado",
     "cancelled": "Pago cancelado",

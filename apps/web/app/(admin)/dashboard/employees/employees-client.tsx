@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
@@ -9,13 +10,16 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  PillToggle,
 } from '@precision/ui';
 import {
   Plus, Search, ChevronRight, ChevronLeft, Eye, EyeOff,
   Pencil, Trash2, Mail, Phone, MapPin, Briefcase, Calendar,
   DollarSign, FileText, Activity, Building2, UserCheck, CreditCard,
-  QrCode, Upload, Loader2,
+  QrCode, Upload, Loader2, List, BarChart3, Wallet,
 } from 'lucide-react';
+import { PaymentsClient } from '../payments/payments-client';
+import { EmployeesReportClient } from './employees-report-client';
 import { SuccessModal } from '@/components/notifications/SuccessModal';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
@@ -39,6 +43,41 @@ export function EmployeesClient({
   departments: Department[];
 }): React.ReactElement {
   const t = useTranslations();
+  const router       = useRouter();
+  const pathname     = usePathname();
+  const searchParams = useSearchParams();
+
+  // Sub-tab state with URL deeplinking — ?view=reportes|pagos (default lista)
+  type ViewType = 'lista' | 'reportes' | 'pagos';
+  const parseView = (v: string | null): ViewType =>
+    v === 'reportes' ? 'reportes' : v === 'pagos' ? 'pagos' : 'lista';
+
+  const [view, setViewState] = useState<ViewType>(parseView(searchParams.get('view')));
+
+  const setView = (next: ViewType): void => {
+    setViewState(next);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === 'lista') params.delete('view');
+    else params.set('view', next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  useEffect(() => {
+    const urlView = parseView(searchParams.get('view'));
+    if (urlView !== view) setViewState(urlView);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Lazy-fetch payments data only when view === 'pagos'
+  const { data: pagosInitial } = trpc.payments.list.useQuery(
+    { page: 1, pageSize: 25 },
+    { enabled: view === 'pagos' },
+  );
+  const { data: pagosSummary } = trpc.payments.getSummary.useQuery(
+    {},
+    { enabled: view === 'pagos' },
+  );
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -82,16 +121,45 @@ export function EmployeesClient({
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      {/* Header — siempre visible (Lista / Reportes / Pagos) */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-text-1">{t('employees.title')}</h1>
           <p className="text-small text-text-3">{data?.total ?? 0} {t('employees.records')}</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" />
-          {t('employees.addNew')}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <PillToggle<'lista' | 'reportes' | 'pagos'>
+            options={[
+              { value: 'lista',    label: t('employees.viewLista'),    icon: <List className="h-3.5 w-3.5" /> },
+              { value: 'reportes', label: t('employees.viewReportes'), icon: <BarChart3 className="h-3.5 w-3.5" /> },
+              { value: 'pagos',    label: t('employees.viewPagos'),    icon: <Wallet className="h-3.5 w-3.5" /> },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4" />
+            {t('employees.addNew')}
+          </Button>
+        </div>
       </div>
+
+      {/* ─── SUB-TAB: REPORTES ────────────────────────────────────── */}
+      {view === 'reportes' && (
+        <EmployeesReportClient departments={departments} />
+      )}
+
+      {/* ─── SUB-TAB: PAGO DE SALARIOS ────────────────────────────── */}
+      {view === 'pagos' && pagosInitial && pagosSummary && (
+        <PaymentsClient initial={pagosInitial} summary={pagosSummary} />
+      )}
+      {view === 'pagos' && (!pagosInitial || !pagosSummary) && (
+        <div className="py-12 text-center text-small text-text-3">Cargando pagos...</div>
+      )}
+
+      {/* ─── SUB-TAB: LISTA (default) ─────────────────────────────── */}
+      {view === 'lista' && (
+      <>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
@@ -229,6 +297,11 @@ export function EmployeesClient({
         </div>
       )}
 
+      </>
+      )}
+      {/* ─── FIN SUB-TAB LISTA ───────────────────────────────────── */}
+
+      {/* Modals — siempre disponibles (Nuevo empleado funciona en cualquier vista) */}
       {viewingEmpId && (
         <EmployeeViewDialog employeeId={viewingEmpId} onClose={() => setViewingEmpId(null)} />
       )}

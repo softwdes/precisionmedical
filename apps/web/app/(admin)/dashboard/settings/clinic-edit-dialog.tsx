@@ -28,8 +28,14 @@ import {
   Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
 } from '@precision/ui';
-import { MapPin, Save, Search, Loader2 } from 'lucide-react';
+import { MapPin, Save, Search, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+
+const COUNTRY_LABELS: Record<'US' | 'BO' | 'PE', string> = {
+  US: '🇺🇸 Utah, USA',
+  BO: '🇧🇴 Bolivia',
+  PE: '🇵🇪 Perú',
+};
 
 export interface Clinic {
   id: string;
@@ -64,25 +70,46 @@ const PIN_ICON = L.divIcon({
   iconAnchor: [14, 36],
 });
 
+/**
+ * Dialog de crear/editar clinica.
+ *
+ * Modo edicion: pasar `clinic` (existente). Se ocultan los campos
+ *   inmutables (clave + pais) y se actualiza via trpc.clinics.update.
+ *
+ * Modo creacion: pasar `clinic={null}` + `defaultCountry`. Se muestran
+ *   los campos clave + pais (editables). Inserta via trpc.clinics.create.
+ *
+ * El resto de campos (nombre visible, coords, radio, geofencing, etc.)
+ * comparten exactamente la misma UI en ambos modos.
+ */
 export function ClinicEditDialog({
   clinic,
   onClose,
   onSaved,
 }: {
-  clinic: Clinic;
+  clinic: Clinic | null;
   onClose: () => void;
   onSaved: () => void;
 }): React.ReactElement {
+  const isCreate = clinic === null;
+
+  // Campos solo-creacion
+  const [newName, setNewName]       = useState('');
+  const [newCountry, setNewCountry] = useState<'US' | 'BO' | 'PE'>('US');
+
   const [form, setForm] = useState({
-    display_name: clinic.display_name,
-    lat: clinic.lat,
-    lng: clinic.lng,
-    radius_m: clinic.radius_m ?? 250,
-    is_active: clinic.is_active,
-    strict_geofencing: clinic.strict_geofencing,
-    address: clinic.address ?? '',
-    phone: clinic.phone ?? '',
+    display_name: clinic?.display_name ?? '',
+    lat: clinic?.lat ?? null as number | null,
+    lng: clinic?.lng ?? null as number | null,
+    radius_m: clinic?.radius_m ?? 250,
+    is_active: clinic?.is_active ?? true,
+    strict_geofencing: clinic?.strict_geofencing ?? false,
+    address: clinic?.address ?? '',
+    phone: clinic?.phone ?? '',
   });
+
+  // En modo crear, el pais determina el centro inicial del mapa
+  const effectiveCountry = clinic?.country ?? newCountry;
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -116,7 +143,7 @@ export function ClinicEditDialog({
           q: query,
           format: 'json',
           limit: '1',
-          countrycodes: clinic.country.toLowerCase(),
+          countrycodes: effectiveCountry.toLowerCase(),
           addressdetails: '1',
         }).toString();
 
@@ -158,6 +185,16 @@ export function ClinicEditDialog({
     onError: (e) => toast.error(e.message),
   });
 
+  const createMutation = trpc.clinics.create.useMutation({
+    onSuccess: () => {
+      toast.success('Clínica creada');
+      onSaved();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const saving = updateMutation.isPending || createMutation.isPending;
+
   // Initialize Leaflet map once — waits for CSS to load from CDN before init
   useEffect(() => {
     let cancelled = false;
@@ -170,7 +207,7 @@ export function ClinicEditDialog({
       const initialCenter: [number, number] =
         form.lat !== null && form.lng !== null
           ? [form.lat, form.lng]
-          : COUNTRY_DEFAULT_CENTER[clinic.country] ?? [0, 0];
+          : COUNTRY_DEFAULT_CENTER[effectiveCountry] ?? [0, 0];
       const initialZoom = form.lat !== null && form.lng !== null ? 16 : 12;
 
       const map = L.map(mapRef.current, { zoomControl: true }).setView(initialCenter, initialZoom);
@@ -216,6 +253,18 @@ export function ClinicEditDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // En modo crear, si el admin cambia el pais antes de fijar coords,
+  // re-centramos el mapa al centro de ese pais. Si ya hay coords, no
+  // movemos el mapa — el admin ya esta editando una ubicacion concreta.
+  useEffect(() => {
+    if (!isCreate) return;
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (form.lat !== null && form.lng !== null) return;
+    const center = COUNTRY_DEFAULT_CENTER[newCountry];
+    if (center) map.setView(center, 12);
+  }, [newCountry, isCreate, form.lat, form.lng]);
+
   // Re-render marker + circle whenever lat/lng/radius change
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -248,8 +297,33 @@ export function ClinicEditDialog({
   }, [form.lat, form.lng, form.radius_m]);
 
   const handleSave = (): void => {
+    if (isCreate) {
+      // Validaciones front antes del round-trip al server
+      if (!newName.trim() || newName.trim().length < 2) {
+        toast.error('La clave interna debe tener al menos 2 caracteres');
+        return;
+      }
+      if (!form.display_name.trim() || form.display_name.trim().length < 2) {
+        toast.error('El nombre visible debe tener al menos 2 caracteres');
+        return;
+      }
+      createMutation.mutate({
+        name: newName.trim(),
+        display_name: form.display_name.trim(),
+        country: newCountry,
+        lat: form.lat,
+        lng: form.lng,
+        radius_m: form.radius_m,
+        is_active: form.is_active,
+        strict_geofencing: form.strict_geofencing,
+        address: form.address || undefined,
+        phone: form.phone || undefined,
+      });
+      return;
+    }
+    // Modo edicion
     updateMutation.mutate({
-      id: clinic.id,
+      id: clinic!.id,
       display_name: form.display_name,
       lat: form.lat,
       lng: form.lng,
@@ -266,15 +340,53 @@ export function ClinicEditDialog({
       <DialogContent className="flex flex-col max-h-[90dvh] w-full sm:max-w-2xl overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-brand" />
-            Editar clínica — {clinic.display_name}
+            {isCreate ? <Plus className="h-4 w-4 text-brand" /> : <MapPin className="h-4 w-4 text-brand" />}
+            {isCreate ? 'Nueva clínica' : `Editar clínica — ${clinic!.display_name}`}
           </DialogTitle>
           <DialogDescription>
-            Ajusta las coordenadas GPS y el radio de geofencing para verificar la asistencia de empleados.
+            {isCreate
+              ? 'Define la clave interna, país y ubicación GPS. La clave NO se puede cambiar después.'
+              : 'Ajusta las coordenadas GPS y el radio de geofencing para verificar la asistencia de empleados.'
+            }
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 overflow-y-auto flex-1 min-h-0 py-1 pr-1">
+          {/* Modo crear: clave interna + pais — solo visibles al crear */}
+          {isCreate && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
+              <div className="space-y-1.5">
+                <Label>Clave interna <span className="text-rose-400">*</span></Label>
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Ej: Orem Clinic"
+                />
+                <p className="text-tiny text-text-muted leading-snug">
+                  Identificador permanente (usado en JOINs con historial). <strong>No se puede cambiar después.</strong>
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>País <span className="text-rose-400">*</span></Label>
+                <select
+                  value={newCountry}
+                  onChange={(e) => setNewCountry(e.target.value as 'US' | 'BO' | 'PE')}
+                  className="w-full rounded-md border border-border bg-surface px-3 py-2 text-[13px] focus:outline-none focus:border-brand/50"
+                  style={{ backgroundColor: '#161D31', color: '#F5F7FB', minHeight: 38 }}
+                >
+                  {(['US','BO','PE'] as const).map(code => (
+                    <option key={code} value={code} style={{ backgroundColor: '#161D31' }}>
+                      {COUNTRY_LABELS[code]}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-tiny text-text-muted leading-snug">
+                  Determina dónde se centra el mapa y filtra el buscador de direcciones.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Map */}
           <div className="space-y-1.5">
             <Label>Ubicación en el mapa <span className="text-text-muted font-normal">(clic para fijar)</span></Label>
@@ -293,9 +405,13 @@ export function ClinicEditDialog({
             <Input
               value={form.display_name}
               onChange={(e) => setForm(f => ({ ...f, display_name: e.target.value }))}
+              placeholder={isCreate ? 'Lo que verá el empleado en el dropdown' : undefined}
             />
             <p className="text-tiny text-text-muted">
-              Esto es lo que el empleado ve en el dropdown del Time Clock. La clave interna (<code className="text-text-3">{clinic.name}</code>) no cambia.
+              {isCreate
+                ? 'Lo que el empleado ve en el dropdown del Time Clock. Puede diferir de la clave.'
+                : <>Esto es lo que el empleado ve en el dropdown del Time Clock. La clave interna (<code className="text-text-3">{clinic!.name}</code>) no cambia.</>
+              }
             </p>
           </div>
 
@@ -487,12 +603,12 @@ export function ClinicEditDialog({
         </div>
 
         <DialogFooter className="shrink-0">
-          <Button variant="ghost" onClick={onClose} disabled={updateMutation.isPending}>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} loading={updateMutation.isPending}>
-            <Save className="h-3.5 w-3.5" />
-            Guardar cambios
+          <Button onClick={handleSave} loading={saving}>
+            {isCreate ? <Plus className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+            {isCreate ? 'Crear clínica' : 'Guardar cambios'}
           </Button>
         </DialogFooter>
       </DialogContent>

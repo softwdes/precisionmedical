@@ -7,7 +7,7 @@ import {
   Button, Badge,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@precision/ui';
-import { MapPin, Pencil, AlertCircle, Lock } from 'lucide-react';
+import { MapPin, Pencil, AlertCircle, Lock, Plus } from 'lucide-react';
 import { useRole } from '@/contexts/role-context';
 import { ClinicEditDialog, type Clinic } from './clinic-edit-dialog';
 
@@ -22,17 +22,24 @@ export function ClinicsTab(): React.ReactElement {
   const canEdit = role === 'super_admin';
   const { data: clinics = [], refetch, isLoading } = trpc.clinics.list.useQuery();
   const [editing, setEditing] = useState<Clinic | null>(null);
+  const [creating, setCreating] = useState(false);
 
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-text-1">Clínicas</h2>
           <p className="text-small text-text-3">
             {clinics.length} clínicas registradas · ubicaciones GPS para verificación de asistencia
           </p>
         </div>
+        {canEdit && (
+          <Button onClick={() => setCreating(true)} size="sm">
+            <Plus className="h-3.5 w-3.5" />
+            Nueva clínica
+          </Button>
+        )}
       </div>
 
       {/* Read-only notice for non-super-admin */}
@@ -146,6 +153,15 @@ export function ClinicsTab(): React.ReactElement {
           clinic={editing}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); void refetch(); }}
+        />
+      )}
+
+      {/* Create dialog — mismo componente, pasamos clinic=null */}
+      {creating && (
+        <ClinicEditDialog
+          clinic={null}
+          onClose={() => setCreating(false)}
+          onSaved={() => { setCreating(false); void refetch(); }}
         />
       )}
     </div>

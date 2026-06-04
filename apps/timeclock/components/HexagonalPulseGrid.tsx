@@ -160,7 +160,7 @@ export function HexagonalPulseGrid(): React.ReactElement {
       ref={canvasRef}
       aria-hidden="true"
       style={{
-        position: 'fixed',
+        position: 'absolute',   // fixed pintaba BAJO el backgroundColor del wrapper
         inset: 0,
         zIndex: 0,
         pointerEvents: 'none',

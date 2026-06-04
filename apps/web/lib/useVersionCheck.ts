@@ -21,7 +21,11 @@ export function useVersionCheck(): { isOutdated: boolean } {
 
     async function check(): Promise<void> {
       try {
-        const res = await fetch('/api/version', { cache: 'no-store' });
+        // Cache-bust en el query string — defensa contra cualquier SW que
+        // pudiera intentar cachear el endpoint (workbox/serwist a veces
+        // ignora Cache-Control). El admin actualmente tiene NetworkOnly
+        // explicito, asi que este cache-bust es por defensa en profundidad.
+        const res = await fetch(`/api/version?_=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json() as { version: string };
         if (cancelled) return;

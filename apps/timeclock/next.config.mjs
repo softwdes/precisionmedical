@@ -22,6 +22,15 @@ export default withPWA({
         handler: 'NetworkOnly',
       },
       {
+        // API routes: NUNCA cachear. cacheOnFrontEndNav + aggressiveFrontEndNavCaching
+        // hacen que next-pwa intercepte todo lo no listado y lo sirva con
+        // StaleWhileRevalidate. Eso rompia el polling de /api/version (el banner
+        // "Nueva version disponible" no se disparaba en mobile porque el SW
+        // devolvia siempre la misma version cacheada al cliente).
+        urlPattern: /\/api\/.*/i,
+        handler: 'NetworkOnly',
+      },
+      {
         urlPattern: /^\/_next\/static\/.*/i,
         handler: 'CacheFirst',
         options: {

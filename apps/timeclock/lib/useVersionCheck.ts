@@ -27,7 +27,12 @@ export function useVersionCheck(): { isOutdated: boolean } {
 
     async function check(): Promise<void> {
       try {
-        const res = await fetch('/api/version', { cache: 'no-store' });
+        // Cache-bust en el query string: el Service Worker puede tener
+        // reglas que cacheen /api/version (workbox ignora Cache-Control).
+        // Una URL distinta cada call garantiza miss del SW cache → red.
+        // Indispensable para usuarios con PWA instalada antes del fix de
+        // workboxOptions.runtimeCaching en next.config.mjs.
+        const res = await fetch(`/api/version?_=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json() as { version: string };
         if (cancelled) return;

@@ -265,10 +265,24 @@ export default function LoginPage(): React.ReactElement {
           100% { background-position: -200% 0; }
         }
         @keyframes pmScanLine {
-          0%   { transform: translateY(0);     opacity: 0;    }
-          5%   { opacity: 0.35; }
-          95%  { opacity: 0.35; }
-          100% { transform: translateY(100vh); opacity: 0;    }
+          0%   { transform: translateY(-20px); opacity: 0; }
+          8%   { opacity: 0.85; }
+          92%  { opacity: 0.85; }
+          100% { transform: translateY(100vh); opacity: 0; }
+        }
+        @keyframes lmHeartbeat {
+          0%   { transform: scale(1); }
+          12%  { transform: scale(1.10); }
+          22%  { transform: scale(1.00); }
+          34%  { transform: scale(1.05); }
+          44%  { transform: scale(1.00); }
+          100% { transform: scale(1); }
+        }
+        .pm-lm-heartbeat {
+          animation: lmHeartbeat 1.4s ease-in-out infinite;
+          transform-origin: center;
+          display: inline-flex;
+          will-change: transform;
         }
         .pm-icon-breath { animation: iconBreath 3s ease-in-out infinite; }
         .pm-icon-halo {
@@ -338,12 +352,14 @@ export default function LoginPage(): React.ReactElement {
           }}
         />
 
-        {/* ── Layer 2b: Scan line que baja ── */}
+        {/* ── Layer 2b: Scan line que baja (más visible — 2px + glow vertical) ── */}
         <div aria-hidden style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-          background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.3) 30%, rgba(139,92,246,0.55) 50%, rgba(99,102,241,0.3) 70%, transparent 100%)',
-          animation: 'pmScanLine 9s linear infinite',
-          pointerEvents: 'none', zIndex: 2,
+          position: 'absolute', top: 0, left: 0, right: 0,
+          height: 2,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.6) 25%, rgba(139,92,246,1.0) 50%, rgba(99,102,241,0.6) 75%, transparent 100%)',
+          boxShadow: '0 0 16px rgba(139,92,246,0.65), 0 0 32px rgba(99,102,241,0.30), 0 -1px 8px rgba(139,92,246,0.40)',
+          animation: 'pmScanLine 8s linear infinite',
+          pointerEvents: 'none', zIndex: 5,
         }} />
 
         {/* ── Layer 3: Dot grid ── */}
@@ -441,23 +457,27 @@ export default function LoginPage(): React.ReactElement {
               <div style={{ position: 'absolute', top: -16, left: -16, right: -16, bottom: -16, borderRadius: 32, border: '1px solid rgba(99,102,241,0.10)' }} />
               {/* Ring 1 — closest */}
               <div style={{ position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 24, border: '1px solid rgba(99,102,241,0.22)' }} />
-              {/* Logo box — con breath animation + halo expansivo */}
-              <div
-                className="pm-logo-box pm-icon-breath"
-                style={{
-                  position: 'relative',
-                  width: 68,
-                  height: 68,
-                  borderRadius: 20,
-                  background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {/* Anillo expansivo (super admin halo) */}
-                <span className="pm-icon-halo" aria-hidden="true" />
-                <span style={{ color: 'white', fontWeight: 800, fontSize: 19, position: 'relative', zIndex: 1 }}>LM</span>
+              {/* Wrapper externo: heartbeat (escala lub-dub).
+                  El inner mantiene breath (box-shadow) + halo expansivo.
+                  Asi las 3 animaciones se compounden sin conflicto de transform. */}
+              <div className="pm-lm-heartbeat">
+                <div
+                  className="pm-logo-box pm-icon-breath"
+                  style={{
+                    position: 'relative',
+                    width: 68,
+                    height: 68,
+                    borderRadius: 20,
+                    background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {/* Anillo expansivo (super admin halo) */}
+                  <span className="pm-icon-halo" aria-hidden="true" />
+                  <span style={{ color: 'white', fontWeight: 800, fontSize: 19, position: 'relative', zIndex: 1 }}>LM</span>
+                </div>
               </div>
             </div>
             <p className="pm-title pm-title-glow" style={{ color: '#F5F7FB', fontWeight: 800, fontSize: 26, letterSpacing: '-0.5px', margin: '0 0 5px' }}>

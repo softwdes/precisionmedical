@@ -1,156 +1,120 @@
 'use client';
 
 /**
- * HexagonalPulseGrid — fondo decorativo para el login.
+ * HexagonalPulseGrid — fondo decorativo honeycomb para el login del timeclock.
  *
- * Renderiza un canvas full-screen con un patron honeycomb de hexagonos que
- * pulsan independientemente (aparecen y desaparecen suavemente con timings
- * aleatorios entre 3-6s por ciclo). La mayoria son purpura del proyecto,
- * ~15% son cyan para variedad cromatica.
+ * Hexágonos con borde tenue que pulsan independientemente (campana sin/cos).
+ * Mayoría púrpura indigo, ~15% cyan. Opacidad máx 0.18 — sutil y profesional.
  *
- * El canvas usa position:fixed + z-index:0 + pointerEvents:none para no
- * interferir con el contenido encima. Opacity maxima por hexagono es 0.18
- * para que el efecto sea sutil — apropiado para una app medica, no para un
- * portal hacker.
+ * Patrón de canvas idéntico al NeuralBackground de los logins NTG:
+ *  - Sin DPR scaling (evita clearRect conflicts)
+ *  - position: absolute dentro del wrapper position: relative
+ *  - Alias post-guard para TypeScript strict
  */
 
 import { useEffect, useRef } from 'react';
 
 interface Hex {
-  x: number;
-  y: number;
-  /** Opacidad actual del hexagono (0..maxOpacity). Recomputed each frame. */
-  opacity: number;
-  /** Fase del ciclo de pulso, 0..1. Cuando llega a 1 reinicia. */
-  phase: number;
-  /** Velocidad de avance de la fase por ms — controla la duracion del ciclo. */
-  speed: number;
-  /** Prefijo rgba(...) sin la opacidad final — cerramos con `${o})` al pintar. */
-  color: string;
-  /** Opacidad pico al centro del ciclo (sin(phase*pi) * maxOpacity). */
-  maxOpacity: number;
+  x:          number;
+  y:          number;
+  phase:      number;   // 0-1, posición en el ciclo de pulso
+  speed:      number;   // avance de fase por ms
+  maxOpacity: number;   // opacidad pico (0.10-0.18)
+  isCyan:     boolean;
 }
 
-const COLOR_PURPLE = 'rgba(100, 80, 220, ';
-const COLOR_CYAN   = 'rgba(0, 200, 200, ';
-const CYAN_RATIO   = 0.15;  // ~15% de los hexagonos son cyan
-
-export function HexagonalPulseGrid(): React.ReactElement {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+export function HexagonalPulseGrid() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const el = canvasRef.current;
+    if (!el) return;
+    const ctx = el.getContext('2d');
     if (!ctx) return;
 
-    // Alias estables — TypeScript pierde narrowing en closures async/raf,
-    // y queremos que dentro de animate() siga siendo non-null sin re-checkear.
-    const c  = ctx;
-    const cv = canvas;
+    // Aliases post-guard — TS pierde narrowing en closures raf
+    const cvs = el;
+    const c   = ctx;
 
     let hexagons: Hex[] = [];
-    let raf = 0;
+    let animId  = 0;
     let lastTime = 0;
-    let radius = 70;
+    let radius   = 70;
 
     function buildGrid(): void {
-      const dpr = window.devicePixelRatio || 1;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      // Sin DPR — patrón simple igual al NeuralBackground (probado que funciona)
+      cvs.width  = window.innerWidth;
+      cvs.height = window.innerHeight;
 
-      cv.width  = w * dpr;
-      cv.height = h * dpr;
-      cv.style.width  = w + 'px';
-      cv.style.height = h + 'px';
-      // setTransform en vez de scale — scale acumula entre resizes.
-      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      radius = window.innerWidth < 640 ? 38 : 70;
 
-      const isMobile = w < 640;
-      radius = isMobile ? 38 : 70;
+      const hexW    = Math.sqrt(3) * radius;
+      const hexH    = 2 * radius;
+      const vertGap = hexH * 0.75;
 
-      // Geometria honeycomb (pointy-top): cada fila offset por hexWidth/2.
-      const hexWidth    = Math.sqrt(3) * radius;
-      const hexHeight   = 2 * radius;
-      const vertSpacing = hexHeight * 0.75;
+      const cols = Math.ceil(cvs.width  / hexW) + 2;
+      const rows = Math.ceil(cvs.height / vertGap) + 2;
 
-      const cols = Math.ceil(w / hexWidth) + 2;
-      const rows = Math.ceil(h / vertSpacing) + 2;
-
-      const next: Hex[] = [];
+      hexagons = [];
       for (let row = 0; row < rows; row++) {
-        const rowOffset = row % 2 === 0 ? 0 : hexWidth / 2;
+        const offset = row % 2 === 0 ? 0 : hexW / 2;
         for (let col = 0; col < cols; col++) {
-          const x = col * hexWidth + rowOffset - hexWidth;
-          const y = row * vertSpacing - hexHeight;
-
-          const isCyan = Math.random() < CYAN_RATIO;
-          next.push({
-            x,
-            y,
-            opacity: 0,
-            phase: Math.random(),                       // empieza en fase aleatoria
-            speed: 0.00018 + Math.random() * 0.00022,   // ~3-7s ciclo completo
-            color: isCyan ? COLOR_CYAN : COLOR_PURPLE,
-            maxOpacity: 0.10 + Math.random() * 0.08,    // 0.10..0.18
+          hexagons.push({
+            x:          col * hexW + offset - hexW,
+            y:          row * vertGap - hexH,
+            phase:      Math.random(),
+            speed:      0.00018 + Math.random() * 0.00022,
+            maxOpacity: 0.10 + Math.random() * 0.08,
+            isCyan:     Math.random() < 0.15,
           });
         }
       }
-      hexagons = next;
     }
 
-    function drawHex(cx: number, cy: number, r: number, opacity: number, colorPrefix: string): void {
+    function drawHex(cx: number, cy: number, r: number, alpha: number, isCyan: boolean): void {
       c.beginPath();
       for (let i = 0; i < 6; i++) {
-        // pointy-top hex: angulos 30, 90, 150, 210, 270, 330
         const angle = (Math.PI / 3) * i + Math.PI / 6;
         const px = cx + r * Math.cos(angle);
         const py = cy + r * Math.sin(angle);
         if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
       }
       c.closePath();
-      c.strokeStyle = colorPrefix + opacity.toFixed(3) + ')';
+      c.strokeStyle = isCyan
+        ? `rgba(6,182,212,${alpha.toFixed(3)})`
+        : `rgba(99,102,241,${alpha.toFixed(3)})`;
       c.lineWidth = 1;
       c.stroke();
     }
 
-    function animate(time: number): void {
+    function frame(time: number): void {
       if (lastTime === 0) lastTime = time;
-      const dt = Math.min(time - lastTime, 64);  // clamp a 64ms si el tab estuvo background
+      const dt = Math.min(time - lastTime, 64);
       lastTime = time;
 
-      const w = cv.clientWidth;
-      const h = cv.clientHeight;
-      c.clearRect(0, 0, w, h);
+      c.clearRect(0, 0, cvs.width, cvs.height);
 
-      for (let i = 0; i < hexagons.length; i++) {
-        const hex = hexagons[i];
-        if (!hex) continue;
-
+      for (const hex of hexagons) {
         hex.phase += hex.speed * dt;
         if (hex.phase > 1) hex.phase -= 1;
 
-        // Pulso en forma de campana: opacity = sin(phase * PI) * max.
-        // En phase=0 y phase=1 el hexagono es invisible; pico en phase=0.5.
-        const o = Math.sin(hex.phase * Math.PI) * hex.maxOpacity;
-        hex.opacity = o;
-
-        if (o > 0.005) {
-          drawHex(hex.x + radius, hex.y + radius, radius, o, hex.color);
+        const alpha = Math.sin(hex.phase * Math.PI) * hex.maxOpacity;
+        if (alpha > 0.005) {
+          drawHex(hex.x + radius, hex.y + radius, radius, alpha, hex.isCyan);
         }
       }
 
-      raf = requestAnimationFrame(animate);
+      animId = requestAnimationFrame(frame);
     }
 
     buildGrid();
-    raf = requestAnimationFrame(animate);
+    animId = requestAnimationFrame(frame);
 
     const onResize = (): void => { lastTime = 0; buildGrid(); };
     window.addEventListener('resize', onResize);
 
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(animId);
       window.removeEventListener('resize', onResize);
     };
   }, []);
@@ -160,7 +124,7 @@ export function HexagonalPulseGrid(): React.ReactElement {
       ref={canvasRef}
       aria-hidden="true"
       style={{
-        position: 'absolute',   // fixed pintaba BAJO el backgroundColor del wrapper
+        position: 'absolute',
         inset: 0,
         zIndex: 0,
         pointerEvents: 'none',

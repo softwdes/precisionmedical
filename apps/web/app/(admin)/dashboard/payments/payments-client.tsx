@@ -39,6 +39,29 @@ function fmtPeriod(period: string, locale: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+/**
+ * Devuelve los montos correctos de un pago, defendiéndose de datos históricos donde
+ * `amountLocal` quedó desactualizado (no incluye el bono). Si tenemos base persistida,
+ * recalcula total = base + bono. Si no hay base (registros muy viejos), fallback a amountLocal.
+ * El signo (positivo/negativo) se preserva para reversals.
+ */
+function getPaymentAmounts(payment: { amountLocal: unknown; base_salary?: unknown; bonus_amount?: unknown }): {
+  base: number; bonus: number; total: number; isNegative: boolean;
+} {
+  const isNegative = Number(payment.amountLocal) < 0;
+  const baseRaw    = Number(payment.base_salary) || 0;
+  const bonusRaw   = Math.abs(Number(payment.bonus_amount) || 0);
+  const computed   = baseRaw + bonusRaw;
+  const fallback   = Math.abs(Number(payment.amountLocal));
+  const totalAbs   = computed > 0 ? computed : fallback;
+  return {
+    base:       baseRaw > 0 ? baseRaw : fallback,
+    bonus:      bonusRaw,
+    total:      isNegative ? -totalAbs : totalAbs,
+    isNegative,
+  };
+}
+
 // ─── Bonus Toggle ────────────────────────────────────────────
 
 function BonusToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -126,10 +149,11 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
     onError: (e) => toast.error(e.message),
   });
 
-  // Summary bar — computed from visible page items
+  // Summary bar — computed from visible page items.
+  // Usa getPaymentAmounts para recalcular total (defensa contra datos historicos inconsistentes).
   const summaryBar = useMemo(() => {
     const visible = items.filter(p => Number(p.amountLocal) > 0);
-    const totalPayroll = visible.reduce((s, p) => s + Number(p.amountLocal), 0);
+    const totalPayroll = visible.reduce((s, p) => s + getPaymentAmounts(p).total, 0);
     const totalBonuses = visible.reduce((s, p) => s + Math.abs(Number(p.bonus_amount) || 0), 0);
     const currency = visible[0]?.currencyLocal ?? 'USD';
     return { totalPayroll, totalBonuses, currency };
@@ -213,15 +237,8 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
             <div className="divide-y divide-border">
               {items.map((payment) => {
                 const emp = (payment.employee as unknown) as { firstName: string; lastName: string; employeeCode: string } | null;
-                // Defensa: si base + bono existen, recalcular total (los datos historicos
-                // pueden tener amountLocal desactualizado por edits manuales o flujos antiguos).
-                const baseRaw    = Number(payment.base_salary) || 0;
-                const bonusRaw   = Math.abs(Number(payment.bonus_amount) || 0);
-                const computed   = baseRaw + bonusRaw;
-                // Si tenemos base, usa el computed. Sino fallback a amountLocal (registros muy viejos).
-                const total = computed > 0 ? computed : Math.abs(Number(payment.amountLocal));
-                const base  = baseRaw > 0 ? baseRaw : Math.abs(Number(payment.amountLocal));
-                const bonus = bonusRaw;
+                const { base, bonus, total } = getPaymentAmounts(payment);
+                const displayTotal = Math.abs(total);
                 return (
                   <div
                     key={payment.id}
@@ -349,17 +366,8 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
                 </TableRow>
               ) : (
                 items.map((payment) => {
-                  const emp   = (payment.employee as unknown) as { firstName: string; lastName: string; employeeCode: string } | null;
-                  // Misma defensa que en mobile: recalcular total cuando base + bono existen,
-                  // para que los datos historicos inconsistentes no muestren totales erroneos.
-                  const isNeg     = Number(payment.amountLocal) < 0;
-                  const baseRaw   = Number(payment.base_salary) || 0;
-                  const bonusRaw  = Math.abs(Number(payment.bonus_amount) || 0);
-                  const computed  = baseRaw + bonusRaw;
-                  const totalAbs  = computed > 0 ? computed : Math.abs(Number(payment.amountLocal));
-                  const total     = isNeg ? -totalAbs : totalAbs;
-                  const base      = baseRaw > 0 ? baseRaw : Math.abs(Number(payment.amountLocal));
-                  const bonus     = bonusRaw;
+                  const emp = (payment.employee as unknown) as { firstName: string; lastName: string; employeeCode: string } | null;
+                  const { base, bonus, total } = getPaymentAmounts(payment);
                   return (
                     <TableRow key={payment.id}>
 
@@ -543,6 +551,8 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
           {(() => {
             const payment = items.find(i => i.id === showMarkPaid);
             const emp = payment?.employee as { firstName?: string; lastName?: string; bankQrUrl?: string } | null;
+            // Total recalculado defensivamente (no confia en amountLocal desactualizado)
+            const totalToPay = payment ? Math.abs(getPaymentAmounts(payment).total) : 0;
             return (
               <div className="flex-1 overflow-y-auto min-h-0 py-2 space-y-4">
                 <p className="text-small text-text-3">{t('payments.markAsPaidConfirm')}</p>
@@ -558,7 +568,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
                     </div>
                     <div className="flex justify-between gap-2">
                       <span className="text-text-3">{t('common.total')}</span>
-                      <span className="font-semibold text-emerald">{payment.currencyLocal} {Number(payment.amountLocal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-semibold text-emerald">{payment.currencyLocal} {totalToPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 )}

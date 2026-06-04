@@ -272,14 +272,35 @@ export const paymentsRouter = router({
       proofUrl: z.string().url().optional(),
     }))
     .mutation(async ({ input }) => {
+      // Lee el pago primero para self-heal: si amountLocal != base + bono (por datos
+      // historicos inconsistentes), aprovechamos esta mutation para recalcularlo.
+      const { data: existing } = await supabaseAdmin
+        .from('payments')
+        .select('base_salary, bonus_amount, amountLocal')
+        .eq('id', input.id)
+        .single();
+
+      const updatePayload: Record<string, unknown> = {
+        status:    'PAID',
+        paidDate:  (input.paidDate ?? new Date()).toISOString(),
+        proofUrl:  input.proofUrl,
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (existing && existing.base_salary != null) {
+        const correctTotal = Number(existing.base_salary) + Number(existing.bonus_amount ?? 0);
+        const currentTotal = Number(existing.amountLocal);
+        if (Math.abs(correctTotal - Math.abs(currentTotal)) > 0.01) {
+          // Self-heal: amountLocal estaba desactualizado, lo arreglamos al marcar como pagado
+          const signedTotal = currentTotal < 0 ? -correctTotal : correctTotal;
+          updatePayload.amountLocal    = signedTotal;
+          updatePayload.amountUsdEquiv = signedTotal;
+        }
+      }
+
       const { data, error } = await supabaseAdmin
         .from('payments')
-        .update({
-          status: 'PAID',
-          paidDate: (input.paidDate ?? new Date()).toISOString(),
-          proofUrl: input.proofUrl,
-          updatedAt: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', input.id)
         .select()
         .single();

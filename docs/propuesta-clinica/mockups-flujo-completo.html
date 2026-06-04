@@ -310,21 +310,27 @@
     <li><strong>B.21 — Portal del Abogado</strong> · dashboard en tiempo real + detalle de caso (notas SOAP, HCFA, imaging, próx cita) + firma del Lien en 1 clic</li>
   </ul>
 
+  <h4 style="color: #f59e0b;">📞 Edson · Post-visita (Seguimiento + Cobranzas)</h4>
+  <ul style="list-style: none; margin-left: 0;">
+    <li>B.22 — Bandeja de cobranzas + escalación automática &gt;60 días</li>
+    <li>B.23 — Detalle de seguimiento del caso · timeline + comunicaciones + acciones</li>
+  </ul>
+
   <h4>Billing &amp; Finance (Brunella)</h4>
   <ul style="list-style: none; margin-left: 0;">
-    <li>B.22 — Bandeja de notas pendientes + Notas internas con timeline</li>
-    <li>B.23 — HCFA / CMS-1500 generación</li>
-    <li><strong>B.24 — Ledger del caso</strong> · vista digital + PDF "Account Overview" + Reporte mensual consolidado</li>
+    <li>B.24 — Bandeja de notas pendientes + Notas internas con timeline</li>
+    <li>B.25 — HCFA / CMS-1500 generación</li>
+    <li><strong>B.26 — Ledger del caso</strong> · vista digital + PDF "Account Overview" + Reporte mensual consolidado</li>
   </ul>
 
   <h4>Cierre + Inteligencia</h4>
   <ul style="list-style: none; margin-left: 0;">
-    <li>B.25 — Workflow de Settlement</li>
-    <li>B.26 — Dashboard ejecutivo de Gerencia</li>
+    <li>B.27 — Workflow de Settlement</li>
+    <li>B.28 — Dashboard ejecutivo de Gerencia</li>
   </ul>
 
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>26 mockups del flujo end-to-end</strong> en orden cronológico. La tablet en clínica se integró dentro del Landing del formulario (B.5) y el Portal del Abogado quedó después de la Vista del Doctor (B.21) para reflejar el flujo natural: doctor atiende → abogado firma → billing → cierre. El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>28 mockups del flujo end-to-end</strong> en orden cronológico. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.22-B.23, seguimiento + cobranzas). El Portal del Abogado (B.21) cierra el ciclo clínico antes de pasar a Brunella (B.24-B.26) y settlement (B.27-B.28). El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
   </div>
 </div>
 
@@ -1731,6 +1737,20 @@
   <h2>Calendario rediseñado · Vista semana</h2>
   <p><strong>Mejoras clave:</strong> colores con leyenda clara por estado + tipo de caso, filtros avanzados, vista compacta de info por evento, distinción visual de citas confirmadas vs. pendientes vs. completadas.</p>
 
+  <div class="callout callout-success">
+    <strong>📅 Calendario compartido — fuente única de verdad para toda la clínica.</strong> El mismo dataset se consume desde distintos roles con permisos diferenciados:
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Front Office</strong> (administrativos) — vista completa, <strong>crear y editar citas</strong>, todas las clínicas/doctores.</li>
+      <li><strong>Doctores</strong> — su agenda del día y la semana, sus pacientes; cambios solicitados a Front Office.</li>
+      <li><strong>MAs / Enfermería</strong> — vista del día para preparar triaje y salas.</li>
+      <li><strong>Edson (Intake + Seguimiento)</strong> — read-only para verificar timing pre-visita y trackear cobranzas post-visita.</li>
+      <li><strong>Brunella (Billing)</strong> — read-only para contexto de cuándo ocurrió cada visita facturable.</li>
+      <li><strong>Super Admin / Gerencia</strong> — vista global de todas las clínicas para análisis de ocupación y staffing.</li>
+      <li><strong>Abogados externos</strong> — solo próximas citas de sus clientes (read-only, en su Portal).</li>
+      <li><strong>Pacientes</strong> — solo sus propias citas (en su Portal).</li>
+    </ul>
+  </div>
+
   <div class="mockup">
     <div class="mockup-frame">
       <div class="mock-topbar">
@@ -3053,9 +3073,251 @@
   </div>
 </div>
 
-<!-- ═══ B.22 — BANDEJA DE BRUNELLA (era B.21) ═══ -->
+<!-- ═══ B.22 — BANDEJA DE EDSON · POST-VISITA (SEGUIMIENTO + COBRANZAS) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.22 · Billing &amp; Finance</span>
+  <span class="section-anchor" style="background: linear-gradient(135deg, #f59e0b, #f43f5e);">B.22 · Intake &amp; Verification</span>
+  <h2>Bandeja de Edson · Seguimiento y Cobranzas (post-visita)</h2>
+  <p><strong>Quién la usa:</strong> Edson (Intake Specialist). <strong>Para qué:</strong> después de que el paciente fue atendido y el abogado firmó, Edson hace seguimiento del caso y persigue cobros pendientes. Es <strong>el otro lado del trabajo de Edson</strong> (la primera bandeja B.12 era pre-visita; ésta es post-visita).</p>
+
+  <div class="callout">
+    <strong>Doble rol de Edson:</strong> el mismo intake specialist opera en dos momentos del flujo. <strong>Pre-visita</strong> (B.12-B.13): verifica law firm + PIP antes de admitir al paciente. <strong>Post-visita</strong> (esta sección y B.23): hace seguimiento de cobranzas, persigue al bufete por documentación pendiente y monitorea casos estancados. Su bandeja tiene un <strong>toggle</strong> arriba para alternar entre los dos workspaces.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">📞 Seguimiento &amp; Cobranzas · Edson</div>
+        <span class="mock-time">⏱ 09:42</span>
+      </div>
+      <div class="mock-body">
+
+        <!-- Toggle pre / post -->
+        <div style="display:flex;gap:6px;margin-bottom:14px;background:rgba(255,255,255,0.03);padding:4px;border-radius:10px;width:fit-content;">
+          <div style="padding:6px 14px;font-size:11px;color:rgba(255,255,255,0.55);cursor:pointer;">Pre-visita (14)</div>
+          <div style="padding:6px 14px;font-size:11px;background:linear-gradient(135deg,#f59e0b,#f43f5e);color:white;border-radius:6px;font-weight:600;">Post-visita · Cobranzas (27)</div>
+        </div>
+
+        <div class="mock-title">📞 Casos en seguimiento de cobro</div>
+        <div class="mock-subtitle">27 casos con dinero pendiente de cobrar al bufete o aseguradora</div>
+
+        <div class="mock-kpi-row">
+          <div class="mock-kpi"><div class="mock-kpi-label">Pendiente cobro</div><div class="mock-kpi-value" style="color:#fbbf24;">$184.6K</div><div class="mock-kpi-sub">Lien acumulado total</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Casos &gt; 30 días</div><div class="mock-kpi-value" style="color:#f59e0b;">12</div><div class="mock-kpi-sub">Atención preferente</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Casos &gt; 60 días</div><div class="mock-kpi-value" style="color:#f43f5e;">5</div><div class="mock-kpi-sub">⚠ Urgentes — escalar</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Recuperado este mes</div><div class="mock-kpi-value" style="color:#34d399;">$47.2K</div><div class="mock-kpi-sub">Cobrado a bufetes</div></div>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+          <div class="mock-input selected" style="font-size:10px;padding:4px 10px;">Todos (27)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">⚠ Urgentes &gt;60d (5)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">📞 Esperando respuesta del bufete (9)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">📄 Falta documentación (4)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">💰 Pago parcial recibido (3)</div>
+        </div>
+
+        <!-- Caso urgente >60d -->
+        <div style="background:linear-gradient(135deg,rgba(244,63,94,0.12),rgba(244,63,94,0.04));border:1px solid rgba(244,63,94,0.32);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:monospace;color:#fda4af;font-weight:700;">MVA #2741</span>
+                <span class="mock-status urgent">⚠ 78 días sin cobrar</span>
+                <span style="color:white;">Sandra López</span>
+              </div>
+              <div style="font-size:10.5px;color:rgba(255,255,255,0.65);margin-top:4px;">Última visita: 17/Mar · Smith &amp; Johnson LLP · 5 visitas · 1 inyección</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:monospace;color:#fda4af;font-weight:700;font-size:13px;">$8,450.00</div>
+              <button class="mock-action-btn primary" style="font-size:10px;margin-top:4px;">Trabajar →</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;font-size:10px;flex-wrap:wrap;">
+            <span class="badge badge-rose">❌ Sin respuesta del bufete · 3 llamadas</span>
+            <span class="badge badge-amber">⏳ Falta firma adicional de HCFA</span>
+            <span class="badge badge-cyan">📧 Último email hace 12 días</span>
+          </div>
+        </div>
+
+        <!-- Caso amber 30-60d -->
+        <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.20);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:monospace;color:#fbbf24;font-weight:700;">MVA #2812</span>
+                <span class="mock-status pending">42 días</span>
+                <span style="color:white;">Carlos Vega</span>
+              </div>
+              <div style="font-size:10.5px;color:rgba(255,255,255,0.65);margin-top:4px;">Última visita: 22/Abr · Jones Legal Group · 3 visitas + MRI</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:monospace;color:#fbbf24;font-weight:700;font-size:13px;">$5,120.00</div>
+              <button class="mock-action-btn primary" style="font-size:10px;margin-top:4px;">Trabajar →</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;font-size:10px;flex-wrap:wrap;">
+            <span class="badge badge-emerald">✓ Documentación completa</span>
+            <span class="badge badge-amber">📞 Bufete prometió pago para fin de mes</span>
+          </div>
+        </div>
+
+        <!-- Caso con pago parcial -->
+        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.20);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:monospace;color:#34d399;font-weight:700;">MVA #2855</span>
+                <span class="mock-status in-room">💰 Pago parcial</span>
+                <span style="color:white;">Mónica Silva</span>
+              </div>
+              <div style="font-size:10.5px;color:rgba(255,255,255,0.65);margin-top:4px;">Última visita: 8/May · Smith &amp; Johnson · 2 visitas · Recibido $2,800 de $4,200</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:monospace;color:#fbbf24;font-weight:700;font-size:13px;">$1,400.00</div>
+              <button class="mock-action-btn primary" style="font-size:10px;margin-top:4px;">Trabajar →</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;font-size:10px;">
+            <span class="badge badge-emerald">✓ Documentación completa</span>
+            <span class="badge badge-cyan">💰 Pago parcial confirmado · esperando saldo</span>
+          </div>
+        </div>
+
+        <!-- Caso reciente -->
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 16px;margin-bottom:8px;font-size:10.5px;color:rgba(255,255,255,0.65);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span><span style="font-family:monospace;color:#a5b4fc;">MVA #2901</span> · Mario Fernández · 18 días · Bufete contactado</span>
+            <span style="font-family:monospace;color:rgba(255,255,255,0.65);">$3,200.00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Vs. el LM actual:</strong> hoy las cobranzas viven en planillas Excel sueltas y emails del bufete. Aquí están en una <strong>bandeja única con priorización por días sin cobrar</strong>, comunicaciones loggeadas, escalación automática a urgente cuando supera 60 días, y reporte mensual de recovery rate.
+  </div>
+</div>
+
+<!-- ═══ B.23 — DETALLE DE SEGUIMIENTO DEL CASO (POST-VISITA) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #f59e0b, #f43f5e);">B.23 · Intake &amp; Verification</span>
+  <h2>Detalle de seguimiento del caso</h2>
+  <p><strong>Concepto:</strong> Edson abre un caso desde la bandeja post-visita y ve <strong>todo lo que necesita para cobrar</strong>: timeline del caso (visitas + firmas + pagos), checklist de documentación, log de comunicaciones con el bufete y acciones rápidas (llamar, email, escalar).</p>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">📞 Seguimiento · MVA #2741 · Sandra López</div>
+        <span class="mock-time">⏱ 09:48</span>
+      </div>
+      <div class="mock-body">
+
+        <!-- Header del caso -->
+        <div style="background:linear-gradient(135deg,rgba(244,63,94,0.10),rgba(244,63,94,0.04));border:1px solid rgba(244,63,94,0.30);border-radius:12px;padding:14px 18px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-family:monospace;color:#fda4af;font-weight:700;font-size:13px;">MVA #2741</span>
+                <span class="mock-status urgent">⚠ 78 días sin cobrar</span>
+              </div>
+              <div style="color:white;font-weight:700;font-size:15px;margin-top:4px;">Sandra López</div>
+              <div style="font-size:10.5px;color:rgba(255,255,255,0.65);margin-top:3px;">DOL: 02/Mar/2026 · Smith &amp; Johnson LLP · Mary Smith (Atty)</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:9px;color:rgba(255,255,255,0.50);text-transform:uppercase;letter-spacing:0.05em;">Pendiente</div>
+              <div style="font-family:monospace;color:#fda4af;font-weight:700;font-size:18px;">$8,450.00</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.50);margin-top:2px;">de $11,250 facturados</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resumen financiero -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">
+          <div style="background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:10px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.50);text-transform:uppercase;letter-spacing:0.05em;">Facturado</div>
+            <div style="font-family:monospace;color:#a5b4fc;font-weight:700;font-size:14px;margin-top:2px;">$11,250.00</div>
+          </div>
+          <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.20);border-radius:8px;padding:10px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.50);text-transform:uppercase;letter-spacing:0.05em;">Cobrado</div>
+            <div style="font-family:monospace;color:#34d399;font-weight:700;font-size:14px;margin-top:2px;">$2,800.00</div>
+          </div>
+          <div style="background:rgba(244,63,94,0.05);border:1px solid rgba(244,63,94,0.20);border-radius:8px;padding:10px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.50);text-transform:uppercase;letter-spacing:0.05em;">Pendiente</div>
+            <div style="font-family:monospace;color:#fda4af;font-weight:700;font-size:14px;margin-top:2px;">$8,450.00</div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:12px;">
+          <div style="padding:8px 14px;font-size:11px;color:white;border-bottom:2px solid #f43f5e;font-weight:600;">Timeline</div>
+          <div style="padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.55);">Documentación</div>
+          <div style="padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.55);">Comunicaciones</div>
+        </div>
+
+        <!-- Timeline -->
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:8px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(244,63,94,0.20);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fda4af;font-size:11px;">⚠</div>
+            <div style="flex:1;">
+              <div style="font-size:11px;color:white;font-weight:600;">Hoy · 09:42 — Caso escaló a urgente automáticamente</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.55);">Superó 60 días sin cobrar. Notificación a Edson + Brunella.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:8px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#a5b4fc;font-size:11px;">📞</div>
+            <div style="flex:1;">
+              <div style="font-size:11px;color:white;font-weight:600;">22/May — Llamada al bufete (3ra)</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.55);">Mary Smith no disponible. Mensaje dejado con asistente Jane.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:8px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#a5b4fc;font-size:11px;">📧</div>
+            <div style="flex:1;">
+              <div style="font-size:11px;color:white;font-weight:600;">10/May — Email enviado con HCFA + ledger</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.55);">Sin respuesta del bufete después de 12 días.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:8px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.20);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#34d399;font-size:11px;">✓</div>
+            <div style="flex:1;">
+              <div style="font-size:11px;color:white;font-weight:600;">17/Mar — Última visita clínica · alta médica</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.55);">Dr. Loder · nota firmada · 5 visitas + 1 inyección · CPT codes registrados.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:8px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.20);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#34d399;font-size:11px;">⚖</div>
+            <div style="flex:1;">
+              <div style="font-size:11px;color:white;font-weight:600;">05/Mar — Lien firmado por abogado</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.55);">Mary Smith firmó en el Attorney Portal a las 14:32.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div style="display:flex;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07);flex-wrap:wrap;">
+          <button class="mock-action-btn primary" style="font-size:10px;">📞 Llamar bufete</button>
+          <button class="mock-action-btn" style="font-size:10px;">📧 Enviar recordatorio</button>
+          <button class="mock-action-btn" style="font-size:10px;">💰 Registrar pago parcial</button>
+          <button class="mock-action-btn" style="font-size:10px;">🚨 Escalar a Brunella</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Loop cerrado:</strong> cada acción de Edson (llamada, email, pago parcial registrado) se loggea automáticamente en el timeline del caso. Cuando el pago final llega y Brunella cierra el caso, Edson lo ve actualizado en tiempo real y desaparece de su bandeja.
+  </div>
+</div>
+
+<!-- ═══ B.24 — BANDEJA DE BRUNELLA (era B.22) ═══ -->
+<div class="page">
+  <span class="section-anchor">B.24 · Billing &amp; Finance</span>
   <h2>Bandeja de Brunella (Billing)</h2>
   <p><strong>Quién la usa:</strong> Brunella (Biller / Case Manager). <strong>Para qué:</strong> centro de operaciones de facturación. Notas SOAP firmadas listas para generar HCFA, ledgers que actualizar, comunicaciones legales pendientes.</p>
 
@@ -3337,9 +3599,9 @@
   </div>
 </div>
 
-<!-- ═══ B.23 — HCFA GENERACIÓN ═══ -->
+<!-- ═══ B.25 — HCFA GENERACIÓN (era B.23) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.23 · Billing &amp; Finance</span>
+  <span class="section-anchor">B.25 · Billing &amp; Finance</span>
   <h2>HCFA / CMS-1500 generación</h2>
   <p><strong>Concepto:</strong> Brunella revisa la nota firmada por el doctor, valida los datos del HCFA pre-cargados (paciente, seguro, diagnósticos, servicios), edita si es necesario, y genera el PDF en formato federal CMS-1500.</p>
 
@@ -3424,9 +3686,9 @@
   </div>
 </div>
 
-<!-- ═══ B.24 — LEDGER DEL CASO ═══ -->
+<!-- ═══ B.26 — LEDGER DEL CASO (era B.24) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.24 · Billing &amp; Finance</span>
+  <span class="section-anchor">B.26 · Billing &amp; Finance</span>
   <h2>Ledger del caso</h2>
   <p><strong>Concepto:</strong> estado de cuenta consolidado del caso. Muestra todos los cargos (CPT codes por visita), pagos recibidos (de PIP o paciente), y balance pendiente que después recupera del settlement vía lien.</p>
 
@@ -3845,9 +4107,9 @@
   </div>
 </div>
 
-<!-- ═══ B.25 — SETTLEMENT WORKFLOW ═══ -->
+<!-- ═══ B.27 — SETTLEMENT WORKFLOW (era B.25) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.25 · Cierre</span>
+  <span class="section-anchor">B.27 · Cierre</span>
   <h2>Workflow de Settlement</h2>
   <p><strong>Concepto:</strong> cuando el abogado obtiene el settlement, Brunella recibe el cheque/transferencia, lo registra contra el lien del caso, y cierra el caso automáticamente. El paciente recibe notificación final.</p>
 
@@ -3922,9 +4184,9 @@
   </div>
 </div>
 
-<!-- ═══ B.26 — DASHBOARD EJECUTIVO ═══ -->
+<!-- ═══ B.28 — DASHBOARD EJECUTIVO (era B.26) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.26 · Inteligencia</span>
+  <span class="section-anchor">B.28 · Inteligencia</span>
   <h2>Dashboard Ejecutivo de Gerencia</h2>
   <p><strong>Quién lo usa:</strong> Alta Gerencia. <strong>Para qué:</strong> visibilidad en vivo del estado del negocio: pipeline de casos, throughput, cobranza, productividad por doctor, métricas de cumplimiento HIPAA.</p>
 
@@ -4070,7 +4332,7 @@
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:540px;margin:0 auto 30px;">26 pantallas conceptuales en orden cronológico que demuestran la visión integral del nuevo LienMaster: desde que un referido llega hasta que un caso se cierra con settlement.</p>
+  <p class="small" style="max-width:540px;margin:0 auto 30px;">28 pantallas conceptuales en orden cronológico que demuestran la visión integral del nuevo LienMaster: desde que un referido llega hasta que un caso se cierra con settlement.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

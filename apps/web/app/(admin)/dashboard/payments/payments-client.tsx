@@ -213,9 +213,15 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
             <div className="divide-y divide-border">
               {items.map((payment) => {
                 const emp = (payment.employee as unknown) as { firstName: string; lastName: string; employeeCode: string } | null;
-                const total = Math.abs(Number(payment.amountLocal));
-                const base  = Number(payment.base_salary) || total;
-                const bonus = Math.abs(Number(payment.bonus_amount) || 0);
+                // Defensa: si base + bono existen, recalcular total (los datos historicos
+                // pueden tener amountLocal desactualizado por edits manuales o flujos antiguos).
+                const baseRaw    = Number(payment.base_salary) || 0;
+                const bonusRaw   = Math.abs(Number(payment.bonus_amount) || 0);
+                const computed   = baseRaw + bonusRaw;
+                // Si tenemos base, usa el computed. Sino fallback a amountLocal (registros muy viejos).
+                const total = computed > 0 ? computed : Math.abs(Number(payment.amountLocal));
+                const base  = baseRaw > 0 ? baseRaw : Math.abs(Number(payment.amountLocal));
+                const bonus = bonusRaw;
                 return (
                   <div
                     key={payment.id}
@@ -344,9 +350,16 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
               ) : (
                 items.map((payment) => {
                   const emp   = (payment.employee as unknown) as { firstName: string; lastName: string; employeeCode: string } | null;
-                  const total = Number(payment.amountLocal);
-                  const base  = Number(payment.base_salary) || Math.abs(total);
-                  const bonus = Math.abs(Number(payment.bonus_amount) || 0);
+                  // Misma defensa que en mobile: recalcular total cuando base + bono existen,
+                  // para que los datos historicos inconsistentes no muestren totales erroneos.
+                  const isNeg     = Number(payment.amountLocal) < 0;
+                  const baseRaw   = Number(payment.base_salary) || 0;
+                  const bonusRaw  = Math.abs(Number(payment.bonus_amount) || 0);
+                  const computed  = baseRaw + bonusRaw;
+                  const totalAbs  = computed > 0 ? computed : Math.abs(Number(payment.amountLocal));
+                  const total     = isNeg ? -totalAbs : totalAbs;
+                  const base      = baseRaw > 0 ? baseRaw : Math.abs(Number(payment.amountLocal));
+                  const bonus     = bonusRaw;
                   return (
                     <TableRow key={payment.id}>
 

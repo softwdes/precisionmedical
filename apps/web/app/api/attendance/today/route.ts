@@ -16,6 +16,7 @@ interface RecordRow {
   check_in_lat: number | null; check_in_lng: number | null;
   check_out_lat: number | null; check_out_lng: number | null;
   location_status: string | null;
+  is_manual: boolean | null;
   created_at: string;
 }
 
@@ -44,11 +45,12 @@ interface TodayRow {
   check_out_lat: number | null;
   check_out_lng: number | null;
   location_status: string | null;
+  is_manual: boolean | null;
   // All records of the day, ordered by check_in ASC (first shift first)
   dayRecords: Array<Pick<RecordRow,
     'id' | 'check_in' | 'check_out' | 'break_start' | 'break_end' | 'clinic_name' |
     'hours_worked' | 'break_minutes' | 'status' | 'late_minutes' |
-    'check_in_lat' | 'check_in_lng' | 'check_out_lat' | 'check_out_lng' | 'location_status'
+    'check_in_lat' | 'check_in_lng' | 'check_out_lat' | 'check_out_lng' | 'location_status' | 'is_manual'
   >>;
 }
 
@@ -71,7 +73,7 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
       .is('deletedAt', null)
       .order('firstName'),
     admin.from('attendance_records')
-      .select('id, employee_id, check_in, check_out, break_start, break_end, clinic_name, hours_worked, break_minutes, status, late_minutes, check_in_lat, check_in_lng, check_out_lat, check_out_lng, location_status, created_at')
+      .select('id, employee_id, check_in, check_out, break_start, break_end, clinic_name, hours_worked, break_minutes, status, late_minutes, check_in_lat, check_in_lng, check_out_lat, check_out_lng, location_status, is_manual, created_at')
       .eq('date', today)
       .order('check_in', { ascending: true, nullsFirst: false }),
   ]);
@@ -122,6 +124,7 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
       check_out_lat: primary?.check_out_lat ?? null,
       check_out_lng: primary?.check_out_lng ?? null,
       location_status: primary?.location_status ?? null,
+      is_manual: primary?.is_manual ?? false,
       // Strip employee_id + created_at since the parent row already has them;
       // keep everything else the UI needs to render each shift sub-row.
       dayRecords: empRecords.map(r => ({
@@ -140,6 +143,7 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
         check_out_lat: r.check_out_lat,
         check_out_lng: r.check_out_lng,
         location_status: r.location_status,
+        is_manual: r.is_manual ?? false,
       })),
     };
   });

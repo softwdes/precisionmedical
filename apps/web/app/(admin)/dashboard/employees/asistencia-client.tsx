@@ -11,6 +11,7 @@ import {
 import {
   UserCheck, Coffee, Clock, UserX, RefreshCw, Pencil,
   FileText, Download, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle, MapPin, MapPinOff,
+  Plus,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -26,6 +27,11 @@ const CLINICS = [
   'West Valley Clinic', 'South Murray Clinic', 'Bolivia', 'Perú',
 ];
 
+// Centinela para los filtros "Todos" en los <Select>. Radix UI prohibe
+// value="" en <SelectItem> (lanza excepcion en runtime), asi que usamos
+// este valor y lo mapeamos a '' (= sin filtro) en onValueChange.
+const ALL = '__all__';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 /** One shift record within a day (sub-row when expanded). */
@@ -39,6 +45,7 @@ interface ShiftRecord {
   check_in_lat: number | null; check_in_lng: number | null;
   check_out_lat: number | null; check_out_lng: number | null;
   location_status: string | null;
+  is_manual?: boolean;
 }
 
 interface TodayRow {
@@ -50,6 +57,7 @@ interface TodayRow {
   check_in_lat: number | null; check_in_lng: number | null;
   check_out_lat: number | null; check_out_lng: number | null;
   location_status: string | null;
+  is_manual?: boolean;
   /** All shifts of the day for this employee, ordered by check_in ASC.
    *  The top-level fields above mirror the "primary" shift (open one
    *  if any, else most recent). dayRecords lets the UI expand a row to
@@ -66,6 +74,7 @@ interface HistoryRow {
   check_in_lat: number | null; check_in_lng: number | null;
   check_out_lat: number | null; check_out_lng: number | null;
   location_status: string | null;
+  is_manual?: boolean;
 }
 
 interface MapTarget {
@@ -239,14 +248,22 @@ export function AsistenciaClient() {
   // '' = todos | 'missing' = solo sin GPS | 'present' = solo con GPS
   const [filterGps, setFilterGps] = useState('');
 
-  // ── Correction modal ───────────────────────────────────────────────────────
+  // ── Correction / manual-create modal ───────────────────────────────────────
+  // El mismo modal sirve para CORREGIR un registro existente (mode='edit') y
+  // para CREAR uno retroactivo cuando el empleado se olvidó de marcar
+  // (mode='create'). En create se exige empleado, fecha y motivo, y el
+  // registro queda marcado is_manual=true (ver POST /api/attendance).
   const [correction, setCorrection] = useState<CorrectionTarget | null>(null);
+  const [corrMode, setCorrMode] = useState<'edit' | 'create'>('edit');
+  const [corrEmployeeId, setCorrEmployeeId] = useState('');
+  const [corrDate, setCorrDate] = useState(todayStr());
   const [corrClinic, setCorrClinic] = useState('');
   const [corrCheckIn, setCorrCheckIn] = useState('');
   const [corrCheckOut, setCorrCheckOut] = useState('');
   const [corrStatus, setCorrStatus] = useState<'on_time'|'late'|'absent'>('on_time');
   const [corrLate, setCorrLate] = useState('0');
   const [corrNotes, setCorrNotes] = useState('');
+  const [corrError, setCorrError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // ── Map modal ──────────────────────────────────────────────────────────────
@@ -445,6 +462,10 @@ export function AsistenciaClient() {
       late_minutes: record.late_minutes ?? 0,
       notes: 'notes' in record ? (record.notes ?? '') : '',
     };
+    setCorrMode('edit');
+    setCorrError(null);
+    setCorrEmployeeId(record.employee_id);
+    setCorrDate(date);
     setCorrection(target);
     setCorrClinic(target.clinic_name ?? '');
     setCorrCheckIn(toLocalTime(target.check_in));
@@ -454,8 +475,73 @@ export function AsistenciaClient() {
     setCorrNotes(target.notes ?? '');
   }
 
+  // ── Open manual-create modal ────────────────────────────────────────────────
+  // Desde Hoy (fila de ausente, empleado+fecha precargados) o desde Historial
+  // (botón "+ Registro manual", empleado y fecha libres).
+  function openCreate(opts?: { employeeId?: string; date?: string }) {
+    const date = opts?.date ?? todayStr();
+    setCorrMode('create');
+    setCorrError(null);
+    setCorrEmployeeId(opts?.employeeId ?? '');
+    setCorrDate(date);
+    setCorrClinic('');
+    setCorrCheckIn('');
+    setCorrCheckOut('');
+    setCorrStatus('on_time');
+    setCorrLate('0');
+    setCorrNotes('');
+    // Sentinel para abrir el Dialog (open={!!correction}); en modo create el
+    // nombre se resuelve desde el selector de empleado en el render.
+    setCorrection({
+      id: '', date, employee_id: opts?.employeeId ?? '',
+      firstName: '', lastName: '', check_in: null, check_out: null,
+      clinic_name: '', status: 'on_time', late_minutes: 0, notes: '',
+    });
+  }
+
   async function saveCorrection() {
     if (!correction) return;
+    setCorrError(null);
+
+    if (corrMode === 'create') {
+      // Validación cliente: empleado, fecha, clínica, entrada+salida y motivo.
+      if (!corrEmployeeId) { setCorrError('Selecciona un empleado.'); return; }
+      if (!corrDate)       { setCorrError('Selecciona una fecha.'); return; }
+      if (!corrClinic)     { setCorrError('Selecciona una clínica.'); return; }
+      if (!corrCheckIn || !corrCheckOut) { setCorrError('La entrada y la salida son obligatorias.'); return; }
+      if (!corrNotes.trim()) { setCorrError('El motivo es obligatorio para un registro manual.'); return; }
+
+      setSaving(true);
+      try {
+        const body = {
+          employee_id: corrEmployeeId,
+          date: corrDate,
+          clinic_name: corrClinic,
+          status: corrStatus,
+          late_minutes: corrStatus === 'late' ? parseInt(corrLate) : 0,
+          notes: corrNotes,
+          check_in:  toISOFromLocalTime(corrDate, corrCheckIn),
+          check_out: toISOFromLocalTime(corrDate, corrCheckOut),
+        };
+        const res = await fetch('/api/attendance', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({})) as { error?: string };
+          setCorrError(j.error ?? 'Error al crear el registro.');
+          return;
+        }
+        setCorrection(null);
+        if (view === 'hoy') void fetchToday(true);
+        else void fetchHistory();
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    // ── Modo edición (PATCH del registro existente) ──
     setSaving(true);
     try {
       const body: Record<string, unknown> = {
@@ -471,7 +557,7 @@ export function AsistenciaClient() {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error('Error al guardar');
+      if (!res.ok) { setCorrError('Error al guardar.'); return; }
       setCorrection(null);
       if (view === 'hoy') void fetchToday(true);
       else void fetchHistory();
@@ -616,6 +702,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
       check_out_lat: shift.check_out_lat,
       check_out_lng: shift.check_out_lng,
       location_status: shift.location_status,
+      is_manual: shift.is_manual ?? parent.is_manual,
     };
   }
 
@@ -650,9 +737,12 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
             </div>
           )}
 
-          {/* Historial export */}
+          {/* Historial export + registro manual */}
           {view === 'historial' && (
             <div className="flex gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => openCreate()} className="gap-1.5 h-8 text-xs">
+                <Plus className="h-3.5 w-3.5" /> Registro manual
+              </Button>
               <Button variant="outline" size="sm" onClick={exportPDF} className="gap-1.5 h-8 text-xs">
                 <FileText className="h-3.5 w-3.5" /> PDF
               </Button>
@@ -877,6 +967,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                         SIN GPS
                                       </span>
                                     )}
+                                    {r.is_manual && <ManualTag />}
                                   </p>
                                   <p className="text-[10px] text-text-muted mt-0.5">{r.employeeCode}</p>
                                 </div>
@@ -901,6 +992,18 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                 {r.record_id && (
                                   <button onClick={() => openCorrection(r)} className="p-1 rounded text-text-muted hover:text-text-2 hover:bg-surface transition-colors">
                                     <Pencil size={13} />
+                                  </button>
+                                )}
+                                {/* Ausente sin registro → crear marcación manual del día */}
+                                {!r.record_id && (
+                                  <button
+                                    onClick={() => openCreate({ employeeId: r.employee_id, date: todayStr() })}
+                                    className="px-1.5 py-1 rounded text-[10px] font-medium transition-colors flex items-center gap-1"
+                                    title="Registrar marcación manual (olvidó fichar)"
+                                    style={{ background: 'rgba(99,102,241,0.10)', border: '1px solid rgba(99,102,241,0.28)', color: '#A5B4FC' }}
+                                  >
+                                    <Plus size={11} />
+                                    Registrar
                                   </button>
                                 )}
                                 {r.record_id && (
@@ -1134,10 +1237,10 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
         <>
           {/* Filters */}
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2 sm:items-center">
-            <Select value={filterEmployee} onValueChange={v => { setFilterEmployee(v); setHistoryPage(1); }}>
+            <Select value={filterEmployee || ALL} onValueChange={v => { setFilterEmployee(v === ALL ? '' : v); setHistoryPage(1); }}>
               <SelectTrigger className="h-8 text-xs w-full sm:w-[190px]"><SelectValue placeholder="Todos los empleados" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos los empleados</SelectItem>
+                <SelectItem value={ALL}>Todos los empleados</SelectItem>
                 {allEmployees.map(e => (
                   <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>
                 ))}
@@ -1157,20 +1260,20 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
               className="h-8 rounded-md border border-border bg-surface px-2 text-xs text-text-2 w-full sm:w-auto"
             />
 
-            <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setHistoryPage(1); }}>
+            <Select value={filterStatus || ALL} onValueChange={v => { setFilterStatus(v === ALL ? '' : v); setHistoryPage(1); }}>
               <SelectTrigger className="h-8 text-xs w-full sm:w-[140px]"><SelectValue placeholder="Todos los estados" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos los estados</SelectItem>
+                <SelectItem value={ALL}>Todos los estados</SelectItem>
                 <SelectItem value="on_time">A tiempo</SelectItem>
                 <SelectItem value="late">Tardanza</SelectItem>
                 <SelectItem value="absent">Ausente</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={filterClinic} onValueChange={v => { setFilterClinic(v); setHistoryPage(1); }}>
+            <Select value={filterClinic || ALL} onValueChange={v => { setFilterClinic(v === ALL ? '' : v); setHistoryPage(1); }}>
               <SelectTrigger className="h-8 text-xs w-full sm:w-[160px]"><SelectValue placeholder="Todas las clínicas" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas las clínicas</SelectItem>
+                <SelectItem value={ALL}>Todas las clínicas</SelectItem>
                 {CLINICS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -1179,10 +1282,10 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                 ubicacion. Detecta location_status='no_permission' y
                 tambien marcadas con check_in pero sin lat (defensa
                 contra inconsistencias). */}
-            <Select value={filterGps} onValueChange={v => { setFilterGps(v); setHistoryPage(1); }}>
+            <Select value={filterGps || ALL} onValueChange={v => { setFilterGps(v === ALL ? '' : v); setHistoryPage(1); }}>
               <SelectTrigger className="h-8 text-xs w-full sm:w-[150px]"><SelectValue placeholder="GPS: Todos" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">GPS: Todos</SelectItem>
+                <SelectItem value={ALL}>GPS: Todos</SelectItem>
                 <SelectItem value="missing">Solo sin GPS</SelectItem>
                 <SelectItem value="present">Solo con GPS</SelectItem>
               </SelectContent>
@@ -1245,6 +1348,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                                     SIN GPS
                                   </span>
                                 )}
+                                {r.is_manual && <ManualTag />}
                               </p>
                               <p className="text-[10px] text-text-muted">{r.employeeCode}</p>
                             </div>
@@ -1299,6 +1403,7 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
                               SIN GPS
                             </span>
                           )}
+                          {r.is_manual && <ManualTag />}
                         </p>
                         <p className="text-[10px] text-text-muted">{fmtDate(r.date)} · {r.clinic_name}</p>
                       </div>
@@ -1489,16 +1594,50 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
       <Dialog open={!!correction} onOpenChange={open => { if (!open) setCorrection(null); }}>
         <DialogContent className="max-w-md w-full">
           <DialogHeader>
-            <DialogTitle className="text-[15px]">Corregir registro</DialogTitle>
-            {correction && (
+            <DialogTitle className="text-[15px]">
+              {corrMode === 'create' ? 'Registro manual' : 'Corregir registro'}
+            </DialogTitle>
+            {correction && corrMode === 'edit' && (
               <p className="text-[12px] text-text-muted mt-1">
                 {correction.firstName} {correction.lastName} · {fmtDate(correction.date)}
+              </p>
+            )}
+            {corrMode === 'create' && (
+              <p className="text-[12px] text-text-muted mt-1">
+                Marcación retroactiva — el empleado olvidó fichar.
               </p>
             )}
           </DialogHeader>
 
           {correction && (
             <div className="space-y-4 py-2">
+              {/* Create-only: empleado + fecha */}
+              {corrMode === 'create' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-medium text-text-2">Empleado</label>
+                    <Select value={corrEmployeeId} onValueChange={setCorrEmployeeId}>
+                      <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                      <SelectContent>
+                        {allEmployees.map(e => (
+                          <SelectItem key={e.id} value={e.id}>{e.firstName} {e.lastName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-medium text-text-2">Fecha</label>
+                    <input
+                      type="date"
+                      value={corrDate}
+                      max={todayStr()}
+                      onChange={e => setCorrDate(e.target.value)}
+                      className="w-full h-9 rounded-md border border-border bg-surface px-3 text-[13px] text-text-1"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Clinic */}
               <div className="space-y-1.5">
                 <label className="text-[12px] font-medium text-text-2">Clínica</label>
@@ -1572,21 +1711,33 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-text-2">Notas</label>
+                <label className="text-[12px] font-medium text-text-2">
+                  Motivo {corrMode === 'create' && <span className="text-rose-400">*</span>}
+                </label>
                 <textarea
                   value={corrNotes}
                   onChange={e => setCorrNotes(e.target.value)}
                   rows={2}
-                  placeholder="Motivo de la corrección..."
+                  placeholder={corrMode === 'create' ? 'Motivo del registro manual (obligatorio)...' : 'Motivo de la corrección...'}
                   className="w-full rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-text-1 resize-none"
                 />
               </div>
+
+              {/* Error */}
+              {corrError && (
+                <div className="flex items-start gap-2 rounded-lg bg-rose-500/8 border border-rose-500/20 px-3 py-2.5">
+                  <AlertTriangle size={13} className="text-rose-500 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-rose-300">{corrError}</p>
+                </div>
+              )}
 
               {/* Warning */}
               <div className="flex items-start gap-2 rounded-lg bg-amber-500/8 border border-amber-500/15 px-3 py-2.5">
                 <AlertTriangle size={13} className="text-amber-500 mt-0.5 shrink-0" />
                 <p className="text-[11px] text-text-muted italic">
-                  Los cambios quedan registrados con tu usuario y fecha de modificación.
+                  {corrMode === 'create'
+                    ? 'Se guardará como registro MANUAL (sin GPS), con tu usuario y fecha. Requiere entrada y salida.'
+                    : 'Los cambios quedan registrados con tu usuario y fecha de modificación.'}
                 </p>
               </div>
             </div>
@@ -1595,7 +1746,9 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setCorrection(null)}>Cancelar</Button>
             <Button size="sm" onClick={() => void saveCorrection()} disabled={saving}>
-              {saving ? 'Guardando...' : 'Guardar corrección'}
+              {saving
+                ? 'Guardando...'
+                : corrMode === 'create' ? 'Crear registro' : 'Guardar corrección'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1605,6 +1758,21 @@ td{padding:5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</st
 }
 
 // ─── Status badges ────────────────────────────────────────────────────────────
+
+/** Distintivo de registro creado manualmente por el admin (sin GPS).
+ *  Sirve para auditoría: en Reporte de Horas/salarios estos no son
+ *  fichajes reales con ubicación. */
+function ManualTag() {
+  return (
+    <span
+      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1"
+      style={{ background: 'rgba(245,158,11,0.12)', color: '#FCD34D', border: '0.5px solid rgba(245,158,11,0.40)' }}
+      title="Registro creado manualmente por el admin (sin GPS)"
+    >
+      MANUAL
+    </span>
+  );
+}
 
 function TodayBadge({ row }: { row: TodayRow }) {
   const state = rowState(row);

@@ -7,18 +7,13 @@ import { createClient as createBrowserClient } from '@precision-medical/auth/cli
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Key } from 'lucide-react';
 
 /**
- * Canvas background: columnas de hex médico cayendo lento (matrix sofisticado).
- * Sutil, púrpura mayoritario + cyan de acento, no compite con el contenido del login.
+ * Canvas background: red neuronal animada (nodos + conexiones).
+ * Misma arquitectura que el NTG Master login pero en colores indigo/cyan
+ * del Super Admin de Precision Medical.
  */
-interface DataColumn {
-  x: number;
-  y: number;
-  speed: number;
-  chars: string[];
-  color: 'purple' | 'cyan';
-}
+interface NNode { x: number; y: number; vx: number; vy: number; r: number }
 
-function MedicalDataStreams(): React.ReactElement {
+function NeuralBackground(): React.ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -27,109 +22,95 @@ function MedicalDataStreams(): React.ReactElement {
     const ctx = el.getContext('2d');
     if (!ctx) return;
 
-    // Aliases después del null guard (TS strict)
+    // Aliases post-guard — TS pierde narrowing en closures async/raf
     const cvs = el;
-    const c = ctx;
-
-    const HEX_TOKENS = ['A3', 'FF', '0C', 'B7', '2E', '9F', 'D1', '5A', '7B', '·', 'C4', '8E', '4F', 'E2', '·', '6A'];
-    const COLUMN_COUNT = 30;
-    const CHAR_HEIGHT = 14;
-
-    let columns: DataColumn[] = [];
-    let animId = 0;
-
-    const newChars = (): string[] => {
-      const len = 8 + Math.floor(Math.random() * 5);
-      return Array.from({ length: len }, () => HEX_TOKENS[Math.floor(Math.random() * HEX_TOKENS.length)] ?? 'FF');
-    };
-
-    const initColumns = (): void => {
-      columns = [];
-      for (let i = 0; i < COLUMN_COUNT; i++) {
-        columns.push({
-          x: Math.random() * cvs.width,
-          y: -Math.random() * cvs.height,
-          speed: 0.4 + Math.random() * 0.8,
-          chars: newChars(),
-          color: Math.random() < 0.3 ? 'cyan' : 'purple',
-        });
-      }
-    };
+    const c   = ctx;
 
     const resize = (): void => {
-      cvs.width = window.innerWidth;
+      cvs.width  = window.innerWidth;
       cvs.height = window.innerHeight;
-      initColumns();
     };
-
     resize();
     window.addEventListener('resize', resize);
 
-    const draw = (): void => {
-      // Fade trail (oscuro semi-transparente sobre el frame anterior)
-      c.fillStyle = 'rgba(6, 8, 16, 0.10)';
-      c.fillRect(0, 0, cvs.width, cvs.height);
+    const COUNT = 55;
+    const nodes: NNode[] = Array.from({ length: COUNT }, () => ({
+      x:  Math.random() * window.innerWidth,
+      y:  Math.random() * window.innerHeight,
+      vx: (Math.random() - 0.5) * 0.32,
+      vy: (Math.random() - 0.5) * 0.32,
+      r:  Math.random() * 1.8 + 0.8,
+    }));
 
-      c.font = '12px ui-monospace, "SF Mono", Menlo, monospace';
-      c.textAlign = 'center';
+    const MAX_DIST = 160;
+    let animId = 0;
 
-      for (const col of columns) {
-        col.y += col.speed;
+    function frame(): void {
+      c.clearRect(0, 0, cvs.width, cvs.height);
 
-        // Reset cuando la columna sale por abajo
-        const totalHeight = col.chars.length * CHAR_HEIGHT;
-        if (col.y - totalHeight > cvs.height) {
-          col.y = -totalHeight;
-          col.x = Math.random() * cvs.width;
-          col.chars = newChars();
-          col.color = Math.random() < 0.3 ? 'cyan' : 'purple';
-        }
-
-        // Dibujo de chars: i=0 es el lider (más abajo, más brillante)
-        for (let i = 0; i < col.chars.length; i++) {
-          const charY = col.y - i * CHAR_HEIGHT;
-          if (charY < -CHAR_HEIGHT || charY > cvs.height + CHAR_HEIGHT) continue;
-
-          const isLead = i === 0;
-          const fadeRatio = i / col.chars.length;
-          const opacity = isLead ? 0.85 : Math.max(0.05, 0.65 * (1 - fadeRatio));
-
-          if (isLead) {
-            c.fillStyle = `rgba(180, 220, 255, ${opacity})`;
-          } else if (col.color === 'purple') {
-            c.fillStyle = `rgba(100, 80, 220, ${opacity})`;
-          } else {
-            c.fillStyle = `rgba(0, 200, 180, ${opacity})`;
+      // Líneas de conexión
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const ni = nodes[i]; const nj = nodes[j];
+          if (!ni || !nj) continue;
+          const dx = ni.x - nj.x;
+          const dy = ni.y - nj.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < MAX_DIST) {
+            // Mayoría indigo, ~25% cyan
+            const isCyan = (i + j) % 4 === 0;
+            const alpha  = (1 - dist / MAX_DIST) * (isCyan ? 0.14 : 0.16);
+            c.beginPath();
+            c.moveTo(ni.x, ni.y);
+            c.lineTo(nj.x, nj.y);
+            c.strokeStyle = isCyan
+              ? `rgba(6,182,212,${alpha})`
+              : `rgba(99,102,241,${alpha})`;
+            c.lineWidth = 0.6;
+            c.stroke();
           }
-
-          const token = col.chars[i];
-          if (token) c.fillText(token, col.x, charY);
         }
       }
 
-      animId = requestAnimationFrame(draw);
-    };
+      // Nodos
+      for (const n of nodes) {
+        // Halo exterior
+        const grad = c.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 5);
+        grad.addColorStop(0, 'rgba(139,92,246,0.13)');
+        grad.addColorStop(1, 'rgba(99,102,241,0)');
+        c.beginPath();
+        c.arc(n.x, n.y, n.r * 5, 0, Math.PI * 2);
+        c.fillStyle = grad;
+        c.fill();
 
-    animId = requestAnimationFrame(draw);
+        // Núcleo
+        c.beginPath();
+        c.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        c.fillStyle = 'rgba(139,92,246,0.60)';
+        c.fill();
 
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', resize);
-    };
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > cvs.width)  n.vx *= -1;
+        if (n.y < 0 || n.y > cvs.height) n.vy *= -1;
+      }
+
+      animId = requestAnimationFrame(frame);
+    }
+
+    animId = requestAnimationFrame(frame);
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
+      aria-hidden="true"
       style={{
         position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
+        top: 0, left: 0,
+        width: '100%', height: '100%',
         pointerEvents: 'none',
         zIndex: 0,
-        opacity: 0.55,
       }}
     />
   );
@@ -337,8 +318,8 @@ export default function LoginPage(): React.ReactElement {
           fontFamily: '"Plus Jakarta Sans", -apple-system, system-ui, sans-serif',
         }}
       >
-        {/* ── Layer 1: Medical Data Streams (canvas con hex cayendo) ── */}
-        <MedicalDataStreams />
+        {/* ── Layer 1: Red neuronal animada ── */}
+        <NeuralBackground />
 
         {/* ── Layer 2: Scanlines ── */}
         <div

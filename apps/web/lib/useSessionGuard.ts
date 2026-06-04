@@ -34,11 +34,19 @@ export function useSessionGuard(maxAgeHours = 12): void {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    const maxAgeMs = maxAgeHours * 3_600_000;
+
     let started: number;
     try {
       const existing = localStorage.getItem(SESSION_STARTED_KEY);
       const parsed = existing ? Number(existing) : NaN;
-      if (existing && !isNaN(parsed)) {
+      // Defense in depth: si el timestamp guardado YA esta expirado, viene
+      // de una sesion anterior cuyo cleanup nunca corrio (cookie/JWT murio
+      // antes de que el SessionGuard cliente alcanzara a limpiar). La sesion
+      // actual es legitima — el server ya valido la cookie — asi que
+      // reseteamos el contador en vez de botar al usuario que recien entro.
+      const isStale = !isNaN(parsed) && (Date.now() - parsed) >= maxAgeMs;
+      if (!isNaN(parsed) && !isStale) {
         started = parsed;
       } else {
         started = Date.now();
@@ -49,7 +57,6 @@ export function useSessionGuard(maxAgeHours = 12): void {
     }
 
     const supabase = createBrowserClient();
-    const maxAgeMs = maxAgeHours * 3_600_000;
 
     async function check(): Promise<void> {
       const age = Date.now() - started;

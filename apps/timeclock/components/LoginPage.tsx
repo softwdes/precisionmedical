@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Clock, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Smartphone } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { InstallPWABanner } from '@/components/InstallPWABanner';
+import { clearSessionGuard } from '@/lib/useSessionGuard';
 
 // ─── Red neuronal animada — mismo efecto que Master/Super Admin ───────────────
 interface NNode { x: number; y: number; vx: number; vy: number; r: number }
@@ -124,6 +125,11 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
       setLoading(false);
       return;
     }
+    // Reset el contador de los 12h del SessionGuard. Sin esto, un timestamp
+    // viejo de una sesion expulsada externamente (cookie/JWT vencido) causa
+    // que el SessionGuard expire la nueva sesion al instante — el usuario
+    // entra, lo bota, vuelve a loguearse, y asi.
+    clearSessionGuard();
     router.push('/');
     router.refresh();
   }

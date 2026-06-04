@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Key } from 'lucide-react';
+import { clearSessionGuard } from '@/lib/useSessionGuard';
 
 // ─── Red neuronal ──────────────────────────────────────────────────────────────
 interface NNode { x: number; y: number; vx: number; vy: number; r: number }
@@ -85,6 +86,10 @@ export default function LoginPage(): React.ReactElement {
       const {error:ae}=await createBrowserClient().auth.signInWithPassword({email,password});
       if (ae){setError('Invalid credentials. Please try again.');return;}
       rememberMe?localStorage.setItem('pm_remember_me','true'):localStorage.removeItem('pm_remember_me');
+      // Reset el contador del SessionGuard de 12h. Sin esto un timestamp
+      // viejo de una sesion expulsada externamente (cookie/JWT vencido)
+      // hace que la nueva sesion expire al instante.
+      clearSessionGuard();
       router.push('/dashboard'); router.refresh();
     } catch {setError('Invalid credentials. Please try again.');}
     finally {setLoading(false);}

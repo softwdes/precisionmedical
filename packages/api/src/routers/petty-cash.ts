@@ -97,11 +97,20 @@ export const pettyCashRouter = router({
       amount: z.number().positive(),
       description: z.string().min(1),
       receiptUrl: z.string().url().optional(),
+      // Fase 4: cartera de la que sale el dinero (opcional). Debe ser de la
+      // misma moneda que la caja.
+      sourceWalletId: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const { data: box } = await supabaseAdmin.from('cash_boxes').select('balance, is_active').eq('id', input.cashBoxId).single();
+      const { data: box } = await supabaseAdmin.from('cash_boxes').select('balance, is_active, currency').eq('id', input.cashBoxId).single();
       if (!box) throw new TRPCError({ code: 'NOT_FOUND' });
       if (!box.is_active) throw new TRPCError({ code: 'BAD_REQUEST', message: 'La caja esta desactivada. Reactivala antes de registrar movimientos.' });
+
+      if (input.sourceWalletId) {
+        const { data: w } = await supabaseAdmin.from('wallets').select('currency').eq('id', input.sourceWalletId).single();
+        if (!w) throw new TRPCError({ code: 'NOT_FOUND', message: 'Wallet de origen no encontrada' });
+        if (w.currency !== box.currency) throw new TRPCError({ code: 'BAD_REQUEST', message: `La cartera de origen debe ser ${box.currency}` });
+      }
 
       const newBalance = Number(box.balance) + input.amount;
 
@@ -115,6 +124,9 @@ export const pettyCashRouter = router({
           category: 'OTHER',
           description: input.description,
           receiptUrl: input.receiptUrl,
+          // Solo enviamos la clave si hay origen, para no romper el insert si la
+          // migración de sourceWalletId aún no se aplicó en la DB.
+          ...(input.sourceWalletId ? { sourceWalletId: input.sourceWalletId } : {}),
           performedById: ctx.user.id,
           performedAt: new Date().toISOString(),
           createdAt: new Date().toISOString(),
@@ -305,6 +317,9 @@ export const pettyCashRouter = router({
       category: z.string().min(1),
       description: z.string().min(1),
       date: z.string(),
+      // Fase 4: solo aplica a DEPÓSITO. Cartera (misma moneda) de la que sale
+      // el dinero. Opcional: sin origen, el depósito no afecta wallets.
+      sourceWalletId: z.string().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       let { data: box } = await supabaseAdmin.from('cash_boxes').select('id, balance, lowBalanceThreshold, is_active').eq('name', input.clinicName).single();
@@ -318,12 +333,23 @@ export const pettyCashRouter = router({
       if (!box.is_active) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'La caja esta desactivada. Reactivala antes de registrar movimientos.' });
       }
+
+      // El origen-wallet solo tiene sentido para depósitos y debe ser de la
+      // misma moneda del movimiento.
+      const sourceWalletId = input.type === 'DEPOSIT' ? input.sourceWalletId : undefined;
+      if (sourceWalletId) {
+        const { data: w } = await supabaseAdmin.from('wallets').select('currency').eq('id', sourceWalletId).single();
+        if (!w) throw new TRPCError({ code: 'NOT_FOUND', message: 'Wallet de origen no encontrada' });
+        if (w.currency !== input.currency) throw new TRPCError({ code: 'BAD_REQUEST', message: `La cartera de origen debe ser ${input.currency}` });
+      }
+
       const txAmount = input.type === 'DEPOSIT' ? input.amount : -input.amount;
       const newBalance = Number(box.balance) + txAmount;
       if (input.type === 'EXPENSE' && newBalance < 0) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Saldo insuficiente' });
 
       const { data: tx, error } = await supabaseAdmin.from('cash_transactions')
         .insert({ id: crypto.randomUUID(), cashBoxId: box.id, type: input.type, amount: txAmount, category: input.category, description: input.description,
+          ...(sourceWalletId ? { sourceWalletId } : {}),
           performedById: ctx.user.id, performedAt: new Date(input.date).toISOString(), createdAt: new Date().toISOString() })
         .select().single();
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
@@ -361,6 +387,12 @@ export const pettyCashRouter = router({
           amount: reverseAmount,
           category: original.category,
           description: `REVERSAL: ${input.reason}`,
+          // Hereda el origen-wallet (si lo tenía) con monto negativo, para que
+          // la salida de la cartera se anule al revertir el depósito. Solo se
+          // incluye la clave si existía, por seguridad ante migración pendiente.
+          ...((original as { sourceWalletId?: string | null }).sourceWalletId
+            ? { sourceWalletId: (original as { sourceWalletId?: string | null }).sourceWalletId }
+            : {}),
           reversedById: input.transactionId,
           performedById: ctx.user.id,
           performedAt: new Date().toISOString(),

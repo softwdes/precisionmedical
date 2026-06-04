@@ -567,9 +567,14 @@ function NuevoMovimientoModal({
   const [category,    setCategory]    = useState('');
   const [description, setDescription] = useState('');
   const [date,        setDate]        = useState(() => new Date().toISOString().split('T')[0]);
+  const [sourceWalletId, setSourceWalletId] = useState('');
   const [errors,      setErrors]      = useState<Record<string, string>>({});
   const [lowWarn,     setLowWarn]     = useState(false);
   const lowWarnRef = useRef(false);
+
+  // Fase 4: origen opcional del depósito (cartera de la misma moneda).
+  const { data: walletsData = [] } = trpc.wallets.list.useQuery();
+  const sourceWalletOptions = walletsData.filter(w => w.currency === currency);
 
   const { toasts: movToasts, addToast: addMovToast, removeToast: removeMovToast } = useToastManager();
 
@@ -589,6 +594,7 @@ function NuevoMovimientoModal({
       setClinic(clinicOptions[0] ?? '');
     }
     setCurrency(country === 'Bolivia' ? 'BOB' : 'USD');
+    setSourceWalletId(''); // moneda/tipo cambió → el origen previo ya no aplica
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country, tipo]);
 
@@ -646,7 +652,11 @@ function NuevoMovimientoModal({
     lowWarnRef.current = lowWarn;
     setLowWarn(false);
     const clinicName = country === 'Bolivia' ? 'Bolivia' : clinic;
-    create.mutate({ type: tipo, clinicName, amount: Number(amount), currency, category: category || 'OTHER', description, date });
+    create.mutate({
+      type: tipo, clinicName, amount: Number(amount), currency,
+      category: category || 'OTHER', description, date,
+      sourceWalletId: tipo === 'DEPOSIT' && sourceWalletId ? sourceWalletId : undefined,
+    });
   };
 
   return (
@@ -742,6 +752,25 @@ function NuevoMovimientoModal({
               </div>
               {errors.amount && <p className="text-xs text-rose-500">{errors.amount}</p>}
             </div>
+
+            {/* Origen — solo Depósito. Cartera (misma moneda) de la que sale el dinero. */}
+            {isDeposit && (
+              <div className="space-y-1.5">
+                <Label>Origen del dinero <span className="text-text-3 font-normal">({t('common.optional')})</span></Label>
+                <Select value={sourceWalletId || 'NONE'} onValueChange={v => setSourceWalletId(v === 'NONE' ? '' : v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">Sin origen (no afecta wallets)</SelectItem>
+                    {sourceWalletOptions.map(w => (
+                      <SelectItem key={w.id} value={w.id}>{w.name} · {w.currency}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-text-3">
+                  Si eliges una cartera, este depósito se descuenta de ella. Solo carteras en {currency}.
+                </p>
+              </div>
+            )}
 
             {/* Categoría (solo Gasto) */}
             {!isDeposit && (

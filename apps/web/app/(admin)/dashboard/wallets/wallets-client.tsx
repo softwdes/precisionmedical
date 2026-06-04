@@ -9,13 +9,18 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@precision/ui';
-import { Plus, Clock, Wallet } from 'lucide-react';
+import { Plus, Clock, Wallet, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
 
 type WalletItem = inferRouterOutputs<AppRouter>['wallets']['list'][number];
-type FxStat = { entradas: number; salidas: number; lastAt: string | null };
+// Desglose de saldo derivado (Opción A). Ver wallets.getBreakdown.
+type WalletBreakdown = {
+  base: number; fxIn: number; fxOut: number; salariesPaid: number;
+  pettyCashOut: number; salariesPending: number; balance: number;
+  lastAt: string | null; reconciledAt: string | null;
+};
 
 const CURRENCY_TO_COUNTRY: Record<string, string> = {
   USD: 'US',
@@ -80,16 +85,14 @@ function getCurrencyPrefix(currency: string): string {
 export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[] }): React.ReactElement {
   const [showCreate, setShowCreate] = useState(false);
   const [reconcileTarget, setReconcileTarget] = useState<WalletItem | null>(null);
+  const [breakdownTarget, setBreakdownTarget] = useState<WalletItem | null>(null);
 
   const { data: wallets, refetch } = trpc.wallets.list.useQuery(undefined, { initialData: initialWallets });
-  const { data: fxStats = {}, refetch: refetchStats } = trpc.wallets.getFxStats.useQuery();
+  const { data: breakdowns = {}, refetch: refetchStats } = trpc.wallets.getBreakdown.useQuery();
 
   const totalUsd = wallets
     .filter(w => w.currency === 'USD')
-    .reduce((s, w) => {
-      const st = fxStats[w.id];
-      return s + Number(w.balance) + (st?.entradas ?? 0) - (st?.salidas ?? 0);
-    }, 0);
+    .reduce((s, w) => s + (breakdowns[w.id]?.balance ?? Number(w.balance)), 0);
 
   const timeStr = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
 
@@ -149,8 +152,9 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
             <WalletCard
               key={wallet.id}
               wallet={wallet}
-              stats={fxStats[wallet.id]}
+              breakdown={breakdowns[wallet.id]}
               onReconcile={() => setReconcileTarget(wallet)}
+              onBreakdown={() => setBreakdownTarget(wallet)}
             />
           ))}
         </div>
@@ -165,9 +169,17 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
       {reconcileTarget && (
         <ReconcileDialog
           wallet={reconcileTarget}
-          stats={fxStats[reconcileTarget.id]}
+          breakdown={breakdowns[reconcileTarget.id]}
           onClose={() => setReconcileTarget(null)}
           onReconciled={() => { setReconcileTarget(null); void refetch(); void refetchStats(); }}
+        />
+      )}
+
+      {breakdownTarget && (
+        <BreakdownDialog
+          wallet={breakdownTarget}
+          breakdown={breakdowns[breakdownTarget.id]}
+          onClose={() => setBreakdownTarget(null)}
         />
       )}
     </div>
@@ -195,10 +207,12 @@ function EmptyState({ onAdd }: { onAdd: () => void }): React.ReactElement {
   );
 }
 
-function WalletCard({ wallet, stats, onReconcile }: { wallet: WalletItem; stats?: FxStat; onReconcile: () => void }): React.ReactElement {
-  const entradas = stats?.entradas ?? 0;
-  const salidas  = stats?.salidas  ?? 0;
-  const balance  = Number(wallet.balance) + entradas - salidas;
+function WalletCard({ wallet, breakdown, onReconcile, onBreakdown }: { wallet: WalletItem; breakdown?: WalletBreakdown; onReconcile: () => void; onBreakdown: () => void }): React.ReactElement {
+  // Entradas = entradas FX. Salidas = todas las salidas (FX + salarios pagados
+  // + financiamiento a caja chica), para que base + entradas − salidas = saldo.
+  const entradas = breakdown?.fxIn ?? 0;
+  const salidas  = (breakdown?.fxOut ?? 0) + (breakdown?.salariesPaid ?? 0) + (breakdown?.pettyCashOut ?? 0);
+  const balance  = breakdown?.balance ?? Number(wallet.balance);
 
   const badge = CURRENCY_BADGE[wallet.currency] ?? { bg: 'rgba(255,255,255,0.06)', color: '#aaa', border: 'rgba(255,255,255,0.12)' };
 
@@ -210,7 +224,7 @@ function WalletCard({ wallet, stats, onReconcile }: { wallet: WalletItem; stats?
     ? 'Sin fondos · pendiente de depósito'
     : '⚠ Saldo negativo';
 
-  const lastMovement = stats?.lastAt
+  const lastMovement = breakdown?.lastAt
     ?? (wallet.lastReconciledAt ? String(wallet.lastReconciledAt) : null);
 
   return (
@@ -333,35 +347,67 @@ function WalletCard({ wallet, stats, onReconcile }: { wallet: WalletItem; stats?
               : 'Sin movimientos'}
           </span>
         </div>
-        <button
-          onClick={onReconcile}
-          style={{
-            background: 'transparent',
-            border: '0.5px solid var(--border)',
-            borderRadius: 8,
-            padding: '5px 12px',
-            fontSize: 12,
-            color: 'var(--text-2)',
-            cursor: 'pointer',
-            transition: 'border-color 0.15s, color 0.15s, background 0.15s',
-            minHeight: 44,
-            minWidth: 44,
-          }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget;
-            el.style.borderColor = 'rgba(99,102,241,0.35)';
-            el.style.color = '#6366F1';
-            el.style.background = 'rgba(99,102,241,0.06)';
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget;
-            el.style.borderColor = 'var(--border)';
-            el.style.color = 'var(--text-2)';
-            el.style.background = 'transparent';
-          }}
-        >
-          Reconciliar
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={onBreakdown}
+            title="¿De dónde sale este saldo?"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: 'transparent',
+              border: '0.5px solid var(--border)',
+              borderRadius: 8,
+              padding: '5px 10px',
+              fontSize: 12,
+              color: 'var(--text-2)',
+              cursor: 'pointer',
+              transition: 'border-color 0.15s, color 0.15s, background 0.15s',
+              minHeight: 44,
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget;
+              el.style.borderColor = 'rgba(99,102,241,0.35)';
+              el.style.color = '#6366F1';
+              el.style.background = 'rgba(99,102,241,0.06)';
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget;
+              el.style.borderColor = 'var(--border)';
+              el.style.color = 'var(--text-2)';
+              el.style.background = 'transparent';
+            }}
+          >
+            <Info style={{ width: 13, height: 13 }} /> Desglose
+          </button>
+          <button
+            onClick={onReconcile}
+            style={{
+              background: 'transparent',
+              border: '0.5px solid var(--border)',
+              borderRadius: 8,
+              padding: '5px 12px',
+              fontSize: 12,
+              color: 'var(--text-2)',
+              cursor: 'pointer',
+              transition: 'border-color 0.15s, color 0.15s, background 0.15s',
+              minHeight: 44,
+              minWidth: 44,
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget;
+              el.style.borderColor = 'rgba(99,102,241,0.35)';
+              el.style.color = '#6366F1';
+              el.style.background = 'rgba(99,102,241,0.06)';
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget;
+              el.style.borderColor = 'var(--border)';
+              el.style.color = 'var(--text-2)';
+              el.style.background = 'transparent';
+            }}
+          >
+            Reconciliar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -510,20 +556,20 @@ function CreateWalletDialog({
 
 function ReconcileDialog({
   wallet,
-  stats,
+  breakdown,
   onClose,
   onReconciled,
 }: {
   wallet: WalletItem;
-  stats?: FxStat;
+  breakdown?: WalletBreakdown;
   onClose: () => void;
   onReconciled: () => void;
 }): React.ReactElement {
   const t = useTranslations();
-  // Pre-llenamos con el saldo MOSTRADO (base + movimientos FX desde la última
-  // reconciliación), que es lo que el usuario ve en la tarjeta, no el balance
-  // crudo en BD. Al confirmar, ese valor pasa a ser la nueva base reconciliada.
-  const displayedBalance = Number(wallet.balance) + (stats?.entradas ?? 0) - (stats?.salidas ?? 0);
+  // Pre-llenamos con el saldo MOSTRADO (saldo derivado de eventos desde la
+  // última reconciliación), que es lo que el usuario ve en la tarjeta, no el
+  // balance crudo en BD. Al confirmar, ese valor pasa a ser la nueva base.
+  const displayedBalance = breakdown?.balance ?? Number(wallet.balance);
   const [balance, setBalance] = useState(String(displayedBalance));
 
   const reconcile = trpc.wallets.reconcile.useMutation({
@@ -559,6 +605,91 @@ function ReconcileDialog({
           >
             {t('wallets.reconcile')}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────────────────
+// Desglose de saldo — "¿De dónde sale este saldo?"
+// ─────────────────────────────────────────────────────
+function BreakdownDialog({
+  wallet,
+  breakdown,
+  onClose,
+}: {
+  wallet: WalletItem;
+  breakdown?: WalletBreakdown;
+  onClose: () => void;
+}): React.ReactElement {
+  const cur = wallet.currency;
+  const b: WalletBreakdown = breakdown ?? {
+    base: Number(wallet.balance), fxIn: 0, fxOut: 0, salariesPaid: 0,
+    pettyCashOut: 0, salariesPending: 0, balance: Number(wallet.balance),
+    lastAt: null, reconciledAt: wallet.lastReconciledAt ? String(wallet.lastReconciledAt) : null,
+  };
+
+  const baseLabel = b.reconciledAt
+    ? `Base reconciliada · ${new Date(b.reconciledAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}`
+    : 'Saldo inicial';
+
+  // Solo mostramos líneas con valor para no saturar.
+  const rows: Array<{ label: string; amount: number; sign: '+' | '−'; color: string }> = [];
+  if (b.fxIn !== 0)        rows.push({ label: 'Entradas FX', amount: b.fxIn, sign: '+', color: '#10B981' });
+  if (b.fxOut !== 0)       rows.push({ label: 'Salidas FX', amount: b.fxOut, sign: '−', color: '#F43F5E' });
+  if (b.salariesPaid !== 0) rows.push({ label: 'Salarios pagados', amount: b.salariesPaid, sign: '−', color: '#F43F5E' });
+  if (b.pettyCashOut !== 0) rows.push({ label: 'Financiamiento a Caja Chica', amount: b.pettyCashOut, sign: '−', color: '#F43F5E' });
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{getFlag(cur)} {wallet.name}</DialogTitle>
+          <p className="text-small text-text-3">¿De dónde sale este saldo?</p>
+        </DialogHeader>
+
+        <div className="space-y-1 text-sm">
+          {/* Base */}
+          <div className="flex items-center justify-between py-2 border-b border-border/50">
+            <span className="text-text-3">{baseLabel}</span>
+            <span className="font-mono text-text-1">{formatBalance(b.base, cur)}</span>
+          </div>
+
+          {/* Movimientos desde la base */}
+          {rows.length === 0 ? (
+            <p className="py-3 text-[12px] text-text-3 text-center">
+              Sin movimientos desde {b.reconciledAt ? 'la reconciliación' : 'la apertura'}.
+            </p>
+          ) : rows.map((r, i) => (
+            <div key={i} className="flex items-center justify-between py-2 border-b border-border/50">
+              <span className="text-text-2">{r.label}</span>
+              <span className="font-mono" style={{ color: r.color }}>
+                {r.sign} {formatBalance(Math.abs(r.amount), cur)}
+              </span>
+            </div>
+          ))}
+
+          {/* Total */}
+          <div className="flex items-center justify-between pt-3">
+            <span className="font-semibold text-text-1">Saldo actual</span>
+            <span className="font-mono font-bold text-base" style={{ color: b.balance < 0 ? '#F43F5E' : 'var(--text-1)' }}>
+              {formatBalance(b.balance, cur)}
+            </span>
+          </div>
+
+          {/* Comprometido (informativo, no afecta saldo) */}
+          {b.salariesPending > 0 && (
+            <div className="mt-3 rounded-lg px-3 py-2 text-[12px]"
+              style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#F59E0B' }}>
+              Comprometido (salarios pendientes, aún no descontados):{' '}
+              <span className="font-mono font-semibold">{formatBalance(b.salariesPending, cur)}</span>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -49,53 +49,114 @@ export const walletsRouter = router({
       return data;
     }),
 
-  getFxStats: protectedProcedure.query(async () => {
-    const [opsRes, walletsRes] = await Promise.all([
-      supabaseAdmin
-        .from('fx_operations')
-        .select('fromWalletId, toWalletId, amountFrom, amountTo, performedAt'),
-      supabaseAdmin
-        .from('wallets')
-        .select('id, lastReconciledAt'),
+  /**
+   * Desglose de saldo por wallet (modelo "Opción A": saldo derivado de eventos).
+   *
+   * El saldo real de una wallet se calcula como:
+   *   base (último valor reconciliado, o saldo inicial)
+   *   + entradas FX        (operaciones de cambio donde es destino)
+   *   − salidas FX         (operaciones de cambio donde es origen)
+   *   − salarios pagados   (payments PAID que salieron de esta wallet)
+   *   − financiamiento a caja chica (depósitos financiados desde esta wallet)
+   *
+   * Todos los eventos se cuentan SOLO si son posteriores a `lastReconciledAt`
+   * (la base reconciliada ya incluye lo anterior → evita doble conteo).
+   * Las marcas de tiempo son ISO-UTC, comparables como string.
+   *
+   * `salariesPending` es informativo (comprometido): pagos PENDING/SCHEDULED de
+   * esta wallet, de cualquier período. NO afecta el saldo.
+   */
+  getBreakdown: protectedProcedure.query(async () => {
+    const [walletsRes, fxRes, payRes, cashRes] = await Promise.all([
+      supabaseAdmin.from('wallets').select('id, currency, balance, lastReconciledAt'),
+      supabaseAdmin.from('fx_operations').select('fromWalletId, toWalletId, amountFrom, amountTo, performedAt'),
+      supabaseAdmin.from('payments').select('walletId, amountLocal, status, paidDate'),
+      // Resiliente: si la columna sourceWalletId aún no existe (migración no
+      // aplicada), Supabase devuelve error y tratamos el financiamiento como 0.
+      supabaseAdmin.from('cash_transactions').select('sourceWalletId, amount, performedAt').not('sourceWalletId', 'is', null),
     ]);
-    if (opsRes.error)     throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: opsRes.error.message });
     if (walletsRes.error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: walletsRes.error.message });
+    if (fxRes.error)      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: fxRes.error.message });
+    if (payRes.error)     throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: payRes.error.message });
 
-    // Punto de corte por wallet: el saldo reconciliado ya incluye el efecto de
-    // las operaciones FX anteriores, así que solo contamos las posteriores a
-    // `lastReconciledAt`. Evita el doble conteo (restar/sumar dos veces lo
-    // mismo) al reconciliar. Si nunca se reconcilió, se cuentan todas.
-    // Las marcas de tiempo son ISO-UTC, comparables como string.
+    type WalletRow = { id: string; currency: string; balance: unknown; lastReconciledAt: string | null };
+    const walletRows = (walletsRes.data ?? []) as WalletRow[];
+
     const reconciledAt: Record<string, string | null> = {};
-    for (const w of (walletsRes.data ?? []) as { id: string; lastReconciledAt: string | null }[]) {
+    type Acc = {
+      base: number; fxIn: number; fxOut: number; salariesPaid: number;
+      pettyCashOut: number; salariesPending: number; lastAt: string | null;
+      reconciledAt: string | null;
+    };
+    const out: Record<string, Acc> = {};
+    for (const w of walletRows) {
       reconciledAt[w.id] = w.lastReconciledAt;
+      out[w.id] = {
+        base: Number(w.balance), fxIn: 0, fxOut: 0, salariesPaid: 0,
+        pettyCashOut: 0, salariesPending: 0, lastAt: null,
+        reconciledAt: w.lastReconciledAt,
+      };
     }
-    const countsFor = (walletId: string, at: string): boolean => {
+
+    const afterCutoff = (walletId: string, at: string): boolean => {
       const cutoff = reconciledAt[walletId];
       return !cutoff || at > cutoff;
     };
-
-    type Row = { fromWalletId: string; toWalletId: string; amountFrom: unknown; amountTo: unknown; performedAt: string };
-    const ops = (opsRes.data ?? []) as Row[];
-    const stats: Record<string, { entradas: number; salidas: number; lastAt: string | null }> = {};
-
     const touch = (id: string, at: string): void => {
-      stats[id] ??= { entradas: 0, salidas: 0, lastAt: null };
-      if (!stats[id]!.lastAt || at > stats[id]!.lastAt!) stats[id]!.lastAt = at;
+      const a = out[id];
+      if (a && (!a.lastAt || at > a.lastAt)) a.lastAt = at;
     };
 
-    for (const op of ops) {
-      if (countsFor(op.fromWalletId, op.performedAt)) {
+    // ── FX
+    type FxRow = { fromWalletId: string; toWalletId: string; amountFrom: unknown; amountTo: unknown; performedAt: string };
+    for (const op of (fxRes.data ?? []) as FxRow[]) {
+      if (out[op.fromWalletId] && afterCutoff(op.fromWalletId, op.performedAt)) {
+        out[op.fromWalletId]!.fxOut += Number(op.amountFrom);
         touch(op.fromWalletId, op.performedAt);
-        stats[op.fromWalletId]!.salidas += Number(op.amountFrom);
       }
-      if (countsFor(op.toWalletId, op.performedAt)) {
+      if (out[op.toWalletId] && afterCutoff(op.toWalletId, op.performedAt)) {
+        out[op.toWalletId]!.fxIn += Number(op.amountTo);
         touch(op.toWalletId, op.performedAt);
-        stats[op.toWalletId]!.entradas += Number(op.amountTo);
       }
     }
 
-    return stats;
+    // ── Salarios. PAID (paidDate > corte) descuentan el saldo; los reversals
+    // vienen con amountLocal negativo y netean. PENDING/SCHEDULED solo informan.
+    type PayRow = { walletId: string | null; amountLocal: unknown; status: string; paidDate: string | null };
+    for (const p of (payRes.data ?? []) as PayRow[]) {
+      if (!p.walletId || !out[p.walletId]) continue;
+      if (p.status === 'PAID') {
+        const at = p.paidDate ?? '';
+        if (afterCutoff(p.walletId, at)) {
+          out[p.walletId]!.salariesPaid += Number(p.amountLocal);
+          if (at) touch(p.walletId, at);
+        }
+      } else if (p.status === 'PENDING' || p.status === 'SCHEDULED') {
+        out[p.walletId]!.salariesPending += Number(p.amountLocal);
+      }
+    }
+
+    // ── Financiamiento a caja chica (Fase 4). Depósitos con sourceWalletId:
+    // amount positivo = salida de la wallet; los reversals heredan el mismo
+    // sourceWalletId con amount negativo y netean. Resiliente si no hay columna.
+    if (!cashRes.error) {
+      type CashRow = { sourceWalletId: string | null; amount: unknown; performedAt: string };
+      for (const c of (cashRes.data ?? []) as CashRow[]) {
+        if (!c.sourceWalletId || !out[c.sourceWalletId]) continue;
+        if (afterCutoff(c.sourceWalletId, c.performedAt)) {
+          out[c.sourceWalletId]!.pettyCashOut += Number(c.amount);
+          touch(c.sourceWalletId, c.performedAt);
+        }
+      }
+    }
+
+    // ── Saldo derivado
+    return Object.fromEntries(
+      Object.entries(out).map(([id, a]) => [id, {
+        ...a,
+        balance: a.base + a.fxIn - a.fxOut - a.salariesPaid - a.pettyCashOut,
+      }]),
+    );
   }),
 
   reconcile: adminProcedure

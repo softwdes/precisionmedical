@@ -493,17 +493,23 @@ model CashTransaction {
   description   String
   
   receiptUrl    String?
-  
+
   performedById String
   performedAt   DateTime            @default(now())
-  
+
   reversedById  String?  // Append-only
-  
+
+  // Fase 4 — Caja Chica ↔ Wallet: si un DEPÓSITO se financió desde una
+  // cartera, aquí guardamos cuál. Ese monto cuenta como salida de esa wallet
+  // (en su misma moneda). Opcional: depósitos sin origen no afectan wallets.
+  sourceWalletId String?
+
   createdAt     DateTime            @default(now())
-  
+
   @@index([cashBoxId])
   @@index([performedAt])
   @@index([category])
+  @@index([sourceWalletId])
   @@map("cash_transactions")
 }
 

@@ -80,6 +80,29 @@ function pairLabel(from: string, to: string): string {
   return `${FLAGS[from] ?? ''} ${from} → ${FLAGS[to] ?? ''} ${to}`;
 }
 
+/**
+ * Devuelve YYYY-MM-DD para el HTML date input en la zona LOCAL del usuario.
+ * Evita el bug de `toISOString().slice(0,10)` que devuelve UTC y puede
+ * mostrar un dia distinto al esperado segun la hora local.
+ */
+function toLocalDateInput(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Convierte un string YYYY-MM-DD (del HTML date input) a Date local a las 12:00
+ * (mediodia). Evita el off-by-one bug que ocurre con `new Date("YYYY-MM-DD")`
+ * que interpreta como UTC midnight y cae en el dia anterior en zonas horarias
+ * negativas (Utah es UTC-6/-7).
+ */
+function parseDateInputLocal(s: string): Date {
+  const [y, m, day] = s.split('-').map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, day ?? 1, 12, 0, 0, 0);
+}
+
 function curOf(wallet: unknown): string {
   return (wallet as { currency: string } | null)?.currency ?? '';
 }
@@ -530,6 +553,8 @@ function EditFxModal({
   const [exchangeHouse, setExchangeHouse] = useState(op.exchangeHouse ?? '');
   const [receiptUrl,    setReceiptUrl]    = useState((op.receiptUrl as string) ?? '');
   const [notes,         setNotes]         = useState((op.notes as string) ?? '');
+  // Fecha de cambio — pre-llenada con el valor actual en zona local del usuario
+  const [performedAt,   setPerformedAt]   = useState(() => toLocalDateInput(new Date(op.performedAt)));
 
   const fw = walletOf(op.fromWallet);
   const tw = walletOf(op.toWallet);
@@ -551,6 +576,15 @@ function EditFxModal({
               {fw ? `${FLAGS[fw.currency] ?? ''} ${fw.currency}` : '?'} → {tw ? `${FLAGS[tw.currency] ?? ''} ${tw.currency}` : '?'}
             </span>
             <span className="ml-auto font-mono text-text-3">{Number(op.rate).toFixed(4)}</span>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Fecha de cambio</Label>
+            <Input
+              type="date"
+              value={performedAt}
+              onChange={e => setPerformedAt(e.target.value)}
+            />
           </div>
 
           <div className="space-y-1">
@@ -580,6 +614,7 @@ function EditFxModal({
             exchangeHouse: exchangeHouse || null,
             receiptUrl:    receiptUrl    || null,
             notes:         notes         || null,
+            performedAt:   parseDateInputLocal(performedAt),
           })}
         >
           {update.isPending ? t('common.saving') : t('common.save')}
@@ -781,6 +816,8 @@ function CreateFxModal({
   const [exchangeHouse, setExchangeHouse] = useState('');
   const [receiptUrl,    setReceiptUrl]    = useState('');
   const [notes,         setNotes]         = useState('');
+  // Fecha de cambio — default hoy en zona local del usuario
+  const [performedAt,   setPerformedAt]   = useState(() => toLocalDateInput(new Date()));
 
   const fromWallet  = wallets.find(w => w.id === fromWalletId) ?? null;
   const toWallet    = wallets.find(w => w.id === toWalletId)   ?? null;
@@ -837,6 +874,7 @@ function CreateFxModal({
       exchangeHouse: exchangeHouse || undefined,
       receiptUrl:    receiptUrl    || undefined,
       notes:         notes         || undefined,
+      performedAt:   parseDateInputLocal(performedAt),
     });
   };
 
@@ -984,6 +1022,16 @@ function CreateFxModal({
           {/* ── SECTION D: Additional fields ── */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
+              <Label className="text-[12px]">Fecha de cambio *</Label>
+              <Input
+                type="date"
+                className="min-h-[44px]" style={{ fontSize: 14 }}
+                value={performedAt}
+                onChange={e => setPerformedAt(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
               <Label className="text-[12px]">{t('fx.fee')} ({t('common.optional')})</Label>
               <Input
                 type="number" min="0" step="0.01" placeholder="0.00"
@@ -992,7 +1040,7 @@ function CreateFxModal({
                 onChange={e => setCommission(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-[12px]">{t('fx.exchangeHouse')} ({t('common.optional')})</Label>
               <Input
                 placeholder="Ej: Cambios Bolívar"

@@ -135,6 +135,9 @@ export const fxRouter = router({
       notes:         z.string().optional().nullable(),
       exchangeHouse: z.string().optional().nullable(),
       receiptUrl:    z.string().url().optional().nullable().or(z.literal('')),
+      // Fecha de cambio editable (timestamp completo). Cliente envia un Date
+      // ya parseado a mediodia local para evitar off-by-one por UTC.
+      performedAt:   z.coerce.date().optional(),
     }))
     .mutation(async ({ input }) => {
       const { data: existing } = await supabaseAdmin
@@ -144,13 +147,16 @@ export const fxRouter = router({
         .single();
       if (!existing) throw new TRPCError({ code: 'NOT_FOUND' });
 
+      const updatePayload: Record<string, unknown> = {
+        notes:         input.notes         ?? null,
+        exchangeHouse: input.exchangeHouse ?? null,
+        receiptUrl:    input.receiptUrl || null,
+      };
+      if (input.performedAt) updatePayload.performedAt = input.performedAt.toISOString();
+
       const { error } = await supabaseAdmin
         .from('fx_operations')
-        .update({
-          notes:         input.notes         ?? null,
-          exchangeHouse: input.exchangeHouse ?? null,
-          receiptUrl:    input.receiptUrl || null,
-        })
+        .update(updatePayload)
         .eq('id', input.id);
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
       return { id: input.id };
@@ -167,8 +173,13 @@ export const fxRouter = router({
       exchangeHouse: z.string().optional(),
       receiptUrl:    z.string().url().optional(),
       notes:         z.string().optional(),
+      // Fecha de cambio elegible por el usuario. Si no llega, default = ahora.
+      // El cliente envia un Date ya parseado a mediodia local (no UTC midnight)
+      // para evitar el off-by-one bug por timezone.
+      performedAt:   z.coerce.date().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
+      const performedAtIso = (input.performedAt ?? new Date()).toISOString();
       const { data, error } = await supabaseAdmin
         .from('fx_operations')
         .insert({
@@ -183,7 +194,7 @@ export const fxRouter = router({
           receiptUrl:    input.receiptUrl ?? null,
           notes:         input.notes ?? null,
           performedById: ctx.user.id,
-          performedAt:   new Date().toISOString(),
+          performedAt:   performedAtIso,
           createdAt:     new Date().toISOString(),
         } as never)
         .select()

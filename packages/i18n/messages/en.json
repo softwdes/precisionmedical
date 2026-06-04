@@ -612,6 +612,7 @@
     "expense": "Expense",
     "date": "Date",
     "type": "Type",
+    "movement": "Movement",
     "category": "Category",
     "description": "Description",
     "noTransactions": "No transactions",

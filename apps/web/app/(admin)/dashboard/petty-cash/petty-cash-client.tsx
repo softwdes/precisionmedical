@@ -146,13 +146,14 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
 
   // ── Export CSV ──
   const handleExportCSV = () => {
-    const headers = ['Fecha', 'Sede', 'Clínica', 'Descripción', 'Categoría', 'Monto'];
+    const headers = ['Fecha', 'Sede', 'Clínica', 'Descripción', 'Movimiento', 'Categoría', 'Monto'];
     const rows = items.map(tx => [
       fmtDate(tx.performedAt, locale),
       tx.country,
       tx.clinicName,
       tx.description,
-      tx.type === 'DEPOSIT' ? 'Depósito' : (CATEGORY_LABELS_ES[tx.category ?? ''] ?? CATEGORY_LABELS_ES.OTHER ?? 'Otros'),
+      renderMovementForExport(tx),
+      renderCategoryForExport(tx),
       `${Number(tx.amount) >= 0 ? '+' : ''}${Number(tx.amount).toFixed(2)}`,
     ]);
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -164,8 +165,11 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
     URL.revokeObjectURL(url);
   };
 
-  // ── Export PDF ──
-  // Categoría inteligente: DEPOSIT → "Depósito"; EXPENSE → categoría real (o "Otros")
+  // ── Export PDF / CSV helpers ──
+  // Movimiento: binario Depósito/Gasto. Categoría: específica (Depósito si deposit, categoría real si expense).
+  const renderMovementForExport = (tx: typeof items[number]): string =>
+    tx.type === 'DEPOSIT' ? 'Depósito' : 'Gasto';
+
   const renderCategoryForExport = (tx: typeof items[number]): string => {
     if (tx.type === 'DEPOSIT') return 'Depósito';
     return CATEGORY_LABELS_ES[tx.category ?? ''] ?? CATEGORY_LABELS_ES.OTHER ?? 'Otros';
@@ -178,6 +182,7 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
         <td>${tx.country}</td>
         <td>${tx.clinicName}</td>
         <td>${tx.description}</td>
+        <td style="color:${tx.type === 'DEPOSIT' ? '#16a34a' : '#dc2626'};font-weight:600">${renderMovementForExport(tx)}</td>
         <td>${renderCategoryForExport(tx)}</td>
         <td style="text-align:right;color:${Number(tx.amount) >= 0 ? '#16a34a' : '#dc2626'};font-family:monospace">
           ${Number(tx.amount) >= 0 ? '+' : ''}$${Math.abs(Number(tx.amount)).toFixed(2)}
@@ -199,7 +204,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
   <div class="kpi"><div class="kpi-l">🇧🇴 Bolivia</div><div class="kpi-v">$${fmt(kpis?.bolivia ?? 0)}</div></div>
   <div class="kpi"><div class="kpi-l">Gastos del Mes</div><div class="kpi-v" style="color:#dc2626">$${fmt(kpis?.monthlyExpenses ?? 0)}</div></div>
 </div>
-<table><thead><tr><th>Fecha</th><th>Sede</th><th>Clínica</th><th>Descripción</th><th>Categoría</th><th style="text-align:right">Monto</th></tr></thead>
+<table><thead><tr><th>Fecha</th><th>Sede</th><th>Clínica</th><th>Descripción</th><th>Movimiento</th><th>Categoría</th><th style="text-align:right">Monto</th></tr></thead>
 <tbody>${rows}</tbody></table></body></html>`;
     const win = window.open('', '_blank');
     if (win) { win.document.write(html); win.document.close(); win.print(); }
@@ -377,6 +382,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                     <TableHead className="text-[11px]">{t('pettyCash.sedeHeader')}</TableHead>
                     <TableHead className="text-[11px]">{t('pettyCash.clinicHeader')}</TableHead>
                     <TableHead className="text-[11px]">{t('pettyCash.description')}</TableHead>
+                    <TableHead className="text-[11px]">{t('pettyCash.movement')}</TableHead>
                     <TableHead className="text-[11px]">{t('pettyCash.category')}</TableHead>
                     <TableHead className="text-right text-[11px]">{t('common.amount')}</TableHead>
                     <TableHead className="text-right text-[11px]">Saldo</TableHead>
@@ -385,7 +391,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-12 text-text-3 text-sm">
+                      <TableCell colSpan={8} className="text-center py-12 text-text-3 text-sm">
                         {t('pettyCash.noMovements')}
                       </TableCell>
                     </TableRow>
@@ -397,17 +403,21 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                       </TableCell>
                       <TableCell className="text-xs text-text-2">{tx.clinicName}</TableCell>
                       <TableCell className="text-xs text-text-2 max-w-[180px] truncate">{tx.description}</TableCell>
+                      {/* Movimiento — binario Depósito/Gasto con badge coloreado */}
                       <TableCell>
-                        {/* Categoría inteligente: DEPOSIT → "Depósito"; EXPENSE → categoría real (o "Otros") */}
-                        {tx.type === 'DEPOSIT' ? (
-                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-500">
-                            {t('pettyCash.typeDeposit')}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-rose-500/10 text-rose-500">
-                            {tx.category ? getCategoryLabel(tx.category) : t('pettyCash.categories.OTHER')}
-                          </span>
-                        )}
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          tx.type === 'DEPOSIT'
+                            ? 'bg-emerald-500/10 text-emerald-500'
+                            : 'bg-rose-500/10 text-rose-500'
+                        }`}>
+                          {tx.type === 'DEPOSIT' ? t('pettyCash.typeDeposit') : t('pettyCash.typeExpense')}
+                        </span>
+                      </TableCell>
+                      {/* Categoría — específica: 'Depósito' si es deposit, categoría real si es expense */}
+                      <TableCell className="text-xs text-text-2">
+                        {tx.type === 'DEPOSIT'
+                          ? t('pettyCash.typeDeposit')
+                          : (tx.category ? getCategoryLabel(tx.category) : t('pettyCash.categories.OTHER'))}
                       </TableCell>
                       <TableCell className={`text-right font-mono text-xs font-semibold ${Number(tx.amount) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {Number(tx.amount) >= 0 ? '+' : ''}${fmt(Number(tx.amount))}

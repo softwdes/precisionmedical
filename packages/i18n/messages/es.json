@@ -612,6 +612,7 @@
     "expense": "Gasto",
     "date": "Fecha",
     "type": "Tipo",
+    "movement": "Movimiento",
     "category": "Categoría",
     "description": "Descripción",
     "noTransactions": "Sin transacciones",

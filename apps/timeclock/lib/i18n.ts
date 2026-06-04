@@ -53,6 +53,11 @@ interface Dict {
   geoStatusActive:        string;       // "Ubicación activa"
   geoStatusBlocked:       string;       // "Ubicación bloqueada"
   geoStatusUnverified:    string;       // "Sin verificar"
+
+  // ─── Update banner (nuevo deploy disponible) ────────────────────────
+  updateAvailable: string;              // "Nueva versión disponible"
+  updateApply:     string;              // "Actualizar ahora"
+  updateApplying:  string;              // "Actualizando..."
   geoStatusRetryAllow:    string;       // "Permitir ubicación"
   geoStatusRetryHowTo:    string;       // "Ver cómo activarla"
   geoStatusRefresh:       string;       // "Refrescar"
@@ -262,6 +267,10 @@ const dict: Record<Locale, Dict> = {
     pwaIosWebViewTitle: 'Abre en Safari para instalar',
     pwaIosWebViewBody: 'Toca el menú (•••) y selecciona «Abrir en Safari». Desde ahí podrás añadirla a tu pantalla de inicio.',
 
+    updateAvailable: 'Nueva versión disponible',
+    updateApply:     'Actualizar ahora',
+    updateApplying:  'Actualizando...',
+
     intl: 'es',
   },
   en: {
@@ -393,6 +402,10 @@ const dict: Record<Locale, Dict> = {
     pwaIosStep3: 'Confirm with "Add"',
     pwaIosWebViewTitle: 'Open in Safari to install',
     pwaIosWebViewBody: 'Tap the menu (•••) and select "Open in Safari". From there you can add it to your home screen.',
+
+    updateAvailable: 'New version available',
+    updateApply:     'Update now',
+    updateApplying:  'Updating...',
 
     intl: 'en',
   },

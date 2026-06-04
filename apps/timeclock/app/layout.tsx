@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { SuppressDesktopInstall } from '@/components/SuppressDesktopInstall';
+import { UpdateBanner } from '@/components/UpdateBanner';
 import './globals.css';
 
 const font = Plus_Jakarta_Sans({
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body className={font.className}>
         <SuppressDesktopInstall />
+        <UpdateBanner />
         {children}
       </body>
     </html>

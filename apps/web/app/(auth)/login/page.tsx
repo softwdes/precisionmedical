@@ -308,11 +308,13 @@ export default function LoginPage(): React.ReactElement {
           pointer-events: none;
           animation: haloExpand 3s ease-out infinite;
         }
+        /* Título nítido — igual que TimeClock. Cero text-shadow grueso.
+           Solo un drop-shadow mínimo (1px) para separación, sin blur que
+           afecte la legibilidad. */
         .pm-title-glow {
-          text-shadow:
-            0 0 10px rgba(100,80,220,0.40),
-            0 0 30px rgba(100,80,220,0.20),
-            0 0 60px rgba(139,92,246,0.10);
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
         }
         .pm-hud-corner {
           position: absolute;

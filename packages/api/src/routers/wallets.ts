@@ -50,13 +50,33 @@ export const walletsRouter = router({
     }),
 
   getFxStats: protectedProcedure.query(async () => {
-    const { data, error } = await supabaseAdmin
-      .from('fx_operations')
-      .select('fromWalletId, toWalletId, amountFrom, amountTo, performedAt');
-    if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+    const [opsRes, walletsRes] = await Promise.all([
+      supabaseAdmin
+        .from('fx_operations')
+        .select('fromWalletId, toWalletId, amountFrom, amountTo, performedAt'),
+      supabaseAdmin
+        .from('wallets')
+        .select('id, lastReconciledAt'),
+    ]);
+    if (opsRes.error)     throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: opsRes.error.message });
+    if (walletsRes.error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: walletsRes.error.message });
+
+    // Punto de corte por wallet: el saldo reconciliado ya incluye el efecto de
+    // las operaciones FX anteriores, así que solo contamos las posteriores a
+    // `lastReconciledAt`. Evita el doble conteo (restar/sumar dos veces lo
+    // mismo) al reconciliar. Si nunca se reconcilió, se cuentan todas.
+    // Las marcas de tiempo son ISO-UTC, comparables como string.
+    const reconciledAt: Record<string, string | null> = {};
+    for (const w of (walletsRes.data ?? []) as { id: string; lastReconciledAt: string | null }[]) {
+      reconciledAt[w.id] = w.lastReconciledAt;
+    }
+    const countsFor = (walletId: string, at: string): boolean => {
+      const cutoff = reconciledAt[walletId];
+      return !cutoff || at > cutoff;
+    };
 
     type Row = { fromWalletId: string; toWalletId: string; amountFrom: unknown; amountTo: unknown; performedAt: string };
-    const ops = (data ?? []) as Row[];
+    const ops = (opsRes.data ?? []) as Row[];
     const stats: Record<string, { entradas: number; salidas: number; lastAt: string | null }> = {};
 
     const touch = (id: string, at: string): void => {
@@ -65,10 +85,14 @@ export const walletsRouter = router({
     };
 
     for (const op of ops) {
-      touch(op.fromWalletId, op.performedAt);
-      stats[op.fromWalletId]!.salidas += Number(op.amountFrom);
-      touch(op.toWalletId, op.performedAt);
-      stats[op.toWalletId]!.entradas += Number(op.amountTo);
+      if (countsFor(op.fromWalletId, op.performedAt)) {
+        touch(op.fromWalletId, op.performedAt);
+        stats[op.fromWalletId]!.salidas += Number(op.amountFrom);
+      }
+      if (countsFor(op.toWalletId, op.performedAt)) {
+        touch(op.toWalletId, op.performedAt);
+        stats[op.toWalletId]!.entradas += Number(op.amountTo);
+      }
     }
 
     return stats;

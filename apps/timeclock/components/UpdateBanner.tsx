@@ -35,8 +35,14 @@ export function UpdateBanner(): React.ReactElement | null {
       // 1. Reset contador SessionGuard
       clearSessionGuard();
 
-      // 2. SignOut Supabase (best-effort — si falla seguimos limpiando)
-      try { await createClient().auth.signOut(); } catch { /* noop */ }
+      // 2. SignOut Supabase con TIMEOUT — sin esto, si el celular tiene
+      // mala senial el boton se cuelga indefinidamente en "Actualizando..."
+      // y el usuario asume que se trabo.
+      const signOutWithTimeout = Promise.race([
+        createClient().auth.signOut().catch(() => undefined),
+        new Promise<void>(resolve => setTimeout(resolve, 3000)),
+      ]);
+      try { await signOutWithTimeout; } catch { /* noop */ }
 
       // 3. Desregistrar Service Workers
       if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
@@ -54,9 +60,12 @@ export function UpdateBanner(): React.ReactElement | null {
         } catch { /* noop */ }
       }
     } finally {
-      // 5. Hard navigate — NO router.push, queremos que el browser baje
-      // todo de nuevo sin el SW intermediando.
-      window.location.href = '/login';
+      // 5. Hard navigate con cache-bust + replace (no back stack).
+      // El query param fuerza al browser a no reusar HTML del HTTP cache
+      // — el SW + caches ya estan limpios, esto es la ultima capa.
+      const url = new URL('/login', window.location.origin);
+      url.searchParams.set('_v', String(Date.now()));
+      window.location.replace(url.toString());
     }
   }
 
@@ -73,44 +82,52 @@ export function UpdateBanner(): React.ReactElement | null {
         background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 60%, #06B6D4 100%)',
         boxShadow: '0 4px 18px rgba(99,102,241,0.4)',
         color: 'white',
-        padding: '10px 14px',
+        // Compacto: 7px (mobile) padding vertical + safe-area en top
+        padding: '7px 12px',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 7px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 12,
-        fontSize: 13,
+        flexWrap: 'wrap',       // por si en <320px no cabe en una linea
+        gap: 8,
+        rowGap: 6,
+        fontSize: 12,
         fontWeight: 600,
         fontFamily: '"Plus Jakarta Sans", -apple-system, system-ui, sans-serif',
-        // Safe area inset para iOS PWA con notch
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+        lineHeight: 1.2,
       }}
     >
-      <Sparkles size={15} strokeWidth={2.5} />
-      <span>{t.updateAvailable}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <Sparkles size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {t.updateAvailable}
+        </span>
+      </span>
       <button
         onClick={() => void handleApply()}
         disabled={applying}
         style={{
-          marginLeft: 8,
-          background: 'rgba(255,255,255,0.18)',
-          border: '1px solid rgba(255,255,255,0.35)',
+          background: 'rgba(255,255,255,0.2)',
+          border: '1px solid rgba(255,255,255,0.4)',
           color: 'white',
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 700,
-          padding: '6px 14px',
+          padding: '4px 12px',
           borderRadius: 999,
           cursor: applying ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
+          gap: 5,
           fontFamily: 'inherit',
           opacity: applying ? 0.7 : 1,
           transition: 'background 150ms ease',
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
         }}
-        onMouseOver={e => { if (!applying) e.currentTarget.style.background = 'rgba(255,255,255,0.28)'; }}
-        onMouseOut={e => { if (!applying) e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; }}
+        onMouseOver={e => { if (!applying) e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; }}
+        onMouseOut={e => { if (!applying) e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; }}
       >
-        <RefreshCw size={12} strokeWidth={2.5} style={applying ? { animation: 'spin 1s linear infinite' } : undefined} />
+        <RefreshCw size={11} strokeWidth={2.5} style={applying ? { animation: 'spin 1s linear infinite' } : undefined} />
         {applying ? t.updateApplying : t.updateApply}
       </button>
     </div>

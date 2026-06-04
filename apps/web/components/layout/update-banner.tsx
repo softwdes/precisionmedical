@@ -23,7 +23,13 @@ export function UpdateBanner(): React.ReactElement | null {
     setApplying(true);
     try {
       clearSessionGuard();
-      try { await createBrowserClient().auth.signOut(); } catch { /* noop */ }
+
+      // SignOut con timeout 3s — sin esto, mala senial -> boton colgado
+      const signOutWithTimeout = Promise.race([
+        createBrowserClient().auth.signOut().catch(() => undefined),
+        new Promise<void>(resolve => setTimeout(resolve, 3000)),
+      ]);
+      try { await signOutWithTimeout; } catch { /* noop */ }
 
       if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
         try {
@@ -38,7 +44,10 @@ export function UpdateBanner(): React.ReactElement | null {
         } catch { /* noop */ }
       }
     } finally {
-      window.location.href = '/login';
+      // Hard navigate con cache-bust + replace (no back stack)
+      const url = new URL('/login', window.location.origin);
+      url.searchParams.set('_v', String(Date.now()));
+      window.location.replace(url.toString());
     }
   }
 
@@ -55,44 +64,52 @@ export function UpdateBanner(): React.ReactElement | null {
         background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 60%, #06B6D4 100%)',
         boxShadow: '0 4px 18px rgba(99,102,241,0.4)',
         color: 'white',
-        padding: '10px 14px',
+        padding: '7px 12px',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 7px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 12,
-        fontSize: 13,
+        flexWrap: 'wrap',
+        gap: 8,
+        rowGap: 6,
+        fontSize: 12,
         fontWeight: 600,
         fontFamily: '"Plus Jakarta Sans", -apple-system, system-ui, sans-serif',
-        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+        lineHeight: 1.2,
       }}
     >
-      <Sparkles size={15} strokeWidth={2.5} />
-      <span>Nueva versión disponible</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <Sparkles size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          Nueva versión disponible
+        </span>
+      </span>
       <button
         onClick={() => void handleApply()}
         disabled={applying}
         style={{
-          marginLeft: 8,
-          background: 'rgba(255,255,255,0.18)',
-          border: '1px solid rgba(255,255,255,0.35)',
+          background: 'rgba(255,255,255,0.2)',
+          border: '1px solid rgba(255,255,255,0.4)',
           color: 'white',
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 700,
-          padding: '6px 14px',
+          padding: '4px 12px',
           borderRadius: 999,
           cursor: applying ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
+          gap: 5,
           fontFamily: 'inherit',
           opacity: applying ? 0.7 : 1,
           transition: 'background 150ms ease',
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
         }}
-        onMouseOver={e => { if (!applying) e.currentTarget.style.background = 'rgba(255,255,255,0.28)'; }}
-        onMouseOut={e => { if (!applying) e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; }}
+        onMouseOver={e => { if (!applying) e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; }}
+        onMouseOut={e => { if (!applying) e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; }}
       >
         <RefreshCw
-          size={12}
+          size={11}
           strokeWidth={2.5}
           className={applying ? 'animate-spin' : undefined}
         />

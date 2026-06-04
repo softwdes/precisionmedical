@@ -82,7 +82,7 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
   const [reconcileTarget, setReconcileTarget] = useState<WalletItem | null>(null);
 
   const { data: wallets, refetch } = trpc.wallets.list.useQuery(undefined, { initialData: initialWallets });
-  const { data: fxStats = {} } = trpc.wallets.getFxStats.useQuery();
+  const { data: fxStats = {}, refetch: refetchStats } = trpc.wallets.getFxStats.useQuery();
 
   const totalUsd = wallets
     .filter(w => w.currency === 'USD')
@@ -165,8 +165,9 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
       {reconcileTarget && (
         <ReconcileDialog
           wallet={reconcileTarget}
+          stats={fxStats[reconcileTarget.id]}
           onClose={() => setReconcileTarget(null)}
-          onReconciled={() => { setReconcileTarget(null); void refetch(); }}
+          onReconciled={() => { setReconcileTarget(null); void refetch(); void refetchStats(); }}
         />
       )}
     </div>
@@ -509,15 +510,21 @@ function CreateWalletDialog({
 
 function ReconcileDialog({
   wallet,
+  stats,
   onClose,
   onReconciled,
 }: {
   wallet: WalletItem;
+  stats?: FxStat;
   onClose: () => void;
   onReconciled: () => void;
 }): React.ReactElement {
   const t = useTranslations();
-  const [balance, setBalance] = useState(String(Number(wallet.balance)));
+  // Pre-llenamos con el saldo MOSTRADO (base + movimientos FX desde la última
+  // reconciliación), que es lo que el usuario ve en la tarjeta, no el balance
+  // crudo en BD. Al confirmar, ese valor pasa a ser la nueva base reconciliada.
+  const displayedBalance = Number(wallet.balance) + (stats?.entradas ?? 0) - (stats?.salidas ?? 0);
+  const [balance, setBalance] = useState(String(displayedBalance));
 
   const reconcile = trpc.wallets.reconcile.useMutation({
     onSuccess: () => { toast.success(t('wallets.reconciled')); onReconciled(); },

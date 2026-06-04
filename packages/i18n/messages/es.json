@@ -713,7 +713,7 @@
     "exchangeHouse": "Casa de cambio",
     "notes": "Notas",
     "receiptUrl": "URL del comprobante",
-    "performedAt": "Fecha",
+    "performedAt": "Fecha de cambio",
     "reverseOp": "Reversar",
     "reversed": "Operación reversada",
     "created": "Operación FX registrada",

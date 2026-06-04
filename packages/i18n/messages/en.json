@@ -711,7 +711,7 @@
     "exchangeHouse": "Exchange house",
     "notes": "Notes",
     "receiptUrl": "Receipt URL",
-    "performedAt": "Date",
+    "performedAt": "Exchange date",
     "reverseOp": "Reverse",
     "reversed": "Operation reversed",
     "created": "FX operation registered",

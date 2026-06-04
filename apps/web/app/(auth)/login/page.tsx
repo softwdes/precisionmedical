@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
@@ -124,14 +124,41 @@ export default function LoginPage(): React.ReactElement {
   return (
     <>
       <style>{`
-        @keyframes fadeUp        { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes spin          { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes particlePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }
-        @keyframes systemPulse   { 0%,100%{opacity:1;box-shadow:0 0 6px #10B981,0 0 12px rgba(16,185,129,0.4)} 50%{opacity:0.5;box-shadow:0 0 3px #10B981,0 0 6px rgba(16,185,129,0.2)} }
-        @keyframes buttonShimmer { 0%{left:-100%} 30%,100%{left:150%} }
-        @keyframes radarPing     { 0%{transform:scale(0.9);opacity:0.55} 80%{opacity:0.05} 100%{transform:scale(2.4);opacity:0} }
-        @keyframes hudPulse      { 0%,100%{opacity:0.4} 50%{opacity:1} }
-        @keyframes pmScanLine    { 0%{transform:translateY(0);opacity:0} 5%{opacity:0.4} 95%{opacity:0.4} 100%{transform:translateY(100vh);opacity:0} }
+        @keyframes lmFadeUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes lmSpin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        @keyframes lmParticlePulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%      { opacity: 0.4; transform: scale(0.85); }
+        }
+        @keyframes lmSystemPulse {
+          0%, 100% { opacity: 1; box-shadow: 0 0 6px #10B981, 0 0 12px rgba(16,185,129,0.4); }
+          50%      { opacity: 0.5; box-shadow: 0 0 3px #10B981, 0 0 6px rgba(16,185,129,0.2); }
+        }
+        @keyframes lmButtonShimmer {
+          0%        { left: -100%; }
+          30%, 100% { left: 150%; }
+        }
+        @keyframes lmRadarPing {
+          0%   { transform: scale(0.9); opacity: 0.55; }
+          80%  { opacity: 0.05; }
+          100% { transform: scale(2.4); opacity: 0; }
+        }
+        @keyframes lmHudPulse {
+          0%, 100% { opacity: 0.4; }
+          50%      { opacity: 1; }
+        }
+        @keyframes lmScanLine {
+          0%   { transform: translateY(0);     opacity: 0;   }
+          5%   { opacity: 0.4; }
+          95%  { opacity: 0.4; }
+          100% { transform: translateY(100vh); opacity: 0;   }
+        }
         .pm-field { transition: border-color 150ms, border-width 150ms; }
         .pm-field:focus-within { border-bottom: 2px solid rgba(99,102,241,0.6) !important; }
         .pm-input { background:transparent; border:none; outline:none; color:#F5F7FB; font-size:14px; flex:1; min-width:0; font-family:inherit; }
@@ -151,13 +178,13 @@ export default function LoginPage(): React.ReactElement {
         <NeuralBackground />
 
         {/* HUD corners */}
-        <div aria-hidden style={{ position:'absolute', top:18, left:18,   width:30, height:30, borderTop:'1.5px solid rgba(99,102,241,0.75)', borderLeft:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite' }} />
-        <div aria-hidden style={{ position:'absolute', top:18, right:18,  width:30, height:30, borderTop:'1.5px solid rgba(99,102,241,0.75)', borderRight:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 1s' }} />
-        <div aria-hidden style={{ position:'absolute', bottom:18, left:18, width:30, height:30, borderBottom:'1.5px solid rgba(99,102,241,0.75)', borderLeft:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 2s' }} />
-        <div aria-hidden style={{ position:'absolute', bottom:18, right:18,width:30, height:30, borderBottom:'1.5px solid rgba(99,102,241,0.75)', borderRight:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 3s' }} />
+        <div aria-hidden style={{ position:'absolute', top:18, left:18,   width:30, height:30, borderTop:'1.5px solid rgba(99,102,241,0.75)', borderLeft:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'lmHudPulse 4s ease-in-out infinite' }} />
+        <div aria-hidden style={{ position:'absolute', top:18, right:18,  width:30, height:30, borderTop:'1.5px solid rgba(99,102,241,0.75)', borderRight:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'lmHudPulse 4s ease-in-out infinite 1s' }} />
+        <div aria-hidden style={{ position:'absolute', bottom:18, left:18, width:30, height:30, borderBottom:'1.5px solid rgba(99,102,241,0.75)', borderLeft:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'lmHudPulse 4s ease-in-out infinite 2s' }} />
+        <div aria-hidden style={{ position:'absolute', bottom:18, right:18,width:30, height:30, borderBottom:'1.5px solid rgba(99,102,241,0.75)', borderRight:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'lmHudPulse 4s ease-in-out infinite 3s' }} />
 
         {/* Scan line */}
-        <div aria-hidden style={{ position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent 0%,rgba(99,102,241,0.35) 30%,rgba(139,92,246,0.6) 50%,rgba(99,102,241,0.35) 70%,transparent 100%)', animation:'pmScanLine 8s linear infinite', pointerEvents:'none', zIndex:2 }} />
+        <div aria-hidden style={{ position:'absolute', top:0, left:0, right:0, height:1, background:'linear-gradient(90deg,transparent 0%,rgba(99,102,241,0.35) 30%,rgba(139,92,246,0.6) 50%,rgba(99,102,241,0.35) 70%,transparent 100%)', animation:'lmScanLine 8s linear infinite', pointerEvents:'none', zIndex:2 }} />
 
         {/* Dot grid */}
         <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:0, backgroundImage:'linear-gradient(rgba(99,102,241,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.06) 1px,transparent 1px)', backgroundSize:'32px 32px' }} />
@@ -176,7 +203,7 @@ export default function LoginPage(): React.ReactElement {
           { t:'18%', l:'30%',  w:2, bg:'rgba(16,185,129,0.25)',  d:'3.8s', dl:'2400ms' },
           { t:'78%', r:'35%',  w:3, bg:'rgba(6,182,212,0.25)',   d:'2.6s', dl:'2800ms' },
         ].map((p, i) => (
-          <div key={i} style={{ position:'absolute', top:p.t, left:(p as { l?: string }).l, right:(p as { r?: string }).r, width:p.w, height:p.w, borderRadius:'50%', background:p.bg, pointerEvents:'none', zIndex:0, animation:`particlePulse ${p.d} ease-in-out infinite ${p.dl}` }} />
+          <div key={i} style={{ position:'absolute', top:p.t, left:(p as { l?: string }).l, right:(p as { r?: string }).r, width:p.w, height:p.w, borderRadius:'50%', background:p.bg, pointerEvents:'none', zIndex:0, animation:`lmParticlePulse ${p.d} ease-in-out infinite ${p.dl}` }} />
         ))}
 
         {/* Content wrapper */}
@@ -188,13 +215,13 @@ export default function LoginPage(): React.ReactElement {
           <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle,rgba(99,102,241,0.05) 0%,transparent 65%)', pointerEvents:'none', zIndex:0 }} />
 
           {/* Logo */}
-          <div style={{ position:'relative', zIndex:1, textAlign:'center', marginBottom:'2.25rem', animation:'fadeUp 600ms cubic-bezier(0.16,1,0.3,1) both' }}>
+          <div style={{ position:'relative', zIndex:1, textAlign:'center', marginBottom:'2.25rem', animation:'lmFadeUp 600ms cubic-bezier(0.16,1,0.3,1) both' }}>
             <div style={{ position:'relative', display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:'0.75rem' }}>
               <div style={{ position:'absolute', top:-24, left:-24, right:-24, bottom:-24, borderRadius:40, border:'1px solid rgba(99,102,241,0.05)' }} />
               <div style={{ position:'absolute', top:-16, left:-16, right:-16, bottom:-16, borderRadius:32, border:'1px solid rgba(99,102,241,0.10)' }} />
               <div style={{ position:'absolute', top:-8,  left:-8,  right:-8,  bottom:-8,  borderRadius:24, border:'1px solid rgba(99,102,241,0.22)' }} />
-              <div aria-hidden style={{ position:'absolute', top:-4, left:-4, right:-4, bottom:-4, borderRadius:'50%', border:'1.5px solid rgba(107,78,255,0.55)', pointerEvents:'none', animation:'radarPing 2.8s ease-out infinite' }} />
-              <div aria-hidden style={{ position:'absolute', top:-4, left:-4, right:-4, bottom:-4, borderRadius:'50%', border:'1.5px solid rgba(107,78,255,0.45)', pointerEvents:'none', animation:'radarPing 2.8s ease-out infinite 1.4s' }} />
+              <div aria-hidden style={{ position:'absolute', top:-4, left:-4, right:-4, bottom:-4, borderRadius:'50%', border:'1.5px solid rgba(107,78,255,0.55)', pointerEvents:'none', animation:'lmRadarPing 2.8s ease-out infinite' }} />
+              <div aria-hidden style={{ position:'absolute', top:-4, left:-4, right:-4, bottom:-4, borderRadius:'50%', border:'1.5px solid rgba(107,78,255,0.45)', pointerEvents:'none', animation:'lmRadarPing 2.8s ease-out infinite 1.4s' }} />
               <div className="pm-logo-box" style={{ width:68, height:68, borderRadius:20, background:'linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#06B6D4 100%)', boxShadow:'0 0 40px rgba(99,102,241,0.65),0 0 80px rgba(99,102,241,0.25)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <span style={{ color:'white', fontWeight:800, fontSize:20 }}>LM</span>
               </div>
@@ -210,7 +237,7 @@ export default function LoginPage(): React.ReactElement {
           {/* Form card */}
           <div style={{ position:'relative', zIndex:1, width:420, maxWidth:'90vw' }}>
             <div style={{ position:'absolute', top:-1, left:-1, right:-1, bottom:-1, borderRadius:21, background:'linear-gradient(135deg,rgba(99,102,241,0.40),rgba(139,92,246,0.16) 50%,rgba(6,182,212,0.28) 100%)', pointerEvents:'none', zIndex:0 }} />
-            <div style={{ position:'relative', zIndex:1, background:'rgba(10,14,26,0.93)', borderRadius:20, padding:'2.25rem 2.5rem', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', animation:'fadeUp 600ms 150ms cubic-bezier(0.16,1,0.3,1) both' }}>
+            <div style={{ position:'relative', zIndex:1, background:'rgba(10,14,26,0.93)', borderRadius:20, padding:'2.25rem 2.5rem', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', animation:'lmFadeUp 600ms 150ms cubic-bezier(0.16,1,0.3,1) both' }}>
               <form onSubmit={handleSubmit}>
                 <div className="pm-field" style={{ display:'flex', alignItems:'center', gap:10, borderBottom:'1px solid rgba(255,255,255,0.07)', padding:'14px 0', marginBottom:4 }}>
                   <Mail size={17} color="#4A5474" style={{ flexShrink:0 }} />
@@ -240,7 +267,7 @@ export default function LoginPage(): React.ReactElement {
                   <button type="button" onClick={() => router.push('/forgot-password')} style={{ background:'none', border:'none', cursor:'pointer', color:'#6366F1', fontSize:11, padding:0, fontFamily:'inherit' }}>Forgot your password?</button>
                 </div>
                 <button type="submit" disabled={loading} className="pm-btn" style={{ position:'relative', overflow:'hidden', width:'100%', background:'linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#06B6D4 100%)', borderRadius:12, padding:16, textAlign:'center', boxShadow:'0 10px 36px rgba(99,102,241,0.55),0 4px 14px rgba(99,102,241,0.28)', color:'white', fontWeight:700, fontSize:15, letterSpacing:'0.03em', border:'none', cursor:loading?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, opacity:loading?0.85:1, fontFamily:'inherit' }}>
-                  <div style={{ position:'absolute', top:0, left:'-100%', width:'50%', height:'100%', background:'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.13) 50%,transparent 100%)', transform:'skewX(-20deg)', pointerEvents:'none', animation:'buttonShimmer 3s ease-in-out infinite' }} />
+                  <div style={{ position:'absolute', top:0, left:'-100%', width:'50%', height:'100%', background:'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.13) 50%,transparent 100%)', transform:'skewX(-20deg)', pointerEvents:'none', animation:'lmButtonShimmer 3s ease-in-out infinite' }} />
                   {loading ? (<><svg style={{ animation:'spin 1s linear infinite' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Signing in...</>) : 'Sign in'}
                 </button>
               </form>
@@ -249,12 +276,12 @@ export default function LoginPage(): React.ReactElement {
 
           {/* Status */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:16, marginBottom:10 }}>
-            <div style={{ width:6, height:6, borderRadius:'50%', background:'#10B981', boxShadow:'0 0 6px #10B981,0 0 12px rgba(16,185,129,0.4)', animation:'systemPulse 2s ease-in-out infinite' }} />
+            <div style={{ width:6, height:6, borderRadius:'50%', background:'#10B981', boxShadow:'0 0 6px #10B981,0 0 12px rgba(16,185,129,0.4)', animation:'lmSystemPulse 2s ease-in-out infinite' }} />
             <span style={{ fontSize:11, color:'#4A5474', fontWeight:600, letterSpacing:'0.04em' }}>All systems operational</span>
           </div>
 
           {/* Security pills */}
-          <div style={{ display:'flex', gap:14, marginTop:'1.75rem', justifyContent:'center', flexWrap:'wrap', animation:'fadeUp 500ms 280ms cubic-bezier(0.16,1,0.3,1) both' }}>
+          <div style={{ display:'flex', gap:14, marginTop:'1.75rem', justifyContent:'center', flexWrap:'wrap', animation:'lmFadeUp 500ms 280ms cubic-bezier(0.16,1,0.3,1) both' }}>
             {([{ Icon:ShieldCheck, label:'HIPAA' }, { Icon:Lock, label:'SSL' }, { Icon:Key, label:'2FA' }] as const).map(({ Icon, label }) => (
               <div key={label} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.18)', borderRadius:20, padding:'7px 16px' }}>
                 <Icon size={14} color="#10B981" /><span style={{ color:'#6B7592', fontWeight:600, fontSize:12 }}>{label}</span>
@@ -263,7 +290,7 @@ export default function LoginPage(): React.ReactElement {
           </div>
 
           {/* Footer */}
-          <p style={{ color:'#2C3248', fontSize:11, textTransform:'uppercase', letterSpacing:'0.1em', marginTop:'2rem', animation:'fadeUp 400ms 380ms cubic-bezier(0.16,1,0.3,1) both' }}>
+          <p style={{ color:'#2C3248', fontSize:11, textTransform:'uppercase', letterSpacing:'0.1em', marginTop:'2rem', animation:'lmFadeUp 400ms 380ms cubic-bezier(0.16,1,0.3,1) both' }}>
             Precision Medical · LM Super Admin · v2.6
           </p>
         </div>
@@ -271,3 +298,4 @@ export default function LoginPage(): React.ReactElement {
     </>
   );
 }
+

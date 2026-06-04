@@ -264,6 +264,12 @@ export default function LoginPage(): React.ReactElement {
           0%   { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
+        @keyframes pmScanLine {
+          0%   { top: 0%;   opacity: 0;    }
+          5%   { opacity: 0.35; }
+          95%  { opacity: 0.35; }
+          100% { top: 100%; opacity: 0;    }
+        }
         .pm-icon-breath { animation: iconBreath 3s ease-in-out infinite; }
         .pm-icon-halo {
           position: absolute;
@@ -331,6 +337,14 @@ export default function LoginPage(): React.ReactElement {
             background: 'repeating-linear-gradient(180deg, transparent, transparent 39px, rgba(99,102,241,0.022) 40px)',
           }}
         />
+
+        {/* ── Layer 2b: Scan line que baja ── */}
+        <div aria-hidden style={{
+          position: 'absolute', left: 0, right: 0, height: 1,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.3) 30%, rgba(139,92,246,0.55) 50%, rgba(99,102,241,0.3) 70%, transparent 100%)',
+          animation: 'pmScanLine 9s linear infinite',
+          pointerEvents: 'none', zIndex: 2,
+        }} />
 
         {/* ── Layer 3: Dot grid ── */}
         <div

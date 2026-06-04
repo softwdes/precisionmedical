@@ -152,7 +152,7 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
       tx.country,
       tx.clinicName,
       tx.description,
-      CATEGORY_LABELS_ES[tx.category ?? ''] ?? (tx.category ?? ''),
+      tx.type === 'DEPOSIT' ? 'Depósito' : (CATEGORY_LABELS_ES[tx.category ?? ''] ?? CATEGORY_LABELS_ES.OTHER ?? 'Otros'),
       `${Number(tx.amount) >= 0 ? '+' : ''}${Number(tx.amount).toFixed(2)}`,
     ]);
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -165,6 +165,12 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
   };
 
   // ── Export PDF ──
+  // Categoría inteligente: DEPOSIT → "Depósito"; EXPENSE → categoría real (o "Otros")
+  const renderCategoryForExport = (tx: typeof items[number]): string => {
+    if (tx.type === 'DEPOSIT') return 'Depósito';
+    return CATEGORY_LABELS_ES[tx.category ?? ''] ?? CATEGORY_LABELS_ES.OTHER ?? 'Otros';
+  };
+
   const handleExportPDF = () => {
     const rows = items.map(tx => `
       <tr>
@@ -172,7 +178,7 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
         <td>${tx.country}</td>
         <td>${tx.clinicName}</td>
         <td>${tx.description}</td>
-        <td>${CATEGORY_LABELS_ES[tx.category ?? ''] ?? (tx.category ?? '')}</td>
+        <td>${renderCategoryForExport(tx)}</td>
         <td style="text-align:right;color:${Number(tx.amount) >= 0 ? '#16a34a' : '#dc2626'};font-family:monospace">
           ${Number(tx.amount) >= 0 ? '+' : ''}$${Math.abs(Number(tx.amount)).toFixed(2)}
         </td>
@@ -392,13 +398,16 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                       <TableCell className="text-xs text-text-2">{tx.clinicName}</TableCell>
                       <TableCell className="text-xs text-text-2 max-w-[180px] truncate">{tx.description}</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                          tx.type === 'DEPOSIT'
-                            ? 'bg-emerald-500/10 text-emerald-500'
-                            : 'bg-rose-500/10 text-rose-500'
-                        }`}>
-                          {tx.type === 'DEPOSIT' ? t('pettyCash.typeDeposit') : t('pettyCash.typeExpense')}
-                        </span>
+                        {/* Categoría inteligente: DEPOSIT → "Depósito"; EXPENSE → categoría real (o "Otros") */}
+                        {tx.type === 'DEPOSIT' ? (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-500">
+                            {t('pettyCash.typeDeposit')}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-rose-500/10 text-rose-500">
+                            {tx.category ? getCategoryLabel(tx.category) : t('pettyCash.categories.OTHER')}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className={`text-right font-mono text-xs font-semibold ${Number(tx.amount) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {Number(tx.amount) >= 0 ? '+' : ''}${fmt(Number(tx.amount))}

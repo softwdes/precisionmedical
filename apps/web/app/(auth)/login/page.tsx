@@ -1,10 +1,139 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Key } from 'lucide-react';
+
+/**
+ * Canvas background: columnas de hex médico cayendo lento (matrix sofisticado).
+ * Sutil, púrpura mayoritario + cyan de acento, no compite con el contenido del login.
+ */
+interface DataColumn {
+  x: number;
+  y: number;
+  speed: number;
+  chars: string[];
+  color: 'purple' | 'cyan';
+}
+
+function MedicalDataStreams(): React.ReactElement {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const ctx = el.getContext('2d');
+    if (!ctx) return;
+
+    // Aliases después del null guard (TS strict)
+    const cvs = el;
+    const c = ctx;
+
+    const HEX_TOKENS = ['A3', 'FF', '0C', 'B7', '2E', '9F', 'D1', '5A', '7B', '·', 'C4', '8E', '4F', 'E2', '·', '6A'];
+    const COLUMN_COUNT = 30;
+    const CHAR_HEIGHT = 14;
+
+    let columns: DataColumn[] = [];
+    let animId = 0;
+
+    const newChars = (): string[] => {
+      const len = 8 + Math.floor(Math.random() * 5);
+      return Array.from({ length: len }, () => HEX_TOKENS[Math.floor(Math.random() * HEX_TOKENS.length)] ?? 'FF');
+    };
+
+    const initColumns = (): void => {
+      columns = [];
+      for (let i = 0; i < COLUMN_COUNT; i++) {
+        columns.push({
+          x: Math.random() * cvs.width,
+          y: -Math.random() * cvs.height,
+          speed: 0.4 + Math.random() * 0.8,
+          chars: newChars(),
+          color: Math.random() < 0.3 ? 'cyan' : 'purple',
+        });
+      }
+    };
+
+    const resize = (): void => {
+      cvs.width = window.innerWidth;
+      cvs.height = window.innerHeight;
+      initColumns();
+    };
+
+    resize();
+    window.addEventListener('resize', resize);
+
+    const draw = (): void => {
+      // Fade trail (oscuro semi-transparente sobre el frame anterior)
+      c.fillStyle = 'rgba(6, 8, 16, 0.10)';
+      c.fillRect(0, 0, cvs.width, cvs.height);
+
+      c.font = '12px ui-monospace, "SF Mono", Menlo, monospace';
+      c.textAlign = 'center';
+
+      for (const col of columns) {
+        col.y += col.speed;
+
+        // Reset cuando la columna sale por abajo
+        const totalHeight = col.chars.length * CHAR_HEIGHT;
+        if (col.y - totalHeight > cvs.height) {
+          col.y = -totalHeight;
+          col.x = Math.random() * cvs.width;
+          col.chars = newChars();
+          col.color = Math.random() < 0.3 ? 'cyan' : 'purple';
+        }
+
+        // Dibujo de chars: i=0 es el lider (más abajo, más brillante)
+        for (let i = 0; i < col.chars.length; i++) {
+          const charY = col.y - i * CHAR_HEIGHT;
+          if (charY < -CHAR_HEIGHT || charY > cvs.height + CHAR_HEIGHT) continue;
+
+          const isLead = i === 0;
+          const fadeRatio = i / col.chars.length;
+          const opacity = isLead ? 0.85 : Math.max(0.05, 0.65 * (1 - fadeRatio));
+
+          if (isLead) {
+            c.fillStyle = `rgba(180, 220, 255, ${opacity})`;
+          } else if (col.color === 'purple') {
+            c.fillStyle = `rgba(100, 80, 220, ${opacity})`;
+          } else {
+            c.fillStyle = `rgba(0, 200, 180, ${opacity})`;
+          }
+
+          const token = col.chars[i];
+          if (token) c.fillText(token, col.x, charY);
+        }
+      }
+
+      animId = requestAnimationFrame(draw);
+    };
+
+    animId = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 0,
+        opacity: 0.55,
+      }}
+    />
+  );
+}
 
 export default function LoginPage(): React.ReactElement {
   const router = useRouter();
@@ -136,6 +265,56 @@ export default function LoginPage(): React.ReactElement {
           transform: translateY(-1px);
           box-shadow: 0 12px 36px rgba(99,102,241,0.65) !important;
         }
+        /* ── Super Admin enhancements ── */
+        @keyframes haloExpand {
+          0%   { transform: scale(0.85); opacity: 0.6; }
+          70%  { opacity: 0.0; }
+          100% { transform: scale(1.6); opacity: 0; }
+        }
+        @keyframes iconBreath {
+          0%, 100% { box-shadow: 0 0 40px rgba(99,102,241,0.65), 0 0 80px rgba(99,102,241,0.25), 0 0 120px rgba(139,92,246,0.18); }
+          50%      { box-shadow: 0 0 50px rgba(99,102,241,0.80), 0 0 100px rgba(99,102,241,0.35), 0 0 150px rgba(139,92,246,0.25); }
+        }
+        @keyframes hudPulse {
+          0%, 100% { opacity: 0.45; }
+          50%       { opacity: 0.9; }
+        }
+        @keyframes cardTopBorder {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .pm-icon-breath { animation: iconBreath 3s ease-in-out infinite; }
+        .pm-icon-halo {
+          position: absolute;
+          inset: 0;
+          border-radius: 20px;
+          border: 1.5px solid rgba(139,92,246,0.5);
+          pointer-events: none;
+          animation: haloExpand 3s ease-out infinite;
+        }
+        .pm-title-glow {
+          text-shadow:
+            0 0 10px rgba(100,80,220,0.40),
+            0 0 30px rgba(100,80,220,0.20),
+            0 0 60px rgba(139,92,246,0.10);
+        }
+        .pm-hud-corner {
+          position: absolute;
+          width: 24px;
+          height: 24px;
+          pointer-events: none;
+          animation: hudPulse 4s ease-in-out infinite;
+        }
+        .pm-card-top-line {
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 1px;
+          pointer-events: none;
+          background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.7) 35%, rgba(6,182,212,0.7) 65%, transparent 100%);
+          background-size: 200% 100%;
+          animation: cardTopBorder 5s linear infinite;
+          border-radius: 20px 20px 0 0;
+        }
         @media (max-width: 640px) {
           .pm-logo-box { width: 52px !important; height: 52px !important; border-radius: 16px !important; }
           .pm-title   { font-size: 18px !important; }
@@ -158,6 +337,9 @@ export default function LoginPage(): React.ReactElement {
           fontFamily: '"Plus Jakarta Sans", -apple-system, system-ui, sans-serif',
         }}
       >
+        {/* ── Layer 1: Medical Data Streams (canvas con hex cayendo) ── */}
+        <MedicalDataStreams />
+
         {/* ── Layer 2: Scanlines ── */}
         <div
           style={{
@@ -264,24 +446,26 @@ export default function LoginPage(): React.ReactElement {
               <div style={{ position: 'absolute', top: -16, left: -16, right: -16, bottom: -16, borderRadius: 32, border: '1px solid rgba(99,102,241,0.10)' }} />
               {/* Ring 1 — closest */}
               <div style={{ position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 24, border: '1px solid rgba(99,102,241,0.22)' }} />
-              {/* Logo box */}
+              {/* Logo box — con breath animation + halo expansivo */}
               <div
-                className="pm-logo-box"
+                className="pm-logo-box pm-icon-breath"
                 style={{
+                  position: 'relative',
                   width: 68,
                   height: 68,
                   borderRadius: 20,
                   background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%)',
-                  boxShadow: '0 0 40px rgba(99,102,241,0.65), 0 0 80px rgba(99,102,241,0.25)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <span style={{ color: 'white', fontWeight: 800, fontSize: 19 }}>LM</span>
+                {/* Anillo expansivo (super admin halo) */}
+                <span className="pm-icon-halo" aria-hidden="true" />
+                <span style={{ color: 'white', fontWeight: 800, fontSize: 19, position: 'relative', zIndex: 1 }}>LM</span>
               </div>
             </div>
-            <p className="pm-title" style={{ color: '#F5F7FB', fontWeight: 800, fontSize: 26, letterSpacing: '-0.5px', margin: '0 0 5px' }}>
+            <p className="pm-title pm-title-glow" style={{ color: '#F5F7FB', fontWeight: 800, fontSize: 26, letterSpacing: '-0.5px', margin: '0 0 5px' }}>
               LM Super Admin
             </p>
             <p style={{ color: '#4A5474', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
@@ -302,6 +486,51 @@ export default function LoginPage(): React.ReactElement {
                 zIndex: 0,
               }}
             />
+            {/* HUD corners — esquinas tipo interfaz segura, fuera del card inner para no chocar con el blur */}
+            <span
+              className="pm-hud-corner"
+              style={{
+                top: -2, left: -2,
+                borderTop: '1.5px solid rgba(139,92,246,0.55)',
+                borderLeft: '1.5px solid rgba(139,92,246,0.55)',
+                borderTopLeftRadius: 6,
+              }}
+              aria-hidden="true"
+            />
+            <span
+              className="pm-hud-corner"
+              style={{
+                top: -2, right: -2,
+                borderTop: '1.5px solid rgba(6,182,212,0.55)',
+                borderRight: '1.5px solid rgba(6,182,212,0.55)',
+                borderTopRightRadius: 6,
+                animationDelay: '1s',
+              }}
+              aria-hidden="true"
+            />
+            <span
+              className="pm-hud-corner"
+              style={{
+                bottom: -2, left: -2,
+                borderBottom: '1.5px solid rgba(6,182,212,0.55)',
+                borderLeft: '1.5px solid rgba(6,182,212,0.55)',
+                borderBottomLeftRadius: 6,
+                animationDelay: '2s',
+              }}
+              aria-hidden="true"
+            />
+            <span
+              className="pm-hud-corner"
+              style={{
+                bottom: -2, right: -2,
+                borderBottom: '1.5px solid rgba(139,92,246,0.55)',
+                borderRight: '1.5px solid rgba(139,92,246,0.55)',
+                borderBottomRightRadius: 6,
+                animationDelay: '3s',
+              }}
+              aria-hidden="true"
+            />
+
             {/* Card inner */}
             <div
               style={{
@@ -313,8 +542,12 @@ export default function LoginPage(): React.ReactElement {
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
                 animation: 'fadeUp 600ms 150ms cubic-bezier(0.16, 1, 0.3, 1) both',
+                overflow: 'hidden',
               }}
             >
+              {/* Línea superior con gradiente sliding (purple → cyan) */}
+              <span className="pm-card-top-line" aria-hidden="true" />
+
               <form onSubmit={handleSubmit}>
                 {/* Email */}
                 <div

@@ -68,8 +68,14 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
           100% { transform: scale(2.4); opacity: 0; }
         }
         @keyframes hudPulse {
-          0%, 100% { opacity: 0.35; }
-          50%      { opacity: 0.85; }
+          0%, 100% { opacity: 0.4; }
+          50%      { opacity: 1; }
+        }
+        @keyframes tcScanLine {
+          0%   { transform: translateY(0);     opacity: 0;    }
+          5%   { opacity: 0.4; }
+          95%  { opacity: 0.4; }
+          100% { transform: translateY(100vh); opacity: 0;    }
         }
         .tc-field { transition: border-color 150ms, border-width 150ms; }
         .tc-field:focus-within {
@@ -115,19 +121,24 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
         {/* Hexagonal pulse grid — full-screen, fixed, behind all content (z-index: 0) */}
         <HexagonalPulseGrid />
 
-        {/* HUD corners — marco tipo tactical/medical, animacion lenta de pulso */}
-        <div aria-hidden style={{ position:'absolute', top:18, left:18, width:28, height:28, borderTop:'1px solid rgba(107,78,255,0.5)', borderLeft:'1px solid rgba(107,78,255,0.5)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite' }} />
-        <div aria-hidden style={{ position:'absolute', top:18, right:18, width:28, height:28, borderTop:'1px solid rgba(107,78,255,0.5)', borderRight:'1px solid rgba(107,78,255,0.5)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 1s' }} />
-        <div aria-hidden style={{ position:'absolute', bottom:18, left:18, width:28, height:28, borderBottom:'1px solid rgba(107,78,255,0.5)', borderLeft:'1px solid rgba(107,78,255,0.5)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 2s' }} />
-        <div aria-hidden style={{ position:'absolute', bottom:18, right:18, width:28, height:28, borderBottom:'1px solid rgba(107,78,255,0.5)', borderRight:'1px solid rgba(107,78,255,0.5)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 3s' }} />
+        {/* HUD corners — más visibles */}
+        <div aria-hidden style={{ position:'absolute', top:18, left:18, width:30, height:30, borderTop:'1.5px solid rgba(99,102,241,0.75)', borderLeft:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite' }} />
+        <div aria-hidden style={{ position:'absolute', top:18, right:18, width:30, height:30, borderTop:'1.5px solid rgba(99,102,241,0.75)', borderRight:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 1s' }} />
+        <div aria-hidden style={{ position:'absolute', bottom:18, left:18, width:30, height:30, borderBottom:'1.5px solid rgba(99,102,241,0.75)', borderLeft:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 2s' }} />
+        <div aria-hidden style={{ position:'absolute', bottom:18, right:18, width:30, height:30, borderBottom:'1.5px solid rgba(99,102,241,0.75)', borderRight:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 3s' }} />
 
-        {/* Scanlines */}
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 39px, rgba(99,102,241,0.022) 40px)' }} />
+        {/* Scan line que baja — el efecto más visible */}
+        <div aria-hidden style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.35) 30%, rgba(139,92,246,0.6) 50%, rgba(99,102,241,0.35) 70%, transparent 100%)',
+          animation: 'tcScanLine 8s linear infinite',
+          pointerEvents: 'none', zIndex: 2,
+        }} />
 
-        {/* Dot grid */}
+        {/* Dot grid — más visible */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-          backgroundImage: 'linear-gradient(rgba(99,102,241,0.032) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.032) 1px, transparent 1px)',
+          backgroundImage: 'linear-gradient(rgba(99,102,241,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.06) 1px, transparent 1px)',
           backgroundSize: '32px 32px',
         }} />
 

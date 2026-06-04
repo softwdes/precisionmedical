@@ -290,7 +290,7 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
                 <Clock size={28} color="white" strokeWidth={2} />
               </div>
             </div>
-            <p className="tc-title" style={{ color:'#F5F7FB', fontWeight:800, fontSize:26, letterSpacing:'-0.5px', margin:'0 0 5px', textShadow:'0 0 18px rgba(107,78,255,0.45), 0 0 36px rgba(107,78,255,0.18)' }}>
+            <p className="tc-title" style={{ color:'#F5F7FB', fontWeight:800, fontSize:26, letterSpacing:'-0.5px', margin:'0 0 5px', textShadow:'0 1px 2px rgba(0,0,0,0.45)' }}>
               PM Time Clock
             </p>
             <p style={{ color:'#4A5474', fontSize:12, textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>

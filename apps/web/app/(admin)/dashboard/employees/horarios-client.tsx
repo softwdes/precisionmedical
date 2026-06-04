@@ -45,7 +45,11 @@ interface InitialScheduleData {
   endTime:      string;
 }
 
-const CLINICS = ['Provo','Pleasant Grove','Spanish Fork','West Valley','South Murray','Bolivia','Perú'];
+// Estos valores DEBEN coincidir EXACTAMENTE con clinics.name en Supabase.
+// El timeclock matchea por name; cualquier mismatch hace que el <select>
+// caiga en la primera opcion alfabetica y el usuario vea otra clinica.
+// US: "<Ciudad> Clinic". BO/PE: nombre del pais (asi quedo en la DB).
+const CLINICS = ['Provo Clinic','Pleasant Grove Clinic','Spanish Fork Clinic','West Valley Clinic','South Murray Clinic','Bolivia','Perú'];
 
 const DAY_ABBR  = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const DAY_NUMS  = [1,2,3,4,5,6,7];
@@ -255,7 +259,7 @@ function AssignModal({
   const today = toISODate(new Date());
   const [empId, setEmpId]           = useState(initialData?.employeeId ?? preEmployeeId ?? '');
   const [schedType, setSchedType]   = useState<'full_time' | 'part_time'>(initialData?.scheduleType ?? 'full_time');
-  const [clinic, setClinic]         = useState(initialData?.clinic ?? 'Provo');
+  const [clinic, setClinic]         = useState(initialData?.clinic ?? 'Provo Clinic');
   const [days, setDays]             = useState<number[]>(initialData?.days ?? [1,2,3,4,5]);
   const [startTime, setStartTime]   = useState(initialData?.startTime ?? '08:00');
   const [endTime, setEndTime]       = useState(initialData?.endTime ?? '17:00');

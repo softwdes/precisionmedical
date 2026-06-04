@@ -48,27 +48,31 @@ async function seed(): Promise<void> {
 
   // Clinics
   await Promise.all([
+    // Nombres con sufijo " Clinic" para matchear clinics.name en prod
+    // (migration 20260528130000_clinics_table.sql). Sin esto, el form de
+    // horarios genera schedules con clinic_name que no matchea y el
+    // timeclock cae en la primera opcion alfabetica por default.
     db.clinic.upsert({
-      where: { name: 'Pleasant Grove' },
+      where: { name: 'Pleasant Grove Clinic' },
       update: {},
       create: {
-        name: 'Pleasant Grove',
+        name: 'Pleasant Grove Clinic',
         address: '1234 State St, Pleasant Grove, UT 84062',
         phone: '+1-801-555-0100',
       },
     }),
     db.clinic.upsert({
-      where: { name: 'Provo' },
+      where: { name: 'Provo Clinic' },
       update: {},
       create: {
-        name: 'Provo',
+        name: 'Provo Clinic',
         address: '5678 University Ave, Provo, UT 84601',
         phone: '+1-801-555-0200',
       },
     }),
   ]);
 
-  console.warn('✅ Clinics: Pleasant Grove, Provo');
+  console.warn('✅ Clinics: Pleasant Grove Clinic, Provo Clinic');
 
   // Cash Boxes
   await Promise.all([

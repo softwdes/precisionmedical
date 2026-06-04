@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Clock, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Smartphone } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { InstallPWABanner } from '@/components/InstallPWABanner';
+import { HexagonalPulseGrid } from '@/components/HexagonalPulseGrid';
 
 export default function LoginPage({ expired }: { expired?: boolean }) {
   const router = useRouter();
@@ -61,6 +62,15 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
           0%        { left: -100%; }
           30%, 100% { left: 150%; }
         }
+        @keyframes radarPing {
+          0%   { transform: scale(0.9); opacity: 0.55; }
+          80%  { opacity: 0.05; }
+          100% { transform: scale(2.4); opacity: 0; }
+        }
+        @keyframes hudPulse {
+          0%, 100% { opacity: 0.35; }
+          50%      { opacity: 0.85; }
+        }
         .tc-field { transition: border-color 150ms, border-width 150ms; }
         .tc-field:focus-within {
           border-bottom: 2px solid rgba(99,102,241,0.6) !important;
@@ -102,6 +112,15 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
         fontFamily: '"Plus Jakarta Sans", -apple-system, system-ui, sans-serif',
       }}>
 
+        {/* Hexagonal pulse grid — full-screen, fixed, behind all content (z-index: 0) */}
+        <HexagonalPulseGrid />
+
+        {/* HUD corners — marco tipo tactical/medical, animacion lenta de pulso */}
+        <div aria-hidden style={{ position:'absolute', top:18, left:18, width:28, height:28, borderTop:'1px solid rgba(107,78,255,0.5)', borderLeft:'1px solid rgba(107,78,255,0.5)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite' }} />
+        <div aria-hidden style={{ position:'absolute', top:18, right:18, width:28, height:28, borderTop:'1px solid rgba(107,78,255,0.5)', borderRight:'1px solid rgba(107,78,255,0.5)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 1s' }} />
+        <div aria-hidden style={{ position:'absolute', bottom:18, left:18, width:28, height:28, borderBottom:'1px solid rgba(107,78,255,0.5)', borderLeft:'1px solid rgba(107,78,255,0.5)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 2s' }} />
+        <div aria-hidden style={{ position:'absolute', bottom:18, right:18, width:28, height:28, borderBottom:'1px solid rgba(107,78,255,0.5)', borderRight:'1px solid rgba(107,78,255,0.5)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite 3s' }} />
+
         {/* Scanlines */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0, background: 'repeating-linear-gradient(180deg, transparent, transparent 39px, rgba(99,102,241,0.022) 40px)' }} />
 
@@ -140,10 +159,24 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
           {/* Logo */}
           <div style={{ position:'relative', zIndex:1, textAlign:'center', marginBottom:'2.25rem', animation:'fadeUp 600ms cubic-bezier(0.16,1,0.3,1) both' }}>
             <div style={{ position:'relative', display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:'0.75rem' }}>
-              {/* Rings */}
+              {/* Static rings (decorativos, sin animacion) */}
               <div style={{ position:'absolute', top:-24, left:-24, right:-24, bottom:-24, borderRadius:40, border:'1px solid rgba(99,102,241,0.05)' }} />
               <div style={{ position:'absolute', top:-16, left:-16, right:-16, bottom:-16, borderRadius:32, border:'1px solid rgba(99,102,241,0.10)' }} />
               <div style={{ position:'absolute', top:-8,  left:-8,  right:-8,  bottom:-8,  borderRadius:24, border:'1px solid rgba(99,102,241,0.22)' }} />
+
+              {/* Radar pings — 2 anillos animados que se expanden y desvanecen.
+                  Desfase de 1.4s entre ellos para que el efecto sea continuo. */}
+              <div aria-hidden style={{
+                position:'absolute', top:-4, left:-4, right:-4, bottom:-4,
+                borderRadius:'50%', border:'1.5px solid rgba(107,78,255,0.55)',
+                pointerEvents:'none', animation:'radarPing 2.8s ease-out infinite',
+              }} />
+              <div aria-hidden style={{
+                position:'absolute', top:-4, left:-4, right:-4, bottom:-4,
+                borderRadius:'50%', border:'1.5px solid rgba(107,78,255,0.45)',
+                pointerEvents:'none', animation:'radarPing 2.8s ease-out infinite 1.4s',
+              }} />
+
               {/* Logo box */}
               <div
                 className="tc-logo-box"
@@ -157,7 +190,7 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
                 <Clock size={28} color="white" strokeWidth={2} />
               </div>
             </div>
-            <p className="tc-title" style={{ color:'#F5F7FB', fontWeight:800, fontSize:26, letterSpacing:'-0.5px', margin:'0 0 5px' }}>
+            <p className="tc-title" style={{ color:'#F5F7FB', fontWeight:800, fontSize:26, letterSpacing:'-0.5px', margin:'0 0 5px', textShadow:'0 0 18px rgba(107,78,255,0.45), 0 0 36px rgba(107,78,255,0.18)' }}>
               PM Time Clock
             </p>
             <p style={{ color:'#4A5474', fontSize:12, textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>

@@ -1,12 +1,101 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Clock, Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Smartphone } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { InstallPWABanner } from '@/components/InstallPWABanner';
-import { HexagonalPulseGrid } from '@/components/HexagonalPulseGrid';
+
+// ─── Red neuronal animada — mismo efecto que Master/Super Admin ───────────────
+interface NNode { x: number; y: number; vx: number; vy: number; r: number }
+
+function NeuralBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const ctx = el.getContext('2d');
+    if (!ctx) return;
+
+    const cvs = el;
+    const c   = ctx;
+
+    const resize = () => {
+      cvs.width  = window.innerWidth;
+      cvs.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const COUNT = 55;
+    const nodes: NNode[] = Array.from({ length: COUNT }, () => ({
+      x:  Math.random() * window.innerWidth,
+      y:  Math.random() * window.innerHeight,
+      vx: (Math.random() - 0.5) * 0.32,
+      vy: (Math.random() - 0.5) * 0.32,
+      r:  Math.random() * 1.8 + 0.8,
+    }));
+
+    const MAX_DIST = 160;
+    let animId = 0;
+
+    function frame() {
+      c.clearRect(0, 0, cvs.width, cvs.height);
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const ni = nodes[i]; const nj = nodes[j];
+          if (!ni || !nj) continue;
+          const dx = ni.x - nj.x;
+          const dy = ni.y - nj.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < MAX_DIST) {
+            const isCyan = (i + j) % 4 === 0;
+            const alpha  = (1 - dist / MAX_DIST) * (isCyan ? 0.14 : 0.16);
+            c.beginPath();
+            c.moveTo(ni.x, ni.y);
+            c.lineTo(nj.x, nj.y);
+            c.strokeStyle = isCyan ? `rgba(6,182,212,${alpha})` : `rgba(99,102,241,${alpha})`;
+            c.lineWidth = 0.6;
+            c.stroke();
+          }
+        }
+      }
+
+      for (const n of nodes) {
+        const grad = c.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 5);
+        grad.addColorStop(0, 'rgba(139,92,246,0.13)');
+        grad.addColorStop(1, 'rgba(99,102,241,0)');
+        c.beginPath();
+        c.arc(n.x, n.y, n.r * 5, 0, Math.PI * 2);
+        c.fillStyle = grad;
+        c.fill();
+
+        c.beginPath();
+        c.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        c.fillStyle = 'rgba(139,92,246,0.60)';
+        c.fill();
+
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > cvs.width)  n.vx *= -1;
+        if (n.y < 0 || n.y > cvs.height) n.vy *= -1;
+      }
+
+      animId = requestAnimationFrame(frame);
+    }
+
+    frame();
+    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize); };
+  }, []);
+
+  return (
+    <canvas ref={canvasRef} aria-hidden="true"
+      style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}
+    />
+  );
+}
 
 export default function LoginPage({ expired }: { expired?: boolean }) {
   const router = useRouter();
@@ -118,8 +207,8 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
         fontFamily: '"Plus Jakarta Sans", -apple-system, system-ui, sans-serif',
       }}>
 
-        {/* Hexagonal pulse grid — full-screen, fixed, behind all content (z-index: 0) */}
-        <HexagonalPulseGrid />
+        {/* Red neuronal — mismo efecto que Master/Super Admin */}
+        <NeuralBackground />
 
         {/* HUD corners — más visibles */}
         <div aria-hidden style={{ position:'absolute', top:18, left:18, width:30, height:30, borderTop:'1.5px solid rgba(99,102,241,0.75)', borderLeft:'1.5px solid rgba(99,102,241,0.75)', pointerEvents:'none', zIndex:1, animation:'hudPulse 4s ease-in-out infinite' }} />

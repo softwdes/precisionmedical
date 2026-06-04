@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
@@ -116,27 +116,40 @@ export default function LoginPage(): React.ReactElement {
         @keyframes lmHudPulse      { 0%,100%{opacity:0.4} 50%{opacity:1} }
         @keyframes lmScanLine      { 0%{transform:translateY(0);opacity:0} 5%{opacity:0.4} 95%{opacity:0.4} 100%{transform:translateY(100vh);opacity:0} }
 
-        .lm-scan     { animation: lmScanLine      8s   linear      infinite; }
-        .lm-radar-1  { animation: lmRadarPing     2.8s ease-out    infinite; }
-        .lm-radar-2  { animation: lmRadarPing     2.8s ease-out    infinite 1.4s; }
-        .lm-hud-0    { animation: lmHudPulse      4s   ease-in-out infinite; }
-        .lm-hud-1    { animation: lmHudPulse      4s   ease-in-out infinite 1s; }
-        .lm-hud-2    { animation: lmHudPulse      4s   ease-in-out infinite 2s; }
-        .lm-hud-3    { animation: lmHudPulse      4s   ease-in-out infinite 3s; }
-        .lm-fade-0   { animation: lmFadeUp        600ms cubic-bezier(0.16,1,0.3,1) both; }
-        .lm-fade-150 { animation: lmFadeUp        600ms 150ms cubic-bezier(0.16,1,0.3,1) both; }
-        .lm-fade-280 { animation: lmFadeUp        500ms 280ms cubic-bezier(0.16,1,0.3,1) both; }
-        .lm-fade-380 { animation: lmFadeUp        400ms 380ms cubic-bezier(0.16,1,0.3,1) both; }
-        .lm-sys      { animation: lmSystemPulse   2s   ease-in-out infinite; }
-        .lm-shimmer  { animation: lmButtonShimmer 3s   ease-in-out infinite; }
-        .lm-p0  { animation: lmParticlePulse 3.0s ease-in-out infinite 0ms;    }
-        .lm-p1  { animation: lmParticlePulse 2.5s ease-in-out infinite 400ms;  }
-        .lm-p2  { animation: lmParticlePulse 3.5s ease-in-out infinite 800ms;  }
-        .lm-p3  { animation: lmParticlePulse 4.0s ease-in-out infinite 1200ms; }
-        .lm-p4  { animation: lmParticlePulse 2.8s ease-in-out infinite 1600ms; }
-        .lm-p5  { animation: lmParticlePulse 3.2s ease-in-out infinite 2000ms; }
-        .lm-p6  { animation: lmParticlePulse 3.8s ease-in-out infinite 2400ms; }
-        .lm-p7  { animation: lmParticlePulse 2.6s ease-in-out infinite 2800ms; }
+        /* Tailwind globals.css tiene prefers-reduced-motion con !important que mata
+           animation-duration y animation-iteration-count. Sobreescribimos con !important. */
+        .lm-scan {
+          animation-name: lmScanLine !important; animation-duration: 8s !important;
+          animation-timing-function: linear !important; animation-iteration-count: infinite !important;
+        }
+        .lm-radar-1 {
+          animation-name: lmRadarPing !important; animation-duration: 2.8s !important;
+          animation-timing-function: ease-out !important; animation-iteration-count: infinite !important;
+        }
+        .lm-radar-2 {
+          animation-name: lmRadarPing !important; animation-duration: 2.8s !important;
+          animation-timing-function: ease-out !important; animation-iteration-count: infinite !important;
+          animation-delay: 1.4s !important;
+        }
+        .lm-hud-0 { animation-name:lmHudPulse !important; animation-duration:4s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; }
+        .lm-hud-1 { animation-name:lmHudPulse !important; animation-duration:4s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:1s !important; }
+        .lm-hud-2 { animation-name:lmHudPulse !important; animation-duration:4s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:2s !important; }
+        .lm-hud-3 { animation-name:lmHudPulse !important; animation-duration:4s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:3s !important; }
+        .lm-fade-0   { animation-name:lmFadeUp !important; animation-duration:600ms !important; animation-timing-function:cubic-bezier(0.16,1,0.3,1) !important; animation-fill-mode:both !important; }
+        .lm-fade-150 { animation-name:lmFadeUp !important; animation-duration:600ms !important; animation-delay:150ms !important; animation-timing-function:cubic-bezier(0.16,1,0.3,1) !important; animation-fill-mode:both !important; }
+        .lm-fade-280 { animation-name:lmFadeUp !important; animation-duration:500ms !important; animation-delay:280ms !important; animation-timing-function:cubic-bezier(0.16,1,0.3,1) !important; animation-fill-mode:both !important; }
+        .lm-fade-380 { animation-name:lmFadeUp !important; animation-duration:400ms !important; animation-delay:380ms !important; animation-timing-function:cubic-bezier(0.16,1,0.3,1) !important; animation-fill-mode:both !important; }
+        .lm-sys     { animation-name:lmSystemPulse !important;   animation-duration:2s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; }
+        .lm-shimmer { animation-name:lmButtonShimmer !important; animation-duration:3s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; }
+        .lm-spin    { animation-name:lmSpin !important;          animation-duration:1s !important; animation-timing-function:linear !important;     animation-iteration-count:infinite !important; }
+        .lm-p0 { animation-name:lmParticlePulse !important; animation-duration:3.0s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:0ms !important;    }
+        .lm-p1 { animation-name:lmParticlePulse !important; animation-duration:2.5s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:400ms !important;  }
+        .lm-p2 { animation-name:lmParticlePulse !important; animation-duration:3.5s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:800ms !important;  }
+        .lm-p3 { animation-name:lmParticlePulse !important; animation-duration:4.0s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:1200ms !important; }
+        .lm-p4 { animation-name:lmParticlePulse !important; animation-duration:2.8s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:1600ms !important; }
+        .lm-p5 { animation-name:lmParticlePulse !important; animation-duration:3.2s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:2000ms !important; }
+        .lm-p6 { animation-name:lmParticlePulse !important; animation-duration:3.8s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:2400ms !important; }
+        .lm-p7 { animation-name:lmParticlePulse !important; animation-duration:2.6s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:2800ms !important; }
 
         .pm-field { transition: border-color 150ms, border-width 150ms; }
         .pm-field:focus-within { border-bottom: 2px solid rgba(99,102,241,0.6) !important; }
@@ -265,3 +278,4 @@ export default function LoginPage(): React.ReactElement {
     </>
   );
 }
+

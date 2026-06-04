@@ -11,7 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Card, CardContent,
 } from '@precision/ui';
-import { Plus, ArrowLeftRight, Eye, TrendingUp, DollarSign, Pencil, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, ArrowLeftRight, Eye, TrendingUp, DollarSign, Pencil, RotateCcw, Trash2, Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
 import type { AppRouter } from '@precision-medical/api';
@@ -78,6 +78,13 @@ function fmtPeriodLabel(iso: string, locale: string): string {
 
 function pairLabel(from: string, to: string): string {
   return `${FLAGS[from] ?? ''} ${from} → ${FLAGS[to] ?? ''} ${to}`;
+}
+
+/** Escapa texto libre antes de inyectarlo en el HTML de impresión (PDF). */
+function esc(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**
@@ -160,9 +167,13 @@ export function FxClient({
     }),
   [locale]);
 
+  // 'ALL' = ver todas las operaciones (sin filtro de mes). El backend devuelve
+  // todo cuando period es undefined.
+  const periodFilter = period === 'ALL' ? undefined : period;
+
   // ── Queries
   const { data, refetch } = trpc.fx.list.useQuery(
-    { page, pageSize: 25, period, exchangeHouse: houseFilter || undefined },
+    { page, pageSize: 25, period: periodFilter, exchangeHouse: houseFilter || undefined },
     { initialData: initial },
   );
 
@@ -176,6 +187,8 @@ export function FxClient({
   });
 
   const refetchAll = () => { void refetch(); void refetchSummary(); };
+
+  const utils = trpc.useUtils();
 
   // ── Client-side pair filter
   const selectedPair = PAIR_OPTIONS.find(p => p.value === pairFilter);
@@ -204,6 +217,95 @@ export function FxClient({
 
   useEffect(() => { setPage(1); }, [period, pairFilter, houseFilter]);
 
+  // ── Export: trae TODAS las filas del filtro actual (todas las páginas, no
+  // solo la visible). Importante cuando "Todos los meses" está seleccionado.
+  const gatherRows = async (): Promise<FxOp[]> => {
+    const out: FxOp[] = [];
+    for (let pg = 1; pg <= 50; pg++) {  // tope de seguridad: 50 páginas × 100 = 5000 ops
+      const res   = await utils.fx.list.fetch({ page: pg, pageSize: 100, period: periodFilter, exchangeHouse: houseFilter || undefined });
+      out.push(...((res?.items ?? []) as unknown as FxOp[]));
+      if (pg >= (res?.totalPages ?? 1)) break;
+    }
+    if (selectedPair) {
+      return out.filter(op => curOf(op.fromWallet) === selectedPair.from && curOf(op.toWallet) === selectedPair.to);
+    }
+    return out;
+  };
+
+  const periodLabel = period === 'ALL' ? t('fx.allMonths') : fmtPeriodLabel(period, locale);
+
+  // ── Export Excel (CSV con BOM, abre en Excel) ──
+  const handleExportCSV = async () => {
+    const rows = await gatherRows();
+    if (rows.length === 0) { toast.error(t('fx.noOps')); return; }
+    const headers = ['Fecha', 'Par', 'Monto origen', 'Tasa', 'Monto destino', 'Casa de cambio', 'Notas', 'Estado'];
+    const body = rows.map(op => {
+      const fw = walletOf(op.fromWallet);
+      const tw = walletOf(op.toWallet);
+      return [
+        fmtDateTime(op.performedAt),
+        `${fw?.currency ?? '?'} → ${tw?.currency ?? '?'}`,
+        fw ? `${fmtAmount(Number(op.amountFrom), fw.currency)} ${fw.currency}` : '—',
+        Number(op.rate).toFixed(4),
+        tw ? `${fmtAmount(Number(op.amountTo), tw.currency)} ${tw.currency}` : '—',
+        op.exchangeHouse ?? '',
+        op.notes ?? '',
+        op.reversedById ? 'Reversada' : '',
+      ];
+    });
+    const csv = [headers, ...body].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const [y, m] = period.split('-');
+    a.href = url; a.download = period === 'ALL' ? 'divisas-todas.csv' : `divisas-${m}-${y}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Export PDF (ventana de impresión) ──
+  const handleExportPDF = async () => {
+    const rows = await gatherRows();
+    if (rows.length === 0) { toast.error(t('fx.noOps')); return; }
+    // KPIs calculados desde las filas exportadas para que coincidan con la tabla
+    // impresa en cualquier período (incl. "Todos los meses"). Las tasas son la
+    // última operación conocida (referencia global).
+    const opCount        = rows.length;
+    const totalConverted = rows.reduce((s, op) => s + Number(op.amountFrom), 0);
+    const body = rows.map(op => {
+      const fw = walletOf(op.fromWallet);
+      const tw = walletOf(op.toWallet);
+      return `<tr${op.reversedById ? ' style="opacity:.55"' : ''}>
+        <td>${esc(fmtDateTime(op.performedAt))}</td>
+        <td>${esc(`${fw?.currency ?? '?'} → ${tw?.currency ?? '?'}`)}</td>
+        <td style="text-align:right;font-family:monospace">${esc(fw ? `${fmtAmount(Number(op.amountFrom), fw.currency)} ${fw.currency}` : '—')}</td>
+        <td style="text-align:right;font-family:monospace">${Number(op.rate).toFixed(4)}</td>
+        <td style="text-align:right;font-family:monospace;color:#10B981">${esc(tw ? `${fmtAmount(Number(op.amountTo), tw.currency)} ${tw.currency}` : '—')}</td>
+        <td>${esc(op.exchangeHouse ?? '—')}</td>
+        <td>${op.reversedById ? 'Reversada' : ''}</td>
+      </tr>`;
+    }).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<title>FX / Divisas ${esc(periodLabel)}</title>
+<style>body{font-family:Arial,sans-serif;padding:24px;color:#111}h1{margin:0;font-size:20px}
+.sub{color:#666;font-size:12px;margin:4px 0 20px}.kpis{display:flex;gap:12px;margin-bottom:20px}
+.kpi{background:#f3f4f6;padding:10px 14px;border-radius:8px;flex:1}.kpi-l{font-size:10px;color:#666;text-transform:uppercase}
+.kpi-v{font-size:17px;font-weight:700}table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;border-bottom:2px solid #e5e7eb;padding:7px 5px;font-size:10px;text-transform:uppercase;color:#666}
+td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}</style></head><body>
+<h1>FX / Divisas — Precision Medical</h1>
+<p class="sub">${esc(periodLabel)} · Generado ${new Date().toLocaleDateString('es-ES')}</p>
+<div class="kpis">
+  <div class="kpi"><div class="kpi-l">Operaciones</div><div class="kpi-v">${opCount}</div></div>
+  <div class="kpi"><div class="kpi-l">Total convertido (USD eq.)</div><div class="kpi-v">$${totalConverted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+  <div class="kpi"><div class="kpi-l">Tasa USD→BOB</div><div class="kpi-v">${summary?.lastRateUsdBob != null ? Number(summary.lastRateUsdBob).toFixed(2) : '—'}</div></div>
+  <div class="kpi"><div class="kpi-l">Tasa USD→PEN</div><div class="kpi-v">${summary?.lastRateUsdPen != null ? Number(summary.lastRateUsdPen).toFixed(2) : '—'}</div></div>
+</div>
+<table><thead><tr><th>Fecha</th><th>Par</th><th style="text-align:right">Monto origen</th><th style="text-align:right">Tasa</th><th style="text-align:right">Monto destino</th><th>Casa de cambio</th><th>Estado</th></tr></thead>
+<tbody>${body}</tbody></table></body></html>`;
+    const win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
+  };
+
   return (
     <div className="px-3 py-4 sm:p-6 space-y-4">
 
@@ -213,10 +315,18 @@ export function FxClient({
           <h1 className="text-xl font-bold text-text-1">{t('fx.title')}</h1>
           <p className="text-small text-text-3">{t('fx.subtitle')}</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" />
-          {t('fx.addNew')}
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => { void handleExportPDF(); }} className="gap-1.5">
+            <FileText className="h-3.5 w-3.5" /> PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { void handleExportCSV(); }} className="gap-1.5">
+            <Download className="h-3.5 w-3.5" /> Excel
+          </Button>
+          <Button size="sm" onClick={() => setShowCreate(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            {t('fx.addNew')}
+          </Button>
+        </div>
       </div>
 
       {/* ── KPI cards: 2×2 on tablet, 1-col on mobile < 480px, 4-col on desktop ── */}
@@ -316,6 +426,7 @@ export function FxClient({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="ALL">{t('fx.allMonths')}</SelectItem>
             {periodOptions.map(o => (
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}

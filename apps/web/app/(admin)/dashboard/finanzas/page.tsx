@@ -30,10 +30,16 @@ export default async function FinanzasPage({
   if (activeTab === 'cajas') {
     content = <CashBoxesClient />;
   } else if (activeTab === 'fx') {
+    // El cliente filtra por el mes actual por defecto. El fetch inicial debe
+    // usar el MISMO período, si no `initialData` trae operaciones de todos los
+    // meses y al refetchear (con filtro de mes) desaparecen las que no son del
+    // mes actual → bug "aparecen dos, desaparece una".
+    const now = new Date();
+    const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const [initial, wallets, initialSummary, initialHouses] = await Promise.all([
-      api.fx.list({ page: 1, pageSize: 25 }),
+      api.fx.list({ page: 1, pageSize: 25, period: currentPeriod }),
       api.wallets.list(),
-      api.fx.getSummary({}),
+      api.fx.getSummary({ period: currentPeriod }),
       api.fx.getExchangeHouses(),
     ]);
     content = <FxClient initial={initial} wallets={wallets} initialSummary={initialSummary} initialHouses={initialHouses} />;

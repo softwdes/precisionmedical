@@ -750,7 +750,8 @@
     "alreadyReversed": "Esta operación ya fue revertida",
     "deleted": "Registro eliminado",
     "deleteRecord": "Eliminar registro permanentemente",
-    "deleteExplain": "Se eliminará este registro de forma permanente. Esta acción no se puede deshacer."
+    "deleteExplain": "Se eliminará este registro de forma permanente. Esta acción no se puede deshacer.",
+    "allMonths": "Todos los meses"
   },
   "attendance": {
     "title": "Asistencia",

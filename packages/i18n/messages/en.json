@@ -750,7 +750,8 @@
     "alreadyReversed": "This operation has already been reversed",
     "deleted": "Record deleted",
     "deleteRecord": "Delete record permanently",
-    "deleteExplain": "This record will be permanently deleted. This action cannot be undone."
+    "deleteExplain": "This record will be permanently deleted. This action cannot be undone.",
+    "allMonths": "All months"
   },
   "attendance": {
     "title": "Attendance",

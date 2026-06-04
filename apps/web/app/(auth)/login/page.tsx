@@ -264,25 +264,40 @@ export default function LoginPage(): React.ReactElement {
           0%   { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
+        /* Scan line — usa top animation (más confiable que translateY dentro
+           de containers con overflow:hidden y dimensiones fluidas) */
         @keyframes pmScanLine {
-          0%   { transform: translateY(-20px); opacity: 0; }
-          8%   { opacity: 0.85; }
-          92%  { opacity: 0.85; }
-          100% { transform: translateY(100vh); opacity: 0; }
+          0%   { top: -4px;        opacity: 0; }
+          10%  { opacity: 1; }
+          90%  { opacity: 1; }
+          100% { top: calc(100% + 4px); opacity: 0; }
         }
+        /* Heartbeat lub-dub aplicado al logo box directo, sin wrapper.
+           Combina scale (latido) con box-shadow (glow latiente) en una sola
+           animación para evitar conflictos de transform entre parent/child. */
         @keyframes lmHeartbeat {
-          0%   { transform: scale(1); }
-          12%  { transform: scale(1.10); }
-          22%  { transform: scale(1.00); }
-          34%  { transform: scale(1.05); }
-          44%  { transform: scale(1.00); }
-          100% { transform: scale(1); }
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 30px rgba(99,102,241,0.55), 0 0 60px rgba(99,102,241,0.20);
+          }
+          14% {
+            transform: scale(1.14);
+            box-shadow: 0 0 55px rgba(99,102,241,0.95), 0 0 110px rgba(139,92,246,0.50), 0 0 160px rgba(99,102,241,0.25);
+          }
+          26% {
+            transform: scale(1.00);
+          }
+          38% {
+            transform: scale(1.08);
+            box-shadow: 0 0 45px rgba(99,102,241,0.80), 0 0 90px rgba(139,92,246,0.40);
+          }
+          52% {
+            transform: scale(1.00);
+          }
         }
         .pm-lm-heartbeat {
-          animation: lmHeartbeat 1.4s ease-in-out infinite;
-          transform-origin: center;
-          display: inline-flex;
-          will-change: transform;
+          animation: lmHeartbeat 1.3s ease-in-out infinite;
+          will-change: transform, box-shadow;
         }
         .pm-icon-breath { animation: iconBreath 3s ease-in-out infinite; }
         .pm-icon-halo {
@@ -352,14 +367,18 @@ export default function LoginPage(): React.ReactElement {
           }}
         />
 
-        {/* ── Layer 2b: Scan line que baja (más visible — 2px + glow vertical) ── */}
+        {/* ── Layer 2b: Scan line que baja (innegablemente visible) ──
+            Usa animación de 'top' en vez de translateY para evitar problemas
+            con vh dentro de containers con overflow:hidden. */}
         <div aria-hidden style={{
-          position: 'absolute', top: 0, left: 0, right: 0,
-          height: 2,
-          background: 'linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.6) 25%, rgba(139,92,246,1.0) 50%, rgba(99,102,241,0.6) 75%, transparent 100%)',
-          boxShadow: '0 0 16px rgba(139,92,246,0.65), 0 0 32px rgba(99,102,241,0.30), 0 -1px 8px rgba(139,92,246,0.40)',
-          animation: 'pmScanLine 8s linear infinite',
-          pointerEvents: 'none', zIndex: 5,
+          position: 'absolute', left: 0, right: 0,
+          top: '-4px',
+          height: 3,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(180,150,255,0.85) 25%, rgba(220,180,255,1.0) 50%, rgba(180,150,255,0.85) 75%, transparent 100%)',
+          boxShadow: '0 0 20px rgba(180,150,255,0.95), 0 0 40px rgba(139,92,246,0.70), 0 0 80px rgba(99,102,241,0.40)',
+          animation: 'pmScanLine 7s linear infinite',
+          pointerEvents: 'none',
+          zIndex: 50,
         }} />
 
         {/* ── Layer 3: Dot grid ── */}
@@ -457,27 +476,25 @@ export default function LoginPage(): React.ReactElement {
               <div style={{ position: 'absolute', top: -16, left: -16, right: -16, bottom: -16, borderRadius: 32, border: '1px solid rgba(99,102,241,0.10)' }} />
               {/* Ring 1 — closest */}
               <div style={{ position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 24, border: '1px solid rgba(99,102,241,0.22)' }} />
-              {/* Wrapper externo: heartbeat (escala lub-dub).
-                  El inner mantiene breath (box-shadow) + halo expansivo.
-                  Asi las 3 animaciones se compounden sin conflicto de transform. */}
-              <div className="pm-lm-heartbeat">
-                <div
-                  className="pm-logo-box pm-icon-breath"
-                  style={{
-                    position: 'relative',
-                    width: 68,
-                    height: 68,
-                    borderRadius: 20,
-                    background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {/* Anillo expansivo (super admin halo) */}
-                  <span className="pm-icon-halo" aria-hidden="true" />
-                  <span style={{ color: 'white', fontWeight: 800, fontSize: 19, position: 'relative', zIndex: 1 }}>LM</span>
-                </div>
+              {/* Logo box — heartbeat lub-dub aplicado directo (sin wrapper).
+                  iconBreath quitado: el heartbeat ya incluye el glow latiente
+                  combinado con la escala, en una sola animación. */}
+              <div
+                className="pm-logo-box pm-lm-heartbeat"
+                style={{
+                  position: 'relative',
+                  width: 68,
+                  height: 68,
+                  borderRadius: 20,
+                  background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #06B6D4 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {/* Anillo expansivo (super admin halo) */}
+                <span className="pm-icon-halo" aria-hidden="true" />
+                <span style={{ color: 'white', fontWeight: 800, fontSize: 19, position: 'relative', zIndex: 1 }}>LM</span>
               </div>
             </div>
             <p className="pm-title pm-title-glow" style={{ color: '#F5F7FB', fontWeight: 800, fontSize: 26, letterSpacing: '-0.5px', margin: '0 0 5px' }}>

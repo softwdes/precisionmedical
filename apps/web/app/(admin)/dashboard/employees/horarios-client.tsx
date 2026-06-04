@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@precision/ui';
 import { ChevronLeft, ChevronRight, Plus, Calendar, AlertCircle, X, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { api as trpc } from '@/lib/trpc/client';
 
 // ─── Select styles — CSS vars don't reach native <option> dropdowns ──────────
 const SEL_CLS = 'w-full rounded-[8px] border border-border px-3 py-2 text-[13px] focus:outline-none focus:border-brand/50 min-h-[44px]';
@@ -45,11 +46,40 @@ interface InitialScheduleData {
   endTime:      string;
 }
 
-// Estos valores DEBEN coincidir EXACTAMENTE con clinics.name en Supabase.
-// El timeclock matchea por name; cualquier mismatch hace que el <select>
-// caiga en la primera opcion alfabetica y el usuario vea otra clinica.
-// US: "<Ciudad> Clinic". BO/PE: nombre del pais (asi quedo en la DB).
-const CLINICS = ['Provo Clinic','Pleasant Grove Clinic','Spanish Fork Clinic','West Valley Clinic','South Murray Clinic','Bolivia','Perú'];
+// Carga las clinicas activas de la tabla `clinics` (via tRPC). Devuelve
+// pares {name, label} listos para usar en un <select>:
+//   - name  → value (lo que guardamos en work_schedules.clinic_name)
+//   - label → texto mostrado al admin (sin el sufijo " Clinic" para US,
+//             "La Paz, Bolivia" y "Arequipa, Perú" para BO/PE)
+//
+// Reemplaza el array hardcoded anterior. Asi, cuando se agrega/edita una
+// clinica desde Configuracion, este form la ve automaticamente sin tocar
+// codigo. Conserva el orden previo: US primero, luego BO, luego PE.
+interface ClinicOption { name: string; label: string }
+const COUNTRY_ORDER: Record<string, number> = { US: 0, BO: 1, PE: 2 };
+
+function useClinicOptions(): ClinicOption[] {
+  const { data: clinics = [] } = trpc.clinics.list.useQuery();
+  return React.useMemo(() => {
+    return clinics
+      .filter(c => c.is_active)
+      .slice()
+      .sort((a, b) => {
+        const ca = COUNTRY_ORDER[a.country] ?? 99;
+        const cb = COUNTRY_ORDER[b.country] ?? 99;
+        if (ca !== cb) return ca - cb;
+        return a.display_name.localeCompare(b.display_name);
+      })
+      .map(c => ({
+        name: c.name,
+        // Quitar sufijo " Clinic" para que el dropdown muestre "Provo"
+        // en vez de "Provo Clinic". El value sigue siendo el name
+        // completo, asi que el match con work_schedules.clinic_name no
+        // cambia. BO/PE no tienen ese sufijo — quedan como estan.
+        label: c.display_name.replace(/ Clinic$/, ''),
+      }));
+  }, [clinics]);
+}
 
 const DAY_ABBR  = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const DAY_NUMS  = [1,2,3,4,5,6,7];
@@ -268,6 +298,8 @@ function AssignModal({
   const [saving, setSaving]         = useState(false);
   const [error, setError]           = useState('');
 
+  const clinicOptions = useClinicOptions();
+
   const handleTypeChange = (t: 'full_time' | 'part_time') => {
     setSchedType(t);
     if (t === 'full_time') { setDays([1,2,3,4,5]); setStartTime('08:00'); setEndTime('17:00'); }
@@ -332,7 +364,7 @@ function AssignModal({
         <div>
           <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-1.5">Clínica *</label>
           <select value={clinic} onChange={e => setClinic(e.target.value)} className={SEL_CLS} style={SEL_STYLE}>
-            {CLINICS.map(c => <option key={c} value={c} style={OPT_STYLE}>{c}</option>)}
+            {clinicOptions.map(c => <option key={c.name} value={c.name} style={OPT_STYLE}>{c.label}</option>)}
           </select>
         </div>
       </div>
@@ -820,6 +852,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
   const weekDates = getWeekDates(currentWeekStart);
   const weekLabel = getWeekLabel(currentWeekStart);
   const todayStr  = toISODate(new Date());
+  const clinicOptions = useClinicOptions();
 
   // ── Fetch: Semana ────────────────────────────────────────────────────────────
   const fetchSchedules = useCallback(async () => {
@@ -988,7 +1021,7 @@ export function HorariosClient({ initialEmployees }: { initialEmployees: EmpSumm
             className="rounded-[8px] border border-white/[0.08] px-2.5 py-1.5 text-[12px] focus:outline-none focus:border-brand/40 min-h-[44px] sm:min-h-0"
             style={SEL_STYLE}>
             <option value="" style={OPT_STYLE}>Todas las clínicas</option>
-            {CLINICS.map(c => <option key={c} value={c} style={OPT_STYLE}>{c}</option>)}
+            {clinicOptions.map(c => <option key={c.name} value={c.name} style={OPT_STYLE}>{c.label}</option>)}
           </select>
 
           {/* Assign button */}

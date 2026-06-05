@@ -330,8 +330,15 @@
     <li>B.29 — Dashboard ejecutivo de Gerencia</li>
   </ul>
 
+  <h4 style="color: #0ea5e9;">📚 Catálogos / Master data (Super Admin + Edson)</h4>
+  <ul style="list-style: none; margin-left: 0;">
+    <li><strong>B.30 — Catálogo de Bufetes</strong> · lista con métricas (recovery rate, avg settle, casos activos)</li>
+    <li>B.31 — Detalle de bufete · sub-listas de abogados + case managers + métricas + notas</li>
+    <li><strong>B.32 — Catálogo de Aseguradoras</strong> (PIP / Med Pay / Health) · canal preferido HCFA + tiempo de respuesta</li>
+  </ul>
+
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>29 mockups del flujo end-to-end</strong> en orden cronológico. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor — los signos vitales pre-cargan automáticamente en la visita. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>32 mockups</strong> — 29 del flujo end-to-end cronológico + 3 de catálogos/master data. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos (B.30-B.32)</strong>: master data de Bufetes y Aseguradoras gestionado por Super Admin + Edson — son la base sin la cual el flujo no puede arrancar. El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
   </div>
 </div>
 
@@ -4506,11 +4513,499 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- CATÁLOGOS / CONFIGURACIÓN — B.30 a B.32                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+
+<!-- ═══ B.30 — CATÁLOGO DE BUFETES (LISTA) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366F1);">B.30 · Catálogos</span>
+  <h2>Catálogo de Bufetes (Law Firms)</h2>
+  <p><strong>Quién la usa:</strong> Super Admin + Edson. <strong>Para qué:</strong> mantener el master data de todos los bufetes que refieren pacientes a Precision Medical. Cuando Recepción contesta una llamada, este catálogo se consume vía autocomplete en B.2 — sin él, cada caso nuevo tipearía el bufete a mano, generando duplicados y datos incompletos.</p>
+
+  <div class="callout">
+    <strong>Por qué master data primero:</strong> sin el catálogo de bufetes pre-cargado, Recepción no puede crear casos limpiamente durante una llamada de 90 segundos. Edson después no tiene a quién llamar para verificar. Brunella no sabe a dónde mandar el HCFA. Es la <strong>base operativa del sistema</strong> — debe existir desde el día 1.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">📚 Catálogos · Bufetes · back-office.lienmaster.net</div>
+        <span class="mock-time">⏱ 15:22</span>
+      </div>
+      <div class="mock-body">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div class="mock-title">⚖ Bufetes (Law Firms)</div>
+            <div class="mock-subtitle">47 bufetes activos · 132 abogados · 89 case managers</div>
+          </div>
+          <button class="mock-action-btn primary" style="font-size:11px;">+ Nuevo bufete</button>
+        </div>
+
+        <div class="mock-kpi-row">
+          <div class="mock-kpi"><div class="mock-kpi-label">Bufetes activos</div><div class="mock-kpi-value" style="color:#34d399;">47</div><div class="mock-kpi-sub">de 53 totales</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Top referidor</div><div class="mock-kpi-value" style="color:#67e8f9;font-size:13px;">Smith &amp; Johnson</div><div class="mock-kpi-sub">142 casos · 12 meses</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Recovery promedio</div><div class="mock-kpi-value" style="color:#a5b4fc;">87.3%</div><div class="mock-kpi-sub">Casos cobrados / referidos</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Tiempo prom. settle</div><div class="mock-kpi-value" style="color:#fbbf24;">94 días</div><div class="mock-kpi-sub">DOL → cheque recibido</div></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <input class="mock-input" placeholder="🔍 Buscar bufete..." style="flex:1;min-width:200px;font-size:11px;padding:6px 10px;">
+          <div class="mock-input selected" style="font-size:10px;padding:4px 10px;">Activos (47)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Inactivos (6)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Top 10 por volumen</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Pago lento &gt;120d</div>
+        </div>
+
+        <table style="width:100%;font-size:11px;border-collapse:separate;border-spacing:0 6px;">
+          <thead>
+            <tr style="color:rgba(255,255,255,0.45);text-transform:uppercase;font-size:9px;letter-spacing:0.05em;">
+              <th style="text-align:left;padding:4px 8px;">Bufete</th>
+              <th style="text-align:center;padding:4px 8px;">Abogados</th>
+              <th style="text-align:center;padding:4px 8px;">Case Mgrs</th>
+              <th style="text-align:center;padding:4px 8px;">Casos activos</th>
+              <th style="text-align:right;padding:4px 8px;">Recovery</th>
+              <th style="text-align:center;padding:4px 8px;">Avg settle</th>
+              <th style="text-align:center;padding:4px 8px;">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:10px;">S&amp;J</div>
+                  <div>
+                    <div style="color:white;font-weight:600;">Smith &amp; Johnson LLP</div>
+                    <div style="font-size:9.5px;color:rgba(255,255,255,0.50);">Salt Lake City · UT</div>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">5</td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">3</td>
+              <td style="text-align:center;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">28</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">94.2%</td>
+              <td style="text-align:center;padding:10px 8px;color:rgba(255,255,255,0.75);font-family:monospace;">78 días</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#06B6D4,#3B82F6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:10px;">JL</div>
+                  <div>
+                    <div style="color:white;font-weight:600;">Jones Legal Group</div>
+                    <div style="font-size:9.5px;color:rgba(255,255,255,0.50);">Murray · UT</div>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">3</td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">2</td>
+              <td style="text-align:center;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">14</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">88.5%</td>
+              <td style="text-align:center;padding:10px 8px;color:rgba(255,255,255,0.75);font-family:monospace;">92 días</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.18);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#F59E0B,#F43F5E);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:10px;">RD</div>
+                  <div>
+                    <div style="color:white;font-weight:600;">Rodriguez &amp; Davis</div>
+                    <div style="font-size:9.5px;color:rgba(255,255,255,0.50);">West Valley · UT · ⚠ Pago lento</div>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">2</td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">1</td>
+              <td style="text-align:center;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">9</td>
+              <td style="text-align:right;padding:10px 8px;color:#fbbf24;font-family:monospace;font-weight:700;">72.1%</td>
+              <td style="text-align:center;padding:10px 8px;color:#fbbf24;font-family:monospace;">147 días</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-amber">⚠ Pago lento</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.02);opacity:0.6;">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,0.10);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.40);font-weight:700;font-size:10px;">BL</div>
+                  <div>
+                    <div style="color:rgba(255,255,255,0.55);font-weight:600;text-decoration:line-through;">Bennet &amp; Lopez</div>
+                    <div style="font-size:9.5px;color:rgba(255,255,255,0.40);">Inactivo desde Mar 2026 · No respondió 6 meses</div>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:rgba(255,255,255,0.40);font-family:monospace;">—</td>
+              <td style="text-align:center;padding:10px 8px;color:rgba(255,255,255,0.40);font-family:monospace;">—</td>
+              <td style="text-align:center;padding:10px 8px;color:rgba(255,255,255,0.40);font-family:monospace;">0</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.40);font-family:monospace;">—</td>
+              <td style="text-align:center;padding:10px 8px;color:rgba(255,255,255,0.40);font-family:monospace;">—</td>
+              <td style="text-align:center;padding:10px 8px;"><span style="font-size:9px;padding:2px 7px;border-radius:100px;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.45);">Inactivo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;opacity:0.6;">Reactivar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:14px;font-size:10.5px;color:rgba(255,255,255,0.45);text-align:center;">
+          Mostrando 4 de 53 bufetes ·
+          <span style="color:rgba(255,255,255,0.75);">Ordenado por casos activos desc.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Permisos:</strong> Super Admin + Edson pueden crear/editar/desactivar bufetes. Front Office solo consume vía autocomplete en B.2 (con opción de "agregar nuevo" rápida durante una llamada — Edson lo enriquece después).
+  </div>
+</div>
+
+<!-- ═══ B.31 — DETALLE / EDIT DE BUFETE ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366F1);">B.31 · Catálogos</span>
+  <h2>Detalle de Bufete · Smith &amp; Johnson LLP</h2>
+  <p><strong>Concepto:</strong> ficha completa del bufete. Información general, sub-listas de abogados y case managers, métricas históricas, historial de casos y notas internas. Edson lo enriquece después de las primeras llamadas; Brunella lo consulta para mandar HCFA al contacto correcto.</p>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">📚 Catálogos · Bufetes · Smith &amp; Johnson LLP</div>
+        <span class="mock-time">⏱ 15:28</span>
+      </div>
+      <div class="mock-body">
+
+        <!-- Header con métricas -->
+        <div style="background:linear-gradient(135deg,rgba(99,102,241,0.10),rgba(139,92,246,0.06));border:1px solid rgba(99,102,241,0.30);border-radius:12px;padding:14px 18px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div style="width:54px;height:54px;border-radius:12px;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;">S&amp;J</div>
+              <div>
+                <div style="color:white;font-weight:700;font-size:16px;">Smith &amp; Johnson LLP</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.65);margin-top:2px;">Salt Lake City · Utah · Activo desde Mar 2024</div>
+                <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+                  <span class="badge badge-emerald">✓ Activo</span>
+                  <span class="badge badge-cyan">⭐ Top referidor</span>
+                  <span class="badge badge-emerald">Recovery 94.2%</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+              <button class="mock-action-btn" style="font-size:10px;color:#fda4af;">Desactivar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;">Casos totales</div>
+            <div style="font-family:monospace;color:#67e8f9;font-weight:700;font-size:18px;margin-top:3px;">142</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.55);margin-top:2px;">Últimos 12 meses</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;">Casos activos</div>
+            <div style="font-family:monospace;color:#34d399;font-weight:700;font-size:18px;margin-top:3px;">28</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.55);margin-top:2px;">En tratamiento o cobro</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;">Recovery rate</div>
+            <div style="font-family:monospace;color:#34d399;font-weight:700;font-size:18px;margin-top:3px;">94.2%</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.55);margin-top:2px;">Cobrado / facturado</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;">Avg settle</div>
+            <div style="font-family:monospace;color:#a5b4fc;font-weight:700;font-size:18px;margin-top:3px;">78 días</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.55);margin-top:2px;">DOL → pago final</div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:12px;">
+          <div style="padding:8px 14px;font-size:11px;color:white;border-bottom:2px solid #6366F1;font-weight:600;">Información general</div>
+          <div style="padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.55);">Abogados (5)</div>
+          <div style="padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.55);">Case Managers (3)</div>
+          <div style="padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.55);">Casos &amp; cobranzas</div>
+          <div style="padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.55);">Notas internas</div>
+        </div>
+
+        <!-- Two-col grid: Info general + Abogados resumen -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+
+          <!-- Información general -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px;">
+            <div style="font-size:11px;color:#a5b4fc;font-weight:600;margin-bottom:10px;">📋 Información general</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;">
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;">Dirección</div>
+                <div style="color:white;margin-top:2px;">123 South State St, Suite 400<br>Salt Lake City, UT 84111</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;">Phone principal</div>
+                <div style="color:white;font-family:monospace;margin-top:2px;">(801) 555-0100</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;">Email general</div>
+                <div style="color:white;font-family:monospace;margin-top:2px;">intake@smithjohnson.com</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;">Fax de HCFA</div>
+                <div style="color:white;font-family:monospace;margin-top:2px;">(801) 555-0199</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;">Tax ID / W-9</div>
+                <div style="color:white;font-family:monospace;margin-top:2px;">87-XXXXXXX <span style="color:#34d399;font-size:9px;">✓ Verificado</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Abogados sub-list (preview) -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-size:11px;color:#a5b4fc;font-weight:600;">⚖ Abogados (5)</div>
+              <button class="mock-action-btn" style="font-size:9.5px;padding:3px 8px;">+ Agregar</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(255,255,255,0.02);border-radius:6px;">
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:9px;">MS</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="color:white;font-weight:600;font-size:11px;">Mary Smith ⭐</div>
+                  <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Senior · Bar # UT-48572 · (801) 555-0101</div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(255,255,255,0.02);border-radius:6px;">
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:9px;">JJ</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="color:white;font-weight:600;font-size:11px;">James Johnson</div>
+                  <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Partner · Bar # UT-37291 · (801) 555-0102</div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(255,255,255,0.02);border-radius:6px;">
+                <div style="width:26px;height:26px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:9px;">AL</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="color:white;font-weight:600;font-size:11px;">Alex Lewis</div>
+                  <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Associate · Bar # UT-52840 · (801) 555-0103</div>
+                </div>
+              </div>
+
+              <div style="font-size:10px;color:rgba(255,255,255,0.45);text-align:center;padding:4px;">+ 2 más</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case Managers (preview) -->
+        <div style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.18);border-radius:10px;padding:14px;margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:11px;color:#34d399;font-weight:600;">📞 Case Managers — contactos del día a día (3)</div>
+            <button class="mock-action-btn" style="font-size:9.5px;padding:3px 8px;">+ Agregar</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            <div style="background:rgba(0,0,0,0.20);border-radius:6px;padding:8px 10px;">
+              <div style="color:white;font-weight:600;font-size:11px;">Jane Park</div>
+              <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Senior Case Mgr</div>
+              <div style="font-size:9.5px;color:#a5b4fc;font-family:monospace;margin-top:3px;">(801) 555-0110</div>
+              <div style="font-size:9.5px;color:#a5b4fc;font-family:monospace;">jane@smithjohnson.com</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.20);border-radius:6px;padding:8px 10px;">
+              <div style="color:white;font-weight:600;font-size:11px;">Carlos Reyes</div>
+              <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Case Mgr</div>
+              <div style="font-size:9.5px;color:#a5b4fc;font-family:monospace;margin-top:3px;">(801) 555-0111</div>
+              <div style="font-size:9.5px;color:#a5b4fc;font-family:monospace;">carlos@smithjohnson.com</div>
+            </div>
+            <div style="background:rgba(0,0,0,0.20);border-radius:6px;padding:8px 10px;">
+              <div style="color:white;font-weight:600;font-size:11px;">Sarah Chen</div>
+              <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Case Mgr</div>
+              <div style="font-size:9.5px;color:#a5b4fc;font-family:monospace;margin-top:3px;">(801) 555-0112</div>
+              <div style="font-size:9.5px;color:#a5b4fc;font-family:monospace;">sarah@smithjohnson.com</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notas internas (preview) -->
+        <div style="background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.18);border-radius:10px;padding:12px 14px;margin-top:10px;">
+          <div style="font-size:10px;color:#fbbf24;font-weight:600;margin-bottom:6px;">📝 NOTAS INTERNAS</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.80);line-height:1.55;">
+            "Prefieren recibir HCFA por email a intake@. Mary es la atty senior — siempre escalar a ella si hay disputa. Jane Park responde en &lt; 24h, Carlos a veces tarda 3-4 días."
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Por qué Case Managers están destacados:</strong> en la práctica diaria, Edson y Brunella hablan con los <strong>case managers</strong>, no con los abogados (ellos están en corte). Tenerlos modelados separado del array de abogados ahorra fricción operativa. Cuando una llamada de cobranza falla, Edson sabe a cuál CM llamar después.
+  </div>
+</div>
+
+<!-- ═══ B.32 — CATÁLOGO DE ASEGURADORAS (PIP / MED PAY) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366F1);">B.32 · Catálogos</span>
+  <h2>Catálogo de Aseguradoras (PIP / Med Pay / Health)</h2>
+  <p><strong>Quién la usa:</strong> Super Admin + Edson. <strong>Para qué:</strong> mantener el catálogo de aseguradoras donde Brunella manda los HCFA y donde Edson verifica la cobertura PIP del accidente. Autocomplete consumido en B.2 (Recepción) y B.12 (Edson pre-verifica).</p>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">📚 Catálogos · Aseguradoras</div>
+        <span class="mock-time">⏱ 15:34</span>
+      </div>
+      <div class="mock-body">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div class="mock-title">🏢 Aseguradoras</div>
+            <div class="mock-subtitle">18 aseguradoras activas · 4 tipos (PIP · Med Pay · Health · Otros)</div>
+          </div>
+          <button class="mock-action-btn primary" style="font-size:11px;">+ Nueva aseguradora</button>
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+          <div class="mock-input selected" style="font-size:10px;padding:4px 10px;">Todas (18)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">PIP (12)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Med Pay (4)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Health (2)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">⚠ Respuesta lenta (3)</div>
+          <input class="mock-input" placeholder="🔍 Buscar..." style="flex:1;min-width:160px;font-size:11px;padding:4px 10px;">
+        </div>
+
+        <table style="width:100%;font-size:11px;border-collapse:separate;border-spacing:0 6px;">
+          <thead>
+            <tr style="color:rgba(255,255,255,0.45);text-transform:uppercase;font-size:9px;letter-spacing:0.05em;">
+              <th style="text-align:left;padding:4px 8px;">Aseguradora</th>
+              <th style="text-align:center;padding:4px 8px;">Tipo</th>
+              <th style="text-align:center;padding:4px 8px;">Claims phone</th>
+              <th style="text-align:center;padding:4px 8px;">HCFA por</th>
+              <th style="text-align:right;padding:4px 8px;">Avg response</th>
+              <th style="text-align:center;padding:4px 8px;">Casos activos</th>
+              <th style="text-align:center;padding:4px 8px;">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:30px;height:30px;border-radius:8px;background:#0EA5E9;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:11px;">G</div>
+                  <div>
+                    <div style="color:white;font-weight:600;">GEICO</div>
+                    <div style="font-size:9.5px;color:rgba(255,255,255,0.50);">Government Employees Insurance</div>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-cyan">PIP</span></td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">1-800-861-8380</td>
+              <td style="text-align:center;padding:10px 8px;"><span style="color:rgba(255,255,255,0.65);font-size:10px;">📧 Email</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">8 días</td>
+              <td style="text-align:center;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">42</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:30px;height:30px;border-radius:8px;background:#DC2626;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:10px;">SF</div>
+                  <div>
+                    <div style="color:white;font-weight:600;">State Farm</div>
+                    <div style="font-size:9.5px;color:rgba(255,255,255,0.50);">Mutual Automobile Insurance</div>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-cyan">PIP</span></td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">1-800-732-5246</td>
+              <td style="text-align:center;padding:10px 8px;"><span style="color:rgba(255,255,255,0.65);font-size:10px;">📠 Fax + 📧</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">12 días</td>
+              <td style="text-align:center;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">31</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.18);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:30px;height:30px;border-radius:8px;background:#1D4ED8;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:10px;">PR</div>
+                  <div>
+                    <div style="color:white;font-weight:600;">Progressive</div>
+                    <div style="font-size:9.5px;color:rgba(255,255,255,0.50);">Progressive Casualty · ⚠ Respuesta lenta</div>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-cyan">PIP</span></td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">1-800-274-4499</td>
+              <td style="text-align:center;padding:10px 8px;"><span style="color:rgba(255,255,255,0.65);font-size:10px;">📧 Email</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#fbbf24;font-family:monospace;font-weight:700;">28 días</td>
+              <td style="text-align:center;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">19</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-amber">⚠ Lento</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:30px;height:30px;border-radius:8px;background:#7C3AED;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:10px;">AL</div>
+                  <div>
+                    <div style="color:white;font-weight:600;">Allstate</div>
+                    <div style="font-size:9.5px;color:rgba(255,255,255,0.50);">Allstate Insurance Company</div>
+                  </div>
+                </div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(139,92,246,0.18);color:#c4b5fd;font-size:9px;">Med Pay</span></td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;">1-800-255-7828</td>
+              <td style="text-align:center;padding:10px 8px;"><span style="color:rgba(255,255,255,0.65);font-size:10px;">📧 Email</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">14 días</td>
+              <td style="text-align:center;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">11</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Quick stats footer -->
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 14px;margin-top:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:10.5px;">
+          <span style="color:rgba(255,255,255,0.65);">Mostrando 4 de 18 aseguradoras</span>
+          <div style="display:flex;gap:14px;color:rgba(255,255,255,0.65);">
+            <span>🟢 Respuesta &lt; 15d: <strong style="color:#34d399;">11</strong></span>
+            <span>🟡 15-30d: <strong style="color:#fbbf24;">4</strong></span>
+            <span>🔴 &gt; 30d: <strong style="color:#fda4af;">3</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Por qué el "HCFA por" importa:</strong> cada aseguradora tiene su preferencia (email, fax, portal propio). Si Brunella manda por el canal equivocado, el HCFA se pierde y el caso se estanca semanas. Tener este campo en el catálogo evita errores y hace el envío masivo posible (ejecutar reglas: GEICO → email, State Farm → fax, etc.).
+  </div>
+
+  <div class="callout">
+    <strong>Modelo extensible:</strong> el tipo "Health" se usa cuando la aseguradora médica del paciente paga (en casos no-MVA o cuando PIP se agota). El tipo "Otros" cubre casos especiales (Workers Comp, Medicare/Medicaid, self-pay). El catálogo está diseñado para crecer sin cambios de schema — solo nuevos enum values.
+  </div>
+</div>
+
 <!-- ═══ CIERRE ═══ -->
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:540px;margin:0 auto 30px;">29 pantallas conceptuales en orden cronológico que demuestran la visión integral del nuevo LienMaster: desde que un referido llega hasta que un caso se cierra con settlement.</p>
+  <p class="small" style="max-width:540px;margin:0 auto 30px;">32 pantallas conceptuales: 29 del flujo end-to-end cronológico + 3 de catálogos master data (bufetes y aseguradoras) que sostienen toda la operación desde la primera llamada de Recepción.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

@@ -335,8 +335,9 @@
     <li><strong>B.30 — Catálogo de Bufetes</strong> · lista con métricas (recovery rate, avg settle, casos activos)</li>
     <li>B.31 — Detalle de bufete · sub-listas de abogados + case managers + métricas + notas</li>
     <li><strong>B.32 — Catálogo de Aseguradoras</strong> (PIP / Med Pay / Health) · canal preferido HCFA + tiempo de respuesta</li>
-    <li><strong>B.33 — Catálogo de CPT codes</strong> · fee schedule por año fiscal + bundling rules + métricas de uso</li>
+    <li><strong>B.33 — Catálogo de Servicios</strong> (CPT/HCPCS/Custom) · fee schedule por año fiscal + favoritos por usuario + bundling rules</li>
     <li><strong>B.35 — Catálogo de ICD-10</strong> (diagnósticos) · descarga gratuita del CDC + curaduría a ~300 códigos PI + NLP auto-suggest</li>
+    <li><strong>B.36 — Catálogo de Especialidades</strong> (service lines) · color picker + CPT codes sugeridos + métricas de revenue · Clínicas vive en apps/admin</li>
   </ul>
 
   <h4 style="color: #06B6D4;">🔍 Búsqueda transversal</h4>
@@ -345,7 +346,7 @@
   </ul>
 
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>35 mockups</strong> — 29 del flujo end-to-end cronológico + 5 de catálogos/master data + 1 de búsqueda transversal. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33 + B.35)</strong>: Bufetes, Aseguradoras, CPT codes e ICD-10 — son la base sin la cual el flujo no puede arrancar. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>36 mockups</strong> — 29 del flujo end-to-end cronológico + 6 de catálogos/master data + 1 de búsqueda transversal. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), ICD-10 y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K.
   </div>
 </div>
 
@@ -5804,11 +5805,296 @@
   </div>
 </div>
 
+<!-- ═══ B.36 — CATÁLOGO DE ESPECIALIDADES (SERVICE LINES) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366F1);">B.36 · Catálogos</span>
+  <h2>Catálogo de Especialidades (Service lines)</h2>
+  <p><strong>Quién la usa:</strong> Super Admin. <strong>Para qué:</strong> definir las líneas de servicio de la clínica (Auto Accidents, Family Practice, Pain Management, etc.). Cada doctor se asigna a 1+ especialidad, cada caso se categoriza por especialidad. Es master data transversal que el legacy ya tiene en "Configuración de clínica · Especialidades" — lo replicamos con mejoras.</p>
+
+  <div class="callout">
+    <strong>Nota arquitectónica:</strong> en el legacy "Configuración de clínica" tiene 3 sub-tabs (Clínicas · Especialidades · Servicios). En LienMaster v2:
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Clínicas (locations)</strong> ya vive en <code>apps/admin</code> (Super Admin) — no se duplica aquí.</li>
+      <li><strong>Servicios (CPT/HCPCS/Custom)</strong> vive en B.33 dentro de back-office.</li>
+      <li><strong>Especialidades</strong> (este mockup B.36) — vive en back-office, manejado por Super Admin.</li>
+    </ul>
+    Cuando algún módulo necesite especialidad (B.1 Recepción, B.2 Crear caso, B.10 Calendario, B.17 Doctor "Mi día", B.29 Dashboard), consume este catálogo.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">📚 Catálogos · Especialidades</div>
+        <span class="mock-time">⏱ 16:08</span>
+      </div>
+      <div class="mock-body">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div class="mock-title">🩺 Especialidades / Service lines</div>
+            <div class="mock-subtitle">6 especialidades activas · 12 doctores asignados · Auto Accidents lidera revenue</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="mock-action-btn" style="font-size:11px;">👁 Columnas</button>
+            <button class="mock-action-btn primary" style="font-size:11px;">+ Nueva especialidad</button>
+          </div>
+        </div>
+
+        <div class="mock-kpi-row">
+          <div class="mock-kpi"><div class="mock-kpi-label">Especialidades</div><div class="mock-kpi-value" style="color:#34d399;">6</div><div class="mock-kpi-sub">Activas</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Top revenue</div><div class="mock-kpi-value" style="color:#67e8f9;font-size:13px;">Auto Accidents</div><div class="mock-kpi-sub">62% del total mes</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Doctores asignados</div><div class="mock-kpi-value" style="color:#a5b4fc;">12</div><div class="mock-kpi-sub">Algunos en múltiples</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Casos del mes</div><div class="mock-kpi-value" style="color:#fbbf24;">342</div><div class="mock-kpi-sub">Todas las especialidades</div></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <input class="mock-input" placeholder="🔍 Buscar (real-time)..." style="flex:1;min-width:200px;font-size:11px;padding:6px 10px;">
+          <div class="mock-input selected" style="font-size:10px;padding:4px 10px;">Todas (6)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Activas (6)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Inactivas (0)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Sin doctor asignado</div>
+        </div>
+
+        <table style="width:100%;font-size:11px;border-collapse:separate;border-spacing:0 6px;">
+          <thead>
+            <tr style="color:rgba(255,255,255,0.45);text-transform:uppercase;font-size:9px;letter-spacing:0.05em;">
+              <th style="text-align:left;padding:4px 8px;">Nombre</th>
+              <th style="text-align:left;padding:4px 8px;">Descripción</th>
+              <th style="text-align:center;padding:4px 8px;">Color</th>
+              <th style="text-align:center;padding:4px 8px;">Doctores</th>
+              <th style="text-align:right;padding:4px 8px;">Casos / mes</th>
+              <th style="text-align:right;padding:4px 8px;">Revenue · mes</th>
+              <th style="text-align:center;padding:4px 8px;">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Auto Accidents — TOP -->
+            <tr style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.20);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F43F5E;"></span>
+                  <span style="color:white;font-weight:700;">Auto Accidents</span>
+                  <span style="color:#fbbf24;font-size:11px;" title="Top revenue">⭐</span>
+                </div>
+              </td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">
+                Casos PI post-accidente automovilístico · MVA workflow · lien-based billing
+              </td>
+              <td style="text-align:center;padding:10px 8px;">
+                <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:#F43F5E;border:1px solid rgba(255,255,255,0.20);" title="#F43F5E"></span>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;font-weight:700;">5</td>
+              <td style="text-align:right;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">212</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$54.1K</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
+              </td>
+            </tr>
+
+            <!-- Pain Management -->
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F59E0B;"></span>
+                  <span style="color:white;font-weight:700;">Pain Management</span>
+                </div>
+              </td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">
+                Manejo de dolor crónico · trigger points · inyecciones · medicación controlada (DAW EPCS)
+              </td>
+              <td style="text-align:center;padding:10px 8px;">
+                <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:#F59E0B;border:1px solid rgba(255,255,255,0.20);" title="#F59E0B"></span>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;font-weight:700;">3</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;font-weight:700;">58</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$14.2K</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
+              </td>
+            </tr>
+
+            <!-- Family Practice -->
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#34D399;"></span>
+                  <span style="color:white;font-weight:700;">Family Practice</span>
+                </div>
+              </td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">
+                Medicina general · seguimientos · GM workflow (no MVA)
+              </td>
+              <td style="text-align:center;padding:10px 8px;">
+                <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:#34D399;border:1px solid rgba(255,255,255,0.20);" title="#34D399"></span>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;font-weight:700;">2</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;font-weight:700;">42</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$8.5K</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
+              </td>
+            </tr>
+
+            <!-- Urgent Care -->
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#06B6D4;"></span>
+                  <span style="color:white;font-weight:700;">Urgent Care</span>
+                </div>
+              </td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">
+                Atención inmediata sin cita previa · GM workflow · walk-ins
+              </td>
+              <td style="text-align:center;padding:10px 8px;">
+                <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:#06B6D4;border:1px solid rgba(255,255,255,0.20);" title="#06B6D4"></span>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;font-weight:700;">2</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;font-weight:700;">28</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$5.6K</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
+              </td>
+            </tr>
+
+            <!-- Surgery -->
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#8B5CF6;"></span>
+                  <span style="color:white;font-weight:700;">Surgery</span>
+                </div>
+              </td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">
+                Procedimientos quirúrgicos menores · derivaciones a especialistas
+              </td>
+              <td style="text-align:center;padding:10px 8px;">
+                <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:#8B5CF6;border:1px solid rgba(255,255,255,0.20);" title="#8B5CF6"></span>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;font-weight:700;">1</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.55);font-family:monospace;">2</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$3.2K</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
+              </td>
+            </tr>
+
+            <!-- Membership -->
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#EC4899;"></span>
+                  <span style="color:white;font-weight:700;">Membership</span>
+                </div>
+              </td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">
+                Plan de membresía mensual · pacientes self-pay con suscripción · sin facturación a aseguradora
+              </td>
+              <td style="text-align:center;padding:10px 8px;">
+                <span style="display:inline-block;width:18px;height:18px;border-radius:4px;background:#EC4899;border:1px solid rgba(255,255,255,0.20);" title="#EC4899"></span>
+              </td>
+              <td style="text-align:center;padding:10px 8px;color:white;font-family:monospace;font-weight:700;">2</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.55);font-family:monospace;">12</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$2.4K</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:14px;font-size:10.5px;color:rgba(255,255,255,0.45);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <span>6 especialidades · Filas por página: 10</span>
+          <span>Total revenue del mes: <strong style="color:#34d399;">$88.0K</strong> · Auto Accidents 62%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal preview: Nueva especialidad -->
+  <h3 style="margin-top:24px;">Modal: Nueva especialidad</h3>
+  <div class="mockup" style="max-width:520px;">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">Nueva especialidad</div>
+        <span class="mock-time">×</span>
+      </div>
+      <div class="mock-body">
+        <div style="font-size:14px;color:white;font-weight:700;margin-bottom:14px;">Nueva especialidad</div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);margin-bottom:5px;">Nombre *</div>
+          <div class="mock-input" style="font-size:13px;color:rgba(255,255,255,0.40);padding:8px 12px;border:1.5px solid #06B6D4;">Ej: Cardiology</div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);margin-bottom:5px;">Descripción</div>
+          <div class="mock-input" style="font-size:13px;color:rgba(255,255,255,0.40);padding:8px 12px;min-height:60px;">Descripción opcional del service line...</div>
+        </div>
+
+        <!-- NUEVO vs legacy: selector de color -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);margin-bottom:5px;">Color · para identificar en calendario y dashboard</div>
+          <div style="display:flex;gap:6px;">
+            <span style="display:inline-block;width:26px;height:26px;border-radius:6px;background:#F43F5E;cursor:pointer;border:2px solid rgba(255,255,255,0.30);"></span>
+            <span style="display:inline-block;width:26px;height:26px;border-radius:6px;background:#F59E0B;cursor:pointer;"></span>
+            <span style="display:inline-block;width:26px;height:26px;border-radius:6px;background:#34D399;cursor:pointer;"></span>
+            <span style="display:inline-block;width:26px;height:26px;border-radius:6px;background:#06B6D4;cursor:pointer;"></span>
+            <span style="display:inline-block;width:26px;height:26px;border-radius:6px;background:#6366F1;cursor:pointer;border:2px solid #06B6D4;"></span>
+            <span style="display:inline-block;width:26px;height:26px;border-radius:6px;background:#8B5CF6;cursor:pointer;"></span>
+            <span style="display:inline-block;width:26px;height:26px;border-radius:6px;background:#EC4899;cursor:pointer;"></span>
+          </div>
+        </div>
+
+        <!-- NUEVO vs legacy: CPT codes default -->
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);margin-bottom:5px;">CPT codes sugeridos · pre-cargan al doctor en B.21</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;padding:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.10);border-radius:6px;">
+            <span class="badge badge-cyan" style="font-size:9px;">99213 ×</span>
+            <span class="badge badge-cyan" style="font-size:9px;">99214 ×</span>
+            <span class="badge badge-cyan" style="font-size:9px;">98941 ×</span>
+            <span style="font-size:9px;color:rgba(255,255,255,0.45);padding:2px 7px;">+ Agregar CPT</span>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+          <button class="mock-action-btn primary" style="font-size:11px;">Crear especialidad</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Mejoras vs LM legacy:</strong>
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Color por especialidad</strong> — picker de 7 colores. Se usa en B.10 (Calendario) para distinguir citas, B.17 (Doctor "Mi día") para color-code de pacientes del día, B.29 (Dashboard) para segmentación visual. El legacy no tiene esto — todas las especialidades son visualmente idénticas.</li>
+      <li><strong>CPT codes sugeridos</strong> al crear especialidad — pre-cargan en B.21 cuando el doctor firma nota. Acelera selección 50%+ vs buscar desde cero.</li>
+      <li><strong>Métricas en columna</strong> — # doctores, # casos mes, revenue mes — el legacy no muestra nada de esto, hay que sacarlo de reportes aparte.</li>
+      <li><strong>Top revenue destacado</strong> (Auto Accidents 62%) — útil para decisiones de staffing y marketing.</li>
+      <li><strong>Filtro "Sin doctor asignado"</strong> — alerta cuando una especialidad no tiene a quién atender pacientes.</li>
+      <li><strong>Real-time search</strong> (legacy requiere Enter).</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <strong>📋 Especialidades del LM legacy (importables tal cual):</strong> Auto Accidents · Pain Management · Family Practice · Urgent Care · Surgery · Membership. Migración 1:1 desde la tabla legacy + asignación de colores manual en una pasada (Auto Accidents → rojo porque es PI urgente, Pain → ámbar, Family → verde, Urgent → cyan, Surgery → violeta, Membership → rosa).
+  </div>
+</div>
+
 <!-- ═══ CIERRE ═══ -->
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:540px;margin:0 auto 30px;">35 pantallas conceptuales: 29 del flujo cronológico end-to-end + 5 de catálogos master data (bufetes, aseguradoras, CPT codes, ICD-10) + 1 de búsqueda transversal global — la spec completa del LienMaster v2 lista para Phase 0.</p>
+  <p class="small" style="max-width:540px;margin:0 auto 30px;">36 pantallas conceptuales: 29 del flujo cronológico end-to-end + 6 de catálogos master data (bufetes, aseguradoras, servicios CPT/HCPCS, ICD-10, especialidades) + 1 de búsqueda transversal global — la spec completa del LienMaster v2 lista para Phase 0.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

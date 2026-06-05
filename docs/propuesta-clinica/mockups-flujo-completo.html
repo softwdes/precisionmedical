@@ -2513,8 +2513,8 @@
       </div>
       <div class="mock-body" style="display:grid;grid-template-columns:240px 1fr;gap:14px;">
 
-        <!-- Sidebar izquierda: resumen del paciente -->
-        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;">
+        <!-- Sidebar izquierda: paciente · todas las secciones colapsables y editables -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;max-height:540px;overflow-y:auto;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
             <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:12px;">LE</div>
             <div>
@@ -2523,25 +2523,94 @@
             </div>
           </div>
 
-          <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Personal Info</div>
+          <!-- Personal Info -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;">Personal Info</div>
+            <span style="font-size:11px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Editar">✏</span>
+          </div>
           <div style="font-size:10.5px;color:rgba(255,255,255,0.75);line-height:1.75;margin-bottom:12px;">
             <div><span style="color:rgba(255,255,255,0.45);">DOB:</span> 10/26/2001</div>
             <div><span style="color:rgba(255,255,255,0.45);">Sex:</span> Male</div>
             <div><span style="color:rgba(255,255,255,0.45);">Language:</span> Spanish</div>
           </div>
 
-          <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Contact</div>
+          <!-- Contact -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;">Contact</div>
+            <span style="font-size:11px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Editar">✏</span>
+          </div>
           <div style="font-size:10.5px;color:rgba(255,255,255,0.75);line-height:1.75;margin-bottom:12px;">
             <div>📱 (801) 555-0192</div>
             <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">eloyo@email.com</div>
           </div>
 
-          <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Allergies</div>
-          <div style="font-size:10.5px;color:#fbbf24;line-height:1.75;margin-bottom:12px;">
-            ⚠ Penicilina
+          <!-- Primary Insurance -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;">Primary Insurance · PIP</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span style="font-size:11px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Editar">✏</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Colapsar">▾</span>
+            </div>
+          </div>
+          <div style="font-size:10.5px;color:rgba(255,255,255,0.75);line-height:1.65;margin-bottom:12px;padding:6px 9px;background:rgba(6,182,212,0.05);border-left:2px solid rgba(6,182,212,0.40);border-radius:4px;">
+            <div style="font-weight:600;color:#67e8f9;">🇺🇸 GEICO</div>
+            <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Claim #: 0492-3851-A · Adjuster: M. Reyes</div>
           </div>
 
-          <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Emergency Contact</div>
+          <!-- Secondary Insurance (NUEVO · editable + colapsable) -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;">Secondary Insurance</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span style="font-size:11px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Editar">✏</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Colapsar">▾</span>
+            </div>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.45);font-style:italic;padding:8px 10px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.10);border-radius:6px;margin-bottom:12px;text-align:center;">
+            No secondary insurance registered
+          </div>
+
+          <!-- Allergies (editable + colapsable) -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:9px;color:#fbbf24;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">⚠ Allergies</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span style="font-size:11px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Editar">✏</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Colapsar">▾</span>
+            </div>
+          </div>
+          <div style="font-size:10.5px;color:#fbbf24;line-height:1.65;margin-bottom:12px;padding:6px 9px;background:rgba(245,158,11,0.06);border-left:2px solid rgba(245,158,11,0.40);border-radius:4px;">
+            <div>Penicilina</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.50);margin-top:2px;">Severidad: alta · Reacción: erupción cutánea</div>
+          </div>
+
+          <!-- Problem List (NUEVO · editable + colapsable) -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;">♡ Problem List</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span style="font-size:11px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Editar">✏</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Colapsar">▾</span>
+            </div>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.45);font-style:italic;padding:8px 10px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.10);border-radius:6px;margin-bottom:12px;text-align:center;">
+            No active problems
+          </div>
+
+          <!-- Active Medication (NUEVO · editable + colapsable) -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;">⛓ Active Medication</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span style="font-size:11px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Editar">✏</span>
+              <span style="font-size:10px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Colapsar">▾</span>
+            </div>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.45);font-style:italic;padding:8px 10px;background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.10);border-radius:6px;margin-bottom:12px;text-align:center;">
+            No active medications
+          </div>
+
+          <!-- Emergency Contact (editable) -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;">Emergency Contact</div>
+            <span style="font-size:11px;color:rgba(255,255,255,0.40);cursor:pointer;" title="Editar">✏</span>
+          </div>
           <div style="font-size:10.5px;color:rgba(255,255,255,0.75);line-height:1.75;">
             <div>María Loyo (mother)</div>
             <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">(801) 555-0199</div>
@@ -2654,6 +2723,62 @@
             </div>
           </div>
 
+          <!-- Vision (NUEVO) -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;margin-top:8px;">
+            <div style="font-size:11px;color:#a5b4fc;font-weight:600;margin-bottom:8px;">👁 Vision</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;">
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Right · 20/</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">20</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Left · 20/</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">20</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Both · 20/</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">20</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid rgba(255,255,255,0.05);">
+              <div style="display:flex;gap:6px;font-size:10px;">
+                <span style="padding:3px 9px;background:#6366F1;color:white;border-radius:6px;font-weight:600;">Uncorrected</span>
+                <span style="padding:3px 9px;color:rgba(255,255,255,0.55);">Corrected</span>
+              </div>
+              <span style="font-size:9.5px;color:rgba(255,255,255,0.45);">Sin gafas / lentes</span>
+            </div>
+          </div>
+
+          <!-- Note information · Chief complaint (NUEVO) -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;margin-top:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div style="font-size:11px;color:#a5b4fc;font-weight:600;">📝 Note information · Chief complaint</div>
+              <button class="mock-action-btn" style="font-size:10px;padding:4px 10px;">📄 Templates</button>
+            </div>
+
+            <!-- Rich text editor toolbar -->
+            <div style="display:flex;gap:4px;padding:6px 8px;background:rgba(0,0,0,0.20);border-radius:6px 6px 0 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+              <button style="background:transparent;border:none;color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;font-weight:700;padding:3px 7px;border-radius:3px;">H</button>
+              <button style="background:transparent;border:none;color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;font-weight:700;padding:3px 7px;border-radius:3px;">B</button>
+              <button style="background:transparent;border:none;color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;font-style:italic;padding:3px 7px;border-radius:3px;">I</button>
+              <div style="width:1px;background:rgba(255,255,255,0.10);margin:0 4px;"></div>
+              <button style="background:transparent;border:none;color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;padding:3px 7px;border-radius:3px;">☰</button>
+              <button style="background:transparent;border:none;color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;padding:3px 7px;border-radius:3px;">≡</button>
+              <button style="background:transparent;border:none;color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;padding:3px 7px;border-radius:3px;">"</button>
+              <button style="background:transparent;border:none;color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;padding:3px 7px;border-radius:3px;">🔗</button>
+            </div>
+
+            <!-- Editor body con texto ejemplo -->
+            <div style="background:rgba(0,0,0,0.15);padding:10px 12px;border-radius:0 0 6px 6px;min-height:80px;font-size:11px;color:rgba(255,255,255,0.85);line-height:1.6;">
+              Dolor cervical y lumbar post-accidente automovilístico (rear-end collision el 02/03/2026). Paciente reporta dolor 7/10 al rotar el cuello hacia la derecha, espasmos musculares matutinos. <span style="background:rgba(99,102,241,0.20);padding:0 3px;border-radius:2px;">|</span>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:9.5px;color:rgba(255,255,255,0.45);">
+              <span>💡 Tip: usa <strong style="color:rgba(255,255,255,0.75);">Templates</strong> para pre-cargar plantillas de chief complaint comunes (whiplash, contusiones, dolor lumbar agudo, etc.)</span>
+              <span>42 / 2000 chars</span>
+            </div>
+          </div>
+
           <!-- Action: pasar al doctor -->
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07);">
             <div style="font-size:10.5px;color:rgba(255,255,255,0.55);">
@@ -2667,7 +2792,16 @@
   </div>
 
   <div class="callout callout-success">
-    <strong>Beneficio vs. LM legacy:</strong> conversión automática Lbs↔Kg y Ft↔Cm a medida que se escribe (no más doble registro). Toggle "On room air" obvia el "0.0" en O2 saturation cuando aplica. Los signos vitales <strong>aparecen pre-cargados en la visita del doctor</strong> (B.18-B.19) sin que el MA tenga que pasarse por mensaje o papel. Si algún valor está fuera de rango (BP alta, fiebre, O2 bajo), se destaca en rojo automáticamente y el doctor lo ve al abrir.
+    <strong>Beneficios vs. LM legacy:</strong>
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Conversión automática</strong> Lbs↔Kg y Ft↔Cm a medida que el MA escribe (no más doble registro).</li>
+      <li><strong>Toggle "On room air"</strong> obvia el "0.0" en O₂ saturation cuando aplica.</li>
+      <li><strong>Sidebar editable</strong> (Allergies, Problem List, Active Medication, Secondary Insurance, etc.) — el MA puede actualizar en el mismo flujo si el paciente menciona algo nuevo.</li>
+      <li><strong>Chief complaint con templates</strong> — plantillas pre-cargadas para casos típicos de PI (whiplash, lumbar acute, etc.). El MA elige y ajusta vs. escribir desde cero.</li>
+      <li><strong>Vision Uncorrected/Corrected</strong> — toggle explícito evita ambigüedad sobre si el paciente trae gafas.</li>
+      <li>Los signos vitales <strong>aparecen pre-cargados en la visita del doctor</strong> (B.18-B.19) sin que el MA tenga que pasarse por mensaje o papel.</li>
+      <li>Si algún valor está <strong>fuera de rango</strong> (BP alta, fiebre, O₂ bajo, agudeza visual baja), se destaca en rojo automáticamente y el doctor lo ve al abrir.</li>
+    </ul>
   </div>
 </div>
 

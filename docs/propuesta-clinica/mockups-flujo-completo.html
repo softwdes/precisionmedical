@@ -296,41 +296,42 @@
     <li>B.15 — Admisión "Pagos y Cobros"</li>
   </ul>
 
-  <h4 style="color: var(--brand-violet);">🩺 Vista del Doctor (Clinical Visit)</h4>
+  <h4 style="color: var(--brand-violet);">🩺 Triaje + Vista del Doctor (Clinical Visit)</h4>
   <ul style="list-style: none; margin-left: 0;">
-    <li>B.16 — Dashboard del Doctor "Mi día"</li>
-    <li>B.17 — Visita en sala (Split view)</li>
-    <li><strong>B.18 — Prescripción + DAW EPCS</strong> (integración API · controladas)</li>
-    <li>B.19 — Órdenes de laboratorio</li>
-    <li>B.20 — Servicios CPT + Firma de nota</li>
+    <li><strong>B.16 — Triaje · Toma de signos vitales (MA)</strong> · entre admisión y el doctor, en iPad</li>
+    <li>B.17 — Dashboard del Doctor "Mi día"</li>
+    <li>B.18 — Visita en sala (Split view)</li>
+    <li><strong>B.19 — Prescripción + DAW EPCS</strong> (integración API · controladas)</li>
+    <li>B.20 — Órdenes de laboratorio</li>
+    <li>B.21 — Servicios CPT + Firma de nota</li>
   </ul>
 
   <h4 style="color: #f43f5e;">⚖️ Portal del Abogado (módulo dedicado)</h4>
   <ul style="list-style: none; margin-left: 0;">
-    <li><strong>B.21 — Portal del Abogado</strong> · dashboard en tiempo real + detalle de caso (notas SOAP, HCFA, imaging, próx cita) + firma del Lien en 1 clic</li>
+    <li><strong>B.22 — Portal del Abogado</strong> · dashboard en tiempo real + detalle de caso (notas SOAP, HCFA, imaging, próx cita) + firma del Lien en 1 clic</li>
   </ul>
 
   <h4 style="color: #f59e0b;">📞 Edson · Post-visita (Seguimiento + Cobranzas)</h4>
   <ul style="list-style: none; margin-left: 0;">
-    <li>B.22 — Bandeja de cobranzas + escalación automática &gt;60 días</li>
-    <li>B.23 — Detalle de seguimiento del caso · timeline + comunicaciones + acciones</li>
+    <li>B.23 — Bandeja de cobranzas + escalación automática &gt;60 días</li>
+    <li>B.24 — Detalle de seguimiento del caso · timeline + comunicaciones + acciones</li>
   </ul>
 
   <h4>Billing &amp; Finance (Brunella)</h4>
   <ul style="list-style: none; margin-left: 0;">
-    <li>B.24 — Bandeja de notas pendientes + Notas internas con timeline</li>
-    <li>B.25 — HCFA / CMS-1500 generación</li>
-    <li><strong>B.26 — Ledger del caso</strong> · vista digital + PDF "Account Overview" + Reporte mensual consolidado</li>
+    <li>B.25 — Bandeja de notas pendientes + Notas internas con timeline</li>
+    <li>B.26 — HCFA / CMS-1500 generación</li>
+    <li><strong>B.27 — Ledger del caso</strong> · vista digital + PDF "Account Overview" + Reporte mensual consolidado</li>
   </ul>
 
   <h4>Cierre + Inteligencia</h4>
   <ul style="list-style: none; margin-left: 0;">
-    <li>B.27 — Workflow de Settlement</li>
-    <li>B.28 — Dashboard ejecutivo de Gerencia</li>
+    <li>B.28 — Workflow de Settlement</li>
+    <li>B.29 — Dashboard ejecutivo de Gerencia</li>
   </ul>
 
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>28 mockups del flujo end-to-end</strong> en orden cronológico. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.22-B.23, seguimiento + cobranzas). El Portal del Abogado (B.21) cierra el ciclo clínico antes de pasar a Brunella (B.24-B.26) y settlement (B.27-B.28). El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>29 mockups del flujo end-to-end</strong> en orden cronológico. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor — los signos vitales pre-cargan automáticamente en la visita. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
   </div>
 </div>
 
@@ -2476,14 +2477,191 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<!-- VISTA DEL DOCTOR — B.17 a B.21                              -->
+<!-- TRIAJE + VISTA DEL DOCTOR — B.16 a B.22                     -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 
-<!-- ═══ B.16 — DASHBOARD DEL DOCTOR ═══ -->
+<!-- ═══ B.16 — TRIAJE (MA — toma de signos vitales antes del doctor) ═══ -->
 <div class="page">
   <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.16 · Clinical Visit</span>
+  <h2>Triaje · Toma de signos vitales (MA)</h2>
+  <p><strong>Quién la usa:</strong> Medical Assistant (MA). <strong>Cuándo:</strong> después del check-in y la admisión, antes de pasar al doctor. <strong>Para qué:</strong> capturar signos vitales en iPad junto al paciente en sala, sin papel intermedio. Los datos quedan disponibles instantáneamente para el doctor cuando abre la visita.</p>
+
+  <div class="callout">
+    <strong>Limpieza del flujo legacy:</strong> en LM actual la pantalla de triaje incluía campos de Respiratory rate y Pain (0-10) que no se usaban consistentemente. Aquí se eliminaron — solo se mantienen los signos vitales que realmente se capturan en cada visita. El título de la sección se simplificó de "Temperature and pain" a "Temperature".
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">🩺 Triaje · iPad MA · LOYO, ELIJAH (MVA #2962)</div>
+        <span class="mock-time">⏱ 10:14</span>
+      </div>
+      <div class="mock-body" style="display:grid;grid-template-columns:240px 1fr;gap:14px;">
+
+        <!-- Sidebar izquierda: resumen del paciente -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:12px;">LE</div>
+            <div>
+              <div style="color:white;font-weight:700;font-size:12px;">LOYO, ELIJAH</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.55);">MVA #2962 · 24 y.o.</div>
+            </div>
+          </div>
+
+          <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Personal Info</div>
+          <div style="font-size:10.5px;color:rgba(255,255,255,0.75);line-height:1.75;margin-bottom:12px;">
+            <div><span style="color:rgba(255,255,255,0.45);">DOB:</span> 10/26/2001</div>
+            <div><span style="color:rgba(255,255,255,0.45);">Sex:</span> Male</div>
+            <div><span style="color:rgba(255,255,255,0.45);">Language:</span> Spanish</div>
+          </div>
+
+          <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Contact</div>
+          <div style="font-size:10.5px;color:rgba(255,255,255,0.75);line-height:1.75;margin-bottom:12px;">
+            <div>📱 (801) 555-0192</div>
+            <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">eloyo@email.com</div>
+          </div>
+
+          <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Allergies</div>
+          <div style="font-size:10.5px;color:#fbbf24;line-height:1.75;margin-bottom:12px;">
+            ⚠ Penicilina
+          </div>
+
+          <div style="font-size:9px;color:rgba(255,255,255,0.40);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Emergency Contact</div>
+          <div style="font-size:10.5px;color:rgba(255,255,255,0.75);line-height:1.75;">
+            <div>María Loyo (mother)</div>
+            <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">(801) 555-0199</div>
+          </div>
+        </div>
+
+        <!-- Main: signos vitales -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div>
+              <div style="color:white;font-size:14px;font-weight:700;">📈 Vital signs</div>
+              <div style="font-size:10.5px;color:rgba(255,255,255,0.55);">Captura rápida · 5 min · sincroniza con la visita del doctor automáticamente</div>
+            </div>
+            <span class="mock-status pending" style="font-size:10px;">⏱ En triaje</span>
+          </div>
+
+          <!-- Height -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;margin-bottom:8px;">
+            <div style="font-size:11px;color:#a5b4fc;font-weight:600;margin-bottom:8px;">📏 Height</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Feet</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">5</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Inches</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">9</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Cms</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:rgba(255,255,255,0.55);padding:6px 10px;">175.3 ⇄</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Weight -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;margin-bottom:8px;">
+            <div style="font-size:11px;color:#a5b4fc;font-weight:600;margin-bottom:8px;">⚖ Weight</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Lbs</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">168</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Oz</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">4</div>
+              </div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Kgs</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:rgba(255,255,255,0.55);padding:6px 10px;">76.3 ⇄</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Blood pressure + Corazón -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;">
+              <div style="font-size:11px;color:#a5b4fc;font-weight:600;margin-bottom:8px;">❤ Blood pressure</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Systolic mmHg</div>
+                  <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">126</div>
+                </div>
+                <div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Diastolic mmHg</div>
+                  <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">82</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;">
+              <div style="font-size:11px;color:#a5b4fc;font-weight:600;margin-bottom:8px;">💓 Corazón &amp; Pulmones</div>
+              <div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">Pulse (bpm)</div>
+                <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">76</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Temperature + Oxygen -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;">
+              <div style="font-size:11px;color:#a5b4fc;font-weight:600;margin-bottom:8px;">🌡 Temperature</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                <div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">°F</div>
+                  <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">98.6</div>
+                </div>
+                <div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">°C</div>
+                  <div class="mock-input" style="font-size:13px;font-family:monospace;color:rgba(255,255,255,0.55);padding:6px 10px;">37.0 ⇄</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;">
+              <div style="font-size:11px;color:#a5b4fc;font-weight:600;margin-bottom:8px;">💨 Oxygen</div>
+              <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+                <div>
+                  <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">O₂ saturation (%)</div>
+                  <div class="mock-input" style="font-size:13px;font-family:monospace;color:white;padding:6px 10px;">98</div>
+                </div>
+                <div style="text-align:center;">
+                  <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:3px;">On room air</div>
+                  <div style="display:inline-block;width:32px;height:18px;background:#10B981;border-radius:9px;position:relative;">
+                    <span style="position:absolute;right:2px;top:2px;width:14px;height:14px;background:white;border-radius:50%;"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action: pasar al doctor -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07);">
+            <div style="font-size:10.5px;color:rgba(255,255,255,0.55);">
+              📌 Capturado por: <strong style="color:white;">Sarah Chen (MA)</strong> · 10:14
+            </div>
+            <button class="mock-action-btn success" style="font-size:11px;">Pasar a Dr. Loder ✓</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Beneficio vs. LM legacy:</strong> conversión automática Lbs↔Kg y Ft↔Cm a medida que se escribe (no más doble registro). Toggle "On room air" obvia el "0.0" en O2 saturation cuando aplica. Los signos vitales <strong>aparecen pre-cargados en la visita del doctor</strong> (B.18-B.19) sin que el MA tenga que pasarse por mensaje o papel. Si algún valor está fuera de rango (BP alta, fiebre, O2 bajo), se destaca en rojo automáticamente y el doctor lo ve al abrir.
+  </div>
+</div>
+
+<!-- ═══ B.17 — DASHBOARD DEL DOCTOR (era B.16) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.17 · Clinical Visit</span>
   <h2>Vista del Doctor · Dashboard "Mi día"</h2>
-  <p><strong>Quién la usa:</strong> Doctor / Chiropractor (Dr. Loder, Dr. Broadhead, etc.). <strong>Para qué:</strong> el doctor abre la mañana y sabe inmediatamente <em>qué hacer ahora</em>. La cita actual es el hero; lo demás es contexto.</p>
+  <p><strong>Quién la usa:</strong> Doctor / Chiropractor (Dr. Loder, Dr. Broadhead, etc.). <strong>Para qué:</strong> el doctor abre la mañana y sabe inmediatamente <em>qué hacer ahora</em>. La cita actual es el hero; lo demás es contexto. Los signos vitales tomados por la MA en B.16 ya aparecen pre-cargados al abrir la visita.</p>
 
   <div class="mockup">
     <div class="mockup-frame">
@@ -2558,9 +2736,9 @@
   </ul>
 </div>
 
-<!-- ═══ B.17 — VISIT SPLIT-VIEW ═══ -->
+<!-- ═══ B.18 — VISIT SPLIT-VIEW (era B.17) ═══ -->
 <div class="page">
-  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.17 · Clinical Visit</span>
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.18 · Clinical Visit</span>
   <h2>Vista del Doctor · Visita en sala (Split view)</h2>
   <p><strong>Concepto:</strong> toda la información que el doctor necesita en una sola pantalla. <strong>Izquierda:</strong> ficha clínica del paciente (referencia). <strong>Derecha:</strong> nota SOAP editable con plantilla precargada por especialidad.</p>
 
@@ -2625,9 +2803,9 @@
   </div>
 </div>
 
-<!-- ═══ B.18 — PRESCRIPCIÓN + DAW EPCS ═══ -->
+<!-- ═══ B.19 — PRESCRIPCIÓN + DAW EPCS (era B.18) ═══ -->
 <div class="page">
-  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.18 · Clinical Visit · Integración API</span>
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.19 · Clinical Visit · Integración API</span>
   <h2>Vista del Doctor · Prescripción electrónica + DAW (EPCS)</h2>
 
   <div style="background:linear-gradient(135deg,rgba(244,63,94,0.06),rgba(139,92,246,0.04));border:1px solid rgba(139,92,246,0.25);border-radius:10px;padding:14px 18px;margin:14px 0;">
@@ -2719,9 +2897,9 @@
   </div>
 </div>
 
-<!-- ═══ B.19 — ÓRDENES DE LABORATORIO ═══ -->
+<!-- ═══ B.20 — ÓRDENES DE LABORATORIO (era B.19) ═══ -->
 <div class="page">
-  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.19 · Clinical Visit</span>
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.20 · Clinical Visit</span>
   <h2>Vista del Doctor · Órdenes de laboratorio</h2>
   <p><strong>Concepto:</strong> modal inline para ordenar labs e imaging. Catálogo LOINC. El resultado entra al sistema y aparece como "acción requerida" en el dashboard del doctor.</p>
 
@@ -2780,9 +2958,9 @@
   </ol>
 </div>
 
-<!-- ═══ B.20 — CPT + FIRMA DE NOTA ═══ -->
+<!-- ═══ B.21 — CPT + FIRMA DE NOTA (era B.20) ═══ -->
 <div class="page">
-  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.20 · Clinical Visit</span>
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.21 · Clinical Visit</span>
   <h2>Vista del Doctor · Servicios CPT + Firma de nota</h2>
   <p><strong>Concepto:</strong> antes de firmar la nota, el doctor asigna los CPT codes correspondientes a la visita. La firma desencadena: alta del paciente, narrativa para abogado (MVA), notificación a Brunella para billing.</p>
 
@@ -2861,9 +3039,9 @@
   </div>
 </div>
 
-<!-- ═══ B.21 — PORTAL DEL ABOGADO ═══ -->
+<!-- ═══ B.22 — PORTAL DEL ABOGADO (era B.21) ═══ -->
 <div class="page">
-  <span class="section-anchor" style="background: linear-gradient(135deg, #f43f5e, #ec4899);">B.21 · Portal del Abogado</span>
+  <span class="section-anchor" style="background: linear-gradient(135deg, #f43f5e, #ec4899);">B.22 · Portal del Abogado</span>
   <h2>Portal del Abogado · Dashboard en tiempo real</h2>
   <p><strong>Concepto innovador:</strong> el abogado tiene su <strong>propio portal</strong> donde ve en tiempo real el estado de cada paciente que él representa. Cuando el doctor firma una nota, el HCFA está listo o llega un nuevo lien para firmar, <strong>el portal se actualiza al instante</strong>. El abogado firma su parte del lien con un clic, descarga documentación, ve notas del doctor, próximas citas y radiografías sin necesidad de llamar a Brunella.</p>
 
@@ -3073,9 +3251,9 @@
   </div>
 </div>
 
-<!-- ═══ B.22 — BANDEJA DE EDSON · POST-VISITA (SEGUIMIENTO + COBRANZAS) ═══ -->
+<!-- ═══ B.23 — BANDEJA DE EDSON · POST-VISITA (era B.22) ═══ -->
 <div class="page">
-  <span class="section-anchor" style="background: linear-gradient(135deg, #f59e0b, #f43f5e);">B.22 · Intake &amp; Verification</span>
+  <span class="section-anchor" style="background: linear-gradient(135deg, #f59e0b, #f43f5e);">B.23 · Intake &amp; Verification</span>
   <h2>Bandeja de Edson · Seguimiento y Cobranzas (post-visita)</h2>
   <p><strong>Quién la usa:</strong> Edson (Intake Specialist). <strong>Para qué:</strong> después de que el paciente fue atendido y el abogado firmó, Edson hace seguimiento del caso y persigue cobros pendientes. Es <strong>el otro lado del trabajo de Edson</strong> (la primera bandeja B.12 era pre-visita; ésta es post-visita).</p>
 
@@ -3199,9 +3377,9 @@
   </div>
 </div>
 
-<!-- ═══ B.23 — DETALLE DE SEGUIMIENTO DEL CASO (POST-VISITA) ═══ -->
+<!-- ═══ B.24 — DETALLE DE SEGUIMIENTO DEL CASO (era B.23) ═══ -->
 <div class="page">
-  <span class="section-anchor" style="background: linear-gradient(135deg, #f59e0b, #f43f5e);">B.23 · Intake &amp; Verification</span>
+  <span class="section-anchor" style="background: linear-gradient(135deg, #f59e0b, #f43f5e);">B.24 · Intake &amp; Verification</span>
   <h2>Detalle de seguimiento del caso</h2>
   <p><strong>Concepto:</strong> Edson abre un caso desde la bandeja post-visita y ve <strong>todo lo que necesita para cobrar</strong>: timeline del caso (visitas + firmas + pagos), checklist de documentación, log de comunicaciones con el bufete y acciones rápidas (llamar, email, escalar).</p>
 
@@ -3315,9 +3493,9 @@
   </div>
 </div>
 
-<!-- ═══ B.24 — BANDEJA DE BRUNELLA (era B.22) ═══ -->
+<!-- ═══ B.25 — BANDEJA DE BRUNELLA (era B.24) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.24 · Billing &amp; Finance</span>
+  <span class="section-anchor">B.25 · Billing &amp; Finance</span>
   <h2>Bandeja de Brunella (Billing)</h2>
   <p><strong>Quién la usa:</strong> Brunella (Biller / Case Manager). <strong>Para qué:</strong> centro de operaciones de facturación. Notas SOAP firmadas listas para generar HCFA, ledgers que actualizar, comunicaciones legales pendientes.</p>
 
@@ -3599,9 +3777,9 @@
   </div>
 </div>
 
-<!-- ═══ B.25 — HCFA GENERACIÓN (era B.23) ═══ -->
+<!-- ═══ B.26 — HCFA GENERACIÓN (era B.25) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.25 · Billing &amp; Finance</span>
+  <span class="section-anchor">B.26 · Billing &amp; Finance</span>
   <h2>HCFA / CMS-1500 generación</h2>
   <p><strong>Concepto:</strong> Brunella revisa la nota firmada por el doctor, valida los datos del HCFA pre-cargados (paciente, seguro, diagnósticos, servicios), edita si es necesario, y genera el PDF en formato federal CMS-1500.</p>
 
@@ -3686,9 +3864,9 @@
   </div>
 </div>
 
-<!-- ═══ B.26 — LEDGER DEL CASO (era B.24) ═══ -->
+<!-- ═══ B.27 — LEDGER DEL CASO (era B.26) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.26 · Billing &amp; Finance</span>
+  <span class="section-anchor">B.27 · Billing &amp; Finance</span>
   <h2>Ledger del caso</h2>
   <p><strong>Concepto:</strong> estado de cuenta consolidado del caso. Muestra todos los cargos (CPT codes por visita), pagos recibidos (de PIP o paciente), y balance pendiente que después recupera del settlement vía lien.</p>
 
@@ -4107,9 +4285,9 @@
   </div>
 </div>
 
-<!-- ═══ B.27 — SETTLEMENT WORKFLOW (era B.25) ═══ -->
+<!-- ═══ B.28 — SETTLEMENT WORKFLOW (era B.27) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.27 · Cierre</span>
+  <span class="section-anchor">B.28 · Cierre</span>
   <h2>Workflow de Settlement</h2>
   <p><strong>Concepto:</strong> cuando el abogado obtiene el settlement, Brunella recibe el cheque/transferencia, lo registra contra el lien del caso, y cierra el caso automáticamente. El paciente recibe notificación final.</p>
 
@@ -4184,9 +4362,9 @@
   </div>
 </div>
 
-<!-- ═══ B.28 — DASHBOARD EJECUTIVO (era B.26) ═══ -->
+<!-- ═══ B.29 — DASHBOARD EJECUTIVO (era B.28) ═══ -->
 <div class="page">
-  <span class="section-anchor">B.28 · Inteligencia</span>
+  <span class="section-anchor">B.29 · Inteligencia</span>
   <h2>Dashboard Ejecutivo de Gerencia</h2>
   <p><strong>Quién lo usa:</strong> Alta Gerencia. <strong>Para qué:</strong> visibilidad en vivo del estado del negocio: pipeline de casos, throughput, cobranza, productividad por doctor, métricas de cumplimiento HIPAA.</p>
 
@@ -4332,7 +4510,7 @@
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:540px;margin:0 auto 30px;">28 pantallas conceptuales en orden cronológico que demuestran la visión integral del nuevo LienMaster: desde que un referido llega hasta que un caso se cierra con settlement.</p>
+  <p class="small" style="max-width:540px;margin:0 auto 30px;">29 pantallas conceptuales en orden cronológico que demuestran la visión integral del nuevo LienMaster: desde que un referido llega hasta que un caso se cierra con settlement.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

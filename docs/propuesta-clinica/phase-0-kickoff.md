@@ -57,6 +57,9 @@ Phase 0 es una PUERTA: nada de lógica que maneje PHI hasta cerrarla. Entregable
 3. **Baseline HIPAA técnico:**
    - Encriptación en tránsito y en reposo (verificar Supabase).
    - Esqueleto de **audit logging** (quién accede a qué, inmutable/append-only).
+     - **Campo `actor_type` obligatorio** desde día 1: `HUMAN_USER` | `AI_AGENT` | `SYSTEM`.
+       Hoy todos los registros serán `HUMAN_USER`, pero el schema lo soporta para que en
+       Phase 3 podamos auditar acciones del AI Receptionist sin migration breaking.
    - **RBAC** como matriz de permisos por app/workspace (NO apps separadas por rol).
    - Manejo de sesión, control de acceso, RLS por entidad (paciente/bufete).
    - Provisioning de usuarios vive SIEMPRE en `apps/admin` (no duplicar user management).
@@ -81,6 +84,23 @@ Phase 0 es una PUERTA: nada de lógica que maneje PHI hasta cerrarla. Entregable
 7. **Campos de Doctores (decidir):** NPI (HCFA), DEA (DAW EPCS), licencia médica + estado,
    specialty, firma digital. Decidir: campos condicionales en `employees` vs tabla
    `providers` linkeada a employee.
+
+8. **AI Receptionist — preparación arquitectónica (no implementación):**
+   - **Decidido 2026-06-05**: el AI Receptionist conversacional (Vapi/Retell/Hyro encima
+     de Weave) se evalúa en **Phase 3**. Durante Phase 0-2 la clínica usa el
+     auto-attendant nativo de Weave (IVR básico).
+   - **Lo que SÍ va en Phase 0**: diseñar las APIs de `apps/back-office` para que sean
+     callable tanto por humanos hoy como por un AI agent mañana. Endpoints a dejar
+     listos en el contrato (no necesariamente implementados al 100%):
+     - `POST /api/cases/create-from-call` — crea esqueleto de caso desde una llamada.
+     - `GET  /api/appointments/available-slots` — slots disponibles por clínica/doctor.
+     - `POST /api/sms/send-portal-link` — envía magic link del portal al paciente.
+   - **Reglas de diseño** para esos endpoints:
+     - Aceptan `actor_type` en el header/contexto de autenticación (escrito al audit log).
+     - Son idempotentes donde tiene sentido (`Idempotency-Key` header para evitar dobles
+       creaciones si el AI reintenta).
+     - Validación estricta de input (Zod) — un AI puede mandar payloads creativos.
+     - Rate limiting por `actor_type` (más estricto en `AI_AGENT`).
 
 ## Reglas no negociables
 

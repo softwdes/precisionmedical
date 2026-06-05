@@ -3249,24 +3249,52 @@
           <button class="mock-action-btn primary" style="font-size:10px;">+ Agregar</button>
         </div>
 
+        <!-- CPT asignado con fee default (editable) -->
         <div class="mock-card" style="background:rgba(99,102,241,0.10);border-color:rgba(99,102,241,0.30);">
           <span style="font-family:monospace;color:var(--brand-cyan);">99213 ✓</span>
           <span class="name">Office Outpatient Visit</span>
           <span class="spacer"></span>
-          <span style="color:white;font-weight:600;">$250.00</span>
+          <span style="color:white;font-weight:600;font-family:monospace;">$250.00</span>
+          <button class="mock-action-btn" title="Editar fee de este CPT en esta visita" style="font-size:10px;background:rgba(99,102,241,0.20);border-color:rgba(99,102,241,0.40);color:#a5b4fc;padding:4px 8px;">✏</button>
           <button class="mock-action-btn" style="font-size:10px;background:rgba(244,63,94,0.15);border-color:rgba(244,63,94,0.30);color:#fda4af;">Quitar</button>
         </div>
+
+        <!-- CPT asignado con fee MODIFICADO (ejemplo de override) -->
         <div class="mock-card" style="background:rgba(99,102,241,0.10);border-color:rgba(99,102,241,0.30);">
           <span style="font-family:monospace;color:var(--brand-cyan);">J3301 ✓</span>
           <span class="name">Kenalog Injection · Triamcinolone</span>
           <span class="spacer"></span>
-          <span style="color:white;font-weight:600;">$120.00</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;">
+            <span style="color:rgba(255,255,255,0.45);font-size:10px;text-decoration:line-through;font-family:monospace;">$120.00</span>
+            <span style="color:#fbbf24;font-weight:700;font-family:monospace;">$100.00</span>
+            <span title="Fee modificado vs catálogo (default $120)" style="font-size:9px;background:rgba(245,158,11,0.20);color:#fbbf24;padding:2px 6px;border-radius:100px;font-weight:700;">MOD</span>
+          </span>
+          <button class="mock-action-btn" title="Editar fee de este CPT en esta visita" style="font-size:10px;background:rgba(99,102,241,0.20);border-color:rgba(99,102,241,0.40);color:#a5b4fc;padding:4px 8px;">✏</button>
           <button class="mock-action-btn" style="font-size:10px;background:rgba(244,63,94,0.15);border-color:rgba(244,63,94,0.30);color:#fda4af;">Quitar</button>
         </div>
 
+        <!-- Inline edit preview (lo que se ve al clickear ✏) -->
+        <div style="background:rgba(245,158,11,0.06);border:1px dashed rgba(245,158,11,0.40);border-radius:8px;padding:10px 14px;margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:10px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">✏ Editando fee · J3301</span>
+          <span style="flex:1;min-width:120px;font-size:11px;color:rgba(255,255,255,0.75);">Catálogo: <span style="font-family:monospace;">$120.00</span> · Esta visita:</span>
+          <div style="display:inline-flex;align-items:center;gap:4px;">
+            <span style="color:white;font-family:monospace;font-size:13px;">$</span>
+            <input value="100.00" style="width:70px;padding:4px 8px;font-family:monospace;font-size:13px;background:rgba(0,0,0,0.30);color:white;border:1px solid rgba(245,158,11,0.50);border-radius:4px;">
+          </div>
+          <select style="font-size:10px;padding:4px 8px;background:rgba(0,0,0,0.30);color:white;border:1px solid rgba(255,255,255,0.15);border-radius:4px;">
+            <option>Razón: Self-pay discount</option>
+            <option>Razón: Insurance override</option>
+            <option>Razón: Acuerdo con bufete</option>
+            <option>Razón: Write-off promocional</option>
+            <option>Razón: Otro (texto libre)</option>
+          </select>
+          <button class="mock-action-btn primary" style="font-size:10px;padding:4px 10px;">✓ Guardar</button>
+          <button class="mock-action-btn" style="font-size:10px;padding:4px 10px;">Cancelar</button>
+        </div>
+
         <div style="background:rgba(6,182,212,0.10);border:1px solid rgba(6,182,212,0.30);border-radius:8px;padding:12px 16px;margin:16px 0;display:flex;justify-content:space-between;align-items:center;">
-          <span style="color:rgba(255,255,255,0.85);font-size:12px;">Total visita</span>
-          <span style="color:var(--brand-cyan);font-size:18px;font-weight:800;font-family:monospace;">$370.00</span>
+          <span style="color:rgba(255,255,255,0.85);font-size:12px;">Total visita <span style="font-size:10px;color:#fbbf24;background:rgba(245,158,11,0.15);padding:2px 6px;border-radius:100px;margin-left:6px;">1 fee modificado</span></span>
+          <span style="color:var(--brand-cyan);font-size:18px;font-weight:800;font-family:monospace;">$350.00</span>
         </div>
 
         <div class="mock-section-title">🏁 Cerrar visita</div>
@@ -3292,6 +3320,20 @@
 
   <div class="callout callout-success">
     <strong>Una sola firma cierra el ciclo clínico</strong> y dispara automáticamente todo lo que viene: billing, narrativas, notificaciones, actualización de estados, ledger. Brunella recibe notificación con todo precargado para facturar.
+  </div>
+
+  <div class="callout callout-warn">
+    <strong>✏ Fees editables inline al momento de firmar:</strong> cada CPT asignado tiene un botón ✏ para ajustar el fee si la situación lo requiere — el catálogo (B.33) tiene el fee default pero a veces hay overrides legítimos:
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Self-pay discount</strong> · paciente sin aseguradora, acuerdo de pago directo con descuento</li>
+      <li><strong>Insurance override</strong> · contrato específico con aseguradora que dicta otro fee</li>
+      <li><strong>Acuerdo con bufete</strong> · convenio negociado caso por caso</li>
+      <li><strong>Write-off promocional</strong> · cortesía a paciente repetido o referido importante</li>
+      <li><strong>Razón libre</strong> · cualquier otra circunstancia (texto descriptivo)</li>
+    </ul>
+    <div style="margin-top:8px;font-size:12px;">
+      Los fees modificados muestran <span style="background:rgba(245,158,11,0.20);color:#fbbf24;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;">MOD</span> + el monto original tachado. <strong>Cada modificación queda auditada</strong> (quién, cuándo, monto original, monto nuevo, razón) — append-only en `audit_logs`. Brunella ve estos overrides al facturar y los puede revertir si fueron error.
+    </div>
   </div>
 </div>
 

@@ -330,15 +330,21 @@
     <li>B.29 — Dashboard ejecutivo de Gerencia</li>
   </ul>
 
-  <h4 style="color: #0ea5e9;">📚 Catálogos / Master data (Super Admin + Edson)</h4>
+  <h4 style="color: #0ea5e9;">📚 Catálogos / Master data (Super Admin + Edson + Brunella)</h4>
   <ul style="list-style: none; margin-left: 0;">
     <li><strong>B.30 — Catálogo de Bufetes</strong> · lista con métricas (recovery rate, avg settle, casos activos)</li>
     <li>B.31 — Detalle de bufete · sub-listas de abogados + case managers + métricas + notas</li>
     <li><strong>B.32 — Catálogo de Aseguradoras</strong> (PIP / Med Pay / Health) · canal preferido HCFA + tiempo de respuesta</li>
+    <li><strong>B.33 — Catálogo de CPT codes</strong> · fee schedule por año fiscal + bundling rules + métricas de uso</li>
+  </ul>
+
+  <h4 style="color: #06B6D4;">🔍 Búsqueda transversal</h4>
+  <ul style="list-style: none; margin-left: 0;">
+    <li><strong>B.34 — Patient Global Search</strong> · búsqueda fuzzy multi-campo activada con ⌘K desde cualquier app</li>
   </ul>
 
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>32 mockups</strong> — 29 del flujo end-to-end cronológico + 3 de catálogos/master data. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos (B.30-B.32)</strong>: master data de Bufetes y Aseguradoras gestionado por Super Admin + Edson — son la base sin la cual el flujo no puede arrancar. El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>34 mockups</strong> — 29 del flujo end-to-end cronológico + 4 de catálogos/master data + 1 de búsqueda transversal. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos (B.30-B.33)</strong>: master data de Bufetes, Aseguradoras y CPT codes gestionado por Super Admin + Edson + Brunella — son la base sin la cual el flujo no puede arrancar. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K accesible desde cualquier app. El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
   </div>
 </div>
 
@@ -5001,11 +5007,368 @@
   </div>
 </div>
 
+<!-- ═══ B.33 — CATÁLOGO DE CPT CODES ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366F1);">B.33 · Catálogos</span>
+  <h2>Catálogo de CPT codes (Current Procedural Terminology)</h2>
+  <p><strong>Quién la usa:</strong> Super Admin + Brunella. <strong>Para qué:</strong> mantener la lista oficial de procedimientos médicos que la clínica factura — sin este catálogo, B.21 (CPT + Firma del doctor) no tiene de dónde elegir códigos y B.26 (HCFA generación) no puede armar el claim. Los CPT codes se actualizan anualmente por la AMA, así que el catálogo está versionado por año fiscal.</p>
+
+  <div class="callout">
+    <strong>Por qué este catálogo es no-negociable:</strong> los CPT codes son el alfabeto del billing médico en EEUU. Cada visita facturada se traduce a 1-5 CPTs. Si un código está mal seleccionado o falta, la aseguradora rechaza el claim y Brunella tiene que apelar (semanas de demora + posible pérdida). La clínica tiene su <strong>fee schedule</strong> propio por código.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">📚 Catálogos · CPT Codes</div>
+        <span class="mock-time">⏱ 11:08</span>
+      </div>
+      <div class="mock-body">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div class="mock-title">📋 CPT Codes (2026 fee schedule)</div>
+            <div class="mock-subtitle">87 códigos activos · 4 categorías · Última actualización: 02/Ene/2026</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="mock-action-btn" style="font-size:11px;">📥 Importar AMA</button>
+            <button class="mock-action-btn primary" style="font-size:11px;">+ Nuevo CPT</button>
+          </div>
+        </div>
+
+        <div class="mock-kpi-row">
+          <div class="mock-kpi"><div class="mock-kpi-label">Códigos activos</div><div class="mock-kpi-value" style="color:#34d399;">87</div><div class="mock-kpi-sub">2026 fiscal year</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Más facturado</div><div class="mock-kpi-value" style="color:#67e8f9;font-size:13px;">98941</div><div class="mock-kpi-sub">CMT 3-4 regions · 412 / mes</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Revenue del mes</div><div class="mock-kpi-value" style="color:#a5b4fc;">$87.3K</div><div class="mock-kpi-sub">Solo procedimientos</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Bundling rules</div><div class="mock-kpi-value" style="color:#fbbf24;">12</div><div class="mock-kpi-sub">Reglas de incompatibilidad</div></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <input class="mock-input" placeholder="🔍 Buscar por código o descripción..." style="flex:1;min-width:200px;font-size:11px;padding:6px 10px;">
+          <select class="mock-input" style="font-size:10px;padding:4px 10px;">
+            <option>Año: 2026</option>
+            <option>Año: 2025</option>
+            <option>Año: 2024</option>
+          </select>
+          <div class="mock-input selected" style="font-size:10px;padding:4px 10px;">Todas (87)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">E&amp;M (12)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Chiropractic (8)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Physical Therapy (24)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Diagnostic / Imaging (18)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Injections (15)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Otros (10)</div>
+        </div>
+
+        <table style="width:100%;font-size:11px;border-collapse:separate;border-spacing:0 6px;">
+          <thead>
+            <tr style="color:rgba(255,255,255,0.45);text-transform:uppercase;font-size:9px;letter-spacing:0.05em;">
+              <th style="text-align:left;padding:4px 8px;">Código</th>
+              <th style="text-align:left;padding:4px 8px;">Descripción</th>
+              <th style="text-align:center;padding:4px 8px;">Categoría</th>
+              <th style="text-align:right;padding:4px 8px;">Fee</th>
+              <th style="text-align:right;padding:4px 8px;">Modifiers</th>
+              <th style="text-align:right;padding:4px 8px;">Mes · Uso</th>
+              <th style="text-align:center;padding:4px 8px;">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-family:monospace;color:white;font-weight:700;">98941</span>
+                  <span style="color:#fbbf24;font-size:11px;" title="Más facturado">⭐</span>
+                </div>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">CMT spine · 3-4 regions</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Chiropractic manipulative treatment</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-cyan">Chiropractic</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$95.00</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">-25</td>
+              <td style="text-align:right;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">412</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">98940</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">CMT spine · 1-2 regions</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Chiropractic manipulative treatment</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-cyan">Chiropractic</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$75.00</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">-25</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">287</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">99213</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Office visit · Est. patient · 15 min</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Evaluation &amp; Management · low complexity</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(99,102,241,0.18);color:#a5b4fc;font-size:9px;">E&amp;M</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$120.00</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">—</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">198</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">97110</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Therapeutic exercises · 15 min</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Physical therapy · ROM, strength</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(245,158,11,0.18);color:#fbbf24;font-size:9px;">PT</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$55.00</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">—</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">156</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">20552</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Injection · trigger point · 1-2 muscles</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Pain management</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(244,63,94,0.18);color:#fda4af;font-size:9px;">Injection</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$185.00</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">-25, -59</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.55);font-family:monospace;">42</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">72100</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">X-ray spine · lumbar · 2-3 views</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Radiology / Diagnostic</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(139,92,246,0.18);color:#c4b5fd;font-size:9px;">Imaging</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$95.00</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">—</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.55);font-family:monospace;">38</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Bundling rules preview -->
+        <div style="background:rgba(245,158,11,0.04);border:1px solid rgba(245,158,11,0.18);border-radius:10px;padding:12px 14px;margin-top:14px;">
+          <div style="font-size:10px;color:#fbbf24;font-weight:600;margin-bottom:6px;">⚠ BUNDLING RULES (12)</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.80);line-height:1.6;">
+            <strong>98941 + 97110:</strong> requiere modifier -59 sino la aseguradora rechaza por bundling. <strong>99213 + 98941 mismo día:</strong> requiere -25 en el E&amp;M. El sistema valida automáticamente al firmar la nota (B.21) y avisa al doctor antes de mandar a Brunella.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Beneficios:</strong> (1) Doctor en B.21 ve solo CPTs del año fiscal vigente — no códigos descontinuados. (2) Modifiers se sugieren automáticamente según reglas de bundling. (3) Fee schedule unificado evita inconsistencias de cobro entre clínicas. (4) Métricas de uso permiten optimizar: si el 60% del revenue viene de 98941, eso guía staffing y supplies.
+  </div>
+</div>
+
+<!-- ═══ B.34 — PATIENT GLOBAL SEARCH ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #06B6D4, #6366F1);">B.34 · Búsqueda Global</span>
+  <h2>Patient Global Search · Búsqueda transversal de pacientes</h2>
+  <p><strong>Quién la usa:</strong> todos los roles internos (Recepción, Edson, Brunella, Doctores, Super Admin). <strong>Para qué:</strong> cuando alguien llama "Soy Sandra López, MVA #2962" o "Quiero saber del caso de Carlos Vega del 22 de mayo", el usuario necesita encontrar al paciente en <strong>menos de 2 segundos</strong>. Activado desde el input "Search in the system..." del topbar de cualquier app.</p>
+
+  <div class="callout">
+    <strong>El problema operativo:</strong> en LM legacy, encontrar a un paciente requería saber EXACTAMENTE su nombre, sin typos. Si la llamada dice "Sandra López" pero está cargada como "Sandra Lopez" (sin tilde), no aparece. Aquí la búsqueda es <strong>fuzzy, multi-campo e instantánea</strong>.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search" style="background:rgba(99,102,241,0.15);border:1.5px solid rgba(99,102,241,0.40);">
+          🔍 sand
+        </div>
+        <span class="mock-time">⏱ 14:08</span>
+      </div>
+      <div class="mock-body">
+
+        <!-- Search input ampliado -->
+        <div style="margin-bottom:14px;padding:12px 16px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:10px;">
+          <div style="font-size:9px;color:#a5b4fc;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Búsqueda global</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="color:#a5b4fc;font-size:16px;">🔍</span>
+            <input class="mock-input" value="sand" placeholder="Nombre, MVA #, teléfono, DOB, email, lien ID..." style="flex:1;font-size:14px;background:transparent;border:none;color:white;font-weight:600;">
+            <span style="font-size:9px;color:rgba(255,255,255,0.45);">⌘K</span>
+          </div>
+          <div style="margin-top:6px;font-size:10px;color:rgba(255,255,255,0.55);">
+            3 resultados · Búsqueda fuzzy activada · Buscando en: pacientes activos + completados últimos 24 meses
+          </div>
+        </div>
+
+        <!-- Quick filters -->
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+          <div class="mock-input selected" style="font-size:10px;padding:4px 10px;">Todos (3)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Casos activos (2)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Completados (1)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Por bufete</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Por aseguradora</div>
+        </div>
+
+        <!-- Section: Pacientes que coinciden -->
+        <div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Pacientes (3)</div>
+
+        <!-- Result 1: caso activo urgente -->
+        <div style="background:linear-gradient(135deg,rgba(244,63,94,0.06),rgba(244,63,94,0.02));border:1px solid rgba(244,63,94,0.20);border-radius:10px;padding:12px 16px;margin-bottom:8px;cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#F43F5E,#EC4899);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;">SL</div>
+              <div>
+                <div style="color:white;font-weight:700;font-size:13px;">
+                  <span style="background:rgba(99,102,241,0.30);padding:0 2px;border-radius:2px;">Sand</span>ra López
+                </div>
+                <div style="font-size:10.5px;color:rgba(255,255,255,0.65);margin-top:2px;">
+                  <span style="font-family:monospace;color:#fda4af;font-weight:700;">MVA #2962</span> ·
+                  DOB: 15/Mar/1985 (40 y.o.) ·
+                  📱 (801) 555-0192
+                </div>
+                <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+                  <span class="mock-status urgent" style="font-size:9px;">⚠ Urgente · 78d sin cobrar</span>
+                  <span class="badge badge-emerald" style="font-size:9px;">Smith &amp; Johnson</span>
+                  <span class="badge badge-cyan" style="font-size:9px;">GEICO · PIP</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="mock-action-btn primary" style="font-size:10px;">Abrir caso →</button>
+            </div>
+          </div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.45);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <span>Última visita: 17/Mar · Dr. Loder · 5 visitas · 1 inyección</span>
+            <span>$8,450 pendiente cobro</span>
+          </div>
+        </div>
+
+        <!-- Result 2: caso activo normal -->
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 16px;margin-bottom:8px;cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#6366F1,#8B5CF6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;">SA</div>
+              <div>
+                <div style="color:white;font-weight:700;font-size:13px;">
+                  <span style="background:rgba(99,102,241,0.30);padding:0 2px;border-radius:2px;">Sand</span>er Alvarado
+                </div>
+                <div style="font-size:10.5px;color:rgba(255,255,255,0.65);margin-top:2px;">
+                  <span style="font-family:monospace;color:#a5b4fc;font-weight:700;">MVA #3041</span> ·
+                  DOB: 22/Jul/1992 (33 y.o.) ·
+                  📱 (385) 555-0233
+                </div>
+                <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+                  <span class="badge badge-emerald" style="font-size:9px;">✓ En tratamiento</span>
+                  <span class="badge badge-emerald" style="font-size:9px;">Jones Legal Group</span>
+                  <span class="badge badge-cyan" style="font-size:9px;">Progressive · PIP</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="mock-action-btn primary" style="font-size:10px;">Abrir caso →</button>
+            </div>
+          </div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.45);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <span>Próxima cita: Mañana 10:30 AM · Dr. Loder</span>
+            <span>3 visitas hasta ahora</span>
+          </div>
+        </div>
+
+        <!-- Result 3: caso cerrado (opacity reducida) -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:12px 16px;margin-bottom:8px;cursor:pointer;opacity:0.65;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.10);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.55);font-weight:700;font-size:13px;">SR</div>
+              <div>
+                <div style="color:rgba(255,255,255,0.75);font-weight:700;font-size:13px;">
+                  <span style="background:rgba(99,102,241,0.25);padding:0 2px;border-radius:2px;">Sand</span>ino Reyes
+                </div>
+                <div style="font-size:10.5px;color:rgba(255,255,255,0.55);margin-top:2px;">
+                  <span style="font-family:monospace;color:rgba(255,255,255,0.55);">MVA #2418</span> ·
+                  DOB: 03/Nov/1976 (49 y.o.)
+                </div>
+                <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+                  <span class="badge" style="background:rgba(16,185,129,0.10);color:#34d399;font-size:9px;">✓ Cerrado · Settled</span>
+                </div>
+              </div>
+            </div>
+            <button class="mock-action-btn" style="font-size:10px;">Ver historial →</button>
+          </div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.45);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);">
+            Cerrado 12/Feb/2026 · Settlement $4,200 · 12 visitas
+          </div>
+        </div>
+
+        <!-- Recent searches (cuando input vacío — preview de futuro estado) -->
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.05);">
+          <div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">⌛ Búsquedas recientes</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <div class="mock-input" style="font-size:10px;padding:4px 10px;">🕐 Carlos Vega</div>
+            <div class="mock-input" style="font-size:10px;padding:4px 10px;">🕐 MVA #2901</div>
+            <div class="mock-input" style="font-size:10px;padding:4px 10px;">🕐 Mary Smith (atty)</div>
+            <div class="mock-input" style="font-size:10px;padding:4px 10px;">🕐 Mónica Silva</div>
+          </div>
+        </div>
+
+        <!-- No results CTA -->
+        <div style="margin-top:14px;padding:10px 14px;background:rgba(99,102,241,0.04);border:1px dashed rgba(99,102,241,0.30);border-radius:10px;text-align:center;font-size:10.5px;color:rgba(255,255,255,0.65);">
+          ¿No encuentras al paciente? <button class="mock-action-btn primary" style="font-size:10px;margin-left:6px;">+ Crear caso nuevo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Características clave:</strong>
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Fuzzy search:</strong> "Lopez" encuentra "López" (con tildes), "Sand" encuentra "Sandra", "Sander" y "Sandino".</li>
+      <li><strong>Multi-campo:</strong> nombre · MVA # · teléfono · DOB · email · lien ID — todos buscan simultáneamente.</li>
+      <li><strong>Highlight del match:</strong> la subcadena que coincide se resalta en cada resultado para confirmación visual rápida.</li>
+      <li><strong>Contexto enriquecido:</strong> badges de estado del caso, bufete, aseguradora, próxima cita o monto pendiente — el operador decide qué hacer sin abrir el caso.</li>
+      <li><strong>Keyboard shortcut:</strong> Cmd+K (Mac) / Ctrl+K (Windows) abre el search desde cualquier pantalla.</li>
+      <li><strong>Búsquedas recientes:</strong> cuando el input está vacío muestra las últimas 4 búsquedas del usuario para acceso rápido.</li>
+      <li><strong>Permisos:</strong> el query respeta RLS — cada usuario solo ve pacientes a los que tiene acceso según su rol.</li>
+    </ul>
+  </div>
+</div>
+
 <!-- ═══ CIERRE ═══ -->
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:540px;margin:0 auto 30px;">32 pantallas conceptuales: 29 del flujo end-to-end cronológico + 3 de catálogos master data (bufetes y aseguradoras) que sostienen toda la operación desde la primera llamada de Recepción.</p>
+  <p class="small" style="max-width:540px;margin:0 auto 30px;">34 pantallas conceptuales: 29 del flujo cronológico end-to-end + 4 de catálogos master data (bufetes, aseguradoras, CPT codes) + 1 de búsqueda transversal global — la spec completa del LienMaster v2 lista para Phase 0.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

@@ -5142,14 +5142,19 @@
   </div>
 </div>
 
-<!-- ═══ B.33 — CATÁLOGO DE CPT CODES ═══ -->
+<!-- ═══ B.33 — CATÁLOGO DE SERVICIOS (CPT / HCPCS / Custom) ═══ -->
 <div class="page">
   <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366F1);">B.33 · Catálogos</span>
-  <h2>Catálogo de CPT codes (Current Procedural Terminology)</h2>
-  <p><strong>Quién la usa:</strong> Super Admin + Brunella. <strong>Para qué:</strong> mantener la lista oficial de procedimientos médicos que la clínica factura — sin este catálogo, B.21 (CPT + Firma del doctor) no tiene de dónde elegir códigos y B.26 (HCFA generación) no puede armar el claim. Los CPT codes se actualizan anualmente por la AMA, así que el catálogo está versionado por año fiscal.</p>
+  <h2>Catálogo de Servicios (CPT · HCPCS · Custom)</h2>
+  <p><strong>Quién la usa:</strong> Super Admin + Brunella + Doctores (consume favoritos). <strong>Para qué:</strong> mantener todos los códigos facturables — CPT (procedimientos AMA), HCPCS Level II (drugs/DME del CMS) y Custom internos (visitas directas, selfpay, paquetes). En B.21 (CPT + Firma del doctor) el doctor pickea de aquí; en B.26 (HCFA) Brunella factura usando estos códigos + fees. Versionado por año fiscal porque AMA actualiza códigos cada Enero.</p>
 
   <div class="callout">
-    <strong>Por qué este catálogo es no-negociable:</strong> los CPT codes son el alfabeto del billing médico en EEUU. Cada visita facturada se traduce a 1-5 CPTs. Si un código está mal seleccionado o falta, la aseguradora rechaza el claim y Brunella tiene que apelar (semanas de demora + posible pérdida). La clínica tiene su <strong>fee schedule</strong> propio por código.
+    <strong>Tres tipos de servicios soportados</strong> (basado en análisis del LM legacy actual):
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>CPT</strong> (99213, 98941, 20552) — códigos oficiales AMA · facturables a aseguradoras · cambian anualmente.</li>
+      <li><strong>HCPCS Level II</strong> (J3301 Kenalog, etc.) — códigos CMS para drugs/DME · gratis · facturables.</li>
+      <li><strong>Custom internos</strong> (con prefijo <code>PM-</code> como <code>PM-DIRECT</code>, <code>PM-SELFPAY</code>) — servicios internos de la clínica que no van a aseguradora. <strong>Importante:</strong> el legacy reusa CPT reales como "Selfpay" (ej. 99298) — eso es un anti-pattern porque colisiona con códigos médicos reales y puede confundir a auditores. Los Custom siempre con prefijo <code>PM-</code>.</li>
+    </ul>
   </div>
 
   <div class="mockup">
@@ -5163,155 +5168,221 @@
 
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
           <div>
-            <div class="mock-title">📋 CPT Codes (2026 fee schedule)</div>
-            <div class="mock-subtitle">87 códigos activos · 4 categorías · Última actualización: 02/Ene/2026</div>
+            <div class="mock-title">📋 Servicios facturables (2026 fee schedule)</div>
+            <div class="mock-subtitle">96 servicios activos · CPT + HCPCS + Custom · Última actualización: 02/Ene/2026</div>
           </div>
           <div style="display:flex;gap:6px;">
             <button class="mock-action-btn" style="font-size:11px;">📥 Importar AMA</button>
-            <button class="mock-action-btn primary" style="font-size:11px;">+ Nuevo CPT</button>
+            <button class="mock-action-btn" style="font-size:11px;">👁 Columnas</button>
+            <button class="mock-action-btn primary" style="font-size:11px;">+ Nuevo servicio</button>
           </div>
         </div>
 
+        <!-- Sub-tabs Facturables / Internos -->
+        <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:14px;">
+          <div style="padding:8px 14px;font-size:11px;color:white;border-bottom:2px solid #06B6D4;font-weight:600;">Facturables (87)</div>
+          <div style="padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.55);">Internos / PM- (9)</div>
+          <div style="padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.55);">Bundling rules (12)</div>
+          <div style="padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.55);">Historial de fees</div>
+        </div>
+
         <div class="mock-kpi-row">
-          <div class="mock-kpi"><div class="mock-kpi-label">Códigos activos</div><div class="mock-kpi-value" style="color:#34d399;">87</div><div class="mock-kpi-sub">2026 fiscal year</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Servicios activos</div><div class="mock-kpi-value" style="color:#34d399;">96</div><div class="mock-kpi-sub">87 CPT + 4 HCPCS + 5 Custom</div></div>
           <div class="mock-kpi"><div class="mock-kpi-label">Más facturado</div><div class="mock-kpi-value" style="color:#67e8f9;font-size:13px;">98941</div><div class="mock-kpi-sub">CMT 3-4 regions · 412 / mes</div></div>
           <div class="mock-kpi"><div class="mock-kpi-label">Revenue del mes</div><div class="mock-kpi-value" style="color:#a5b4fc;">$87.3K</div><div class="mock-kpi-sub">Solo procedimientos</div></div>
-          <div class="mock-kpi"><div class="mock-kpi-label">Bundling rules</div><div class="mock-kpi-value" style="color:#fbbf24;">12</div><div class="mock-kpi-sub">Reglas de incompatibilidad</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Mis favoritos</div><div class="mock-kpi-value" style="color:#fbbf24;">18 ⭐</div><div class="mock-kpi-sub">Doctor pickea estos primero</div></div>
         </div>
 
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
-          <input class="mock-input" placeholder="🔍 Buscar por código o descripción..." style="flex:1;min-width:200px;font-size:11px;padding:6px 10px;">
+          <input class="mock-input" placeholder="🔍 Buscar (real-time, fuzzy)..." style="flex:1;min-width:200px;font-size:11px;padding:6px 10px;">
           <select class="mock-input" style="font-size:10px;padding:4px 10px;">
             <option>Año: 2026</option>
             <option>Año: 2025</option>
             <option>Año: 2024</option>
           </select>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
           <div class="mock-input selected" style="font-size:10px;padding:4px 10px;">Todas (87)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">⭐ Mis favoritos (18)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Tipo: CPT (87)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Tipo: HCPCS (4)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Tipo: Custom PM- (5)</div>
           <div class="mock-input" style="font-size:10px;padding:4px 10px;">E&amp;M (12)</div>
           <div class="mock-input" style="font-size:10px;padding:4px 10px;">Chiropractic (8)</div>
-          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Physical Therapy (24)</div>
-          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Diagnostic / Imaging (18)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">PT (24)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Imaging (18)</div>
           <div class="mock-input" style="font-size:10px;padding:4px 10px;">Injections (15)</div>
-          <div class="mock-input" style="font-size:10px;padding:4px 10px;">Otros (10)</div>
         </div>
 
         <table style="width:100%;font-size:11px;border-collapse:separate;border-spacing:0 6px;">
           <thead>
             <tr style="color:rgba(255,255,255,0.45);text-transform:uppercase;font-size:9px;letter-spacing:0.05em;">
+              <th style="text-align:center;padding:4px 8px;width:50px;">⭐</th>
               <th style="text-align:left;padding:4px 8px;">Código</th>
+              <th style="text-align:center;padding:4px 8px;">Tipo</th>
               <th style="text-align:left;padding:4px 8px;">Descripción</th>
               <th style="text-align:center;padding:4px 8px;">Categoría</th>
               <th style="text-align:right;padding:4px 8px;">Fee</th>
-              <th style="text-align:right;padding:4px 8px;">Modifiers</th>
-              <th style="text-align:right;padding:4px 8px;">Mes · Uso</th>
-              <th style="text-align:center;padding:4px 8px;">Status</th>
+              <th style="text-align:right;padding:4px 8px;">Modif.</th>
+              <th style="text-align:right;padding:4px 8px;">Uso / mes</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
+            <!-- Favorito + Top facturado -->
             <tr style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);">
-              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <span style="font-family:monospace;color:white;font-weight:700;">98941</span>
-                  <span style="color:#fbbf24;font-size:11px;" title="Más facturado">⭐</span>
-                </div>
+              <td style="text-align:center;padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="color:#fbbf24;font-size:14px;cursor:pointer;" title="Favorito de Dr. Loder">★</span>
               </td>
-              <td style="padding:10px 8px;color:white;">
+              <td style="padding:10px 8px;"><span style="font-family:monospace;color:white;font-weight:700;">98941</span></td>
+              <td style="text-align:center;padding:10px 8px;"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(99,102,241,0.20);color:#a5b4fc;font-weight:700;">CPT</span></td>
+              <td style="padding:10px 8px;color:white;" title="Chiropractic manipulative treatment (CMT); spinal, 3-4 regions">
                 <div style="font-weight:600;">CMT spine · 3-4 regions</div>
-                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Chiropractic manipulative treatment</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Chiropractic manipulative treatment, spinal</div>
               </td>
               <td style="text-align:center;padding:10px 8px;"><span class="badge badge-cyan">Chiropractic</span></td>
-              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$95.00</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$300.00</td>
               <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">-25</td>
               <td style="text-align:right;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">412</td>
-              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
               <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
-                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
               </td>
             </tr>
+
+            <!-- Office visits -->
             <tr style="background:rgba(255,255,255,0.03);">
-              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
-                <span style="font-family:monospace;color:white;font-weight:700;">98940</span>
+              <td style="text-align:center;padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="color:#fbbf24;font-size:14px;cursor:pointer;">★</span>
               </td>
-              <td style="padding:10px 8px;color:white;">
-                <div style="font-weight:600;">CMT spine · 1-2 regions</div>
-                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Chiropractic manipulative treatment</div>
-              </td>
-              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-cyan">Chiropractic</span></td>
-              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$75.00</td>
-              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">-25</td>
-              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">287</td>
-              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
-              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
-                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
-              </td>
-            </tr>
-            <tr style="background:rgba(255,255,255,0.03);">
-              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
-                <span style="font-family:monospace;color:white;font-weight:700;">99213</span>
-              </td>
-              <td style="padding:10px 8px;color:white;">
-                <div style="font-weight:600;">Office visit · Est. patient · 15 min</div>
-                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Evaluation &amp; Management · low complexity</div>
+              <td style="padding:10px 8px;"><span style="font-family:monospace;color:white;font-weight:700;">99213</span></td>
+              <td style="text-align:center;padding:10px 8px;"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(99,102,241,0.20);color:#a5b4fc;font-weight:700;">CPT</span></td>
+              <td style="padding:10px 8px;color:white;" title="Office outpatient visit, established patient, 15 minutes, low complexity">
+                <div style="font-weight:600;">Office outpatient visit · 15 min</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Established patient · Evaluation &amp; Management · low complexity</div>
               </td>
               <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(99,102,241,0.18);color:#a5b4fc;font-size:9px;">E&amp;M</span></td>
-              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$120.00</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$250.00</td>
               <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">—</td>
-              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">198</td>
-              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;font-weight:700;">198</td>
               <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
-                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
               </td>
             </tr>
+
             <tr style="background:rgba(255,255,255,0.03);">
-              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
-                <span style="font-family:monospace;color:white;font-weight:700;">97110</span>
+              <td style="text-align:center;padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="color:#fbbf24;font-size:14px;cursor:pointer;">★</span>
               </td>
+              <td style="padding:10px 8px;"><span style="font-family:monospace;color:white;font-weight:700;">99214</span></td>
+              <td style="text-align:center;padding:10px 8px;"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(99,102,241,0.20);color:#a5b4fc;font-weight:700;">CPT</span></td>
               <td style="padding:10px 8px;color:white;">
-                <div style="font-weight:600;">Therapeutic exercises · 15 min</div>
-                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Physical therapy · ROM, strength</div>
+                <div style="font-weight:600;">Office outpatient visit · 25 min</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Established patient · moderate complexity</div>
               </td>
-              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(245,158,11,0.18);color:#fbbf24;font-size:9px;">PT</span></td>
-              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$55.00</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(99,102,241,0.18);color:#a5b4fc;font-size:9px;">E&amp;M</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$300.00</td>
               <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">—</td>
-              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">156</td>
-              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">142</td>
               <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
-                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
               </td>
             </tr>
+
             <tr style="background:rgba(255,255,255,0.03);">
-              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
-                <span style="font-family:monospace;color:white;font-weight:700;">20552</span>
+              <td style="text-align:center;padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="color:rgba(255,255,255,0.25);font-size:14px;cursor:pointer;">☆</span>
               </td>
+              <td style="padding:10px 8px;"><span style="font-family:monospace;color:white;font-weight:700;">99203</span></td>
+              <td style="text-align:center;padding:10px 8px;"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(99,102,241,0.20);color:#a5b4fc;font-weight:700;">CPT</span></td>
               <td style="padding:10px 8px;color:white;">
-                <div style="font-weight:600;">Injection · trigger point · 1-2 muscles</div>
-                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Pain management</div>
+                <div style="font-weight:600;">Office outpatient new · 30 min</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">New patient · low complexity</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(99,102,241,0.18);color:#a5b4fc;font-size:9px;">E&amp;M</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$350.00</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">—</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.55);font-family:monospace;">76</td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
+              </td>
+            </tr>
+
+            <!-- Injections -->
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="text-align:center;padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="color:rgba(255,255,255,0.25);font-size:14px;cursor:pointer;">☆</span>
+              </td>
+              <td style="padding:10px 8px;"><span style="font-family:monospace;color:white;font-weight:700;">20552</span></td>
+              <td style="text-align:center;padding:10px 8px;"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(99,102,241,0.20);color:#a5b4fc;font-weight:700;">CPT</span></td>
+              <td style="padding:10px 8px;color:white;" title="Injection(s); single or multiple trigger point(s), 1 or 2 muscle(s)">
+                <div style="font-weight:600;">Trigger point injection · 1-2 muscles</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Injection(s); single or multiple trigger point(s)</div>
               </td>
               <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(244,63,94,0.18);color:#fda4af;font-size:9px;">Injection</span></td>
-              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$185.00</td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$300.00</td>
               <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">-25, -59</td>
               <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.55);font-family:monospace;">42</td>
-              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
               <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
-                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
               </td>
             </tr>
-            <tr style="background:rgba(255,255,255,0.03);">
-              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
-                <span style="font-family:monospace;color:white;font-weight:700;">72100</span>
+
+            <!-- HCPCS Level II — drug code -->
+            <tr style="background:rgba(16,185,129,0.04);border:1px solid rgba(16,185,129,0.18);">
+              <td style="text-align:center;padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="color:rgba(255,255,255,0.25);font-size:14px;cursor:pointer;">☆</span>
               </td>
-              <td style="padding:10px 8px;color:white;">
-                <div style="font-weight:600;">X-ray spine · lumbar · 2-3 views</div>
-                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Radiology / Diagnostic</div>
+              <td style="padding:10px 8px;"><span style="font-family:monospace;color:white;font-weight:700;">J3301</span></td>
+              <td style="text-align:center;padding:10px 8px;"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(16,185,129,0.20);color:#34d399;font-weight:700;">HCPCS</span></td>
+              <td style="padding:10px 8px;color:white;" title="Kenalog injection, triamcinolone acetonide, 10mg per unit">
+                <div style="font-weight:600;">Kenalog injection · per 10 mg</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Triamcinolone acetonide · CMS HCPCS Level II</div>
               </td>
-              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(139,92,246,0.18);color:#c4b5fd;font-size:9px;">Imaging</span></td>
-              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$95.00</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(16,185,129,0.18);color:#34d399;font-size:9px;">Drug</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$120.00</td>
               <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">—</td>
               <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.55);font-family:monospace;">38</td>
-              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
               <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
-                <button class="mock-action-btn" style="font-size:10px;">Editar</button>
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
+              </td>
+            </tr>
+
+            <!-- Custom code interno con prefijo PM- (fix del anti-pattern del legacy) -->
+            <tr style="background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.18);">
+              <td style="text-align:center;padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="color:rgba(255,255,255,0.25);font-size:14px;cursor:pointer;">☆</span>
+              </td>
+              <td style="padding:10px 8px;"><span style="font-family:monospace;color:white;font-weight:700;">PM-DIRECT</span></td>
+              <td style="text-align:center;padding:10px 8px;"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(139,92,246,0.20);color:#c4b5fd;font-weight:700;">CUSTOM</span></td>
+              <td style="padding:10px 8px;color:white;" title="Direct care visit — pago directo del paciente sin pasar por aseguradora">
+                <div style="font-weight:600;">Direct care visit (selfpay)</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">No facturable a aseguradora · Pago directo del paciente</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(139,92,246,0.18);color:#c4b5fd;font-size:9px;">Interno</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$10.00</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">—</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.55);font-family:monospace;">23</td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
+              </td>
+            </tr>
+
+            <tr style="background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.18);">
+              <td style="text-align:center;padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="color:rgba(255,255,255,0.25);font-size:14px;cursor:pointer;">☆</span>
+              </td>
+              <td style="padding:10px 8px;"><span style="font-family:monospace;color:white;font-weight:700;">PM-SELFPAY</span></td>
+              <td style="text-align:center;padding:10px 8px;"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(139,92,246,0.20);color:#c4b5fd;font-weight:700;">CUSTOM</span></td>
+              <td style="padding:10px 8px;color:white;" title="Self-pay visit — el legacy usa '99298' lo cual es un CPT real (Neonatal critical care) — eso es ANTI-PATTERN. Aquí se usa prefijo PM-">
+                <div style="font-weight:600;">Self-pay visit</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">⚠ Migrado del legacy '99298' (CPT real) — renombrado para no colisionar</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(139,92,246,0.18);color:#c4b5fd;font-size:9px;">Interno</span></td>
+              <td style="text-align:right;padding:10px 8px;color:#34d399;font-family:monospace;font-weight:700;">$100.00</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.65);font-family:monospace;font-size:10px;">—</td>
+              <td style="text-align:right;padding:10px 8px;color:rgba(255,255,255,0.55);font-family:monospace;">17</td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">⋯</button>
               </td>
             </tr>
           </tbody>
@@ -5329,7 +5400,31 @@
   </div>
 
   <div class="callout callout-success">
-    <strong>Beneficios:</strong> (1) Doctor en B.21 ve solo CPTs del año fiscal vigente — no códigos descontinuados. (2) Modifiers se sugieren automáticamente según reglas de bundling. (3) Fee schedule unificado evita inconsistencias de cobro entre clínicas. (4) Métricas de uso permiten optimizar: si el 60% del revenue viene de 98941, eso guía staffing y supplies.
+    <strong>Beneficios y mejoras vs. LM legacy:</strong>
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>⭐ Favoritos por usuario</strong> (igual al legacy pero mejor) — cada doctor marca sus 15-30 códigos regulares. En B.21 aparecen primero al firmar nota, reduciendo 80% del tiempo de selección.</li>
+      <li><strong>3 tipos visibles</strong>: badge CPT (azul) · HCPCS (verde) · CUSTOM (violeta). El legacy mezcla todo sin distinción.</li>
+      <li><strong>Prefijo PM- obligatorio para Custom</strong> — corrige el bug del legacy donde "99298 = Selfpay" colisiona con CPT real (Neonatal critical care). El migration script renombra estos a PM-* automáticamente.</li>
+      <li><strong>Descripciones completas siempre visibles</strong> — el legacy las trunca con "...". Aquí 2 líneas en row + tooltip al hover con la descripción AMA oficial completa.</li>
+      <li><strong>Real-time fuzzy search</strong> (no requiere Enter como el legacy).</li>
+      <li><strong>Sub-tabs Facturables / Internos / Bundling / Historial</strong> — separación clara entre lo que va a aseguradora y lo que es interno.</li>
+      <li><strong>Año fiscal versionado</strong> — selector arriba muestra códigos válidos para 2026, 2025, 2024. El legacy mezcla años sin distinción.</li>
+      <li><strong>Toggle "Columnas"</strong> para power-users (ocultar uso/modifiers si no los usan).</li>
+      <li><strong>Métricas de uso por mes</strong> — el legacy no tiene esto. Optimiza staffing y supplies basado en datos reales.</li>
+      <li><strong>Bundling rules</strong> — validación automática al firmar nota (ej. 98941 + 97110 requiere modifier -59). El legacy no tiene esta protección — Brunella encuentra el error solo después que la aseguradora rechaza.</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <strong>📋 Plan de migración desde LM legacy:</strong>
+    <ol style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li>Extraer todos los servicios del LM legacy con su <code>código · descripción · monto · favorito</code>.</li>
+      <li>Auto-clasificar por tipo: si empieza con número y existe en catálogo AMA → CPT. Si empieza con letra (J, A, E) y existe en CMS HCPCS → HCPCS. Si es palabra (PMDC) o no matchea → Custom (renombrar con prefijo PM-).</li>
+      <li>Auto-asignar categoría según el código: 99xxx → E&amp;M, 989xx → Chiropractic, 97xxx → PT, 20xxx → Injection, 7xxxx → Imaging.</li>
+      <li>Marcar año fiscal del último uso registrado.</li>
+      <li>Importar fees actuales tal cual; admin puede ajustar después.</li>
+      <li>Favoritos del legacy → todos al usuario "Migration default", cada doctor luego cura sus propios.</li>
+    </ol>
   </div>
 </div>
 

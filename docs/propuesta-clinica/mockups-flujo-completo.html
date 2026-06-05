@@ -6288,28 +6288,28 @@
   <h2>Vista de Sala (Waiting Room TV display)</h2>
 
   <!-- ★★★ HIPAA BANNER PROMINENTE — primera cosa que se ve ★★★ -->
-  <div style="background:linear-gradient(135deg,rgba(16,185,129,0.18),rgba(16,185,129,0.06));border:2px solid rgba(16,185,129,0.55);border-radius:14px;padding:18px 24px;margin:18px 0;">
+  <div style="background:linear-gradient(135deg,#064e3b 0%,#065f46 100%);border:2px solid #10B981;border-radius:14px;padding:18px 24px;margin:18px 0;color:white;">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
       <div style="font-size:36px;line-height:1;">🛡️</div>
       <div>
-        <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;">HIPAA Compliance · 45 CFR § 164.514</div>
-        <div style="font-size:18px;font-weight:800;color:white;margin-top:3px;">Display público — anonimización obligatoria</div>
+        <div style="font-size:11px;color:#86efac;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;">HIPAA Compliance · 45 CFR § 164.514</div>
+        <div style="font-size:18px;font-weight:800;color:#ffffff;margin-top:3px;">Display público — anonimización obligatoria</div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;">
-      <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.30);border-radius:10px;padding:12px 14px;">
-        <div style="font-size:11px;font-weight:700;color:#34d399;margin-bottom:6px;">✅ PERMITIDO</div>
-        <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.65;">
-          <li><strong>Iniciales</strong> + 2 últimos dígitos MVA (<code>E.S - 62</code>)</li>
-          <li>Nombre del <strong>doctor</strong> (no es PHI)</li>
-          <li>Número de <strong>sala</strong></li>
-          <li><strong>Estimación de tiempo</strong> (avg histórico)</li>
-          <li><strong>Status</strong> del paciente (Esperando / Triaje / En consulta)</li>
+      <div style="background:rgba(16,185,129,0.15);border:1px solid rgba(134,239,172,0.40);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;font-weight:700;color:#86efac;margin-bottom:6px;">✅ PERMITIDO</div>
+        <ul style="margin:0;padding-left:18px;font-size:12px;color:#ffffff;line-height:1.65;">
+          <li><strong style="color:#ffffff;">Iniciales</strong> + 2 últimos dígitos MVA (<code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#86efac;">E.S - 62</code>)</li>
+          <li>Nombre del <strong style="color:#ffffff;">doctor</strong> (no es PHI)</li>
+          <li>Número de <strong style="color:#ffffff;">sala</strong></li>
+          <li><strong style="color:#ffffff;">Estimación de tiempo</strong> (avg histórico)</li>
+          <li><strong style="color:#ffffff;">Status</strong> del paciente (Esperando / Triaje / En consulta)</li>
         </ul>
       </div>
-      <div style="background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.30);border-radius:10px;padding:12px 14px;">
-        <div style="font-size:11px;font-weight:700;color:#fda4af;margin-bottom:6px;">❌ NUNCA</div>
-        <ul style="margin:0;padding-left:18px;font-size:12px;color:rgba(255,255,255,0.85);line-height:1.65;">
+      <div style="background:rgba(244,63,94,0.15);border:1px solid rgba(252,165,165,0.40);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;font-weight:700;color:#fca5a5;margin-bottom:6px;">❌ NUNCA</div>
+        <ul style="margin:0;padding-left:18px;font-size:12px;color:#ffffff;line-height:1.65;">
           <li>Nombre completo del paciente</li>
           <li>Fecha de nacimiento o edad</li>
           <li>Diagnóstico o razón de la visita</li>
@@ -6318,8 +6318,8 @@
         </ul>
       </div>
     </div>
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(16,185,129,0.25);font-size:11.5px;color:rgba(255,255,255,0.75);line-height:1.55;">
-      🔒 <strong>Defensa server-side:</strong> el endpoint público <code>/lobby/:clinicId</code> tiene <strong>RLS de Supabase</strong> que <strong>nunca</strong> expone campos PHI — incluso si un cliente intentara hackear el frontend, el servidor no devolvería esos datos. Esta es defensa en profundidad: anonimización + RLS + audit log.
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(134,239,172,0.30);font-size:11.5px;color:rgba(255,255,255,0.90);line-height:1.55;">
+      🔒 <strong style="color:#ffffff;">Defensa server-side:</strong> el endpoint público <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#86efac;">/lobby/:clinicId</code> tiene <strong style="color:#ffffff;">RLS de Supabase</strong> que <strong style="color:#ffffff;">nunca</strong> expone campos PHI — incluso si un cliente intentara hackear el frontend, el servidor no devolvería esos datos. Esta es defensa en profundidad: anonimización + RLS + audit log.
     </div>
   </div>
 
@@ -6450,36 +6450,36 @@
 
   <h3 style="margin-top:24px;">Cómo cambia el status (automático)</h3>
 
-  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:18px;margin:14px 0;">
-    <div style="display:flex;flex-direction:column;gap:12px;font-size:12.5px;color:rgba(255,255,255,0.85);">
+  <div style="background:#131c34;border:1px solid #2c3856;border-radius:12px;padding:18px;margin:14px 0;color:#e0e7ff;">
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:12.5px;">
       <div style="display:flex;align-items:flex-start;gap:14px;">
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:12px;flex-shrink:0;">1</div>
-        <div>
-          <strong style="color:white;">Check-in en B.14</strong> → status pasa a <code>WAITING</code>. El paciente aparece en "Esperando" del display.
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.30);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:12px;flex-shrink:0;">1</div>
+        <div style="color:#e0e7ff;">
+          <strong style="color:#ffffff;">Check-in en B.14</strong> → status pasa a <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#a5b4fc;">WAITING</code>. El paciente aparece en "Esperando" del display.
         </div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:14px;">
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(245,158,11,0.20);display:flex;align-items:center;justify-content:center;color:#fbbf24;font-weight:700;font-size:12px;flex-shrink:0;">2</div>
-        <div>
-          <strong style="color:white;">MA abre el triaje en B.16</strong> → status pasa a <code>IN_TRIAGE</code>. Aparece en "En triaje" del display + animación de "Ahora llamando" 5 segundos.
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(245,158,11,0.30);display:flex;align-items:center;justify-content:center;color:#fbbf24;font-weight:700;font-size:12px;flex-shrink:0;">2</div>
+        <div style="color:#e0e7ff;">
+          <strong style="color:#ffffff;">MA abre el triaje en B.16</strong> → status pasa a <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#fbbf24;">IN_TRIAGE</code>. Aparece en "En triaje" del display + animación de "Ahora llamando" 5 segundos.
         </div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:14px;">
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:12px;flex-shrink:0;">3</div>
-        <div>
-          <strong style="color:white;">MA confirma "Pasar a Dr. Loder" en B.16</strong> → status pasa a <code>WAITING_FOR_ROOM</code> (vuelve al lobby si el doctor no está libre) o directo a <code>IN_ROOM</code>.
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.30);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:12px;flex-shrink:0;">3</div>
+        <div style="color:#e0e7ff;">
+          <strong style="color:#ffffff;">MA confirma "Pasar a Dr. Loder" en B.16</strong> → status pasa a <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#a5b4fc;">WAITING_FOR_ROOM</code> (vuelve al lobby si el doctor no está libre) o directo a <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#a5b4fc;">IN_ROOM</code>.
         </div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:14px;">
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(244,63,94,0.20);display:flex;align-items:center;justify-content:center;color:#fda4af;font-weight:700;font-size:12px;flex-shrink:0;">4</div>
-        <div>
-          <strong style="color:white;">Doctor abre la visita en B.18</strong> → status pasa a <code>IN_CONSULTATION</code> + se asigna sala. Aparece en "En Consulta" del display con el nombre del doctor + sala + tiempo iniciado.
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(244,63,94,0.30);display:flex;align-items:center;justify-content:center;color:#fda4af;font-weight:700;font-size:12px;flex-shrink:0;">4</div>
+        <div style="color:#e0e7ff;">
+          <strong style="color:#ffffff;">Doctor abre la visita en B.18</strong> → status pasa a <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#fda4af;">IN_CONSULTATION</code> + se asigna sala. Aparece en "En Consulta" del display con el nombre del doctor + sala + tiempo iniciado.
         </div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:14px;">
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,0.20);display:flex;align-items:center;justify-content:center;color:#34d399;font-weight:700;font-size:12px;flex-shrink:0;">5</div>
-        <div>
-          <strong style="color:white;">Doctor firma la nota en B.21</strong> → status pasa a <code>DONE</code>. El paciente sale del display automáticamente. Stats del día se incrementan.
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,0.30);display:flex;align-items:center;justify-content:center;color:#34d399;font-weight:700;font-size:12px;flex-shrink:0;">5</div>
+        <div style="color:#e0e7ff;">
+          <strong style="color:#ffffff;">Doctor firma la nota en B.21</strong> → status pasa a <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#34d399;">DONE</code>. El paciente sale del display automáticamente. Stats del día se incrementan.
         </div>
       </div>
     </div>

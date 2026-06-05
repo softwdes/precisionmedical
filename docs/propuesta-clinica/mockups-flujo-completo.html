@@ -300,7 +300,10 @@
   <ul style="list-style: none; margin-left: 0;">
     <li><strong>B.16 — Triaje · Toma de signos vitales (MA)</strong> · entre admisión y el doctor, en iPad</li>
     <li>B.17 — Dashboard del Doctor "Mi día"</li>
-    <li>B.18 — Visita en sala (Split view)</li>
+    <li><strong>B.17.5 — Entry points a la nota</strong> · 3 caminos + modal "Detalles de cita" + guardrails + cadena Plantillas/Notas previas</li>
+    <li><strong>B.17.6 — Selector de plantillas</strong> · modal "Copiar plantilla" con lista + preview + secciones togglebles + favoritos por doctor</li>
+    <li><strong>B.17.7 — Admin de plantillas</strong> (propuesta Claude) · CRUD personal/shared/specialty + workflow de promoción</li>
+    <li><strong>B.18 — Visita en sala</strong> · Tabs Nota/Historial · sidebar paciente · vital signs estructurados · 7 secciones con plantillas por sección · AI bot · botón Firmar</li>
     <li><strong>B.19 — Prescripción + DAW EPCS</strong> (integración API · controladas)</li>
     <li>B.20 — Órdenes de laboratorio</li>
     <li>B.21 — Servicios CPT + Firma de nota</li>
@@ -356,7 +359,7 @@
   </ul>
 
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>38 mockups</strong> — 29 del flujo end-to-end cronológico + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby + <strong>1 de roadmap futuro (B.38)</strong>. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), ICD-10 y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket. <strong>B.38 (Roadmap)</strong>: AI Receptionist NO va en Phase 0-2 — se evalúa en Phase 3+ cuando Claude lo recomiende según criterios de madurez del sistema.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>41 mockups</strong> — 29 del flujo end-to-end cronológico + 3 nuevos del flujo Doctor Notes (B.17.5/B.17.6/B.17.7) + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby + <strong>1 de roadmap futuro (B.38)</strong>. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. <strong>Doctor Notes (B.17.5-B.18)</strong>: cadena completa de modales capturada del legacy 2026-06-05 (Detalles cita → Cargar nota → Copiar plantilla → editor con 7 secciones · plantillas por sección · diagnósticos dual ICD-10+SNOMED · closing case prices snapshot). Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), <strong>Diagnósticos ICD-10+SNOMED (B.35 expandido)</strong> y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket. <strong>B.38 (Roadmap)</strong>: AI Receptionist NO va en Phase 0-2 — se evalúa en Phase 3+ cuando Claude lo recomiende según criterios de madurez del sistema.
   </div>
 </div>
 
@@ -2997,71 +3000,900 @@
   </ul>
 </div>
 
-<!-- ═══ B.18 — VISIT SPLIT-VIEW (era B.17) ═══ -->
+<!-- ═══ B.17.5 — ENTRY POINTS A LA NOTA (3 caminos + cadena de modales) ═══ -->
 <div class="page">
-  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.18 · Clinical Visit</span>
-  <h2>Vista del Doctor · Visita en sala (Split view)</h2>
-  <p><strong>Concepto:</strong> toda la información que el doctor necesita en una sola pantalla. <strong>Izquierda:</strong> ficha clínica del paciente (referencia). <strong>Derecha:</strong> nota SOAP editable con plantilla precargada por especialidad.</p>
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.17.5 · Clinical Visit</span>
+  <h2>Doctor entra a la nota · 3 caminos + cadena de modales</h2>
+  <p><strong>Concepto:</strong> el doctor llega a la nota (B.18) desde 3 entry points distintos. En todos los caminos hay <strong>guardrails</strong> (firma de presentación, triaje completo, PIP verificado) y una <strong>cadena de modales</strong> antes de entrar a escribir: "Detalles de cita" → "Cargar en la nota actual" (Plantillas/Notas previas) → B.18.</p>
+
+  <div class="callout">
+    <strong>Capturado del legacy (2026-06-05):</strong> Erick proporcionó screenshots del flujo real. Este mockup mapea fielmente la cadena observada, con la adición de los guardrails clínicos (no estaban explícitos en la UI pero deben enforcearse).
+  </div>
+
+  <h3>Los 3 caminos al editor de la nota</h3>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0;">
+    <div style="background:linear-gradient(135deg,rgba(99,102,241,0.10),rgba(6,182,212,0.06));border:1px solid rgba(99,102,241,0.30);border-radius:12px;padding:18px 20px;">
+      <div style="font-size:11px;color:#a5b4fc;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;margin-bottom:8px;">Camino 1</div>
+      <div style="font-size:14px;font-weight:700;color:white;margin-bottom:6px;">📅 Desde el calendario</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.75);line-height:1.55;">Click en evento del calendario (B.10) → abre modal "Detalles de la cita" → botón "Ingresar nota". Usa: doctor mirando su día/semana.</div>
+    </div>
+    <div style="background:linear-gradient(135deg,rgba(139,92,246,0.10),rgba(236,72,153,0.06));border:1px solid rgba(139,92,246,0.30);border-radius:12px;padding:18px 20px;">
+      <div style="font-size:11px;color:#c4b5fd;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;margin-bottom:8px;">Camino 2</div>
+      <div style="font-size:14px;font-weight:700;color:white;margin-bottom:6px;">📋 Desde "Mi día" del doctor</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.75);line-height:1.55;">Lista vertical de pacientes hoy (B.17) → botón "Atender ahora →" en el hero. Usa: doctor que arranca su jornada en el dashboard.</div>
+    </div>
+    <div style="background:linear-gradient(135deg,rgba(16,185,129,0.10),rgba(6,182,212,0.06));border:1px solid rgba(16,185,129,0.30);border-radius:12px;padding:18px 20px;">
+      <div style="font-size:11px;color:#6ee7b7;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;margin-bottom:8px;">Camino 3</div>
+      <div style="font-size:14px;font-weight:700;color:white;margin-bottom:6px;">🔔 Desde notificación</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.75);line-height:1.55;">MA confirma triaje en B.16 → notificación push al doctor → click → modal "Detalles" → "Ingresar nota". Usa: flujo reactivo, paciente ya listo.</div>
+    </div>
+  </div>
+
+  <h3>Modal 1 · "Detalles de la cita" — vista del Doctor</h3>
+
+  <p>El mismo modal de B.11 pero con la vista del rol Doctor: info clínica + guardrails + acción "Ingresar nota". El contenido visible varía por RBAC.</p>
 
   <div class="mockup">
-    <div class="mockup-frame">
-      <div class="mock-topbar">
-        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
-        <div class="mock-search">← Mario Fernández · MVA #2865 · Visit 3 · 03:00 PM</div>
-        <span class="mock-time">⏱ 03:08</span>
-      </div>
-      <div style="display:grid;grid-template-columns:38% 62%;">
-        <div style="padding:14px 18px;background:rgba(0,0,0,0.18);border-right:1px solid rgba(255,255,255,0.05);">
-          <div style="color:white;font-weight:700;font-size:13px;margin-bottom:4px;">📋 Ficha clínica</div>
-          <div style="font-size:10.5px;color:rgba(255,255,255,0.85);">Edad 42 · Masculino · <span style="color:#fbbf24;">⚠ Alergia: Penicilina</span></div>
-
-          <div style="font-size:10px;color:var(--brand-cyan);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid rgba(6,182,212,0.20);">Historia del caso</div>
-          <div style="font-size:10.5px;color:rgba(255,255,255,0.80);">DOL: 15/Mar/2026 · Rear-end collision</div>
-
-          <div style="font-size:10px;color:var(--brand-cyan);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid rgba(6,182,212,0.20);">Visitas previas (2)</div>
-          <div class="mock-field-block">1/Jun · Initial · cervicalgia + radiculopatía</div>
-          <div class="mock-field-block">15/May · Follow-up · ROM mejoró 20°</div>
-
-          <div style="font-size:10px;color:var(--brand-cyan);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid rgba(6,182,212,0.20);">Diagnósticos activos</div>
-          <div class="mock-field-block">M54.2 — Cervicalgia<br>S13.4 — Esguince cervical</div>
-
-          <div style="font-size:10px;color:var(--brand-cyan);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid rgba(6,182,212,0.20);">Medicaciones activas</div>
-          <div class="mock-field-block">Cyclobenzaprine 10mg HS<br>Naproxen 500mg BID</div>
-
-          <div style="font-size:10px;color:var(--brand-cyan);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid rgba(6,182,212,0.20);">Lien &amp; abogado</div>
-          <div class="mock-field-block">Smith &amp; Johnson LLP<br>Attorney: Mary Smith<br>PIP: GEICO #PIP-204</div>
+    <div class="mockup-frame" style="max-width:560px;margin:0 auto;">
+      <div style="padding:20px 24px;background:linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95));">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:18px;">📅</span>
+            <span style="color:white;font-weight:700;font-size:15px;">Detalles de la cita</span>
+          </div>
+          <span style="color:rgba(255,255,255,0.50);font-size:18px;cursor:pointer;">×</span>
         </div>
 
-        <div style="padding:14px 18px;background:rgba(99,102,241,0.03);">
-          <div style="color:white;font-weight:700;font-size:13px;margin-bottom:4px;">📝 Nota SOAP</div>
-          <div style="font-size:10.5px;color:rgba(255,255,255,0.55);margin-bottom:12px;">Plantilla: Auto Accident Follow-up · Auto-guardado: hace 12s</div>
+        <div style="background:rgba(0,0,0,0.30);border-radius:10px;padding:16px 18px;margin-bottom:16px;">
+          <div style="font-size:11px;color:rgba(255,255,255,0.55);font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:10px;">Información de la cita</div>
 
-          <div style="margin-top:10px;"><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:linear-gradient(135deg,var(--brand-indigo),var(--brand-violet));color:white;font-weight:700;font-size:10px;margin-bottom:4px;">S</span> &nbsp;Subjetivo</div>
-          <div class="mock-field-block">Pt reports neck pain 6/10. Tingling in right hand. Headaches at night.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+            <div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.50);">👤 Paciente</div>
+              <div style="color:white;font-size:12px;font-weight:600;">Erick Paciente de Prueba</div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.50);">👨‍⚕️ Doctor</div>
+              <div style="color:white;font-size:12px;font-weight:600;">Andrew Nielsen</div>
+            </div>
+          </div>
 
-          <div style="margin-top:10px;"><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:linear-gradient(135deg,var(--brand-indigo),var(--brand-violet));color:white;font-weight:700;font-size:10px;margin-bottom:4px;">O</span> &nbsp;Objetivo</div>
-          <div class="mock-field-block">BP 124/82 · HR 76 · Cervical ROM reduced 30°. +Spurling test right. No motor deficit.</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+            <span style="background:rgba(16,185,129,0.15);color:#34d399;padding:3px 9px;border-radius:100px;font-size:10px;font-weight:600;">Auto Accidents</span>
+            <span style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.75);padding:3px 9px;border-radius:100px;font-size:10px;">📍 Provo</span>
+          </div>
 
-          <div style="margin-top:10px;"><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:linear-gradient(135deg,var(--brand-indigo),var(--brand-violet));color:white;font-weight:700;font-size:10px;margin-bottom:4px;">A</span> &nbsp;Análisis</div>
-          <div class="mock-field-block">Cervical strain w/ C6 radiculopathy. Stable. Persistent symptoms.<br>ICD: M54.2, M54.12</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+            <span style="font-size:10px;color:rgba(255,255,255,0.55);">Estado:</span>
+            <span style="background:rgba(16,185,129,0.20);color:#34d399;padding:2px 9px;border-radius:100px;font-size:10px;font-weight:600;">Confirmado</span>
+            <span style="background:rgba(244,63,94,0.18);color:#fda4af;padding:2px 9px;border-radius:100px;font-size:10px;font-weight:600;">MVA</span>
+            <span style="background:rgba(244,63,94,0.25);color:#fda4af;padding:2px 9px;border-radius:100px;font-size:10px;font-weight:600;">⚠ No firmado</span>
+          </div>
 
-          <div style="margin-top:10px;"><span style="display:inline-block;padding:2px 8px;border-radius:4px;background:linear-gradient(135deg,var(--brand-indigo),var(--brand-violet));color:white;font-weight:700;font-size:10px;margin-bottom:4px;">P</span> &nbsp;Plan</div>
-          <div class="mock-field-block">1. Continue cyclobenzaprine.<br>2. Add gabapentin 300mg HS x 14d.<br>3. MRI cervical spine — order placed.<br>4. Follow-up 2 weeks.</div>
+          <div style="display:flex;align-items:center;gap:10px;color:rgba(255,255,255,0.85);font-size:12px;margin-bottom:10px;">
+            <span style="color:var(--brand-cyan);">🕗</span>
+            <span><strong style="color:white;">08:30 - 08:45</strong> · vie de 5 jun</span>
+          </div>
 
-          <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;">
-            <button class="mock-action-btn">💊 Prescribir</button>
-            <button class="mock-action-btn">🧪 Ordenar Lab</button>
-            <button class="mock-action-btn">📋 CPT codes</button>
-            <button class="mock-action-btn primary">🏁 Firmar + Alta →</button>
+          <button class="mock-action-btn" style="width:100%;justify-content:center;padding:9px;">📋 Servicios</button>
+
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08);font-size:10px;color:rgba(255,255,255,0.50);line-height:1.6;">
+            REGISTRADO POR: Erick Salinas<br>
+            FECHA DE REGISTRO: Jun 5, 2026 · 4:47 PM
+          </div>
+        </div>
+
+        <!-- Guardrail visible: firma de presentación -->
+        <div style="background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(217,119,6,0.10));border:1px solid rgba(245,158,11,0.50);border-radius:10px;padding:12px 14px;margin-bottom:12px;">
+          <div style="display:flex;align-items:flex-start;gap:10px;">
+            <div style="font-size:18px;">⚠️</div>
+            <div style="flex:1;">
+              <div style="color:#fbbf24;font-size:12px;font-weight:700;margin-bottom:3px;">Esta es la primera cita del paciente en su caso MVA</div>
+              <div style="color:rgba(255,255,255,0.75);font-size:11px;line-height:1.50;">Falta firma de presentación. Escanee el QR para completar.</div>
+            </div>
+            <button class="mock-action-btn" style="font-size:10px;padding:6px 10px;background:rgba(0,0,0,0.30);border-color:rgba(245,158,11,0.40);color:#fbbf24;flex-shrink:0;">📱 QR de cita</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button class="mock-action-btn" style="flex:1;justify-content:center;padding:11px;">📱 QR de cita</button>
+          <button class="mock-action mock-action-primary" style="flex:1;justify-content:center;padding:11px;background:linear-gradient(135deg,#06b6d4,#3b82f6);border:none;color:white;font-weight:700;font-size:12px;border-radius:8px;">✏️ Ingresar nota</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Guardrails clínicos (visibles antes de "Ingresar nota")</h3>
+
+  <p>Si alguno de estos no se cumple, el sistema muestra alerta. El botón "Ingresar nota" se mantiene visible pero pide confirmación adicional según severidad.</p>
+
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:14px 0;">
+      <thead>
+        <tr style="background:rgba(99,102,241,0.10);">
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Guardrail</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Trigger</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Severidad</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Comportamiento</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Firma de presentación pendiente</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Paciente NO firmó intake forms del portal (B.5-9)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#fbbf24;">🟡 Warning</span></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Alert amarillo + botón "QR de cita" para resolver. Permite continuar con confirm.</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Triaje no completado</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">MA aún no terminó signos vitales en B.16</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#fda4af;">🔴 Bloqueante</span></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Alert rojo. Botón "Ingresar nota" deshabilitado. Mensaje "Esperando triaje de MA".</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">PIP no verificado por Edson</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Edson aún no marcó verificado en B.12</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#fbbf24;">🟡 Warning</span></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Alert amarillo. Permite continuar (no bloquea consulta). Brunella verá el flag en B.25.</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Paciente sin check-in</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Front Office NO confirmó arribo en B.14</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#fda4af;">🔴 Bloqueante</span></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Botón deshabilitado. "Paciente aún no ha hecho check-in en recepción".</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Caso cerrado / archivado</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Estado del caso = CLOSED o ARCHIVED</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#fda4af;">🔴 Bloqueante</span></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Botón deshabilitado. Solo lectura. Requiere Super Admin para reabrir el caso.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Modal 2 · "Cargar en la nota actual" (después de "Ingresar nota")</h3>
+
+  <p>Capturado del legacy: al clickear "Ingresar nota", aparece este modal con dos opciones grandes. El doctor SIEMPRE arranca cargando algo (plantilla o nota previa) en lugar de página en blanco.</p>
+
+  <div class="mockup">
+    <div class="mockup-frame" style="max-width:520px;margin:0 auto;">
+      <div style="padding:20px 24px;background:linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95));">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="color:white;font-weight:700;font-size:15px;">Cargar en la nota actual</div>
+          <span style="color:rgba(255,255,255,0.50);font-size:18px;cursor:pointer;">×</span>
+        </div>
+        <div style="color:rgba(255,255,255,0.65);font-size:12px;margin-bottom:18px;">Quiere cargar una plantilla o una nota previa en la cita actual?</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="background:linear-gradient(135deg,rgba(6,182,212,0.10),rgba(14,165,233,0.06));border:1px solid rgba(6,182,212,0.30);border-radius:12px;padding:24px 18px;text-align:center;cursor:pointer;">
+            <div style="font-size:36px;margin-bottom:10px;">📄</div>
+            <div style="color:white;font-size:14px;font-weight:700;margin-bottom:4px;">Plantillas</div>
+            <div style="color:rgba(255,255,255,0.65);font-size:11px;line-height:1.5;">Seleccione una plantilla para la cita</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.10);border-radius:12px;padding:24px 18px;text-align:center;cursor:pointer;">
+            <div style="font-size:36px;margin-bottom:10px;">📁</div>
+            <div style="color:white;font-size:14px;font-weight:700;margin-bottom:4px;">Notas previas</div>
+            <div style="color:rgba(255,255,255,0.65);font-size:11px;line-height:1.5;">Revise las notas previas del caso para cargar.</div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="callout">
-    <strong>Lo crítico:</strong> el doctor no salta entre tabs ni busca info en otros lugares. La plantilla SOAP se carga según el tipo de visita (Initial vs Follow-up) y la especialidad. Auto-save cada cambio.
+  <h3>Flujo completo (cadena de modales)</h3>
+
+  <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:24px 28px;margin:18px 0;border:1px solid rgba(99,102,241,0.30);">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.85;color:#cbd5e1;">
+      <div style="color:#94a3b8;margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;">Cadena desde click hasta editor</div>
+      <div>1. <strong style="color:#7dd3fc;">Click en evento del calendar / "Atender ahora" / notif</strong></div>
+      <div style="margin-left:18px;color:#94a3b8;">↓</div>
+      <div>2. <strong style="color:#a5b4fc;">Modal "Detalles de la cita"</strong> (con guardrails visibles)</div>
+      <div style="margin-left:18px;color:#94a3b8;">↓ click "Ingresar nota"</div>
+      <div>3. <strong style="color:#fbbf24;">¿Hay guardrails bloqueantes?</strong></div>
+      <div style="margin-left:30px;">└─ Sí → quedarse en modal con alert hasta resolver</div>
+      <div style="margin-left:30px;">└─ No → continuar</div>
+      <div style="margin-left:18px;color:#94a3b8;">↓</div>
+      <div>4. <strong style="color:#a5b4fc;">Modal "Cargar en la nota actual"</strong> (Plantillas / Notas previas)</div>
+      <div style="margin-left:18px;color:#94a3b8;">↓ elige opción</div>
+      <div>5. <strong style="color:#c4b5fd;">Modal "Copiar plantilla" (B.17.6)</strong> o lista de notas previas</div>
+      <div style="margin-left:18px;color:#94a3b8;">↓ confirma / copia</div>
+      <div>6. <strong style="color:#34d399;">B.18 abre con la nota pre-poblada</strong></div>
+      <div style="margin-left:18px;color:#94a3b8;">↓ ejecuta automáticamente:</div>
+      <div style="margin-left:30px;">├─ status del Case → <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#fda4af;">IN_CONSULTATION</code></div>
+      <div style="margin-left:30px;">├─ Lobby Display (B.37) actualiza en realtime</div>
+      <div style="margin-left:30px;">└─ Audit log registra inicio de consulta con timestamp</div>
+    </div>
   </div>
+</div>
+
+<!-- ═══ B.17.6 — SELECTOR DE PLANTILLAS (Copiar plantilla) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.17.6 · Clinical Visit</span>
+  <h2>Selector de plantillas · "Copiar plantilla"</h2>
+  <p><strong>Concepto:</strong> el modal que aparece al elegir "Plantillas" en B.17.5. Lista de plantillas a la izquierda (search + favoritos por doctor) y preview de la seleccionada a la derecha con secciones togglebles. Capturado fielmente del legacy.</p>
+
+  <div class="callout callout-success">
+    <strong>Pattern crítico: las plantillas son <em>por sección</em> Y <em>completas</em>.</strong> Además del modal full-template visto aquí, B.18 tiene un botón <code>[📋 Plantillas]</code> al lado de cada sección (Queja principal · HPI · ROS · PE · Evaluaciones · Plan · Diagnósticos) que abre una versión filtrada de este selector para reemplazar solo esa sección. Permite mix-and-match.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div style="padding:18px 20px;background:linear-gradient(135deg,rgba(15,23,42,0.95),rgba(30,41,59,0.95));">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="color:white;font-weight:700;font-size:14px;">Copiar plantilla</div>
+          <span style="color:rgba(255,255,255,0.50);font-size:18px;">×</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:36% 64%;gap:14px;">
+          <!-- Columna izquierda: lista -->
+          <div>
+            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:8px 10px;margin-bottom:10px;color:rgba(255,255,255,0.65);font-size:11px;">🔍 Buscar template por nombre...</div>
+
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.08);font-size:10px;color:rgba(255,255,255,0.50);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><span>Título</span><span>Descripción</span></div>
+              <span>Fav</span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;padding:9px 10px;background:rgba(6,182,212,0.12);border-left:3px solid var(--brand-cyan);border-radius:6px;margin-top:6px;font-size:11px;color:white;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><strong>NG-MVA F/U</strong><span style="color:rgba(255,255,255,0.65);">Motor Vehicle Accid...</span></div>
+              <span style="color:rgba(255,255,255,0.40);">☆</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;padding:9px 10px;font-size:11px;color:rgba(255,255,255,0.85);border-bottom:1px solid rgba(255,255,255,0.04);">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><strong>BC-MVA</strong><span style="color:rgba(255,255,255,0.55);">Motor Vehicle Accid...</span></div>
+              <span style="color:#fbbf24;">⭐</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;padding:9px 10px;font-size:11px;color:rgba(255,255,255,0.85);border-bottom:1px solid rgba(255,255,255,0.04);">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><strong>BC - Annual Physical</strong><span style="color:rgba(255,255,255,0.55);">Annual Physical wit...</span></div>
+              <span style="color:#fbbf24;">⭐</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;padding:9px 10px;font-size:11px;color:rgba(255,255,255,0.85);border-bottom:1px solid rgba(255,255,255,0.04);">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><strong>NG-MVA NEW</strong><span style="color:rgba(255,255,255,0.55);">Motor Vehicle Accid...</span></div>
+              <span style="color:rgba(255,255,255,0.40);">☆</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;padding:9px 10px;font-size:11px;color:rgba(255,255,255,0.85);border-bottom:1px solid rgba(255,255,255,0.04);">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><strong>BC-URI</strong><span style="color:rgba(255,255,255,0.55);">URI</span></div>
+              <span style="color:rgba(255,255,255,0.40);">☆</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;padding:9px 10px;font-size:11px;color:rgba(255,255,255,0.85);border-bottom:1px solid rgba(255,255,255,0.04);">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><strong>NG-Nursing Home...</strong><span style="color:rgba(255,255,255,0.55);">Nursing Home F/U</span></div>
+              <span style="color:rgba(255,255,255,0.40);">☆</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;padding:9px 10px;font-size:11px;color:rgba(255,255,255,0.85);">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><strong>NG-Nursing Home-...</strong><span style="color:rgba(255,255,255,0.55);">New pt note/admit/f...</span></div>
+              <span style="color:rgba(255,255,255,0.40);">☆</span>
+            </div>
+          </div>
+
+          <!-- Columna derecha: preview -->
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div>
+                <div style="color:white;font-weight:700;font-size:14px;">NG-MVA F/U</div>
+                <div style="color:rgba(255,255,255,0.65);font-size:11px;">Motor Vehicle Accident F/U</div>
+              </div>
+              <button class="mock-action mock-action-primary" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);border:none;color:white;font-weight:700;padding:7px 14px;border-radius:7px;font-size:11px;">📋 Copiar</button>
+            </div>
+
+            <!-- Secciones con toggle -->
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.20);border-radius:8px;margin-bottom:6px;">
+              <span style="color:var(--brand-cyan);">☑</span>
+              <span style="color:white;font-weight:600;font-size:12px;">Historial</span>
+            </div>
+            <div style="background:rgba(0,0,0,0.20);border:1px solid rgba(255,255,255,0.04);border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:10.5px;color:rgba(255,255,255,0.70);line-height:1.55;">
+              MVA date: Chiro: Pt has given us permission to release information to attorney: Pt here for follow up. Reviewed MRI with pt in detail and answered questions. <strong style="color:white;">Treatments:</strong> Been going to chiropractor x/week, massage x/week, using ice/heat, doing stretches...
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.20);border-radius:8px;margin-bottom:6px;">
+              <span style="color:var(--brand-cyan);">☑</span>
+              <span style="color:white;font-weight:600;font-size:12px;">Revisión de sistemas</span>
+            </div>
+            <div style="background:rgba(0,0,0,0.20);border:1px solid rgba(255,255,255,0.04);border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:10.5px;color:rgba(255,255,255,0.70);line-height:1.55;">
+              Denies f/c, dizziness, syncope, eye pain/visual disturbances, ear pain, nasal congestion, ST, CP, racing heart/palpitations, trouble breathing/SOB, cough, abd pain...
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.20);border-radius:8px;margin-bottom:6px;">
+              <span style="color:var(--brand-cyan);">☑</span>
+              <span style="color:white;font-weight:600;font-size:12px;">Examen físico</span>
+            </div>
+            <div style="background:rgba(0,0,0,0.20);border:1px solid rgba(255,255,255,0.04);border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:10.5px;color:rgba(255,255,255,0.70);line-height:1.55;">
+              <strong style="color:white;">General:</strong> NAD, alert, Ox3. Normal mood/affect. <strong style="color:white;">EENT:</strong> PERRLA, no vision disturbances/changes...
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.20);border-radius:8px;margin-bottom:6px;">
+              <span style="color:var(--brand-cyan);">☑</span>
+              <span style="color:white;font-weight:600;font-size:12px;">Valoración / Evaluaciones</span>
+              <span style="margin-left:auto;font-size:9px;color:#fbbf24;font-weight:600;background:rgba(245,158,11,0.15);padding:2px 6px;border-radius:4px;">tiered</span>
+            </div>
+            <div style="background:rgba(0,0,0,0.20);border:1px solid rgba(255,255,255,0.04);border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:10.5px;color:rgba(255,255,255,0.70);line-height:1.55;">
+              <div style="margin-bottom:4px;">Variante Básica (9): Neck Pain · Whiplash · Trapezius Strain...</div>
+              <div style="margin-bottom:4px;">Variante Intermedia (11): + Cervical/Lumbosacral Radiculopathy</div>
+              <div>Variante Severa (13): + Paresthesias UE/LE</div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.20);border-radius:8px;margin-bottom:6px;">
+              <span style="color:var(--brand-cyan);">☑</span>
+              <span style="color:white;font-weight:600;font-size:12px;">Plan</span>
+              <span style="margin-left:auto;font-size:9px;color:#fbbf24;font-weight:600;background:rgba(245,158,11,0.15);padding:2px 6px;border-radius:4px;">variants + Rx + procedural</span>
+            </div>
+            <div style="background:rgba(0,0,0,0.20);border:1px solid rgba(255,255,255,0.04);border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:10.5px;color:rgba(255,255,255,0.70);line-height:1.55;">
+              Standard · Con PT · Closing Case + procedural block (trigger point injection) + price snapshot
+            </div>
+
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.20);border-radius:8px;margin-bottom:6px;">
+              <span style="color:var(--brand-cyan);">☑</span>
+              <span style="color:white;font-weight:600;font-size:12px;">Diagnósticos (ICD-10 + SNOMED)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Naming convention de plantillas (capturado del legacy)</h3>
+
+  <p>Las plantillas siguen un patrón <strong>prefijo-tipo</strong>:</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0;">
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:14px 16px;">
+      <div style="color:#a5b4fc;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:8px;">Prefijo = Doctor (created_by)</div>
+      <ul style="margin:0;padding-left:18px;font-size:12px;line-height:1.65;color:rgba(255,255,255,0.85);">
+        <li><strong>NG-</strong> · Doctor "Nielsen Group" (ej. Andrew Nielsen)</li>
+        <li><strong>BC-</strong> · Doctor "Broadhead / Clanton" (ej. Dr. Broadhead)</li>
+        <li>Cada doctor mantiene sus propios prefijos</li>
+      </ul>
+    </div>
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.10);border-radius:8px;padding:14px 16px;">
+      <div style="color:#6ee7b7;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:8px;">Sufijo = encounter_type</div>
+      <ul style="margin:0;padding-left:18px;font-size:12px;line-height:1.65;color:rgba(255,255,255,0.85);">
+        <li><strong>F/U</strong> · Follow-up</li>
+        <li><strong>NEW</strong> · New patient (initial)</li>
+        <li><strong>URI</strong> · Upper Respiratory Infection</li>
+        <li><strong>Annual Physical</strong> · Chequeo anual</li>
+        <li><strong>Nursing Home</strong> · Visita domiciliaria</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Modelo de datos resumido</h3>
+
+  <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:18px 22px;margin:14px 0;border:1px solid rgba(99,102,241,0.30);">
+    <pre style="margin:0;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.65;color:#cbd5e1;overflow-x:auto;">Template {
+  id, title, description
+  encounter_type   // FOLLOW_UP | NEW_PATIENT | RE_EVAL | URI | PHYSICAL | NURSING_HOME
+  case_type        // MVA | GENERAL | NURSING_HOME
+  scope            // PERSONAL (doctor) | SHARED (multi-clínica) | SPECIALTY (B.36)
+  created_by       // FK User
+  sections: [
+    { key, content, enabled_by_default, variants?, procedural_blocks?, price_references? }
+  ]
+  diagnoses: [{ icd10_code, snomed_code }]   // dual coding
+  prescriptions: RxTemplate[]                 // DAW EPCS (B.19)
+  cpt_suggestions: CPTCode[]                  // FK B.33
+  favorites: Map&lt;UserId, bool&gt;            // ⭐ per usuario
+  usage_count_by_user: Map&lt;UserId, number&gt;
+}</pre>
+  </div>
+</div>
+
+<!-- ═══ B.17.7 — ADMIN DE PLANTILLAS (PROPUESTA DE CLAUDE) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.17.7 · Clinical Visit · Propuesta Claude</span>
+  <h2>Administración de plantillas · CRUD del doctor</h2>
+
+  <div class="callout" style="background:linear-gradient(135deg,rgba(245,158,11,0.10),rgba(217,119,6,0.06));border:1px solid rgba(245,158,11,0.40);">
+    <strong>⚠️ PROPUESTA DE CLAUDE (no del legacy):</strong> Erick no proporcionó screenshot del admin de plantillas en LM legacy. Este mockup es la propuesta de Claude basada en el patrón de naming observado (NG-/BC- prefijos) y el modelo "scope" del template. <strong>Erick debe confirmar o refinar la propuesta</strong> antes de implementación.
+  </div>
+
+  <p><strong>Concepto:</strong> CRUD de plantillas separado por <strong>scope</strong>. El doctor maneja sus plantillas PERSONALES (acceso directo). El Super Admin (desde apps/admin) maneja plantillas SHARED (todas las clínicas) y SPECIALTY (por especialidad linkeada a B.36). Sharing requiere aprobación.</p>
+
+  <h3>Matriz de permisos propuesta</h3>
+
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:14px 0;">
+      <thead>
+        <tr style="background:rgba(99,102,241,0.10);">
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Scope</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Quién la crea</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Quién la edita</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Quién la ve</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Dónde vive el CRUD</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><strong>PERSONAL</strong></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Cualquier doctor</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Solo el creador</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Solo el creador (en su B.17 Mi día)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><code>apps/clinical/templates</code> · sidebar B.17</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><strong>SHARED</strong></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Super Admin (clínico)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Super Admin (clínico)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Todos los doctores (todas las clínicas)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><code>apps/back-office/templates</code></td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><strong>SPECIALTY</strong></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Super Admin (clínico)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Super Admin (clínico)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Doctores de esa specialty (B.36)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><code>apps/back-office/templates</code> · filtro by specialty</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>UI propuesta — "Mis plantillas" desde B.17 sidebar</h3>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">🔍 Buscar plantilla...</div>
+        <span class="mock-time">Mis plantillas (Dr. Nielsen)</span>
+      </div>
+      <div class="mock-body">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div>
+            <div class="mock-title">Plantillas personales</div>
+            <div class="mock-subtitle">Dr. Andrew Nielsen · Auto Accidents · 7 plantillas</div>
+          </div>
+          <button class="mock-action mock-action-primary" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);border:none;color:white;font-weight:700;padding:9px 14px;border-radius:8px;font-size:12px;">+ Nueva plantilla</button>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <button class="mock-action-btn" style="background:rgba(6,182,212,0.20);border-color:rgba(6,182,212,0.40);color:#67e8f9;font-weight:700;">Personales (7)</button>
+          <button class="mock-action-btn">Compartidas (12)</button>
+          <button class="mock-action-btn">Por especialidad (4)</button>
+        </div>
+
+        <div class="mock-card" style="background:rgba(255,255,255,0.04);">
+          <span style="color:white;font-weight:600;">NG-MVA F/U</span>
+          <span style="color:rgba(255,255,255,0.55);font-size:11px;">Motor Vehicle Accident Follow-up</span>
+          <span class="spacer"></span>
+          <span style="color:rgba(255,255,255,0.40);font-size:10px;">Usada 47 veces</span>
+          <span style="color:rgba(255,255,255,0.40);">☆</span>
+          <button class="mock-action-btn" style="font-size:10px;">✏ Editar</button>
+          <button class="mock-action-btn" style="font-size:10px;">📋 Duplicar</button>
+        </div>
+        <div class="mock-card" style="background:rgba(255,255,255,0.04);">
+          <span style="color:white;font-weight:600;">NG-MVA NEW</span>
+          <span style="color:rgba(255,255,255,0.55);font-size:11px;">Motor Vehicle Accident New Patient</span>
+          <span class="spacer"></span>
+          <span style="color:rgba(255,255,255,0.40);font-size:10px;">Usada 23 veces</span>
+          <span style="color:rgba(255,255,255,0.40);">☆</span>
+          <button class="mock-action-btn" style="font-size:10px;">✏ Editar</button>
+          <button class="mock-action-btn" style="font-size:10px;">📋 Duplicar</button>
+        </div>
+        <div class="mock-card" style="background:rgba(255,255,255,0.04);">
+          <span style="color:white;font-weight:600;">NG-Nursing Home F/U</span>
+          <span style="color:rgba(255,255,255,0.55);font-size:11px;">Nursing Home Follow-up</span>
+          <span class="spacer"></span>
+          <span style="color:rgba(255,255,255,0.40);font-size:10px;">Usada 12 veces</span>
+          <span style="color:#fbbf24;">⭐</span>
+          <button class="mock-action-btn" style="font-size:10px;">✏ Editar</button>
+          <button class="mock-action-btn" style="font-size:10px;">📋 Duplicar</button>
+        </div>
+
+        <div class="mock-section-title">⚡ Acciones avanzadas</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+          <button class="mock-action-btn" style="padding:11px 9px;">📤 Promover a SHARED (requiere aprobación)</button>
+          <button class="mock-action-btn" style="padding:11px 9px;">📥 Importar de SHARED a personal</button>
+          <button class="mock-action-btn" style="padding:11px 9px;">📊 Ver mis estadísticas de uso</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Workflow propuesto: promover una plantilla PERSONAL a SHARED</h3>
+
+  <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:18px 22px;margin:14px 0;border:1px solid rgba(99,102,241,0.30);">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.85;color:#cbd5e1;">
+      <div>1. <strong style="color:#7dd3fc;">Doctor</strong> selecciona su plantilla y clickea "📤 Promover a SHARED"</div>
+      <div style="margin-left:18px;color:#94a3b8;">↓</div>
+      <div>2. <strong style="color:#fbbf24;">Modal</strong> pide: descripción del cambio · clinics target · scope (SHARED vs SPECIALTY)</div>
+      <div style="margin-left:18px;color:#94a3b8;">↓</div>
+      <div>3. <strong style="color:#a5b4fc;">Sistema</strong> crea task en cola de aprobación del Super Admin (clínico)</div>
+      <div style="margin-left:18px;color:#94a3b8;">↓</div>
+      <div>4. <strong style="color:#c4b5fd;">Super Admin</strong> revisa en <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#a5b4fc;">apps/back-office/templates</code>:</div>
+      <div style="margin-left:30px;">├─ Aprueba → template se replica como SHARED, doctor mantiene su PERSONAL original</div>
+      <div style="margin-left:30px;">└─ Rechaza → notificación al doctor con razón</div>
+      <div style="margin-left:18px;color:#94a3b8;">↓</div>
+      <div>5. <strong style="color:#34d399;">Audit log</strong> registra: quién promovió · quién aprobó · cuándo · contenido del template (snapshot)</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Por qué la aprobación:</strong> las plantillas SHARED afectan a todos los doctores. Errores o lenguaje desactualizado pueden propagarse. La aprobación del Super Admin clínico (un doctor senior designado) actúa como QA. Las PERSONAL no requieren aprobación porque solo afectan al creador.
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Decisiones que Erick debe confirmar:</strong>
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li>¿Existe en LM legacy un admin de plantillas? Si sí, ¿cómo es?</li>
+      <li>¿Aprobación es necesaria o cualquier doctor puede crear SHARED directamente?</li>
+      <li>¿Hay un "Super Admin clínico" designado o todos los doctores comparten ese rol?</li>
+      <li>¿Las plantillas SPECIALTY se asignan automáticamente al specialty del doctor o se eligen manualmente?</li>
+      <li>¿Versionamiento? ¿Cuando se edita una SHARED, las notas ya cargadas mantienen la versión anterior?</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══ B.18 — VISITA EN SALA · Tabs Nota | Historial médico (REESCRITO 2026-06-05) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-violet), #ec4899);">B.18 · Clinical Visit</span>
+  <h2>Vista del Doctor · Visita en sala (Tabs · Sidebar · Editor)</h2>
+  <p><strong>Concepto:</strong> editor de la nota clínica con arquitectura del legacy. <strong>Tabs principales</strong>: Nota (esta visita) | Historial médico (transversal al paciente). <strong>Layout 2-paneles</strong>: sidebar paciente read-only (contexto persistente) + editor principal (vital signs estructurados + 7 secciones SOAP con plantillas por sección). Floating AI assistant.</p>
+
+  <div class="callout callout-success">
+    <strong>Capturado fielmente del legacy (2026-06-05):</strong> Erick proporcionó ~12 screenshots del flujo real. Cada elemento de este mockup mapea a una funcionalidad observada en LM legacy. Detalle completo en <code>memory/project_doctor_notes_legacy.md</code>.
+  </div>
+
+  <h3>Tabs principales</h3>
+
+  <div style="display:flex;gap:6px;margin-bottom:14px;">
+    <div style="padding:10px 18px;background:linear-gradient(135deg,rgba(99,102,241,0.20),rgba(139,92,246,0.12));border:1px solid rgba(99,102,241,0.40);border-radius:8px 8px 0 0;color:white;font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px;">
+      <span>✏️</span>
+      <span>Nota</span>
+      <span style="background:rgba(244,63,94,0.20);color:#fda4af;font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600;">No firmado</span>
+    </div>
+    <div style="padding:10px 18px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.10);border-radius:8px 8px 0 0;color:rgba(255,255,255,0.65);font-size:13px;display:flex;align-items:center;gap:8px;">
+      <span>📋</span>
+      <span>Historial médico</span>
+    </div>
+  </div>
+
+  <h3>Layout 2-paneles · Tab "Nota" activo</h3>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">🔍 Buscar en el sistema...</div>
+        <span class="mock-time">⏱ 03:08:00</span>
+        <span class="badge badge-emerald" style="font-size:9px;padding:2px 7px;">Entrada</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.55);">🌐 Español</span>
+      </div>
+      <div style="display:grid;grid-template-columns:24% 76%;">
+
+        <!-- SIDEBAR IZQUIERDA: Contexto paciente -->
+        <div style="padding:14px 14px;background:rgba(0,0,0,0.25);border-right:1px solid rgba(255,255,255,0.05);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--brand-indigo),var(--brand-violet));display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;">EP</div>
+            <div style="flex:1;">
+              <div style="color:white;font-size:12px;font-weight:700;">Paciente de<br>Prueba, Erick</div>
+            </div>
+            <span style="color:rgba(255,255,255,0.40);font-size:14px;">⋮</span>
+          </div>
+
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.50);font-weight:700;letter-spacing:0.10em;text-transform:uppercase;margin-bottom:6px;">Información personal</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.80);line-height:1.65;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;"><span style="color:rgba(255,255,255,0.55);">Nacimiento:</span><span>19/12/1980 <span style="background:rgba(16,185,129,0.18);color:#34d399;padding:0 5px;border-radius:3px;font-size:8.5px;">45 años</span></span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:rgba(255,255,255,0.55);">Sexo:</span><span>N/D</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:rgba(255,255,255,0.55);">Estado civil:</span><span>N/D</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:rgba(255,255,255,0.55);">Idioma:</span><span>Español</span></div>
+          </div>
+
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.50);font-weight:700;letter-spacing:0.10em;text-transform:uppercase;margin-bottom:6px;">Información contacto</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.75);line-height:1.65;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;"><span style="color:rgba(255,255,255,0.55);">Teléfono:</span><span>N/D</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:rgba(255,255,255,0.55);">Celular:</span><span>(801)···</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:rgba(255,255,255,0.55);">Email:</span><span>N/D</span></div>
+          </div>
+
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.50);font-weight:700;letter-spacing:0.10em;text-transform:uppercase;margin-bottom:6px;">🛡️ Detalles del seguro</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.02);padding:7px 9px;border-radius:6px;margin-bottom:6px;">No hay seguro principal</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.02);padding:7px 9px;border-radius:6px;margin-bottom:10px;">No hay seguro secundario</div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:9.5px;color:rgba(255,255,255,0.50);font-weight:700;letter-spacing:0.10em;text-transform:uppercase;margin-bottom:6px;">
+            <span>🧪 Alergias</span>
+            <span style="color:rgba(255,255,255,0.40);">✏</span>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.02);padding:7px 9px;border-radius:6px;margin-bottom:10px;">No se conocen alergias</div>
+
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.50);font-weight:700;letter-spacing:0.10em;text-transform:uppercase;margin-bottom:6px;">❤️ Lista de problemas</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.02);padding:7px 9px;border-radius:6px;margin-bottom:10px;">No hay problemas activos</div>
+
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.50);font-weight:700;letter-spacing:0.10em;text-transform:uppercase;margin-bottom:6px;">💊 Medicamentos activos</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.02);padding:7px 9px;border-radius:6px;margin-bottom:10px;">No hay medicamentos</div>
+
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.50);font-weight:700;letter-spacing:0.10em;text-transform:uppercase;margin-bottom:6px;">🩺 Cirugías y procedimientos</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.02);padding:7px 9px;border-radius:6px;margin-bottom:10px;">No hay procedimientos</div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:9.5px;color:rgba(255,255,255,0.50);font-weight:700;letter-spacing:0.10em;text-transform:uppercase;margin-bottom:6px;">
+            <span>💬 Historia social</span>
+            <span style="color:rgba(255,255,255,0.40);">✏</span>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.65);background:rgba(255,255,255,0.02);padding:7px 9px;border-radius:6px;line-height:1.65;">
+            <div style="color:rgba(255,255,255,0.45);font-size:9px;text-transform:uppercase;font-weight:700;margin-bottom:2px;">Trabajo y familia</div>
+            <div>Trabajo: N/D</div>
+            <div style="color:rgba(255,255,255,0.45);font-size:9px;text-transform:uppercase;font-weight:700;margin-top:4px;margin-bottom:2px;">Uso de alcohol</div>
+            <div>Estado: <span style="background:rgba(255,255,255,0.10);padding:0 5px;border-radius:3px;font-size:9px;">No</span></div>
+          </div>
+        </div>
+
+        <!-- EDITOR PRINCIPAL: Vital signs + 7 secciones -->
+        <div style="padding:14px 18px;background:rgba(99,102,241,0.02);max-height:680px;overflow-y:auto;">
+
+          <!-- VITAL SIGNS (estructurados) -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div style="color:var(--brand-cyan);font-weight:700;font-size:13px;">📈 Signos vitales</div>
+            <span style="color:rgba(255,255,255,0.40);font-size:11px;">▼</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;">
+              <div style="color:#a5b4fc;font-size:10px;font-weight:700;margin-bottom:6px;">📏 Altura</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Feet</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">0</div></div>
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Inches</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">0</div></div>
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Cms</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">0</div></div>
+              </div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;">
+              <div style="color:#a5b4fc;font-size:10px;font-weight:700;margin-bottom:6px;">⚖️ Peso</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Lbs</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">0</div></div>
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Oz</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">0</div></div>
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Kgs</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">0</div></div>
+              </div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;">
+              <div style="color:#fda4af;font-size:10px;font-weight:700;margin-bottom:6px;">❤️ Presión arterial</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Sistólica</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">124</div></div>
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Diastólica</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">82</div></div>
+              </div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;">
+              <div style="color:#fda4af;font-size:10px;font-weight:700;margin-bottom:6px;">💗 Corazón &amp; Pulmones</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Pulso</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">76</div></div>
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">F. resp.</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">14</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;">
+              <div style="color:#fbbf24;font-size:10px;font-weight:700;margin-bottom:6px;">🌡️ Temperatura y dolor</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">°F</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">98.6</div></div>
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">°C</div><div style="background:rgba(0,0,0,0.30);padding:4px 6px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">37.0</div></div>
+                <div><div style="font-size:8.5px;color:rgba(255,255,255,0.50);">Dolor 0-10</div><div style="background:rgba(244,63,94,0.20);padding:4px 6px;border-radius:4px;color:#fda4af;font-size:10px;font-weight:700;">6</div></div>
+              </div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;">
+              <div style="color:#67e8f9;font-size:10px;font-weight:700;margin-bottom:6px;">💧 Oxígeno</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;">
+                  <div style="font-size:8.5px;color:rgba(255,255,255,0.50);">O2 %:</div>
+                  <div style="background:rgba(0,0,0,0.30);padding:4px 8px;border-radius:4px;color:rgba(255,255,255,0.65);font-size:10px;">98.0</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:9px;color:rgba(255,255,255,0.55);">¿Con O2?</span>
+                  <div style="width:24px;height:14px;background:rgba(255,255,255,0.10);border-radius:14px;position:relative;"><div style="position:absolute;left:2px;top:2px;width:10px;height:10px;background:white;border-radius:50%;"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:linear-gradient(135deg,rgba(245,158,11,0.05),rgba(217,119,6,0.03));border:1px dashed rgba(245,158,11,0.30);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:10.5px;color:#fbbf24;">
+            <strong>🔄 Segunda muestra disponible:</strong> P.A. (2da) · Corazón (2da) · Temperatura (2da) · 👁️ Visión (Der/Izq/Ambos) + Sin corregir/Corregido
+          </div>
+
+          <!-- 7 SECCIONES DE NOTA -->
+          <div style="color:var(--brand-cyan);font-weight:700;font-size:13px;margin:14px 0 10px;display:flex;align-items:center;gap:8px;">📄 Información de la nota</div>
+
+          <!-- Sección 1: Queja principal -->
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="color:white;font-size:12px;font-weight:700;">Queja principal</div>
+              <button class="mock-action-btn" style="font-size:10px;padding:5px 10px;display:flex;align-items:center;gap:5px;">📋 Plantillas</button>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:7px 10px;font-size:10px;color:rgba(255,255,255,0.50);margin-bottom:4px;display:flex;gap:8px;">
+              <span>H</span><span><strong>B</strong></span><span><em>I</em></span><span>≡</span><span>1.</span><span>"</span><span>🔗</span>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:10px 12px;font-size:11px;color:rgba(255,255,255,0.55);min-height:32px;font-style:italic;">Escribe aquí...</div>
+          </div>
+
+          <!-- Sección 2: Historia de la enfermedad actual -->
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="color:white;font-size:12px;font-weight:700;">Historia de la enfermedad actual</div>
+              <button class="mock-action-btn" style="font-size:10px;padding:5px 10px;display:flex;align-items:center;gap:5px;">📋 Plantillas</button>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(99,102,241,0.20);border-radius:6px;padding:10px 12px;font-size:10.5px;color:rgba(255,255,255,0.80);line-height:1.55;">
+              <div style="color:rgba(255,255,255,0.55);font-size:9.5px;font-weight:700;margin-bottom:4px;">PRE-POBLADO POR PLANTILLA NG-MVA F/U</div>
+              MVA date: ____ &nbsp; Chiro: ____<br>
+              Pt has given us permission to release information to attorney:<br>
+              • Pt here for follow up<br>
+              • Reviewed MRI with pt in detail and answered questions...<br>
+              <strong style="color:white;">Treatments:</strong> Been going to chiropractor x/week, massage x/week, using ice/heat...<br>
+              <strong style="color:white;">Reports:</strong> <em>No improvement: ___ Improved, but still present: ___ Mostly resolved: ___ Resolved: ___</em>
+            </div>
+          </div>
+
+          <!-- Sección 3: ROS -->
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="color:white;font-size:12px;font-weight:700;">Revisión de sistemas</div>
+              <button class="mock-action-btn" style="font-size:10px;padding:5px 10px;display:flex;align-items:center;gap:5px;">📋 Plantillas</button>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(99,102,241,0.20);border-radius:6px;padding:10px 12px;font-size:10.5px;color:rgba(255,255,255,0.80);line-height:1.55;">
+              Denies f/c, dizziness, syncope, eye pain/visual disturbances, ear pain, nasal congestion, ST, CP, racing heart/palpitations, trouble breathing/SOB...
+            </div>
+          </div>
+
+          <!-- Sección 4: Examen físico -->
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="color:white;font-size:12px;font-weight:700;">Examen físico</div>
+              <button class="mock-action-btn" style="font-size:10px;padding:5px 10px;display:flex;align-items:center;gap:5px;">📋 Plantillas</button>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(99,102,241,0.20);border-radius:6px;padding:10px 12px;font-size:10.5px;color:rgba(255,255,255,0.80);line-height:1.55;">
+              <strong style="color:white;">General:</strong> NAD, alert, Ox3. Normal mood/affect.<br>
+              <strong style="color:white;">EENT:</strong> PERRLA, no vision disturbances/changes, EOM intact...<br>
+              <strong style="color:white;">Neck:</strong> Increased tone/tight/TTP paracervical/trapezius...<br>
+              <strong style="color:white;">Chest · Abd · MSKTL:</strong> ...
+            </div>
+          </div>
+
+          <!-- Sección 5: Evaluaciones (TIERED + causation) -->
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="color:white;font-size:12px;font-weight:700;">Evaluaciones <span style="color:#fbbf24;font-size:9px;background:rgba(245,158,11,0.15);padding:1px 6px;border-radius:4px;margin-left:4px;">tiered (3 variantes)</span></div>
+              <button class="mock-action-btn" style="font-size:10px;padding:5px 10px;display:flex;align-items:center;gap:5px;">📋 Plantillas</button>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(99,102,241,0.20);border-radius:6px;padding:10px 12px;font-size:10.5px;color:rgba(255,255,255,0.80);line-height:1.65;">
+              <div style="color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:4px;">Variante Básica (9)</div>
+              1. Neck Pain · 2. Whiplash · 3. Trapezius Strain · 4. Thoracic BP · 5. Low BP · 6. Sacroilliac · 7. Muscle Spasms · 8. Headaches · 9. Sleep Disturbance
+              <div style="background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(217,119,6,0.08));border-left:3px solid #fbbf24;border-radius:4px;padding:8px 10px;margin:8px 0;font-weight:600;color:#fde68a;">🔒 After reviewing the patients injuries and with a thorough physical exam, it is my opinion within a reasonable degree of medical certainty that all the above injuries were caused by this accident.</div>
+              <div style="color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-top:8px;margin-bottom:4px;">Variante Intermedia (11) — agrega Cervical + Lumbosacral Radiculopathy</div>
+              <div style="color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-top:8px;margin-bottom:4px;">Variante Severa (13) — agrega Paresthesias UE/LE</div>
+              <div style="font-size:9.5px;color:rgba(255,255,255,0.55);margin-top:8px;font-style:italic;">Pattern del legacy: el doctor BORRA las variantes que no aplican (no checkboxes).</div>
+            </div>
+          </div>
+
+          <!-- Sección 6: Plan (con variants + procedural blocks + prices) -->
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="color:white;font-size:12px;font-weight:700;">Plan <span style="color:#fbbf24;font-size:9px;background:rgba(245,158,11,0.15);padding:1px 6px;border-radius:4px;margin-left:4px;">3 variants + procedural + prices snapshot</span></div>
+              <button class="mock-action-btn" style="font-size:10px;padding:5px 10px;display:flex;align-items:center;gap:5px;">📋 Plantillas</button>
+            </div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(99,102,241,0.20);border-radius:6px;padding:10px 12px;font-size:10px;color:rgba(255,255,255,0.80);line-height:1.55;">
+              <div style="color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:4px;">Variante STANDARD (sin PT)</div>
+              1. Continue chiropractic eval/treat/manipulation/modalities and massage therapy PRN<br>
+              2. Continue/Refill: <strong style="color:#a5b4fc;">RX Naproxen 500mg</strong> BID with food<br>
+              3. Continue/Refill: <strong style="color:#a5b4fc;">RX Tizanidine 4mg</strong> OR <strong style="color:#a5b4fc;">RX Cyclobenzaprine 10mg</strong> HS PRN<br>
+              4-9. Tylenol PRN · Stretches · SMR · Ice/heat · Topical creams · TENS<br>
+              10. Trigger point injections may be of therapeutic benefit:
+
+              <div style="background:rgba(244,63,94,0.06);border-left:3px solid rgba(244,63,94,0.40);border-radius:4px;padding:8px 10px;margin:8px 0;color:rgba(255,255,255,0.75);">
+                <div style="color:#fda4af;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:4px;">Bloque procedural inline (trigger point injection)</div>
+                After risks of injection discussed in detail, including skin/muscle atrophy and infection, patient gave informed consent (see signed consent). Utilizing sterile technique, cleaned area with alcohol and iodine and injected trigger point spasm in <strong style="color:#fbbf24;">BLANK muscles</strong> with 40 mg kenalog/1 cc Marcaine/1 cc Lidocaine. Pt tolerated well. No bleeding. No complications.
+              </div>
+
+              <div style="color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-top:8px;margin-bottom:4px;">Variante WITH PT OPTION</div>
+              Agrega Order Physical Therapy + home exercises program
+
+              <div style="color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;margin-top:8px;margin-bottom:4px;">⭐ Variante CLOSING CASE (con prices snapshot)</div>
+              <div style="background:rgba(16,185,129,0.06);border-left:3px solid rgba(16,185,129,0.40);border-radius:4px;padding:8px 10px;color:rgba(255,255,255,0.80);">
+                Pt reports all injuries resolved / has reached state of static MMI...<br>
+                <strong style="color:#34d399;">Future care pricing (snapshot al firmar):</strong><br>
+                • Follow Up Appointments: <strong>$250.00</strong> (CPT 99213 · fee_schedule_2026)<br>
+                • Trigger Point Injections: <strong>$300.00</strong> (CPT 20552)<br>
+                • Medications for Injections: <strong>$120.00</strong><br>
+                • All Spine and Epidural injections: <strong>$2,500.00</strong> (CPT 64483)<br>
+                • Radio Frequency Ablation: <strong>$3,500.00</strong> (CPT 64633)<br>
+                <span style="color:#6ee7b7;font-size:9px;font-style:italic;">→ Esta lista alimenta la demand letter del abogado en B.28 Settlement</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sección 7: Diagnósticos (ICD-10 + SNOMED dual) -->
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="color:white;font-size:12px;font-weight:700;">Diagnósticos agregados (11) <span style="color:#34d399;font-size:9px;background:rgba(16,185,129,0.15);padding:1px 6px;border-radius:4px;margin-left:4px;">ICD-10 + SNOMED dual</span></div>
+              <div style="display:flex;gap:6px;">
+                <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);border-radius:6px;padding:4px 10px;font-size:10px;color:rgba(255,255,255,0.75);display:flex;align-items:center;gap:4px;">Código <span style="font-size:8px;">▼</span></div>
+                <button class="mock-action mock-action-primary" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);border:none;color:white;font-weight:700;padding:4px 10px;border-radius:6px;font-size:10px;">+ Agregar</button>
+              </div>
+            </div>
+            <div style="font-size:9.5px;color:rgba(255,255,255,0.55);margin-bottom:6px;font-style:italic;">Seleccione ICD-10 o SNOMED, mantenga ambos editables y priorice favoritos.</div>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(99,102,241,0.20);border-radius:6px;padding:10px 12px;font-size:10px;color:rgba(255,255,255,0.85);">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-weight:700;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:6px;">
+                <div style="color:#a5b4fc;">ICD-10</div>
+                <div style="color:#34d399;">SNOMED CT</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;line-height:1.65;">
+                <div><code style="color:#a5b4fc;">M62.838</code> Other muscle spasm</div>
+                <div><code style="color:#34d399;">1141864009</code> Perioral spasm</div>
+                <div><code style="color:#a5b4fc;">S13.4XXA</code> Sprain cervical spine</div>
+                <div><code style="color:#34d399;">122751000119105</code> Acute posttraumatic...</div>
+                <div><code style="color:#a5b4fc;">M54.2</code> Cervicalgia</div>
+                <div><code style="color:#34d399;">102554000</code> Tenderness spinous...</div>
+                <div><code style="color:#a5b4fc;">M54.12</code> Radiculopathy cervical</div>
+                <div><code style="color:#34d399;">103014001</code> Cervical nerve root pain</div>
+                <div><code style="color:#a5b4fc;">M54.50</code> Low back pain</div>
+                <div><code style="color:#34d399;">1119213008</code> Tenderness lumbar...</div>
+                <div style="color:rgba(255,255,255,0.50);font-style:italic;grid-column:span 2;font-size:9px;margin-top:4px;">+ 6 más...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Acciones de fin de nota -->
+          <div style="background:linear-gradient(135deg,rgba(16,185,129,0.10),rgba(6,182,212,0.06));border:1px solid rgba(16,185,129,0.30);border-radius:10px;padding:12px 14px;margin-top:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+              <div style="font-size:11.5px;color:rgba(255,255,255,0.80);">⏱ Auto-guardado hace 12s · Status: <span style="color:#fda4af;font-weight:700;">NO FIRMADO</span></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="mock-action-btn">💊 Ir a Rx (B.19)</button>
+                <button class="mock-action-btn">🧪 Ordenar Lab</button>
+                <button class="mock-action-btn">📋 CPT codes (B.33)</button>
+                <button class="mock-action mock-action-primary" style="background:linear-gradient(135deg,#10b981,#06b6d4);border:none;color:white;font-weight:700;padding:8px 14px;border-radius:7px;font-size:11px;">🏁 Firmar nota →</button>
+              </div>
+            </div>
+            <div style="margin-top:8px;font-size:9.5px;color:rgba(245,158,11,0.85);font-style:italic;">⚠️ Propuesta de Claude: el botón "Firmar nota" abre modal de confirmación (re-enter password). Post-sign: nota inmutable, status del Case → "Firmado", dispara billing pipeline B.25-26. <strong>Erick debe confirmar el flujo real de firma del legacy</strong>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FLOATING AI BOT -->
+      <div style="position:absolute;bottom:18px;right:18px;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#06b6d4,#3b82f6);box-shadow:0 6px 20px rgba(6,182,212,0.40);display:flex;align-items:center;justify-content:center;color:white;font-size:18px;">🤖<span style="position:absolute;top:6px;right:6px;font-size:10px;">✨</span></div>
+    </div>
+  </div>
+
+  <h3>Tab "Historial médico" — registro transversal del paciente</h3>
+
+  <p>Al cambiar a este tab, el sidebar izquierdo se mantiene (contexto persiste). El panel derecho cambia a un grid de 15 cards de información médica longitudinal del paciente. Cada card tiene contador de items + botón "+ Agregar" o icon de edición.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0;font-size:11.5px;">
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">📋 Información de la visita</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Referido por · Razón principal · Otras inquietudes</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">❤️ Información de salud</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Metas de salud · Autoevaluación</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">🩺 Lista de problemas</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Active problem list · ICD-10 · Estado</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">📅 Historial médico</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Condiciones pasadas resueltas</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">💊 Medicamentos</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Med list (separado de Rx actual)</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">⚕️ Cirugías y procedimientos</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Surgical history</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">👪 Historial familiar</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Family medical history</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">👨‍⚕️ Historial de proveedores</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Otros médicos que ha tenido</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">💉 Vacunas</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Immunization record</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">🧠 Estado cognitivo</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Cognitive assessment</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">🚶 Estado funcional</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">ADLs (Activities of Daily Living)</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">⚙️ Dispositivos implantados</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Implants (pacemaker, IUD, etc.)</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">🔍 Revisión de sistemas</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">ROS longitudinal (patient-level)</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">📊 Exámenes de salud</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Health screenings (mamo, colonoscopy)</div></div>
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 13px;"><div style="color:#a5b4fc;font-weight:700;margin-bottom:4px;">💬 Historial de comentarios</div><div style="color:rgba(255,255,255,0.65);font-size:10.5px;">Notas internas históricas</div></div>
+  </div>
+
+  <div class="callout">
+    <strong>Modal de edición visto en "Historia social" (representativo del pattern):</strong> 5 sub-cards anidadas (Trabajo y familia · Uso de tabaco · Uso de alcohol · Uso de drogas · Información adicional) con campos estructurados (radio · toggle · text · date · número). Botón "Guardar cambios" al pie. <strong>Erick decide caso por caso cuáles de estas 15 secciones se implementan en Phase 1-2.</strong> El detalle está en <code>memory/project_doctor_notes_legacy.md</code>.
+  </div>
+
+  <h3>Floating AI assistant 🤖 (función no confirmada con Erick)</h3>
+
+  <div class="callout" style="background:linear-gradient(135deg,rgba(6,182,212,0.10),rgba(59,130,246,0.06));border:1px solid rgba(6,182,212,0.40);">
+    <strong>⚠️ Propuesta de Claude:</strong> el botón flotante visto en el legacy NO tiene función confirmada. Asunción para diseño:
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Sugerencia de CPT codes</strong> basado en contenido de la nota (linked a B.33)</li>
+      <li><strong>Resumen automático</strong> para el portal del abogado (B.22)</li>
+      <li><strong>Q&amp;A médico</strong>: referencia rápida ICD-10 / SNOMED / interacciones medicamentosas</li>
+      <li><strong>Transcripción voz → texto</strong> en tiempo real mientras el doctor habla con el paciente</li>
+      <li><strong>Flag de calidad</strong>: detecta si falta el statement de causación PI antes de firmar</li>
+    </ul>
+    Erick: ¿qué hace este botón en el legacy? Si tiene función específica, refinamos.
+  </div>
+
+  <h3>Cambios vs B.18 anterior</h3>
+
+  <ul style="line-height:1.75;">
+    <li><strong>Antes (SOAP simplificado S/O/A/P):</strong> 4 secciones de texto libre, sin tabs, sin sidebar, sin plantillas estructuradas.</li>
+    <li><strong>Ahora (legacy real):</strong> Tabs Nota/Historial · 2-panel layout · Signos vitales estructurados (primera+segunda muestra) · 7 secciones con [Plantillas] por sección · plantillas tiered+variants+procedural+prices · Diagnósticos dual ICD-10+SNOMED · Floating AI bot.</li>
+    <li><strong>Implicación arquitectónica:</strong> tabla <code>vital_signs</code> separada de <code>visit_notes</code> · tabla <code>diagnoses</code> con <code>icd10_code</code> + <code>snomed_code</code> · tabla <code>templates</code> con <code>scope</code> + <code>sections[]</code> · audit log de firma de nota con snapshot inmutable.</li>
+  </ul>
 </div>
 
 <!-- ═══ B.19 — PRESCRIPCIÓN + DAW EPCS (era B.18) ═══ -->
@@ -4662,6 +5494,16 @@
   <h2>Workflow de Settlement</h2>
   <p><strong>Concepto:</strong> cuando el abogado obtiene el settlement, Brunella recibe el cheque/transferencia, lo registra contra el lien del caso, y cierra el caso automáticamente. El paciente recibe notificación final.</p>
 
+  <div class="callout callout-success">
+    <strong>🔗 Demand letter consume Closing Case prices (snapshot de B.18):</strong>
+    <p style="margin-top:6px;margin-bottom:6px;font-size:12.5px;line-height:1.65;">El abogado del bufete construye la <strong>demand letter</strong> con dos componentes financieros:</p>
+    <ul style="margin-top:6px;margin-bottom:6px;font-size:12.5px;line-height:1.65;">
+      <li><strong>Lien acumulado</strong> (servicios ya prestados) — viene del ledger del caso (B.27) · facturados al PIP via HCFA (B.26).</li>
+      <li><strong>Future care costs</strong> (servicios potenciales futuros) — viene del <strong>snapshot de precios en la nota de Closing Case firmada por el doctor en B.18</strong> · congelado al momento de firma.</li>
+    </ul>
+    <p style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;"><strong>Pattern del legacy (capturado 2026-06-05):</strong> el doctor cierra el caso con texto tipo "Patient may require Follow Up: $250 · Trigger Point Injections: $300 · Spine/Epidural injections: $2,500 · Radio Frequency Ablation: $3,500". Estos números <strong>inflan el valor del settlement</strong> y forman parte del cálculo de la demand. Brunella consume el snapshot al armar el paquete para el abogado.</p>
+  </div>
+
   <div class="mockup">
     <div class="mockup-frame">
       <div class="mock-topbar">
@@ -5397,6 +6239,18 @@
     </ul>
   </div>
 
+  <div class="callout callout-success">
+    <strong>🔗 Snapshot al firmar nota de Closing Case (B.18) — pattern del legacy:</strong>
+    <p style="margin-top:6px;margin-bottom:6px;font-size:12.5px;line-height:1.65;">Cuando el doctor firma una nota con la variante <strong>"Closing Case"</strong> en B.18 sección Plan, los precios futuros que el doctor cita en la nota ("Follow Up: $250 · Trigger Point Injection: $300 · Spine and Epidural injections: $2,500 · Radio Frequency Ablation: $3,500") se <strong>snapshot inmutable</strong> del <code>fee_schedule</code> del año fiscal actual.</p>
+    <p style="margin-top:6px;margin-bottom:6px;font-size:12.5px;line-height:1.65;"><strong>Por qué snapshot:</strong> si después de firmar la nota el catálogo cambia precios (Enero próximo, ajuste de fees), la nota firmada mantiene los precios HISTÓRICOS al momento de firma. Esto es:</p>
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Legalmente correcto</strong> — la demand letter del abogado (B.28) usa precios documentados en la nota firmada, no precios actuales que podrían diferir.</li>
+      <li><strong>Auditable</strong> — un auditor puede ver: "el 5/Jun/2026 el doctor citó $250 para follow-up. En esa fecha el catálogo decía $250. Match."</li>
+      <li><strong>Immutable</strong> — append-only. Si los precios cambian, se crea un nuevo registro en <code>fee_schedule_2027</code>, NO se modifica el snapshot de la nota.</li>
+    </ul>
+    <p style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;"><strong>Modelo:</strong> <code>note_signed.closing_case_prices[]</code> contiene <code>{cpt_code, label, price_at_signing, fee_schedule_year}</code>. El precio NO se referencia por FK al catálogo — está congelado.</p>
+  </div>
+
   <div class="mockup">
     <div class="mockup-frame">
       <div class="mock-topbar">
@@ -5834,14 +6688,76 @@
   </div>
 </div>
 
-<!-- ═══ B.35 — CATÁLOGO DE ICD-10 (DIAGNÓSTICOS) ═══ -->
+<!-- ═══ B.35 — CATÁLOGO DE DIAGNÓSTICOS (ICD-10 + SNOMED CT) ═══ -->
 <div class="page">
   <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366F1);">B.35 · Catálogos</span>
-  <h2>Catálogo de ICD-10 codes (diagnósticos)</h2>
-  <p><strong>Quién la usa:</strong> Super Admin + Doctores. <strong>Para qué:</strong> el doctor selecciona el/los diagnósticos en la nota SOAP (B.18) y al firmar (B.21). Sin un catálogo central, cada doctor escribe el diagnóstico libre y Brunella no puede traducir a códigos para el HCFA. ICD-10 es estándar federal — usado por todas las aseguradoras.</p>
+  <h2>Catálogo de Diagnósticos · ICD-10 + SNOMED CT (dual coding)</h2>
+  <p><strong>Quién la usa:</strong> Super Admin + Doctores. <strong>Para qué:</strong> el doctor selecciona el/los diagnósticos en la nota (B.18 sección "Diagnósticos agregados") con <strong>dual coding</strong> — un ICD-10 para billing/HCFA + un SNOMED CT para detalle clínico granular. Pattern capturado del legacy 2026-06-05.</p>
 
   <div class="callout callout-success">
-    <strong>✅ ICD-10 es GRATIS y público</strong> (a diferencia de CPT). El CDC publica el listado completo anualmente en CSV/XML. Descarga oficial: <a href="https://www.cdc.gov/nchs/icd/icd-10-cm/files.html" style="color:#67e8f9;">cdc.gov/nchs/icd/icd-10-cm</a>. ~70,000 códigos totales, pero Precision Medical usa ~200-300 (lesiones de columna, dolor crónico, contusiones, whiplash).
+    <strong>✅ Ambos son GRATIS y públicos para uso clínico en EEUU:</strong>
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>ICD-10-CM</strong>: publicado por CDC anualmente en CSV/XML. ~70,000 códigos. <a href="https://www.cdc.gov/nchs/icd/icd-10-cm/files.html" style="color:#67e8f9;">cdc.gov/nchs/icd/icd-10-cm</a></li>
+      <li><strong>SNOMED CT</strong>: licenciado pero <strong>gratis para uso clínico en EEUU</strong> vía NLM/UMLS (National Library of Medicine — Unified Medical Language System). ~350,000 conceptos. <a href="https://www.nlm.nih.gov/healthit/snomedct/index.html" style="color:#67e8f9;">nlm.nih.gov/healthit/snomedct</a></li>
+    </ul>
+    Precision Medical usa <strong>~200-300 ICD-10</strong> (lesiones de columna, dolor crónico, contusiones, whiplash) + <strong>~400-500 SNOMED</strong> mapeados para detalle clínico.
+  </div>
+
+  <div class="callout">
+    <strong>Por qué dual coding (no solo ICD-10):</strong>
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>ICD-10</strong> → mandatorio para <strong>HCFA / CMS-1500</strong> (B.26 Brunella billing). Sin él no hay claim al seguro.</li>
+      <li><strong>SNOMED CT</strong> → granularidad clínica para reportes longitudinales, búsqueda inteligente, NLP auto-suggest, interop con otros EHRs. Un ICD-10 "M54.2 Cervicalgia" se puede mapear a 12+ SNOMED específicos (dolor cervical superior izquierdo · cervicalgia post-traumática · etc.).</li>
+      <li><strong>Ejemplo real del legacy</strong>: M54.12 "Radiculopathy cervical region" ←→ SNOMED 103014001 "Cervical nerve root pain" — el ICD-10 va al claim, el SNOMED enriquece el problem list del paciente.</li>
+    </ul>
+  </div>
+
+  <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:18px 22px;margin:14px 0;border:1px solid rgba(99,102,241,0.30);">
+    <div style="color:var(--brand-cyan);font-size:12px;font-weight:700;margin-bottom:10px;">📊 Mappings reales capturados del legacy (B.18 diagnósticos agregados)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11.5px;color:rgba(255,255,255,0.85);">
+      <thead>
+        <tr style="background:rgba(99,102,241,0.10);">
+          <th style="text-align:left;padding:6px 10px;color:#a5b4fc;font-weight:700;">ICD-10 (billing)</th>
+          <th style="text-align:left;padding:6px 10px;color:#34d399;font-weight:700;">SNOMED CT (clínico)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#a5b4fc;">M62.838</code> Other muscle spasm</td><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#34d399;">1141864009</code> Perioral spasm</td></tr>
+        <tr><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#a5b4fc;">S13.4XXA</code> Sprain of ligaments of cervical spine, initial encounter</td><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#34d399;">122751000119105</code> Acute posttraumatic...</td></tr>
+        <tr><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#a5b4fc;">G47.9</code> Sleep disorder, unspecified</td><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#34d399;">12262002</code> Restless sleep</td></tr>
+        <tr><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#a5b4fc;">M54.2</code> Cervicalgia</td><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#34d399;">102554000</code> Tenderness of spinous process</td></tr>
+        <tr><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#a5b4fc;">M54.12</code> Radiculopathy, cervical region</td><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#34d399;">103014001</code> Cervical nerve root pain</td></tr>
+        <tr><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#a5b4fc;">M54.50</code> Low back pain, unspecified</td><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#34d399;">1119213008</code> Tenderness of left lumbar region</td></tr>
+        <tr><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#a5b4fc;">M54.17</code> Radiculopathy, lumbosacral region</td><td style="padding:5px 10px;border-bottom:1px solid var(--line);"><code style="color:#34d399;">103016004</code> Lumbosacral nerve root pain</td></tr>
+        <tr><td style="padding:5px 10px;"><code style="color:#a5b4fc;">R51.9</code> Headache, unspecified</td><td style="padding:5px 10px;"><code style="color:#34d399;">103007003</code> Headache due to external cause</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <strong>UI en B.18:</strong> dropdown "Código" para elegir ICD-10 / SNOMED / Ambos · search con autocompletado · <strong>favoritos por doctor</strong> (priorizar en autocomplete) · botón "+ Agregar" para sumar diagnósticos.
+  </div>
+
+  <div class="callout">
+    <strong>Modelo de datos:</strong>
+    <pre style="margin-top:6px;margin-bottom:0;font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,0.85);overflow-x:auto;line-height:1.55;">
+Diagnosis {
+  id, icd10_code, icd10_description
+  snomed_code, snomed_description
+  category    // S (lesión), M (musculoesq.), R (síntoma), V/W (accidente), G (neuro), etc.
+  body_system
+  pi_relevant // bool — flag para PI
+  active      // bool
+}
+
+DiagnosisMapping {
+  icd10_code → [snomed_codes[]]   // un ICD-10 puede tener varios SNOMED
+  snomed_code → [icd10_codes[]]   // y viceversa
+}
+
+UserDiagnosisFavorite {
+  user_id, diagnosis_id, frequency_score
+}</pre>
   </div>
 
   <div class="mockup">
@@ -6875,7 +7791,7 @@
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:560px;margin:0 auto 30px;">38 pantallas conceptuales: 29 del flujo cronológico end-to-end + 6 de catálogos master data + 1 de búsqueda transversal + 1 de display público en lobby (HIPAA-safe) + <strong style="color:#fbbf24;">1 de roadmap futuro (B.38 — AI Receptionist Phase 3+)</strong>. La spec completa del LienMaster v2 (LM v3 público / Phoenix interno) lista para Phase 0.</p>
+  <p class="small" style="max-width:580px;margin:0 auto 30px;">41 pantallas conceptuales: 29 del flujo cronológico end-to-end + <strong style="color:#a5b4fc;">3 del flujo Doctor Notes capturado del legacy (B.17.5/B.17.6/B.17.7)</strong> + 6 de catálogos master data + 1 de búsqueda transversal + 1 de display público en lobby (HIPAA-safe) + <strong style="color:#fbbf24;">1 de roadmap futuro (B.38 — AI Receptionist Phase 3+)</strong>. La spec completa del LienMaster v3 (público) / Phoenix (interno) lista para Phase 0.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

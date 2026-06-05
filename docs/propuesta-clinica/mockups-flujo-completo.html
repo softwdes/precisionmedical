@@ -336,6 +336,7 @@
     <li>B.31 — Detalle de bufete · sub-listas de abogados + case managers + métricas + notas</li>
     <li><strong>B.32 — Catálogo de Aseguradoras</strong> (PIP / Med Pay / Health) · canal preferido HCFA + tiempo de respuesta</li>
     <li><strong>B.33 — Catálogo de CPT codes</strong> · fee schedule por año fiscal + bundling rules + métricas de uso</li>
+    <li><strong>B.35 — Catálogo de ICD-10</strong> (diagnósticos) · descarga gratuita del CDC + curaduría a ~300 códigos PI + NLP auto-suggest</li>
   </ul>
 
   <h4 style="color: #06B6D4;">🔍 Búsqueda transversal</h4>
@@ -344,7 +345,7 @@
   </ul>
 
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>34 mockups</strong> — 29 del flujo end-to-end cronológico + 4 de catálogos/master data + 1 de búsqueda transversal. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos (B.30-B.33)</strong>: master data de Bufetes, Aseguradoras y CPT codes gestionado por Super Admin + Edson + Brunella — son la base sin la cual el flujo no puede arrancar. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K accesible desde cualquier app. El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>35 mockups</strong> — 29 del flujo end-to-end cronológico + 5 de catálogos/master data + 1 de búsqueda transversal. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33 + B.35)</strong>: Bufetes, Aseguradoras, CPT codes e ICD-10 — son la base sin la cual el flujo no puede arrancar. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. El documento principal "LienMaster Propuesta Ejecutiva" mantiene la estrategia + roadmap + decisiones críticas.
   </div>
 </div>
 
@@ -5364,11 +5365,221 @@
   </div>
 </div>
 
+<!-- ═══ B.35 — CATÁLOGO DE ICD-10 (DIAGNÓSTICOS) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366F1);">B.35 · Catálogos</span>
+  <h2>Catálogo de ICD-10 codes (diagnósticos)</h2>
+  <p><strong>Quién la usa:</strong> Super Admin + Doctores. <strong>Para qué:</strong> el doctor selecciona el/los diagnósticos en la nota SOAP (B.18) y al firmar (B.21). Sin un catálogo central, cada doctor escribe el diagnóstico libre y Brunella no puede traducir a códigos para el HCFA. ICD-10 es estándar federal — usado por todas las aseguradoras.</p>
+
+  <div class="callout callout-success">
+    <strong>✅ ICD-10 es GRATIS y público</strong> (a diferencia de CPT). El CDC publica el listado completo anualmente en CSV/XML. Descarga oficial: <a href="https://www.cdc.gov/nchs/icd/icd-10-cm/files.html" style="color:#67e8f9;">cdc.gov/nchs/icd/icd-10-cm</a>. ~70,000 códigos totales, pero Precision Medical usa ~200-300 (lesiones de columna, dolor crónico, contusiones, whiplash).
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">📚 Catálogos · ICD-10 Diagnósticos</div>
+        <span class="mock-time">⏱ 11:42</span>
+      </div>
+      <div class="mock-body">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+          <div>
+            <div class="mock-title">🩺 ICD-10 codes · 2026 edition</div>
+            <div class="mock-subtitle">287 códigos relevantes para PI · Catálogo CDC · Actualización: 01/Oct/2025</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="mock-action-btn" style="font-size:11px;">📥 Importar CDC CSV</button>
+            <button class="mock-action-btn primary" style="font-size:11px;">+ Nuevo ICD-10</button>
+          </div>
+        </div>
+
+        <div class="mock-kpi-row">
+          <div class="mock-kpi"><div class="mock-kpi-label">Códigos activos</div><div class="mock-kpi-value" style="color:#34d399;">287</div><div class="mock-kpi-sub">Curados para PI</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Más usado</div><div class="mock-kpi-value" style="color:#67e8f9;font-size:13px;">S13.4</div><div class="mock-kpi-sub">Sprain cervical · 318 / mes</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Lesiones (S/T)</div><div class="mock-kpi-value" style="color:#fda4af;">142</div><div class="mock-kpi-sub">Trauma directo</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Dolor crónico (M)</div><div class="mock-kpi-value" style="color:#a5b4fc;">87</div><div class="mock-kpi-sub">Musculoesquelético</div></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <input class="mock-input" placeholder="🔍 Buscar por código o descripción..." style="flex:1;min-width:220px;font-size:11px;padding:6px 10px;">
+          <div class="mock-input selected" style="font-size:10px;padding:4px 10px;">Todos (287)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">S — Lesiones (98)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">T — Trauma (44)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">M — Musculoesq. (87)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">R — Síntomas (32)</div>
+          <div class="mock-input" style="font-size:10px;padding:4px 10px;">V/W — Accidente externo (26)</div>
+        </div>
+
+        <table style="width:100%;font-size:11px;border-collapse:separate;border-spacing:0 6px;">
+          <thead>
+            <tr style="color:rgba(255,255,255,0.45);text-transform:uppercase;font-size:9px;letter-spacing:0.05em;">
+              <th style="text-align:left;padding:4px 8px;">Código</th>
+              <th style="text-align:left;padding:4px 8px;">Descripción</th>
+              <th style="text-align:center;padding:4px 8px;">Capítulo</th>
+              <th style="text-align:left;padding:4px 8px;">Body system</th>
+              <th style="text-align:right;padding:4px 8px;">Uso · mes</th>
+              <th style="text-align:center;padding:4px 8px;">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:rgba(244,63,94,0.05);border:1px solid rgba(244,63,94,0.18);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="font-family:monospace;color:white;font-weight:700;">S13.4</span>
+                  <span style="color:#fbbf24;font-size:11px;" title="Más usado">⭐</span>
+                </div>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Sprain of ligaments of cervical spine</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Esguince cervical · whiplash · trauma directo</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(244,63,94,0.18);color:#fda4af;font-size:9px;">S — Lesión</span></td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">Cuello / columna cervical</td>
+              <td style="text-align:right;padding:10px 8px;color:#67e8f9;font-family:monospace;font-weight:700;">318</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">M54.2</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Cervicalgia</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Dolor de cuello · sin especificar causa</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(99,102,241,0.18);color:#a5b4fc;font-size:9px;">M — Musculo</span></td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">Cuello</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;font-weight:700;">242</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">M54.5</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Low back pain</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Lumbalgia · dolor lumbar inespecífico</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(99,102,241,0.18);color:#a5b4fc;font-size:9px;">M — Musculo</span></td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">Lumbar / espalda baja</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;font-weight:700;">198</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">S33.5</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Sprain of ligaments of lumbar spine</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Esguince lumbar · trauma directo</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(244,63,94,0.18);color:#fda4af;font-size:9px;">S — Lesión</span></td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">Lumbar</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;font-weight:700;">156</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">M54.16</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Radiculopathy, lumbar region</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Dolor irradiado a pierna · compromiso radicular</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(99,102,241,0.18);color:#a5b4fc;font-size:9px;">M — Musculo</span></td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">Lumbar / nervios periféricos</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">94</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">M62.830</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Muscle spasm of back</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Espasmo muscular de espalda</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(99,102,241,0.18);color:#a5b4fc;font-size:9px;">M — Musculo</span></td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">Musculatura paraespinal</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">112</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+            <tr style="background:rgba(255,255,255,0.03);">
+              <td style="padding:10px 8px;border-radius:8px 0 0 8px;">
+                <span style="font-family:monospace;color:white;font-weight:700;">V43.52XA</span>
+              </td>
+              <td style="padding:10px 8px;color:white;">
+                <div style="font-weight:600;">Car driver injured in collision with car · initial encounter</div>
+                <div style="font-size:9.5px;color:rgba(255,255,255,0.55);">Código de causa externa · obligatorio para PI</div>
+              </td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge" style="background:rgba(245,158,11,0.18);color:#fbbf24;font-size:9px;">V — Externo</span></td>
+              <td style="padding:10px 8px;color:rgba(255,255,255,0.75);">Causa del accidente</td>
+              <td style="text-align:right;padding:10px 8px;color:#a5b4fc;font-family:monospace;">187</td>
+              <td style="text-align:center;padding:10px 8px;"><span class="badge badge-emerald">✓ Activo</span></td>
+              <td style="text-align:right;padding:10px 8px;border-radius:0 8px 8px 0;">
+                <button class="mock-action-btn" style="font-size:10px;">Ver →</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Info de combinaciones típicas -->
+        <div style="background:rgba(99,102,241,0.04);border:1px solid rgba(99,102,241,0.18);border-radius:10px;padding:12px 14px;margin-top:14px;">
+          <div style="font-size:10px;color:#a5b4fc;font-weight:600;margin-bottom:6px;">💡 COMBINACIONES TÍPICAS DE PI</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.80);line-height:1.6;">
+            Un caso típico de whiplash post-accidente lleva <strong>3-5 ICD-10 codes</strong>:
+            <strong>S13.4</strong> (esguince cervical, lesión primaria) +
+            <strong>M54.2</strong> (cervicalgia, dolor) +
+            <strong>M62.830</strong> (espasmo muscular) +
+            <strong>V43.52XA</strong> (causa externa, accidente de auto, encuentro inicial).
+            En B.18 (Visita en sala) el doctor escribe el diagnóstico texto libre y el sistema sugiere los ICDs basado en NLP — luego el doctor confirma.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Plan de carga inicial:</strong>
+    <ol style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li>Descargar el archivo oficial <code>icd10cm-codes-2026.txt</code> del CDC (~5MB, gratis).</li>
+      <li>Filtrar a los capítulos relevantes para PI: <strong>S</strong> (lesiones), <strong>T</strong> (trauma), <strong>M</strong> (musculoesquelético), <strong>R</strong> (síntomas), <strong>V/W/X/Y</strong> (causas externas).</li>
+      <li>Curar la lista a ~300 códigos que realmente se usan en una clínica de auto-accident — eliminar lesiones de aviación, exposición a radiación, etc.</li>
+      <li>Importar al sistema vía CSV. El admin puede agregar más manualmente después si aparece un caso raro.</li>
+      <li>Anualmente (Octubre), aplicar diff del nuevo CDC release — son ~50 cambios/año, manejable manualmente.</li>
+    </ol>
+  </div>
+
+  <div class="callout">
+    <strong>NLP auto-suggestion en B.18:</strong> el doctor no necesita memorizar ICD-10. Escribe en lenguaje natural "dolor de cuello post accidente" y el sistema le sugiere automáticamente <strong>S13.4 + M54.2 + V43.52XA</strong>. El doctor confirma con un clic. Esto reduce 70% del tiempo de coding y minimiza errores de billing.
+  </div>
+</div>
+
 <!-- ═══ CIERRE ═══ -->
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:540px;margin:0 auto 30px;">34 pantallas conceptuales: 29 del flujo cronológico end-to-end + 4 de catálogos master data (bufetes, aseguradoras, CPT codes) + 1 de búsqueda transversal global — la spec completa del LienMaster v2 lista para Phase 0.</p>
+  <p class="small" style="max-width:540px;margin:0 auto 30px;">35 pantallas conceptuales: 29 del flujo cronológico end-to-end + 5 de catálogos master data (bufetes, aseguradoras, CPT codes, ICD-10) + 1 de búsqueda transversal global — la spec completa del LienMaster v2 lista para Phase 0.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

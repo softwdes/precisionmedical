@@ -350,8 +350,13 @@
     <li><strong>B.37 — Vista de Sala / Waiting Room TV</strong> · iniciales anonimizadas (HIPAA), realtime WebSocket, multi-idioma ES/EN, status automático según flujo, QR para mobile</li>
   </ul>
 
+  <h4 style="color: #f59e0b;">🤖 Roadmap futuro — Phase 3+ (NO en scope de Phase 0-2)</h4>
+  <ul style="list-style: none; margin-left: 0;">
+    <li><strong>B.38 — AI Receptionist (voice AI conversacional)</strong> · capa encima de Weave para after-hours/overflow inicialmente · activación cuando Claude la recomiende según criterios técnicos · APIs preparadas desde Phase 0 con campo <code>actor_type</code></li>
+  </ul>
+
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>37 mockups</strong> — 29 del flujo end-to-end cronológico + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), ICD-10 y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>38 mockups</strong> — 29 del flujo end-to-end cronológico + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby + <strong>1 de roadmap futuro (B.38)</strong>. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), ICD-10 y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket. <strong>B.38 (Roadmap)</strong>: AI Receptionist NO va en Phase 0-2 — se evalúa en Phase 3+ cuando Claude lo recomiende según criterios de madurez del sistema.
   </div>
 </div>
 
@@ -6554,25 +6559,337 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ███ PARTE III · ROADMAP FUTURO (B.38) ████████████████████████████████ -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<!-- Banner PARTE III -->
+<div style="background:linear-gradient(135deg,#7c2d12 0%,#451a03 100%);border-radius:14px;padding:28px 36px;margin:48px 0 24px;border:2px solid rgba(245,158,11,0.50);">
+  <div style="display:flex;align-items:center;gap:20px;">
+    <div style="font-size:44px;line-height:1;">🤖</div>
+    <div style="flex:1;">
+      <div style="font-size:11px;color:#fbbf24;text-transform:uppercase;letter-spacing:0.20em;font-weight:700;margin-bottom:6px;">Parte III — Roadmap futuro / NO en scope de Phase 0-2</div>
+      <div style="font-size:24px;font-weight:800;color:white;margin-bottom:6px;">Capa de Inteligencia Artificial</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.85);line-height:1.55;">El AI Receptionist es una capa <strong style="color:#fbbf24;">opcional, futura y bajo recomendación técnica de Claude</strong>. Se construye encima del sistema base (Phase 0-2) sin romper nada. Su activación está condicionada a que el flujo core esté operando con humanos por al menos 3-6 meses, métricas estables, y se cumplan criterios HIPAA específicos.</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:14px;margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.15);font-size:11px;color:rgba(255,255,255,0.75);flex-wrap:wrap;">
+    <span><strong style="color:#fbbf24;">B.38</strong> · AI Receptionist (voice AI sobre Weave)</span>
+    <span><strong style="color:#fbbf24;">Decisión 2026-06-05:</strong> Phase 3+ — Claude señala cuándo activar</span>
+    <span><strong style="color:#fbbf24;">Hook desde Phase 0:</strong> APIs preparadas con <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#fde68a;">actor_type</code></span>
+  </div>
+</div>
+
+<!-- ═══ B.38 — AI RECEPTIONIST (ROADMAP FUTURO) ═══ -->
+<div class="page" style="border:2px dashed rgba(245,158,11,0.40);background:linear-gradient(180deg,rgba(245,158,11,0.02) 0%,transparent 50%);">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #f59e0b, #b45309);">B.38 · Roadmap Futuro · Phase 3+</span>
+  <h2>AI Receptionist — Recepcionista AI conversacional</h2>
+
+  <div style="background:linear-gradient(135deg,#78350f,#451a03);border-radius:10px;padding:18px 22px;margin:16px 0 22px;border:1px solid rgba(245,158,11,0.40);">
+    <div style="display:flex;align-items:flex-start;gap:14px;">
+      <div style="font-size:24px;line-height:1;flex-shrink:0;">⚠️</div>
+      <div style="color:#fde68a;font-size:13px;line-height:1.60;">
+        <strong style="color:#ffffff;">Este mockup NO se implementa en Phase 0-2.</strong> Es la spec preparatoria para una integración futura. Durante Phase 0-2 la clínica usa <strong style="color:#ffffff;">Weave auto-attendant</strong> (IVR básico: "Presione 1 para citas, 2 para emergencias...") + Recepción humana. La activación de este módulo requiere que Claude lo recomiende basado en criterios técnicos (ver "Criterios de activación" abajo).
+      </div>
+    </div>
+  </div>
+
+  <p><strong>Quién la usaría:</strong> bufetes, pacientes nuevos y existentes llamando al teléfono principal de Precision Medical (después de hours inicialmente, luego horario extendido). <strong>Para qué:</strong> capturar referidos sin pérdida cuando Recepción no está disponible, agendar citas iniciales conversacionalmente en ES/EN, enviar el link del portal por SMS automáticamente al colgar, transferir a humano cuando sea necesario.</p>
+
+  <div class="callout">
+    <strong>Por qué AI receptionist es valioso para PI:</strong> los bufetes llaman a horas extrañas (8pm, sábados, post-accidente urgente). Hoy esas llamadas van a voicemail y se pierden. Un AI bien diseñado captura el 70-80% de esos casos automáticamente. Para una clínica PI, perder un referido = perder $5K-15K en revenue. El ROI del AI receptionist se calcula contra esa pérdida, no contra el costo de Recepción humana.
+  </div>
+
+  <h3>Arquitectura: capa encima de Weave (no reemplazo)</h3>
+
+  <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:24px 28px;margin:18px 0;border:1px solid rgba(99,102,241,0.30);">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.85;color:#cbd5e1;">
+      <div style="color:#94a3b8;margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;">Flujo de llamada</div>
+      <div>📞 <strong style="color:#fbbf24;">Llamada entrante</strong> al (801) 375-2207</div>
+      <div style="margin-left:20px;color:#7dd3fc;">↓</div>
+      <div>🔵 <strong style="color:#7dd3fc;">Weave</strong> recibe la llamada (BAA-covered, telefonía base)</div>
+      <div style="margin-left:20px;color:#7dd3fc;">↓ routing rules</div>
+      <div>🕐 <strong>¿Horario de oficina?</strong></div>
+      <div style="margin-left:30px;">└─ <span style="color:#34d399;">SÍ</span> → Recepción humana (B.1 Front Office)</div>
+      <div style="margin-left:30px;">└─ <span style="color:#fbbf24;">NO / overflow / cola &gt; 2 min</span> → AI Receptionist</div>
+      <div style="margin-left:20px;color:#fbbf24;">↓</div>
+      <div>🤖 <strong style="color:#fbbf24;">Voice AI provider</strong> (Vapi / Retell / Hyro) — convers. natural ES/EN</div>
+      <div style="margin-left:20px;color:#fbbf24;">↓ llama APIs de back-office con actor_type=AI_AGENT</div>
+      <div>⚙️ <strong style="color:#a5b4fc;">apps/back-office</strong> ejecuta:</div>
+      <div style="margin-left:30px;">├─ <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#a5b4fc;">POST /api/cases/create-from-call</code></div>
+      <div style="margin-left:30px;">├─ <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#a5b4fc;">GET  /api/appointments/available-slots</code></div>
+      <div style="margin-left:30px;">└─ <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#a5b4fc;">POST /api/sms/send-portal-link</code></div>
+      <div style="margin-left:20px;color:#a5b4fc;">↓</div>
+      <div>📲 <strong>Paciente recibe SMS</strong> con link del portal (B.5) + confirmación de cita</div>
+      <div style="margin-left:20px;color:#a5b4fc;">↓</div>
+      <div>📊 <strong style="color:#34d399;">Audit log</strong> registra TODO con <code style="background:rgba(0,0,0,0.30);padding:1px 5px;border-radius:3px;color:#fbbf24;">actor_type=AI_AGENT</code> (separable de acciones humanas)</div>
+    </div>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Clave del diseño:</strong> el AI agent NO tiene acceso especial. Consume las <strong>mismas 3 APIs</strong> que ya usa Recepción humana hoy. Único diferencial: el campo <code>actor_type</code> en el contexto de auth. Esto significa que <strong>el código del backend no cambia</strong> cuando agregamos AI — solo agregamos un cliente nuevo (el voice AI provider) que llama esos endpoints existentes.
+  </div>
+
+  <h3>Ejemplo de conversación (bilingüe automático)</h3>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:18px 0;">
+    <!-- Español -->
+    <div style="background:linear-gradient(135deg,#0c4a6e,#075985);border-radius:12px;padding:20px 22px;border:1px solid rgba(14,165,233,0.40);">
+      <div style="font-size:11px;color:#7dd3fc;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;margin-bottom:14px;">🇪🇸 Llamada en español (detección automática)</div>
+      <div style="font-size:12.5px;line-height:1.70;color:#e0f2fe;">
+        <div style="margin-bottom:10px;"><strong style="color:#fbbf24;">🤖 AI:</strong> "Gracias por llamar a Precision Medical. Esta llamada puede ser grabada para cumplimiento HIPAA. Soy María, asistente virtual. ¿En qué le puedo ayudar?"</div>
+        <div style="margin-bottom:10px;"><strong style="color:#34d399;">👤 Paciente:</strong> "Tuve un accidente ayer, mi abogado me dijo que llamara."</div>
+        <div style="margin-bottom:10px;"><strong style="color:#fbbf24;">🤖 AI:</strong> "Lo siento por el accidente. ¿Cuál es el nombre de su abogado o bufete?"</div>
+        <div style="margin-bottom:10px;"><strong style="color:#34d399;">👤 Paciente:</strong> "Smith & Johnson"</div>
+        <div style="margin-bottom:10px;"><strong style="color:#fbbf24;">🤖 AI:</strong> <em>(consulta B.30 catálogo de bufetes)</em> "Perfecto, tenemos a Smith & Johnson en sistema. ¿Cuál es su nombre completo y un número donde podamos contactarle?"</div>
+        <div style="color:#94a3b8;font-size:11px;font-style:italic;margin-top:14px;">[continúa capturando MVA date, tipo de accidente, prefer. de horario, agenda cita en B.10, envía SMS con magic link del portal]</div>
+      </div>
+    </div>
+    <!-- Inglés -->
+    <div style="background:linear-gradient(135deg,#064e3b,#065f46);border-radius:12px;padding:20px 22px;border:1px solid rgba(16,185,129,0.40);">
+      <div style="font-size:11px;color:#6ee7b7;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;margin-bottom:14px;">🇺🇸 Call in English (auto-detected)</div>
+      <div style="font-size:12.5px;line-height:1.70;color:#d1fae5;">
+        <div style="margin-bottom:10px;"><strong style="color:#fbbf24;">🤖 AI:</strong> "Thank you for calling Precision Medical. This call may be recorded for HIPAA compliance. I'm Maria, virtual assistant. How can I help you?"</div>
+        <div style="margin-bottom:10px;"><strong style="color:#34d399;">👤 Attorney:</strong> "Hi, I'm calling from Brown & Associates, we have a new MVA client we'd like to refer."</div>
+        <div style="margin-bottom:10px;"><strong style="color:#fbbf24;">🤖 AI:</strong> <em>(verifica Brown & Associates en B.30)</em> "Got it — Brown & Associates is in our system. What's the client's name and best callback number?"</div>
+        <div style="margin-bottom:10px;"><strong style="color:#34d399;">👤 Attorney:</strong> "John Doe, 801-555-0123, accident was Monday."</div>
+        <div style="margin-bottom:10px;"><strong style="color:#fbbf24;">🤖 AI:</strong> "Perfect. I'll send John a portal link via text right now to complete intake. We have availability tomorrow at 10am or Thursday at 2pm at our West Valley clinic — which works better?"</div>
+        <div style="color:#94a3b8;font-size:11px;font-style:italic;margin-top:14px;">[crea Case en B.2 con actor_type=AI_AGENT, agenda cita, envía SMS, notifica a Edson para verificar PIP en B.12]</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>APIs preparadas desde Phase 0 (hook arquitectónico)</h3>
+
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:14px 0;">
+      <thead>
+        <tr style="background:rgba(99,102,241,0.10);">
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Endpoint</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Qué hace</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Consume hoy (humano)</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Consume futuro (AI)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><code style="background:rgba(0,0,0,0.30);padding:1px 6px;border-radius:3px;color:#a5b4fc;font-size:11px;">POST /api/cases/create-from-call</code></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Crea esqueleto de Case con datos mínimos (nombre, teléfono, bufete, MVA date)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Recepción en B.2 vía UI</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">AI agent vía webhook del voice provider</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><code style="background:rgba(0,0,0,0.30);padding:1px 6px;border-radius:3px;color:#a5b4fc;font-size:11px;">GET  /api/appointments/available-slots</code></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Devuelve slots libres por clínica/doctor en próximos 14 días</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Recepción en B.10 calendar</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">AI agent durante la conversación</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><code style="background:rgba(0,0,0,0.30);padding:1px 6px;border-radius:3px;color:#a5b4fc;font-size:11px;">POST /api/sms/send-portal-link</code></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Genera magic link y envía SMS al paciente vía Weave</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Recepción en B.5 botón "Enviar portal"</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">AI agent al colgar la llamada</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Reglas de diseño de estos endpoints en Phase 0:</strong>
+    <ul style="margin-top:8px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Auth context incluye <code>actor_type</code></strong>: <code>HUMAN_USER</code> | <code>AI_AGENT</code> | <code>SYSTEM</code>. Escrito al audit log.</li>
+      <li><strong>Idempotency-Key header</strong>: el AI puede reintentar la llamada si pierde conexión; el backend no duplica.</li>
+      <li><strong>Validación Zod estricta</strong>: el AI puede mandar payloads creativos — el schema rechaza cualquier cosa fuera del contrato.</li>
+      <li><strong>Rate limiting más estricto en <code>AI_AGENT</code></strong>: humano = 100 req/min, AI = 30 req/min (defensa contra loops).</li>
+      <li><strong>Solo flujo de creación inicial</strong>: el AI NO puede modificar casos existentes, ver PHI completo, ni acceder a billing. Permisos mínimos.</li>
+    </ul>
+  </div>
+
+  <h3>Proveedores de voice AI evaluables (Phase 3)</h3>
+
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:14px 0;">
+      <thead>
+        <tr style="background:rgba(99,102,241,0.10);">
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Proveedor</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Especialización</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">BAA HIPAA</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Costo estimado</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(99,102,241,0.30);color:#a5b4fc;">Bilingüe ES/EN</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><strong>Vapi.ai</strong></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Voice AI infrastructure (más flexible)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#34d399;">✅ Plan Enterprise</span></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">$0.10-0.20/min</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line;)"><span style="color:#34d399;">✅ Auto-detect</span></td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><strong>Retell AI</strong></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Voice AI healthcare-focused</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#34d399;">✅ Sí</span></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">~$0.20/min</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#34d399;">✅ Multi-idioma</span></td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><strong>Hyro</strong></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Healthcare-specific (turn-key, premium)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#34d399;">✅ Built-in</span></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">$$$ enterprise pricing</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#34d399;">✅ Sí</span></td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><strong>Synthflow</strong></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">AI phone agents general (newer)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#fbbf24;">⚠️ Verificar</span></td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">$0.05-0.12/min</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);"><span style="color:#fbbf24;">⚠️ Limitado</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <strong>Recomendación inicial (sujeta a re-evaluación en Phase 3):</strong> Vapi.ai por flexibilidad de prompt engineering. Retell si queremos turn-key healthcare con menos config. Hyro solo si el budget es alto y queremos opción más "managed". Synthflow descartado para producción HIPAA por ahora.
+  </div>
+
+  <h3>Implicaciones HIPAA (no negociables)</h3>
+
+  <div style="background:linear-gradient(135deg,#064e3b,#065f46);border-radius:12px;padding:22px 26px;margin:18px 0;border:1px solid rgba(16,185,129,0.40);">
+    <div style="display:flex;align-items:flex-start;gap:14px;">
+      <div style="font-size:24px;line-height:1;flex-shrink:0;">🔒</div>
+      <div style="color:#d1fae5;font-size:13px;line-height:1.65;">
+        <strong style="color:#ffffff;">Antes de activar AI Receptionist con PHI real, cumplir:</strong>
+        <ol style="margin-top:10px;margin-bottom:0;padding-left:18px;">
+          <li style="margin-bottom:6px;"><strong style="color:#ffffff;">BAA firmado</strong> con el voice AI provider seleccionado (no plan gratuito).</li>
+          <li style="margin-bottom:6px;"><strong style="color:#ffffff;">Disclaimer obligatorio al inicio de cada llamada</strong>: "This call may be recorded for HIPAA-compliant quality assurance" / "Esta llamada puede ser grabada para cumplimiento HIPAA".</li>
+          <li style="margin-bottom:6px;"><strong style="color:#ffffff;">Encryption end-to-end</strong> de audio + transcripts + storage.</li>
+          <li style="margin-bottom:6px;"><strong style="color:#ffffff;">Audit log</strong> de cada conversación AI: actor_type=AI_AGENT, transcript completo, acciones tomadas, llamadas a APIs, decisión final (case creado / transfer / abandonado).</li>
+          <li style="margin-bottom:6px;"><strong style="color:#ffffff;">NO training en datos de conversación</strong>: bloquear explícitamente en el contrato que el provider use nuestras conversaciones para entrenar su modelo.</li>
+          <li style="margin-bottom:6px;"><strong style="color:#ffffff;">Disclosure de "AI agent"</strong>: el AI se identifica como tal al inicio (regulación creciente en varios estados).</li>
+          <li style="margin-bottom:6px;"><strong style="color:#ffffff;">Escalation path siempre disponible</strong>: el paciente puede decir "quiero hablar con una persona" en cualquier momento — transfer inmediato.</li>
+          <li><strong style="color:#ffffff;">Permisos mínimos</strong>: el AI solo puede crear casos nuevos, agendar primera cita, enviar magic link. NO puede modificar registros existentes, ver historial clínico, ver billing, ni hablar con pacientes existentes sobre sus casos.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <h3>Criterios de activación — cuándo Claude lo recomienda</h3>
+
+  <div class="callout">
+    <strong>Erick lockeó (2026-06-05):</strong> "Claude decide cuándo es el momento." Estos son los criterios técnicos que Claude evaluará en cada chequeo periódico de Phase 3+:
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:18px 0;">
+    <div style="background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.30);border-radius:10px;padding:18px 20px;">
+      <div style="font-size:11px;color:#34d399;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;margin-bottom:10px;">✅ Activar cuando</div>
+      <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.65;">
+        <li>Phase 2 cerrada con flujo core estable ≥ 3 meses sin incidentes HIPAA mayores.</li>
+        <li>Audit log con <code>actor_type</code> funcionando y auditado regularmente.</li>
+        <li>Recepción humana sobrepasada: &gt; 15% de llamadas a voicemail en horario activo, o &gt; 30 llamadas/día after-hours perdidas.</li>
+        <li>Bufetes pidiendo explícitamente disponibilidad after-hours.</li>
+        <li>Budget para BAA + costo per-minute disponible (estimado $300-800/mes para 50 horas de conversación).</li>
+        <li>Champion interno designado para monitorear conversaciones AI las primeras 4 semanas.</li>
+      </ul>
+    </div>
+    <div style="background:rgba(244,63,94,0.05);border:1px solid rgba(244,63,94,0.30);border-radius:10px;padding:18px 20px;">
+      <div style="font-size:11px;color:#fda4af;text-transform:uppercase;letter-spacing:0.15em;font-weight:700;margin-bottom:10px;">❌ NO activar si</div>
+      <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.65;">
+        <li>BAAs base aún incompletos (Supabase/Vercel/Weave/Resend/Sentry).</li>
+        <li>Phase 0-2 con bugs activos en flujo core o audit log.</li>
+        <li>Sin equipo asignado para monitorear conversaciones la primera fase.</li>
+        <li>Resistencia de bufetes a hablar con AI (verificar con 3-5 bufetes top antes).</li>
+        <li>Regulaciones estatales (Utah) cambian a "AI disclosure obligatorio explícito por escrito".</li>
+        <li>Pacientes encuestados reportan &gt; 30% de incomodidad con AI en healthcare.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Roll-out gradual recomendado (Phase 3-4)</h3>
+
+  <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:12px;padding:22px 26px;margin:18px 0;border:1px solid rgba(99,102,241,0.30);">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.85;color:#cbd5e1;">
+      <div style="margin-bottom:8px;"><strong style="color:#fbbf24;">Phase 3.A — Sombra (4 semanas)</strong></div>
+      <div style="margin-left:16px;color:#94a3b8;margin-bottom:14px;">AI activado pero solo en modo log. Recepción humana sigue tomando todas las llamadas. AI procesa la transcripción en paralelo y guarda lo que HABRÍA hecho. Comparar con lo que hizo el humano. Iterar el prompt.</div>
+
+      <div style="margin-bottom:8px;"><strong style="color:#fbbf24;">Phase 3.B — After-hours only (8 semanas)</strong></div>
+      <div style="margin-left:16px;color:#94a3b8;margin-bottom:14px;">AI maneja llamadas SOLO 7pm-7am y fines de semana. Recepción humana de día. Champion revisa cada conversación AI manualmente las primeras 2 semanas. Métricas: tasa de captura, transfer rate, satisfaction.</div>
+
+      <div style="margin-bottom:8px;"><strong style="color:#fbbf24;">Phase 3.C — Overflow durante día (4 semanas)</strong></div>
+      <div style="margin-left:16px;color:#94a3b8;margin-bottom:14px;">Si Recepción humana tiene cola &gt; 2 minutos, la llamada va a AI en vez de voicemail. Mantiene primary humano pero captura overflow.</div>
+
+      <div style="margin-bottom:8px;"><strong style="color:#fbbf24;">Phase 4 — Horario extendido</strong></div>
+      <div style="margin-left:16px;color:#94a3b8;">Si métricas son positivas (≥ 80% casos capturados correctamente, satisfaction ≥ 4/5), expandir AI como first-line con humano de backup para transferencias complejas.</div>
+    </div>
+  </div>
+
+  <h3>Riesgos y mitigaciones</h3>
+
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;margin:14px 0;">
+      <thead>
+        <tr style="background:rgba(244,63,94,0.08);">
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(244,63,94,0.30);color:#fda4af;">Riesgo</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(244,63,94,0.30);color:#fda4af;">Probabilidad</th>
+          <th style="text-align:left;padding:10px 14px;border-bottom:2px solid rgba(244,63,94,0.30);color:#fda4af;">Mitigación</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">AI alucina datos del paciente o bufete</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Media</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Validación cruzada contra B.30 (bufetes existentes); AI dice "no encuentro su bufete, transfiero a un agente" en vez de inventar</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Paciente molesto rechaza hablar con AI</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Media-Alta</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Frase "presione 0 en cualquier momento para hablar con una persona" siempre disponible; transfer inmediato</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Voice AI provider down (outage)</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Baja</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Fallback automático a Weave auto-attendant + voicemail (status quo de Phase 0-2)</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Costos per-minute se disparan con uso</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Media</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Budget mensual cap + alertas a 70%/90%; rate limit por origen de llamada; conversación promedio &lt; 4 min</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Bug del AI crea caso duplicado o con datos malos</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Media en Phase 3.A</td>
+          <td style="padding:10px 14px;border-bottom:1px solid var(--line);">Todos los casos con <code>actor_type=AI_AGENT</code> entran en cola de verificación humana las primeras 12 semanas antes de ir a flujo normal</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout callout-success">
+    <strong>Resumen ejecutivo del módulo:</strong> B.38 es la spec preparatoria del AI Receptionist que se construirá <strong>encima del sistema base</strong> en Phase 3+. Phase 0 no implementa nada de AI, pero deja las APIs y el campo <code>actor_type</code> listos. La activación es decisión técnica de Claude basada en criterios objetivos (madurez del sistema, métricas de Recepción, BAAs, budget). El roll-out es gradual (sombra → after-hours → overflow → extendido). En el escenario "todo sale bien", el AI captura el 70-80% de llamadas after-hours perdidas hoy = +$X recurring revenue. En el escenario "no funciona", se desactiva en 1 click y Phase 0-2 sigue operando intacto.
+  </div>
+</div>
+
 <!-- ═══ CIERRE ═══ -->
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:540px;margin:0 auto 30px;">37 pantallas conceptuales: 29 del flujo cronológico end-to-end + 6 de catálogos master data + 1 de búsqueda transversal + 1 de display público en lobby (HIPAA-safe) — la spec completa del LienMaster v2 lista para Phase 0.</p>
+  <p class="small" style="max-width:560px;margin:0 auto 30px;">38 pantallas conceptuales: 29 del flujo cronológico end-to-end + 6 de catálogos master data + 1 de búsqueda transversal + 1 de display público en lobby (HIPAA-safe) + <strong style="color:#fbbf24;">1 de roadmap futuro (B.38 — AI Receptionist Phase 3+)</strong>. La spec completa del LienMaster v2 (LM v3 público / Phoenix interno) lista para Phase 0.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">
       <strong>Lo que está validado:</strong><br>
-      <span class="small">7 decisiones técnicas críticas · Modelo de dominio · Roadmap por fases · Subsistemas base · Métricas de éxito</span>
+      <span class="small">7 decisiones técnicas críticas · Modelo de dominio · Roadmap por fases · Subsistemas base · Métricas de éxito · Hook AI Receptionist preparado desde Phase 0</span>
     </div>
     <div class="callout" style="margin:0;">
       <strong>Lo que falta aprobar:</strong><br>
-      <span class="small">Arranque Fase 0 · BAA Supabase · Inversión Twilio/Resend · Acceso SQL legacy · Champions internos</span>
+      <span class="small">Arranque Phase 0 · BAAs (Supabase, Vercel, Weave, Resend, Sentry) · Consultor HIPAA · Acceso SQL legacy · Champions internos · AI Receptionist Phase 3+ (Claude señala cuándo)</span>
     </div>
   </div>
 
   <div style="margin-top:80px;padding-top:30px;border-top:1px solid var(--line);">
-    <p class="small">LienMaster Clínico · Mockups del Flujo Completo</p>
+    <p class="small">LienMaster v3 Clínico · Codename Phoenix · Mockups del Flujo Completo</p>
     <p class="small">Clanton Enterprises Series LLC · Junio 2026</p>
   </div>
 </div>

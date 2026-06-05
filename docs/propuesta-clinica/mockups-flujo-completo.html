@@ -345,8 +345,13 @@
     <li><strong>B.34 — Patient Global Search</strong> · búsqueda fuzzy multi-campo activada con ⌘K desde cualquier app</li>
   </ul>
 
+  <h4 style="color: #06B6D4;">📺 Display público en lobby</h4>
+  <ul style="list-style: none; margin-left: 0;">
+    <li><strong>B.37 — Vista de Sala / Waiting Room TV</strong> · iniciales anonimizadas (HIPAA), realtime WebSocket, multi-idioma ES/EN, status automático según flujo, QR para mobile</li>
+  </ul>
+
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>36 mockups</strong> — 29 del flujo end-to-end cronológico + 6 de catálogos/master data + 1 de búsqueda transversal. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), ICD-10 y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>37 mockups</strong> — 29 del flujo end-to-end cronológico + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), ICD-10 y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket.
   </div>
 </div>
 
@@ -6090,11 +6095,214 @@
   </div>
 </div>
 
+<!-- ═══ B.37 — VISTA DE SALA / WAITING ROOM DISPLAY ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #06B6D4, #8B5CF6);">B.37 · Lobby Display</span>
+  <h2>Vista de Sala (Waiting Room TV display)</h2>
+  <p><strong>Quién la ve:</strong> pacientes en el lobby de cada clínica (display público en TV). <strong>Quién la mantiene:</strong> nadie manualmente — los status se actualizan <strong>automáticamente</strong> según el flujo (check-in → triaje → consulta → terminado). <strong>Para qué:</strong> resolver el problema operacional clásico — pacientes preguntando constantemente "¿cuánto falta?". Aquí lo ven en tiempo real sin molestar a Recepción.</p>
+
+  <div class="callout">
+    <strong>🛡️ HIPAA-compliant by design:</strong> el display es público (cualquiera en el lobby lo ve) por lo que <strong>nunca</strong> muestra nombres completos ni datos clínicos. Solo:
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Iniciales</strong> + últimos 2 dígitos del MVA # (ej. <code>E.S - 62</code> para Erick Salinas MVA #2962). Desambigua casos con mismas iniciales sin revelar PHI.</li>
+      <li><strong>Nombre del doctor</strong> (no es PHI) y número de sala.</li>
+      <li><strong>Estimación de tiempo</strong> (basada en avg duration del doctor × pacientes adelante).</li>
+      <li><strong>Nunca:</strong> nombre completo · fecha de nacimiento · diagnóstico · razón de visita · medicación.</li>
+    </ul>
+  </div>
+
+  <h3 style="margin-top:20px;">El TV display en el lobby de Murray</h3>
+
+  <div class="mockup">
+    <div class="mockup-frame" style="aspect-ratio:16/9;">
+      <div class="mock-topbar" style="background:linear-gradient(90deg,#0a0e14,#0f1620);padding:8px 16px;">
+        <span style="display:inline-flex;align-items:center;gap:8px;">
+          <span style="display:inline-block;width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#6366F1,#8B5CF6);font-size:11px;font-weight:700;color:white;text-align:center;line-height:24px;">PM</span>
+          <span style="color:white;font-weight:700;font-size:13px;">Precision Medical</span>
+          <span style="color:rgba(255,255,255,0.45);font-size:11px;">·</span>
+          <span style="color:rgba(255,255,255,0.65);font-size:11px;">🟣 Murray Clinic</span>
+        </span>
+        <span style="margin-left:auto;color:white;font-family:monospace;font-size:13px;font-weight:700;">14:34</span>
+        <span style="color:rgba(255,255,255,0.55);font-size:11px;">Lun 8 Jun · ES</span>
+      </div>
+      <div class="mock-body" style="padding:14px 18px;">
+
+        <!-- Banner de llamado activo (animado en realidad) -->
+        <div style="background:linear-gradient(135deg,rgba(16,185,129,0.20),rgba(6,182,212,0.12));border:1.5px solid rgba(16,185,129,0.45);border-radius:10px;padding:8px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:18px;">🔔</span>
+            <div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.50);text-transform:uppercase;letter-spacing:0.05em;">Ahora llamando · Now calling</div>
+              <div style="color:white;font-weight:700;font-size:14px;">A.R - 73 → Sala de Triaje · Triage Room</div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#34d399;font-weight:700;">⚡ pasar ahora</div>
+        </div>
+
+        <!-- EN CONSULTA section -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="color:white;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;">🩺 En Consulta · In Consultation</div>
+            <div style="color:rgba(255,255,255,0.55);font-size:11px;">2 pacientes</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+            <div style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.25);border-radius:10px;padding:12px;display:flex;align-items:center;gap:14px;">
+              <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#F43F5E,#EC4899);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:18px;">M.S</div>
+              <div>
+                <div style="color:white;font-weight:700;font-size:14px;">M.S - 49</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:1px;">Sala 2 · Dr. Loder</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.50);margin-top:2px;">Started 14:15 · 19 min</div>
+              </div>
+            </div>
+            <div style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.25);border-radius:10px;padding:12px;display:flex;align-items:center;gap:14px;">
+              <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#06B6D4,#3B82F6);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:18px;">C.V</div>
+              <div>
+                <div style="color:white;font-weight:700;font-size:14px;">C.V - 01</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:1px;">Sala 1 · Dr. Barry</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.50);margin-top:2px;">Started 14:22 · 12 min</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EN TRIAJE section -->
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="color:white;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;">📈 En Triaje · In Triage</div>
+            <div style="color:rgba(255,255,255,0.55);font-size:11px;">1 paciente</div>
+          </div>
+          <div style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.22);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
+            <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#F59E0B,#F43F5E);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:14px;">A.R</div>
+            <div style="flex:1;">
+              <div style="color:white;font-weight:700;font-size:13px;">A.R - 73 · próximo en pasar a sala</div>
+              <div style="font-size:10.5px;color:rgba(255,255,255,0.65);margin-top:1px;">Triage Room · MA Sarah · Dr. Loder (pendiente)</div>
+            </div>
+            <div style="font-size:18px;">→</div>
+          </div>
+        </div>
+
+        <!-- ESPERANDO section -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="color:white;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;">⏱ Esperando · Waiting</div>
+            <div style="color:rgba(255,255,255,0.55);font-size:11px;">4 pacientes</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:12px;">
+              <div style="width:34px;height:34px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:800;font-size:12px;">E.S</div>
+              <div style="flex:1;">
+                <div style="color:white;font-weight:600;font-size:12.5px;">E.S - 62</div>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.75);">~15 min · Dr. Loder</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:12px;">
+              <div style="width:34px;height:34px;border-radius:50%;background:rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:800;font-size:12px;">J.D</div>
+              <div style="flex:1;">
+                <div style="color:white;font-weight:600;font-size:12.5px;">J.D - 88</div>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.65);">~30 min · Dr. Barry</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:12px;">
+              <div style="width:34px;height:34px;border-radius:50%;background:rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:800;font-size:12px;">K.M</div>
+              <div style="flex:1;">
+                <div style="color:white;font-weight:600;font-size:12.5px;">K.M - 14</div>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.65);">~45 min · Dr. Loder</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:12px;opacity:0.85;">
+              <div style="width:34px;height:34px;border-radius:50%;background:rgba(99,102,241,0.12);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:800;font-size:12px;">L.P</div>
+              <div style="flex:1;">
+                <div style="color:white;font-weight:600;font-size:12.5px;">L.P - 39</div>
+              </div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.55);">~50 min · sin asignar</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer con stats + QR -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.07);font-size:10.5px;color:rgba(255,255,255,0.55);">
+          <div>
+            4 esperando · 1 en triaje · 2 en consulta · <strong style="color:rgba(255,255,255,0.85);">Pacientes hoy: 18</strong>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span>📱 Escanea para ver tu posición</span>
+            <div style="width:32px;height:32px;background:white;border-radius:4px;display:flex;align-items:center;justify-content:center;color:black;font-size:9px;">QR</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:24px;">Cómo cambia el status (automático)</h3>
+
+  <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:18px;margin:14px 0;">
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:12.5px;color:rgba(255,255,255,0.85);">
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:12px;flex-shrink:0;">1</div>
+        <div>
+          <strong style="color:white;">Check-in en B.14</strong> → status pasa a <code>WAITING</code>. El paciente aparece en "Esperando" del display.
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(245,158,11,0.20);display:flex;align-items:center;justify-content:center;color:#fbbf24;font-weight:700;font-size:12px;flex-shrink:0;">2</div>
+        <div>
+          <strong style="color:white;">MA abre el triaje en B.16</strong> → status pasa a <code>IN_TRIAGE</code>. Aparece en "En triaje" del display + animación de "Ahora llamando" 5 segundos.
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-weight:700;font-size:12px;flex-shrink:0;">3</div>
+        <div>
+          <strong style="color:white;">MA confirma "Pasar a Dr. Loder" en B.16</strong> → status pasa a <code>WAITING_FOR_ROOM</code> (vuelve al lobby si el doctor no está libre) o directo a <code>IN_ROOM</code>.
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(244,63,94,0.20);display:flex;align-items:center;justify-content:center;color:#fda4af;font-weight:700;font-size:12px;flex-shrink:0;">4</div>
+        <div>
+          <strong style="color:white;">Doctor abre la visita en B.18</strong> → status pasa a <code>IN_CONSULTATION</code> + se asigna sala. Aparece en "En Consulta" del display con el nombre del doctor + sala + tiempo iniciado.
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,0.20);display:flex;align-items:center;justify-content:center;color:#34d399;font-weight:700;font-size:12px;flex-shrink:0;">5</div>
+        <div>
+          <strong style="color:white;">Doctor firma la nota en B.21</strong> → status pasa a <code>DONE</code>. El paciente sale del display automáticamente. Stats del día se incrementan.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Features técnicas</h3>
+
+  <div class="callout callout-success">
+    <strong>Implementación recomendada:</strong>
+    <ul style="margin-top:6px;margin-bottom:0;font-size:12.5px;line-height:1.65;">
+      <li><strong>Sub-ruta pública en `apps/clinical`</strong>: <code>clinical.lienmaster.net/lobby/:clinicId</code>. Sin auth (anonimizado).</li>
+      <li><strong>WebSocket (Supabase Realtime)</strong>: cuando el status cambia en la DB, el TV se actualiza en &lt;1 segundo. Sin polling.</li>
+      <li><strong>Kiosk mode</strong>: el TV abre la URL en Chrome fullscreen sin barras. Configurar inactividad para que nunca cierre el browser.</li>
+      <li><strong>Multi-idioma</strong>: ES/EN simultáneos (ambos en cada label) — pacientes hispanos y anglos lo ven al instante sin toggle manual.</li>
+      <li><strong>Estimación smart de tiempo</strong>: <code>avg_duration_doctor × pacientes_adelante + 5min buffer</code>. La DB calcula avg histórico de cada doctor por especialidad.</li>
+      <li><strong>Animación "Ahora llamando"</strong>: 5 segundos de banner verde pulsante cuando un paciente pasa de ESPERANDO → IN_TRIAGE o IN_ROOM. Captura atención de los presentes.</li>
+      <li><strong>Audio chime opcional</strong>: sonido suave (campanita) cuando hay nuevo llamado. Toggle ON/OFF por clínica (off por default — algunos pacientes lo encuentran molesto).</li>
+      <li><strong>QR para móvil</strong>: paciente escanea con su celular y ve su posición personalizada en mobile (puede salir al café sin perder su lugar).</li>
+      <li><strong>Logo + nombre de clínica</strong> arriba (place identity — saber dónde están).</li>
+      <li><strong>Auto-refresh defensivo</strong>: si el WebSocket se cae por &gt;30s, el TV recarga la página automáticamente. Resiliente a problemas de red del lobby.</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <strong>Privacy by design:</strong> el endpoint <code>/lobby/:clinicId</code> tiene RLS de Supabase que devuelve <strong>solo</strong> los campos anonimizados (iniciales calculadas server-side, primeros 2 char + últimos 2 del MVA). El servidor NUNCA expone el nombre completo en este endpoint, ni siquiera a un cliente autenticado — el RLS lo prohibe explícitamente para el endpoint público. Esto previene fugas accidentales por bugs del cliente.
+  </div>
+
+  <div class="callout">
+    <strong>📱 Variante mobile (mismo concepto, viewport vertical):</strong> el QR del display lleva al paciente a <code>portal.lienmaster.net/lobby/me?token=XXX</code> donde ve solo SU posición + tiempo estimado + nombre del doctor (sin ver a los demás pacientes). Útil si quiere salir al café cercano sin perder su lugar.
+  </div>
+</div>
+
 <!-- ═══ CIERRE ═══ -->
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:540px;margin:0 auto 30px;">36 pantallas conceptuales: 29 del flujo cronológico end-to-end + 6 de catálogos master data (bufetes, aseguradoras, servicios CPT/HCPCS, ICD-10, especialidades) + 1 de búsqueda transversal global — la spec completa del LienMaster v2 lista para Phase 0.</p>
+  <p class="small" style="max-width:540px;margin:0 auto 30px;">37 pantallas conceptuales: 29 del flujo cronológico end-to-end + 6 de catálogos master data + 1 de búsqueda transversal + 1 de display público en lobby (HIPAA-safe) — la spec completa del LienMaster v2 lista para Phase 0.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

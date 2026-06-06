@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Eye, Pencil, KeyRound, Trash2, Plus, Search as SearchIcon } from 'lucide-react';
 import {
   Button,
@@ -56,6 +57,8 @@ const CASE_TYPES = ['MVA', 'GENERAL', 'NURSING_HOME'] as const;
 
 export function SpecialtiesClient({ specialties, stats }: Props) {
   const router = useRouter();
+  const t = useTranslations('phoenix.specialties');
+  const tc = useTranslations('phoenix.common');
   const [, startTransition] = useTransition();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');

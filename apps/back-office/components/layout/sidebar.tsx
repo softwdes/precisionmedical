@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   LayoutDashboard,
   Stethoscope,
@@ -15,65 +16,90 @@ import {
   BarChart3,
   Search,
   Lock,
+  X,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
 
 interface NavItem {
   href: string;
   icon: React.ElementType;
-  label: string;
+  labelKey: string;
   mockup?: string;
   disabled?: boolean;
 }
 
 interface NavSection {
-  title: string;
+  titleKey: string;
   items: NavItem[];
 }
 
 const SECTIONS: NavSection[] = [
   {
-    title: 'Catálogos',
+    titleKey: 'catalogs',
     items: [
-      { href: '/admin/specialties', icon: Stethoscope, label: 'Especialidades', mockup: 'B.36' },
-      { href: '/admin/lawyers',     icon: Scale,       label: 'Bufetes',        mockup: 'B.30' },
-      { href: '/admin/insurances',  icon: ShieldCheck, label: 'Aseguradoras',   mockup: 'B.32' },
-      { href: '/admin/services',    icon: DollarSign,  label: 'Servicios CPT',  mockup: 'B.33' },
-      { href: '/admin/diagnoses',   icon: FileText,    label: 'Diagnósticos',   mockup: 'B.35' },
+      { href: '/admin/specialties', icon: Stethoscope, labelKey: 'specialties', mockup: 'B.36' },
+      { href: '/admin/lawyers',     icon: Scale,       labelKey: 'lawyers',      mockup: 'B.30' },
+      { href: '/admin/insurances',  icon: ShieldCheck, labelKey: 'insurances',   mockup: 'B.32' },
+      { href: '/admin/services',    icon: DollarSign,  labelKey: 'services',     mockup: 'B.33' },
+      { href: '/admin/diagnoses',   icon: FileText,    labelKey: 'diagnoses',    mockup: 'B.35' },
     ],
   },
   {
-    title: 'Workspaces',
+    titleKey: 'workspaces',
     items: [
-      { href: '/front-office', icon: Building2,  label: 'Front Office',     mockup: 'B.1–B.4' },
-      { href: '/intake',       icon: Phone,      label: 'Intake (Edson)',   mockup: 'B.12–B.13', disabled: true },
-      { href: '/billing',      icon: Briefcase,  label: 'Billing (Brunella)', mockup: 'B.25–B.28', disabled: true },
-      { href: '/dashboard',    icon: BarChart3,  label: 'Dashboard',        mockup: 'B.29',      disabled: true },
+      { href: '/front-office', icon: Building2,  labelKey: 'frontOffice', mockup: 'B.1–B.4'   },
+      { href: '/intake',       icon: Phone,      labelKey: 'intake',      mockup: 'B.12–B.13', disabled: true },
+      { href: '/billing',      icon: Briefcase,  labelKey: 'billing',     mockup: 'B.25–B.28', disabled: true },
+      { href: '/dashboard',    icon: BarChart3,  labelKey: 'dashboard',   mockup: 'B.29',      disabled: true },
     ],
   },
   {
-    title: 'Búsqueda',
+    titleKey: 'globalSearch',
     items: [
-      { href: '/search', icon: Search, label: 'Global Search ⌘K', mockup: 'B.34', disabled: true },
+      { href: '/search', icon: Search, labelKey: 'globalSearch', mockup: 'B.34 · ⌘K', disabled: true },
     ],
   },
 ];
 
-export function Sidebar(): React.ReactElement {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
+  const t = useTranslations('phoenix.nav');
 
   return (
-    <aside className="fixed left-0 top-0 z-30 flex h-full w-[240px] flex-col bg-bg-1 border-r border-border">
+    <aside
+      className={cn(
+        'fixed left-0 top-0 z-40 flex h-full w-[240px] flex-col bg-bg-1 border-r border-border',
+        'transition-transform duration-300 ease-out',
+        'md:translate-x-0',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+      )}
+    >
       {/* Brand */}
-      <Link href="/admin/specialties" className="flex items-center gap-3 px-5 py-5 border-b border-border hover:bg-white/2 transition-colors">
-        <div className="flex h-9 w-9 items-center justify-center rounded bg-gradient-brand shadow-glow">
-          <span className="text-white font-bold text-sm">LM</span>
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-white font-bold text-sm leading-tight truncate">LienMaster v3</span>
-          <span className="text-text-muted text-[10px] uppercase tracking-wider truncate">Back Office</span>
-        </div>
-      </Link>
+      <div className="flex items-center justify-between px-5 py-5 border-b border-border">
+        <Link href="/admin/specialties" onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <div className="flex h-9 w-9 items-center justify-center rounded bg-gradient-brand shadow-glow">
+            <span className="text-white font-bold text-sm">LM</span>
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-text-1 font-bold text-sm leading-tight truncate">LienMaster v3</span>
+            <span className="text-text-muted text-[10px] uppercase tracking-wider truncate">Back Office</span>
+          </div>
+        </Link>
+        {/* Close button mobile only */}
+        <button
+          type="button"
+          onClick={onMobileClose}
+          className="md:hidden w-8 h-8 rounded-md hover:bg-white/5 flex items-center justify-center text-text-muted"
+          aria-label="Close menu"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
@@ -83,12 +109,13 @@ export function Sidebar(): React.ReactElement {
           label="Dashboard"
           active={pathname === '/dashboard-home'}
           disabled
+          onClick={onMobileClose}
         />
 
         {SECTIONS.map((section) => (
-          <div key={section.title}>
+          <div key={section.titleKey}>
             <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold px-3 mb-2">
-              {section.title}
+              {t(section.titleKey)}
             </div>
             <ul className="space-y-1">
               {section.items.map((item) => (
@@ -96,10 +123,11 @@ export function Sidebar(): React.ReactElement {
                   key={item.href}
                   href={item.href}
                   icon={item.icon}
-                  label={item.label}
+                  label={t(item.labelKey)}
                   mockup={item.mockup}
                   active={pathname === item.href || pathname.startsWith(item.href + '/')}
                   disabled={item.disabled}
+                  onClick={onMobileClose}
                 />
               ))}
             </ul>
@@ -110,8 +138,7 @@ export function Sidebar(): React.ReactElement {
       {/* Footer */}
       <div className="px-5 py-4 border-t border-border">
         <div className="text-text-muted text-[10px] leading-relaxed">
-          <div className="text-text-2 font-semibold mb-1">Phoenix · Phase 1A</div>
-          <div>Catálogos en construcción</div>
+          <div className="text-text-2 font-semibold mb-1">{t('footerStatus')}</div>
           <div className="mt-2 text-emerald flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
             phoenix-dev · local
@@ -122,8 +149,6 @@ export function Sidebar(): React.ReactElement {
   );
 }
 
-// ─── NavItem ────────────────────────────────────────────────────────────────
-
 interface NavItemLinkProps {
   href: string;
   icon: React.ElementType;
@@ -131,9 +156,10 @@ interface NavItemLinkProps {
   mockup?: string;
   active?: boolean;
   disabled?: boolean;
+  onClick?: () => void;
 }
 
-function NavItemLink({ href, icon: Icon, label, mockup, active, disabled }: NavItemLinkProps): React.ReactElement {
+function NavItemLink({ href, icon: Icon, label, mockup, active, disabled, onClick }: NavItemLinkProps): React.ReactElement {
   if (disabled) {
     return (
       <li>
@@ -150,11 +176,12 @@ function NavItemLink({ href, icon: Icon, label, mockup, active, disabled }: NavI
     <li>
       <Link
         href={href}
+        onClick={onClick}
         className={cn(
           'flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-all group',
           active
             ? 'bg-gradient-brand text-white shadow-glow font-semibold'
-            : 'text-text-2 hover:text-white hover:bg-white/5',
+            : 'text-text-2 hover:text-text-1 hover:bg-white/5',
         )}
       >
         <Icon className="w-4 h-4 shrink-0" />

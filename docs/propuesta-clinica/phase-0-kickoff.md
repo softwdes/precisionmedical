@@ -45,9 +45,10 @@ Supabase + shadcn/ui (`@precision/ui`) + next-intl (bilingüe es/en). NO propone
 Phase 0 es una PUERTA: nada de lógica que maneje PHI hasta cerrarla. Entregables:
 
 1. **Gate de prerequisitos (verificar/documentar, no asumir):**
-   - BAAs firmados: Supabase, Vercel, **Weave** (SMS/voice — la clínica ya lo usa), Resend (email), **Sentry**.
+   - BAAs firmados (orden de prioridad decidida 2026-06-05): **Sentry primero** (necesario para subir online), después Supabase, Vercel, Weave, Resend.
    - Consultor HIPAA contratado.
-   - Sin esto, marcar como bloqueante — no codificar PHI.
+   - **Estrategia LOCAL-FIRST decidida 2026-06-05**: Phase 0 se desarrolla **100% en local** sin deploy. Los BAAs NO bloquean trabajo local (no se procesa PHI real). Solo bloquean el primer deploy a producción.
+   - **Hosting locked 2026-06-05**: Vercel Enterprise (no Cloudflare).
    - **Nota Weave vs Twilio (decidido 2026-06-05)**: la clínica usa **Weave** (HIPAA-compliant, healthcare-specific) para SMS/voice. NO migrar a Twilio. Verificar que el BAA actual de Weave cubra los usos integrados del nuevo sistema (magic links del portal, recordatorios automáticos, click-to-call de Edson, logging de llamadas).
 
 2. **Scaffolding del monorepo:** crear las 4 apps nuevas (`back-office`, `clinical`,

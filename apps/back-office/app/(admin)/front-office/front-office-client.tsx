@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2 } from 'lucide-react';
+import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2, FileCheck, Zap } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { NewCaseDialog } from '@/components/cases/new-case-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
+import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 
 // B.1 — Front Office · Recepción primaria
 
@@ -58,11 +59,28 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
   const [newCaseOpen, setNewCaseOpen] = useState(false);
   const [sendPortalCase, setSendPortalCase] = useState<PhoenixCase | null>(null);
+  const [confirmCase, setConfirmCase] = useState<PhoenixCase | null>(null);
+  const [markingIntake, setMarkingIntake] = useState<string | null>(null);
 
   const filtered = filter === 'all' ? cases : cases.filter((c) => c.status === filter);
 
   const handleNewCase = () => setNewCaseOpen(true);
   const handleSendPortal = (c: PhoenixCase) => setSendPortalCase(c);
+  const handleConfirm    = (c: PhoenixCase) => setConfirmCase(c);
+
+  // Phase 1A dev helper — simula que paciente completó el portal (sin portal real)
+  const handleSimulateIntake = async (c: PhoenixCase) => {
+    setMarkingIntake(c.id);
+    try {
+      const res = await fetch(`/api/admin/cases/${c.id}/mark-intake-complete`, { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      router.refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setMarkingIntake(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -122,7 +140,17 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
             <div className="text-text-2 text-sm mt-1">Buen trabajo. Cuando entre una llamada, click "Nueva llamada".</div>
           </div>
         ) : (
-          filtered.map((c) => <CaseCard key={c.id} case={c} onClick={() => router.push(`/front-office/${c.id}`)} onSendPortal={() => handleSendPortal(c)} />)
+          filtered.map((c) => (
+            <CaseCard
+              key={c.id}
+              case={c}
+              onClick={() => router.push(`/front-office/${c.id}`)}
+              onSendPortal={() => handleSendPortal(c)}
+              onConfirm={() => handleConfirm(c)}
+              onSimulateIntake={() => handleSimulateIntake(c)}
+              isMarkingIntake={markingIntake === c.id}
+            />
+          ))
         )}
       </div>
 
@@ -151,6 +179,25 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
             phone: sendPortalCase.patient.phone,
             email: sendPortalCase.patient.email,
           },
+        } : null}
+      />
+
+      {/* B.4 — Confirm appointment modal */}
+      <ConfirmAppointmentDialog
+        open={confirmCase !== null}
+        onOpenChange={(open) => { if (!open) setConfirmCase(null); }}
+        caseInfo={confirmCase ? {
+          id: confirmCase.id,
+          caseCode: confirmCase.caseCode,
+          patient: {
+            firstName: confirmCase.patient.firstName,
+            lastName: confirmCase.patient.lastName,
+            phone: confirmCase.patient.phone,
+          },
+          accidentDate: confirmCase.accidentDate,
+          accidentLocation: confirmCase.accidentLocation,
+          primaryInsurance: confirmCase.primaryInsurance,
+          lawFirm: confirmCase.lawFirm,
         } : null}
       />
     </div>
@@ -183,7 +230,21 @@ function FilterPill({ active, onClick, label, count }: { active: boolean; onClic
   );
 }
 
-function CaseCard({ case: c, onClick, onSendPortal }: { case: PhoenixCase; onClick: () => void; onSendPortal: () => void }) {
+function CaseCard({
+  case: c,
+  onClick,
+  onSendPortal,
+  onConfirm,
+  onSimulateIntake,
+  isMarkingIntake,
+}: {
+  case: PhoenixCase;
+  onClick: () => void;
+  onSendPortal: () => void;
+  onConfirm: () => void;
+  onSimulateIntake: () => void;
+  isMarkingIntake: boolean;
+}) {
   const statusLabel: Record<CaseStatus, { label: string; color: string; bg: string; icon: string }> = {
     NEW_REFERRAL:     { label: 'Nuevo referido',     color: 'text-rose',    bg: 'bg-rose/10 border-rose/30',       icon: '🔴' },
     INTAKE_PENDING:   { label: 'Intake pendiente',   color: 'text-amber',   bg: 'bg-amber/10 border-amber/30',     icon: '🟡' },
@@ -275,16 +336,29 @@ function CaseCard({ case: c, onClick, onSendPortal }: { case: PhoenixCase; onCli
               </div>
             )}
             {c.status === 'INTAKE_PENDING' && c.intakeFormSentAt && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-amber">
+              <div className="mt-3 flex items-center gap-2 text-xs text-amber flex-wrap">
                 <Mail className="w-3.5 h-3.5" />
                 <span>Portal {c.intakeFormSentVia} enviado {formatRelative(c.intakeFormSentAt)} · Esperando paciente complete</span>
+                {/* Phase 1A dev helper — simula que el paciente completó el portal */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto text-[10px] opacity-70 hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); onSimulateIntake(); }}
+                  disabled={isMarkingIntake}
+                  title="Phase 1A dev · Simula que el paciente completó el portal (B.5-B.9 stub)"
+                >
+                  <Zap className="w-3 h-3 mr-1" />
+                  {isMarkingIntake ? 'Simulando...' : 'DEV · Simular portal completo'}
+                </Button>
               </div>
             )}
             {c.status === 'INTAKE_COMPLETED' && (
               <div className="mt-3 flex items-center gap-2 text-xs text-cyan">
                 <Phone className="w-3.5 h-3.5" />
                 <span className="font-semibold">Acción: llamar 24h antes para confirmar cita</span>
-                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); alert('B.4: workflow de confirmación'); }}>
+                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onConfirm(); }}>
+                  <FileCheck className="w-3 h-3 mr-1" />
                   Confirmar
                 </Button>
               </div>

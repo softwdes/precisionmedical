@@ -1,11 +1,17 @@
 import { db } from '@precision-medical/database';
 import { FrontOfficeClient } from './front-office-client';
 
-// B.1 — Recepción primaria · Front Office workspace
-// Vista de Recepción al iniciar el día / contestar llamada.
-// Muestra cola de casos pendientes confirmación + acceso rápido a crear nuevo caso.
+// B.1 + B.2 — Recepción primaria · Front Office workspace
+// Vista de Recepción + modal de crear caso.
 
 export default async function FrontOfficePage() {
+  // Specialties para el dropdown del modal de crear caso
+  const specialties = await db.specialtyCatalog.findMany({
+    where: { isActive: true, deletedAt: null },
+    orderBy: { sortOrder: 'asc' },
+    select: { id: true, name: true, color: true },
+  });
+
   // Casos por estado relevante para Front Office
   const cases = await db.case.findMany({
     where: {
@@ -34,6 +40,7 @@ export default async function FrontOfficePage() {
 
   return (
     <FrontOfficeClient
+      specialties={specialties}
       cases={cases.map((c) => ({
         id: c.id,
         caseCode: c.caseCode,

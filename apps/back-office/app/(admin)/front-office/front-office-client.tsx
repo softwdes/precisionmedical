@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2 } from 'lucide-react';
 import { Button } from '@precision/ui';
+import { NewCaseDialog } from '@/components/cases/new-case-dialog';
 
 // B.1 — Front Office · Recepción primaria
 
@@ -47,19 +48,18 @@ interface PhoenixCase {
 interface Props {
   cases: PhoenixCase[];
   stats: Record<CaseStatus, number>;
+  specialties: Array<{ id: string; name: string; color: string }>;
 }
 
-export function FrontOfficeClient({ cases, stats }: Props) {
+export function FrontOfficeClient({ cases, stats, specialties }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.frontOffice');
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
+  const [newCaseOpen, setNewCaseOpen] = useState(false);
 
   const filtered = filter === 'all' ? cases : cases.filter((c) => c.status === filter);
 
-  const handleNewCase = () => {
-    // B.2 — Crear caso. Por ahora abre modal stub.
-    alert('B.2 viene a continuación · Modal de crear caso por llamada');
-  };
+  const handleNewCase = () => setNewCaseOpen(true);
 
   return (
     <div className="space-y-6">
@@ -125,8 +125,15 @@ export function FrontOfficeClient({ cases, stats }: Props) {
 
       {/* Footer help */}
       <div className="text-xs text-text-muted text-center pt-4 border-t border-border/40">
-        Mock data · CERO PHI real · Phase 1A local
+        {t('footerMockData')}
       </div>
+
+      {/* B.2 — New Case modal */}
+      <NewCaseDialog
+        open={newCaseOpen}
+        onOpenChange={setNewCaseOpen}
+        specialties={specialties}
+      />
     </div>
   );
 }

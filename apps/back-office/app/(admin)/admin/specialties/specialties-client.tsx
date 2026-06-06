@@ -15,6 +15,17 @@ import {
   DialogFooter,
   Label,
 } from '@precision/ui';
+import {
+  PageHeader,
+  KpiCard,
+  FilterPill,
+  IconAction,
+  StatusPill,
+  TagPill,
+  DataTable,
+  TableFooter,
+  EmptyState,
+} from '@/components/ui-phoenix';
 
 // B.36 — Specialties CRUD client component
 
@@ -78,20 +89,16 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
-          <p className="text-text-2 text-sm mt-1">
-            {t('subtitle', { active: stats.active, doctors: stats.totalDoctors, mockup: 'Mockup B.36' })}
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle', { active: stats.active, doctors: stats.totalDoctors, mockup: 'Mockup B.36' })}
+        action={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
+          </Button>
+        }
+      />
 
-      {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard label={t('kpiTotal')}    value={stats.total}        sub={t('kpiTotalSub')}    color="text-text-1" />
         <KpiCard label={t('kpiActive')}   value={stats.active}       sub={t('kpiActiveSub')}   color="text-emerald" />
@@ -115,54 +122,50 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
         <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label={tc('inactive')} count={stats.inactive} />
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-semibold">{t('columnName')}</th>
-                <th className="text-left px-5 py-3 font-semibold">{t('columnDescription')}</th>
-                <th className="text-center px-5 py-3 font-semibold">{t('columnWorkflow')}</th>
-                <th className="text-center px-5 py-3 font-semibold">{t('columnCpt')}</th>
-                <th className="text-center px-5 py-3 font-semibold">{t('columnDoctors')}</th>
-                <th className="text-center px-5 py-3 font-semibold">{t('columnStatus')}</th>
-                <th className="text-right px-5 py-3 font-semibold">{tc('actions')}</th>
-              </tr>
-            </thead>
+      <DataTable.Card>
+        <DataTable.Scroll>
+          <DataTable.Table>
+            <DataTable.Head>
+              <DataTable.Th>{t('columnName')}</DataTable.Th>
+              <DataTable.Th>{t('columnDescription')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnWorkflow')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnCpt')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnDoctors')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnStatus')}</DataTable.Th>
+              <DataTable.Th align="right">{tc('actions')}</DataTable.Th>
+            </DataTable.Head>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-text-muted text-sm">
-                    {search ? `No hay especialidades que coincidan con "${search}"` : 'No hay especialidades. Crea la primera arriba.'}
-                  </td>
+                  <DataTable.Td colSpan={7}>
+                    <EmptyState.Inline
+                      message={search ? `No hay especialidades que coincidan con "${search}"` : 'No hay especialidades. Crea la primera arriba.'}
+                    />
+                  </DataTable.Td>
                 </tr>
               ) : (
                 filtered.map((sp) => (
-                  <tr
-                    key={sp.id}
-                    className="border-b border-border/30 hover:bg-white/[0.02] transition-colors"
-                  >
-                    <td className="px-5 py-3.5">
+                  <DataTable.Row key={sp.id}>
+                    <DataTable.Td>
                       <div className="flex items-center gap-2.5">
                         <span
                           className="w-2.5 h-2.5 rounded-full shrink-0"
                           style={{ background: sp.color, boxShadow: `0 0 8px ${sp.color}80` }}
                         />
-                        <span className="text-white font-semibold">{sp.name}</span>
+                        <span className="text-text-1 font-semibold">{sp.name}</span>
                       </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-text-2 text-[12.5px] max-w-md">
+                    </DataTable.Td>
+                    <DataTable.Td className="text-text-2 text-[12.5px] max-w-md">
                       {sp.description ? (
                         <span className="line-clamp-1">{sp.description}</span>
                       ) : (
                         <span className="text-text-muted italic">—</span>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
                       <WorkflowPill type={sp.workflowType} />
-                    </td>
-                    <td className="px-5 py-3.5 text-center text-text-2 font-mono text-xs">
+                    </DataTable.Td>
+                    <DataTable.Td align="center" className="text-text-2 font-mono text-xs">
                       {sp.cptSuggested.length > 0 ? (
                         <span title={sp.cptSuggested.join(', ')}>
                           {sp.cptSuggested.slice(0, 2).join(', ')}
@@ -173,32 +176,35 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
                       ) : (
                         <span className="text-text-muted italic">—</span>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5 text-center text-white font-mono font-semibold">
+                    </DataTable.Td>
+                    <DataTable.Td align="center" className="text-text-1 font-mono font-semibold">
                       {sp.doctorCount}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <StatusPill active={sp.isActive} />
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
+                      <StatusPill
+                        state={sp.isActive ? 'active' : 'inactive'}
+                        label={sp.isActive ? 'Activa' : 'Inactiva'}
+                      />
+                    </DataTable.Td>
+                    <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
                         <IconAction onClick={() => setViewing(sp)} icon={Eye} label="Ver" />
                         <IconAction onClick={() => setEditing(sp)} icon={Pencil} label="Editar" />
                         <IconAction onClick={() => { /* permissions tbd */ }} icon={KeyRound} label="Permisos" disabled />
                         <IconAction onClick={() => setDeleting(sp)} icon={Trash2} label="Eliminar" variant="danger" />
                       </div>
-                    </td>
-                  </tr>
+                    </DataTable.Td>
+                  </DataTable.Row>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
-        <div className="px-5 py-3 bg-bg-2/30 border-t border-border text-xs text-text-muted flex items-center justify-between">
-          <span>{filtered.length} de {stats.total} especialidades</span>
-          <span className="font-mono">phoenix-dev · local</span>
-        </div>
-      </div>
+          </DataTable.Table>
+        </DataTable.Scroll>
+        <TableFooter
+          left={`${filtered.length} de ${stats.total} especialidades`}
+          right={<span className="font-mono">phoenix-dev · local</span>}
+        />
+      </DataTable.Card>
 
       {/* Modals */}
       <SpecialtyDialog
@@ -238,93 +244,18 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
   );
 }
 
-// ─── Atoms ──────────────────────────────────────────────────────────────────
+// ─── Domain pills ───────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, sub, color }: { label: string; value: number; sub: string; color: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-bg-1 px-5 py-4">
-      <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{label}</div>
-      <div className={`text-3xl font-bold mt-1 ${color}`}>{value}</div>
-      <div className="text-[11px] text-text-muted mt-0.5">{sub}</div>
-    </div>
-  );
-}
-
-function FilterPill({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-        active
-          ? 'bg-gradient-brand text-white'
-          : 'bg-bg-2 border border-border text-text-2 hover:text-white hover:border-border-strong'
-      }`}
-    >
-      {label} <span className="opacity-70 font-mono">({count})</span>
-    </button>
-  );
-}
-
+/** WorkflowPill — Pill custom para tipo de workflow (MVA/GM/SELFPAY/NURSING_HOME).
+ *  Usa TagPill del shared con color por dominio. */
 function WorkflowPill({ type }: { type: string }) {
-  const styles: Record<string, string> = {
+  const colors: Record<string, string> = {
     MVA:           'bg-rose/15 text-rose border-rose/30',
     GM:            'bg-emerald/15 text-emerald border-emerald/30',
     SELFPAY:       'bg-pink/15 text-pink border-pink/30',
     NURSING_HOME:  'bg-amber/15 text-amber border-amber/30',
   };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold font-mono border ${styles[type] ?? 'bg-white/5 text-text-2 border-border'}`}>
-      {type}
-    </span>
-  );
-}
-
-function StatusPill({ active }: { active: boolean }) {
-  return active ? (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald/15 text-emerald border border-emerald/30">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
-      Activa
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/5 text-text-muted border border-border">
-      <span className="w-1.5 h-1.5 rounded-full bg-text-muted" />
-      Inactiva
-    </span>
-  );
-}
-
-function IconAction({
-  onClick,
-  icon: Icon,
-  label,
-  variant = 'default',
-  disabled,
-}: {
-  onClick: () => void;
-  icon: React.ElementType;
-  label: string;
-  variant?: 'default' | 'danger';
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
-        disabled
-          ? 'text-text-muted/40 cursor-not-allowed'
-          : variant === 'danger'
-            ? 'text-text-muted hover:text-rose hover:bg-rose/10'
-            : 'text-text-muted hover:text-white hover:bg-white/5'
-      }`}
-    >
-      <Icon className="w-3.5 h-3.5" />
-    </button>
-  );
+  return <TagPill label={type} colorClass={colors[type] ?? 'bg-white/5 text-text-2 border-border'} mono />;
 }
 
 // ─── Modals ──────────────────────────────────────────────────────────────────
@@ -562,8 +493,13 @@ function ViewDialog({
               <span className="text-text-muted italic text-xs">Ninguno</span>
             )
           } />
-          <InfoRow label="Doctores"      value={<span className="font-mono text-white">{specialty.doctorCount}</span>} />
-          <InfoRow label="Estado"        value={<StatusPill active={specialty.isActive} />} />
+          <InfoRow label="Doctores"      value={<span className="font-mono text-text-1">{specialty.doctorCount}</span>} />
+          <InfoRow label="Estado"        value={
+            <StatusPill
+              state={specialty.isActive ? 'active' : 'inactive'}
+              label={specialty.isActive ? 'Activa' : 'Inactiva'}
+            />
+          } />
         </div>
 
         <DialogFooter>
@@ -621,7 +557,7 @@ function DeleteConfirmDialog({
         <DialogHeader>
           <DialogTitle className="text-rose">Eliminar especialidad</DialogTitle>
           <DialogDescription>
-            ¿Seguro que querés eliminar <strong className="text-white">"{specialty.name}"</strong>? Se hace soft-delete (queda inactiva, no se borra del DB).
+            ¿Seguro que querés eliminar <strong className="text-text-1">"{specialty.name}"</strong>? Se hace soft-delete (queda inactiva, no se borra del DB).
           </DialogDescription>
         </DialogHeader>
 

@@ -160,6 +160,120 @@ async function seed(): Promise<void> {
 
   console.warn(`✅ Phoenix Specialties: ${specialtiesSeed.length} líneas de servicio (colores + CPT sugeridos)`);
 
+  // Bufetes (B.30) — 4 firms con sus members
+  const lawFirmsSeed = [
+    {
+      firm: {
+        firmName: 'Smith & Johnson LLP',
+        email: 'contact@smith-johnson.example',
+        phone: '+1-801-555-0301',
+        address: '123 Center St, Suite 200',
+        city: 'Provo',
+        state: 'UT',
+        paymentSpeed: 'FAST' as const,
+        notes: 'Bufete principal · paga puntual · alto volumen de casos PI',
+        caseflowFlags: ['PIP-COVERED', 'MED-PAY'],
+      },
+      members: [
+        { firstName: 'Mary', lastName: 'Smith', email: 'mary.smith@smith-johnson.example', phone: '+1-801-555-0311', memberRole: 'ATTORNEY' as const },
+        { firstName: 'David', lastName: 'Johnson', email: 'david.johnson@smith-johnson.example', phone: '+1-801-555-0312', memberRole: 'ATTORNEY' as const },
+        { firstName: 'Linda', lastName: 'Garcia', email: 'linda.garcia@smith-johnson.example', phone: '+1-801-555-0313', memberRole: 'CASE_MANAGER' as const },
+      ],
+    },
+    {
+      firm: {
+        firmName: 'Brown & Associates',
+        email: 'info@brown-assoc.example',
+        phone: '+1-801-555-0401',
+        address: '4085 S 2200 W',
+        city: 'West Valley',
+        state: 'UT',
+        paymentSpeed: 'AVERAGE' as const,
+        notes: 'Volumen medio · responde rápido a Edson',
+        caseflowFlags: ['PIP-COVERED'],
+      },
+      members: [
+        { firstName: 'Michael', lastName: 'Brown', email: 'michael.brown@brown-assoc.example', phone: '+1-801-555-0411', memberRole: 'ATTORNEY' as const },
+        { firstName: 'Jennifer', lastName: 'Lopez', email: 'jennifer.lopez@brown-assoc.example', phone: '+1-801-555-0412', memberRole: 'CASE_MANAGER' as const },
+      ],
+    },
+    {
+      firm: {
+        firmName: 'Garcia Law Firm',
+        email: 'contacto@garcia-law.example',
+        phone: '+1-801-555-0501',
+        address: '65 W 200 N Suite 7',
+        city: 'Spanish Fork',
+        state: 'UT',
+        paymentSpeed: 'SLOW' as const,
+        notes: 'PAGO LENTO · seguir mensualmente · ~165 días promedio',
+        caseflowFlags: ['PIP-COVERED'],
+      },
+      members: [
+        { firstName: 'Roberto', lastName: 'Garcia', email: 'roberto.garcia@garcia-law.example', phone: '+1-801-555-0511', memberRole: 'ATTORNEY' as const },
+        { firstName: 'Sofia', lastName: 'Martinez', email: 'sofia.martinez@garcia-law.example', phone: '+1-801-555-0512', memberRole: 'PARALEGAL' as const },
+      ],
+    },
+    {
+      firm: {
+        firmName: 'Bennet & Lopez',
+        email: 'old@bennet-lopez.example',
+        phone: '+1-801-555-0601',
+        address: 'Inactive — no longer accepting referrals',
+        city: 'West Valley',
+        state: 'UT',
+        paymentSpeed: 'UNKNOWN' as const,
+        notes: 'INACTIVO desde Mar 2026 · no respondió 6 meses',
+        caseflowFlags: [],
+      },
+      members: [
+        { firstName: 'James', lastName: 'Bennet', email: 'james.bennet@bennet-lopez.example', phone: '+1-801-555-0611', memberRole: 'ATTORNEY' as const },
+      ],
+      isInactive: true,
+    },
+  ];
+
+  for (const { firm, members, isInactive } of lawFirmsSeed) {
+    const firmRecord = await db.lawyer.upsert({
+      where: { email: firm.email },
+      update: {},
+      create: {
+        entityType: 'FIRM',
+        firmName: firm.firmName,
+        email: firm.email,
+        phone: firm.phone,
+        address: firm.address,
+        city: firm.city,
+        state: firm.state,
+        paymentSpeed: firm.paymentSpeed,
+        notes: firm.notes,
+        caseflowFlags: firm.caseflowFlags,
+        status: isInactive ? 'INACTIVE' : 'ACTIVE',
+      },
+    });
+
+    for (const member of members) {
+      await db.lawyer.upsert({
+        where: { email: member.email },
+        update: {},
+        create: {
+          entityType: 'INDEPENDENT',
+          firstName: member.firstName,
+          lastName: member.lastName,
+          email: member.email,
+          phone: member.phone,
+          memberRole: member.memberRole,
+          parentFirmId: firmRecord.id,
+          city: firm.city,
+          state: firm.state,
+          status: isInactive ? 'INACTIVE' : 'ACTIVE',
+        },
+      });
+    }
+  }
+
+  console.warn(`✅ Phoenix Bufetes: ${lawFirmsSeed.length} firms + ${lawFirmsSeed.reduce((n, f) => n + f.members.length, 0)} members (B.30/B.31)`);
+
   // Template sample: NG-MVA F/U (Motor Vehicle Accident Follow-up)
   // Capturado del LM legacy 2026-06-05. Solo se crea si existe al menos un User
   // (porque template.createdBy es FK obligatorio). Skip silencioso si no hay user

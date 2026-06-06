@@ -548,33 +548,60 @@ model Lawyer {
   id               String            @id @default(cuid())
   userId           String?           @unique
   user             User?             @relation(fields: [userId], references: [id])
-  
+
   entityType       LawyerEntityType
-  
+
   firstName        String?
   lastName         String?
   firmName         String?
-  
+
   parentFirmId     String?
   parentFirm       Lawyer?           @relation("FirmMembers", fields: [parentFirmId], references: [id])
   members          Lawyer[]          @relation("FirmMembers")
-  
+
   email            String            @unique
   phone            String?
   address          String?
-  
+
+  // Phoenix 2026-06-06 (B.30/B.31): campos extra para catálogo de Bufetes
+  city             String?           // Provo, West Valley, etc.
+  state            String?           // ISO state code (UT)
+  memberRole       LawyerMemberRole? // solo aplica si parentFirmId is set
+  notes            String?           // notas internas de Edson (privadas)
+  paymentSpeed     PaymentSpeed?     // marca rápido/lento para badge en B.30
+  caseflowFlags    String[]          @default([]) // PIP-COVERED, MED-PAY, etc.
+
   status           ExternalStatus    @default(ACTIVE)
-  
+
   commissionConfig CommissionConfig?
-  
+
   referrals        Patient[]         @relation("LawyerReferrer")
   commissions      Commission[]      @relation("LawyerCommission")
-  
+
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   deletedAt        DateTime?
-  
+
+  @@index([entityType])
+  @@index([parentFirmId])
+  @@index([city])
   @@map("lawyers")
+}
+
+// Phoenix 2026-06-06: rol del member dentro del bufete (B.31)
+enum LawyerMemberRole {
+  ATTORNEY       // Abogado titular
+  CASE_MANAGER   // Manejador de casos · contacto operativo
+  PARALEGAL      // Asistente legal
+  OTHER
+}
+
+// Phoenix 2026-06-06: badge de velocidad de pago para listado B.30
+enum PaymentSpeed {
+  FAST       // < 90 días promedio
+  AVERAGE    // 90-150 días
+  SLOW       // > 150 días (warn badge)
+  UNKNOWN    // sin data aún
 }
 
 enum LawyerEntityType {

@@ -16,6 +16,18 @@ import {
   DialogFooter,
   Label,
 } from '@precision/ui';
+import {
+  PageHeader,
+  KpiCard,
+  FilterPill,
+  IconAction,
+  StatusPill,
+  TagPill,
+  DataTable,
+  TableFooter,
+  EmptyState,
+  EntityAvatar,
+} from '@/components/ui-phoenix';
 
 // B.30 — Bufetes (lista)
 
@@ -72,17 +84,15 @@ export function LawyersClient({ firms, stats }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
-          <p className="text-text-2 text-sm mt-1">
-            {t('subtitle', { active: stats.active, members: stats.totalMembers, mockup: 'Mockup B.30' })}
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle', { active: stats.active, members: stats.totalMembers, mockup: 'Mockup B.30' })}
+        action={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard label={t('kpiTotal')}   value={stats.total}        sub={t('kpiTotalSub')}   color="text-text-1" />
@@ -107,40 +117,35 @@ export function LawyersClient({ firms, stats }: Props) {
         <FilterPill active={filter === 'slow'}     onClick={() => setFilter('slow')}     label={t('filterSlow')}     count={stats.slowPayers} />
       </div>
 
-      <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-semibold">{t('columnFirm')}</th>
-                <th className="text-left px-5 py-3 font-semibold">{t('columnContact')}</th>
-                <th className="text-center px-5 py-3 font-semibold">{t('columnMembers')}</th>
-                <th className="text-center px-5 py-3 font-semibold">{t('columnPayment')}</th>
-                <th className="text-left px-5 py-3 font-semibold">{t('columnFlags')}</th>
-                <th className="text-center px-5 py-3 font-semibold">{tc('status')}</th>
-                <th className="text-right px-5 py-3 font-semibold">{tc('actions')}</th>
-              </tr>
-            </thead>
+      <DataTable.Card>
+        <DataTable.Scroll>
+          <DataTable.Table>
+            <DataTable.Head>
+              <DataTable.Th>{t('columnFirm')}</DataTable.Th>
+              <DataTable.Th>{t('columnContact')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnMembers')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnPayment')}</DataTable.Th>
+              <DataTable.Th>{t('columnFlags')}</DataTable.Th>
+              <DataTable.Th align="center">{tc('status')}</DataTable.Th>
+              <DataTable.Th align="right">{tc('actions')}</DataTable.Th>
+            </DataTable.Head>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-text-muted text-sm">
-                    {search ? `No hay bufetes que coincidan con "${search}"` : 'No hay bufetes. Crea el primero arriba.'}
-                  </td>
+                  <DataTable.Td colSpan={7}>
+                    <EmptyState.Inline
+                      message={search ? `No hay bufetes que coincidan con "${search}"` : 'No hay bufetes. Crea el primero arriba.'}
+                    />
+                  </DataTable.Td>
                 </tr>
               ) : (
                 filtered.map((f) => (
-                  <tr
-                    key={f.id}
-                    className={`border-b border-border/30 hover:bg-white/[0.02] transition-colors ${
-                      f.status !== 'ACTIVE' ? 'opacity-60' : ''
-                    }`}
-                  >
-                    <td className="px-5 py-3.5">
+                  <DataTable.Row key={f.id} muted={f.status !== 'ACTIVE'}>
+                    <DataTable.Td>
                       <div className="flex items-center gap-3">
-                        <FirmAvatar name={f.firmName} />
+                        <EntityAvatar name={f.firmName} />
                         <div className="min-w-0">
-                          <div className="text-white font-semibold truncate">{f.firmName}</div>
+                          <div className="text-text-1 font-semibold truncate">{f.firmName}</div>
                           {(f.city || f.state) && (
                             <div className="text-text-muted text-[11px] flex items-center gap-1 mt-0.5">
                               <MapPin className="w-3 h-3 shrink-0" />
@@ -149,8 +154,8 @@ export function LawyersClient({ firms, stats }: Props) {
                           )}
                         </div>
                       </div>
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </DataTable.Td>
+                    <DataTable.Td>
                       <div className="text-text-2 text-xs space-y-0.5">
                         <div className="flex items-center gap-1.5">
                           <Mail className="w-3 h-3 text-text-muted shrink-0" />
@@ -163,30 +168,31 @@ export function LawyersClient({ firms, stats }: Props) {
                           </div>
                         )}
                       </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-center text-white font-mono font-semibold">
+                    </DataTable.Td>
+                    <DataTable.Td align="center" className="text-text-1 font-mono font-semibold">
                       {f.memberCount}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
                       <PaymentSpeedPill speed={f.paymentSpeed} />
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </DataTable.Td>
+                    <DataTable.Td>
                       <div className="flex flex-wrap gap-1">
                         {f.caseflowFlags.length === 0 ? (
                           <span className="text-text-muted text-[10px] italic">—</span>
                         ) : (
                           f.caseflowFlags.map((flag) => (
-                            <span key={flag} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-brand/10 text-brand border border-brand/20">
-                              {flag}
-                            </span>
+                            <TagPill key={flag} label={flag} colorClass="bg-brand/10 text-brand border-brand/20" mono compact />
                           ))
                         )}
                       </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <StatusPill status={f.status} />
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
+                      <StatusPill
+                        state={f.status === 'ACTIVE' ? 'active' : 'inactive'}
+                        label={f.status === 'ACTIVE' ? 'Activo' : (f.status === 'INACTIVE' ? 'Inactivo' : f.status)}
+                      />
+                    </DataTable.Td>
+                    <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
                         <Link href={`/admin/lawyers/${f.id}`} title="Ver detalle (B.31)">
                           <IconAction icon={Eye} label="Ver detalle" />
@@ -195,18 +201,18 @@ export function LawyersClient({ firms, stats }: Props) {
                         <IconAction onClick={() => { /* permissions tbd */ }} icon={KeyRound} label="Permisos" disabled />
                         <IconAction onClick={() => setDeleting(f)} icon={Trash2}   label="Eliminar" variant="danger" />
                       </div>
-                    </td>
-                  </tr>
+                    </DataTable.Td>
+                  </DataTable.Row>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
-        <div className="px-5 py-3 bg-bg-2/30 border-t border-border text-xs text-text-muted flex items-center justify-between">
-          <span>{filtered.length} de {stats.total} bufetes</span>
-          <span className="font-mono">phoenix-dev · local</span>
-        </div>
-      </div>
+          </DataTable.Table>
+        </DataTable.Scroll>
+        <TableFooter
+          left={`${filtered.length} de ${stats.total} bufetes`}
+          right={<span className="font-mono">phoenix-dev · local</span>}
+        />
+      </DataTable.Card>
 
       <FirmDialog
         open={createOpen || editing !== null}
@@ -224,52 +230,15 @@ export function LawyersClient({ firms, stats }: Props) {
   );
 }
 
-// ─── Atoms ──────────────────────────────────────────────────────────────────
+// ─── Domain pills ───────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, sub, color }: { label: string; value: number; sub: string; color: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-bg-1 px-5 py-4">
-      <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{label}</div>
-      <div className={`text-3xl font-bold mt-1 ${color}`}>{value}</div>
-      <div className="text-[11px] text-text-muted mt-0.5">{sub}</div>
-    </div>
-  );
-}
-
-function FilterPill({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-        active ? 'bg-gradient-brand text-white' : 'bg-bg-2 border border-border text-text-2 hover:text-white hover:border-border-strong'
-      }`}
-    >
-      {label} <span className="opacity-70 font-mono">({count})</span>
-    </button>
-  );
-}
-
-function FirmAvatar({ name }: { name: string }) {
-  const initials = name
-    .split(/[\s&]+/)
-    .filter(Boolean)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-  return (
-    <div className="w-9 h-9 rounded-lg bg-gradient-cyan flex items-center justify-center text-white text-[11px] font-bold shrink-0 shadow-glow">
-      {initials}
-    </div>
-  );
-}
-
+/** PaymentSpeedPill — Pill custom para velocidad de pago del bufete.
+ *  Usa TagPill del shared con color por dominio. */
 function PaymentSpeedPill({ speed }: { speed: string | null }) {
   if (!speed || speed === 'UNKNOWN') {
     return <span className="text-text-muted text-[10px] italic">—</span>;
   }
-  const styles: Record<string, string> = {
+  const colors: Record<string, string> = {
     FAST:    'bg-emerald/15 text-emerald border-emerald/30',
     AVERAGE: 'bg-cyan/15 text-cyan border-cyan/30',
     SLOW:    'bg-amber/15 text-amber border-amber/30',
@@ -279,61 +248,7 @@ function PaymentSpeedPill({ speed }: { speed: string | null }) {
     AVERAGE: '~ Promedio',
     SLOW:    '⚠ Lento',
   };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold border ${styles[speed] ?? ''}`}>
-      {labels[speed] ?? speed}
-    </span>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  if (status === 'ACTIVE') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald/15 text-emerald border border-emerald/30">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
-        Activo
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/5 text-text-muted border border-border">
-      <span className="w-1.5 h-1.5 rounded-full bg-text-muted" />
-      {status === 'INACTIVE' ? 'Inactivo' : status}
-    </span>
-  );
-}
-
-function IconAction({
-  onClick,
-  icon: Icon,
-  label,
-  variant = 'default',
-  disabled,
-}: {
-  onClick?: () => void;
-  icon: React.ElementType;
-  label: string;
-  variant?: 'default' | 'danger';
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
-        disabled
-          ? 'text-text-muted/40 cursor-not-allowed'
-          : variant === 'danger'
-            ? 'text-text-muted hover:text-rose hover:bg-rose/10'
-            : 'text-text-muted hover:text-white hover:bg-white/5'
-      }`}
-    >
-      <Icon className="w-3.5 h-3.5" />
-    </button>
-  );
+  return <TagPill label={labels[speed] ?? speed} colorClass={colors[speed] ?? 'bg-white/5 text-text-2 border-border'} />;
 }
 
 // ─── Modals ─────────────────────────────────────────────────────────────────
@@ -471,7 +386,7 @@ function FirmDialog({
               id="paymentSpeed"
               value={paymentSpeed ?? 'UNKNOWN'}
               onChange={(e) => setPaymentSpeed(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {PAYMENT_SPEEDS.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
@@ -558,7 +473,7 @@ function DeleteConfirmDialog({
         <DialogHeader>
           <DialogTitle className="text-rose">Eliminar bufete</DialogTitle>
           <DialogDescription>
-            ¿Seguro que querés eliminar <strong className="text-white">"{firm.firmName}"</strong>? Se hace soft-delete (queda inactivo).
+            ¿Seguro que querés eliminar <strong className="text-text-1">"{firm.firmName}"</strong>? Se hace soft-delete (queda inactivo).
           </DialogDescription>
         </DialogHeader>
 

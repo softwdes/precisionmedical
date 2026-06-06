@@ -15,6 +15,18 @@ import {
   DialogFooter,
   Label,
 } from '@precision/ui';
+import {
+  PageHeader,
+  KpiCard,
+  FilterPill,
+  IconAction,
+  StatusPill,
+  TagPill,
+  DataTable,
+  TableFooter,
+  EmptyState,
+  EntityAvatar,
+} from '@/components/ui-phoenix';
 
 // B.32 — Aseguradoras (PIP / Med Pay / Health / Workers / Other)
 
@@ -109,19 +121,16 @@ export function InsurancesClient({ insurances, stats }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
-          <p className="text-text-2 text-sm mt-1">
-            {t('subtitle', { active: stats.active, pip: stats.pip, medpay: stats.medpay, mockup: 'Mockup B.32' })}
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle', { active: stats.active, pip: stats.pip, medpay: stats.medpay, mockup: 'Mockup B.32' })}
+        action={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
+          </Button>
+        }
+      />
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard label={t('kpiTotal')}   value={stats.total}  sub={t('kpiTotalSub')}  color="text-text-1" />
         <KpiCard label={t('kpiActive')}  value={stats.active} sub={t('kpiActiveSub')} color="text-emerald" />
@@ -147,36 +156,40 @@ export function InsurancesClient({ insurances, stats }: Props) {
         <FilterPill active={filter === 'slow'}    onClick={() => setFilter('slow')}    label={t('kpiSlow')} count={stats.slow} />
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-semibold">{t('columnCarrier')}</th>
-                <th className="text-center px-5 py-3 font-semibold">{t('columnType')}</th>
-                <th className="text-left px-5 py-3 font-semibold">Claims</th>
-                <th className="text-center px-5 py-3 font-semibold">HCFA</th>
-                <th className="text-right px-5 py-3 font-semibold">Avg respuesta</th>
-                <th className="text-center px-5 py-3 font-semibold">Estado</th>
-                <th className="text-right px-5 py-3 font-semibold">Acciones</th>
-              </tr>
-            </thead>
+      <DataTable.Card>
+        <DataTable.Scroll>
+          <DataTable.Table>
+            <DataTable.Head>
+              <DataTable.Th>{t('columnCarrier')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnType')}</DataTable.Th>
+              <DataTable.Th>Claims</DataTable.Th>
+              <DataTable.Th align="center">HCFA</DataTable.Th>
+              <DataTable.Th align="right">Avg respuesta</DataTable.Th>
+              <DataTable.Th align="center">Estado</DataTable.Th>
+              <DataTable.Th align="right">Acciones</DataTable.Th>
+            </DataTable.Head>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-text-muted text-sm">
-                    {search ? `No hay aseguradoras que coincidan con "${search}"` : 'No hay aseguradoras. Crea la primera arriba.'}
-                  </td>
+                  <DataTable.Td colSpan={7}>
+                    <EmptyState.Inline
+                      message={search ? `No hay aseguradoras que coincidan con "${search}"` : 'No hay aseguradoras. Crea la primera arriba.'}
+                    />
+                  </DataTable.Td>
                 </tr>
               ) : (
                 filtered.map((ins) => (
-                  <tr key={ins.id} className={`border-b border-border/30 hover:bg-white/[0.02] transition-colors ${ins.responseSpeed === 'SLOW' ? 'bg-amber/[0.03]' : ''} ${!ins.isActive ? 'opacity-50' : ''}`}>
-                    <td className="px-5 py-3.5">
+                  <DataTable.Row
+                    key={ins.id}
+                    muted={!ins.isActive}
+                    highlight={ins.responseSpeed === 'SLOW'}
+                    highlightClass="bg-amber/[0.03]"
+                  >
+                    <DataTable.Td>
                       <div className="flex items-center gap-3">
-                        <InsuranceAvatar color={ins.color} code={ins.shortCode} />
+                        <EntityAvatar code={ins.shortCode} color={ins.color} size={10} />
                         <div className="min-w-0">
-                          <div className="text-white font-semibold truncate flex items-center gap-1">
+                          <div className="text-text-1 font-semibold truncate flex items-center gap-1">
                             {ins.name}
                             {ins.responseSpeed === 'SLOW' && (
                               <AlertTriangle className="w-3 h-3 text-amber" />
@@ -187,11 +200,11 @@ export function InsurancesClient({ insurances, stats }: Props) {
                           )}
                         </div>
                       </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
                       <TypePill type={ins.type} />
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </DataTable.Td>
+                    <DataTable.Td>
                       <div className="text-text-2 text-xs space-y-0.5">
                         {ins.claimsPhone && (
                           <div className="flex items-center gap-1.5 font-mono">
@@ -206,39 +219,44 @@ export function InsurancesClient({ insurances, stats }: Props) {
                           </div>
                         )}
                       </div>
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
                       <HcfaChannelPill channel={ins.hcfaChannel} />
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
+                    </DataTable.Td>
+                    <DataTable.Td align="right">
                       <ResponseDaysCell days={ins.avgResponseDays} speed={ins.responseSpeed} />
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <StatusPill active={ins.isActive} />
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
+                      <StatusPill
+                        state={ins.isActive ? 'active' : 'inactive'}
+                        label={ins.isActive ? 'Activa' : 'Inactiva'}
+                      />
+                    </DataTable.Td>
+                    <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
                         <IconAction onClick={() => setViewing(ins)} icon={Eye}     label="Ver" />
                         <IconAction onClick={() => setEditing(ins)} icon={Pencil}  label="Editar" />
                         <IconAction onClick={() => {}} icon={KeyRound} label="Permisos" disabled />
                         <IconAction onClick={() => setDeleting(ins)} icon={Trash2} label="Eliminar" variant="danger" />
                       </div>
-                    </td>
-                  </tr>
+                    </DataTable.Td>
+                  </DataTable.Row>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
-        <div className="px-5 py-3 bg-bg-2/30 border-t border-border text-xs text-text-muted flex items-center justify-between flex-wrap gap-2">
-          <span>{filtered.length} de {stats.total} aseguradoras</span>
-          <div className="flex items-center gap-4">
-            <span>🟢 &lt;15d: <strong className="text-emerald">{stats.fast}</strong></span>
-            <span>🟡 15-30d: <strong className="text-amber">{stats.average}</strong></span>
-            <span>🔴 &gt;30d: <strong className="text-rose">{stats.slow}</strong></span>
-          </div>
-        </div>
-      </div>
+          </DataTable.Table>
+        </DataTable.Scroll>
+        <TableFooter
+          left={`${filtered.length} de ${stats.total} aseguradoras`}
+          right={
+            <span className="flex items-center gap-4">
+              <span>🟢 &lt;15d: <strong className="text-emerald">{stats.fast}</strong></span>
+              <span>🟡 15-30d: <strong className="text-amber">{stats.average}</strong></span>
+              <span>🔴 &gt;30d: <strong className="text-rose">{stats.slow}</strong></span>
+            </span>
+          }
+        />
+      </DataTable.Card>
 
       <InsuranceDialog
         open={createOpen || editing !== null}
@@ -262,45 +280,11 @@ export function InsurancesClient({ insurances, stats }: Props) {
   );
 }
 
-// ─── Atoms ──────────────────────────────────────────────────────────────────
+// ─── Domain pills ───────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, sub, color }: { label: string; value: number; sub: string; color: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-bg-1 px-5 py-4">
-      <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{label}</div>
-      <div className={`text-3xl font-bold mt-1 ${color}`}>{value}</div>
-      <div className="text-[11px] text-text-muted mt-0.5">{sub}</div>
-    </div>
-  );
-}
-
-function FilterPill({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-        active ? 'bg-gradient-brand text-white' : 'bg-bg-2 border border-border text-text-2 hover:text-white hover:border-border-strong'
-      }`}
-    >
-      {label} <span className="opacity-70 font-mono">({count})</span>
-    </button>
-  );
-}
-
-function InsuranceAvatar({ color, code }: { color: string; code: string }) {
-  return (
-    <div
-      className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-md"
-      style={{ background: color, boxShadow: `0 4px 12px ${color}40` }}
-    >
-      {code}
-    </div>
-  );
-}
-
+/** TypePill — Pill por tipo de cobertura PIP/MED_PAY/HEALTH/WORKERS/OTHER */
 function TypePill({ type }: { type: string }) {
-  const styles: Record<string, string> = {
+  const colors: Record<string, string> = {
     PIP:     'bg-cyan/15 text-cyan border-cyan/30',
     MED_PAY: 'bg-violet/15 text-violet border-violet/30',
     HEALTH:  'bg-emerald/15 text-emerald border-emerald/30',
@@ -314,13 +298,10 @@ function TypePill({ type }: { type: string }) {
     WORKERS: 'Workers',
     OTHER:   'Otro',
   };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold font-mono border ${styles[type] ?? styles.OTHER}`}>
-      {labels[type] ?? type}
-    </span>
-  );
+  return <TagPill label={labels[type] ?? type} colorClass={colors[type] ?? colors.OTHER} mono />;
 }
 
+/** HcfaChannelPill — Pill por canal de envío HCFA (Email/Fax/Portal/Paper/EDI) */
 function HcfaChannelPill({ channel }: { channel: string }) {
   const icons: Record<string, React.ReactNode> = {
     EMAIL:  <Mail className="w-3 h-3" />,
@@ -333,63 +314,22 @@ function HcfaChannelPill({ channel }: { channel: string }) {
     EMAIL: 'Email', FAX: 'Fax', PORTAL: 'Portal', PAPER: 'Postal', EDI: 'EDI',
   };
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-white/5 text-text-2 border border-border">
-      {icons[channel] ?? null}
-      {labels[channel] ?? channel}
-    </span>
+    <TagPill
+      label={labels[channel] ?? channel}
+      colorClass="bg-white/5 text-text-2 border-border"
+      icon={icons[channel] ?? null}
+    />
   );
 }
 
+/** ResponseDaysCell — Celda chiquita con días + color por speed */
 function ResponseDaysCell({ days, speed }: { days: number | null; speed: string }) {
   if (days === null) return <span className="text-text-muted italic">—</span>;
   const color =
     speed === 'FAST'    ? 'text-emerald' :
     speed === 'AVERAGE' ? 'text-amber'   :
     speed === 'SLOW'    ? 'text-rose'    : 'text-text-2';
-  return (
-    <span className={`font-mono font-semibold ${color}`}>{days}d</span>
-  );
-}
-
-function StatusPill({ active }: { active: boolean }) {
-  return active ? (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald/15 text-emerald border border-emerald/30">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald" /> Activa
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/5 text-text-muted border border-border">
-      <span className="w-1.5 h-1.5 rounded-full bg-text-muted" /> Inactiva
-    </span>
-  );
-}
-
-function IconAction({
-  onClick, icon: Icon, label, variant = 'default', disabled,
-}: {
-  onClick: () => void;
-  icon: React.ElementType;
-  label: string;
-  variant?: 'default' | 'danger';
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
-        disabled
-          ? 'text-text-muted/40 cursor-not-allowed'
-          : variant === 'danger'
-            ? 'text-text-muted hover:text-rose hover:bg-rose/10'
-            : 'text-text-muted hover:text-white hover:bg-white/5'
-      }`}
-    >
-      <Icon className="w-3.5 h-3.5" />
-    </button>
-  );
+  return <span className={`font-mono font-semibold ${color}`}>{days}d</span>;
 }
 
 // ─── Dialogs ─────────────────────────────────────────────────────────────────
@@ -534,7 +474,7 @@ function InsuranceDialog({
                 id="type"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
                 {TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
@@ -567,7 +507,7 @@ function InsuranceDialog({
                 id="claimsAddress"
                 value={claimsAddress ?? ''}
                 onChange={(e) => setClaimsAddress(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
                 placeholder="PO Box 12345, San Antonio TX 78284"
               />
             </div>
@@ -582,7 +522,7 @@ function InsuranceDialog({
                   id="hcfaChannel"
                   value={hcfaChannel}
                   onChange={(e) => setHcfaChannel(e.target.value)}
-                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
                 >
                   {HCFA_CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
@@ -598,7 +538,7 @@ function InsuranceDialog({
                 id="responseSpeed"
                 value={responseSpeed}
                 onChange={(e) => setResponseSpeed(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
                 {RESPONSE_SPEEDS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
@@ -615,7 +555,7 @@ function InsuranceDialog({
               id="notes"
               value={notes ?? ''}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder="Detalles operativos: agente específico, observaciones, etc."
             />
           </div>
@@ -654,7 +594,7 @@ function ViewDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <InsuranceAvatar color={insurance.color} code={insurance.shortCode} />
+            <EntityAvatar code={insurance.shortCode} color={insurance.color} size={10} />
             <div>
               <div>{insurance.name}</div>
               {insurance.legalName && <div className="text-text-muted text-xs font-normal mt-0.5">{insurance.legalName}</div>}
@@ -664,11 +604,16 @@ function ViewDialog({
 
         <div className="space-y-3 py-4 text-sm">
           <InfoRow label="Tipo" value={<TypePill type={insurance.type} />} />
-          <InfoRow label="Estado" value={<StatusPill active={insurance.isActive} />} />
+          <InfoRow label="Estado" value={
+            <StatusPill
+              state={insurance.isActive ? 'active' : 'inactive'}
+              label={insurance.isActive ? 'Activa' : 'Inactiva'}
+            />
+          } />
           <InfoRow label="Claims phone"
             value={insurance.claimsPhone ? <span className="font-mono">{insurance.claimsPhone}</span> : <Empty />} />
           <InfoRow label="Claims email"
-            value={insurance.claimsEmail ? <a href={`mailto:${insurance.claimsEmail}`} className="text-cyan hover:text-white">{insurance.claimsEmail}</a> : <Empty />} />
+            value={insurance.claimsEmail ? <a href={`mailto:${insurance.claimsEmail}`} className="text-cyan hover:text-text-1">{insurance.claimsEmail}</a> : <Empty />} />
           <InfoRow label="Claims fax"
             value={insurance.claimsFax ? <span className="font-mono">{insurance.claimsFax}</span> : <Empty />} />
           <InfoRow label="Portal"
@@ -738,7 +683,7 @@ function DeleteConfirmDialog({
         <DialogHeader>
           <DialogTitle className="text-rose">Eliminar aseguradora</DialogTitle>
           <DialogDescription>
-            ¿Seguro que querés eliminar <strong className="text-white">"{insurance.name}"</strong>? Se hace soft-delete (queda inactiva).
+            ¿Seguro que querés eliminar <strong className="text-text-1">"{insurance.name}"</strong>? Se hace soft-delete (queda inactiva).
           </DialogDescription>
         </DialogHeader>
 

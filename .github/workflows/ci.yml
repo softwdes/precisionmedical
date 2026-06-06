@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Phoenix Phase 0 — CI sin deploy. Deploy se agrega cuando BAA Vercel firme.
+# Locked 2026-06-05: estrategia LOCAL-FIRST + Vercel Enterprise como target eventual.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: lint + typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm --filter @precision-medical/database db:generate
+
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: true # Phase 0: relajado mientras se estabiliza
+
+      - name: Typecheck
+        run: pnpm typecheck
+        continue-on-error: true # Phase 0: relajado mientras se estabiliza
+
+      - name: Build all apps
+        run: pnpm build
+        env:
+          # Sentry sin DSN en CI = Sentry queda inerte (no envía nada).
+          # SENTRY_AUTH_TOKEN se setea solo en deploy real (no en CI Phase 0).
+          NEXT_PUBLIC_SENTRY_DSN: ''
+          SENTRY_AUTH_TOKEN: ''
+          # Database URL: stub para que prisma generate corra. CI no toca DB real.
+          DATABASE_URL: 'postgresql://stub:stub@localhost:5432/stub?schema=public'
+          DIRECT_URL: 'postgresql://stub:stub@localhost:5432/stub?schema=public'

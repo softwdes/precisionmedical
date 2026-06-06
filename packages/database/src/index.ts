@@ -17,3 +17,7 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db;
 
 export { PrismaClient } from '@prisma/client';
 export * from '@prisma/client';
+
+// Phoenix 2026-06-05 — Audit log helpers (actorType-aware)
+export { writeAuditLog, actorFromHeaders } from './audit';
+export type { WriteAuditLogInput } from './audit';

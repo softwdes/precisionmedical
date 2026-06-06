@@ -1237,5 +1237,33 @@
       "REJECTED": "Rejected",
       "CANCELLED": "Cancelled"
     }
+  },
+  "updateBanner": {
+    "available": "New version available",
+    "apply": "Update now",
+    "applying": "Updating..."
+  },
+  "clinics": {
+    "newClinic": "New clinic",
+    "editClinic": "Edit clinic — {name}",
+    "createDescription": "Define the internal key, country and GPS location. The key CANNOT be changed later.",
+    "editDescription": "Adjust GPS coordinates and geofencing radius to verify employee attendance.",
+    "internalKey": "Internal key",
+    "internalKeyPlaceholder": "E.g.: Orem Clinic",
+    "internalKeyHelpCreate": "Permanent identifier (used in JOINs with historical data). Cannot be changed later.",
+    "internalKeyHelpEdit": "This is what the employee sees in the Time Clock dropdown. The internal key ({name}) does not change.",
+    "country": "Country",
+    "countryHelp": "Determines where the map centers and filters the address search.",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "What the employee will see in the dropdown",
+    "displayNameHelp": "What the employee sees in the Time Clock dropdown. May differ from the key.",
+    "createClinic": "Create clinic",
+    "saveChanges": "Save changes",
+    "toastCreated": "Clinic created",
+    "toastUpdated": "Clinic updated",
+    "validation": {
+      "nameMinLength": "Internal key must be at least 2 characters",
+      "displayNameMinLength": "Display name must be at least 2 characters"
+    }
   }
 }

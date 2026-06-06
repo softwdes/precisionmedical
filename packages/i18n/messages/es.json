@@ -1237,5 +1237,33 @@
       "REJECTED": "Rechazada",
       "CANCELLED": "Cancelada"
     }
+  },
+  "updateBanner": {
+    "available": "Nueva versión disponible",
+    "apply": "Actualizar ahora",
+    "applying": "Actualizando..."
+  },
+  "clinics": {
+    "newClinic": "Nueva clínica",
+    "editClinic": "Editar clínica — {name}",
+    "createDescription": "Define la clave interna, país y ubicación GPS. La clave NO se puede cambiar después.",
+    "editDescription": "Ajusta las coordenadas GPS y el radio de geofencing para verificar la asistencia de empleados.",
+    "internalKey": "Clave interna",
+    "internalKeyPlaceholder": "Ej: Orem Clinic",
+    "internalKeyHelpCreate": "Identificador permanente (usado en JOINs con historial). No se puede cambiar después.",
+    "internalKeyHelpEdit": "Esto es lo que el empleado ve en el dropdown del Time Clock. La clave interna ({name}) no cambia.",
+    "country": "País",
+    "countryHelp": "Determina dónde se centra el mapa y filtra el buscador de direcciones.",
+    "displayName": "Nombre visible",
+    "displayNamePlaceholder": "Lo que verá el empleado en el dropdown",
+    "displayNameHelp": "Lo que el empleado ve en el dropdown del Time Clock. Puede diferir de la clave.",
+    "createClinic": "Crear clínica",
+    "saveChanges": "Guardar cambios",
+    "toastCreated": "Clínica creada",
+    "toastUpdated": "Clínica actualizada",
+    "validation": {
+      "nameMinLength": "La clave interna debe tener al menos 2 caracteres",
+      "displayNameMinLength": "El nombre visible debe tener al menos 2 caracteres"
+    }
   }
 }

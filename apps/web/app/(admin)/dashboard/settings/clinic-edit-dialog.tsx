@@ -24,6 +24,7 @@ function ensureLeafletCss(): Promise<void> {
   });
 }
 import { api as trpc } from '@/lib/trpc/client';
+import { useTranslations } from 'next-intl';
 import {
   Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter,
@@ -92,6 +93,7 @@ export function ClinicEditDialog({
   onSaved: () => void;
 }): React.ReactElement {
   const isCreate = clinic === null;
+  const t = useTranslations('clinics');
 
   // Campos solo-creacion
   const [newName, setNewName]       = useState('');
@@ -179,7 +181,7 @@ export function ClinicEditDialog({
 
   const updateMutation = trpc.clinics.update.useMutation({
     onSuccess: () => {
-      toast.success('Clínica actualizada');
+      toast.success(t('toastUpdated'));
       onSaved();
     },
     onError: (e) => toast.error(e.message),
@@ -187,7 +189,7 @@ export function ClinicEditDialog({
 
   const createMutation = trpc.clinics.create.useMutation({
     onSuccess: () => {
-      toast.success('Clínica creada');
+      toast.success(t('toastCreated'));
       onSaved();
     },
     onError: (e) => toast.error(e.message),
@@ -300,11 +302,11 @@ export function ClinicEditDialog({
     if (isCreate) {
       // Validaciones front antes del round-trip al server
       if (!newName.trim() || newName.trim().length < 2) {
-        toast.error('La clave interna debe tener al menos 2 caracteres');
+        toast.error(t('validation.nameMinLength'));
         return;
       }
       if (!form.display_name.trim() || form.display_name.trim().length < 2) {
-        toast.error('El nombre visible debe tener al menos 2 caracteres');
+        toast.error(t('validation.displayNameMinLength'));
         return;
       }
       createMutation.mutate({
@@ -341,13 +343,10 @@ export function ClinicEditDialog({
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             {isCreate ? <Plus className="h-4 w-4 text-brand" /> : <MapPin className="h-4 w-4 text-brand" />}
-            {isCreate ? 'Nueva clínica' : `Editar clínica — ${clinic!.display_name}`}
+            {isCreate ? t('newClinic') : t('editClinic', { name: clinic!.display_name })}
           </DialogTitle>
           <DialogDescription>
-            {isCreate
-              ? 'Define la clave interna, país y ubicación GPS. La clave NO se puede cambiar después.'
-              : 'Ajusta las coordenadas GPS y el radio de geofencing para verificar la asistencia de empleados.'
-            }
+            {isCreate ? t('createDescription') : t('editDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -356,18 +355,18 @@ export function ClinicEditDialog({
           {isCreate && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3">
               <div className="space-y-1.5">
-                <Label>Clave interna <span className="text-rose-400">*</span></Label>
+                <Label>{t('internalKey')} <span className="text-rose-400">*</span></Label>
                 <Input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Ej: Orem Clinic"
+                  placeholder={t('internalKeyPlaceholder')}
                 />
                 <p className="text-tiny text-text-muted leading-snug">
-                  Identificador permanente (usado en JOINs con historial). <strong>No se puede cambiar después.</strong>
+                  {t('internalKeyHelpCreate')}
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label>País <span className="text-rose-400">*</span></Label>
+                <Label>{t('country')} <span className="text-rose-400">*</span></Label>
                 <select
                   value={newCountry}
                   onChange={(e) => setNewCountry(e.target.value as 'US' | 'BO' | 'PE')}
@@ -381,7 +380,7 @@ export function ClinicEditDialog({
                   ))}
                 </select>
                 <p className="text-tiny text-text-muted leading-snug">
-                  Determina dónde se centra el mapa y filtra el buscador de direcciones.
+                  {t('countryHelp')}
                 </p>
               </div>
             </div>
@@ -401,16 +400,16 @@ export function ClinicEditDialog({
 
           {/* Display name */}
           <div className="space-y-1.5">
-            <Label>Nombre visible</Label>
+            <Label>{t('displayName')}</Label>
             <Input
               value={form.display_name}
               onChange={(e) => setForm(f => ({ ...f, display_name: e.target.value }))}
-              placeholder={isCreate ? 'Lo que verá el empleado en el dropdown' : undefined}
+              placeholder={isCreate ? t('displayNamePlaceholder') : undefined}
             />
             <p className="text-tiny text-text-muted">
               {isCreate
-                ? 'Lo que el empleado ve en el dropdown del Time Clock. Puede diferir de la clave.'
-                : <>Esto es lo que el empleado ve en el dropdown del Time Clock. La clave interna (<code className="text-text-3">{clinic!.name}</code>) no cambia.</>
+                ? t('displayNameHelp')
+                : t('internalKeyHelpEdit', { name: clinic!.name })
               }
             </p>
           </div>
@@ -608,7 +607,7 @@ export function ClinicEditDialog({
           </Button>
           <Button onClick={handleSave} loading={saving}>
             {isCreate ? <Plus className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-            {isCreate ? 'Crear clínica' : 'Guardar cambios'}
+            {isCreate ? t('createClinic') : t('saveChanges')}
           </Button>
         </DialogFooter>
       </DialogContent>

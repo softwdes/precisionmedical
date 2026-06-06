@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
   Button, Badge,
@@ -20,6 +21,7 @@ const COUNTRY_LABELS: Record<string, { label: string; flag: string }> = {
 export function ClinicsTab(): React.ReactElement {
   const role = useRole();
   const canEdit = role === 'super_admin';
+  const t = useTranslations('clinics');
   const { data: clinics = [], refetch, isLoading } = trpc.clinics.list.useQuery();
   const [editing, setEditing] = useState<Clinic | null>(null);
   const [creating, setCreating] = useState(false);
@@ -37,7 +39,7 @@ export function ClinicsTab(): React.ReactElement {
         {canEdit && (
           <Button onClick={() => setCreating(true)} size="sm">
             <Plus className="h-3.5 w-3.5" />
-            Nueva clínica
+            {t('newClinic')}
           </Button>
         )}
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import { useVersionCheck } from '@/lib/useVersionCheck';
 import { clearSessionGuard } from '@/lib/useSessionGuard';
@@ -15,6 +16,7 @@ import { createClient as createBrowserClient } from '@precision-medical/auth/cli
  */
 export function UpdateBanner(): React.ReactElement | null {
   const { isOutdated } = useVersionCheck();
+  const t = useTranslations('updateBanner');
   const [applying, setApplying] = useState(false);
 
   if (!isOutdated) return null;
@@ -81,7 +83,7 @@ export function UpdateBanner(): React.ReactElement | null {
       <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <Sparkles size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          Nueva versión disponible
+          {t('available')}
         </span>
       </span>
       <button
@@ -113,7 +115,7 @@ export function UpdateBanner(): React.ReactElement | null {
           strokeWidth={2.5}
           className={applying ? 'animate-spin' : undefined}
         />
-        {applying ? 'Actualizando...' : 'Actualizar ahora'}
+        {applying ? t('applying') : t('apply')}
       </button>
     </div>
   );

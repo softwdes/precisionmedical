@@ -1,5 +1,6 @@
 import createNextIntlPlugin from 'next-intl/plugin';
 import withSerwistInit from '@serwist/next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
@@ -18,6 +19,7 @@ const nextConfig = {
     '@precision-medical/api',
     '@precision-medical/database',
     '@precision-medical/i18n',
+    '@precision-medical/observability',
   ],
   images: {
     remotePatterns: [
@@ -54,4 +56,15 @@ const nextConfig = {
   },
 };
 
-export default withSerwist(withNextIntl(nextConfig));
+// Sentry debe ser el wrapper más externo (sobre Serwist + next-intl).
+// org/project/authToken se leen de las env vars en build (Vercel).
+// Si no hay SENTRY_AUTH_TOKEN, el build no falla: solo no sube source maps.
+export default withSentryConfig(withSerwist(withNextIntl(nextConfig)), {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  disableLogger: true,
+  automaticVercelMonitors: false,
+  // tunnelRoute desactivado: el middleware de auth bloquearía la ruta proxy.
+});

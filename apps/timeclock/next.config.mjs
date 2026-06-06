@@ -1,13 +1,15 @@
 import withPWA from '@ducanh2912/next-pwa';
+import { withSentryConfig } from '@sentry/nextjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['@precision-medical/observability'],
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co' }],
   },
 };
 
-export default withPWA({
+const pwaConfig = withPWA({
   dest: 'public',
   register: true,
   sw: 'sw.js',
@@ -41,3 +43,13 @@ export default withPWA({
     ],
   },
 })(nextConfig);
+
+// Sentry como wrapper más externo (sobre next-pwa).
+export default withSentryConfig(pwaConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  disableLogger: true,
+  automaticVercelMonitors: false,
+});

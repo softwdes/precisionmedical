@@ -100,6 +100,153 @@ async function seed(): Promise<void> {
 
   console.warn('✅ Cash Boxes: Pleasant Grove Box, Provo Box');
 
+  // ─────────────────────────────────────────────────────────────────────
+  // PHOENIX (LM v3) — Phase 0 seeds · NO-PHI catalogs only
+  // Added 2026-06-05 · capturados del LM legacy MVA F/U template
+  // ─────────────────────────────────────────────────────────────────────
+
+  // Diagnoses: dual ICD-10 + SNOMED CT (capturados del B.18 legacy)
+  const diagnosesSeed = [
+    { icd10Code: 'M62.838', icd10Description: 'Other muscle spasm', snomedCode: '1141864009', snomedDescription: 'Perioral spasm', category: 'M', bodySystem: 'Musculoskeletal', piRelevant: true },
+    { icd10Code: 'S46.819A', icd10Description: 'Strain of other muscles, fascia and tendons at shoulder and upper arm level, unspecified arm, initial encounter', snomedCode: '1254774007', snomedDescription: 'Traumatic tear of pectoralis', category: 'S', bodySystem: 'Shoulder/Upper arm', piRelevant: true },
+    { icd10Code: 'S13.4XXA', icd10Description: 'Sprain of ligaments of cervical spine, initial encounter', snomedCode: '122751000119105', snomedDescription: 'Acute posttraumatic headache', category: 'S', bodySystem: 'Cervical spine', piRelevant: true },
+    { icd10Code: 'G47.9', icd10Description: 'Sleep disorder, unspecified', snomedCode: '12262002', snomedDescription: 'Restless sleep', category: 'G', bodySystem: 'Neurological', piRelevant: true },
+    { icd10Code: 'M54.2', icd10Description: 'Cervicalgia', snomedCode: '102554000', snomedDescription: 'Tenderness of spinous process', category: 'M', bodySystem: 'Cervical spine', piRelevant: true },
+    { icd10Code: 'M54.12', icd10Description: 'Radiculopathy, cervical region', snomedCode: '103014001', snomedDescription: 'Cervical nerve root pain', category: 'M', bodySystem: 'Cervical spine', piRelevant: true },
+    { icd10Code: 'M54.6', icd10Description: 'Pain in thoracic spine', snomedCode: '136791000119103', snomedDescription: 'Chronic thoracic back pain', category: 'M', bodySystem: 'Thoracic spine', piRelevant: true },
+    { icd10Code: 'M54.50', icd10Description: 'Low back pain, unspecified', snomedCode: '1119213008', snomedDescription: 'Tenderness of left lumbar region', category: 'M', bodySystem: 'Lumbar spine', piRelevant: true },
+    { icd10Code: 'M53.3', icd10Description: 'Sacrococcygeal disorders, not elsewhere classified', snomedCode: '1224255100119102', snomedDescription: 'Pain in left sacroiliac', category: 'M', bodySystem: 'Sacrum', piRelevant: true },
+    { icd10Code: 'M54.17', icd10Description: 'Radiculopathy, lumbosacral region', snomedCode: '103016004', snomedDescription: 'Lumbosacral nerve root pain', category: 'M', bodySystem: 'Lumbosacral spine', piRelevant: true },
+    { icd10Code: 'R51.9', icd10Description: 'Headache, unspecified', snomedCode: '103007003', snomedDescription: 'Headache due to external cause', category: 'R', bodySystem: 'Head', piRelevant: true },
+  ];
+
+  await Promise.all(
+    diagnosesSeed.map((dx) =>
+      db.diagnosis.upsert({
+        where: { icd10Code: dx.icd10Code },
+        update: {},
+        create: dx as Parameters<typeof db.diagnosis.create>[0]['data'],
+      }),
+    ),
+  );
+
+  console.warn(`✅ Phoenix Diagnoses: ${diagnosesSeed.length} ICD-10 + SNOMED dual (PI-relevant)`);
+
+  // Template sample: NG-MVA F/U (Motor Vehicle Accident Follow-up)
+  // Capturado del LM legacy 2026-06-05. Solo se crea si existe al menos un User
+  // (porque template.createdBy es FK obligatorio). Skip silencioso si no hay user
+  // (Phase 1 cargará templates después de crear users reales).
+  const firstUser = await db.user.findFirst({ select: { id: true } });
+
+  if (firstUser) {
+    const existingTemplate = await db.template.findFirst({
+      where: { title: 'NG-MVA F/U' },
+      select: { id: true },
+    });
+
+    if (!existingTemplate) {
+      const template = await db.template.create({
+        data: {
+          title: 'NG-MVA F/U',
+          description: 'Motor Vehicle Accident Follow-up · capturado del legacy 2026-06-05',
+          encounterType: 'FOLLOW_UP',
+          caseType: 'MVA',
+          scope: 'SHARED',
+          createdById: firstUser.id,
+          isActive: true,
+        },
+      });
+
+      // Crear 7 secciones (CC, HPI, ROS, PE, Eval, Plan, Dx)
+      const sections = [
+        {
+          sectionKey: 'QUEJA_PRINCIPAL' as const,
+          content: '',
+          orderIndex: 0,
+        },
+        {
+          sectionKey: 'HPI' as const,
+          content: 'MVA date: ____ Chiro: ____\nPt has given us permission to release information to attorney:\n• Pt here for follow up\n• Reviewed MRI with pt in detail and answered questions. See assessment section/documents section for more details.\n**Treatments:** Been going to chiropractor x/week, massage x/week, using ice/heat, doing stretches.',
+          orderIndex: 1,
+        },
+        {
+          sectionKey: 'ROS' as const,
+          content: 'Denies f/c, dizziness, syncope, eye pain/visual disturbances, ear pain, nasal congestion, ST, CP, racing heart/palpitations, trouble breathing/SOB, cough, abd pain, n/v, diarrhea, constipation, blood in stool, dysuria, hematuria, edema, rashes',
+          orderIndex: 2,
+        },
+        {
+          sectionKey: 'EXAMEN_FISICO' as const,
+          content: '**General:** NAD, alert, Ox3. Normal mood/affect.\n**EENT:** PERRLA, no vision disturbances/changes, EOM intact. TMs pearly gray/intact.\n**Neck:** Increased tone/tight/TTP paracervical/trapezius/erector/levator/rhomboid muscles, limited/pain with ROM- improving with treatment plan.\n**Chest:** Heart RRR, No murmurs.\n**Abd:** Soft. Nontender.\n**MSKTL:** Increased tone/tight/TTP paraspinal muscles, SI Joint TTP, limited ROM.',
+          orderIndex: 3,
+        },
+        {
+          sectionKey: 'EVALUACIONES' as const,
+          content: 'Variante Básica (9): Neck Pain · Whiplash · Trapezius Strain · Thoracic BP · Low BP · Sacroilliac · Muscle Spasms · Headaches · Sleep Disturbance',
+          variants: [
+            { label: 'Básica (9)', content: '1. Neck Pain\n2. Whiplash\n3. Trapezius Strain\n4. Thoracic Back Pain\n5. Low Back Pain\n6. Sacroilliac pain\n7. Muscle Spasms\n8. Headaches\n9. Sleep Disturbance' },
+            { label: 'Intermedia (11)', content: '1. Neck Pain\n2. Cervical Radiculopathy\n3. Whiplash\n4. Trapezius Strain\n5. Thoracic Back Pain\n6. Low Back Pain\n7. Sacroilliac pain\n8. Lumbosacral Radiculopathy\n9. Muscle Spasms\n10. Headaches\n11. Sleep Disturbance' },
+            { label: 'Severa (13)', content: '1. Neck Pain\n2. Cervical Radiculopathy\n3. Paresthesias Upper Extremity\n4. Whiplash\n5. Trapezius Strain\n6. Thoracic Back Pain\n7. Low Back Pain\n8. Sacroilliac pain\n9. Lumbosacral Radiculopathy\n10. Paresthesias Lower Extremity\n11. Muscle Spasms\n12. Headaches\n13. Sleep Disturbance' },
+          ] as Parameters<typeof db.templateSection.create>[0]['data']['variants'],
+          lockedBlocks: [
+            {
+              content_substring: 'reasonable degree of medical certainty',
+              warning_message: 'PI Causation Statement — confirm before deleting',
+            },
+          ] as Parameters<typeof db.templateSection.create>[0]['data']['lockedBlocks'],
+          orderIndex: 4,
+        },
+        {
+          sectionKey: 'PLAN' as const,
+          content: 'Standard plan with Rx + stretches + ice/heat + topical creams + TENS. See variants for With PT / Closing Case.',
+          variants: [
+            { label: 'Standard (sin PT)', content: '1. Continue chiropractic eval/treat/manipulation/modalities and massage therapy PRN\n2. Continue/Refill: RX Naproxen 500 mg BID with food\n3. Continue/Refill: RX Tizanidine 4 mg HS PRN OR RX Cyclobenzaprine 10 mg HS PRN\n4. Continue Tylenol 500 mg q8h PRN\n5. Stretches at least 2x/day. Use heat prior.\n6. Ice/heat therapy 20-30 min 3-4x/day.\n7. May use topical creams.\n8. May use TENs unit daily.' },
+            { label: 'Con PT', content: 'Same as Standard + Order Physical Therapy eval/treat/modalities + home exercises program.' },
+            { label: 'Closing Case (MMI)', content: 'CLOSING CASE:\nPt reports all injuries resolved / has reached state of static MMI. May close out case at this point.\n\nFuture care pricing (snapshot al firmar):\n• Follow Up Appointments: $250.00 (CPT 99213)\n• Trigger Point Injections: $300.00 (CPT 20552)\n• Medications for Injections: $120.00\n• All Spine and Epidural injections: $2,500.00 (CPT 64483)\n• Radio Frequency Ablation: $3,500.00 (CPT 64633)\n\nFollow up PRN.' },
+          ] as Parameters<typeof db.templateSection.create>[0]['data']['variants'],
+          proceduralBlocks: [
+            {
+              trigger: 'trigger_point_injection',
+              content: 'After risks of injection discussed in detail, including skin/muscle atrophy and infection, patient gave informed consent (see signed consent). Utilizing sterile technique, cleaned area with alcohol and iodine and injected trigger point spasm in BLANK muscles with 40 mg kenalog/1 cc Marcaine/1 cc Lidocaine. Pt tolerated well. No bleeding. No complications.',
+              cpt_code: '20552',
+              consent_required: true,
+            },
+          ] as Parameters<typeof db.templateSection.create>[0]['data']['proceduralBlocks'],
+          priceReferences: [
+            { label: 'Follow Up Appointments with our Clinic', cpt_code: '99213' },
+            { label: 'Trigger Point Injections', cpt_code: '20552' },
+            { label: 'All Spine and Epidural injections', cpt_code: '64483' },
+            { label: 'Radio Frequency Ablation', cpt_code: '64633' },
+          ] as Parameters<typeof db.templateSection.create>[0]['data']['priceReferences'],
+          orderIndex: 5,
+        },
+        {
+          sectionKey: 'DIAGNOSTICOS' as const,
+          content: 'Diagnósticos agregados al caso. Doctor selecciona del catálogo dual ICD-10+SNOMED en B.35.',
+          orderIndex: 6,
+        },
+      ];
+
+      await db.templateSection.createMany({
+        data: sections.map((s) => ({
+          templateId: template.id,
+          sectionKey: s.sectionKey,
+          content: s.content,
+          orderIndex: s.orderIndex,
+          variants: 'variants' in s ? (s.variants ?? undefined) : undefined,
+          proceduralBlocks: 'proceduralBlocks' in s ? (s.proceduralBlocks ?? undefined) : undefined,
+          priceReferences: 'priceReferences' in s ? (s.priceReferences ?? undefined) : undefined,
+          lockedBlocks: 'lockedBlocks' in s ? (s.lockedBlocks ?? undefined) : undefined,
+        })),
+      });
+
+      console.warn(`✅ Phoenix Template: NG-MVA F/U (7 sections, SHARED scope, MVA case type)`);
+    } else {
+      console.warn(`⏭ Phoenix Template: NG-MVA F/U ya existe (skip)`);
+    }
+  } else {
+    console.warn(`⏭ Phoenix Template: skip (no users yet — corre seed después de crear al menos un user)`);
+  }
+
   console.warn('🎉 Seed complete!');
 }
 

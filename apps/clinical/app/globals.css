@@ -31,9 +31,18 @@ body {
   touch-action: manipulation;
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* Branded scrollbar (gradient indigo→violet) */
+* { scrollbar-width: thin; scrollbar-color: rgba(99,102,241,0.40) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(139,92,246,0.35);
-  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(99,102,241,0.45), rgba(139,92,246,0.45));
+  border-radius: 100px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(99,102,241,0.85), rgba(139,92,246,0.85));
+  background-clip: padding-box;
 }

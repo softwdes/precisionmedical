@@ -349,7 +349,16 @@ body {
 }
 
 
-/* ====== SCROLLBAR ====== */
+/* ====== SCROLLBAR — Branded (indigo→violet gradient) ============= */
+/* Updated 2026-06-06: unificada con apps/back-office (Phoenix) */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99,102,241,0.40) transparent;
+}
+
+/* Webkit (Chrome, Edge, Safari) */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -360,33 +369,42 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: var(--radius-pill);
-  border: 2px solid var(--bg-0);
+  background: linear-gradient(180deg, rgba(99,102,241,0.45), rgba(139,92,246,0.45));
+  border-radius: 100px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: linear-gradient(180deg, rgba(99,102,241,0.85), rgba(139,92,246,0.85));
+  background-clip: padding-box;
 }
 
-/* Thin blue scrollbar — use on modal/panel scroll containers */
-.scroll-thin {
-  scrollbar-width: thin;
-  scrollbar-color: var(--brand) transparent;
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, rgb(99,102,241), rgb(139,92,246));
+  background-clip: padding-box;
 }
-.scroll-thin::-webkit-scrollbar {
-  width: 4px;
-}
-.scroll-thin::-webkit-scrollbar-track {
+
+::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Thin scrollbar (5px) — for modals/panels. Legacy class kept for backward compat. */
+.scroll-thin {
+  scrollbar-width: thin;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
 .scroll-thin::-webkit-scrollbar-thumb {
-  background: var(--brand);
-  border-radius: 999px;
+  background: rgba(99,102,241,0.50);
   border: none;
+  background-clip: padding-box;
 }
 .scroll-thin::-webkit-scrollbar-thumb:hover {
-  background: var(--brand-2);
+  background: rgba(139,92,246,0.80);
 }
 
 /* ────────────────────────────────────────────────────────────────

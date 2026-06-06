@@ -1181,10 +1181,13 @@ model DoctorCredentials {
   medicalLicenseNumber  String?
   medicalLicenseState   String?    // ISO state code (e.g. "UT")
 
-  specialty             Specialty
+  specialty             Specialty  // Legacy enum — backward compat. Primary specialty también va en DoctorSpecialtyAssignment.
   signatureUrl          String?    // Digital signature for SOAP notes (B.21 firma)
 
   isActive              Boolean    @default(true)
+
+  // Phoenix 2026-06-06: many-to-many con SpecialtyCatalog (B.36)
+  specialtyAssignments  DoctorSpecialtyAssignment[]
 
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
@@ -1421,4 +1424,70 @@ model UserDiagnosisFavorite {
   @@index([userId])
   @@index([userId, usageCount])
   @@map("user_diagnosis_favorites")
+}
+
+// ─── Specialty Catalog (B.36) ─────────────────────────────────────
+//
+// Source-of-truth de las líneas de servicio de la clínica.
+// Reemplaza al enum legacy `Specialty` (que sigue existiendo arriba
+// para compatibilidad con Provider/DoctorCredentials/Template, pero
+// el CRUD opera sobre esta tabla).
+//
+// Mockup canónico: B.36 (Catálogo de Especialidades / Service lines).
+// Mejoras vs LM legacy: color picker · CPT codes sugeridos · métricas
+// agregadas · soft delete · cardinalidad muchos-a-muchos con doctores.
+
+model SpecialtyCatalog {
+  id          String    @id @default(cuid())
+
+  name        String    @unique  // "Auto Accidents", "Pain Management", etc.
+  description String?
+  color       String              // hex "#F43F5E" — consumido en B.10 calendar, B.17 Mi día, B.29 dashboard
+  caseType    CaseType  @default(GENERAL)
+
+  // CPT codes sugeridos — pre-cargan en B.21 al firmar nota
+  cptSuggested String[]  @default([])
+
+  // Workflow type asociado:
+  // - 'MVA' → flujo PI con lien
+  // - 'GM'  → general medicine, no lien
+  // - 'SELFPAY' → membership / direct pay
+  workflowType String    @default("MVA")  // MVA | GM | SELFPAY | NURSING_HOME
+
+  isActive    Boolean   @default(true)
+
+  // Order for UI display
+  sortOrder   Int       @default(0)
+
+  // Many-to-many: doctors assigned to this specialty
+  doctorAssignments DoctorSpecialtyAssignment[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([isActive])
+  @@index([workflowType])
+  @@map("specialty_catalog")
+}
+
+// Junction table: many-to-many entre DoctorCredentials y SpecialtyCatalog.
+// Un doctor puede pertenecer a varias especialidades (e.g. Auto Accidents + Pain Management).
+// Una especialidad tiene varios doctores.
+model DoctorSpecialtyAssignment {
+  id                  String              @id @default(cuid())
+  doctorCredentialsId String
+  doctorCredentials   DoctorCredentials   @relation(fields: [doctorCredentialsId], references: [id], onDelete: Cascade)
+  specialtyId         String
+  specialty           SpecialtyCatalog    @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  // Una de las especialidades del doctor debe ser primary (la principal)
+  isPrimary           Boolean             @default(false)
+
+  createdAt           DateTime            @default(now())
+
+  @@unique([doctorCredentialsId, specialtyId])
+  @@index([specialtyId])
+  @@index([doctorCredentialsId])
+  @@map("doctor_specialty_assignments")
 }

@@ -132,6 +132,34 @@ async function seed(): Promise<void> {
 
   console.warn(`✅ Phoenix Diagnoses: ${diagnosesSeed.length} ICD-10 + SNOMED dual (PI-relevant)`);
 
+  // SpecialtyCatalog: 6 especialidades del legacy con colores + CPT sugeridos
+  const specialtiesSeed = [
+    { name: 'Auto Accidents', description: 'Casos PI post-accidente automovilístico · MVA workflow · lien-based billing', color: '#F43F5E', caseType: 'MVA' as const, cptSuggested: ['99213', '99214', '98941', '98942', '97140'], workflowType: 'MVA', sortOrder: 1 },
+    { name: 'Pain Management', description: 'Manejo de dolor crónico · trigger points · inyecciones · DAW EPCS', color: '#F59E0B', caseType: 'MVA' as const, cptSuggested: ['20552', '20553', '64483', '64633', '99213'], workflowType: 'MVA', sortOrder: 2 },
+    { name: 'Family Practice', description: 'Medicina general · seguimientos · GM workflow (no MVA)', color: '#34D399', caseType: 'GENERAL' as const, cptSuggested: ['99213', '99214', '99215'], workflowType: 'GM', sortOrder: 3 },
+    { name: 'Urgent Care', description: 'Atención inmediata sin cita previa · GM workflow · walk-ins', color: '#06B6D4', caseType: 'GENERAL' as const, cptSuggested: ['99203', '99213', '99214'], workflowType: 'GM', sortOrder: 4 },
+    { name: 'Surgery', description: 'Procedimientos quirúrgicos menores · derivaciones a especialistas', color: '#8B5CF6', caseType: 'GENERAL' as const, cptSuggested: [], workflowType: 'GM', sortOrder: 5 },
+    { name: 'Membership', description: 'Plan de membresía mensual · self-pay con suscripción · sin facturación a aseguradora', color: '#EC4899', caseType: 'GENERAL' as const, cptSuggested: [], workflowType: 'SELFPAY', sortOrder: 6 },
+  ];
+
+  await Promise.all(
+    specialtiesSeed.map((sp) =>
+      db.specialtyCatalog.upsert({
+        where: { name: sp.name },
+        update: {
+          color: sp.color,
+          description: sp.description,
+          cptSuggested: sp.cptSuggested,
+          workflowType: sp.workflowType,
+          sortOrder: sp.sortOrder,
+        },
+        create: sp,
+      }),
+    ),
+  );
+
+  console.warn(`✅ Phoenix Specialties: ${specialtiesSeed.length} líneas de servicio (colores + CPT sugeridos)`);
+
   // Template sample: NG-MVA F/U (Motor Vehicle Accident Follow-up)
   // Capturado del LM legacy 2026-06-05. Solo se crea si existe al menos un User
   // (porque template.createdBy es FK obligatorio). Skip silencioso si no hay user

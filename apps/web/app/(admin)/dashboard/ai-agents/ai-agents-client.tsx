@@ -14,7 +14,7 @@ import {
   Bot, AlertTriangle, MessageCircle, DollarSign, Sparkles,
   ShieldCheck, Shield, Eye, Hand, Play, Lock, Building2,
   Percent, ArrowLeftRight, RefreshCw, Clock, CheckCircle2,
-  XCircle, ChevronDown, TrendingUp,
+  XCircle, ChevronDown, TrendingUp, Activity, ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -75,7 +75,35 @@ interface AgentCosts {
   monthScanCount: number;
 }
 
-type Tab = 'dashboard' | 'cifo' | 'audit' | 'findings' | 'costs';
+type Tab = 'dashboard' | 'cifo' | 'audit' | 'findings' | 'costs' | 'observability';
+
+// ─── Sentry / Observabilidad (espejo del output del router observability) ───
+interface SentryIssue {
+  shortId: string;
+  title: string;
+  culprit: string | null;
+  level: string;
+  count: number;
+  userCount: number;
+  lastSeen: string;
+  permalink: string;
+}
+interface SentryProjectHealth {
+  slug: string;
+  label: string;
+  ok: boolean;
+  status: 'healthy' | 'warning' | 'error' | 'unknown';
+  unresolvedCount: number;
+  capped: boolean;
+  totalEvents: number;
+  issues: SentryIssue[];
+  error?: string;
+}
+interface SentryHealth {
+  configured: boolean;
+  org: string;
+  projects: SentryProjectHealth[];
+}
 
 interface Props {
   initialSettings: AgentSettings | null;
@@ -219,9 +247,14 @@ export function AiAgentsClient({
 
   const { data: lastRun } = trpc.aiAgents.getLastAuditRun.useQuery(undefined);
 
+  const { data: sentry } = trpc.observability.getHealth.useQuery(undefined, {
+    refetchInterval: 60_000,
+  });
+
   const pendingFindings = (findings ?? []).filter(f => f.status === 'pending');
   const pendingCount = pendingFindings.length;
   const budget = costs?.budget ?? settings?.monthly_budget ?? 50;
+  const sentryOpenCount = (sentry?.projects ?? []).reduce((sum, p) => sum + p.unresolvedCount, 0);
 
   const refetchAll = useCallback((): void => {
     void refetchSettings();
@@ -236,6 +269,7 @@ export function AiAgentsClient({
     { key: 'audit', label: t('aiAgents.auditTab') },
     { key: 'findings', label: t('aiAgents.findingsTab'), badge: pendingCount },
     { key: 'costs', label: t('aiAgents.costsTab') },
+    { key: 'observability', label: t('aiAgents.observabilityTab'), badge: sentryOpenCount },
   ];
 
   const visibleTabs = agentsPerm === 'cifo_only'
@@ -289,6 +323,8 @@ export function AiAgentsClient({
           onRunNow={() => setTab('audit')}
           onViewFindings={() => setTab('findings')}
           onOpenCifo={() => setTab('cifo')}
+          onOpenObservability={() => setTab('observability')}
+          sentry={sentry ?? null}
           budget={budget}
         />
       )}
@@ -317,6 +353,174 @@ export function AiAgentsClient({
           onBudgetSaved={refetchAll}
         />
       )}
+      {tab === 'observability' && (
+        <ObservabilidadTab sentry={sentry ?? null} />
+      )}
+    </div>
+  );
+}
+
+// ─── Sentry / Observabilidad ────────────────────────────────
+
+function fmtWhen(iso: string, locale: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(locale === 'es' ? 'es-MX' : 'en-US', {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function SentryCard({
+  sentry,
+  onOpen,
+}: {
+  sentry: SentryHealth | null;
+  onOpen: () => void;
+}): React.ReactElement {
+  const t = useTranslations();
+  const projects = sentry?.projects ?? [];
+  const totalOpen = projects.reduce((s, p) => s + p.unresolvedCount, 0);
+  const allHealthy = projects.length > 0 && projects.every(p => p.status === 'healthy');
+
+  return (
+    <div
+      className="rounded-xl border p-5 space-y-4"
+      style={{
+        background: 'linear-gradient(135deg, rgba(56,189,248,0.08) 0%, rgba(99,102,241,0.08) 100%)',
+        borderColor: 'rgba(56,189,248,0.25)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-11 w-11 items-center justify-center rounded-xl shrink-0"
+            style={{
+              background: 'linear-gradient(135deg, #38BDF8, #6366F1)',
+              boxShadow: '0 0 20px rgba(56,189,248,0.35)',
+            }}
+          >
+            <Shield className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <p className="text-small font-bold text-text-1">Sentry</p>
+            <p className="text-tiny text-text-3">{t('aiAgents.sentrySubtitle')}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!sentry?.configured ? (
+            <span className="text-tiny text-text-muted font-medium">{t('aiAgents.sentryNotConfigured')}</span>
+          ) : allHealthy ? (
+            <>
+              <span className="h-2 w-2 rounded-full bg-emerald" />
+              <span className="text-tiny text-emerald font-medium">{t('aiAgents.sentryHealthy')}</span>
+            </>
+          ) : (
+            <>
+              <span className="h-2 w-2 rounded-full bg-amber animate-pulse" />
+              <span className="text-tiny text-amber font-medium">{totalOpen} {t('aiAgents.sentryOpenShort')}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {sentry?.configured ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            {projects.map(p => (
+              <div key={p.slug} className="rounded-lg bg-surface/50 px-3 py-2 text-center">
+                <p className="text-base font-bold font-mono text-cyan">{p.ok ? `${p.unresolvedCount}${p.capped ? '+' : ''}` : '—'}</p>
+                <p className="text-[10px] text-text-muted mt-0.5">{p.label} · {t('aiAgents.sentryOpenShort')}</p>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={onOpen}
+            className="w-full rounded-lg border px-3 py-2 text-small font-medium text-cyan hover:bg-cyan/10 transition-colors"
+            style={{ borderColor: 'rgba(56,189,248,0.4)' }}
+          >
+            {t('aiAgents.sentryViewDetail')}
+          </button>
+        </>
+      ) : (
+        <div className="rounded-lg bg-black/20 px-3 py-3 text-center">
+          <p className="text-tiny text-text-muted">{t('aiAgents.sentryConfigHint')}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ObservabilidadTab({ sentry }: { sentry: SentryHealth | null }): React.ReactElement {
+  const t = useTranslations();
+  const locale = useLocale();
+
+  if (!sentry?.configured) {
+    return (
+      <div className="rounded-xl border border-border bg-surface/40 p-8 text-center space-y-2">
+        <Shield className="h-8 w-8 mx-auto text-text-muted" />
+        <p className="text-small font-semibold text-text-1">{t('aiAgents.sentryNotConfigured')}</p>
+        <p className="text-tiny text-text-3 max-w-md mx-auto">{t('aiAgents.sentryConfigHint')}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg bg-cyan/[0.06] border border-cyan/20 px-4 py-2.5 flex items-start gap-2">
+        <Activity className="h-4 w-4 text-cyan mt-0.5 shrink-0" />
+        <p className="text-tiny text-text-2">{t('aiAgents.sentryPrivacyNote')}</p>
+      </div>
+
+      {sentry.projects.map(p => (
+        <div key={p.slug} className="rounded-xl border border-border overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-surface/50 border-b border-border">
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${p.status === 'healthy' ? 'bg-emerald' : p.ok ? 'bg-amber' : 'bg-rose'}`} />
+              <p className="text-small font-bold text-text-1">{p.label}</p>
+              <span className="text-tiny text-text-muted font-mono hidden sm:inline">{p.slug}</span>
+            </div>
+            <div className="flex items-center gap-4 text-tiny">
+              <span className="text-text-3">{t('aiAgents.sentryOpenIssues')}: <b className="text-text-1 font-mono">{p.ok ? `${p.unresolvedCount}${p.capped ? '+' : ''}` : '—'}</b></span>
+              <span className="text-text-3 hidden sm:inline">{t('aiAgents.sentryEvents14d')}: <b className="text-text-1 font-mono">{p.ok ? p.totalEvents : '—'}</b></span>
+            </div>
+          </div>
+
+          {!p.ok ? (
+            <div className="px-4 py-4 text-tiny text-rose">{t('aiAgents.sentryFetchError')}: {p.error}</div>
+          ) : p.issues.length === 0 ? (
+            <div className="px-4 py-6 text-center text-tiny text-emerald">{t('aiAgents.sentryNoIssues')}</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {p.issues.map(i => (
+                <a
+                  key={i.shortId}
+                  href={i.permalink || undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface/40 transition-colors group"
+                >
+                  <div className="min-w-0 flex items-center gap-2">
+                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                      i.level === 'fatal' || i.level === 'error'
+                        ? 'bg-rose/15 text-rose'
+                        : i.level === 'warning'
+                        ? 'bg-amber/15 text-amber'
+                        : 'bg-surface text-text-muted'
+                    }`}>{i.level}</span>
+                    <span className="text-tiny text-text-1 truncate">{i.title}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 text-tiny text-text-muted">
+                    <span className="font-mono">{i.count}×</span>
+                    <span className="hidden sm:inline">{fmtWhen(i.lastSeen, locale)}</span>
+                    <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -331,6 +535,8 @@ function DashboardTab({
   onRunNow,
   onViewFindings,
   onOpenCifo,
+  onOpenObservability,
+  sentry,
   budget,
 }: {
   settings: AgentSettings | null;
@@ -340,6 +546,8 @@ function DashboardTab({
   onRunNow: () => void;
   onViewFindings: () => void;
   onOpenCifo: () => void;
+  onOpenObservability: () => void;
+  sentry: SentryHealth | null;
   budget: number;
 }): React.ReactElement {
   const t = useTranslations();
@@ -539,6 +747,9 @@ function DashboardTab({
             </button>
           </div>
         </div>
+
+        {/* Sentry / Observabilidad Card */}
+        <SentryCard sentry={sentry} onOpen={onOpenObservability} />
       </div>
 
       {/* Last audit summary bar */}

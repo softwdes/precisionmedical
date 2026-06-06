@@ -7,7 +7,9 @@ const messages = { es: esMessages, en: enMessages } as const;
 
 export default getRequestConfig(async () => {
   const cookieStore = await cookies();
-  const locale = (cookieStore.get('locale')?.value ?? 'es') as 'es' | 'en';
+  // Phoenix Back Office default: EN (English) — primary audience.
+  // Override per-user via locale cookie set by Topbar language switcher.
+  const locale = (cookieStore.get('locale')?.value ?? 'en') as 'es' | 'en';
 
   return {
     locale,

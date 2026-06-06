@@ -9,7 +9,7 @@
 
 :root,
 [data-theme='dark'] {
-  /* === Backgrounds === */
+  /* === DARK (default) === */
   --bg-0: #0A0E1A;
   --bg-1: #0F1524;
   --bg-2: #141B2D;
@@ -17,17 +17,14 @@
   --surface: #161D31;
   --surface-2: #1E2740;
 
-  /* === Borders === */
   --border: rgba(255, 255, 255, 0.06);
   --border-strong: rgba(255, 255, 255, 0.10);
 
-  /* === Text === */
   --text-1: #F5F7FB;
   --text-2: #A8B2CC;
   --text-3: #6B7592;
   --text-muted: #4A5474;
 
-  /* === Shadows === */
   --shadow-soft:
     0 1px 0 rgba(255,255,255,0.04) inset,
     0 8px 24px rgba(0,0,0,0.25);
@@ -37,6 +34,36 @@
   --shadow-card-hover:
     0 1px 0 rgba(255,255,255,0.06) inset,
     0 16px 48px rgba(0,0,0,0.40);
+}
+
+[data-theme='light'] {
+  /* === LIGHT === */
+  --bg-0: #F8FAFC;
+  --bg-1: #FFFFFF;
+  --bg-2: #F1F5F9;
+  --bg-3: #E2E8F0;
+  --surface: #FFFFFF;
+  --surface-2: #F8FAFC;
+
+  --border: rgba(15, 23, 42, 0.10);
+  --border-strong: rgba(15, 23, 42, 0.18);
+
+  --text-1: #0F172A;
+  --text-2: #475569;
+  --text-3: #64748B;
+  --text-muted: #94A3B8;
+
+  --shadow-soft:
+    0 1px 0 rgba(255,255,255,0.50) inset,
+    0 4px 12px rgba(15,23,42,0.08);
+  --shadow-glow:
+    0 0 0 1px rgba(99,102,241,0.20),
+    0 8px 24px rgba(99,102,241,0.15);
+  --shadow-card-hover:
+    0 1px 0 rgba(255,255,255,0.50) inset,
+    0 8px 24px rgba(15,23,42,0.12);
+
+  color-scheme: light;
 }
 
 *, *::before, *::after {

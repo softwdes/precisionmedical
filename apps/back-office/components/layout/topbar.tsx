@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { Bell, Search, Moon, Sun, Languages } from 'lucide-react';
+import { CommandPalette } from './command-palette';
 
 interface TopbarProps {
   userName?: string;
@@ -21,6 +22,20 @@ export function Topbar({
   const [time, setTime] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [mounted, setMounted] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
+
+  // Keyboard shortcut: ⌘K / Ctrl+K opens command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCmdOpen((prev) => !prev);
+      }
+      if (e.key === 'Escape') setCmdOpen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   // Mount-only: read theme from localStorage (already applied by inline script)
   useEffect(() => {
@@ -62,15 +77,18 @@ export function Topbar({
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border bg-bg-0/80 backdrop-blur-md px-6">
-      {/* Search bar */}
+      {/* Search bar — opens command palette */}
       <button
         type="button"
+        onClick={() => setCmdOpen(true)}
         className="flex items-center gap-2 flex-1 max-w-md bg-bg-2 border border-border rounded-lg px-3 py-2 text-text-muted text-sm hover:border-border-strong transition-colors group"
       >
         <Search className="w-4 h-4 shrink-0" />
-        <span className="flex-1 text-left">{currentLocale === 'es' ? 'Buscar...' : 'Search...'}</span>
+        <span className="flex-1 text-left">{currentLocale === 'es' ? 'Buscar bufetes, servicios, diagnósticos...' : 'Search firms, services, diagnoses...'}</span>
         <kbd className="text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded">⌘K</kbd>
       </button>
+
+      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
 
       <div className="flex-1" />
 

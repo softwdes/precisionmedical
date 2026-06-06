@@ -1,13 +1,14 @@
 import type { Config } from 'tailwindcss';
+import preset from '@precision-medical/tailwind-config/preset';
 
 const config: Config = {
+  presets: [preset],
   content: [
-    './app/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './lib/**/*.{ts,tsx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './lib/**/*.{js,ts,jsx,tsx,mdx}',
+    '../../packages/ui/src/**/*.{js,ts,jsx,tsx}',
   ],
-  theme: { extend: {} },
-  plugins: [],
 };
 
 export default config;

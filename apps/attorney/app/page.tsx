@@ -1,3 +1,5 @@
+import { Button } from '@precision/ui';
+
 export default function HomePage() {
   return (
     <main
@@ -44,6 +46,12 @@ export default function HomePage() {
         >
           External law firms · RLS per firm · One-click lien signing · Bilingual English/Spanish · Demand letter auto-population.
         </p>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
+          <Button variant="default">View case</Button>
+          <Button variant="outline">Sign lien</Button>
+        </div>
+
         <div
           style={{
             display: 'inline-block',
@@ -67,6 +75,8 @@ export default function HomePage() {
           }}
         >
           Canonical mockups: B.22 (Attorney Portal) · B.30 (Law firms catalog)
+          <br />
+          <span style={{ color: 'rgba(244,63,94,0.65)' }}>✓ next-intl wired · @precision/ui wired · Sentry inert</span>
         </div>
       </div>
     </main>

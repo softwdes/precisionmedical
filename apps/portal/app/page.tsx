@@ -1,3 +1,5 @@
+import { Button } from '@precision/ui';
+
 export default function HomePage() {
   return (
     <main
@@ -44,6 +46,12 @@ export default function HomePage() {
         >
           Pacientes acceden con magic link · RLS por paciente · bilingüe español/inglés · mobile-first.
         </p>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
+          <Button variant="default">Continuar</Button>
+          <Button variant="outline">English</Button>
+        </div>
+
         <div
           style={{
             display: 'inline-block',
@@ -67,6 +75,8 @@ export default function HomePage() {
           }}
         >
           Mockups canónicos: B.5 (Landing magic link) · B.6 (Datos personales) · B.7 (Salud) · B.8 (Documentos) · B.9 (Confirmación) · B.37 (Lobby mobile QR)
+          <br />
+          <span style={{ color: 'rgba(6,182,212,0.65)' }}>✓ next-intl wireado · @precision/ui wireado · Sentry inerte</span>
         </div>
       </div>
     </main>

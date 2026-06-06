@@ -1,3 +1,5 @@
+import { Button } from '@precision/ui';
+
 export default function HomePage() {
   return (
     <main
@@ -44,6 +46,12 @@ export default function HomePage() {
         >
           Doctores + MAs (triaje). iPad-optimizado. DAW EPCS para prescripciones de controladas.
         </p>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
+          <Button variant="default">Iniciar visita</Button>
+          <Button variant="outline">Mi día</Button>
+        </div>
+
         <div
           style={{
             display: 'inline-block',
@@ -67,6 +75,8 @@ export default function HomePage() {
           }}
         >
           Mockups canónicos: B.16 (Triaje MA) · B.17 (Doctor Mi día) · B.17.5–B.17.7 (Entry · Selector · Admin plantillas) · B.18 (Visita en sala) · B.19–B.21 (Rx DAW + CPT) · B.37 (Lobby Display)
+          <br />
+          <span style={{ color: 'rgba(139,92,246,0.65)' }}>✓ next-intl wireado · @precision/ui wireado · Sentry inerte</span>
         </div>
       </div>
     </main>

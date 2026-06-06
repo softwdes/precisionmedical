@@ -1,3 +1,5 @@
+import { Button } from '@precision/ui';
+
 export default function HomePage() {
   return (
     <main
@@ -44,6 +46,12 @@ export default function HomePage() {
         >
           Front Office + Edson (intake) + Brunella (billing, HCFA, ledger, settlement, abogados) + Super Admin clínico.
         </p>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 28 }}>
+          <Button variant="default">Primary action</Button>
+          <Button variant="outline">Secondary</Button>
+        </div>
+
         <div
           style={{
             display: 'inline-block',
@@ -67,6 +75,8 @@ export default function HomePage() {
           }}
         >
           Mockups canónicos: B.1–B.4 (Front Office) · B.12–B.13 (Edson pre-visita) · B.23–B.28 (Brunella) · B.25–B.27 (billing)
+          <br />
+          <span style={{ color: 'rgba(99,102,241,0.65)' }}>✓ next-intl wireado · @precision/ui wireado · Sentry inerte</span>
         </div>
       </div>
     </main>

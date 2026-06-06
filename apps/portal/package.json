@@ -10,10 +10,13 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@precision-medical/i18n": "workspace:*",
     "@precision-medical/observability": "workspace:*",
+    "@precision/ui": "workspace:*",
     "@sentry/nextjs": "^8.55.0",
     "lucide-react": "^0.452.0",
     "next": "^15.0.3",
+    "next-intl": "^3.21.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

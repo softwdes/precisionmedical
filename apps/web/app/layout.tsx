@@ -102,10 +102,11 @@ export default async function RootLayout({
               />
             </ThemeProvider>
           </TRPCProvider>
+          {/* UpdateBanner usa useTranslations → DEBE ir dentro del provider de i18n */}
+          <UpdateBanner />
         </NextIntlClientProvider>
         <PWAInstallBanner />
         <SWRegister />
-        <UpdateBanner />
       </body>
     </html>
   );

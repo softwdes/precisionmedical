@@ -274,6 +274,84 @@ async function seed(): Promise<void> {
 
   console.warn(`✅ Phoenix Bufetes: ${lawFirmsSeed.length} firms + ${lawFirmsSeed.reduce((n, f) => n + f.members.length, 0)} members (B.30/B.31)`);
 
+  // Aseguradoras (B.32) — comunes en Utah PI
+  const insurancesSeed = [
+    {
+      name: 'GEICO', legalName: 'Government Employees Insurance Company', shortCode: 'G', color: '#0EA5E9',
+      type: 'PIP' as const, claimsPhone: '1-800-861-8380', claimsEmail: 'claims@geico.com',
+      hcfaChannel: 'EMAIL' as const, avgResponseDays: 8, responseSpeed: 'FAST' as const,
+      sortOrder: 1,
+    },
+    {
+      name: 'State Farm', legalName: 'State Farm Mutual Automobile Insurance', shortCode: 'SF', color: '#DC2626',
+      type: 'PIP' as const, claimsPhone: '1-800-732-5246', claimsFax: '1-866-455-7390', claimsEmail: 'claims@statefarm.com',
+      hcfaChannel: 'FAX' as const, avgResponseDays: 12, responseSpeed: 'FAST' as const,
+      sortOrder: 2,
+    },
+    {
+      name: 'Progressive', legalName: 'Progressive Casualty Insurance Company', shortCode: 'PR', color: '#1D4ED8',
+      type: 'PIP' as const, claimsPhone: '1-800-274-4499', claimsEmail: 'claims@progressive.com',
+      hcfaChannel: 'EMAIL' as const, avgResponseDays: 28, responseSpeed: 'SLOW' as const,
+      notes: 'Respuesta lenta — seguir con frecuencia. Pedir status update cada 14 días.',
+      sortOrder: 3,
+    },
+    {
+      name: 'Allstate', legalName: 'Allstate Insurance Company', shortCode: 'AL', color: '#7C3AED',
+      type: 'MED_PAY' as const, claimsPhone: '1-800-255-7828',
+      hcfaChannel: 'EMAIL' as const, avgResponseDays: 14, responseSpeed: 'FAST' as const,
+      sortOrder: 4,
+    },
+    {
+      name: 'Farmers', legalName: 'Farmers Insurance Group', shortCode: 'FA', color: '#059669',
+      type: 'PIP' as const, claimsPhone: '1-800-435-7764',
+      hcfaChannel: 'PORTAL' as const, portalUrl: 'https://www.farmers.com/claims',
+      avgResponseDays: 18, responseSpeed: 'AVERAGE' as const,
+      sortOrder: 5,
+    },
+    {
+      name: 'USAA', legalName: 'United Services Automobile Association', shortCode: 'US', color: '#1E3A8A',
+      type: 'PIP' as const, claimsPhone: '1-800-531-8722',
+      hcfaChannel: 'EDI' as const, avgResponseDays: 7, responseSpeed: 'FAST' as const,
+      notes: 'Solo militares y familias militares. EDI rápido.',
+      sortOrder: 6,
+    },
+    {
+      name: 'Liberty Mutual', legalName: 'Liberty Mutual Insurance', shortCode: 'LM', color: '#F59E0B',
+      type: 'PIP' as const, claimsPhone: '1-800-225-2467',
+      hcfaChannel: 'EMAIL' as const, avgResponseDays: 22, responseSpeed: 'AVERAGE' as const,
+      sortOrder: 7,
+    },
+    {
+      name: 'Bear River Mutual', legalName: 'Bear River Mutual Insurance', shortCode: 'BR', color: '#0F766E',
+      type: 'PIP' as const, claimsPhone: '1-800-879-2327',
+      hcfaChannel: 'FAX' as const, avgResponseDays: 35, responseSpeed: 'SLOW' as const,
+      notes: 'Local Utah · responde lento pero confiable. Solo fax para HCFA.',
+      sortOrder: 8,
+    },
+  ];
+
+  await Promise.all(
+    insurancesSeed.map((ins) =>
+      db.insuranceCarrier.upsert({
+        where: { name: ins.name },
+        update: {
+          legalName: ins.legalName,
+          shortCode: ins.shortCode,
+          color: ins.color,
+          type: ins.type,
+          claimsPhone: ins.claimsPhone,
+          hcfaChannel: ins.hcfaChannel,
+          avgResponseDays: ins.avgResponseDays,
+          responseSpeed: ins.responseSpeed,
+          sortOrder: ins.sortOrder,
+        },
+        create: ins,
+      }),
+    ),
+  );
+
+  console.warn(`✅ Phoenix Aseguradoras: ${insurancesSeed.length} carriers (PIP/MedPay) - B.32`);
+
   // Template sample: NG-MVA F/U (Motor Vehicle Accident Follow-up)
   // Capturado del LM legacy 2026-06-05. Solo se crea si existe al menos un User
   // (porque template.createdBy es FK obligatorio). Skip silencioso si no hay user

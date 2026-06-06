@@ -1498,6 +1498,79 @@ model SpecialtyCatalog {
   @@map("specialty_catalog")
 }
 
+// ─── Insurance Catalog (B.32) ─────────────────────────────────────
+//
+// Master data de aseguradoras donde Brunella manda HCFA y Edson verifica
+// cobertura PIP. Consumido en B.2 (Recepción autocomplete), B.12 (Edson
+// pre-visita), B.26 (Brunella HCFA submission).
+//
+// PIP (Personal Injury Protection) — coverage del seguro del paciente para
+// MVA. Med Pay — coverage adicional. Health — seguro principal del paciente.
+
+enum InsuranceType {
+  PIP      // Personal Injury Protection (Utah no-fault state) — primario para MVA
+  MED_PAY  // Medical Payments — adicional, complementario
+  HEALTH   // Health insurance (BCBS, UnitedHealth, etc.)
+  WORKERS  // Workers' compensation
+  OTHER
+}
+
+enum HcfaChannel {
+  EMAIL    // Submit via email attachment
+  FAX      // Traditional fax
+  PORTAL   // Carrier's online portal
+  PAPER    // Snail mail
+  EDI      // Electronic Data Interchange (preferred for high-volume)
+}
+
+enum ResponseSpeed {
+  FAST       // < 15 días
+  AVERAGE    // 15-30 días
+  SLOW       // > 30 días (warn badge)
+  UNKNOWN    // sin data
+}
+
+model InsuranceCarrier {
+  id              String        @id @default(cuid())
+
+  name            String        @unique  // "GEICO", "State Farm", "Progressive"
+  legalName       String?                  // "Government Employees Insurance"
+  shortCode       String                   // "G", "SF", "PR" (max 4 chars para avatar)
+  color           String        @default("#0EA5E9") // hex para avatar bg
+
+  type            InsuranceType
+
+  // Claims contact
+  claimsPhone     String?
+  claimsEmail     String?
+  claimsFax       String?
+  claimsAddress   String?       @db.Text
+  portalUrl       String?       // URL si tiene portal
+
+  // HCFA submission preferences
+  hcfaChannel     HcfaChannel   @default(EMAIL)
+  preauthRequired Boolean       @default(false)
+
+  // Métricas (manual override Phase 1A · auto-computed Phase 2+)
+  avgResponseDays Int?
+  responseSpeed   ResponseSpeed @default(UNKNOWN)
+
+  // Internal notes (Edson/Brunella privadas)
+  notes           String?       @db.Text
+
+  isActive        Boolean       @default(true)
+  sortOrder       Int           @default(0)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  @@index([type])
+  @@index([isActive])
+  @@index([responseSpeed])
+  @@map("insurance_carriers")
+}
+
 // Junction table: many-to-many entre DoctorCredentials y SpecialtyCatalog.
 // Un doctor puede pertenecer a varias especialidades (e.g. Auto Accidents + Pain Management).
 // Una especialidad tiene varios doctores.

@@ -20,7 +20,7 @@ export default function SettingsPage(): React.ReactElement {
   const [general, setGeneral] = useState({ companyName: 'Precision Medical', timezone: 'America/Denver', dateFormat: 'MM/DD/YYYY' });
 
   const integrations = [
-    { name: 'LienMaster Recovery', description: t('settings.supabaseDesc'), status: 'connected', icon: Database },
+    { name: 'Supabase',            description: t('settings.supabaseDesc'), status: 'connected', icon: Database },
     { name: 'Resend',              description: t('settings.resendDesc'),   status: 'connected', icon: Mail },
     { name: 'Vercel',              description: t('settings.vercelDesc'),   status: 'connected', icon: Globe },
     { name: 'Sentry',              description: t('settings.sentryDesc'),   status: 'connected', icon: Shield },

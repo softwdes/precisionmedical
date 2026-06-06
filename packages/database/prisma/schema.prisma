@@ -58,11 +58,16 @@ model User {
   notifications   Notification[]
   agentActions    AgentAction[]  @relation("ReviewedBy")
   auditLogs       AuditLog[]     @relation("ActorUser")
-  
+
+  // Phoenix 2026-06-05: relations a clinical catalogs (Templates + Diagnoses)
+  createdTemplates    Template[]              @relation("TemplateCreatedBy")
+  templateFavorites   TemplateFavorite[]      @relation("TemplateFavorites")
+  diagnosisFavorites  UserDiagnosisFavorite[] @relation("DiagnosisFavorites")
+
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   deletedAt       DateTime?
-  
+
   @@index([email])
   @@index([role])
   @@index([status])
@@ -187,11 +192,15 @@ model Employee {
   attendanceSync  AttendanceSync[]
   metricSnapshots MetricSnapshot[]
   documents       EmployeeDocument[]
-  
+
+  // Phoenix 2026-06-05: credentials clínicas (NPI/DEA/license) si position=DOCTOR.
+  // Tabla separada para no inflar Employee con NULLs para empleados no-doctores.
+  doctorCredentials DoctorCredentials?
+
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   deletedAt       DateTime?
-  
+
   @@index([countryId])
   @@index([type])
   @@index([status])
@@ -1050,30 +1059,51 @@ model FreelancerPayment {
 // =====================================================
 
 model AuditLog {
-  id            String    @id @default(cuid())
-  
-  actorUserId   String?
-  actor         User?     @relation("ActorUser", fields: [actorUserId], references: [id])
-  actorRole     UserRole?
-  
-  action        String
-  entityType    String?
-  entityId      String?
-  
-  ipAddress     String?
-  userAgent     String?
-  
-  before        Json?
-  after         Json?
-  metadata      Json?
-  
-  createdAt     DateTime  @default(now())
-  
+  id              String    @id @default(cuid())
+
+  // Phoenix 2026-06-05: actorType hook obligatorio para AI Receptionist Phase 3+.
+  // Hoy todos los registros son HUMAN_USER; el schema lo soporta para que en
+  // Phase 3 podamos auditar acciones del AI agent sin migration breaking.
+  actorType       ActorType @default(HUMAN_USER)
+
+  actorUserId     String?
+  actor           User?     @relation("ActorUser", fields: [actorUserId], references: [id])
+  actorRole       UserRole?
+
+  // Phoenix 2026-06-05: idempotency-key opcional para reintentos del AI agent.
+  // AI puede reintentar la misma llamada si pierde conexión; este key previene duplicados.
+  idempotencyKey  String?
+
+  action          String
+  entityType      String?
+  entityId        String?
+
+  ipAddress       String?
+  userAgent       String?
+
+  before          Json?
+  after           Json?
+  metadata        Json?
+
+  createdAt       DateTime  @default(now())
+
   @@index([actorUserId])
+  @@index([actorType])
   @@index([action])
   @@index([entityType, entityId])
   @@index([createdAt])
+  @@index([idempotencyKey])
   @@map("audit_logs")
+}
+
+// Phoenix 2026-06-05: tipo de actor para audit log.
+// HUMAN_USER = acción iniciada por usuario humano via UI.
+// AI_AGENT   = acción iniciada por AI Receptionist (Phase 3+) u otros agentes AI.
+// SYSTEM     = acción iniciada por cron/webhooks/scheduled tasks.
+enum ActorType {
+  HUMAN_USER
+  AI_AGENT
+  SYSTEM
 }
 
 model Notification {
@@ -1110,9 +1140,285 @@ model Setting {
   key         String   @unique
   value       Json
   description String?
-  
+
   updatedById String?
   updatedAt   DateTime @updatedAt
-  
+
   @@map("settings")
+}
+
+// =====================================================
+// PHOENIX (LM v3) — Phase 0 additions · NO-PHI catalogs
+// Added 2026-06-05 · Erick + Claude
+// =====================================================
+// These models support the clinical workflow (B.17.5-B.18, B.35)
+// captured from the LM legacy. They are catalog/metadata only —
+// patient data (PHI) does NOT live here. Phase 1 adds PHI tables
+// (patients, cases, visits, notes) AFTER BAA Supabase signs.
+// =====================================================
+
+// ─── Doctor Credentials (clinical extension of Employee) ─────────
+//
+// One-to-one with Employee where Employee.position = 'DOCTOR'.
+// Separate table to avoid inflating Employee with NULLable
+// clinical fields for the 90% of employees who are not doctors.
+// All fields are clinical credentials — NOT PHI (provider data).
+model DoctorCredentials {
+  id                    String     @id @default(cuid())
+  employeeId            String     @unique
+  employee              Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // National Provider Identifier — mandatory for HCFA (CMS-1500) claim submission.
+  // Source: NPPES (https://npiregistry.cms.hhs.gov). Public registry.
+  npiNumber             String?    @unique
+
+  // DEA (Drug Enforcement Administration) number — required to prescribe
+  // controlled substances via DAW EPCS (B.19). Restricted access.
+  deaNumber             String?    @unique
+
+  // State medical license — required to practice. State must match
+  // clinic state for non-telehealth visits.
+  medicalLicenseNumber  String?
+  medicalLicenseState   String?    // ISO state code (e.g. "UT")
+
+  specialty             Specialty
+  signatureUrl          String?    // Digital signature for SOAP notes (B.21 firma)
+
+  isActive              Boolean    @default(true)
+
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  @@index([npiNumber])
+  @@index([deaNumber])
+  @@index([specialty])
+  @@map("doctor_credentials")
+}
+
+// ─── Templates (B.17.5 / B.17.6 / B.17.7) ────────────────────────
+//
+// Doctor note templates captured from the LM legacy. Each template
+// has sections (CC/HPI/ROS/PE/Eval/Plan/Dx) which are toggleable
+// per use. Sections can contain variants (tiered options), procedural
+// blocks (e.g. trigger point injection), and price references (snapshot
+// at signing for closing case notes → demand letter B.28).
+
+enum TemplateScope {
+  PERSONAL  // Owned by single doctor (default for new templates)
+  SHARED    // Available to all doctors across all clinics
+  SPECIALTY // Available only to doctors of a specific specialty
+}
+
+enum EncounterType {
+  FOLLOW_UP
+  NEW_PATIENT
+  RE_EVAL
+  URI          // Upper Respiratory Infection
+  PHYSICAL     // Annual physical
+  NURSING_HOME
+  CLOSING      // MMI / discharge case (with future-care prices)
+  OTHER
+}
+
+enum CaseType {
+  MVA      // Motor Vehicle Accident — primary at Precision Medical
+  GENERAL
+  NURSING_HOME
+}
+
+enum TemplateSectionKey {
+  QUEJA_PRINCIPAL  // Chief Complaint
+  HPI              // Historia de la Enfermedad Actual (History of Present Illness)
+  ROS              // Revisión de Sistemas (Review of Systems)
+  EXAMEN_FISICO    // Physical Exam
+  EVALUACIONES     // Assessment (tiered + causation statement for PI)
+  PLAN             // Treatment plan (with variants + procedural + prices)
+  DIAGNOSTICOS     // Diagnoses (ICD-10 + SNOMED dual)
+}
+
+model Template {
+  id            String          @id @default(cuid())
+
+  title         String          // e.g. "NG-MVA F/U" (prefix=doctor, suffix=encounter type)
+  description   String?         // e.g. "Motor Vehicle Accident Follow-up"
+
+  encounterType EncounterType
+  caseType      CaseType        @default(GENERAL)
+  scope         TemplateScope   @default(PERSONAL)
+
+  // For SPECIALTY scope: which specialty owns this template.
+  // Null for PERSONAL/SHARED.
+  // NOTE: Specialty enum exists in this schema (Provider model uses it).
+  specialty     Specialty?
+
+  createdById   String
+  createdBy     User            @relation("TemplateCreatedBy", fields: [createdById], references: [id])
+
+  sections      TemplateSection[]
+  favorites     TemplateFavorite[]
+
+  usageCount    Int             @default(0)
+  isActive      Boolean         @default(true)
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+
+  @@index([scope])
+  @@index([encounterType])
+  @@index([caseType])
+  @@index([createdById])
+  @@index([specialty])
+  @@map("templates")
+}
+
+model TemplateSection {
+  id              String              @id @default(cuid())
+  templateId      String
+  template        Template            @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  sectionKey      TemplateSectionKey
+  content         String              @db.Text  // HTML rich text with placeholders
+  enabledByDefault Boolean            @default(true)
+
+  // Tiered options inline (e.g. Evaluaciones Básica/Intermedia/Severa).
+  // Doctor deletes variants that don't apply. JSON shape:
+  // [{ label: string, content: string }]
+  variants         Json?
+
+  // Reusable procedural notes (e.g. trigger point injection narrative).
+  // Conditionally activated by doctor. JSON shape:
+  // [{ trigger: string, content: string, cpt_code: string, consent_required: boolean }]
+  proceduralBlocks Json?
+
+  // Price references for Closing Case notes. Snapshot taken at signing
+  // (B.18 firma) — feeds demand letter (B.28). JSON shape:
+  // [{ label: string, cpt_code: string }]
+  priceReferences  Json?
+
+  // Locked content blocks that require confirm to delete (e.g. PI causation
+  // statement: "reasonable degree of medical certainty..."). JSON shape:
+  // [{ content_substring: string, warning_message: string }]
+  lockedBlocks     Json?
+
+  orderIndex       Int                 @default(0)
+
+  @@unique([templateId, sectionKey])
+  @@index([templateId])
+  @@map("template_sections")
+}
+
+model TemplateFavorite {
+  id          String   @id @default(cuid())
+  templateId  String
+  template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation("TemplateFavorites", fields: [userId], references: [id])
+
+  // Personal usage tracking for autocomplete ranking
+  usageCount  Int      @default(0)
+  lastUsedAt  DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@unique([templateId, userId])
+  @@index([userId])
+  @@index([userId, usageCount])
+  @@map("template_favorites")
+}
+
+// ─── Diagnoses (B.35) — Dual ICD-10 + SNOMED CT ──────────────────
+//
+// Both code systems are FREE for clinical use in the US:
+// - ICD-10-CM: published by CDC annually. ~70K codes.
+//   https://www.cdc.gov/nchs/icd/icd-10-cm/files.html
+// - SNOMED CT: licensed but FREE for US clinical use via NLM/UMLS.
+//   ~350K concepts.
+//   https://www.nlm.nih.gov/healthit/snomedct/index.html
+//
+// Pattern from legacy: each diagnosis row pairs an ICD-10 (for billing
+// HCFA/CMS-1500) with an optional SNOMED (for clinical granularity +
+// longitudinal reports). DiagnosisMapping table allows additional
+// 1-to-many alternates if needed beyond the primary pair.
+
+enum DiagnosisCategory {
+  S        // Lesiones (Injuries) — S00-T98 in ICD-10
+  T        // (continuation of S range)
+  M        // Musculoesqueléticas / Musculoskeletal — M00-M99
+  R        // Síntomas / Symptoms — R00-R99
+  G        // Neurológicas / Neurological — G00-G99
+  F        // Mental / Behavioral — F00-F99
+  V_W      // External cause (accident) — V00-W99 (e.g. V43.52XA MVA codes)
+  Z        // Factors influencing health — Z00-Z99
+  OTHER
+}
+
+model Diagnosis {
+  id                String                 @id @default(cuid())
+
+  // Dual coding — primary pair
+  icd10Code         String                 @unique
+  icd10Description  String
+  snomedCode        String?
+  snomedDescription String?
+
+  category          DiagnosisCategory
+  bodySystem        String?                // e.g. "Cervical spine", "Lumbar spine", "Head"
+  piRelevant        Boolean                @default(false)  // Flag for PI workflow
+
+  // Usage tracking for autocomplete ranking
+  usageCount        Int                    @default(0)
+  isActive          Boolean                @default(true)
+
+  favorites         UserDiagnosisFavorite[]
+  mappings          DiagnosisMapping[]
+
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([icd10Code])
+  @@index([snomedCode])
+  @@index([category])
+  @@index([piRelevant])
+  @@map("diagnoses")
+}
+
+// Cross-reference for additional ICD-10 ↔ SNOMED mappings beyond the
+// primary pair on Diagnosis. Useful when one ICD-10 has multiple valid
+// SNOMED concepts of varying specificity.
+model DiagnosisMapping {
+  id              String     @id @default(cuid())
+  diagnosisId     String
+  diagnosis       Diagnosis  @relation(fields: [diagnosisId], references: [id], onDelete: Cascade)
+
+  alternateIcd10  String?
+  alternateSnomed String?
+
+  // EXACT (1:1), BROADER (alternate is more general),
+  // NARROWER (alternate is more specific), RELATED (lateral concept)
+  mappingType     String
+
+  notes           String?    @db.Text
+
+  @@index([diagnosisId])
+  @@map("diagnosis_mappings")
+}
+
+model UserDiagnosisFavorite {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation("DiagnosisFavorites", fields: [userId], references: [id])
+  diagnosisId String
+  diagnosis   Diagnosis @relation(fields: [diagnosisId], references: [id], onDelete: Cascade)
+
+  // Personal usage tracking for autocomplete ranking
+  usageCount  Int       @default(0)
+  lastUsedAt  DateTime?
+
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, diagnosisId])
+  @@index([userId])
+  @@index([userId, usageCount])
+  @@map("user_diagnosis_favorites")
 }

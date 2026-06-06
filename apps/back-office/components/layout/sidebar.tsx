@@ -45,7 +45,7 @@ const SECTIONS: NavSection[] = [
   {
     title: 'Workspaces',
     items: [
-      { href: '/front-office', icon: Building2,  label: 'Front Office',     mockup: 'B.1–B.4',   disabled: true },
+      { href: '/front-office', icon: Building2,  label: 'Front Office',     mockup: 'B.1–B.4' },
       { href: '/intake',       icon: Phone,      label: 'Intake (Edson)',   mockup: 'B.12–B.13', disabled: true },
       { href: '/billing',      icon: Briefcase,  label: 'Billing (Brunella)', mockup: 'B.25–B.28', disabled: true },
       { href: '/dashboard',    icon: BarChart3,  label: 'Dashboard',        mockup: 'B.29',      disabled: true },

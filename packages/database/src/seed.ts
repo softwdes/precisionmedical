@@ -421,6 +421,137 @@ async function seed(): Promise<void> {
 
   console.warn(`✅ Phoenix Servicios: ${servicesSeed.length} CPT/HCPCS/Custom codes (fee schedule 2026) - B.33`);
 
+  // ─────────────────────────────────────────────────────────────────────
+  // PHOENIX (LM v3) — Cases mock para B.1-B.4 Front Office
+  // ─────────────────────────────────────────────────────────────────────
+  // Mock PHI-like data (nombres ficticios, números fake) para desarrollar
+  // el flujo. CERO PHI real. Phase 2 con BAA Supabase: data real.
+
+  const firms = await db.lawyer.findMany({ where: { entityType: 'FIRM' }, select: { id: true, firmName: true, members: { select: { id: true } } } });
+  const insurances = await db.insuranceCarrier.findMany({ select: { id: true, name: true, type: true } });
+  const specialties = await db.specialtyCatalog.findMany({ select: { id: true, name: true } });
+  const clinics = await db.clinic.findMany({ select: { id: true, name: true } });
+
+  const findFirm = (name: string) => firms.find((f) => f.firmName === name);
+  const findInsurance = (name: string) => insurances.find((i) => i.name === name);
+  const findSpecialty = (name: string) => specialties.find((s) => s.name === name);
+
+  // 4 mock cases en distintos status
+  const casesMock = [
+    {
+      patient: { code: 'PT-2962', firstName: 'Mario', lastName: 'Fernández', email: 'mario.f.mock@example.com', phone: '+1-801-555-2962', dateOfBirth: new Date('1982-04-15') },
+      caseCode: 'MVA-2962',
+      firmName: 'Smith & Johnson LLP',
+      insuranceName: 'GEICO',
+      specialtyName: 'Auto Accidents',
+      accidentDate: new Date('2026-05-22'),
+      accidentType: 'AUTO' as const,
+      accidentLocation: 'I-15 Exit 285, Provo',
+      accidentNotes: 'Rear-end collision · 3 vehículos · paciente segundo en cadena',
+      status: 'ACTIVE' as const,
+      source: 'LAW_FIRM_REFERRAL' as const,
+      policyNumber: 'GEI-7842-PIP',
+      intakeFormCompletedAt: new Date('2026-05-23'),
+      pipVerifiedAt: new Date('2026-05-24'),
+      firstAppointmentConfirmedAt: new Date('2026-05-25'),
+    },
+    {
+      patient: { code: 'PT-2949', firstName: 'Mónica', lastName: 'Silva', email: 'monica.s.mock@example.com', phone: '+1-801-555-2949', dateOfBirth: new Date('1990-08-30') },
+      caseCode: 'MVA-2949',
+      firmName: 'Brown & Associates',
+      insuranceName: 'State Farm',
+      specialtyName: 'Auto Accidents',
+      accidentDate: new Date('2026-06-01'),
+      accidentType: 'AUTO' as const,
+      accidentLocation: 'Center St & 200 W, Provo',
+      status: 'INTAKE_PENDING' as const,
+      source: 'PHONE_CALL' as const,
+      policyNumber: 'SF-9921-AUTO',
+      intakeFormSentAt: new Date('2026-06-02'),
+      intakeFormSentVia: 'SMS',
+    },
+    {
+      patient: { code: 'PT-2944', firstName: 'Erik', lastName: 'Penrose', email: 'erik.p.mock@example.com', phone: '+1-801-555-2944', dateOfBirth: new Date('1975-12-10') },
+      caseCode: 'MVA-2944',
+      firmName: 'Smith & Johnson LLP',
+      insuranceName: 'Progressive',
+      specialtyName: 'Auto Accidents',
+      accidentDate: new Date('2026-06-04'),
+      accidentType: 'AUTO' as const,
+      accidentLocation: 'Hwy 89 mile 312',
+      status: 'NEW_REFERRAL' as const,
+      source: 'PHONE_CALL' as const,
+      policyNumber: 'PRG-1192',
+    },
+    {
+      patient: { code: 'PT-2865', firstName: 'Sandra', lastName: 'López', email: 'sandra.l.mock@example.com', phone: '+1-801-555-2865', dateOfBirth: new Date('1988-03-22') },
+      caseCode: 'MVA-2865',
+      firmName: 'Garcia Law Firm',
+      insuranceName: 'Farmers',
+      specialtyName: 'Pain Management',
+      accidentDate: new Date('2026-04-10'),
+      accidentType: 'AUTO' as const,
+      status: 'ACTIVE' as const,
+      source: 'LAW_FIRM_REFERRAL' as const,
+      policyNumber: 'FA-5588',
+      intakeFormCompletedAt: new Date('2026-04-12'),
+      pipVerifiedAt: new Date('2026-04-13'),
+      firstAppointmentConfirmedAt: new Date('2026-04-15'),
+    },
+  ];
+
+  for (const m of casesMock) {
+    // Upsert patient
+    const patient = await db.patient.upsert({
+      where: { patientCode: m.patient.code },
+      update: {},
+      create: {
+        patientCode: m.patient.code,
+        firstName: m.patient.firstName,
+        lastName: m.patient.lastName,
+        email: m.patient.email,
+        phone: m.patient.phone,
+        dateOfBirth: m.patient.dateOfBirth,
+        accidentDate: m.accidentDate,
+        accidentType: m.accidentType,
+        status: 'ACTIVE',
+      },
+    });
+
+    // Upsert case
+    const firm = findFirm(m.firmName);
+    const ins = findInsurance(m.insuranceName);
+    const spec = findSpecialty(m.specialtyName);
+
+    await db.case.upsert({
+      where: { caseCode: m.caseCode },
+      update: {},
+      create: {
+        caseCode: m.caseCode,
+        patientId: patient.id,
+        caseType: 'MVA',
+        specialtyId: spec?.id ?? null,
+        lawFirmId: firm?.id ?? null,
+        attorneyId: firm?.members[0]?.id ?? null,
+        primaryInsuranceId: ins?.id ?? null,
+        primaryPolicyNumber: m.policyNumber,
+        accidentDate: m.accidentDate,
+        accidentType: m.accidentType,
+        accidentLocation: m.accidentLocation,
+        accidentNotes: m.accidentNotes,
+        status: m.status,
+        source: m.source,
+        intakeFormSentAt: m.intakeFormSentAt,
+        intakeFormSentVia: m.intakeFormSentVia,
+        intakeFormCompletedAt: m.intakeFormCompletedAt,
+        pipVerifiedAt: m.pipVerifiedAt,
+        firstAppointmentConfirmedAt: m.firstAppointmentConfirmedAt,
+      },
+    });
+  }
+
+  console.warn(`✅ Phoenix Cases (mock): ${casesMock.length} cases en distintos status (B.1-B.4 Front Office) — CERO PHI real`);
+
   // Template sample: NG-MVA F/U (Motor Vehicle Accident Follow-up)
   // Capturado del LM legacy 2026-06-05. Solo se crea si existe al menos un User
   // (porque template.createdBy es FK obligatorio). Skip silencioso si no hay user

@@ -578,6 +578,10 @@ model Lawyer {
   referrals        Patient[]         @relation("LawyerReferrer")
   commissions      Commission[]      @relation("LawyerCommission")
 
+  // Phoenix 2026-06-06: relaciones a Case
+  casesAsLawFirm   Case[]            @relation("CaseLawFirm")
+  casesAsAttorney  Case[]            @relation("CaseAttorney")
+
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   deletedAt        DateTime?
@@ -696,10 +700,13 @@ model Patient {
   
   appointments       Appointment[]
   commissions        Commission[]
-  
+
+  // Phoenix 2026-06-06: un paciente puede tener varios cases (varios MVAs)
+  cases              Case[]          @relation("PatientCases")
+
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
-  
+
   @@index([lawyerReferrerId])
   @@index([providerReferrerId])
   @@index([status])
@@ -735,28 +742,33 @@ model Clinic {
 
 model Appointment {
   id              String            @id @default(cuid())
-  
+
   patientId       String
   patient         Patient           @relation(fields: [patientId], references: [id])
-  
+
+  // Phoenix 2026-06-06: link al Case del paciente
+  caseId          String?
+  case            Case?             @relation("CaseAppointments", fields: [caseId], references: [id])
+
   clinicId        String
   clinic          Clinic            @relation(fields: [clinicId], references: [id])
-  
+
   providerId      String?
   provider        Provider?         @relation(fields: [providerId], references: [id])
-  
+
   scheduledFor    DateTime
   durationMinutes Int               @default(30)
-  
+
   type            AppointmentType
   status          AppointmentStatus @default(SCHEDULED)
-  
+
   notes           String?
-  
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
-  
+
   @@index([patientId])
+  @@index([caseId])
   @@index([clinicId])
   @@index([scheduledFor])
   @@index([status])
@@ -1489,6 +1501,9 @@ model SpecialtyCatalog {
   // Many-to-many: doctors assigned to this specialty
   doctorAssignments DoctorSpecialtyAssignment[]
 
+  // Phoenix 2026-06-06: cases con esta specialty
+  cases             Case[]
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -1584,6 +1599,137 @@ model UserServiceFavorite {
   @@map("user_service_favorites")
 }
 
+// ─── Phoenix Cases (B.1-B.4 Front Office + flujo completo) ──────────
+//
+// El Case es el contenedor principal del workflow PI. Orquesta:
+// - 1 Patient (datos personales · puede tener múltiples Cases si hay
+//   varios accidentes en distintos momentos)
+// - 1 Bufete (FIRM) + 1 Attorney específico (INDEPENDENT del firm)
+// - 1 Insurance primaria (PIP usualmente) + opcional secundaria (Med Pay)
+// - 1 Specialty (Auto Accidents típico)
+// - N Appointments
+// - N CaseNotes (notas internas)
+//
+// Status flow: NEW_REFERRAL → INTAKE_PENDING → INTAKE_COMPLETED →
+// CONFIRMED → ACTIVE → MMI → CLOSED → SETTLED → ARCHIVED.
+
+enum CaseStatus {
+  NEW_REFERRAL          // Recién creado · cita aún no confirmada
+  INTAKE_PENDING        // Magic link enviado · esperando paciente complete B.5-B.9
+  INTAKE_COMPLETED      // Paciente completó portal
+  CONFIRMED             // Primera cita confirmada (llamada 24h antes)
+  ACTIVE                // Tratamiento en curso
+  MMI                   // Maximum Medical Improvement
+  CLOSED                // Caso cerrado · pendiente settlement
+  SETTLED               // Settlement recibido por Brunella
+  ARCHIVED              // Histórico
+  CANCELLED             // No prosperó · no-show inicial · otros
+}
+
+enum ReferralSource {
+  PHONE_CALL            // Recepción humana en B.1
+  WALK_IN               // Paciente camina sin cita
+  LAW_FIRM_REFERRAL     // Bufete refiere directo
+  PATIENT_REFERRAL      // Paciente existente refiere
+  WEB_FORM              // Form público
+  AI_AGENT              // Phase 3+ Vapi/Retell
+  OTHER
+}
+
+enum CaseTypeWorkflow {
+  MVA                   // Motor Vehicle Accident — PI con lien
+  GENERAL               // Medicina general (no lien)
+  WORKERS_COMP          // Workers' compensation
+  NURSING_HOME          // Visitas domiciliarias
+}
+
+model Case {
+  id                String              @id @default(cuid())
+  caseCode          String              @unique  // "MVA-2962" auto-generado
+
+  // Patient (existing Patient model · puede tener varios Cases)
+  patientId         String
+  patient           Patient             @relation("PatientCases", fields: [patientId], references: [id])
+
+  // Workflow type + Specialty
+  caseType          CaseTypeWorkflow    @default(MVA)
+  specialtyId       String?
+  specialty         SpecialtyCatalog?   @relation(fields: [specialtyId], references: [id])
+
+  // Legal: firm + attorney específico
+  lawFirmId         String?
+  lawFirm           Lawyer?             @relation("CaseLawFirm", fields: [lawFirmId], references: [id])
+  attorneyId        String?
+  attorney          Lawyer?             @relation("CaseAttorney", fields: [attorneyId], references: [id])
+
+  // Insurance — primary (PIP) + optional secondary (Med Pay)
+  primaryInsuranceId    String?
+  primaryInsurance      InsuranceCarrier? @relation("CasePrimaryInsurance", fields: [primaryInsuranceId], references: [id])
+  primaryPolicyNumber   String?
+  secondaryInsuranceId  String?
+  secondaryInsurance    InsuranceCarrier? @relation("CaseSecondaryInsurance", fields: [secondaryInsuranceId], references: [id])
+  secondaryPolicyNumber String?
+
+  // Accident details (Phoenix prefiere acá vs Patient.accidentDate legacy)
+  accidentDate      DateTime?
+  accidentType      AccidentType?
+  accidentLocation  String?
+  accidentNotes     String?             @db.Text
+
+  // Status + flow tracking
+  status            CaseStatus          @default(NEW_REFERRAL)
+
+  // Intake tracking (B.3 → B.5-B.9 portal)
+  intakeFormSentAt        DateTime?
+  intakeFormSentVia       String?       // "SMS" | "EMAIL"
+  intakeFormCompletedAt   DateTime?
+  pipVerifiedAt           DateTime?
+  pipVerifiedById         String?       // userId Edson
+
+  // Confirmation tracking (24h antes de primera cita)
+  firstAppointmentConfirmedAt DateTime?
+  firstAppointmentConfirmedById String?
+
+  // Creation context
+  source            ReferralSource      @default(PHONE_CALL)
+  createdByUserId   String?             // FK opcional (Phase 1A user stub)
+
+  // Appointments y notas
+  appointments      Appointment[]       @relation("CaseAppointments")
+  notes             CaseNote[]
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  deletedAt         DateTime?
+
+  @@index([caseCode])
+  @@index([status])
+  @@index([lawFirmId])
+  @@index([primaryInsuranceId])
+  @@index([patientId])
+  @@index([source])
+  @@index([createdAt])
+  @@map("cases")
+}
+
+model CaseNote {
+  id          String   @id @default(cuid())
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  content     String   @db.Text
+  isPrivate   Boolean  @default(true)  // Privada (Front Office/Edson) vs compartida (Doctor también ve)
+
+  authorUserId String?               // userId del que escribió la nota
+  authorName   String                // Snapshot del nombre del autor (legible en historial)
+
+  createdAt   DateTime @default(now())
+
+  @@index([caseId])
+  @@index([authorUserId])
+  @@map("case_notes")
+}
+
 // ─── Insurance Catalog (B.32) ─────────────────────────────────────
 //
 // Master data de aseguradoras donde Brunella manda HCFA y Edson verifica
@@ -1646,6 +1792,10 @@ model InsuranceCarrier {
 
   isActive        Boolean       @default(true)
   sortOrder       Int           @default(0)
+
+  // Phoenix 2026-06-06: relaciones inversas a Case
+  casesAsPrimary    Case[]      @relation("CasePrimaryInsurance")
+  casesAsSecondary  Case[]      @relation("CaseSecondaryInsurance")
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

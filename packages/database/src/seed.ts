@@ -352,6 +352,75 @@ async function seed(): Promise<void> {
 
   console.warn(`✅ Phoenix Aseguradoras: ${insurancesSeed.length} carriers (PIP/MedPay) - B.32`);
 
+  // Service Codes (B.33) — CPT/HCPCS/Custom comunes en PI workflow
+  const servicesSeed = [
+    // E&M (Evaluation & Management)
+    { code: '99202', type: 'CPT' as const, shortDescription: 'New patient · 20 min · straightforward', longDescription: 'Office or other outpatient visit for the evaluation and management of a new patient', category: 'EM' as const, currentFee: 220.00 },
+    { code: '99203', type: 'CPT' as const, shortDescription: 'New patient · 30 min · low complexity', longDescription: 'Office outpatient new · low complexity', category: 'EM' as const, currentFee: 350.00 },
+    { code: '99204', type: 'CPT' as const, shortDescription: 'New patient · 45 min · moderate', longDescription: 'Office outpatient new · moderate complexity', category: 'EM' as const, currentFee: 425.00 },
+    { code: '99213', type: 'CPT' as const, shortDescription: 'Established · 15 min · low complexity', longDescription: 'Office outpatient visit · established patient · low complexity', category: 'EM' as const, currentFee: 250.00 },
+    { code: '99214', type: 'CPT' as const, shortDescription: 'Established · 25 min · moderate', longDescription: 'Office outpatient visit · established patient · moderate complexity', category: 'EM' as const, currentFee: 300.00 },
+    { code: '99215', type: 'CPT' as const, shortDescription: 'Established · 40 min · high complexity', longDescription: 'Office outpatient visit · established · high complexity', category: 'EM' as const, currentFee: 380.00 },
+
+    // Chiropractic
+    { code: '98940', type: 'CPT' as const, shortDescription: 'CMT spine · 1-2 regions', longDescription: 'Chiropractic manipulative treatment · spinal · 1-2 regions', category: 'CHIROPRACTIC' as const, currentFee: 250.00 },
+    { code: '98941', type: 'CPT' as const, shortDescription: 'CMT spine · 3-4 regions', longDescription: 'Chiropractic manipulative treatment · spinal · 3-4 regions', category: 'CHIROPRACTIC' as const, currentFee: 300.00, modifiersAllowed: ['-25', '-59'] },
+    { code: '98942', type: 'CPT' as const, shortDescription: 'CMT spine · 5 regions', longDescription: 'Chiropractic manipulative treatment · spinal · 5 regions', category: 'CHIROPRACTIC' as const, currentFee: 350.00 },
+
+    // Physical Therapy
+    { code: '97110', type: 'CPT' as const, shortDescription: 'Therapeutic exercises · 15 min', longDescription: 'Therapeutic procedure · 1 or more areas · therapeutic exercises', category: 'PHYSICAL_THERAPY' as const, currentFee: 75.00 },
+    { code: '97140', type: 'CPT' as const, shortDescription: 'Manual therapy · 15 min', longDescription: 'Manual therapy techniques · 1 or more regions', category: 'PHYSICAL_THERAPY' as const, currentFee: 85.00 },
+    { code: '97014', type: 'CPT' as const, shortDescription: 'Electric stimulation', longDescription: 'Application of unattended electrical stimulation modality', category: 'PHYSICAL_THERAPY' as const, currentFee: 45.00 },
+    { code: '97012', type: 'CPT' as const, shortDescription: 'Mechanical traction', longDescription: 'Application of mechanical traction', category: 'PHYSICAL_THERAPY' as const, currentFee: 50.00 },
+
+    // Injections
+    { code: '20552', type: 'CPT' as const, shortDescription: 'Trigger point injection · 1-2 muscles', longDescription: 'Injection · single or multiple trigger points · 1 or 2 muscles', category: 'INJECTIONS' as const, currentFee: 300.00 },
+    { code: '20553', type: 'CPT' as const, shortDescription: 'Trigger point injection · 3+ muscles', longDescription: 'Injection · single or multiple trigger points · 3 or more muscles', category: 'INJECTIONS' as const, currentFee: 350.00 },
+    { code: '64483', type: 'CPT' as const, shortDescription: 'Epidural · lumbar/sacral', longDescription: 'Injection · transforaminal epidural · lumbar or sacral', category: 'INJECTIONS' as const, currentFee: 2500.00 },
+    { code: '64633', type: 'CPT' as const, shortDescription: 'Radio frequency ablation', longDescription: 'Destruction by neurolytic agent · paravertebral facet joint nerve(s)', category: 'INJECTIONS' as const, currentFee: 3500.00 },
+
+    // HCPCS Level II
+    { code: 'J3301', type: 'HCPCS' as const, shortDescription: 'Kenalog (triamcinolone) 10mg', longDescription: 'Injection · triamcinolone acetonide · not otherwise specified · 10 mg', category: 'DRUGS' as const, currentFee: 25.00 },
+    { code: 'J0735', type: 'HCPCS' as const, shortDescription: 'Lidocaine 10mg', longDescription: 'Injection · clonidine hydrochloride · 1 mg', category: 'DRUGS' as const, currentFee: 8.00 },
+
+    // Imaging
+    { code: '72148', type: 'CPT' as const, shortDescription: 'MRI lumbar spine · sin contraste', longDescription: 'Magnetic resonance imaging · spinal canal and contents · lumbar · without contrast', category: 'IMAGING' as const, currentFee: 1200.00 },
+    { code: '72141', type: 'CPT' as const, shortDescription: 'MRI cervical spine · sin contraste', longDescription: 'Magnetic resonance imaging · spinal canal and contents · cervical · without contrast', category: 'IMAGING' as const, currentFee: 1200.00 },
+
+    // Reports / Legal narratives
+    { code: 'PM-NARRATIVE', type: 'CUSTOM_PM' as const, shortDescription: 'Narrativa legal para abogado', longDescription: 'Reporte legal detallado del caso para uso del bufete', category: 'REPORTS' as const, currentFee: 430.00, isInternalOnly: true, notes: 'NO facturable a seguro. Solo internal/abogado.' },
+    { code: 'PM-DEPOPREP', type: 'CUSTOM_PM' as const, shortDescription: 'Preparación de depo del doctor', longDescription: 'Preparación + tiempo del doctor para deposición', category: 'REPORTS' as const, currentFee: 600.00, isInternalOnly: true },
+    { code: 'PM-DIRECT', type: 'CUSTOM_PM' as const, shortDescription: 'Pago directo del paciente (self-pay)', longDescription: 'Visita pagada directamente por el paciente sin facturar a seguro', category: 'CUSTOM' as const, currentFee: 150.00, isInternalOnly: true },
+    { code: 'PM-MEMBERSHIP', type: 'CUSTOM_PM' as const, shortDescription: 'Cuota de membresía mensual', longDescription: 'Membresía mensual self-pay del paciente', category: 'CUSTOM' as const, currentFee: 99.00, isInternalOnly: true },
+  ];
+
+  let order = 0;
+  for (const svc of servicesSeed) {
+    order++;
+    await db.serviceCode.upsert({
+      where: { code_fiscalYear: { code: svc.code, fiscalYear: 2026 } },
+      update: {
+        shortDescription: svc.shortDescription,
+        currentFee: svc.currentFee,
+      },
+      create: {
+        code: svc.code,
+        type: svc.type,
+        shortDescription: svc.shortDescription,
+        longDescription: svc.longDescription,
+        category: svc.category,
+        currentFee: svc.currentFee,
+        fiscalYear: 2026,
+        modifiersAllowed: svc.modifiersAllowed ?? [],
+        isInternalOnly: svc.isInternalOnly ?? false,
+        notes: svc.notes ?? null,
+        sortOrder: order,
+      },
+    });
+  }
+
+  console.warn(`✅ Phoenix Servicios: ${servicesSeed.length} CPT/HCPCS/Custom codes (fee schedule 2026) - B.33`);
+
   // Template sample: NG-MVA F/U (Motor Vehicle Accident Follow-up)
   // Capturado del LM legacy 2026-06-05. Solo se crea si existe al menos un User
   // (porque template.createdBy es FK obligatorio). Skip silencioso si no hay user

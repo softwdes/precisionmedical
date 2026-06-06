@@ -38,7 +38,7 @@ const SECTIONS: NavSection[] = [
       { href: '/admin/specialties', icon: Stethoscope, label: 'Especialidades', mockup: 'B.36' },
       { href: '/admin/lawyers',     icon: Scale,       label: 'Bufetes',        mockup: 'B.30' },
       { href: '/admin/insurances',  icon: ShieldCheck, label: 'Aseguradoras',   mockup: 'B.32' },
-      { href: '/admin/services',    icon: DollarSign,  label: 'Servicios CPT',  mockup: 'B.33', disabled: true },
+      { href: '/admin/services',    icon: DollarSign,  label: 'Servicios CPT',  mockup: 'B.33' },
       { href: '/admin/diagnoses',   icon: FileText,    label: 'Diagnósticos',   mockup: 'B.35', disabled: true },
     ],
   },

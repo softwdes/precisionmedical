@@ -1498,6 +1498,92 @@ model SpecialtyCatalog {
   @@map("specialty_catalog")
 }
 
+// ─── Service Codes Catalog (B.33) — CPT / HCPCS / Custom ─────────
+//
+// Master data de todos los códigos facturables. Consumido en B.21 (CPT
+// + Firma del doctor) y B.26 (HCFA generation por Brunella).
+// Versionado por año fiscal — fee_schedule cambia cada Enero.
+
+enum ServiceType {
+  CPT          // Códigos AMA · cambian anualmente
+  HCPCS        // CMS Level II · drugs/DME · gratis
+  CUSTOM_PM    // Internos con prefijo PM-* · no van a aseguradora
+}
+
+enum ServiceCategory {
+  EM                    // Evaluation & Management (99213, 99214, etc.)
+  CHIROPRACTIC          // 98941, 98942
+  PHYSICAL_THERAPY      // 97110, 97140
+  IMAGING               // 70010-79999
+  INJECTIONS            // 20552, 64483, 64633
+  SURGERY               // 10000-69999
+  DME                   // Durable Medical Equipment
+  DRUGS                 // J-codes
+  LAB                   // Laboratorio
+  REPORTS               // Narrativas legales, depo prep
+  CUSTOM                // PM- internos
+  OTHER
+}
+
+model ServiceCode {
+  id              String          @id @default(cuid())
+
+  code            String                       // "98941", "J3301", "PM-DIRECT"
+  type            ServiceType
+  shortDescription String                       // Display name corto
+  longDescription  String?         @db.Text     // Full AMA description
+
+  category        ServiceCategory
+
+  // Fee schedule actual (Phase 1A: un solo fee per code · Phase 2: tabla historical)
+  currentFee      Decimal         @db.Decimal(10, 2)
+  fiscalYear      Int             @default(2026)
+
+  // Modificadores CPT permitidos (e.g. "-25", "-59")
+  modifiersAllowed String[]       @default([])
+
+  // Notas de bundling (códigos que NO pueden facturarse juntos)
+  bundlingNotes   String?         @db.Text
+
+  // Metadata
+  isActive        Boolean         @default(true)
+  isInternalOnly  Boolean         @default(false)  // True para CUSTOM_PM
+  sortOrder       Int             @default(0)
+  notes           String?         @db.Text
+
+  // Sugerido por especialidades (links a SpecialtyCatalog vía SpecialtyCatalog.cptSuggested array)
+  // No FK directo porque ya se almacena en SpecialtyCatalog.cptSuggested[] como strings.
+
+  favorites       UserServiceFavorite[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  @@unique([code, fiscalYear])
+  @@index([type])
+  @@index([category])
+  @@index([isActive])
+  @@map("service_codes")
+}
+
+model UserServiceFavorite {
+  id            String      @id @default(cuid())
+  userId        String      // Sin FK a User Phase 1A (no auth todavía) · Phase 1B FK real
+  serviceCodeId String
+  serviceCode   ServiceCode @relation(fields: [serviceCodeId], references: [id], onDelete: Cascade)
+
+  usageCount    Int         @default(0)
+  lastUsedAt    DateTime?
+
+  createdAt     DateTime    @default(now())
+
+  @@unique([userId, serviceCodeId])
+  @@index([userId])
+  @@index([userId, usageCount])
+  @@map("user_service_favorites")
+}
+
 // ─── Insurance Catalog (B.32) ─────────────────────────────────────
 //
 // Master data de aseguradoras donde Brunella manda HCFA y Edson verifica

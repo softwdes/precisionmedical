@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Eye, Pencil, KeyRound, Trash2, Plus, Search as SearchIcon, Phone, Mail, Printer, Globe, AlertTriangle } from 'lucide-react';
 import {
   Button,
@@ -82,6 +83,8 @@ const RESPONSE_SPEEDS = [
 
 export function InsurancesClient({ insurances, stats }: Props) {
   const router = useRouter();
+  const t = useTranslations('phoenix.insurances');
+  const tc = useTranslations('phoenix.common');
   const [, startTransition] = useTransition();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'PIP' | 'MED_PAY' | 'HEALTH' | 'slow'>('all');
@@ -108,23 +111,22 @@ export function InsurancesClient({ insurances, stats }: Props) {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-white">Aseguradoras</h1>
+          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
           <p className="text-text-2 text-sm mt-1">
-            {stats.active} activas · {stats.pip} PIP · {stats.medpay} Med Pay · {stats.slow > 0 && <span className="text-amber">{stats.slow} respuesta lenta</span>} ·{' '}
-            <span className="text-text-muted text-xs font-mono">Mockup B.32</span>
+            {t('subtitle', { active: stats.active, pip: stats.pip, medpay: stats.medpay, mockup: 'Mockup B.32' })}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> Nueva aseguradora
+          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
         </Button>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total"      value={stats.total}  sub="Carriers en catálogo" color="text-white" />
-        <KpiCard label="Activas"    value={stats.active} sub="Recibiendo HCFA"      color="text-emerald" />
-        <KpiCard label="Respuesta lenta" value={stats.slow}   sub="> 30 días promedio"   color="text-amber" />
-        <KpiCard label="Respuesta rápida" value={stats.fast}   sub="< 15 días promedio"   color="text-brand" />
+        <KpiCard label={t('kpiTotal')}   value={stats.total}  sub={t('kpiTotalSub')}  color="text-text-1" />
+        <KpiCard label={t('kpiActive')}  value={stats.active} sub={t('kpiActiveSub')} color="text-emerald" />
+        <KpiCard label={t('kpiSlow')}    value={stats.slow}   sub={t('kpiSlowSub')}   color="text-amber" />
+        <KpiCard label={t('kpiFast')}    value={stats.fast}   sub={t('kpiFastSub')}   color="text-brand" />
       </div>
 
       {/* Filters */}
@@ -132,17 +134,17 @@ export function InsurancesClient({ insurances, stats }: Props) {
         <div className="relative flex-1 max-w-xs">
           <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <Input
-            placeholder="Buscar aseguradora..."
+            placeholder={tc('search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <FilterPill active={filter === 'all'}     onClick={() => setFilter('all')}     label="Todas"     count={stats.total} />
+        <FilterPill active={filter === 'all'}     onClick={() => setFilter('all')}     label={tc('all')} count={stats.total} />
         <FilterPill active={filter === 'PIP'}     onClick={() => setFilter('PIP')}     label="PIP"       count={stats.pip} />
         <FilterPill active={filter === 'MED_PAY'} onClick={() => setFilter('MED_PAY')} label="Med Pay"   count={stats.medpay} />
         <FilterPill active={filter === 'HEALTH'}  onClick={() => setFilter('HEALTH')}  label="Health"    count={stats.health} />
-        <FilterPill active={filter === 'slow'}    onClick={() => setFilter('slow')}    label="Lentas"    count={stats.slow} />
+        <FilterPill active={filter === 'slow'}    onClick={() => setFilter('slow')}    label={t('kpiSlow')} count={stats.slow} />
       </div>
 
       {/* Table */}
@@ -151,8 +153,8 @@ export function InsurancesClient({ insurances, stats }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-semibold">Aseguradora</th>
-                <th className="text-center px-5 py-3 font-semibold">Tipo</th>
+                <th className="text-left px-5 py-3 font-semibold">{t('columnCarrier')}</th>
+                <th className="text-center px-5 py-3 font-semibold">{t('columnType')}</th>
                 <th className="text-left px-5 py-3 font-semibold">Claims</th>
                 <th className="text-center px-5 py-3 font-semibold">HCFA</th>
                 <th className="text-right px-5 py-3 font-semibold">Avg respuesta</th>

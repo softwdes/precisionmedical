@@ -81,23 +81,22 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
       {/* Page header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-white">Especialidades</h1>
+          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
           <p className="text-text-2 text-sm mt-1">
-            {stats.active} activas · {stats.totalDoctors} doctores asignados ·{' '}
-            <span className="text-text-muted text-xs font-mono">Mockup B.36</span>
+            {t('subtitle', { active: stats.active, doctors: stats.totalDoctors, mockup: 'Mockup B.36' })}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> Nueva especialidad
+          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
         </Button>
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total" value={stats.total} sub="En catálogo" color="text-white" />
-        <KpiCard label="Activas" value={stats.active} sub="En uso" color="text-emerald" />
-        <KpiCard label="Inactivas" value={stats.inactive} sub="Soft-deleted" color="text-rose" />
-        <KpiCard label="Doctores" value={stats.totalDoctors} sub="Asignados" color="text-brand" />
+        <KpiCard label={t('kpiTotal')}    value={stats.total}        sub={t('kpiTotalSub')}    color="text-text-1" />
+        <KpiCard label={t('kpiActive')}   value={stats.active}       sub={t('kpiActiveSub')}   color="text-emerald" />
+        <KpiCard label={t('kpiInactive')} value={stats.inactive}     sub={t('kpiInactiveSub')} color="text-rose" />
+        <KpiCard label={t('kpiDoctors')}  value={stats.totalDoctors} sub={t('kpiDoctorsSub')}  color="text-brand" />
       </div>
 
       {/* Filter row */}
@@ -105,15 +104,15 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
         <div className="relative flex-1 max-w-xs">
           <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <Input
-            placeholder="Buscar especialidad..."
+            placeholder={tc('search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <FilterPill active={filter === 'all'}     onClick={() => setFilter('all')}     label="Todas"     count={stats.total} />
-        <FilterPill active={filter === 'active'}  onClick={() => setFilter('active')}  label="Activas"   count={stats.active} />
-        <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label="Inactivas" count={stats.inactive} />
+        <FilterPill active={filter === 'all'}     onClick={() => setFilter('all')}     label={tc('all')}      count={stats.total} />
+        <FilterPill active={filter === 'active'}  onClick={() => setFilter('active')}  label={tc('active')}   count={stats.active} />
+        <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label={tc('inactive')} count={stats.inactive} />
       </div>
 
       {/* Table */}
@@ -122,13 +121,13 @@ export function SpecialtiesClient({ specialties, stats }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-semibold">Nombre</th>
-                <th className="text-left px-5 py-3 font-semibold">Descripción</th>
-                <th className="text-center px-5 py-3 font-semibold">Workflow</th>
-                <th className="text-center px-5 py-3 font-semibold">CPT</th>
-                <th className="text-center px-5 py-3 font-semibold">Doctores</th>
-                <th className="text-center px-5 py-3 font-semibold">Estado</th>
-                <th className="text-right px-5 py-3 font-semibold">Acciones</th>
+                <th className="text-left px-5 py-3 font-semibold">{t('columnName')}</th>
+                <th className="text-left px-5 py-3 font-semibold">{t('columnDescription')}</th>
+                <th className="text-center px-5 py-3 font-semibold">{t('columnWorkflow')}</th>
+                <th className="text-center px-5 py-3 font-semibold">{t('columnCpt')}</th>
+                <th className="text-center px-5 py-3 font-semibold">{t('columnDoctors')}</th>
+                <th className="text-center px-5 py-3 font-semibold">{t('columnStatus')}</th>
+                <th className="text-right px-5 py-3 font-semibold">{tc('actions')}</th>
               </tr>
             </thead>
             <tbody>

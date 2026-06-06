@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Star, Trash2, Plus, Search as SearchIcon } from 'lucide-react';
 import {
   Button,
@@ -71,6 +72,8 @@ const CATEGORY_OPTIONS = [
 
 export function ServicesClient({ services, stats }: Props) {
   const router = useRouter();
+  const t = useTranslations('phoenix.services');
+  const tc = useTranslations('phoenix.common');
   const [, startTransition] = useTransition();
   const [tab, setTab] = useState<'billable' | 'internal'>('billable');
   const [search, setSearch] = useState('');
@@ -113,33 +116,32 @@ export function ServicesClient({ services, stats }: Props) {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-text-1">Servicios facturables</h1>
+          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
           <p className="text-text-2 text-sm mt-1">
-            {stats.billable} CPT/HCPCS · {stats.internal} internos · {stats.favorites} ⭐ favoritos ·{' '}
-            <span className="text-text-muted text-xs font-mono">Mockup B.33 · Fee schedule 2026</span>
+            {t('subtitle', { billable: stats.billable, internal: stats.internal, favorites: stats.favorites, mockup: 'Mockup B.33 · Fee schedule 2026' })}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> Nuevo servicio
+          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
         </Button>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-0 border-b border-border">
         <TabButton active={tab === 'billable'} onClick={() => setTab('billable')}>
-          Facturables <span className="text-text-muted ml-1 font-mono">({stats.billable})</span>
+          {t('tabBillable')} <span className="text-text-muted ml-1 font-mono">({stats.billable})</span>
         </TabButton>
         <TabButton active={tab === 'internal'} onClick={() => setTab('internal')}>
-          Internos / PM- <span className="text-text-muted ml-1 font-mono">({stats.internal})</span>
+          {t('tabInternal')} <span className="text-text-muted ml-1 font-mono">({stats.internal})</span>
         </TabButton>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total" value={stats.total} sub={`${stats.cpt} CPT · ${stats.hcpcs} HCPCS · ${stats.custom} PM`} color="text-text-1" />
-        <KpiCard label="Activos" value={stats.active} sub="En catálogo 2026" color="text-emerald" />
-        <KpiCard label="Mis favoritos" value={stats.favorites} sub="Para autocomplete B.21" color="text-amber" />
-        <KpiCard label="Año fiscal" value={2026} sub="Update anual Enero AMA" color="text-brand" />
+        <KpiCard label={t('kpiTotal')}       value={stats.total}     sub={`${stats.cpt} CPT · ${stats.hcpcs} HCPCS · ${stats.custom} PM`} color="text-text-1" />
+        <KpiCard label={t('kpiActive')}      value={stats.active}    sub="2026" color="text-emerald" />
+        <KpiCard label={t('kpiFavorites')}   value={stats.favorites} sub="B.21 autocomplete" color="text-amber" />
+        <KpiCard label={t('kpiFiscalYear')}  value={2026}            sub="AMA update Jan" color="text-brand" />
       </div>
 
       {/* Filters */}
@@ -148,14 +150,14 @@ export function ServicesClient({ services, stats }: Props) {
           <div className="relative flex-1 max-w-xs">
             <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <Input
-              placeholder="Buscar código o descripción..."
+              placeholder={tc('search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
             />
           </div>
-          <FilterPill active={filter === 'all'}        onClick={() => setFilter('all')}        label="Todos"      count={tab === 'billable' ? stats.billable : stats.internal} />
-          <FilterPill active={filter === 'favorites'}  onClick={() => setFilter('favorites')}  label="⭐ Favoritos" count={stats.favorites} />
+          <FilterPill active={filter === 'all'}        onClick={() => setFilter('all')}        label={tc('all')}        count={tab === 'billable' ? stats.billable : stats.internal} />
+          <FilterPill active={filter === 'favorites'}  onClick={() => setFilter('favorites')}  label={`⭐ ${tc('favorites')}`} count={stats.favorites} />
           {tab === 'billable' && (
             <>
               <FilterPill active={filter === 'CPT'}    onClick={() => setFilter('CPT')}    label="CPT"   count={stats.cpt} />

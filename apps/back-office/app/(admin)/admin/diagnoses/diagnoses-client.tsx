@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Star, Trash2, Plus, Search as SearchIcon } from 'lucide-react';
 import {
   Button,
@@ -55,6 +56,8 @@ const CATEGORY_OPTIONS = [
 
 export function DiagnosesClient({ diagnoses, stats }: Props) {
   const router = useRouter();
+  const t = useTranslations('phoenix.diagnoses');
+  const tc = useTranslations('phoenix.common');
   const [, startTransition] = useTransition();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'piRelevant'>('all');
@@ -93,22 +96,21 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-text-1">Diagnósticos</h1>
+          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
           <p className="text-text-2 text-sm mt-1">
-            ICD-10 + SNOMED CT dual coding · {stats.piRelevant} PI-relevant · {stats.favorites} ⭐ favoritos ·{' '}
-            <span className="text-text-muted text-xs font-mono">Mockup B.35</span>
+            {t('subtitle', { piRelevant: stats.piRelevant, favorites: stats.favorites, mockup: 'Mockup B.35' })}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> Nuevo diagnóstico
+          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
         </Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total"        value={stats.total}      sub="Diagnósticos en catálogo" color="text-text-1" />
-        <KpiCard label="PI-Relevant"  value={stats.piRelevant} sub="Para casos MVA"           color="text-rose" />
-        <KpiCard label="Con SNOMED"   value={stats.withSnomed} sub="Dual coding completo"     color="text-emerald" />
-        <KpiCard label="Mis favoritos" value={stats.favorites}  sub="Para B.18 autocomplete"   color="text-amber" />
+        <KpiCard label={t('kpiTotal')}       value={stats.total}      sub="Catalog"        color="text-text-1" />
+        <KpiCard label={t('kpiPiRelevant')}  value={stats.piRelevant} sub="MVA cases"      color="text-rose" />
+        <KpiCard label={t('kpiWithSnomed')}  value={stats.withSnomed} sub="Dual complete"  color="text-emerald" />
+        <KpiCard label={t('kpiFavorites')}   value={stats.favorites}  sub="B.18 autocomplete" color="text-amber" />
       </div>
 
       <div className="space-y-2">
@@ -116,15 +118,15 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
           <div className="relative flex-1 max-w-md">
             <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <Input
-              placeholder="Buscar por código ICD-10, SNOMED, o descripción..."
+              placeholder={tc('search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
             />
           </div>
-          <FilterPill active={filter === 'all'}        onClick={() => setFilter('all')}        label="Todos"        count={stats.total} />
-          <FilterPill active={filter === 'favorites'}  onClick={() => setFilter('favorites')}  label="⭐ Favoritos"  count={stats.favorites} />
-          <FilterPill active={filter === 'piRelevant'} onClick={() => setFilter('piRelevant')} label="🩸 PI-Relevant" count={stats.piRelevant} />
+          <FilterPill active={filter === 'all'}        onClick={() => setFilter('all')}        label={t('filterAll')}        count={stats.total} />
+          <FilterPill active={filter === 'favorites'}  onClick={() => setFilter('favorites')}  label={t('filterFavorites')}  count={stats.favorites} />
+          <FilterPill active={filter === 'piRelevant'} onClick={() => setFilter('piRelevant')} label={t('filterPiRelevant')} count={stats.piRelevant} />
         </div>
         <div className="flex items-center gap-2">
           <Label className="text-xs text-text-muted">Categoría ICD-10:</Label>

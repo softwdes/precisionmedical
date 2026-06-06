@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2 } from 'lucide-react';
 import { Button } from '@precision/ui';
 
@@ -50,6 +51,7 @@ interface Props {
 
 export function FrontOfficeClient({ cases, stats }: Props) {
   const router = useRouter();
+  const t = useTranslations('phoenix.frontOffice');
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
 
   const filtered = filter === 'all' ? cases : cases.filter((c) => c.status === filter);
@@ -66,16 +68,14 @@ export function FrontOfficeClient({ cases, stats }: Props) {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-1">
-              <Building2 className="w-3 h-3" /> Front Office · Workspace
+              <Building2 className="w-3 h-3" /> {t('workspace')}
             </div>
-            <h1 className="text-2xl font-bold text-text-1">Recepción primaria</h1>
-            <p className="text-text-2 text-sm mt-1">
-              Contestá la llamada · Capturá el referido en 90 segundos · Mockup B.1 + B.2
-            </p>
+            <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
+            <p className="text-text-2 text-sm mt-1">{t('subtitle')}</p>
           </div>
           <Button onClick={handleNewCase} className="shadow-glow">
             <PhoneCall className="w-4 h-4 mr-2" />
-            Nueva llamada / Crear caso
+            {t('newButton')}
           </Button>
         </div>
 
@@ -85,53 +85,29 @@ export function FrontOfficeClient({ cases, stats }: Props) {
             <Phone className="w-4 h-4 text-emerald" />
           </div>
           <div className="flex-1">
-            <div className="text-emerald text-xs font-semibold uppercase tracking-wider">Línea principal disponible</div>
-            <div className="text-text-2 text-xs">(801) 375-2207 · Weave routing activo · Auto-attendant fuera de horario</div>
+            <div className="text-emerald text-xs font-semibold uppercase tracking-wider">{t('lineAvailable')}</div>
+            <div className="text-text-2 text-xs">{t('lineSubtitle')}</div>
           </div>
-          <span className="text-text-muted text-[10px] font-mono">CALL READY</span>
+          <span className="text-text-muted text-[10px] font-mono">{t('callReady')}</span>
         </div>
       </div>
 
       {/* KPIs por status */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatusKpi
-          label="Nuevos referidos"
-          count={stats.NEW_REFERRAL}
-          sub="Sin contactar"
-          color="text-rose"
-          bg="bg-rose/5 border-rose/20"
-        />
-        <StatusKpi
-          label="Intake pendiente"
-          count={stats.INTAKE_PENDING}
-          sub="Portal enviado"
-          color="text-amber"
-          bg="bg-amber/5 border-amber/20"
-        />
-        <StatusKpi
-          label="Intake completado"
-          count={stats.INTAKE_COMPLETED}
-          sub="A confirmar 24h"
-          color="text-cyan"
-          bg="bg-cyan/5 border-cyan/20"
-        />
-        <StatusKpi
-          label="Confirmados"
-          count={stats.CONFIRMED}
-          sub="Listos para venir"
-          color="text-emerald"
-          bg="bg-emerald/5 border-emerald/20"
-        />
+        <StatusKpi label={t('kpiNewReferrals')}     count={stats.NEW_REFERRAL}    sub={t('kpiNewReferralsSub')}    color="text-rose"    bg="bg-rose/5 border-rose/20" />
+        <StatusKpi label={t('kpiIntakePending')}    count={stats.INTAKE_PENDING}  sub={t('kpiIntakePendingSub')}   color="text-amber"   bg="bg-amber/5 border-amber/20" />
+        <StatusKpi label={t('kpiIntakeCompleted')}  count={stats.INTAKE_COMPLETED} sub={t('kpiIntakeCompletedSub')} color="text-cyan"    bg="bg-cyan/5 border-cyan/20" />
+        <StatusKpi label={t('kpiConfirmed')}        count={stats.CONFIRMED}       sub={t('kpiConfirmedSub')}       color="text-emerald" bg="bg-emerald/5 border-emerald/20" />
       </div>
 
       {/* Filters */}
       <div className="flex gap-2 items-center flex-wrap">
-        <span className="text-text-muted text-xs uppercase tracking-wider font-semibold mr-2">Cola:</span>
-        <FilterPill active={filter === 'all'}              onClick={() => setFilter('all')}              label="Todos"             count={cases.length} />
-        <FilterPill active={filter === 'NEW_REFERRAL'}     onClick={() => setFilter('NEW_REFERRAL')}     label="🔴 Nuevos"         count={stats.NEW_REFERRAL} />
-        <FilterPill active={filter === 'INTAKE_PENDING'}   onClick={() => setFilter('INTAKE_PENDING')}   label="🟡 Intake pending" count={stats.INTAKE_PENDING} />
-        <FilterPill active={filter === 'INTAKE_COMPLETED'} onClick={() => setFilter('INTAKE_COMPLETED')} label="🔵 Por confirmar"   count={stats.INTAKE_COMPLETED} />
-        <FilterPill active={filter === 'CONFIRMED'}        onClick={() => setFilter('CONFIRMED')}        label="🟢 Confirmados"    count={stats.CONFIRMED} />
+        <span className="text-text-muted text-xs uppercase tracking-wider font-semibold mr-2">{t('queueTitle')}:</span>
+        <FilterPill active={filter === 'all'}              onClick={() => setFilter('all')}              label={t('filterAll')}        count={cases.length} />
+        <FilterPill active={filter === 'NEW_REFERRAL'}     onClick={() => setFilter('NEW_REFERRAL')}     label={t('filterNew')}         count={stats.NEW_REFERRAL} />
+        <FilterPill active={filter === 'INTAKE_PENDING'}   onClick={() => setFilter('INTAKE_PENDING')}   label={t('filterPending')}     count={stats.INTAKE_PENDING} />
+        <FilterPill active={filter === 'INTAKE_COMPLETED'} onClick={() => setFilter('INTAKE_COMPLETED')} label={t('filterToConfirm')}   count={stats.INTAKE_COMPLETED} />
+        <FilterPill active={filter === 'CONFIRMED'}        onClick={() => setFilter('CONFIRMED')}        label={t('filterConfirmed')}   count={stats.CONFIRMED} />
       </div>
 
       {/* Case list */}

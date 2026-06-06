@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Eye, Pencil, KeyRound, Trash2, Plus, Search as SearchIcon, Phone, Mail, MapPin } from 'lucide-react';
 import {
   Button,
@@ -47,6 +48,8 @@ interface Props {
 
 export function LawyersClient({ firms, stats }: Props) {
   const router = useRouter();
+  const t = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   const [, startTransition] = useTransition();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'slow'>('all');
@@ -71,38 +74,37 @@ export function LawyersClient({ firms, stats }: Props) {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-white">Bufetes</h1>
+          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
           <p className="text-text-2 text-sm mt-1">
-            {stats.active} activos · {stats.totalMembers} miembros · {stats.slowPayers > 0 && <span className="text-amber">{stats.slowPayers} pagos lentos</span>} ·{' '}
-            <span className="text-text-muted text-xs font-mono">Mockup B.30</span>
+            {t('subtitle', { active: stats.active, members: stats.totalMembers, mockup: 'Mockup B.30' })}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> Nuevo bufete
+          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
         </Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total"      value={stats.total}        sub="Bufetes en catálogo" color="text-white" />
-        <KpiCard label="Activos"    value={stats.active}       sub="Recibiendo referidos" color="text-emerald" />
-        <KpiCard label="Pago lento" value={stats.slowPayers}   sub=">150 días avg"        color="text-amber" />
-        <KpiCard label="Miembros"   value={stats.totalMembers} sub="Attorneys + Case Mgrs" color="text-brand" />
+        <KpiCard label={t('kpiTotal')}   value={stats.total}        sub={t('kpiTotalSub')}   color="text-text-1" />
+        <KpiCard label={t('kpiActive')}  value={stats.active}       sub={t('kpiActiveSub')}  color="text-emerald" />
+        <KpiCard label={t('kpiSlow')}    value={stats.slowPayers}   sub={t('kpiSlowSub')}    color="text-amber" />
+        <KpiCard label={t('kpiMembers')} value={stats.totalMembers} sub={t('kpiMembersSub')} color="text-brand" />
       </div>
 
       <div className="flex gap-2 items-center flex-wrap">
         <div className="relative flex-1 max-w-xs">
           <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <Input
-            placeholder="Buscar bufete o ciudad..."
+            placeholder={tc('search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-        <FilterPill active={filter === 'all'}      onClick={() => setFilter('all')}      label="Todos"     count={stats.total} />
-        <FilterPill active={filter === 'active'}   onClick={() => setFilter('active')}   label="Activos"   count={stats.active} />
-        <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label="Inactivos" count={stats.inactive} />
-        <FilterPill active={filter === 'slow'}     onClick={() => setFilter('slow')}     label="Pago lento" count={stats.slowPayers} />
+        <FilterPill active={filter === 'all'}      onClick={() => setFilter('all')}      label={t('filterAll')}      count={stats.total} />
+        <FilterPill active={filter === 'active'}   onClick={() => setFilter('active')}   label={t('filterActive')}   count={stats.active} />
+        <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label={t('filterInactive')} count={stats.inactive} />
+        <FilterPill active={filter === 'slow'}     onClick={() => setFilter('slow')}     label={t('filterSlow')}     count={stats.slowPayers} />
       </div>
 
       <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
@@ -110,13 +112,13 @@ export function LawyersClient({ firms, stats }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-semibold">Bufete</th>
-                <th className="text-left px-5 py-3 font-semibold">Contacto</th>
-                <th className="text-center px-5 py-3 font-semibold">Miembros</th>
-                <th className="text-center px-5 py-3 font-semibold">Pago</th>
-                <th className="text-left px-5 py-3 font-semibold">Flags</th>
-                <th className="text-center px-5 py-3 font-semibold">Estado</th>
-                <th className="text-right px-5 py-3 font-semibold">Acciones</th>
+                <th className="text-left px-5 py-3 font-semibold">{t('columnFirm')}</th>
+                <th className="text-left px-5 py-3 font-semibold">{t('columnContact')}</th>
+                <th className="text-center px-5 py-3 font-semibold">{t('columnMembers')}</th>
+                <th className="text-center px-5 py-3 font-semibold">{t('columnPayment')}</th>
+                <th className="text-left px-5 py-3 font-semibold">{t('columnFlags')}</th>
+                <th className="text-center px-5 py-3 font-semibold">{tc('status')}</th>
+                <th className="text-right px-5 py-3 font-semibold">{tc('actions')}</th>
               </tr>
             </thead>
             <tbody>

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { NewCaseDialog } from '@/components/cases/new-case-dialog';
+import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 
 // B.1 — Front Office · Recepción primaria
 
@@ -56,10 +57,12 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
   const t = useTranslations('phoenix.frontOffice');
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
   const [newCaseOpen, setNewCaseOpen] = useState(false);
+  const [sendPortalCase, setSendPortalCase] = useState<PhoenixCase | null>(null);
 
   const filtered = filter === 'all' ? cases : cases.filter((c) => c.status === filter);
 
   const handleNewCase = () => setNewCaseOpen(true);
+  const handleSendPortal = (c: PhoenixCase) => setSendPortalCase(c);
 
   return (
     <div className="space-y-6">
@@ -119,7 +122,7 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
             <div className="text-text-2 text-sm mt-1">Buen trabajo. Cuando entre una llamada, click "Nueva llamada".</div>
           </div>
         ) : (
-          filtered.map((c) => <CaseCard key={c.id} case={c} onClick={() => router.push(`/front-office/${c.id}`)} />)
+          filtered.map((c) => <CaseCard key={c.id} case={c} onClick={() => router.push(`/front-office/${c.id}`)} onSendPortal={() => handleSendPortal(c)} />)
         )}
       </div>
 
@@ -133,6 +136,22 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
         open={newCaseOpen}
         onOpenChange={setNewCaseOpen}
         specialties={specialties}
+      />
+
+      {/* B.3 — Send Portal modal */}
+      <SendPortalDialog
+        open={sendPortalCase !== null}
+        onOpenChange={(open) => { if (!open) setSendPortalCase(null); }}
+        caseInfo={sendPortalCase ? {
+          id: sendPortalCase.id,
+          caseCode: sendPortalCase.caseCode,
+          patient: {
+            firstName: sendPortalCase.patient.firstName,
+            lastName: sendPortalCase.patient.lastName,
+            phone: sendPortalCase.patient.phone,
+            email: sendPortalCase.patient.email,
+          },
+        } : null}
       />
     </div>
   );
@@ -164,7 +183,7 @@ function FilterPill({ active, onClick, label, count }: { active: boolean; onClic
   );
 }
 
-function CaseCard({ case: c, onClick }: { case: PhoenixCase; onClick: () => void }) {
+function CaseCard({ case: c, onClick, onSendPortal }: { case: PhoenixCase; onClick: () => void; onSendPortal: () => void }) {
   const statusLabel: Record<CaseStatus, { label: string; color: string; bg: string; icon: string }> = {
     NEW_REFERRAL:     { label: 'Nuevo referido',     color: 'text-rose',    bg: 'bg-rose/10 border-rose/30',       icon: '🔴' },
     INTAKE_PENDING:   { label: 'Intake pendiente',   color: 'text-amber',   bg: 'bg-amber/10 border-amber/30',     icon: '🟡' },
@@ -250,7 +269,7 @@ function CaseCard({ case: c, onClick }: { case: PhoenixCase; onClick: () => void
               <div className="mt-3 flex items-center gap-2 text-xs text-rose">
                 <AlertCircle className="w-3.5 h-3.5" />
                 <span className="font-semibold">Acción: contactar paciente + enviar portal SMS</span>
-                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); alert('B.3 viene a continuación · enviar magic link'); }}>
+                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onSendPortal(); }}>
                   <Send className="w-3 h-3 mr-1" /> Enviar portal
                 </Button>
               </div>

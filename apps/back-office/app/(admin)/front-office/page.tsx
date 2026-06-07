@@ -6,7 +6,8 @@ import { FrontOfficeClient } from './front-office-client';
 
 export default async function FrontOfficePage() {
   // Specialties + clinics + providers para los dropdowns del modal B.2
-  const [specialties, clinics, providers] = await Promise.all([
+  // + samplePatients para el IncomingCallSimulator (DEV · simula Weave webhook)
+  const [specialties, clinics, providers, samplePatients] = await Promise.all([
     db.specialtyCatalog.findMany({
       where: { isActive: true, deletedAt: null },
       orderBy: { sortOrder: 'asc' },
@@ -20,6 +21,21 @@ export default async function FrontOfficePage() {
       where: { status: 'ACTIVE', deletedAt: null },
       orderBy: [{ specialty: 'asc' }, { lastName: 'asc' }],
       select: { id: true, firstName: true, lastName: true, specialty: true },
+    }),
+    // Sample para el IncomingCallSimulator (max 10 · paciente con phone)
+    db.patient.findMany({
+      where: { phone: { not: null } },
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        patientCode: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        email: true,
+        _count: { select: { cases: true } },
+      },
     }),
   ]);
 
@@ -54,6 +70,15 @@ export default async function FrontOfficePage() {
       specialties={specialties}
       clinics={clinics}
       providers={providers}
+      samplePatients={samplePatients.map((p) => ({
+        id: p.id,
+        patientCode: p.patientCode,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        phone: p.phone,
+        email: p.email,
+        casesCount: p._count.cases,
+      }))}
       cases={cases.map((c) => ({
         id: c.id,
         caseCode: c.caseCode,

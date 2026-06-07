@@ -13,10 +13,11 @@ import {
   EmptyState,
   PersonAvatar,
 } from '@/components/ui-phoenix';
-import { NewCaseDialog } from '@/components/cases/new-case-dialog';
+import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { ScheduleAppointmentDialog } from '@/components/cases/schedule-appointment-dialog';
+import { IncomingCallSimulator, IncomingCallToast, type IncomingCallData } from '@/components/cases/incoming-call-simulator';
 
 // B.1 — Front Office · Recepción primaria
 
@@ -62,13 +63,23 @@ interface Props {
   specialties: Array<{ id: string; name: string; color: string }>;
   clinics: Array<{ id: string; name: string; address: string | null }>;
   providers: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
+  samplePatients: Array<{
+    id: string;
+    patientCode: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    email: string | null;
+    casesCount: number;
+  }>;
 }
 
-export function FrontOfficeClient({ cases, stats, specialties, clinics, providers }: Props) {
+export function FrontOfficeClient({ cases, stats, specialties, clinics, providers, samplePatients }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.frontOffice');
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
   const [newCaseOpen, setNewCaseOpen] = useState(false);
+  const [newCaseInitial, setNewCaseInitial] = useState<NewCaseInitialState | null>(null);
   const [sendPortalCase, setSendPortalCase] = useState<PhoenixCase | null>(null);
   const [confirmCase, setConfirmCase] = useState<PhoenixCase | null>(null);
   const [scheduleCase, setScheduleCase] = useState<PhoenixCase | null>(null);
@@ -76,7 +87,25 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
 
   const filtered = filter === 'all' ? cases : cases.filter((c) => c.status === filter);
 
-  const handleNewCase = () => setNewCaseOpen(true);
+  const handleNewCase = () => {
+    setNewCaseInitial(null);
+    setNewCaseOpen(true);
+  };
+
+  // ─── Handler · al contestar una llamada entrante simulada ──────────────
+  // Phase 1A: viene del IncomingCallSimulator
+  // Phase 2:  vendrá del WebSocket de Weave (mismo shape)
+  const handleAnswerIncoming = (call: IncomingCallData) => {
+    setNewCaseInitial({
+      mode: 'incoming',
+      firstName: call.patient?.firstName ?? '',
+      lastName: call.patient?.lastName ?? '',
+      phone: call.phone,
+      email: call.patient?.email ?? '',
+      existingPatientId: call.patient?.id ?? null,
+    });
+    setNewCaseOpen(true);
+  };
   const handleSendPortal = (c: PhoenixCase) => setSendPortalCase(c);
   const handleConfirm    = (c: PhoenixCase) => setConfirmCase(c);
   const handleSchedule   = (c: PhoenixCase) => setScheduleCase(c);
@@ -108,12 +137,18 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
           </span>
         }
         action={
-          <Button onClick={handleNewCase} className="shadow-glow">
-            <PhoneCall className="w-4 h-4 mr-2" />
-            {t('newButton')}
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <IncomingCallSimulator samplePatients={samplePatients} onAnswer={handleAnswerIncoming} />
+            <Button onClick={handleNewCase} className="shadow-glow">
+              <PhoneCall className="w-4 h-4 mr-2" />
+              {t('newButton')}
+            </Button>
+          </div>
         }
       />
+
+      {/* Toast de llamada entrante (DEV · simula Weave Phase 2) */}
+      <IncomingCallToast onAnswer={handleAnswerIncoming} />
 
       {/* Phone-style call indicator — específico de Front Office */}
       <div className="rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-3 flex items-center gap-3">
@@ -177,10 +212,14 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
       {/* B.2 — New Case modal · llamada completa (10-15 min) */}
       <NewCaseDialog
         open={newCaseOpen}
-        onOpenChange={setNewCaseOpen}
+        onOpenChange={(open) => {
+          setNewCaseOpen(open);
+          if (!open) setNewCaseInitial(null);
+        }}
         specialties={specialties}
         clinics={clinics}
         providers={providers}
+        initialState={newCaseInitial}
       />
 
       {/* B.3 — Send Portal modal */}

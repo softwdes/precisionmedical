@@ -17,6 +17,26 @@ import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoe
 //
 // Cuando el encargado confirma, retorna PreCallResult al parent que arranca
 // el timer y abre la captura completa.
+//
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │ TODO · Phase 2 (post-BAA Weave) · Caller ID automation              │
+// │                                                                     │
+// │ Reemplazar el "Incoming manual" actual por un pop-up automático:    │
+// │                                                                     │
+// │  1. Weave envía webhook POST /api/integrations/weave/call-received  │
+// │     con { from_number, call_id, ringing_since }                     │
+// │  2. Backend hace caller ID lookup en Patient.phone                  │
+// │  3. WebSocket/SSE emite al back-office:                             │
+// │     { phone, patientId?, patientName?, casesCount?, ringingSince }  │
+// │  4. Topbar/notification banner muestra:                             │
+// │     "📞 LLAMADA · +1-801-555-XXXX · Sandra López · 1 caso previo"  │
+// │  5. Click "Contestar" → abre B.2 directo en modo Incoming con       │
+// │     datos prellenados (replica el flujo del PreCallStep aquí)       │
+// │                                                                     │
+// │ Mientras tanto: IncomingCallSimulator (visible en /front-office)    │
+// │ muestra el patrón visual para validar UX antes de invertir en       │
+// │ la integración real.                                                │
+// └─────────────────────────────────────────────────────────────────────┘
 
 export type PreCallMode = 'search' | 'incoming' | 'outgoing';
 

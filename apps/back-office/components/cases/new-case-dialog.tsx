@@ -30,12 +30,30 @@ import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-ste
 //
 // Estilo: estricto al sistema (ver apps/back-office/CLAUDE.md regla #0).
 
+/**
+ * NewCaseInitialState — para abrir el modal directamente en capturing,
+ * saltando el PreCall step. Usado por:
+ *   - IncomingCallSimulator (DEV · phase 1A)
+ *   - Weave WebSocket handler (phase 2)
+ *   - Botón "+ Nuevo caso" en /patients/[id] (phase 2 · paciente conocido)
+ */
+export interface NewCaseInitialState {
+  mode: PreCallMode;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email?: string;
+  existingPatientId?: string | null;
+}
+
 interface NewCaseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   specialties: Array<{ id: string; name: string; color: string }>;
   clinics: Array<{ id: string; name: string; address: string | null }>;
   providers: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
+  /** Si se pasa, el modal arranca directo en capturing pre-llenado · saltando PreCall */
+  initialState?: NewCaseInitialState | null;
 }
 
 interface AutoResult {
@@ -52,7 +70,7 @@ type ReferralSource =
   | 'PHONE_CALL' | 'LAW_FIRM_REFERRAL' | 'PATIENT_REFERRAL' | 'WALK_IN' | 'WEB_FORM' | 'OTHER';
 type FormDelivery = 'SEND_NOW' | 'TABLET_AT_CLINIC';
 
-export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers }: NewCaseDialogProps) {
+export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState }: NewCaseDialogProps) {
   const router = useRouter();
 
   // ─── Step state (precall vs capturing) ────────────────────────────────
@@ -125,10 +143,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [error, setError]   = useState<string | null>(null);
   const [success, setSuccess] = useState<{ caseCode: string; caseId: string; appointmentScheduled: boolean } | null>(null);
 
-  // Reset on open
+  // Reset on open · si hay initialState, salta PreCall directo a capturing
   useEffect(() => {
     if (!open) return;
-    setFirstName(''); setLastName(''); setPhone(''); setEmail(''); setDateOfBirth(''); setLanguage('es'); setReferralSource('LAW_FIRM_REFERRAL');
     setCaseType('MVA');
     setAccidentDate(''); setAccidentType('AUTO'); setAccidentLocation(''); setAccidentNotes('');
     setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setCaseManagerName(''); setCaseManagerEmail(''); setFirmPhone('');
@@ -137,7 +154,29 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setProviderId(''); setSlotIso(null); setDuration(45);
     setFormDelivery('SEND_NOW');
     setSaving(false); setError(null); setSuccess(null);
-  }, [open, specialties, clinics]);
+
+    if (initialState) {
+      // Skip PreCall · prellenar datos + arrancar timer
+      setFirstName(initialState.firstName);
+      setLastName(initialState.lastName);
+      setPhone(initialState.phone);
+      setEmail(initialState.email ?? '');
+      setDateOfBirth('');
+      setLanguage('es');
+      setReferralSource('PHONE_CALL');
+      setCallMode(initialState.mode);
+      setExistingPatientId(initialState.existingPatientId ?? null);
+      setCallElapsed(0);
+      setStep('capturing');
+    } else {
+      // Flujo normal: arrancar en PreCall
+      setFirstName(''); setLastName(''); setPhone(''); setEmail('');
+      setDateOfBirth(''); setLanguage('es'); setReferralSource('LAW_FIRM_REFERRAL');
+      setStep('precall');
+      setCallMode(null);
+      setExistingPatientId(null);
+    }
+  }, [open, specialties, clinics, initialState]);
 
   // ─── Handler · cuando PreCallStep confirma, prellenamos y arrancamos timer ──
   const handleStartCall = (result: PreCallResult) => {

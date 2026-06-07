@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Search as SearchIcon, PhoneIncoming, PhoneOutgoing, Phone, ArrowRight, ArrowLeft,
-  User, Calendar,
+  Search as SearchIcon, PhoneOutgoing, Phone, ArrowRight, ArrowLeft,
+  User,
 } from 'lucide-react';
 import { Button, Input, Label } from '@precision/ui';
 import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoenix';
@@ -11,9 +11,13 @@ import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoe
 // B.2 PreCall step · "¿cómo empezamos la llamada?"
 //
 // Antes de mostrar el modal grande de captura, preguntamos cómo se inicia:
-//   - Search: paciente existente (lo buscamos · click llamar a su tel guardado)
-//   - Incoming: paciente llamó (capturamos nombre + tel · iniciamos)
+//   - Search:   paciente existente (lo buscamos · click llamar a su tel guardado)
 //   - Outgoing: yo voy a marcar (capturo número + nombre · click marca · iniciamos)
+//
+// El modo 'incoming' NO aparece acá · llega por el IncomingCallToast cuando
+// el simulador (DEV) o Weave (Phase 2) dispara el evento, y abre el modal
+// directamente en step='capturing' vía NewCaseInitialState (sin pasar por
+// este PreCallStep).
 //
 // Cuando el encargado confirma, retorna PreCallResult al parent que arranca
 // el timer y abre la captura completa.
@@ -141,7 +145,7 @@ export function PreCallStep({
         phone: selectedPatient.phone ?? '',
       });
     }
-    if ((mode === 'incoming' || mode === 'outgoing') && quickFirstName.trim() && quickPhone.trim()) {
+    if (mode === 'outgoing' && quickFirstName.trim() && quickPhone.trim()) {
       return onConfirm({
         mode,
         firstName: quickFirstName.trim(),
@@ -153,7 +157,7 @@ export function PreCallStep({
 
   const canStart: boolean =
     (mode === 'search' && !!selectedPatient && !!selectedPatient.phone) ||
-    ((mode === 'incoming' || mode === 'outgoing') && !!quickFirstName.trim() && !!quickPhone.trim());
+    (mode === 'outgoing' && !!quickFirstName.trim() && !!quickPhone.trim());
 
   // ─── Mode selection (primera vista) ────────────────────────────────────
   if (!mode) {
@@ -175,19 +179,16 @@ export function PreCallStep({
             onClick={() => setMode('search')}
           />
           <ModeCard
-            icon={PhoneIncoming}
-            title="Llamada entrante"
-            subtitle="El paciente nos llamó · empezamos captura"
-            tone="emerald"
-            onClick={() => setMode('incoming')}
-          />
-          <ModeCard
             icon={PhoneOutgoing}
             title="Yo voy a llamar"
             subtitle="Outbound · marcar número del paciente referido por su bufete"
             tone="cyan"
             onClick={() => setMode('outgoing')}
           />
+        </div>
+
+        <div className="rounded-md border border-border bg-bg-2/40 px-3 py-2 text-[11px] text-text-muted">
+          <span className="text-text-2 font-semibold">¿Llamada entrante?</span> Las llamadas que entran se detectan automáticamente y aparecen como notificación arriba a la derecha · click "Contestar" desde ahí.
         </div>
 
         <div className="flex justify-end pt-2">
@@ -309,20 +310,12 @@ export function PreCallStep({
     );
   }
 
-  // ─── Incoming / Outgoing mode (form mínimo) ───────────────────────────
-  const isOutgoing = mode === 'outgoing';
+  // ─── Outgoing mode (form mínimo + tel:link) ───────────────────────────
   return (
     <div className="px-4 sm:px-6 py-5 space-y-4">
-      <BackButton
-        onClick={() => setMode(null)}
-        label={isOutgoing ? 'Yo voy a llamar (outbound)' : 'Llamada entrante'}
-      />
+      <BackButton onClick={() => setMode(null)} label="Yo voy a llamar (outbound)" />
 
-      <InfoCard
-        title={isOutgoing ? 'Número a marcar' : 'Datos del paciente que llama'}
-        icon={isOutgoing ? PhoneOutgoing : PhoneIncoming}
-        tone={isOutgoing ? 'cyan' : 'emerald'}
-      >
+      <InfoCard title="Número a marcar" icon={PhoneOutgoing} tone="cyan">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <FormField.Input label="Nombre" required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
           <FormField.Input label="Apellido" value={quickLastName} onChange={setQuickLastName} placeholder="López" />
@@ -334,10 +327,10 @@ export function PreCallStep({
           onChange={setQuickPhone}
           placeholder="(801) 555-0142"
           type="tel"
-          hint={isOutgoing ? 'Vas a marcar este número al confirmar' : 'Número desde el que está llamando'}
+          hint="Vas a marcar este número al confirmar"
         />
 
-        {isOutgoing && quickPhone.trim() && (
+        {quickPhone.trim() && (
           <a
             href={`tel:${quickPhone.trim()}`}
             className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-md border border-emerald/30 bg-emerald/10 text-emerald hover:bg-emerald/15 transition-colors"

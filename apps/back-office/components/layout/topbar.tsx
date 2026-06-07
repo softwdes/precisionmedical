@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Bell, Search, Moon, Sun, Menu } from 'lucide-react';
 import { CommandPalette } from './command-palette';
@@ -19,7 +18,6 @@ export function Topbar({
   userInitials = 'ES',
   onMenuClick,
 }: TopbarProps): React.ReactElement {
-  const router = useRouter();
   const currentLocale = useLocale();
   const t = useTranslations('phoenix.topbar');
 
@@ -27,6 +25,7 @@ export function Topbar({
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [mounted, setMounted] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [switchingLocale, setSwitchingLocale] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -64,10 +63,12 @@ export function Topbar({
   };
 
   const setLocale = (next: 'en' | 'es'): void => {
-    if (next === currentLocale) return;
+    if (next === currentLocale || switchingLocale) return;
+    setSwitchingLocale(true);
+    // Cookie escritura síncrona · el próximo request ya tiene el nuevo locale
     document.cookie = `locale=${next};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
-    router.refresh();
-    setTimeout(() => window.location.reload(), 50);
+    // Single full-reload: evita race entre router.refresh() y reload del setTimeout
+    window.location.reload();
   };
 
   return (
@@ -106,9 +107,10 @@ export function Topbar({
 
         {/* Language toggle · segmented control EN / ES */}
         <div
-          className="inline-flex items-center h-9 p-0.5 rounded-md bg-bg-2 border border-border"
+          className={`inline-flex items-center h-9 p-0.5 rounded-md bg-bg-2 border border-border transition-opacity ${switchingLocale ? 'opacity-60' : ''}`}
           role="group"
           aria-label={t('switchLanguage')}
+          aria-busy={switchingLocale}
         >
           {(['en', 'es'] as const).map((code) => {
             const active = currentLocale === code;
@@ -117,9 +119,10 @@ export function Topbar({
                 key={code}
                 type="button"
                 onClick={() => setLocale(code)}
+                disabled={switchingLocale}
                 aria-pressed={active}
                 aria-label={`Switch to ${code.toUpperCase()}`}
-                className={`px-2.5 h-full min-w-[2.25rem] rounded text-[11px] font-bold uppercase tabular-nums tracking-wider transition-all ${
+                className={`px-2.5 h-full min-w-[2.25rem] rounded text-[11px] font-bold uppercase tabular-nums tracking-wider transition-all disabled:cursor-not-allowed ${
                   active
                     ? 'bg-gradient-brand text-white shadow-glow'
                     : 'text-text-muted hover:text-text-1'

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Bell, Search, Moon, Sun, Menu } from 'lucide-react';
 import { CommandPalette } from './command-palette';
@@ -18,6 +19,7 @@ export function Topbar({
   userInitials = 'ES',
   onMenuClick,
 }: TopbarProps): React.ReactElement {
+  const router = useRouter();
   const currentLocale = useLocale();
   const t = useTranslations('phoenix.topbar');
 
@@ -25,7 +27,17 @@ export function Topbar({
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [mounted, setMounted] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [switchingLocale, setSwitchingLocale] = useState(false);
+  const [pendingLocale, setPendingLocale] = useState<'en' | 'es' | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const switchingLocale = isPending && pendingLocale !== null;
+
+  // Cuando el RSC re-render termina y currentLocale ya coincide con el pending,
+  // limpiamos el pendingLocale para que el pill optimista vuelva a reflejar la verdad.
+  useEffect(() => {
+    if (pendingLocale && currentLocale === pendingLocale) {
+      setPendingLocale(null);
+    }
+  }, [currentLocale, pendingLocale]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -64,12 +76,19 @@ export function Topbar({
 
   const setLocale = (next: 'en' | 'es'): void => {
     if (next === currentLocale || switchingLocale) return;
-    setSwitchingLocale(true);
-    // Cookie escritura síncrona · el próximo request ya tiene el nuevo locale
+    // Optimistic UI: el pill activo cambia al instante
+    setPendingLocale(next);
+    // Cookie write síncrono · el próximo RSC request ya tiene el nuevo locale
     document.cookie = `locale=${next};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
-    // Single full-reload: evita race entre router.refresh() y reload del setTimeout
-    window.location.reload();
+    // Soft refresh: re-fetch RSC tree con la cookie nueva · sin descargar assets
+    // El NextIntlClientProvider recibe nuevos messages y actualiza useTranslations.
+    startTransition(() => {
+      router.refresh();
+    });
   };
+
+  // Para el render optimista, mostrar pendingLocale si lo hay
+  const displayedLocale = pendingLocale ?? currentLocale;
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center gap-2 sm:gap-4 border-b border-border bg-bg-0/80 backdrop-blur-md px-3 sm:px-6">
@@ -105,15 +124,15 @@ export function Topbar({
           <span className="font-mono text-xs text-text-2 tabular-nums">{time}</span>
         </div>
 
-        {/* Language toggle · segmented control EN / ES */}
+        {/* Language toggle · segmented control EN / ES · optimistic + soft refresh */}
         <div
-          className={`inline-flex items-center h-9 p-0.5 rounded-md bg-bg-2 border border-border transition-opacity ${switchingLocale ? 'opacity-60' : ''}`}
+          className="inline-flex items-center h-9 p-0.5 rounded-md bg-bg-2 border border-border"
           role="group"
           aria-label={t('switchLanguage')}
           aria-busy={switchingLocale}
         >
           {(['en', 'es'] as const).map((code) => {
-            const active = currentLocale === code;
+            const active = displayedLocale === code;
             return (
               <button
                 key={code}

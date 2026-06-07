@@ -567,7 +567,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
           {/* ── Sección 5: Seguro PIP ──────────────────────────────────── */}
           {caseType === 'MVA' && (
-            <InfoCard title="Seguro de auto (PIP)" icon={ShieldCheck} number={5}>
+            <InfoCard title="Seguro de auto (PIP)" icon={ShieldCheck} number={5} tone="cyan">
               <div>
                 <Label>Aseguradora PIP</Label>
                 <Autocomplete

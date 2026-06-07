@@ -41,14 +41,27 @@ const TONE_ICON: Record<Tone, string> = {
   violet:  'text-violet',
 };
 
+// Background MUY sutil del tono · diferencia visual sin saturar
+// (regla #0: no gradients agresivos · solo accent suave por intención)
 const TONE_BG: Record<Tone, string> = {
   default: 'bg-bg-1',
-  brand:   'bg-bg-1',
-  cyan:    'bg-bg-1',
-  emerald: 'bg-bg-1',
-  amber:   'bg-bg-1',
-  rose:    'bg-bg-1',
-  violet:  'bg-bg-1',
+  brand:   'bg-brand/[0.04]',
+  cyan:    'bg-cyan/[0.04]',
+  emerald: 'bg-emerald/[0.04]',
+  amber:   'bg-amber/[0.04]',
+  rose:    'bg-rose/[0.04]',
+  violet:  'bg-violet/[0.04]',
+};
+
+// Color del título cuando hay tone · sutil pero distintivo
+const TONE_TITLE: Record<Tone, string> = {
+  default: 'text-text-1',
+  brand:   'text-text-1',
+  cyan:    'text-cyan',
+  emerald: 'text-emerald',
+  amber:   'text-amber',
+  rose:    'text-rose',
+  violet:  'text-violet',
 };
 
 export interface InfoCardProps {
@@ -89,7 +102,7 @@ export function InfoCard({
           </div>
         )}
         {Icon && <Icon className={`w-4 h-4 ${TONE_ICON[tone]} shrink-0`} />}
-        <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex-1">{title}</h3>
+        <h3 className={`font-semibold text-sm uppercase tracking-wider flex-1 ${TONE_TITLE[tone]}`}>{title}</h3>
         {rightSlot}
       </div>
       <div className="space-y-3">{children}</div>

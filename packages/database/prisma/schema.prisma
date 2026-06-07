@@ -1683,6 +1683,11 @@ model Case {
   intakeFormSentAt        DateTime?
   intakeFormSentVia       String?       // "SMS" | "EMAIL"
   intakeFormCompletedAt   DateTime?
+  // Token único para el magic link del portal del paciente (B.5-B.9)
+  // Phase 1A: visible en respuesta de send-portal-link para testing local
+  // Phase 2: hash almacenado + Supabase Auth magic links después de BAA
+  portalToken             String?       @unique
+
   pipVerifiedAt           DateTime?
   pipVerifiedById         String?       // userId Edson
 

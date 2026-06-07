@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@precision-medical/database": "workspace:*",
     "@precision-medical/i18n": "workspace:*",
     "@precision-medical/observability": "workspace:*",
     "@precision/ui": "workspace:*",

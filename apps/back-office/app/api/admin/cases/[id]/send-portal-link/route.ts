@@ -59,10 +59,14 @@ export async function POST(
     return NextResponse.json({ error: 'NO_EMAIL', message: 'Paciente no tiene email registrado' }, { status: 400 });
   }
 
-  // Generate magic token (Phase 1A simple; Phase 2 con Supabase Auth magic links)
-  const magicToken = `mt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  // Generate magic token — CUID-style único por caso
+  // Phase 1A: visible en respuesta para testing local
+  // Phase 2: hash almacenado + Supabase Auth magic links después de BAA
+  const magicToken = `pt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
   const expiresIn24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  const portalUrl = `https://portal.lienmaster.net/auth?token=${magicToken}&case=${caseRecord.caseCode}`;
+  // Phase 1A: localhost · Phase 2: portal.lienmaster.net
+  const portalBase = process.env.PORTAL_URL ?? 'http://localhost:3004';
+  const portalUrl = `${portalBase}/intake/${magicToken}`;
 
   // SMS template
   const recipient = parsed.via === 'SMS' ? caseRecord.patient.phone! : caseRecord.patient.email!;
@@ -70,12 +74,13 @@ export async function POST(
     ? `Hola ${caseRecord.patient.firstName}, soy de Precision Medical. Para completar tu intake del caso ${caseRecord.caseCode}, click: ${portalUrl}. Expira en 24h. Dudas: (801) 375-2207.`
     : `Hi ${caseRecord.patient.firstName}, this is Precision Medical. To complete intake for case ${caseRecord.caseCode}, click: ${portalUrl}. Expires in 24h. Questions: (801) 375-2207.`;
 
-  // Update case
+  // Update case — persiste el token en DB para que el portal lo pueda verificar
   const updated = await db.case.update({
     where: { id: caseId },
     data: {
       intakeFormSentAt: new Date(),
       intakeFormSentVia: parsed.via,
+      portalToken: magicToken,           // ← nuevo campo B.5-B.9
       status: caseRecord.status === 'NEW_REFERRAL' ? 'INTAKE_PENDING' : caseRecord.status,
     },
   });

@@ -764,6 +764,9 @@ model Appointment {
 
   notes           String?
 
+  // B.16 Triaje — registro de signos vitales capturados por MA
+  triageRecord    TriageRecord?
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -791,6 +794,58 @@ enum AppointmentStatus {
   CANCELLED
   NO_SHOW
   PENDING
+}
+
+// ─── Triage Record (B.16 — Medical Assistant) ─────────────────────────────
+//
+// Signos vitales capturados por el MA antes de la visita del doctor.
+// Uno por Appointment. Se auto-sincroniza al abrir la nota del doctor (B.18).
+//
+model TriageRecord {
+  id             String      @id @default(cuid())
+  appointmentId  String      @unique
+  appointment    Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  // ─── Height ──────────────────────────────────────────────────────────────
+  heightFt       Int?        // pies
+  heightIn       Int?        // pulgadas
+  heightCm       Float?      // cms auto-calculado (stored for audit)
+
+  // ─── Weight ───────────────────────────────────────────────────────────────
+  weightLbs      Int?
+  weightOz       Int?
+  weightKg       Float?      // kgs auto-calculado
+
+  // ─── Blood Pressure ───────────────────────────────────────────────────────
+  systolicMmhg   Int?
+  diastolicMmhg  Int?
+
+  // ─── Pulse & Temperature ─────────────────────────────────────────────────
+  pulseBpm       Int?
+  tempFahrenheit Float?
+  tempCelsius    Float?      // auto-calculado
+
+  // ─── Oxygen ───────────────────────────────────────────────────────────────
+  o2Saturation   Int?        // porcentaje (e.g., 98)
+  onRoomAir      Boolean     @default(true)
+
+  // ─── Vision Acuity ────────────────────────────────────────────────────────
+  visualAcuityRight String?  // "20" (denominator de 20/X)
+  visualAcuityLeft  String?
+  visualAcuityBoth  String?
+  visionCorrected   Boolean  @default(false) // false=Uncorrected, true=Corrected
+
+  // ─── Chief Complaint ──────────────────────────────────────────────────────
+  chiefComplaint String?     @db.Text
+
+  // ─── Meta ─────────────────────────────────────────────────────────────────
+  capturedByUserId String?
+  capturedByName   String?   @default("MA")
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@map("triage_records")
 }
 
 // =====================================================

@@ -15,6 +15,16 @@ import {
   DialogFooter,
   Label,
 } from '@precision/ui';
+import {
+  PageHeader,
+  KpiCard,
+  FilterPill,
+  IconAction,
+  TagPill,
+  DataTable,
+  TableFooter,
+  EmptyState,
+} from '@/components/ui-phoenix';
 
 // B.33 — Servicios CPT/HCPCS/Custom
 
@@ -114,17 +124,15 @@ export function ServicesClient({ services, stats }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
-          <p className="text-text-2 text-sm mt-1">
-            {t('subtitle', { billable: stats.billable, internal: stats.internal, favorites: stats.favorites, mockup: 'Mockup B.33 · Fee schedule 2026' })}
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle', { billable: stats.billable, internal: stats.internal, favorites: stats.favorites, mockup: 'Mockup B.33 · Fee schedule 2026' })}
+        action={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
+          </Button>
+        }
+      />
 
       {/* Tabs */}
       <div className="flex gap-0 border-b border-border">
@@ -178,33 +186,32 @@ export function ServicesClient({ services, stats }: Props) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
-                <th className="w-10 text-center px-2 py-3 font-semibold">⭐</th>
-                <th className="text-left px-5 py-3 font-semibold">Código</th>
-                <th className="text-center px-5 py-3 font-semibold">Tipo</th>
-                <th className="text-left px-5 py-3 font-semibold">Descripción</th>
-                <th className="text-center px-5 py-3 font-semibold">Categoría</th>
-                <th className="text-right px-5 py-3 font-semibold">Fee 2026</th>
-                <th className="text-center px-5 py-3 font-semibold">Modifiers</th>
-                <th className="text-right px-5 py-3 font-semibold">Acciones</th>
-              </tr>
-            </thead>
+      <DataTable.Card>
+        <DataTable.Scroll>
+          <DataTable.Table>
+            <DataTable.Head>
+              <DataTable.Th align="center" width="40px">⭐</DataTable.Th>
+              <DataTable.Th>Código</DataTable.Th>
+              <DataTable.Th align="center">Tipo</DataTable.Th>
+              <DataTable.Th>Descripción</DataTable.Th>
+              <DataTable.Th align="center">Categoría</DataTable.Th>
+              <DataTable.Th align="right">Fee 2026</DataTable.Th>
+              <DataTable.Th align="center">Modifiers</DataTable.Th>
+              <DataTable.Th align="right">Acciones</DataTable.Th>
+            </DataTable.Head>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-text-muted text-sm">
-                    {search ? `No hay servicios que coincidan con "${search}"` : 'No hay servicios. Crea el primero arriba.'}
-                  </td>
+                  <DataTable.Td colSpan={8}>
+                    <EmptyState.Inline
+                      message={search ? `No hay servicios que coincidan con "${search}"` : 'No hay servicios. Crea el primero arriba.'}
+                    />
+                  </DataTable.Td>
                 </tr>
               ) : (
                 filtered.map((s) => (
-                  <tr key={s.id} className={`border-b border-border/30 hover:bg-white/[0.02] transition-colors ${!s.isActive ? 'opacity-50' : ''} ${s.isFavorite ? 'bg-brand/[0.04]' : ''}`}>
-                    <td className="text-center px-2 py-3.5">
+                  <DataTable.Row key={s.id} muted={!s.isActive} highlight={s.isFavorite}>
+                    <DataTable.Td align="center" className="px-2">
                       <button
                         type="button"
                         onClick={() => toggleFavorite(s)}
@@ -213,46 +220,46 @@ export function ServicesClient({ services, stats }: Props) {
                       >
                         <Star className={`w-4 h-4 ${s.isFavorite ? 'fill-amber text-amber' : 'text-text-muted/40'}`} />
                       </button>
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </DataTable.Td>
+                    <DataTable.Td>
                       <code className="text-text-1 font-mono font-bold text-sm">{s.code}</code>
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
                       <TypePill type={s.type} />
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </DataTable.Td>
+                    <DataTable.Td>
                       <div className="text-text-1 font-semibold text-[13px]">{s.shortDescription}</div>
                       {s.longDescription && (
                         <div className="text-text-muted text-[11px] mt-0.5 line-clamp-1" title={s.longDescription}>{s.longDescription}</div>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
                       <CategoryPill cat={s.category} />
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
+                    </DataTable.Td>
+                    <DataTable.Td align="right">
                       <span className="text-emerald font-mono font-bold">${s.currentFee.toFixed(2)}</span>
-                    </td>
-                    <td className="px-5 py-3.5 text-center text-text-muted font-mono text-[10px]">
+                    </DataTable.Td>
+                    <DataTable.Td align="center" className="text-text-muted font-mono text-[10px]">
                       {s.modifiersAllowed.length === 0 ? '—' : s.modifiersAllowed.join(' · ')}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
+                    </DataTable.Td>
+                    <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
                         <IconAction onClick={() => setViewing(s)}  icon={Eye}    label="Ver" />
                         <IconAction onClick={() => setEditing(s)}  icon={Pencil} label="Editar" />
                         <IconAction onClick={() => setDeleting(s)} icon={Trash2} label="Eliminar" variant="danger" />
                       </div>
-                    </td>
-                  </tr>
+                    </DataTable.Td>
+                  </DataTable.Row>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
-        <div className="px-5 py-3 bg-bg-2/30 border-t border-border text-xs text-text-muted flex items-center justify-between flex-wrap gap-2">
-          <span>{filtered.length} servicios mostrados</span>
-          <span className="font-mono">phoenix-dev · fiscal year 2026</span>
-        </div>
-      </div>
+          </DataTable.Table>
+        </DataTable.Scroll>
+        <TableFooter
+          left={`${filtered.length} servicios mostrados`}
+          right={<span className="font-mono">phoenix-dev · fiscal year 2026</span>}
+        />
+      </DataTable.Card>
 
       <ServiceDialog
         open={createOpen || editing !== null}
@@ -276,7 +283,7 @@ export function ServicesClient({ services, stats }: Props) {
   );
 }
 
-// ─── Atoms ──────────────────────────────────────────────────────────────────
+// ─── Local atoms (only domain-specific) ─────────────────────────────────────
 
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -291,32 +298,9 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-function KpiCard({ label, value, sub, color }: { label: string; value: number; sub: string; color: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-bg-1 px-5 py-4">
-      <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{label}</div>
-      <div className={`text-3xl font-bold mt-1 ${color}`}>{value}</div>
-      <div className="text-[11px] text-text-muted mt-0.5">{sub}</div>
-    </div>
-  );
-}
-
-function FilterPill({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-        active ? 'bg-gradient-brand text-white' : 'bg-bg-2 border border-border text-text-2 hover:text-text-1 hover:border-border-strong'
-      }`}
-    >
-      {label} <span className="opacity-70 font-mono">({count})</span>
-    </button>
-  );
-}
-
+/** TypePill — Pill por tipo de servicio CPT/HCPCS/CUSTOM_PM */
 function TypePill({ type }: { type: string }) {
-  const styles: Record<string, string> = {
+  const colors: Record<string, string> = {
     CPT:       'bg-brand/15 text-brand border-brand/30',
     HCPCS:     'bg-emerald/15 text-emerald border-emerald/30',
     CUSTOM_PM: 'bg-pink/15 text-pink border-pink/30',
@@ -324,58 +308,18 @@ function TypePill({ type }: { type: string }) {
   const labels: Record<string, string> = {
     CPT: 'CPT', HCPCS: 'HCPCS', CUSTOM_PM: 'PM-',
   };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold font-mono border ${styles[type] ?? ''}`}>
-      {labels[type] ?? type}
-    </span>
-  );
+  return <TagPill label={labels[type] ?? type} colorClass={colors[type] ?? 'bg-white/5 text-text-2 border-border'} mono />;
 }
 
+/** CategoryPill — Pill compact por categoría AMA (E&M, Chiro, PT, etc.) */
 function CategoryPill({ cat }: { cat: string }) {
   const labels: Record<string, string> = {
-    EM: 'E&M',
-    CHIROPRACTIC: 'Chiro',
-    PHYSICAL_THERAPY: 'PT',
-    IMAGING: 'Imaging',
-    INJECTIONS: 'Inject',
-    SURGERY: 'Surgery',
-    DME: 'DME',
-    DRUGS: 'Drugs',
-    LAB: 'Lab',
-    REPORTS: 'Reports',
-    CUSTOM: 'Custom',
-    OTHER: 'Other',
+    EM: 'E&M', CHIROPRACTIC: 'Chiro', PHYSICAL_THERAPY: 'PT',
+    IMAGING: 'Imaging', INJECTIONS: 'Inject', SURGERY: 'Surgery',
+    DME: 'DME', DRUGS: 'Drugs', LAB: 'Lab',
+    REPORTS: 'Reports', CUSTOM: 'Custom', OTHER: 'Other',
   };
-  return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-bg-2 text-text-2 border border-border">
-      {labels[cat] ?? cat}
-    </span>
-  );
-}
-
-function IconAction({
-  onClick, icon: Icon, label, variant = 'default',
-}: {
-  onClick: () => void;
-  icon: React.ElementType;
-  label: string;
-  variant?: 'default' | 'danger';
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
-        variant === 'danger'
-          ? 'text-text-muted hover:text-rose hover:bg-rose/10'
-          : 'text-text-muted hover:text-text-1 hover:bg-white/5'
-      }`}
-    >
-      <Icon className="w-3.5 h-3.5" />
-    </button>
-  );
+  return <TagPill label={labels[cat] ?? cat} colorClass="bg-bg-2 text-text-2 border-border" compact />;
 }
 
 // ─── Modals ──────────────────────────────────────────────────────────────────

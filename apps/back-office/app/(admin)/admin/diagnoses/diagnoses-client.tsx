@@ -15,6 +15,16 @@ import {
   DialogFooter,
   Label,
 } from '@precision/ui';
+import {
+  PageHeader,
+  KpiCard,
+  FilterPill,
+  IconAction,
+  TagPill,
+  DataTable,
+  TableFooter,
+  EmptyState,
+} from '@/components/ui-phoenix';
 
 // B.35 — Diagnósticos ICD-10 + SNOMED CT dual
 
@@ -94,17 +104,15 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
-          <p className="text-text-2 text-sm mt-1">
-            {t('subtitle', { piRelevant: stats.piRelevant, favorites: stats.favorites, mockup: 'Mockup B.35' })}
-          </p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle', { piRelevant: stats.piRelevant, favorites: stats.favorites, mockup: 'Mockup B.35' })}
+        action={
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard label={t('kpiTotal')}       value={stats.total}      sub="Catalog"        color="text-text-1" />
@@ -141,40 +149,40 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
-                <th className="w-10 text-center px-2 py-3 font-semibold">⭐</th>
-                <th className="text-left px-5 py-3 font-semibold">ICD-10 (billing)</th>
-                <th className="text-left px-5 py-3 font-semibold">SNOMED CT (clínico)</th>
-                <th className="text-center px-5 py-3 font-semibold">Cat.</th>
-                <th className="text-left px-5 py-3 font-semibold">Body system</th>
-                <th className="text-center px-5 py-3 font-semibold">PI</th>
-                <th className="text-right px-5 py-3 font-semibold">Acciones</th>
-              </tr>
-            </thead>
+      <DataTable.Card>
+        <DataTable.Scroll>
+          <DataTable.Table>
+            <DataTable.Head>
+              <DataTable.Th align="center" width="40px">⭐</DataTable.Th>
+              <DataTable.Th>ICD-10 (billing)</DataTable.Th>
+              <DataTable.Th>SNOMED CT (clínico)</DataTable.Th>
+              <DataTable.Th align="center">Cat.</DataTable.Th>
+              <DataTable.Th>Body system</DataTable.Th>
+              <DataTable.Th align="center">PI</DataTable.Th>
+              <DataTable.Th align="right">Acciones</DataTable.Th>
+            </DataTable.Head>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-text-muted text-sm">
-                    {search ? `No hay diagnósticos que coincidan con "${search}"` : 'No hay diagnósticos. Crea el primero arriba.'}
-                  </td>
+                  <DataTable.Td colSpan={7}>
+                    <EmptyState.Inline
+                      message={search ? `No hay diagnósticos que coincidan con "${search}"` : 'No hay diagnósticos. Crea el primero arriba.'}
+                    />
+                  </DataTable.Td>
                 </tr>
               ) : (
                 filtered.map((d) => (
-                  <tr key={d.id} className={`border-b border-border/30 hover:bg-white/[0.02] transition-colors ${!d.isActive ? 'opacity-50' : ''} ${d.isFavorite ? 'bg-brand/[0.04]' : ''}`}>
-                    <td className="text-center px-2 py-3.5">
+                  <DataTable.Row key={d.id} muted={!d.isActive} highlight={d.isFavorite}>
+                    <DataTable.Td align="center" className="px-2">
                       <button type="button" onClick={() => toggleFavorite(d)} className="hover:scale-125 transition-transform" title={d.isFavorite ? 'Quitar' : 'Marcar favorito'}>
                         <Star className={`w-4 h-4 ${d.isFavorite ? 'fill-amber text-amber' : 'text-text-muted/40'}`} />
                       </button>
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </DataTable.Td>
+                    <DataTable.Td>
                       <code className="text-brand font-mono font-bold text-sm">{d.icd10Code}</code>
                       <div className="text-text-1 text-[12.5px] mt-0.5 line-clamp-1" title={d.icd10Description}>{d.icd10Description}</div>
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </DataTable.Td>
+                    <DataTable.Td>
                       {d.snomedCode ? (
                         <>
                           <code className="text-emerald font-mono font-bold text-sm">{d.snomedCode}</code>
@@ -183,40 +191,38 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
                       ) : (
                         <span className="text-text-muted italic text-xs">Sin SNOMED mapping</span>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
                       <CategoryPill cat={d.category} />
-                    </td>
-                    <td className="px-5 py-3.5 text-text-2 text-xs">
+                    </DataTable.Td>
+                    <DataTable.Td className="text-text-2 text-xs">
                       {d.bodySystem ?? <span className="text-text-muted italic">—</span>}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
+                    </DataTable.Td>
+                    <DataTable.Td align="center">
                       {d.piRelevant ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose/15 text-rose border border-rose/30">
-                          🩸 PI
-                        </span>
+                        <TagPill label="🩸 PI" colorClass="bg-rose/15 text-rose border-rose/30" />
                       ) : (
                         <span className="text-text-muted text-[10px]">—</span>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
+                    </DataTable.Td>
+                    <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
                         <IconAction onClick={() => setViewing(d)}  icon={Eye}    label="Ver" />
                         <IconAction onClick={() => setEditing(d)}  icon={Pencil} label="Editar" />
                         <IconAction onClick={() => setDeleting(d)} icon={Trash2} label="Eliminar" variant="danger" />
                       </div>
-                    </td>
-                  </tr>
+                    </DataTable.Td>
+                  </DataTable.Row>
                 ))
               )}
             </tbody>
-          </table>
-        </div>
-        <div className="px-5 py-3 bg-bg-2/30 border-t border-border text-xs text-text-muted flex items-center justify-between flex-wrap gap-2">
-          <span>{filtered.length} diagnósticos mostrados</span>
-          <span className="text-text-muted">ICD-10 source: CDC · SNOMED CT source: NLM/UMLS · Both free for US clinical use</span>
-        </div>
-      </div>
+          </DataTable.Table>
+        </DataTable.Scroll>
+        <TableFooter
+          left={`${filtered.length} diagnósticos mostrados`}
+          right={<span className="text-text-muted">ICD-10 source: CDC · SNOMED CT source: NLM/UMLS · Both free for US clinical use</span>}
+        />
+      </DataTable.Card>
 
       <DiagnosisDialog
         open={createOpen || editing !== null}
@@ -240,34 +246,11 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
   );
 }
 
-// ─── Atoms ──────────────────────────────────────────────────────────────────
+// ─── Domain pills ───────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, sub, color }: { label: string; value: number; sub: string; color: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-bg-1 px-5 py-4">
-      <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{label}</div>
-      <div className={`text-3xl font-bold mt-1 ${color}`}>{value}</div>
-      <div className="text-[11px] text-text-muted mt-0.5">{sub}</div>
-    </div>
-  );
-}
-
-function FilterPill({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-        active ? 'bg-gradient-brand text-white' : 'bg-bg-2 border border-border text-text-2 hover:text-text-1 hover:border-border-strong'
-      }`}
-    >
-      {label} <span className="opacity-70 font-mono">({count})</span>
-    </button>
-  );
-}
-
+/** CategoryPill — Pill por capítulo ICD-10 (S/T/M/R/G/F/V_W/Z/OTHER) */
 function CategoryPill({ cat }: { cat: string }) {
-  const styles: Record<string, string> = {
+  const colors: Record<string, string> = {
     S: 'bg-rose/15 text-rose border-rose/30',
     T: 'bg-rose/15 text-rose border-rose/30',
     M: 'bg-amber/15 text-amber border-amber/30',
@@ -278,29 +261,7 @@ function CategoryPill({ cat }: { cat: string }) {
     Z: 'bg-emerald/15 text-emerald border-emerald/30',
     OTHER: 'bg-white/5 text-text-2 border-border',
   };
-  return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${styles[cat] ?? styles.OTHER}`}>
-      {cat}
-    </span>
-  );
-}
-
-function IconAction({ onClick, icon: Icon, label, variant = 'default' }: { onClick: () => void; icon: React.ElementType; label: string; variant?: 'default' | 'danger' }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
-        variant === 'danger'
-          ? 'text-text-muted hover:text-rose hover:bg-rose/10'
-          : 'text-text-muted hover:text-text-1 hover:bg-white/5'
-      }`}
-    >
-      <Icon className="w-3.5 h-3.5" />
-    </button>
-  );
+  return <TagPill label={cat} colorClass={colors[cat] ?? colors.OTHER} mono compact />;
 }
 
 // ─── Modals ──────────────────────────────────────────────────────────────────

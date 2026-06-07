@@ -666,7 +666,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           </InfoCard>
 
           {/* ── Form delivery ───────────────────────────────────────────── */}
-          <InfoCard title="Entrega del formulario al paciente" icon={Send} tone="amber">
+          <InfoCard title="Entrega del formulario al paciente" icon={Send} tone="emerald">
             <div className="text-text-2 text-xs">El encargado puede elegir cuándo enviar el formulario público:</div>
             <div className="grid grid-cols-2 gap-2">
               <SelectableCard

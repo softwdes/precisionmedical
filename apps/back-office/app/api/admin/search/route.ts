@@ -25,7 +25,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const limit = 5; // por categoría
 
   // Búsqueda case-insensitive con prisma `contains` + mode insensitive
-  const [specialties, lawyers, insurances, services, diagnoses] = await Promise.all([
+  const [specialties, lawyers, insurances, services, diagnoses, patients] = await Promise.all([
     db.specialtyCatalog.findMany({
       where: {
         deletedAt: null,
@@ -92,11 +92,45 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       take: limit,
       select: { id: true, icd10Code: true, icd10Description: true, snomedCode: true, piRelevant: true },
     }),
+    // Patients — Phase 1A: mock data only · Phase 2: RLS-protected PHI
+    db.patient.findMany({
+      where: {
+        OR: [
+          { firstName: { contains: q, mode: 'insensitive' } },
+          { lastName: { contains: q, mode: 'insensitive' } },
+          { patientCode: { contains: q, mode: 'insensitive' } },
+          { phone: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      take: limit,
+      select: {
+        id: true,
+        patientCode: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        email: true,
+        status: true,
+        dateOfBirth: true,
+        _count: { select: { cases: true } },
+      },
+    }),
   ]);
 
   return NextResponse.json({
     query: q,
     results: {
+      patients: patients.map((p) => ({
+        id: p.id,
+        patientCode: p.patientCode,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        phone: p.phone,
+        email: p.email,
+        status: p.status,
+        casesCount: p._count.cases,
+      })),
       specialties,
       lawyers: lawyers.map((l) => ({
         id: l.id,

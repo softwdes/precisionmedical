@@ -12,12 +12,15 @@ import {
   FileText,
   X,
   ArrowRight,
+  User,
+  Phone,
 } from 'lucide-react';
 
 // B.34 — Patient Global Search ⌘K
 // Command palette transversal. Busca catalogos + (Phase 2) PHI con RLS.
 
 interface SearchResults {
+  patients: Array<{ id: string; patientCode: string; firstName: string; lastName: string; phone: string | null; email: string | null; status: string; casesCount: number }>;
   specialties: Array<{ id: string; name: string; color: string; isActive: boolean }>;
   lawyers: Array<{ id: string; kind: string; firmName: string | null; memberName: string | null; email: string; memberRole: string | null; parentFirmId: string | null }>;
   insurances: Array<{ id: string; name: string; shortCode: string; color: string; type: string }>;
@@ -26,7 +29,7 @@ interface SearchResults {
 }
 
 const EMPTY_RESULTS: SearchResults = {
-  specialties: [], lawyers: [], insurances: [], services: [], diagnoses: [],
+  patients: [], specialties: [], lawyers: [], insurances: [], services: [], diagnoses: [],
 };
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }): React.ReactElement | null {
@@ -72,6 +75,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   }, [router, onOpenChange]);
 
   const totalResults =
+    results.patients.length +
     results.specialties.length +
     results.lawyers.length +
     results.insurances.length +
@@ -129,6 +133,32 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             <Command.Empty className="px-3 py-12 text-center text-text-muted text-sm">
               No se encontró nada para "<span className="text-text-1 font-mono">{query}</span>"
             </Command.Empty>
+          )}
+
+          {/* Pacientes — al tope · entrada principal para B.4 ficha */}
+          {results.patients.length > 0 && (
+            <Command.Group heading={<GroupHeading icon={User} label="Pacientes" count={results.patients.length} />}>
+              {results.patients.map((p) => (
+                <ResultItem
+                  key={p.id}
+                  value={`patient-${p.id}`}
+                  onSelect={() => go(`/patients/${p.id}`)}
+                  icon={
+                    <div className="w-6 h-6 rounded-full bg-gradient-brand flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+                      {p.firstName[0]}{p.lastName[0]}
+                    </div>
+                  }
+                  title={`${p.firstName} ${p.lastName}`}
+                  subtitle={
+                    <span className="flex items-center gap-2">
+                      <code className="font-mono">{p.patientCode}</code>
+                      {p.phone && <span className="flex items-center gap-1"><Phone className="w-2.5 h-2.5" />{p.phone}</span>}
+                      <span>· {p.casesCount} caso{p.casesCount !== 1 ? 's' : ''}</span>
+                    </span>
+                  }
+                />
+              ))}
+            </Command.Group>
           )}
 
           {/* Specialties */}
@@ -257,7 +287,7 @@ function ResultItem({
   onSelect: () => void;
   icon: React.ReactNode;
   title: string;
-  subtitle: string;
+  subtitle: React.ReactNode;
 }) {
   return (
     <Command.Item

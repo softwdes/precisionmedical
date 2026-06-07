@@ -44,3 +44,8 @@ export { PersonAvatar } from './person-avatar';
 export type { PersonAvatarProps } from './person-avatar';
 
 export { Skeleton } from './skeleton';
+
+export { FormField } from './form-field';
+
+export { InfoCard, InfoRow } from './info-card';
+export type { InfoCardProps } from './info-card';

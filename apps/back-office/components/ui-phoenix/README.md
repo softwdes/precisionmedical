@@ -3,6 +3,25 @@
 Fuente de verdad para el estilo visual de **todas** las pantallas del back-office.
 Origen: B.36 Specialties (la primera que pulimos al estilo del admin).
 
+## ⚠ Regla #0 · ESTILO DEL ADMIN ES OBLIGATORIO
+
+> **Todo módulo, vista o pantalla nueva DEBE usar el estilo de `apps/web` (admin).**
+> No hay alternativas. Si necesitás algo nuevo, agregalo a este módulo — nunca
+> inline en la pantalla.
+
+Cuando construyas algo nuevo:
+1. Buscá primero en `apps/web/components/` o `apps/web/app/(admin)/` el patrón equivalente
+2. Buscá si existe ya en este módulo (`ui-phoenix/`)
+3. Si no existe, **agregalo a `ui-phoenix/`** con doc + tipo · no inline
+
+**Anti-patrones explícitamente prohibidos** (ver `apps/back-office/CLAUDE.md` para la
+tabla completa):
+- `border-2` (los bordes son siempre `border` simple)
+- `bg-gradient-to-*` en cards/sections (gradients solo en `bg-gradient-brand` para CTAs)
+- `<Section>`, `<Field>`, `<Card>` locales (usar los primitivos)
+- `text-white` (usar `text-text-1`)
+- Iconos `w-5 h-5` en lugares donde corresponde `w-4 h-4` o `w-3.5 h-3.5`
+
 ## Regla #1
 
 > Si vas a hacer una pantalla nueva, importá desde `@/components/ui-phoenix`.

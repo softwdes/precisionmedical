@@ -15,7 +15,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock } from 'lucide-react';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 
@@ -89,11 +89,27 @@ function timeToMinutes(t: string): number {
   return h * 60 + m;
 }
 
+// ─── Timezone helpers (Mountain Time / America/Denver) ────────────────────────
+// Toda la clínica opera en Utah (MDT = UTC−6 / MST = UTC−7).
+// Usamos 'America/Denver' para que el calendario sea correcto sin importar
+// la timezone del browser del usuario.
+
+function denverDateStr(d: Date): string {
+  // Returns 'YYYY-MM-DD' in America/Denver timezone
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+}
+
 function slotOf(isoString: string): string {
   const d = new Date(isoString);
-  const h = String(d.getHours()).padStart(2, '0');
-  const m = d.getMinutes() < 30 ? '00' : '30';
-  return `${h}:${m}`;
+  const t = d.toLocaleTimeString('en-US', {
+    timeZone: 'America/Denver',
+    hour12:   false,
+    hour:     '2-digit',
+    minute:   '2-digit',
+  });
+  // t is "09:30" or "14:00"
+  const [h, m] = t.split(':').map(Number);
+  return `${String(h).padStart(2, '0')}:${m < 30 ? '00' : '30'}`;
 }
 
 // ─── Color por tipo + primera cita ───────────────────────────────────────────
@@ -150,6 +166,80 @@ function getEventStyle(appt: CalendarAppointment): {
   return { bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.35)', text: '#67e8f9' };
 }
 
+// ─── FilterChip ───────────────────────────────────────────────────────────────
+
+function FilterChip({
+  emoji,
+  placeholder,
+  value,
+  options,
+  onChange,
+}: {
+  emoji: string;
+  placeholder: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find(o => o.value === value);
+  const label = current?.label ?? placeholder;
+  const isActive = !!value;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`flex items-center gap-1.5 pl-2.5 pr-1.5 h-7 rounded text-[11px] font-medium border transition-all ${
+          isActive
+            ? 'border-cyan bg-cyan/15 text-cyan'
+            : 'border-border/60 bg-white/[0.04] text-text-2 hover:border-border hover:text-text-1'
+        }`}
+      >
+        <span className="leading-none">{emoji}</span>
+        <span className="max-w-[100px] truncate">{label}</span>
+        <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <>
+          {/* Click-away backdrop */}
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          {/* Dropdown panel */}
+          <div className="absolute top-[calc(100%+4px)] left-0 z-30 min-w-[180px] rounded-lg border border-border bg-bg-1 shadow-2xl py-1 overflow-hidden">
+            {/* "All" option */}
+            <button
+              type="button"
+              onClick={() => { onChange(''); setOpen(false); }}
+              className={`w-full text-left flex items-center px-3 py-1.5 text-[12px] transition-colors hover:bg-white/5 ${
+                !value ? 'text-cyan font-semibold' : 'text-text-2'
+              }`}
+            >
+              {placeholder}
+              {!value && <span className="ml-auto text-[10px]">✓</span>}
+            </button>
+            <div className="h-px bg-border/40 mx-2 my-0.5" />
+            {options.map(o => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => { onChange(o.value); setOpen(false); }}
+                className={`w-full text-left flex items-center px-3 py-1.5 text-[12px] transition-colors hover:bg-white/5 ${
+                  value === o.value ? 'text-cyan font-semibold' : 'text-text-2'
+                }`}
+              >
+                {o.label}
+                {value === o.value && <span className="ml-auto text-[10px]">✓</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CalendarClient({ clinics, providers }: CalendarClientProps) {
@@ -195,12 +285,12 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
   // Index appointments by day×slot for quick lookup
-  type ApptMap = Record<string, Record<string, CalendarAppointment[]>>; // dayISO → slot → []
+  type ApptMap = Record<string, Record<string, CalendarAppointment[]>>; // dayDenver → slot → []
   const apptMap: ApptMap = {};
   for (const appt of appointments) {
     const d   = new Date(appt.scheduledFor);
-    const day = d.toISOString().slice(0, 10);
-    const slot = slotOf(appt.scheduledFor);
+    const day  = denverDateStr(d);          // ← Denver date, was: d.toISOString().slice(0,10)
+    const slot = slotOf(appt.scheduledFor); // ← Denver hour slot
     if (!apptMap[day]) apptMap[day] = {};
     if (!apptMap[day][slot]) apptMap[day][slot] = [];
     apptMap[day][slot].push(appt);
@@ -244,63 +334,39 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
         {/* Filter chips inline */}
         <div className="flex flex-wrap items-center gap-1.5">
-          {/* Clínica chip */}
-          <div className="relative">
-            <select
-              value={filterClinic}
-              onChange={e => setFilterClinic(e.target.value)}
-              className={`h-7 pl-2 pr-6 rounded text-[11px] border appearance-none cursor-pointer transition-colors ${
-                filterClinic
-                  ? 'border-cyan/40 bg-cyan/10 text-cyan'
-                  : 'border-border bg-bg-1 text-text-2 hover:border-border-strong'
-              }`}
-            >
-              <option value="">🏥 Todas las clínicas</option>
-              {clinics.map(c => <option key={c.id} value={c.id}>🏥 {c.name}</option>)}
-            </select>
-          </div>
-
-          {/* Doctor chip */}
-          <div className="relative">
-            <select
-              value={filterProvider}
-              onChange={e => setFilterProvider(e.target.value)}
-              className={`h-7 pl-2 pr-6 rounded text-[11px] border appearance-none cursor-pointer transition-colors ${
-                filterProvider
-                  ? 'border-cyan/40 bg-cyan/10 text-cyan'
-                  : 'border-border bg-bg-1 text-text-2 hover:border-border-strong'
-              }`}
-            >
-              <option value="">👨‍⚕️ Todos los doctores</option>
-              {providers.map(p => <option key={p.id} value={p.id}>Dr. {p.lastName}</option>)}
-            </select>
-          </div>
-
-          {/* Tipo chip */}
-          <div className="relative">
-            <select
-              value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-              className={`h-7 pl-2 pr-6 rounded text-[11px] border appearance-none cursor-pointer transition-colors ${
-                filterType
-                  ? 'border-cyan/40 bg-cyan/10 text-cyan'
-                  : 'border-border bg-bg-1 text-text-2 hover:border-border-strong'
-              }`}
-            >
-              <option value="">🚗 MVA + GP</option>
-              <option value="AUTO_ACCIDENT">🚗 MVA</option>
-              <option value="FAMILY_PRACTICE">🩺 GP</option>
-              <option value="URGENT_CARE">⚡ Urgent Care</option>
-              <option value="FOLLOW_UP">🔄 Follow-up</option>
-            </select>
-          </div>
-
-          {/* Clear chip */}
+          <FilterChip
+            emoji="🏥"
+            placeholder="Todas las clínicas"
+            value={filterClinic}
+            options={clinics.map(c => ({ value: c.id, label: c.name }))}
+            onChange={setFilterClinic}
+          />
+          <FilterChip
+            emoji="👨‍⚕️"
+            placeholder="Todos los doctores"
+            value={filterProvider}
+            options={providers.map(p => ({ value: p.id, label: `Dr. ${p.lastName}` }))}
+            onChange={setFilterProvider}
+          />
+          <FilterChip
+            emoji="🚗"
+            placeholder="MVA + GP"
+            value={filterType}
+            options={[
+              { value: 'AUTO_ACCIDENT',   label: '🚗 MVA (auto)' },
+              { value: 'FAMILY_PRACTICE', label: '🩺 Family Practice' },
+              { value: 'URGENT_CARE',     label: '⚡ Urgent Care' },
+              { value: 'FOLLOW_UP',       label: '🔄 Follow-up' },
+            ]}
+            onChange={setFilterType}
+          />
           {(filterClinic || filterProvider || filterType) && (
-            <button type="button"
+            <button
+              type="button"
               onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); }}
-              className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors">
-              ✕ Limpiar
+              className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors"
+            >
+              ✕
             </button>
           )}
         </div>
@@ -389,7 +455,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
               {/* Day cells */}
               {days.map((day, di) => {
-                const dayKey = day.toISOString().slice(0, 10);
+                const dayKey = denverDateStr(day);          // ← Denver date key
                 const isToday = day.getTime() === today.getTime();
                 const cellAppts = apptMap[dayKey]?.[slot] ?? [];
 

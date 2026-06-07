@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2, FileCheck, Zap, CalendarCheck } from 'lucide-react';
+import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2, FileCheck, Zap, CalendarCheck, Search, X, ArrowUpDown } from 'lucide-react';
 import { Button } from '@precision/ui';
 import {
   PageHeader,
@@ -78,6 +78,8 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
   const router = useRouter();
   const t = useTranslations('phoenix.frontOffice');
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'urgency' | 'dol' | 'created'>('urgency');
   const [newCaseOpen, setNewCaseOpen] = useState(false);
   const [newCaseInitial, setNewCaseInitial] = useState<NewCaseInitialState | null>(null);
   const [sendPortalCase, setSendPortalCase] = useState<PhoenixCase | null>(null);
@@ -85,7 +87,53 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
   const [scheduleCase, setScheduleCase] = useState<PhoenixCase | null>(null);
   const [markingIntake, setMarkingIntake] = useState<string | null>(null);
 
-  const filtered = filter === 'all' ? cases : cases.filter((c) => c.status === filter);
+  // ─── Filtrado + búsqueda + orden ─────────────────────────────────────────
+  // Record<string, number> (no CaseStatus) para no fallar si llega ACTIVE u otro status futuro
+  const STATUS_PRIORITY: Record<string, number> = {
+    NEW_REFERRAL:     4,  // urgente: hay que contactar al paciente
+    INTAKE_COMPLETED: 3,  // urgente: llamar 24h antes para confirmar
+    INTAKE_PENDING:   2,  // esperando que paciente complete portal
+    CONFIRMED:        1,  // listo: solo falta agendar
+    ACTIVE:           0,  // ya agendado · no debería aparecer aquí pero safe
+  };
+
+  const filtered = cases
+    .filter((c) => {
+      // Filtro de status
+      if (filter !== 'all' && c.status !== filter) return false;
+      // Búsqueda por texto
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        c.patient.firstName.toLowerCase().includes(q) ||
+        c.patient.lastName.toLowerCase().includes(q) ||
+        `${c.patient.firstName} ${c.patient.lastName}`.toLowerCase().includes(q) ||
+        (c.patient.phone ?? '').toLowerCase().replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
+        c.caseCode.toLowerCase().includes(q) ||
+        (c.lawFirm?.firmName ?? '').toLowerCase().includes(q) ||
+        (c.accidentLocation ?? '').toLowerCase().includes(q) ||
+        (c.patient.email ?? '').toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === 'urgency') {
+        const diff = (STATUS_PRIORITY[b.status] ?? 0) - (STATUS_PRIORITY[a.status] ?? 0);
+        if (diff !== 0) return diff;
+        // Desempate: más antiguo primero dentro del mismo status
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (sortBy === 'dol') {
+        // DOL más reciente primero (accidente reciente = más urgente en PI)
+        const da = a.accidentDate ? new Date(a.accidentDate).getTime() : 0;
+        const db = b.accidentDate ? new Date(b.accidentDate).getTime() : 0;
+        return da - db; // DOL más antiguo primero (lleva más tiempo esperando)
+      }
+      if (sortBy === 'created') {
+        // Caso más antiguo primero (espera más tiempo en la queue)
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return 0;
+    });
 
   const handleNewCase = () => {
     setNewCaseInitial(null);
@@ -180,13 +228,70 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
         <FilterPill active={filter === 'CONFIRMED'}        onClick={() => setFilter('CONFIRMED')}        label={t('filterConfirmed')}   count={stats.CONFIRMED} />
       </div>
 
+      {/* Search + Sort bar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Input de búsqueda */}
+        <div className="flex-1 min-w-[200px] relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, código, teléfono, bufete..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 text-sm bg-bg-2 border border-border rounded-lg text-text-1 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/40 transition-colors"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1 transition-colors"
+              aria-label="Limpiar búsqueda"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Sort selector */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <ArrowUpDown className="w-3.5 h-3.5 text-text-muted" />
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="py-2 pl-2 pr-6 text-sm bg-bg-2 border border-border rounded-lg text-text-1 focus:outline-none focus:ring-1 focus:ring-brand/40 appearance-none cursor-pointer"
+          >
+            <option value="urgency">Urgencia</option>
+            <option value="dol">DOL (antiguo→reciente)</option>
+            <option value="created">Más tiempo en cola</option>
+          </select>
+        </div>
+
+        {/* Contador de resultados — solo cuando hay filtro activo */}
+        {(search || filter !== 'all') && (
+          <span className="text-text-muted text-[11px] shrink-0">
+            {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
+            {search && <> para <span className="text-text-2 font-medium">"{search}"</span></>}
+          </span>
+        )}
+      </div>
+
       {/* Case list */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {filtered.length === 0 && !search && filter === 'all' ? (
           <EmptyState.Rich
             icon={FileText}
             title="No hay casos en esta cola"
             subtitle='Buen trabajo. Cuando entre una llamada, click "Nueva llamada".'
+          />
+        ) : filtered.length === 0 ? (
+          <EmptyState.Rich
+            icon={Search}
+            title={search ? `Sin resultados para "${search}"` : 'No hay casos con este filtro'}
+            subtitle={
+              search
+                ? 'Probá con el nombre completo, número de teléfono o código del caso'
+                : 'Cambiá el filtro de status para ver otros casos'
+            }
           />
         ) : (
           filtered.map((c) => (

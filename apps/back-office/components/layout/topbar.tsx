@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { Bell, Search, Moon, Sun, Languages, Menu } from 'lucide-react';
+import { Bell, Search, Moon, Sun, Menu } from 'lucide-react';
 import { CommandPalette } from './command-palette';
 
 interface TopbarProps {
@@ -63,8 +63,8 @@ export function Topbar({
     document.documentElement.setAttribute('data-theme', next);
   };
 
-  const toggleLocale = (): void => {
-    const next = currentLocale === 'en' ? 'es' : 'en';
+  const setLocale = (next: 'en' | 'es'): void => {
+    if (next === currentLocale) return;
     document.cookie = `locale=${next};path=/;max-age=${60 * 60 * 24 * 365};SameSite=Lax`;
     router.refresh();
     setTimeout(() => window.location.reload(), 50);
@@ -104,17 +104,32 @@ export function Topbar({
           <span className="font-mono text-xs text-text-2 tabular-nums">{time}</span>
         </div>
 
-        {/* Language toggle */}
-        <button
-          type="button"
-          onClick={toggleLocale}
-          className="h-9 px-2 sm:px-3 rounded-md hover:bg-white/5 flex items-center gap-1.5 text-text-2 hover:text-text-1 transition-colors"
+        {/* Language toggle · segmented control EN / ES */}
+        <div
+          className="inline-flex items-center h-9 p-0.5 rounded-md bg-bg-2 border border-border"
+          role="group"
           aria-label={t('switchLanguage')}
-          title={t('switchLanguage')}
         >
-          <Languages className="w-4 h-4" />
-          <span className="text-xs font-bold uppercase tabular-nums">{currentLocale}</span>
-        </button>
+          {(['en', 'es'] as const).map((code) => {
+            const active = currentLocale === code;
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setLocale(code)}
+                aria-pressed={active}
+                aria-label={`Switch to ${code.toUpperCase()}`}
+                className={`px-2.5 h-full min-w-[2.25rem] rounded text-[11px] font-bold uppercase tabular-nums tracking-wider transition-all ${
+                  active
+                    ? 'bg-gradient-brand text-white shadow-glow'
+                    : 'text-text-muted hover:text-text-1'
+                }`}
+              >
+                {code}
+              </button>
+            );
+          })}
+        </div>
 
         {/* Notification bell */}
         <button

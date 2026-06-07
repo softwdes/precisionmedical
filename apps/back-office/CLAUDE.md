@@ -185,11 +185,72 @@ mobile cards).
 
 ---
 
+## Regla #5 · Colores del mockup son fuente de verdad (APROBADO GERENCIA)
+
+Los mockups canónicos (`docs/propuesta-clinica/mockups-flujo-completo.html`) fueron
+**aprobados por gerencia el 2026-06-05**. Los colores que aparecen en esos mockups
+para cada módulo específico son la referencia visual autoritativa — NO son sugerencias.
+
+**La regla dual:**
+1. **Estructura y primitivos** → siempre del sistema ui-phoenix (Regla #0)
+2. **Colores de accent / highlight / identidad de módulo** → del mockup aprobado
+
+### Cómo aplicar esto en la práctica
+
+Al construir un módulo nuevo:
+
+1. **Abrí el mockup** (`mockups-flujo-completo.html` → sección B.X correspondiente)
+2. **Identificá el color de accent dominante** del módulo (ej: B.11 Calendar usa cyan, B.16 Triage usa emerald, B.18 Doctor usa violet)
+3. **Mapeá ese color al token más cercano** del sistema:
+
+| Color en mockup | Token del sistema |
+|---|---|
+| Cyan / Teal (`#06B6D4`, `#0891B2`) | `cyan` |
+| Emerald / Green (`#10B981`, `#059669`) | `emerald` |
+| Indigo / Brand (`#6366F1`, `#4F46E5`) | `brand` |
+| Violet / Purple (`#8B5CF6`, `#7C3AED`) | `violet` |
+| Amber / Yellow (`#F59E0B`, `#D97706`) | `amber` |
+| Rose / Red (`#F43F5E`, `#E11D48`) | `rose` |
+
+4. **Si el mockup usa un gradiente** (ej: `from-violet to-purple`), replicarlo exactamente en los headers/accents del módulo, no cambiar a un color "más neutro"
+5. **Si el mockup tiene un color que no existe en el sistema** → agregalo a los tokens Tailwind config y documentalo acá
+
+### Anti-patrón prohibido
+
+```
+// ❌ MAL — ignorar el mockup y usar brand por default
+<div className="bg-brand/10 border-brand/30">  // cuando el mockup muestra cyan
+
+// ✅ BIEN — respetar el color del mockup aprobado
+<div className="bg-cyan/10 border-cyan/30">
+```
+
+### Por módulo (referencia rápida)
+
+| Módulo | Color de identidad | Token |
+|---|---|---|
+| B.1-B.4 Front Office / Recepción | Indigo/Brand | `brand` |
+| B.5-B.9 Portal Paciente | Cyan + Emerald | `cyan` / `emerald` |
+| B.10-B.11 Calendario | Cyan | `cyan` |
+| B.12-B.13 Edson (intake/legal) | Amber | `amber` |
+| B.14-B.15 Admisión | Emerald | `emerald` |
+| B.16 Triaje MA | Emerald | `emerald` |
+| B.17-B.18 Doctor / Nota | Violet | `violet` |
+| B.22 Portal Abogado | Brand | `brand` |
+| B.25-B.27 Billing (Brunella) | Amber | `amber` |
+| B.28-B.29 Settlement / Dashboard | Brand + Emerald | `brand` / `emerald` |
+
+> Esta tabla se actualiza cuando se construye cada módulo y se confirma el color
+> con el mockup. Si el mockup dice diferente, el mockup gana.
+
+---
+
 ## Cuando dudes
 
-1. Buscá si existe el patrón en `apps/web/components/` o `apps/web/app/(admin)/`
-2. Buscá si existe primitivo en `apps/back-office/components/ui-phoenix/`
-3. Si no existe, agregalo al primitivo · no inline
+1. Abrí el mockup en `docs/propuesta-clinica/mockups-flujo-completo.html`
+2. Buscá si existe el patrón en `apps/web/components/` o `apps/web/app/(admin)/`
+3. Buscá si existe primitivo en `apps/back-office/components/ui-phoenix/`
+4. Si no existe, agregalo al primitivo · no inline
 
 **Nunca crees una "alternativa propia" del estilo.** Si ves que estás escribiendo
 muchas clases custom, parate y preguntate qué primitivo te falta.

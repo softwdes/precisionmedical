@@ -106,19 +106,29 @@ export function Topbar({
         <Menu className="w-5 h-5" />
       </button>
 
-      {/* Search bar — opens command palette */}
+      {/* Search · mobile: solo icono cuadrado · sm+: barra completa */}
       <button
         type="button"
         onClick={() => setCmdOpen(true)}
-        className="flex items-center gap-2 flex-1 max-w-md bg-bg-2 border border-border rounded-lg px-3 py-2 text-text-muted text-sm hover:border-border-strong transition-colors group"
+        className="sm:hidden w-9 h-9 rounded-md hover:bg-white/5 flex items-center justify-center text-text-2 hover:text-text-1 transition-colors"
+        aria-label={t('search')}
+      >
+        <Search className="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setCmdOpen(true)}
+        className="hidden sm:flex items-center gap-2 flex-1 max-w-md bg-bg-2 border border-border rounded-lg px-3 py-2 text-text-muted text-sm hover:border-border-strong transition-colors group"
       >
         <Search className="w-4 h-4 shrink-0" />
-        <span className="flex-1 text-left truncate text-xs sm:text-sm">{t('search')}</span>
-        <kbd className="hidden sm:inline text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded">⌘K</kbd>
+        <span className="flex-1 text-left truncate">{t('search')}</span>
+        <kbd className="text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded">⌘K</kbd>
       </button>
 
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
 
+      {/* Mobile spacer: empuja los controles a la derecha · desktop solo en lg+ */}
+      <div className="flex-1 sm:hidden" />
       <div className="hidden lg:block flex-1" />
 
       <div className="flex items-center gap-1 sm:gap-2">

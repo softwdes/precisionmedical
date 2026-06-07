@@ -5,12 +5,23 @@ import { FrontOfficeClient } from './front-office-client';
 // Vista de Recepción + modal de crear caso.
 
 export default async function FrontOfficePage() {
-  // Specialties para el dropdown del modal de crear caso
-  const specialties = await db.specialtyCatalog.findMany({
-    where: { isActive: true, deletedAt: null },
-    orderBy: { sortOrder: 'asc' },
-    select: { id: true, name: true, color: true },
-  });
+  // Specialties + clinics + providers para los dropdowns del modal B.2
+  const [specialties, clinics, providers] = await Promise.all([
+    db.specialtyCatalog.findMany({
+      where: { isActive: true, deletedAt: null },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, name: true, color: true },
+    }),
+    db.clinic.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, address: true },
+    }),
+    db.provider.findMany({
+      where: { status: 'ACTIVE', deletedAt: null },
+      orderBy: [{ specialty: 'asc' }, { lastName: 'asc' }],
+      select: { id: true, firstName: true, lastName: true, specialty: true },
+    }),
+  ]);
 
   // Casos por estado relevante para Front Office
   const cases = await db.case.findMany({
@@ -41,6 +52,8 @@ export default async function FrontOfficePage() {
   return (
     <FrontOfficeClient
       specialties={specialties}
+      clinics={clinics}
+      providers={providers}
       cases={cases.map((c) => ({
         id: c.id,
         caseCode: c.caseCode,

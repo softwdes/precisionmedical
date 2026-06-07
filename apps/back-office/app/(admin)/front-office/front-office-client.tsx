@@ -60,9 +60,11 @@ interface Props {
   cases: PhoenixCase[];
   stats: Record<CaseStatus, number>;
   specialties: Array<{ id: string; name: string; color: string }>;
+  clinics: Array<{ id: string; name: string; address: string | null }>;
+  providers: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
 }
 
-export function FrontOfficeClient({ cases, stats, specialties }: Props) {
+export function FrontOfficeClient({ cases, stats, specialties, clinics, providers }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.frontOffice');
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
@@ -172,11 +174,13 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
         {t('footerMockData')}
       </div>
 
-      {/* B.2 — New Case modal */}
+      {/* B.2 — New Case modal · llamada completa (10-15 min) */}
       <NewCaseDialog
         open={newCaseOpen}
         onOpenChange={setNewCaseOpen}
         specialties={specialties}
+        clinics={clinics}
+        providers={providers}
       />
 
       {/* B.3 — Send Portal modal */}

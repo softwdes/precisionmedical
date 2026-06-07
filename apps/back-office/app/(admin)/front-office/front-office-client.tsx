@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2, FileCheck, Zap } from 'lucide-react';
+import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2, FileCheck, Zap, CalendarCheck } from 'lucide-react';
 import { Button } from '@precision/ui';
 import {
   PageHeader,
@@ -16,6 +16,7 @@ import {
 import { NewCaseDialog } from '@/components/cases/new-case-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
+import { ScheduleAppointmentDialog } from '@/components/cases/schedule-appointment-dialog';
 
 // B.1 — Front Office · Recepción primaria
 
@@ -68,6 +69,7 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
   const [newCaseOpen, setNewCaseOpen] = useState(false);
   const [sendPortalCase, setSendPortalCase] = useState<PhoenixCase | null>(null);
   const [confirmCase, setConfirmCase] = useState<PhoenixCase | null>(null);
+  const [scheduleCase, setScheduleCase] = useState<PhoenixCase | null>(null);
   const [markingIntake, setMarkingIntake] = useState<string | null>(null);
 
   const filtered = filter === 'all' ? cases : cases.filter((c) => c.status === filter);
@@ -75,6 +77,7 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
   const handleNewCase = () => setNewCaseOpen(true);
   const handleSendPortal = (c: PhoenixCase) => setSendPortalCase(c);
   const handleConfirm    = (c: PhoenixCase) => setConfirmCase(c);
+  const handleSchedule   = (c: PhoenixCase) => setScheduleCase(c);
 
   // Phase 1A dev helper — simula que paciente completó el portal (sin portal real)
   const handleSimulateIntake = async (c: PhoenixCase) => {
@@ -156,6 +159,7 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
               onClick={() => router.push(`/front-office/${c.id}`)}
               onSendPortal={() => handleSendPortal(c)}
               onConfirm={() => handleConfirm(c)}
+              onSchedule={() => handleSchedule(c)}
               onSimulateIntake={() => handleSimulateIntake(c)}
               isMarkingIntake={markingIntake === c.id}
             />
@@ -209,6 +213,21 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
           lawFirm: confirmCase.lawFirm,
         } : null}
       />
+
+      {/* B.10 — Schedule first appointment modal */}
+      <ScheduleAppointmentDialog
+        open={scheduleCase !== null}
+        onOpenChange={(open) => { if (!open) setScheduleCase(null); }}
+        caseInfo={scheduleCase ? {
+          id: scheduleCase.id,
+          caseCode: scheduleCase.caseCode,
+          patient: {
+            firstName: scheduleCase.patient.firstName,
+            lastName: scheduleCase.patient.lastName,
+          },
+          specialty: scheduleCase.specialty,
+        } : null}
+      />
     </div>
   );
 }
@@ -220,6 +239,7 @@ function CaseCard({
   onClick,
   onSendPortal,
   onConfirm,
+  onSchedule,
   onSimulateIntake,
   isMarkingIntake,
 }: {
@@ -227,6 +247,7 @@ function CaseCard({
   onClick: () => void;
   onSendPortal: () => void;
   onConfirm: () => void;
+  onSchedule: () => void;
   onSimulateIntake: () => void;
   isMarkingIntake: boolean;
 }) {
@@ -359,9 +380,17 @@ function CaseCard({
                 </Button>
               </div>
             )}
-            {c.status === 'CONFIRMED' && c.firstAppointmentConfirmedAt && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-emerald">
-                <span>✅ Confirmado {formatRelative(c.firstAppointmentConfirmedAt)} · Listo para venir</span>
+            {c.status === 'CONFIRMED' && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-emerald flex-wrap">
+                <CalendarCheck className="w-3.5 h-3.5" />
+                <span className="font-semibold">Acción: agendar primera cita (doctor + slot)</span>
+                {c.firstAppointmentConfirmedAt && (
+                  <span className="text-text-muted">· confirmado {formatRelative(c.firstAppointmentConfirmedAt)}</span>
+                )}
+                <Button size="sm" variant="outline" className="ml-auto" onClick={(e) => { e.stopPropagation(); onSchedule(); }}>
+                  <CalendarCheck className="w-3 h-3 mr-1" />
+                  Agendar
+                </Button>
               </div>
             )}
           </div>

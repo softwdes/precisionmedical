@@ -6,13 +6,14 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, Scale, Shield, AlertCircle,
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
-  PhoneCall, Zap, AlertTriangle,
+  PhoneCall, Zap, AlertTriangle, CalendarCheck,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui-phoenix';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { AddNoteDialog } from '@/components/cases/add-note-dialog';
+import { ScheduleAppointmentDialog } from '@/components/cases/schedule-appointment-dialog';
 
 // Front Office · Detalle del caso
 
@@ -139,6 +140,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
   const [sendPortalOpen, setSendPortalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const [markingIntake, setMarkingIntake] = useState(false);
 
   const st = STATUS_META[caseInfo.status];
@@ -201,7 +203,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
             )}
           </span>
         }
-        action={<ActionButtons status={caseInfo.status} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
+        action={<ActionButtons status={caseInfo.status} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
       />
 
       {/* Next action banner según status */}
@@ -398,6 +400,20 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
         caseId={caseInfo.id}
         caseCode={caseInfo.caseCode}
       />
+
+      <ScheduleAppointmentDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        caseInfo={{
+          id: caseInfo.id,
+          caseCode: caseInfo.caseCode,
+          patient: {
+            firstName: caseInfo.patient.firstName,
+            lastName: caseInfo.patient.lastName,
+          },
+          specialty: caseInfo.specialty,
+        }}
+      />
     </div>
   );
 }
@@ -408,6 +424,7 @@ function ActionButtons({
   status,
   onSendPortal,
   onConfirm,
+  onSchedule,
   onAddNote,
   onSimulateIntake,
   isMarkingIntake,
@@ -415,6 +432,7 @@ function ActionButtons({
   status: CaseStatus;
   onSendPortal: () => void;
   onConfirm: () => void;
+  onSchedule: () => void;
   onAddNote: () => void;
   onSimulateIntake: () => void;
   isMarkingIntake: boolean;
@@ -437,6 +455,11 @@ function ActionButtons({
           <FileCheck className="w-3.5 h-3.5 mr-1" /> Confirmar cita
         </Button>
       )}
+      {status === 'CONFIRMED' && (
+        <Button onClick={onSchedule} size="sm">
+          <CalendarCheck className="w-3.5 h-3.5 mr-1" /> Agendar primera cita
+        </Button>
+      )}
       <Button onClick={onAddNote} variant="outline" size="sm">
         <MessageSquarePlus className="w-3.5 h-3.5 mr-1" /> Agregar nota
       </Button>
@@ -451,8 +474,8 @@ function NextActionBanner({ caseInfo }: { caseInfo: CaseInfo }) {
     NEW_REFERRAL:     { title: 'Próxima acción: enviar portal al paciente', message: 'El paciente todavía no recibió el link al intake. Llamalo y enviá el portal por SMS o email.', tone: 'rose' },
     INTAKE_PENDING:   { title: 'Esperando paciente complete portal', message: 'El portal fue enviado. Si no responde en 24h, llamar para recordar.', tone: 'amber' },
     INTAKE_COMPLETED: { title: 'Próxima acción: llamar 24h antes para confirmar', message: 'El paciente completó intake. Ejecutá checklist de confirmación.', tone: 'cyan' },
-    CONFIRMED:        { title: 'Listo para primera cita', message: 'Caso confirmado. El paciente debería presentarse según el horario agendado.', tone: 'emerald' },
-    ACTIVE:           { title: 'En tratamiento', message: 'Caso activo. Doctor visita el flujo en /clinical.', tone: 'brand' },
+    CONFIRMED:        { title: 'Próxima acción: agendar primera cita', message: 'Caso confirmado. Asignar doctor + clínica + horario para mover al flujo clínico.', tone: 'emerald' },
+    ACTIVE:           { title: 'En tratamiento', message: 'Caso activo. El doctor toma el caso en /clinical · Recepción puede agregar notas y agendar follow-ups.', tone: 'brand' },
     MMI:              null,
     CLOSED:           null,
     SETTLED:          null,
@@ -623,6 +646,22 @@ const AUDIT_ACTION_CFG: Record<string, {
     },
     icon: FileCheck,
     iconColor: 'text-emerald',
+  },
+  SCHEDULE_FIRST_APPOINTMENT: {
+    title: 'Primera cita agendada',
+    detail: (m) => {
+      if (!m) return undefined;
+      const provider = m.providerName as string | undefined;
+      const clinic = m.clinicName as string | undefined;
+      const when = m.scheduledFor as string | undefined;
+      const parts: string[] = [];
+      if (provider) parts.push(`Dr. ${provider}`);
+      if (clinic) parts.push(clinic);
+      if (when) parts.push(new Date(when).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' }));
+      return parts.length > 0 ? parts.join(' · ') : undefined;
+    },
+    icon: CalendarCheck,
+    iconColor: 'text-brand',
   },
   INSERT_CASE_NOTE: {
     title: 'Nota interna agregada',

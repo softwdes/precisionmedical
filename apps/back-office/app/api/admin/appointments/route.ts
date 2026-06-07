@@ -161,7 +161,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         accidentDate:           appt.case.accidentDate?.toISOString() ?? null,
         status:                 appt.case.status,
         intakeFormCompletedAt:  appt.case.intakeFormCompletedAt?.toISOString() ?? null,
-        lawyer: appt.case.attorney ? {
+        attorney: appt.case.attorney ? {
           id:        appt.case.attorney.id,
           firmName:  appt.case.attorney.firmName,
           firstName: appt.case.attorney.firstName,
@@ -169,7 +169,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           phone:     appt.case.attorney.phone,
           email:     appt.case.attorney.email,
         } : null,
-        insurance: appt.case.primaryInsurance ? {
+        primaryInsurance: appt.case.primaryInsurance ? {
           id:   appt.case.primaryInsurance.id,
           name: appt.case.primaryInsurance.name,
         } : null,

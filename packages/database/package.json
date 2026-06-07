@@ -12,7 +12,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx src/seed.ts"
+    "db:seed": "tsx src/seed.ts",
+    "db:seed:calendar": "tsx src/seed-dev-calendar.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

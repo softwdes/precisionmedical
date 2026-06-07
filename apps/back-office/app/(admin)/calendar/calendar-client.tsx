@@ -15,9 +15,11 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays, Filter, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Clock } from 'lucide-react';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+
+type CalendarView = 'day' | 'week' | 'month';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -160,7 +162,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const [filterClinic,   setFilterClinic]   = useState('');
   const [filterProvider, setFilterProvider] = useState('');
   const [filterType,     setFilterType]     = useState('');
-  const [showFilters,    setShowFilters]     = useState(false);
+  const [calView, setCalView] = useState<CalendarView>('week');
 
   // Load appointments for the current week
   const loadWeek = useCallback(async (start: Date) => {
@@ -218,54 +220,93 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
       />
 
       {/* ─── Toolbar ─────────────────────────────────────────── */}
-      <div className="px-6 pb-3 flex flex-wrap items-center gap-3">
+      <div className="px-6 pb-3 flex flex-wrap items-center gap-2">
+
         {/* Week nav */}
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={goToPrev}
-            className="w-8 h-8 rounded-md border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
+        <div className="flex items-center gap-1 shrink-0">
+          <button type="button" onClick={goToPrev}
+            className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
+            <ChevronLeft className="w-3.5 h-3.5" />
           </button>
-          <span className="text-text-1 font-bold text-sm px-2 min-w-[120px] text-center">{monthLabel}</span>
-          <button
-            type="button"
-            onClick={goToNext}
-            className="w-8 h-8 rounded-md border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
+          <span className="text-text-1 font-bold text-sm px-2 min-w-[110px] text-center">{monthLabel}</span>
+          <button type="button" onClick={goToNext}
+            className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
-          <button
-            type="button"
-            onClick={goToToday}
-            className="ml-1 px-3 h-8 rounded-md border border-border hover:bg-white/5 text-text-2 text-xs transition-colors"
-          >
+          <button type="button" onClick={goToToday}
+            className="ml-1 px-2.5 h-7 rounded border border-border hover:bg-white/5 text-text-2 text-xs transition-colors">
             Hoy
           </button>
         </div>
 
-        {/* Filter toggle */}
-        <button
-          type="button"
-          onClick={() => setShowFilters(f => !f)}
-          className={`flex items-center gap-1.5 px-3 h-8 rounded-md border text-xs transition-all ${
-            showFilters || filterClinic || filterProvider || filterType
-              ? 'border-cyan/40 bg-cyan/10 text-cyan'
-              : 'border-border text-text-2 hover:border-border-strong'
-          }`}
-        >
-          <Filter className="w-3.5 h-3.5" />
-          Filtros
+        {/* Separator */}
+        <div className="w-px h-5 bg-border shrink-0" />
+
+        {/* Filter chips inline */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Clínica chip */}
+          <div className="relative">
+            <select
+              value={filterClinic}
+              onChange={e => setFilterClinic(e.target.value)}
+              className={`h-7 pl-2 pr-6 rounded text-[11px] border appearance-none cursor-pointer transition-colors ${
+                filterClinic
+                  ? 'border-cyan/40 bg-cyan/10 text-cyan'
+                  : 'border-border bg-bg-1 text-text-2 hover:border-border-strong'
+              }`}
+            >
+              <option value="">🏥 Todas las clínicas</option>
+              {clinics.map(c => <option key={c.id} value={c.id}>🏥 {c.name}</option>)}
+            </select>
+          </div>
+
+          {/* Doctor chip */}
+          <div className="relative">
+            <select
+              value={filterProvider}
+              onChange={e => setFilterProvider(e.target.value)}
+              className={`h-7 pl-2 pr-6 rounded text-[11px] border appearance-none cursor-pointer transition-colors ${
+                filterProvider
+                  ? 'border-cyan/40 bg-cyan/10 text-cyan'
+                  : 'border-border bg-bg-1 text-text-2 hover:border-border-strong'
+              }`}
+            >
+              <option value="">👨‍⚕️ Todos los doctores</option>
+              {providers.map(p => <option key={p.id} value={p.id}>Dr. {p.lastName}</option>)}
+            </select>
+          </div>
+
+          {/* Tipo chip */}
+          <div className="relative">
+            <select
+              value={filterType}
+              onChange={e => setFilterType(e.target.value)}
+              className={`h-7 pl-2 pr-6 rounded text-[11px] border appearance-none cursor-pointer transition-colors ${
+                filterType
+                  ? 'border-cyan/40 bg-cyan/10 text-cyan'
+                  : 'border-border bg-bg-1 text-text-2 hover:border-border-strong'
+              }`}
+            >
+              <option value="">🚗 MVA + GP</option>
+              <option value="AUTO_ACCIDENT">🚗 MVA</option>
+              <option value="FAMILY_PRACTICE">🩺 GP</option>
+              <option value="URGENT_CARE">⚡ Urgent Care</option>
+              <option value="FOLLOW_UP">🔄 Follow-up</option>
+            </select>
+          </div>
+
+          {/* Clear chip */}
           {(filterClinic || filterProvider || filterType) && (
-            <span className="bg-cyan text-bg-1 text-[9px] font-bold px-1 rounded-full">
-              {[filterClinic, filterProvider, filterType].filter(Boolean).length}
-            </span>
+            <button type="button"
+              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); }}
+              className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors">
+              ✕ Limpiar
+            </button>
           )}
-        </button>
+        </div>
 
         {/* Stats */}
-        <div className="ml-auto flex items-center gap-3 text-xs text-text-muted">
+        <div className="ml-auto flex items-center gap-3 text-[11px] text-text-muted shrink-0">
           <span className="text-text-2">{appointments.length} citas</span>
           {firstVisitCount > 0 && (
             <span className="text-rose font-semibold">{firstVisitCount} primeras 🆕</span>
@@ -274,64 +315,34 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
             <span className="text-amber">{pendingConfirm} sin confirmar</span>
           )}
         </div>
-      </div>
 
-      {/* Filters panel */}
-      {showFilters && (
-        <div className="mx-6 mb-3 p-3 rounded-lg border border-border bg-bg-2/40 flex flex-wrap gap-3">
-          <div className="flex flex-col gap-1 min-w-[160px]">
-            <label className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Clínica</label>
-            <select
-              value={filterClinic}
-              onChange={e => setFilterClinic(e.target.value)}
-              className="bg-bg-1 border border-border rounded-md text-text-1 text-xs px-2 py-1.5"
-            >
-              <option value="">Todas las clínicas</option>
-              {clinics.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1 min-w-[160px]">
-            <label className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Doctor</label>
-            <select
-              value={filterProvider}
-              onChange={e => setFilterProvider(e.target.value)}
-              className="bg-bg-1 border border-border rounded-md text-text-1 text-xs px-2 py-1.5"
-            >
-              <option value="">Todos los doctores</option>
-              {providers.map(p => (
-                <option key={p.id} value={p.id}>Dr. {p.lastName}, {p.firstName}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1 min-w-[160px]">
-            <label className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Tipo de caso</label>
-            <select
-              value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-              className="bg-bg-1 border border-border rounded-md text-text-1 text-xs px-2 py-1.5"
-            >
-              <option value="">Todos</option>
-              <option value="AUTO_ACCIDENT">MVA (Auto Accident)</option>
-              <option value="FAMILY_PRACTICE">GP (Family Practice)</option>
-              <option value="URGENT_CARE">Urgent Care</option>
-              <option value="FOLLOW_UP">Follow-up</option>
-            </select>
-          </div>
-          {(filterClinic || filterProvider || filterType) && (
-            <div className="flex items-end">
+        {/* Separator */}
+        <div className="w-px h-5 bg-border shrink-0" />
+
+        {/* View toggle Día / Semana / Mes */}
+        <div className="flex items-center shrink-0">
+          {(['day', 'week', 'month'] as CalendarView[]).map((v, i) => {
+            const labels = { day: 'Día', week: 'Semana', month: 'Mes' };
+            const isActive = calView === v;
+            return (
               <button
+                key={v}
                 type="button"
-                onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); }}
-                className="px-3 py-1.5 text-xs text-rose border border-rose/30 rounded-md hover:bg-rose/10 transition-colors"
+                onClick={() => setCalView(v)}
+                className={`px-3 h-7 text-[11px] font-medium border transition-colors ${
+                  i === 0 ? 'rounded-l' : i === 2 ? 'rounded-r' : ''
+                } ${
+                  isActive
+                    ? 'border-cyan bg-cyan/15 text-cyan z-10 relative'
+                    : 'border-border text-text-2 hover:bg-white/5 -ml-px'
+                }`}
               >
-                Limpiar filtros
+                {labels[v]}
               </button>
-            </div>
-          )}
+            );
+          })}
         </div>
-      )}
+      </div>
 
       {/* ─── Grid ────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto px-6 pb-6 min-h-0">

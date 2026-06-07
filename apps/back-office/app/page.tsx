@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 
-// Phase 1A — redirige a la pantalla de Catálogos.
-// Phase 1B agregará dashboard del Super Admin con widgets.
+// Root del back-office → Dashboard de Recepción (B.29).
 export default function HomePage(): never {
-  redirect('/admin/specialties');
+  redirect('/dashboard');
 }

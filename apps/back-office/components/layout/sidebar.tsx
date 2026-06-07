@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  LayoutDashboard,
   Stethoscope,
   Scale,
   ShieldCheck,
@@ -50,7 +49,7 @@ const SECTIONS: NavSection[] = [
       { href: '/front-office', icon: Building2,  labelKey: 'frontOffice', mockup: 'B.1–B.4'   },
       { href: '/intake',       icon: Phone,      labelKey: 'intake',      mockup: 'B.12–B.13', disabled: true },
       { href: '/billing',      icon: Briefcase,  labelKey: 'billing',     mockup: 'B.25–B.28', disabled: true },
-      { href: '/dashboard',    icon: BarChart3,  labelKey: 'dashboard',   mockup: 'B.29',      disabled: true },
+      { href: '/dashboard',    icon: BarChart3,  labelKey: 'dashboard',   mockup: 'B.29' },
     ],
   },
   {
@@ -81,7 +80,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps): Re
     >
       {/* Brand */}
       <div className="flex items-center justify-between px-5 py-5 border-b border-border">
-        <Link href="/admin/specialties" onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+        <Link href="/dashboard" onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <div className="flex h-9 w-9 items-center justify-center rounded bg-gradient-brand shadow-glow">
             <span className="text-white font-bold text-sm">LM</span>
           </div>
@@ -103,15 +102,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps): Re
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
-        <NavItemLink
-          href="/dashboard-home"
-          icon={LayoutDashboard}
-          label="Dashboard"
-          active={pathname === '/dashboard-home'}
-          disabled
-          onClick={onMobileClose}
-        />
-
         {SECTIONS.map((section) => (
           <div key={section.titleKey}>
             <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold px-3 mb-2">

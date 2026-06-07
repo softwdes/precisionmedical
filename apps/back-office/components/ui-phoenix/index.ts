@@ -42,3 +42,5 @@ export type { EntityAvatarProps } from './entity-avatar';
 
 export { PersonAvatar } from './person-avatar';
 export type { PersonAvatarProps } from './person-avatar';
+
+export { Skeleton } from './skeleton';

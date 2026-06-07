@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Bell, Search, Moon, Sun, Menu } from 'lucide-react';
 import { CommandPalette } from './command-palette';
+import { useTransitionProgress } from './navigation-progress';
 
 interface TopbarProps {
   userName?: string;
@@ -30,6 +31,9 @@ export function Topbar({
   const [pendingLocale, setPendingLocale] = useState<'en' | 'es' | null>(null);
   const [isPending, startTransition] = useTransition();
   const switchingLocale = isPending && pendingLocale !== null;
+
+  // Conecta el isPending del useTransition al NavigationProgress global (top bar)
+  useTransitionProgress(isPending);
 
   // Cuando el RSC re-render termina y currentLocale ya coincide con el pending,
   // limpiamos el pendingLocale para que el pill optimista vuelva a reflejar la verdad.

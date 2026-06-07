@@ -18,12 +18,17 @@ import {
   Label,
 } from '@precision/ui';
 import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoenix';
+import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-step';
 
 // B.2 — Contacto inicial del paciente · llamada + apertura caso + agendamiento
-// (10-15 min · captura completa · paciente sale con cita confirmada + formulario enviado)
+//
+// Flujo:
+//   PASO 1 (PreCallStep): ¿cómo empezamos? (search · incoming · outgoing)
+//                          El timer NO arranca todavía
+//   PASO 2 (este modal):  Captura completa con timer corriendo
+//                          Datos básicos pre-llenados desde el paso 1
 //
 // Estilo: estricto al sistema (ver apps/back-office/CLAUDE.md regla #0).
-// Usa primitivos de ui-phoenix · sin border-2 · sin gradients en cards.
 
 interface NewCaseDialogProps {
   open: boolean;
@@ -50,19 +55,29 @@ type FormDelivery = 'SEND_NOW' | 'TABLET_AT_CLINIC';
 export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers }: NewCaseDialogProps) {
   const router = useRouter();
 
-  // ─── Call timer ────────────────────────────────────────────────────────
+  // ─── Step state (precall vs capturing) ────────────────────────────────
+  const [step, setStep] = useState<'precall' | 'capturing'>('precall');
+  const [callMode, setCallMode] = useState<PreCallMode | null>(null);
+  const [existingPatientId, setExistingPatientId] = useState<string | null>(null);
+
+  // ─── Call timer · solo arranca en step=capturing ──────────────────────
   const [callElapsed, setCallElapsed] = useState(0);
 
   useEffect(() => {
     if (!open) {
       setCallElapsed(0);
+      setStep('precall');
+      setCallMode(null);
+      setExistingPatientId(null);
       return;
     }
+    // El timer corre solo cuando estamos capturando
+    if (step !== 'capturing') return;
     const interval = setInterval(() => {
       setCallElapsed((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, [open]);
+  }, [open, step]);
 
   // ─── Section 1: Patient ───────────────────────────────────────────────
   const [firstName, setFirstName] = useState('');
@@ -123,6 +138,20 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setFormDelivery('SEND_NOW');
     setSaving(false); setError(null); setSuccess(null);
   }, [open, specialties, clinics]);
+
+  // ─── Handler · cuando PreCallStep confirma, prellenamos y arrancamos timer ──
+  const handleStartCall = (result: PreCallResult) => {
+    setFirstName(result.firstName);
+    setLastName(result.lastName);
+    setPhone(result.phone);
+    if (result.existingPatient) {
+      setExistingPatientId(result.existingPatient.id);
+      setEmail(result.existingPatient.email ?? '');
+    }
+    setCallMode(result.mode);
+    setCallElapsed(0);
+    setStep('capturing');
+  };
 
   // ─── Provider auto-suggest según especialidad ──────────────────────────
   const specialtyToProviderMap: Record<string, string[]> = {
@@ -278,9 +307,36 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     );
   }
 
-  // ─── Main dialog ───────────────────────────────────────────────────────
+  // ─── Step 1: PreCall (¿cómo empezamos la llamada?) ────────────────────
+  if (step === 'precall') {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-lg max-h-[92vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-text-1 text-sm sm:text-base">
+              <PhoneCall className="w-4 h-4 text-emerald" />
+              Nueva llamada · Crear caso
+            </DialogTitle>
+            <DialogDescription className="text-[11px] sm:text-xs mt-1">
+              El timer arranca cuando estés realmente hablando con el paciente
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto scroll-thin">
+            <PreCallStep
+              onConfirm={handleStartCall}
+              onCancel={() => onOpenChange(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ─── Step 2: Capturing (timer corriendo) ──────────────────────────────
   const elapsedLabel = formatElapsed(callElapsed);
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Paciente';
+  const callModeLabel = callMode === 'search' ? 'paciente existente' : callMode === 'incoming' ? 'llamada entrante' : 'outbound';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -294,8 +350,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   <PhoneCall className="w-4 h-4 text-emerald shrink-0" />
                   <span className="truncate">Llamada · {fullName}</span>
                 </DialogTitle>
-                <DialogDescription className="mt-1 text-[11px] sm:text-xs">
-                  Front Office · captura + agenda · 10–15 min típico
+                <DialogDescription className="mt-1 text-[11px] sm:text-xs flex items-center gap-1.5 flex-wrap">
+                  <span>{callModeLabel}</span>
+                  {existingPatientId && <span>· <code className="text-cyan font-mono">paciente conocido</code></span>}
+                  <span className="hidden sm:inline">· captura + agenda · 10–15 min típico</span>
                 </DialogDescription>
               </div>
               {/* Pills compactos: en mobile solo el timer · en sm+ ambos */}

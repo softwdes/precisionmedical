@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2, FileCheck, Zap } from 'lucide-react';
 import { Button } from '@precision/ui';
+import {
+  PageHeader,
+  KpiCard,
+  FilterPill,
+  TagPill,
+  EmptyState,
+  PersonAvatar,
+} from '@/components/ui-phoenix';
 import { NewCaseDialog } from '@/components/cases/new-case-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
@@ -84,41 +92,42 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Hero */}
-      <div className="rounded-lg border border-border bg-gradient-to-br from-bg-1 via-bg-1 to-brand/5 p-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <div className="flex items-center gap-2 text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-1">
+      <PageHeader
+        title={t('title')}
+        subtitle={
+          <span className="flex items-center gap-2 flex-wrap">
+            <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold flex items-center gap-1">
               <Building2 className="w-3 h-3" /> {t('workspace')}
-            </div>
-            <h1 className="text-2xl font-bold text-text-1">{t('title')}</h1>
-            <p className="text-text-2 text-sm mt-1">{t('subtitle')}</p>
-          </div>
+            </span>
+            <span>· {t('subtitle')}</span>
+          </span>
+        }
+        action={
           <Button onClick={handleNewCase} className="shadow-glow">
             <PhoneCall className="w-4 h-4 mr-2" />
             {t('newButton')}
           </Button>
-        </div>
+        }
+      />
 
-        {/* Phone-style call indicator */}
-        <div className="mt-5 rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-3 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-emerald/15 flex items-center justify-center">
-            <Phone className="w-4 h-4 text-emerald" />
-          </div>
-          <div className="flex-1">
-            <div className="text-emerald text-xs font-semibold uppercase tracking-wider">{t('lineAvailable')}</div>
-            <div className="text-text-2 text-xs">{t('lineSubtitle')}</div>
-          </div>
-          <span className="text-text-muted text-[10px] font-mono">{t('callReady')}</span>
+      {/* Phone-style call indicator — específico de Front Office */}
+      <div className="rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-emerald/15 flex items-center justify-center">
+          <Phone className="w-4 h-4 text-emerald" />
         </div>
+        <div className="flex-1">
+          <div className="text-emerald text-xs font-semibold uppercase tracking-wider">{t('lineAvailable')}</div>
+          <div className="text-text-2 text-xs">{t('lineSubtitle')}</div>
+        </div>
+        <span className="text-text-muted text-[10px] font-mono">{t('callReady')}</span>
       </div>
 
-      {/* KPIs por status */}
+      {/* KPIs por status — usan KpiCard shared */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatusKpi label={t('kpiNewReferrals')}     count={stats.NEW_REFERRAL}    sub={t('kpiNewReferralsSub')}    color="text-rose"    bg="bg-rose/5 border-rose/20" />
-        <StatusKpi label={t('kpiIntakePending')}    count={stats.INTAKE_PENDING}  sub={t('kpiIntakePendingSub')}   color="text-amber"   bg="bg-amber/5 border-amber/20" />
-        <StatusKpi label={t('kpiIntakeCompleted')}  count={stats.INTAKE_COMPLETED} sub={t('kpiIntakeCompletedSub')} color="text-cyan"    bg="bg-cyan/5 border-cyan/20" />
-        <StatusKpi label={t('kpiConfirmed')}        count={stats.CONFIRMED}       sub={t('kpiConfirmedSub')}       color="text-emerald" bg="bg-emerald/5 border-emerald/20" />
+        <KpiCard label={t('kpiNewReferrals')}     value={stats.NEW_REFERRAL}    sub={t('kpiNewReferralsSub')}    color="text-rose" />
+        <KpiCard label={t('kpiIntakePending')}    value={stats.INTAKE_PENDING}  sub={t('kpiIntakePendingSub')}   color="text-amber" />
+        <KpiCard label={t('kpiIntakeCompleted')}  value={stats.INTAKE_COMPLETED} sub={t('kpiIntakeCompletedSub')} color="text-cyan" />
+        <KpiCard label={t('kpiConfirmed')}        value={stats.CONFIRMED}       sub={t('kpiConfirmedSub')}       color="text-emerald" />
       </div>
 
       {/* Filters */}
@@ -134,11 +143,11 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
       {/* Case list */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-12 text-center">
-            <FileText className="w-12 h-12 text-text-muted mx-auto mb-3" />
-            <div className="text-text-1 font-semibold">No hay casos en esta cola</div>
-            <div className="text-text-2 text-sm mt-1">Buen trabajo. Cuando entre una llamada, click "Nueva llamada".</div>
-          </div>
+          <EmptyState.Rich
+            icon={FileText}
+            title="No hay casos en esta cola"
+            subtitle='Buen trabajo. Cuando entre una llamada, click "Nueva llamada".'
+          />
         ) : (
           filtered.map((c) => (
             <CaseCard
@@ -204,31 +213,7 @@ export function FrontOfficeClient({ cases, stats, specialties }: Props) {
   );
 }
 
-// ─── Atoms ──────────────────────────────────────────────────────────────────
-
-function StatusKpi({ label, count, sub, color, bg }: { label: string; count: number; sub: string; color: string; bg: string }) {
-  return (
-    <div className={`rounded-lg border px-5 py-4 ${bg}`}>
-      <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{label}</div>
-      <div className={`text-3xl font-bold mt-1 ${color}`}>{count}</div>
-      <div className="text-[11px] text-text-muted mt-0.5">{sub}</div>
-    </div>
-  );
-}
-
-function FilterPill({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-        active ? 'bg-gradient-brand text-white' : 'bg-bg-2 border border-border text-text-2 hover:text-text-1 hover:border-border-strong'
-      }`}
-    >
-      {label} <span className="opacity-70 font-mono">({count})</span>
-    </button>
-  );
-}
+// ─── CaseCard (queue inbox · forma única de Front Office) ────────────────────
 
 function CaseCard({
   case: c,
@@ -245,13 +230,13 @@ function CaseCard({
   onSimulateIntake: () => void;
   isMarkingIntake: boolean;
 }) {
-  const statusLabel: Record<CaseStatus, { label: string; color: string; bg: string; icon: string }> = {
-    NEW_REFERRAL:     { label: 'Nuevo referido',     color: 'text-rose',    bg: 'bg-rose/10 border-rose/30',       icon: '🔴' },
-    INTAKE_PENDING:   { label: 'Intake pendiente',   color: 'text-amber',   bg: 'bg-amber/10 border-amber/30',     icon: '🟡' },
-    INTAKE_COMPLETED: { label: 'Por confirmar (24h)', color: 'text-cyan',    bg: 'bg-cyan/10 border-cyan/30',       icon: '🔵' },
-    CONFIRMED:        { label: 'Confirmado',          color: 'text-emerald', bg: 'bg-emerald/10 border-emerald/30', icon: '🟢' },
+  const statusMeta: Record<CaseStatus, { label: string; colorClass: string; icon: string }> = {
+    NEW_REFERRAL:     { label: 'Nuevo referido',      colorClass: 'bg-rose/10 text-rose border-rose/30',         icon: '🔴' },
+    INTAKE_PENDING:   { label: 'Intake pendiente',    colorClass: 'bg-amber/10 text-amber border-amber/30',     icon: '🟡' },
+    INTAKE_COMPLETED: { label: 'Por confirmar (24h)', colorClass: 'bg-cyan/10 text-cyan border-cyan/30',         icon: '🔵' },
+    CONFIRMED:        { label: 'Confirmado',          colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '🟢' },
   };
-  const st = statusLabel[c.status];
+  const st = statusMeta[c.status];
 
   const age = ageInHours(c.createdAt);
   const ageLabel = age < 1 ? 'hace minutos' : age < 24 ? `hace ${Math.floor(age)}h` : `hace ${Math.floor(age / 24)}d`;
@@ -263,10 +248,7 @@ function CaseCard({
     >
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-start gap-4 flex-1 min-w-0">
-          {/* Patient avatar */}
-          <div className="w-12 h-12 rounded-lg bg-gradient-cyan flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-glow">
-            {(c.patient.firstName[0] ?? '?') + (c.patient.lastName[0] ?? '')}
-          </div>
+          <PersonAvatar firstName={c.patient.firstName} lastName={c.patient.lastName} size={12} gradientClass="bg-gradient-cyan" />
 
           {/* Main info */}
           <div className="flex-1 min-w-0">
@@ -275,9 +257,7 @@ function CaseCard({
                 {c.patient.firstName} {c.patient.lastName}
               </div>
               <code className="text-text-muted text-xs font-mono">{c.caseCode}</code>
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${st.bg} ${st.color}`}>
-                <span>{st.icon}</span> {st.label}
-              </span>
+              <TagPill label={<span><span className="mr-1">{st.icon}</span>{st.label}</span>} colorClass={st.colorClass} />
             </div>
 
             {/* Sub-info */}
@@ -299,28 +279,44 @@ function CaseCard({
               )}
             </div>
 
-            {/* Pills row */}
+            {/* Pills row · domain tags (specialty + lawFirm + insurance) */}
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               {c.specialty && (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border border-border bg-bg-2 text-text-2">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.specialty.color }} />
-                  {c.specialty.name}
-                </span>
+                <TagPill
+                  label={c.specialty.name}
+                  colorClass="bg-bg-2 text-text-2 border-border"
+                  compact
+                  icon={<span className="w-1.5 h-1.5 rounded-full" style={{ background: c.specialty.color }} />}
+                />
               )}
               {c.lawFirm && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border border-border bg-bg-2 text-text-2">
-                  ⚖️ {c.lawFirm.firmName}
-                  {c.lawFirm.paymentSpeed === 'SLOW' && <span className="text-amber" title="Pago lento">⚠</span>}
-                </span>
+                <TagPill
+                  label={
+                    <>
+                      ⚖️ {c.lawFirm.firmName}
+                      {c.lawFirm.paymentSpeed === 'SLOW' && <span className="text-amber ml-1" title="Pago lento">⚠</span>}
+                    </>
+                  }
+                  colorClass="bg-bg-2 text-text-2 border-border"
+                  compact
+                />
               )}
               {c.primaryInsurance && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border border-border bg-bg-2 text-text-2">
-                  <span className="w-3 h-3 rounded flex items-center justify-center text-white text-[7px] font-bold" style={{ background: c.primaryInsurance.color }}>
-                    {c.primaryInsurance.shortCode}
-                  </span>
-                  {c.primaryInsurance.name}
-                  {c.primaryInsurance.responseSpeed === 'SLOW' && <span className="text-amber">⚠</span>}
-                </span>
+                <TagPill
+                  label={
+                    <>
+                      {c.primaryInsurance.name}
+                      {c.primaryInsurance.responseSpeed === 'SLOW' && <span className="text-amber ml-1">⚠</span>}
+                    </>
+                  }
+                  colorClass="bg-bg-2 text-text-2 border-border"
+                  compact
+                  icon={
+                    <span className="w-3 h-3 rounded flex items-center justify-center text-white text-[7px] font-bold" style={{ background: c.primaryInsurance.color }}>
+                      {c.primaryInsurance.shortCode}
+                    </span>
+                  }
+                />
               )}
               <span className="text-text-muted text-[10px] ml-auto">{ageLabel}</span>
             </div>

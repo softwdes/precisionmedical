@@ -15,7 +15,8 @@
 import * as React from 'react';
 
 export interface PageHeaderProps {
-  title: string;
+  /** Texto simple o JSX (avatar + nombre, etc) */
+  title: React.ReactNode;
   subtitle?: React.ReactNode;
   /** Botón principal (típicamente "Nuevo X" con icono Plus) */
   action?: React.ReactNode;

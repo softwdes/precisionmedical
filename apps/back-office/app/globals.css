@@ -123,6 +123,16 @@ body {
   background: transparent;
 }
 
+/* ============================================
+   IncomingCallToast · barra de auto-dismiss
+   Se agota de derecha a izquierda en 12s (igual que el auto-dismiss del toast)
+   ============================================ */
+
+@keyframes phone-dismiss {
+  from { width: 100%; }
+  to   { width: 0%;   }
+}
+
 /* Variant: thin scrollbar (4px) — para modales/paneles pequeños */
 .scroll-thin {
   scrollbar-width: thin;

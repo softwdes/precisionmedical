@@ -285,45 +285,50 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-hidden flex flex-col p-0">
-        {/* ─── Header (estilo del sistema · sin gradient saturado) ────── */}
-        <div className="px-6 py-4 border-b border-border shrink-0">
+        {/* ─── Header · mobile-friendly ─────────────────────────────────── */}
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
           <DialogHeader>
-            <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-start justify-between gap-2 flex-wrap">
               <div className="min-w-0 flex-1">
-                <DialogTitle className="flex items-center gap-2 text-text-1 text-base">
+                <DialogTitle className="flex items-center gap-2 text-text-1 text-sm sm:text-base">
                   <PhoneCall className="w-4 h-4 text-emerald shrink-0" />
-                  Llamada del paciente · {fullName}
+                  <span className="truncate">Llamada · {fullName}</span>
                 </DialogTitle>
-                <DialogDescription className="mt-1 text-xs">
-                  Front Office · captura completa + agenda cita · 10–15 min típico
+                <DialogDescription className="mt-1 text-[11px] sm:text-xs">
+                  Front Office · captura + agenda · 10–15 min típico
                 </DialogDescription>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <TagPill label="REFERRAL_RECEIVED" colorClass="bg-rose/15 text-rose border-rose/30" mono />
+              {/* Pills compactos: en mobile solo el timer · en sm+ ambos */}
+              <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                 <TagPill
-                  label={<><span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block mr-1 animate-pulse" />En llamada · {elapsedLabel}</>}
+                  label="REFERRAL_RECEIVED"
+                  colorClass="bg-rose/15 text-rose border-rose/30 hidden sm:inline-flex"
+                  mono
+                />
+                <TagPill
+                  label={<><span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block mr-1 animate-pulse" />{elapsedLabel}</>}
                   colorClass="bg-emerald/15 text-emerald border-emerald/30"
                 />
               </div>
             </div>
           </DialogHeader>
 
-          {/* Patient hero card · usa el patrón del case-detail-client */}
-          <div className="mt-3 rounded-lg border border-border bg-bg-1 px-4 py-3 flex items-center gap-3">
+          {/* Patient hero card · sin truncar lawFirm en mobile (stack si hace falta) */}
+          <div className="mt-3 rounded-lg border border-border bg-bg-1 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-3">
             <PersonAvatar firstName={firstName || '?'} lastName={lastName || ''} size={10} gradientClass="bg-gradient-brand" />
             <div className="flex-1 min-w-0">
               <div className="text-text-1 font-semibold text-sm truncate">{fullName}</div>
-              <div className="text-text-muted text-[11px] mt-0.5 flex items-center gap-3 flex-wrap">
+              <div className="text-text-muted text-[11px] mt-0.5 flex items-center gap-x-3 gap-y-1 flex-wrap">
                 {phone && <span className="font-mono flex items-center gap-1"><Phone className="w-3 h-3" />{phone}</span>}
                 <span>{language === 'es' ? '🇪🇸 Español' : '🇺🇸 English'}</span>
-                {lawFirm && <span className="truncate">⚖ {lawFirm.label}</span>}
+                {lawFirm && <span className="truncate max-w-full">⚖ {lawFirm.label}</span>}
               </div>
             </div>
           </div>
         </div>
 
         {/* ─── Body scrollable ─────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 scroll-thin">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4 scroll-thin">
           <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold flex items-center gap-1.5">
             <MessageCircle className="w-3 h-3" />
             Información a capturar en esta llamada
@@ -331,7 +336,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
           {/* ── Sección 1: Patient ─────────────────────────────────────── */}
           <InfoCard title="Datos básicos del paciente" icon={User} number={1}>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField.Input label="Nombre" required value={firstName} onChange={setFirstName} placeholder="Sandra" autoFocus />
               <FormField.Input label="Apellido" required value={lastName} onChange={setLastName} placeholder="López" />
               <FormField.Input label="Teléfono" required value={phone} onChange={setPhone} placeholder="(801) 555-0142" type="tel" />
@@ -376,7 +381,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           {/* ── Sección 3: Accidente (solo para MVA) ────────────────────── */}
           {caseType === 'MVA' && (
             <InfoCard title="Detalles del accidente" icon={Car} number={3}>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <FormField.Input label="Fecha del accidente (DOL)" value={accidentDate} onChange={setAccidentDate} type="date" />
                 <FormField.Select label="Mecanismo" value={accidentType} onChange={setAccidentType}
                   options={[
@@ -405,7 +410,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             >
               <div className="text-text-muted text-[11px] italic">"¿Tiene abogado o bufete que lo represente en este caso?"</div>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <SegmentedOption
                   selected={lawyerStatus === 'HAS'} onClick={() => setLawyerStatus('HAS')}
                   icon="✓" label="Sí, tiene abogado"
@@ -443,7 +448,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                           onSelect={setAttorney}
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <FormField.Input label="Case manager / paralegal" value={caseManagerName} onChange={setCaseManagerName} placeholder="Bob Jones" />
                         <FormField.Input label="Email del case manager" value={caseManagerEmail} onChange={setCaseManagerEmail} placeholder="bob@firm.com" type="email" />
                       </div>
@@ -505,7 +510,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               <>
                 <div className="text-text-muted text-[11px] italic">"Voy a buscarle un horario disponible. ¿Le viene mejor mañana o esta semana?"</div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField.Select label="Clínica" value={clinicId} onChange={setClinicId}
                     options={clinics.map((c) => ({ value: c.id, label: c.name }))} />
                   <FormField.Select label="Especialidad" value={specialtyId} onChange={setSpecialtyId}
@@ -514,7 +519,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
                 <div>
                   <Label>Slots disponibles · próximos 3-5 días hábiles</Label>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 mt-1.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
                     {slotOptions.map((s) => (
                       <button
                         key={s.iso}
@@ -532,7 +537,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField.Select label="Doctor sugerido" value={providerId} onChange={setProviderId}
                     options={displayProviders.map((p) => ({
                       value: p.id, label: `Dr. ${p.firstName} ${p.lastName} — ${p.specialty}`,
@@ -632,12 +637,23 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           )}
         </div>
 
-        {/* ─── Footer ──────────────────────────────────────────────────── */}
-        <DialogFooter className="border-t border-border px-6 py-3 shrink-0 gap-2">
-          <Button variant="outline" onClick={() => handleSubmit('pause')} disabled={saving || !firstName || !lastName || !phone}>
-            <Pause className="w-3.5 h-3.5 mr-1" /> Pausar · guardar parcial
+        {/* ─── Footer · stack en mobile · row en sm+ ───────────────────── */}
+        <DialogFooter className="border-t border-border px-4 sm:px-6 py-3 shrink-0 gap-2 flex-col-reverse sm:flex-row">
+          <Button
+            variant="outline"
+            onClick={() => handleSubmit('pause')}
+            disabled={saving || !firstName || !lastName || !phone}
+            className="w-full sm:w-auto"
+          >
+            <Pause className="w-3.5 h-3.5 mr-1" />
+            <span className="sm:inline">Pausar</span>
+            <span className="hidden sm:inline">&nbsp;· guardar parcial</span>
           </Button>
-          <Button onClick={() => handleSubmit('finalize')} disabled={!canSubmit || saving}>
+          <Button
+            onClick={() => handleSubmit('finalize')}
+            disabled={!canSubmit || saving}
+            className="w-full sm:w-auto"
+          >
             {saving ? 'Procesando...' : (
               <>
                 <Check className="w-3.5 h-3.5 mr-1" />

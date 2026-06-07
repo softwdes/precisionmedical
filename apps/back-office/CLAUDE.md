@@ -106,6 +106,85 @@ quedan como deuda técnica documentada — migrar cuando se toquen.
 
 ---
 
+## Regla #4 · Mobile-first (OBLIGATORIA)
+
+**Toda vista, modal o módulo nuevo debe verse y funcionar bien en mobile (320px+)
+sin scroll horizontal, sin botones cortados, sin texto cortado.**
+
+Recepción usa iPad y teléfono · doctores usan iPad · attorney portal se ve en
+teléfono. Si una pantalla se ve mal en mobile, **no está terminada**.
+
+### Patrones obligatorios
+
+**Grids:** nunca uses `grid-cols-2` o `grid-cols-3` directos. Siempre con breakpoint:
+```tsx
+// ❌ NO
+<div className="grid grid-cols-2 gap-3">
+
+// ✅ SÍ
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+```
+
+**Headers con varios elementos:** siempre `flex-wrap`:
+```tsx
+<div className="flex items-center gap-2 flex-wrap">
+```
+
+**Footers de modales:** stack en mobile, fila en desktop:
+```tsx
+<DialogFooter className="flex-col sm:flex-row gap-2">
+  <Button className="w-full sm:w-auto">Cancelar</Button>
+  <Button className="w-full sm:w-auto">Guardar</Button>
+</DialogFooter>
+```
+
+**Modals grandes:** ya tenés `max-h-[92vh]` pero también usá padding responsivo:
+```tsx
+<DialogContent className="max-w-5xl p-0 sm:p-0">
+  <div className="px-4 sm:px-6 py-3 sm:py-4">...</div>
+</DialogContent>
+```
+
+**Texto largo en pills/labels:** truncar o esconder en mobile:
+```tsx
+<span className="hidden sm:inline">{textoLargo}</span>
+<span className="sm:hidden">{textoCorto}</span>
+```
+
+**Cards seleccionables / segmented controls de 3+ opciones:** en mobile, 1 columna
+(no apretar):
+```tsx
+<div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+```
+
+**Iconos:** mismos tamaños en todos los breakpoints · no shrinkear demasiado.
+
+**Tablas anchas:** envolver en `overflow-x-auto` (ya lo hace `DataTable.Scroll`),
+pero en mobile preferir layout de cards (ver `apps/web/dashboard/users` desktop vs
+mobile cards).
+
+### Breakpoints estándar (Tailwind)
+
+| Breakpoint | Tamaño mínimo | Uso típico |
+|---|---|---|
+| `sm:` | 640px | Tablet portrait · cambio de 1-col a 2-col en forms |
+| `md:` | 768px | Tablet landscape · aparece sidebar fijo |
+| `lg:` | 1024px | Desktop · grids de 3-4 columnas |
+| `xl:` | 1280px | Desktop wide · grids de 4+ columnas |
+
+### Checklist antes de commitear una vista nueva
+
+- [ ] Sin scroll horizontal en 375px (iPhone SE)
+- [ ] Todos los botones se ven completos · footer stacks
+- [ ] Grids responsive (`grid-cols-1 sm:grid-cols-X` en lugar de `grid-cols-X`)
+- [ ] Headers con `flex-wrap` cuando tienen 3+ items
+- [ ] Texto largo truncado o escondido en mobile
+- [ ] Modal content scrollable internamente · footer fijo abajo
+- [ ] Tested mentalmente en mobile (375px) y tablet (768px)
+
+---
+
 ## Cuando dudes
 
 1. Buscá si existe el patrón en `apps/web/components/` o `apps/web/app/(admin)/`

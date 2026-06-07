@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Scale,
   ShieldCheck,
@@ -111,6 +111,7 @@ function StatusChip({ label, ok }: { label: string; ok: boolean }) {
 }
 
 function CaseCard({ c }: { c: IntakeCase }) {
+  const router = useRouter();
   const borderClass = c.isReady
     ? 'border-emerald/30 hover:border-emerald/50'
     : c.isUrgent
@@ -126,7 +127,13 @@ function CaseCard({ c }: { c: IntakeCase }) {
   const badgeLabel = c.isReady ? 'Listo para cita' : c.isUrgent ? '⚠ Urgente' : 'En verificación';
 
   return (
-    <Link href={`/intake/${c.id}`} className={`block rounded-lg border bg-bg-1 p-4 transition-all hover:bg-white/[0.015] ${borderClass} group`}>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => router.push(`/intake/${c.id}`)}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') router.push(`/intake/${c.id}`); }}
+      className={`block rounded-lg border bg-bg-1 p-4 transition-all hover:bg-white/[0.015] cursor-pointer ${borderClass} group`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           {/* Header row */}
@@ -212,7 +219,7 @@ function CaseCard({ c }: { c: IntakeCase }) {
           )}
         </div>
       )}
-    </Link>
+    </div>
   );
 }
 

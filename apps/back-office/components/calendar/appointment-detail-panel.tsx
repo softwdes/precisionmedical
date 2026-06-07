@@ -42,7 +42,6 @@ interface CalendarAppointment {
     phone: string | null;
     email: string | null;
     dateOfBirth: string | null;
-    preferredLanguage: string | null;
   };
   case: {
     id: string;
@@ -51,8 +50,8 @@ interface CalendarAppointment {
     accidentDate: string | null;
     status: string;
     intakeFormCompletedAt: string | null;
-    lawyer: { id: string; firmName: string | null; firstName: string; lastName: string; phone: string | null; email: string | null } | null;
-    insurance: { id: string; name: string } | null;
+    attorney: { id: string; firmName: string | null; firstName: string; lastName: string; phone: string | null; email: string | null } | null;
+    primaryInsurance: { id: string; name: string } | null;
   } | null;
   clinic: { id: string; name: string };
   provider: { id: string; firstName: string; lastName: string; specialty: string | null } | null;
@@ -112,9 +111,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
   const statusCfg  = STATUS_CONFIG[appt.status] ?? { label: appt.status, state: 'info' as StatusState };
 
   // Checklist items
-  const intakeDone   = !!appt.case?.intakeFormCompletedAt;
-  const lawyerDone   = !!appt.case?.lawyer;
-  const insuranceDone = !!appt.case?.insurance;
+  const intakeDone    = !!appt.case?.intakeFormCompletedAt;
+  const lawyerDone    = !!appt.case?.attorney;
+  const insuranceDone = !!appt.case?.primaryInsurance;
 
   const handleConfirm = async () => {
     setConfirming(true);
@@ -207,8 +206,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                 </div>
                 <div className="text-text-muted text-xs mt-0.5">
                   {ageFromISO(appt.patient.dateOfBirth)} años
-                  {appt.patient.preferredLanguage === 'es' ? ' · 🇪🇸 Español' : ' · 🇺🇸 English'}
-                </div>
+                    </div>
               </div>
               {isFirst ? (
                 <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full text-white"
@@ -261,8 +259,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
             </div>
             <div className="space-y-2">
               <CheckItem done={intakeDone}   label="Formulario del paciente" sublabel={intakeDone ? 'Completado' : 'Pendiente — reenviar si necesario'} />
-              <CheckItem done={lawyerDone}   label="Abogado verificado"       sublabel={lawyerDone ? appt.case?.lawyer?.firmName ?? '—' : 'Sin abogado asignado'} />
-              <CheckItem done={insuranceDone} label="PIP / Seguro verificado" sublabel={insuranceDone ? appt.case?.insurance?.name ?? '—' : 'Pendiente de verificar'} />
+              <CheckItem done={lawyerDone}   label="Abogado verificado"       sublabel={lawyerDone ? (appt.case?.attorney?.firmName ?? (`${appt.case?.attorney?.firstName ?? ''} ${appt.case?.attorney?.lastName ?? ''}`.trim() || '—')) : 'Sin abogado asignado'} />
+              <CheckItem done={insuranceDone} label="PIP / Seguro verificado" sublabel={insuranceDone ? appt.case?.primaryInsurance?.name ?? '—' : 'Pendiente de verificar'} />
               <CheckItem done={appt.status === 'CONFIRMED'} label="Llamada de confirmación (24h antes)" sublabel={appt.status === 'CONFIRMED' ? 'Confirmada' : 'No realizada'} />
             </div>
           </div>

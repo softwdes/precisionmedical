@@ -32,7 +32,6 @@ interface CalendarAppointment {
     phone: string | null;
     email: string | null;
     dateOfBirth: string | null;
-    preferredLanguage: string | null;
   };
   case: {
     id: string;
@@ -41,8 +40,8 @@ interface CalendarAppointment {
     accidentDate: string | null;
     status: string;
     intakeFormCompletedAt: string | null;
-    lawyer: { id: string; firmName: string | null; firstName: string; lastName: string; phone: string | null; email: string | null } | null;
-    insurance: { id: string; name: string } | null;
+    attorney: { id: string; firmName: string | null; firstName: string; lastName: string; phone: string | null; email: string | null } | null;
+    primaryInsurance: { id: string; name: string } | null;
   } | null;
   clinic: { id: string; name: string };
   provider: { id: string; firstName: string; lastName: string; specialty: string | null } | null;
@@ -180,7 +179,7 @@ function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: 
       <DataRow label="Fecha de nacimiento" value={`${formatDOB(p.dateOfBirth)} (${ageFromISO(p.dateOfBirth)} años)`} />
       <DataRow label="Teléfono"   value={p.phone} />
       <DataRow label="Email"      value={p.email} />
-      <DataRow label="Idioma"     value={p.preferredLanguage === 'es' ? '🇪🇸 Español' : '🇺🇸 English'} />
+      <DataRow label="Idioma"     value="Verificar en formulario del paciente" />
       {appt.case && (
         <DataRow label="Caso"     value={appt.case.caseCode} mono />
       )}
@@ -194,7 +193,7 @@ function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: 
 // ─── 2. Lawyer ───────────────────────────────────────────────────────────────
 
 function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: () => void }) {
-  const lawyer = appt.case?.lawyer;
+  const lawyer = appt.case?.attorney;
   if (!lawyer) {
     return (
       <ModalShell title="Abogado & bufete" icon={<Scale className="w-4 h-4" />} accentColor="#f43f5e">
@@ -244,7 +243,7 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
 // ─── 3. Insurance / PIP ──────────────────────────────────────────────────────
 
 function InsuranceModal({ appt, onClose }: { appt: CalendarAppointment; onClose: () => void }) {
-  const insurance = appt.case?.insurance;
+  const insurance = appt.case?.primaryInsurance;
   if (!insurance) {
     return (
       <ModalShell title="Seguro PIP" icon={<Shield className="w-4 h-4" />} accentColor="#10b981">

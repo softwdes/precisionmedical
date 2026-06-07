@@ -767,6 +767,9 @@ model Appointment {
   // B.16 Triaje — registro de signos vitales capturados por MA
   triageRecord    TriageRecord?
 
+  // B.18 Nota de visita — firmada por el doctor
+  visitNote       VisitNote?
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -846,6 +849,88 @@ model TriageRecord {
   updatedAt DateTime         @updatedAt
 
   @@map("triage_records")
+}
+
+// ─── B.18 VisitNote ───────────────────────────────────────────────────────────
+
+enum VisitNoteStatus {
+  DRAFT   // Auto-guardado, no firmado
+  SIGNED  // Firmado por doctor — inmutable
+  VOIDED  // Anulado (solo Super Admin)
+}
+
+/// Nota clínica SOAP generada por el doctor durante la visita.
+/// Se crea como DRAFT al abrir B.18 y queda SIGNED al firmar.
+model VisitNote {
+  id             String          @id @default(cuid())
+  appointmentId  String          @unique
+  appointment    Appointment     @relation(fields: [appointmentId], references: [id])
+
+  // Plantilla usada al inicio de la visita (snapshot reference)
+  templateId     String?
+  template       Template?       @relation(fields: [templateId], references: [id])
+
+  // ─── Vitales (copia editable del triaje, separada de TriageRecord) ──────
+  heightFt       Int?
+  heightIn       Int?
+  heightCm       Float?
+  weightLbs      Int?
+  weightOz       Int?
+  weightKg       Float?
+  systolicMmhg   Int?
+  diastolicMmhg  Int?
+  pulseBpm       Int?
+  respRate       Int?            // Frecuencia respiratoria
+  tempFahrenheit Float?
+  tempCelsius    Float?
+  painScale      Int?            // 0–10
+  o2Saturation   Int?
+  onRoomAir      Boolean?
+
+  // ─── Secciones SOAP ─────────────────────────────────────────────────────
+  chiefComplaint String?         @db.Text   // QUEJA_PRINCIPAL
+  hpi            String?         @db.Text   // HPI
+  ros            String?         @db.Text   // ROS
+  physicalExam   String?         @db.Text   // EXAMEN_FISICO
+  assessment     String?         @db.Text   // EVALUACIONES
+  plan           String?         @db.Text   // PLAN
+
+  // ─── Diagnósticos (1:N) ─────────────────────────────────────────────────
+  diagnoses      VisitNoteDiagnosis[]
+
+  // ─── Estado y firma ─────────────────────────────────────────────────────
+  status         VisitNoteStatus @default(DRAFT)
+  signedAt       DateTime?
+  signedById     String?         // userId snapshot
+  signedByName   String?         // nombre snapshot
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([appointmentId])
+  @@index([status])
+  @@map("visit_notes")
+}
+
+/// Diagnóstico asociado a una nota de visita (ICD-10 + SNOMED dual).
+model VisitNoteDiagnosis {
+  id          String     @id @default(cuid())
+  noteId      String
+  note        VisitNote  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  icd10Code   String?
+  icd10Label  String?
+  snomedCode  String?
+  snomedLabel String?
+
+  // Referencia al catálogo si viene de una búsqueda
+  diagnosisId String?
+  diagnosis   Diagnosis? @relation(fields: [diagnosisId], references: [id])
+
+  sortOrder   Int        @default(0)
+
+  @@index([noteId])
+  @@map("visit_note_diagnoses")
 }
 
 // =====================================================
@@ -1353,6 +1438,7 @@ model Template {
 
   sections      TemplateSection[]
   favorites     TemplateFavorite[]
+  visitNotes    VisitNote[]
 
   usageCount    Int             @default(0)
   isActive      Boolean         @default(true)
@@ -1467,8 +1553,9 @@ model Diagnosis {
   usageCount        Int                    @default(0)
   isActive          Boolean                @default(true)
 
-  favorites         UserDiagnosisFavorite[]
-  mappings          DiagnosisMapping[]
+  favorites              UserDiagnosisFavorite[]
+  mappings               DiagnosisMapping[]
+  visitNoteDiagnoses     VisitNoteDiagnosis[]
 
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt

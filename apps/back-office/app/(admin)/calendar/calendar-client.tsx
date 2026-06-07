@@ -39,7 +39,6 @@ interface CalendarAppointment {
     phone: string | null;
     email: string | null;
     dateOfBirth: string | null;
-    preferredLanguage: string | null;
   };
   case: {
     id: string;
@@ -48,8 +47,8 @@ interface CalendarAppointment {
     accidentDate: string | null;
     status: string;
     intakeFormCompletedAt: string | null;
-    lawyer: { id: string; firmName: string | null; firstName: string; lastName: string; phone: string | null; email: string | null } | null;
-    insurance: { id: string; name: string } | null;
+    attorney: { id: string; firmName: string | null; firstName: string; lastName: string; phone: string | null; email: string | null } | null;
+    primaryInsurance: { id: string; name: string } | null;
   } | null;
   clinic: { id: string; name: string };
   provider: { id: string; firstName: string; lastName: string; specialty: string | null } | null;

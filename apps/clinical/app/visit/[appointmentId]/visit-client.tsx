@@ -22,6 +22,7 @@ import {
   ChevronDown, ChevronRight, Save, CheckCircle2,
   Bot, Search, X, Plus, Loader2, AlertTriangle,
   ArrowLeft, Stethoscope, FileText, History,
+  ClipboardList, FlaskConical, Trash2, Pencil,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -130,6 +131,786 @@ function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('es-US', {
     hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
   });
+}
+
+// ─── B.21 / B.20 — Catálogos locales (Phase 1A) ───────────────────────────────
+
+const SUGGESTED_CPTS = [
+  { code: '99213', description: 'Office Outpatient Visit 15 min',     fee: 250 },
+  { code: '99214', description: 'Office Outpatient Visit 25 min',     fee: 350 },
+  { code: '99215', description: 'Office Outpatient Visit 40 min',     fee: 450 },
+  { code: '97110', description: 'Therapeutic Exercise per 15 min',    fee: 120 },
+  { code: '97140', description: 'Manual Therapy Techniques',          fee: 130 },
+  { code: '20552', description: 'Injection — Trigger Point',          fee: 300 },
+  { code: 'J3301', description: 'Kenalog Injection · Triamcinolone',  fee: 120 },
+  { code: '98941', description: 'Chiropractic Manipulative Treatment',fee: 180 },
+  { code: '97014', description: 'Electrical Stimulation (unattended)',fee: 65  },
+  { code: '97035', description: 'Ultrasound Therapy per 15 min',      fee: 75  },
+];
+
+const LAB_STUDIES: Record<string, { code: string; name: string; loinc?: string }[]> = {
+  IMAGING: [
+    { code: 'MRI-CX', name: 'MRI Cervical Spine without contrast',     loinc: '36812-3' },
+    { code: 'MRI-LS', name: 'MRI Lumbar Spine without contrast',       loinc: '36814-9' },
+    { code: 'MRI-BR', name: 'MRI Brain without contrast',              loinc: '24725-8' },
+    { code: 'CT-CX',  name: 'CT Cervical Spine without contrast',      loinc: '36807-3' },
+    { code: 'CT-LS',  name: 'CT Lumbar Spine without contrast',        loinc: '36811-5' },
+    { code: 'XR-CX',  name: 'X-Ray Cervical Spine 4 views',           loinc: '36643-2' },
+    { code: 'XR-LS',  name: 'X-Ray Lumbar Spine AP/Lateral',          loinc: '36641-6' },
+    { code: 'XR-SH',  name: 'X-Ray Shoulder AP + Y-view',             loinc: '36616-8' },
+    { code: 'XR-KN',  name: 'X-Ray Knee AP/Lateral/Oblique',          loinc: '36620-0' },
+  ],
+  LABORATORY: [
+    { code: 'BMP',    name: 'Basic Metabolic Panel',                   loinc: '24320-8' },
+    { code: 'CMP',    name: 'Comprehensive Metabolic Panel',           loinc: '24323-2' },
+    { code: 'CBC',    name: 'Complete Blood Count with Differential',  loinc: '58410-2' },
+    { code: 'UA',     name: 'Urinalysis with Reflex Culture',          loinc: '5767-9'  },
+    { code: 'ESR',    name: 'Erythrocyte Sedimentation Rate',          loinc: '4537-7'  },
+    { code: 'CRP',    name: 'C-Reactive Protein',                      loinc: '1988-5'  },
+    { code: 'PT',     name: 'Prothrombin Time / INR',                  loinc: '5902-2'  },
+    { code: 'UDS',    name: 'Urine Drug Screen (10-panel)',            loinc: '19300-0' },
+  ],
+  CARDIOLOGY: [
+    { code: 'EKG',    name: 'ECG 12-lead with interpretation',         loinc: '11524-6' },
+    { code: 'ECHO',   name: 'Echocardiogram transthoracic',            loinc: '42148-7' },
+    { code: 'HOLTER', name: 'Holter Monitor 24-hour',                  loinc: '18843-0' },
+  ],
+};
+
+const URGENCY_LABELS: Record<string, string> = {
+  ROUTINE: 'Rutinaria (5-7 días)',
+  URGENT:  'Urgente (24-48 h)',
+  STAT:    'STAT — inmediata',
+};
+
+const OVERRIDE_REASONS = [
+  'Self-pay discount',
+  'Insurance override',
+  'Acuerdo con bufete',
+  'Write-off promocional',
+  'Otro',
+];
+
+// ─── B.21 CPT types ───────────────────────────────────────────────────────────
+interface VisitCpt {
+  id:             string;
+  visitNoteId:    string;
+  serviceCodeId:  string | null;
+  cptCode:        string;
+  description:    string;
+  feeCatalog:     number;
+  feeOverride:    number | null;
+  overrideReason: string | null;
+  modifier:       string | null;
+  units:          number;
+}
+
+// ─── B.21 CptSignModal ────────────────────────────────────────────────────────
+function CptSignModal({
+  appointmentId,
+  diagnoses,
+  providerName,
+  patientName,
+  caseCode,
+  onSign,
+  onClose,
+}: {
+  appointmentId: string;
+  diagnoses:     VisitNoteDiagnosis[];
+  providerName:  string;
+  patientName:   string;
+  caseCode:      string;
+  onSign:        (mode: 'draft' | 'sign') => Promise<void>;
+  onClose:       () => void;
+}) {
+  const [assigned,    setAssigned]    = useState<VisitCpt[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [mutating,    setMutating]    = useState(false);
+  const [editingId,   setEditingId]   = useState<string | null>(null);
+  const [editFee,     setEditFee]     = useState('');
+  const [editReason,  setEditReason]  = useState(OVERRIDE_REASONS[0]);
+  const [cptSearch,   setCptSearch]   = useState('');
+  const [signing,     setSigning]     = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res  = await fetch(`/api/visit/${appointmentId}/cpt`);
+        const json = await res.json() as { ok: boolean; cpts: VisitCpt[] };
+        if (json.ok) setAssigned(json.cpts);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [appointmentId]);
+
+  const handleAdd = async (code: string, description: string, fee: number) => {
+    setMutating(true);
+    try {
+      const res  = await fetch(`/api/visit/${appointmentId}/cpt`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', cptCode: code, description, feeCatalog: fee }),
+      });
+      const json = await res.json() as { ok: boolean; cpt: VisitCpt };
+      if (json.ok) setAssigned(p => [...p.filter(c => c.cptCode !== code), json.cpt]);
+    } finally { setMutating(false); }
+  };
+
+  const handleRemove = async (cptId: string) => {
+    setMutating(true);
+    try {
+      const res  = await fetch(`/api/visit/${appointmentId}/cpt`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', cptId }),
+      });
+      if ((await res.json() as { ok: boolean }).ok) setAssigned(p => p.filter(c => c.id !== cptId));
+    } finally { setMutating(false); }
+  };
+
+  const handleSaveFee = async (cpt: VisitCpt) => {
+    setMutating(true);
+    try {
+      const res  = await fetch(`/api/visit/${appointmentId}/cpt`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_fee', cptId: cpt.id,
+          feeOverride: editFee ? Number(editFee) : null,
+          overrideReason: editReason,
+        }),
+      });
+      const json = await res.json() as { ok: boolean; cpt: VisitCpt };
+      if (json.ok) { setAssigned(p => p.map(c => c.id === cpt.id ? json.cpt : c)); setEditingId(null); }
+    } finally { setMutating(false); }
+  };
+
+  const isAssigned = (code: string) => assigned.some(a => a.cptCode === code);
+
+  const suggestions = (cptSearch
+    ? SUGGESTED_CPTS.filter(s =>
+        s.code.toLowerCase().includes(cptSearch.toLowerCase()) ||
+        s.description.toLowerCase().includes(cptSearch.toLowerCase()))
+    : SUGGESTED_CPTS
+  ).filter(s => !isAssigned(s.code));
+
+  const total         = assigned.reduce((s, c) => s + (c.feeOverride ?? c.feeCatalog), 0);
+  const modifiedCount = assigned.filter(c => c.feeOverride !== null).length;
+  const icd10Display  = diagnoses.slice(0, 5).map(d => d.icd10Code).filter(Boolean).join(', ');
+
+  const handleSign = async (mode: 'draft' | 'sign') => {
+    setSigning(true);
+    try { await onSign(mode); }
+    finally { setSigning(false); }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 900,
+      background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '20px',
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 680, maxHeight: '90vh',
+        background: 'linear-gradient(135deg,#0f172a,#131c34)',
+        border: '1px solid rgba(99,102,241,0.30)', borderRadius: 14,
+        boxShadow: '0 32px 80px rgba(0,0,0,0.60)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '16px 22px', borderBottom: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ClipboardList size={16} color="#a78bfa" />
+              <span style={{ fontWeight: 800, fontSize: 15, color: '#fff' }}>
+                Asignar servicios CPT
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
+              {patientName} · {caseCode} · Servicios prestados en esta visita
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.50)', padding: 4 }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body (scrollable) */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
+
+          {loading ? (
+            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.40)', padding: 40 }}>
+              <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
+            </div>
+          ) : (
+            <>
+              {/* ── Suggested CPTs ── */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700 }}>
+                    CPTs disponibles
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={11} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} />
+                    <input
+                      value={cptSearch}
+                      onChange={e => setCptSearch(e.target.value)}
+                      placeholder="Buscar código..."
+                      style={{
+                        padding: '5px 8px 5px 24px', fontSize: 11,
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        borderRadius: 6, color: '#fff', width: 160, outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {suggestions.map(s => (
+                    <div key={s.code} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      background: 'rgba(16,185,129,0.06)',
+                      border: '1px solid rgba(16,185,129,0.20)',
+                      borderRadius: 8, padding: '9px 12px',
+                    }}>
+                      <span style={{ fontSize: 9, background: 'rgba(16,185,129,0.25)', color: '#34d399', padding: '2px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        SUGERIDO
+                      </span>
+                      <span style={{ fontFamily: 'monospace', color: '#67e8f9', fontSize: 12, fontWeight: 700, width: 52, flexShrink: 0 }}>
+                        {s.code}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.80)' }}>{s.description}</span>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace', flexShrink: 0 }}>
+                        ${s.fee.toFixed(2)}
+                      </span>
+                      <button
+                        onClick={() => void handleAdd(s.code, s.description, s.fee)}
+                        disabled={mutating}
+                        style={{
+                          padding: '4px 10px', fontSize: 11, fontWeight: 700,
+                          background: 'linear-gradient(135deg,#7c3aed,#a78bfa)',
+                          border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                        }}
+                      >
+                        <Plus size={11} /> Agregar
+                      </button>
+                    </div>
+                  ))}
+                  {suggestions.length === 0 && (
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.30)', textAlign: 'center', padding: '12px 0' }}>
+                      {cptSearch ? 'Sin resultados' : 'Todos los CPTs sugeridos ya asignados'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Assigned CPTs ── */}
+              {assigned.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#a78bfa', fontWeight: 700, marginBottom: 10 }}>
+                    Servicios asignados · {assigned.length}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {assigned.map(cpt => (
+                      <div key={cpt.id}>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 10,
+                          background: 'rgba(99,102,241,0.10)',
+                          border: `1px solid ${editingId === cpt.id ? 'rgba(245,158,11,0.40)' : 'rgba(99,102,241,0.30)'}`,
+                          borderRadius: editingId === cpt.id ? '8px 8px 0 0' : 8,
+                          padding: '9px 12px',
+                        }}>
+                          <span style={{ fontFamily: 'monospace', color: '#67e8f9', fontSize: 12, fontWeight: 700, width: 52, flexShrink: 0 }}>
+                            {cpt.cptCode} ✓
+                          </span>
+                          <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.80)' }}>{cpt.description}</span>
+                          {/* Fee display */}
+                          {cpt.feeOverride !== null ? (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', textDecoration: 'line-through', fontFamily: 'monospace' }}>
+                                ${cpt.feeCatalog.toFixed(2)}
+                              </span>
+                              <span style={{ fontSize: 13, color: '#fbbf24', fontWeight: 700, fontFamily: 'monospace' }}>
+                                ${cpt.feeOverride.toFixed(2)}
+                              </span>
+                              <span style={{ fontSize: 9, background: 'rgba(245,158,11,0.20)', color: '#fbbf24', padding: '2px 5px', borderRadius: 4, fontWeight: 700 }}>
+                                MOD
+                              </span>
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 13, color: '#fff', fontWeight: 600, fontFamily: 'monospace', flexShrink: 0 }}>
+                              ${cpt.feeCatalog.toFixed(2)}
+                            </span>
+                          )}
+                          {/* Edit fee button */}
+                          <button
+                            onClick={() => { setEditingId(cpt.id === editingId ? null : cpt.id); setEditFee(String(cpt.feeOverride ?? cpt.feeCatalog)); setEditReason(cpt.overrideReason ?? OVERRIDE_REASONS[0]); }}
+                            style={{
+                              padding: '4px 8px', fontSize: 11,
+                              background: 'rgba(99,102,241,0.20)',
+                              border: '1px solid rgba(99,102,241,0.40)',
+                              borderRadius: 6, color: '#a5b4fc', cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', flexShrink: 0,
+                            }}
+                            title="Editar fee"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                          {/* Remove button */}
+                          <button
+                            onClick={() => void handleRemove(cpt.id)}
+                            disabled={mutating}
+                            style={{
+                              padding: '4px 8px', fontSize: 11,
+                              background: 'rgba(244,63,94,0.15)',
+                              border: '1px solid rgba(244,63,94,0.30)',
+                              borderRadius: 6, color: '#fda4af', cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', flexShrink: 0,
+                            }}
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+
+                        {/* Inline fee edit panel */}
+                        {editingId === cpt.id && (
+                          <div style={{
+                            background: 'rgba(245,158,11,0.06)',
+                            border: '1px dashed rgba(245,158,11,0.40)',
+                            borderTop: 'none',
+                            borderRadius: '0 0 8px 8px',
+                            padding: '10px 14px',
+                            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+                          }}>
+                            <span style={{ fontSize: 10, color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              ✏ Editando fee · {cpt.cptCode}
+                            </span>
+                            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)' }}>
+                              Catálogo: <span style={{ fontFamily: 'monospace' }}>${cpt.feeCatalog.toFixed(2)}</span> · Esta visita:
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ color: '#fff', fontFamily: 'monospace' }}>$</span>
+                              <input
+                                type="number"
+                                value={editFee}
+                                onChange={e => setEditFee(e.target.value)}
+                                style={{
+                                  width: 72, padding: '4px 8px', fontFamily: 'monospace', fontSize: 13,
+                                  background: 'rgba(0,0,0,0.30)', color: '#fff',
+                                  border: '1px solid rgba(245,158,11,0.50)', borderRadius: 4, outline: 'none',
+                                }}
+                              />
+                            </div>
+                            <select
+                              value={editReason}
+                              onChange={e => setEditReason(e.target.value)}
+                              style={{
+                                fontSize: 11, padding: '4px 8px',
+                                background: 'rgba(0,0,0,0.30)', color: '#fff',
+                                border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, outline: 'none',
+                              }}
+                            >
+                              {OVERRIDE_REASONS.map(r => <option key={r}>{r}</option>)}
+                            </select>
+                            <button
+                              onClick={() => void handleSaveFee(cpt)}
+                              disabled={mutating}
+                              style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', border: 'none', borderRadius: 5, color: '#fff', cursor: 'pointer' }}
+                            >
+                              ✓ Guardar
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              style={{ padding: '4px 10px', fontSize: 11, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 5, color: 'rgba(255,255,255,0.60)', cursor: 'pointer' }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Total ── */}
+              {assigned.length > 0 && (
+                <div style={{
+                  background: 'rgba(6,182,212,0.10)',
+                  border: '1px solid rgba(6,182,212,0.30)',
+                  borderRadius: 8, padding: '12px 16px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  marginBottom: 18,
+                }}>
+                  <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>
+                    Total visita
+                    {modifiedCount > 0 && (
+                      <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.15)', color: '#fbbf24', padding: '2px 7px', borderRadius: 100, marginLeft: 8, fontWeight: 700 }}>
+                        {modifiedCount} fee modificado
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ color: '#67e8f9', fontSize: 20, fontWeight: 800, fontFamily: 'monospace' }}>
+                    ${total.toFixed(2)}
+                  </span>
+                </div>
+              )}
+
+              {/* ── ICD-10 info ── */}
+              {icd10Display && (
+                <div style={{
+                  background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)',
+                  borderRadius: 6, padding: '8px 12px', fontSize: 11, color: '#a5b4fc', marginBottom: 18,
+                }}>
+                  📋 Diagnósticos de la nota: <strong style={{ color: '#fff' }}>{icd10Display}</strong>
+                </div>
+              )}
+
+              {/* ── Cerrar visita ── */}
+              <div style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 8, padding: '14px 16px',
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: 10 }}>
+                  🏁 Cerrar visita
+                </div>
+                <ul style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginLeft: 16, lineHeight: 1.75, marginBottom: 14 }}>
+                  <li>✓ La nota SOAP queda inmutable y firmada con tu credencial</li>
+                  <li>✓ Se notifica a Brunella para iniciar el billing del caso</li>
+                  <li>✓ Se genera narrativa para el bufete (MVA)</li>
+                  {assigned.length > 0 && (
+                    <li>✓ {assigned.length} servicio{assigned.length > 1 ? 's' : ''} CPT · total <span style={{ fontFamily: 'monospace', color: '#67e8f9' }}>${total.toFixed(2)}</span></li>
+                  )}
+                </ul>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => void handleSign('draft')}
+                    disabled={signing}
+                    style={{
+                      padding: '9px 16px', fontSize: 12, fontWeight: 600,
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 8, color: 'rgba(255,255,255,0.60)', cursor: 'pointer',
+                    }}
+                  >
+                    Guardar borrador
+                  </button>
+                  <button
+                    onClick={() => void handleSign('sign')}
+                    disabled={signing || assigned.length === 0}
+                    style={{
+                      padding: '9px 22px', fontSize: 13, fontWeight: 700,
+                      background: signing ? 'rgba(139,92,246,0.20)' : 'linear-gradient(135deg,#7c3aed,#a78bfa)',
+                      border: 'none', borderRadius: 8, color: '#fff',
+                      cursor: (signing || assigned.length === 0) ? 'default' : 'pointer',
+                      opacity: assigned.length === 0 ? 0.50 : 1,
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      boxShadow: (signing || assigned.length === 0) ? 'none' : '0 4px 14px rgba(124,58,237,0.35)',
+                    }}
+                    title={assigned.length === 0 ? 'Agrega al menos 1 CPT para firmar' : undefined}
+                  >
+                    {signing
+                      ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Firmando...</>
+                      : <><CheckCircle2 size={13} /> Firmar y cerrar visita →</>
+                    }
+                  </button>
+                </div>
+                {assigned.length === 0 && (
+                  <div style={{ fontSize: 10, color: 'rgba(245,158,11,0.80)', marginTop: 8 }}>
+                    ⚠ Agrega al menos 1 código CPT antes de firmar
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── B.20 LabOrderModal ───────────────────────────────────────────────────────
+function LabOrderModal({
+  appointmentId,
+  visitNoteId,
+  diagnoses,
+  providerName,
+  onClose,
+}: {
+  appointmentId: string;
+  visitNoteId:   string | null;
+  diagnoses:     VisitNoteDiagnosis[];
+  providerName:  string;
+  onClose:       (created?: boolean) => void;
+}) {
+  const ORDER_TYPES = ['IMAGING', 'LABORATORY', 'CARDIOLOGY'] as const;
+  type OrderType = typeof ORDER_TYPES[number];
+
+  const [orderType,    setOrderType]    = useState<OrderType>('IMAGING');
+  const [search,       setSearch]       = useState('');
+  const [selected,     setSelected]     = useState<{ code: string; name: string; loinc?: string } | null>(null);
+  const [indication,   setIndication]   = useState('');
+  const [urgency,      setUrgency]      = useState<'ROUTINE' | 'URGENT' | 'STAT'>('ROUTINE');
+  const [center,       setCenter]       = useState('');
+  const [saving,       setSaving]       = useState(false);
+  const [success,      setSuccess]      = useState(false);
+
+  const icd10Display = diagnoses.slice(0, 5).map(d => d.icd10Code).filter(Boolean).join(', ');
+  const icd10Array   = diagnoses.slice(0, 5).map(d => d.icd10Code).filter(Boolean) as string[];
+
+  const catalog = LAB_STUDIES[orderType] ?? [];
+  const results = search
+    ? catalog.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
+    : catalog;
+
+  const handleCreate = async () => {
+    if (!selected || !indication.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/visit/${appointmentId}/lab`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderType,
+          studyName:          selected.name,
+          loincCode:          selected.loinc,
+          clinicalIndication: indication.trim(),
+          urgency,
+          preferredCenter:    center.trim() || undefined,
+          icd10Codes:         icd10Array,
+          orderedByName:      providerName,
+          visitNoteId,
+        }),
+      });
+      if (res.ok) { setSuccess(true); setTimeout(() => onClose(true), 1200); }
+    } finally { setSaving(false); }
+  };
+
+  if (success) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 950,
+        background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{ textAlign: 'center', color: '#34d399', fontSize: 16, fontWeight: 700 }}>
+          <CheckCircle2 size={40} style={{ marginBottom: 10 }} />
+          <div>Orden creada exitosamente</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 950,
+      background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '20px',
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 560, maxHeight: '90vh',
+        background: 'linear-gradient(135deg,#0f172a,#131c34)',
+        border: '1px solid rgba(99,102,241,0.30)', borderRadius: 14,
+        boxShadow: '0 32px 80px rgba(0,0,0,0.60)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FlaskConical size={16} color="#a78bfa" />
+            <span style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>Nueva orden de laboratorio</span>
+          </div>
+          <button onClick={() => onClose()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.50)', padding: 4 }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Order type toggle */}
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
+              Tipo de orden
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {ORDER_TYPES.map(t => (
+                <button
+                  key={t}
+                  onClick={() => { setOrderType(t); setSelected(null); setSearch(''); }}
+                  style={{
+                    padding: '6px 14px', fontSize: 12, fontWeight: 600, borderRadius: 7,
+                    background: orderType === t ? 'rgba(99,102,241,0.20)' : 'rgba(255,255,255,0.04)',
+                    border: orderType === t ? '1px solid rgba(99,102,241,0.45)' : '1px solid rgba(255,255,255,0.10)',
+                    color: orderType === t ? '#a5b4fc' : 'rgba(255,255,255,0.55)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t === 'IMAGING' ? 'Imaging' : t === 'LABORATORY' ? 'Laboratorio' : 'Cardiología'}
+                  {orderType === t && ' ✓'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Study search */}
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
+              Estudio *
+            </div>
+            <div style={{ position: 'relative', marginBottom: 8 }}>
+              <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} />
+              <input
+                value={search}
+                onChange={e => { setSearch(e.target.value); setSelected(null); }}
+                placeholder={`Buscar en ${orderType === 'IMAGING' ? 'imaging' : orderType === 'LABORATORY' ? 'laboratorio' : 'cardiología'}...`}
+                style={{
+                  width: '100%', padding: '8px 10px 8px 30px', fontSize: 12,
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: 7, color: '#fff', outline: 'none',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {results.slice(0, 6).map(s => (
+                <button
+                  key={s.code}
+                  onClick={() => setSelected(s)}
+                  style={{
+                    width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: 12,
+                    background: selected?.code === s.code ? 'rgba(99,102,241,0.18)' : 'rgba(255,255,255,0.03)',
+                    border: selected?.code === s.code ? '1px solid rgba(99,102,241,0.45)' : '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: 6, color: selected?.code === s.code ? '#a5b4fc' : 'rgba(255,255,255,0.75)',
+                    cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}
+                >
+                  <span>{s.name}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {s.loinc && <span style={{ fontFamily: 'monospace', fontSize: 10, color: 'rgba(255,255,255,0.30)' }}>{s.loinc}</span>}
+                    {selected?.code === s.code && <span style={{ fontSize: 11 }}>✓</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Clinical indication */}
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
+              Indicación clínica *
+            </div>
+            <textarea
+              value={indication}
+              onChange={e => setIndication(e.target.value)}
+              placeholder="Ej: Rule out cervical disc herniation. Persistent radiculopathy 8 weeks post-MVA."
+              rows={3}
+              style={{
+                width: '100%', padding: '9px 12px', fontSize: 12, resize: 'vertical',
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: 7, color: '#fff', outline: 'none', lineHeight: 1.6,
+              }}
+            />
+          </div>
+
+          {/* Urgency + Center */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
+                Urgencia
+              </div>
+              <select
+                value={urgency}
+                onChange={e => setUrgency(e.target.value as 'ROUTINE' | 'URGENT' | 'STAT')}
+                style={{
+                  width: '100%', padding: '8px 10px', fontSize: 12,
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: 7, color: '#fff', outline: 'none',
+                }}
+              >
+                {Object.entries(URGENCY_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
+                Centro preferido
+              </div>
+              <input
+                value={center}
+                onChange={e => setCenter(e.target.value)}
+                placeholder="Ej: Provo Imaging Center"
+                style={{
+                  width: '100%', padding: '8px 10px', fontSize: 12,
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: 7, color: '#fff', outline: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* ICD-10 auto-fill */}
+          {icd10Display && (
+            <div style={{
+              background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)',
+              borderRadius: 6, padding: '8px 12px', fontSize: 11, color: '#a5b4fc',
+            }}>
+              📋 ICD-10 de la nota: <strong style={{ color: '#fff' }}>{icd10Display}</strong>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', justifyContent: 'flex-end', gap: 8, flexShrink: 0,
+        }}>
+          <button
+            onClick={() => onClose()}
+            style={{
+              padding: '9px 16px', fontSize: 12, background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8,
+              color: 'rgba(255,255,255,0.60)', cursor: 'pointer',
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => void handleCreate()}
+            disabled={saving || !selected || !indication.trim()}
+            style={{
+              padding: '9px 22px', fontSize: 12, fontWeight: 700,
+              background: (saving || !selected || !indication.trim())
+                ? 'rgba(139,92,246,0.20)'
+                : 'linear-gradient(135deg,#7c3aed,#a78bfa)',
+              border: 'none', borderRadius: 8, color: '#fff',
+              cursor: (saving || !selected || !indication.trim()) ? 'default' : 'pointer',
+              opacity: (!selected || !indication.trim()) ? 0.50 : 1,
+              display: 'flex', alignItems: 'center', gap: 6,
+              boxShadow: (!selected || !indication.trim()) ? 'none' : '0 4px 14px rgba(124,58,237,0.35)',
+            }}
+          >
+            {saving
+              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Creando...</>
+              : <><CheckCircle2 size={13} /> Crear orden →</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Subcomponents ────────────────────────────────────────────────────────────
@@ -795,6 +1576,8 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
   const [signing,     setSigning]     = useState(false);
   const [saveStatus,  setSaveStatus]  = useState<'idle' | 'saved' | 'error'>('idle');
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showCptModal,       setShowCptModal]        = useState(false);
+  const [showLabModal,       setShowLabModal]        = useState(false);
   const [isSigned,    setIsSigned]    = useState(false);
   const [signedAt,    setSignedAt]    = useState<string | null>(null);
   const [signedBy,    setSignedBy]    = useState<string | null>(null);
@@ -1175,8 +1958,10 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12,
           }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', flex: 1 }}>
-              Auto-guardado cada 30 seg. Al firmar la nota queda inmutable.
+              Auto-guardado cada 30 seg. Asigna CPTs antes de firmar.
             </div>
+
+            {/* Guardar borrador */}
             <button
               onClick={() => void doSave(false)}
               disabled={saving}
@@ -1191,11 +1976,28 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             >
               <Save size={13} /> Guardar borrador
             </button>
+
+            {/* Lab Order */}
             <button
-              onClick={() => void handleSign()}
+              onClick={() => setShowLabModal(true)}
+              style={{
+                padding: '10px 16px', borderRadius: 8,
+                background: 'rgba(6,182,212,0.10)',
+                border: '1px solid rgba(6,182,212,0.30)',
+                color: '#67e8f9', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+              title="B.20 — Ordenar estudio de laboratorio / imaging"
+            >
+              <FlaskConical size={13} /> Lab / Imaging
+            </button>
+
+            {/* CPTs + Firmar */}
+            <button
+              onClick={() => setShowCptModal(true)}
               disabled={signing}
               style={{
-                padding: '10px 24px', borderRadius: 8,
+                padding: '10px 22px', borderRadius: 8,
                 background: signing ? 'rgba(139,92,246,0.20)' : 'linear-gradient(135deg, #7c3aed, #a78bfa)',
                 border: 'none',
                 color: '#fff', fontSize: 13, fontWeight: 700,
@@ -1204,10 +2006,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
                 boxShadow: signing ? 'none' : '0 4px 16px rgba(124,58,237,0.40)',
               }}
             >
-              {signing
-                ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Firmando...</>
-                : <><CheckCircle2 size={14} /> Firmar nota →</>
-              }
+              <ClipboardList size={14} /> CPTs + Firmar →
             </button>
           </footer>
         )}
@@ -1233,6 +2032,46 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
           <TemplatePicker
             onLoad={handleLoadTemplate}
             onClose={() => setShowTemplatePicker(false)}
+          />
+        )}
+
+        {/* B.21 CPT + Firma */}
+        {showCptModal && data && (
+          <CptSignModal
+            appointmentId={appointmentId}
+            diagnoses={diagnoses}
+            providerName={data.appointment.provider
+              ? `Dr. ${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
+              : 'Doctor'}
+            patientName={data.appointment.patient
+              ? `${data.appointment.patient.lastName.toUpperCase()}, ${data.appointment.patient.firstName}`
+              : 'Paciente'}
+            caseCode={data.appointment.case?.caseCode ?? ''}
+            onSign={async (mode) => {
+              if (mode === 'draft') {
+                await doSave(false);
+                setShowCptModal(false);
+              } else {
+                // Guardar primero, luego firmar
+                await doSave(true);
+                await handleSign();
+                setShowCptModal(false);
+              }
+            }}
+            onClose={() => setShowCptModal(false)}
+          />
+        )}
+
+        {/* B.20 Lab Orders */}
+        {showLabModal && data && (
+          <LabOrderModal
+            appointmentId={appointmentId}
+            visitNoteId={data.appointment.visitNote?.id ?? null}
+            diagnoses={diagnoses}
+            providerName={data.appointment.provider
+              ? `Dr. ${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
+              : 'Doctor'}
+            onClose={() => setShowLabModal(false)}
           />
         )}
       </div>

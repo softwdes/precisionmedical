@@ -773,6 +773,9 @@ model Appointment {
   // B.18 Nota de visita — firmada por el doctor
   visitNote       VisitNote?
 
+  // B.20 Órdenes de laboratorio / imaging
+  labOrders       LabOrder[]
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -902,6 +905,12 @@ model VisitNote {
   // ─── Diagnósticos (1:N) ─────────────────────────────────────────────────
   diagnoses      VisitNoteDiagnosis[]
 
+  // ─── B.21 CPT services assigned to this visit ───────────────────────────
+  serviceCodes   VisitServiceCode[]
+
+  // ─── B.20 Lab/imaging orders ────────────────────────────────────────────
+  labOrders      LabOrder[]
+
   // ─── Estado y firma ─────────────────────────────────────────────────────
   status         VisitNoteStatus @default(DRAFT)
   signedAt       DateTime?
@@ -914,6 +923,90 @@ model VisitNote {
   @@index([appointmentId])
   @@index([status])
   @@map("visit_notes")
+}
+
+// ─── B.21 VisitServiceCode ────────────────────────────────────────────────────
+/// CPT / HCPCS codes asignados a una visita por el doctor antes de firmar.
+/// fee_override permite ajustar el fee del catálogo por visita (self-pay, etc.).
+/// Se crea junto con la nota DRAFT y queda locked al firmar.
+/// Tablas en DB: migration 20260608020000_visit_service_codes.sql
+/// NOTA: usar db.$queryRaw hasta regenerar Prisma client.
+model VisitServiceCode {
+  id            String       @id @default(cuid())
+  visitNoteId   String
+  visitNote     VisitNote    @relation(fields: [visitNoteId], references: [id], onDelete: Cascade)
+  serviceCodeId String?
+  serviceCode   ServiceCode? @relation(fields: [serviceCodeId], references: [id], onDelete: SetNull)
+
+  // Snapshot al asignar
+  cptCode       String
+  description   String
+  feeCatalog    Decimal  @db.Decimal(10,2)
+  feeOverride   Decimal? @db.Decimal(10,2)  // null = usar feeCatalog
+  overrideReason String?
+
+  modifier      String?
+  units         Int      @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([visitNoteId, cptCode])
+  @@index([visitNoteId])
+  @@map("visit_service_codes")
+}
+
+// ─── B.20 Lab/Imaging Order ───────────────────────────────────────────────────
+/// Orden de laboratorio, imaging o cardiología creada por el doctor
+/// desde la nota SOAP. Aparece como "acción requerida" al resultar.
+/// Tablas en DB: migration 20260608030000_lab_orders.sql
+/// NOTA: usar db.$queryRaw hasta regenerar Prisma client.
+
+enum LabOrderType {
+  LABORATORY
+  IMAGING
+  CARDIOLOGY
+  OTHER
+}
+
+enum LabOrderUrgency {
+  STAT
+  URGENT
+  ROUTINE
+}
+
+enum LabOrderStatus {
+  ORDERED
+  IN_PROGRESS
+  RESULTED
+  VOIDED
+}
+
+model LabOrder {
+  id            String          @id @default(cuid())
+  appointmentId String
+  appointment   Appointment     @relation(fields: [appointmentId], references: [id])
+  visitNoteId   String?
+  visitNote     VisitNote?      @relation(fields: [visitNoteId], references: [id], onDelete: SetNull)
+
+  orderType          LabOrderType
+  studyName          String
+  loincCode          String?
+  clinicalIndication String       @db.Text
+  urgency            LabOrderUrgency @default(ROUTINE)
+  preferredCenter    String?
+  icd10Codes         String[]    @default([])
+
+  status        LabOrderStatus @default(ORDERED)
+  orderedAt     DateTime       @default(now())
+  orderedByName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([appointmentId])
+  @@index([visitNoteId])
+  @@map("lab_orders")
 }
 
 /// Diagnóstico asociado a una nota de visita (ICD-10 + SNOMED dual).
@@ -1716,6 +1809,7 @@ model ServiceCode {
   // No FK directo porque ya se almacena en SpecialtyCatalog.cptSuggested[] como strings.
 
   favorites       UserServiceFavorite[]
+  visitAssignments VisitServiceCode[]
 
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt

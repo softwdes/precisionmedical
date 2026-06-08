@@ -133,6 +133,81 @@ function fmtTime(iso: string): string {
   });
 }
 
+// ─── B.19 — Catálogo Rx local (Phase 1A) ─────────────────────────────────────
+
+interface RxDrug {
+  name:     string;
+  generic:  string;
+  schedule: string | null;  // 'II' | 'III' | 'IV' | 'V' | null
+  category: string;
+}
+
+const RX_CATALOG: RxDrug[] = [
+  // NSAIDs
+  { name: 'Ibuprofen 600mg Tab',              generic: 'Ibuprofen',           schedule: null, category: 'NSAID' },
+  { name: 'Ibuprofen 800mg Tab',              generic: 'Ibuprofen',           schedule: null, category: 'NSAID' },
+  { name: 'Naproxen 500mg Tab',               generic: 'Naproxen Sodium',     schedule: null, category: 'NSAID' },
+  { name: 'Meloxicam 15mg Tab',               generic: 'Meloxicam',           schedule: null, category: 'NSAID' },
+  { name: 'Diclofenac 75mg EC Tab',           generic: 'Diclofenac Na',       schedule: null, category: 'NSAID' },
+  { name: 'Ketorolac 10mg Tab',               generic: 'Ketorolac',           schedule: null, category: 'NSAID' },
+  { name: 'Celecoxib 200mg Cap',              generic: 'Celecoxib',           schedule: null, category: 'NSAID' },
+  // Muscle Relaxants
+  { name: 'Cyclobenzaprine 5mg Tab',          generic: 'Cyclobenzaprine',     schedule: null, category: 'RELAXANT' },
+  { name: 'Cyclobenzaprine 10mg Tab',         generic: 'Cyclobenzaprine',     schedule: null, category: 'RELAXANT' },
+  { name: 'Methocarbamol 750mg Tab',          generic: 'Methocarbamol',       schedule: null, category: 'RELAXANT' },
+  { name: 'Tizanidine 4mg Tab',               generic: 'Tizanidine',          schedule: null, category: 'RELAXANT' },
+  { name: 'Baclofen 10mg Tab',                generic: 'Baclofen',            schedule: null, category: 'RELAXANT' },
+  // Opioids (controlled)
+  { name: 'Oxycodone 5mg Tab',                generic: 'Oxycodone HCl',       schedule: 'II',  category: 'OPIOID' },
+  { name: 'Oxycodone 10mg Tab',               generic: 'Oxycodone HCl',       schedule: 'II',  category: 'OPIOID' },
+  { name: 'Oxycodone/APAP 5/325 Tab',         generic: 'Oxycodone HCl',       schedule: 'II',  category: 'OPIOID' },
+  { name: 'Hydrocodone/APAP 5/325 Tab',       generic: 'Hydrocodone',         schedule: 'II',  category: 'OPIOID' },
+  { name: 'Hydrocodone/APAP 10/325 Tab',      generic: 'Hydrocodone',         schedule: 'II',  category: 'OPIOID' },
+  { name: 'Tramadol 50mg Tab',                generic: 'Tramadol HCl',        schedule: 'IV',  category: 'OPIOID' },
+  { name: 'Tramadol 100mg ER Tab',            generic: 'Tramadol HCl ER',     schedule: 'IV',  category: 'OPIOID' },
+  // Neuropathic / Adjuvant
+  { name: 'Gabapentin 300mg Cap',             generic: 'Gabapentin',          schedule: null,  category: 'NEURO' },
+  { name: 'Gabapentin 600mg Tab',             generic: 'Gabapentin',          schedule: null,  category: 'NEURO' },
+  { name: 'Pregabalin 75mg Cap',              generic: 'Pregabalin',          schedule: 'V',   category: 'NEURO' },
+  { name: 'Pregabalin 150mg Cap',             generic: 'Pregabalin',          schedule: 'V',   category: 'NEURO' },
+  { name: 'Duloxetine 30mg Cap',              generic: 'Duloxetine HCl',      schedule: null,  category: 'NEURO' },
+  { name: 'Amitriptyline 25mg Tab',           generic: 'Amitriptyline',       schedule: null,  category: 'NEURO' },
+  // Topical
+  { name: 'Diclofenac Gel 1% (100g)',         generic: 'Diclofenac Na',       schedule: null,  category: 'TOPICAL' },
+  { name: 'Lidocaine Patch 5% (30ct)',        generic: 'Lidocaine',           schedule: null,  category: 'TOPICAL' },
+  { name: 'Capsaicin Cream 0.025% (60g)',     generic: 'Capsaicin',           schedule: null,  category: 'TOPICAL' },
+  // Steroids
+  { name: 'Methylprednisolone 4mg Dose Pack', generic: 'Methylprednisolone',  schedule: null,  category: 'STEROID' },
+  { name: 'Prednisone 10mg Tab',              generic: 'Prednisone',          schedule: null,  category: 'STEROID' },
+  { name: 'Prednisone 20mg Tab',              generic: 'Prednisone',          schedule: null,  category: 'STEROID' },
+  // Other
+  { name: 'Pantoprazole 40mg Tab',            generic: 'Pantoprazole',        schedule: null,  category: 'OTHER' },
+  { name: 'Omeprazole 20mg Cap',              generic: 'Omeprazole',          schedule: null,  category: 'OTHER' },
+  { name: 'Ondansetron 4mg ODT',              generic: 'Ondansetron',         schedule: null,  category: 'OTHER' },
+];
+
+// Known interactions (simplified Phase 1A — real check via DAW in Phase 2)
+const RX_INTERACTIONS: Record<string, { with: string; warning: string }[]> = {
+  Cyclobenzaprine: [
+    { with: 'Tramadol',    warning: 'Tramadol + Cyclobenzaprine = riesgo serotonín syndrome. Evitar combinación.' },
+    { with: 'Oxycodone',   warning: 'Opioide + relajante muscular = depresión SNC potenciada. CDC advierte.' },
+    { with: 'Hydrocodone', warning: 'Opioide + relajante muscular = depresión SNC potenciada. CDC advierte.' },
+  ],
+  Tramadol: [
+    { with: 'Cyclobenzaprine', warning: 'Tramadol + Cyclobenzaprine = riesgo serotonín syndrome.' },
+    { with: 'Gabapentin',      warning: 'Tramadol + Gabapentin = CNS depression aumentada.' },
+    { with: 'Pregabalin',      warning: 'Tramadol + Pregabalin = CNS depression + seizure risk.' },
+  ],
+  Oxycodone: [
+    { with: 'Cyclobenzaprine', warning: 'Opioide + relajante muscular = depresión SNC potenciada.' },
+    { with: 'Gabapentin',      warning: 'Oxycodone + Gabapentin = CNS depression + respiratory depression.' },
+  ],
+};
+
+const SCHEDULE_COLORS: Record<string, string> = {
+  II:  '#f43f5e', III: '#f97316', IV: '#fbbf24', V: '#a3e635',
+};
+
 // ─── B.21 / B.20 — Catálogos locales (Phase 1A) ───────────────────────────────
 
 const SUGGESTED_CPTS = [
@@ -190,6 +265,478 @@ const OVERRIDE_REASONS = [
   'Write-off promocional',
   'Otro',
 ];
+
+// ─── B.19 RxModal ────────────────────────────────────────────────────────────
+function RxModal({
+  appointmentId,
+  visitNoteId,
+  providerName,
+  patientName,
+  caseCode,
+  onClose,
+}: {
+  appointmentId: string;
+  visitNoteId:   string | null;
+  providerName:  string;
+  patientName:   string;
+  caseCode:      string;
+  onClose:       (created?: boolean) => void;
+}) {
+  const [search,      setSearch]      = useState('');
+  const [selected,    setSelected]    = useState<RxDrug | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [dose,        setDose]        = useState('');
+  const [frequency,   setFrequency]   = useState('');
+  const [duration,    setDuration]    = useState('');
+  const [quantity,    setQuantity]    = useState('');
+  const [refills,     setRefills]     = useState('0');
+  const [indication,  setIndication]  = useState('');
+  const [pharmacy,    setPharmacy]    = useState('');
+  const [interactionOverride, setInteractionOverride] = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [result,      setResult]      = useState<{ ok: boolean; controlled: boolean } | null>(null);
+
+  // Detect interactions when drug is selected
+  const interactions: { with: string; warning: string }[] = selected
+    ? (RX_INTERACTIONS[selected.generic] ?? [])
+    : [];
+
+  const hasInteraction = interactions.length > 0;
+  const isControlled   = !!selected?.schedule;
+  const canSubmit = selected && dose && frequency && duration && quantity && indication.trim()
+    && (!hasInteraction || interactionOverride);
+
+  // Search results
+  const results = search.trim().length >= 2
+    ? RX_CATALOG.filter(d =>
+        d.name.toLowerCase().includes(search.toLowerCase()) ||
+        d.generic.toLowerCase().includes(search.toLowerCase())
+      ).slice(0, 7)
+    : [];
+
+  function handleSelectDrug(d: RxDrug) {
+    setSelected(d);
+    setSearch(d.name);
+    setShowResults(false);
+    setInteractionOverride(false);
+    // Auto-set refills 0 for Schedule II
+    if (d.schedule === 'II') setRefills('0');
+  }
+
+  const handleSubmit = async () => {
+    if (!selected || !canSubmit) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/visit/${appointmentId}/rx`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drugName:           selected.name,
+          drugGeneric:        selected.generic,
+          deaSchedule:        selected.schedule,
+          dose,
+          frequency,
+          durationStr:        duration,
+          quantityTotal:      Number(quantity),
+          refills:            Number(refills),
+          clinicalIndication: indication.trim(),
+          pharmacyName:       pharmacy.trim() || undefined,
+          prescriberName:     providerName,
+          visitNoteId,
+        }),
+      });
+      const json = await res.json() as { ok: boolean };
+      if (json.ok) {
+        setResult({ ok: true, controlled: isControlled });
+        setTimeout(() => onClose(true), 2200);
+      }
+    } finally { setSaving(false); }
+  };
+
+  if (result) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 960,
+        background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{ textAlign: 'center', padding: 40, maxWidth: 380 }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>
+            {result.controlled ? '📋' : '✅'}
+          </div>
+          {result.controlled ? (
+            <>
+              <div style={{ fontWeight: 800, fontSize: 15, color: '#fda4af', marginBottom: 8 }}>
+                Prescripción guardada · Pendiente DAW
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.65 }}>
+                La prescripción de <strong style={{ color: '#fff' }}>Schedule {selected?.schedule}</strong> se guardó localmente.<br />
+                Se transmitirá vía <strong style={{ color: '#a5b4fc' }}>DAW EPCS</strong> cuando la integración esté activa.
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontWeight: 800, fontSize: 15, color: '#34d399', marginBottom: 8 }}>
+                Prescripción enviada
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
+                {selected?.name} guardada exitosamente
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 960,
+      background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '20px',
+    }}>
+      <div style={{
+        width: '100%', maxWidth: 580, maxHeight: '92vh',
+        background: 'linear-gradient(135deg,#0f172a,#131c34)',
+        border: '1px solid rgba(99,102,241,0.30)', borderRadius: 14,
+        boxShadow: '0 32px 80px rgba(0,0,0,0.60)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+
+        {/* Header */}
+        <div style={{
+          padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>💊</span>
+              <span style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>
+                Nueva prescripción
+              </span>
+              {isControlled && (
+                <span style={{
+                  fontSize: 9, padding: '2px 8px', borderRadius: 100,
+                  background: 'linear-gradient(135deg,#ec4899,#f43f5e)',
+                  color: '#fff', fontWeight: 700, letterSpacing: '0.06em',
+                }}>
+                  CONTROLADA · Schedule {selected?.schedule}
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 2 }}>
+              {patientName} · {caseCode}
+            </div>
+          </div>
+          <button onClick={() => onClose()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.50)', padding: 4 }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* Drug search */}
+          <div style={{ position: 'relative' }}>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
+              Medicamento *
+            </div>
+            <div style={{ position: 'relative' }}>
+              <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} />
+              <input
+                value={search}
+                onChange={e => { setSearch(e.target.value); setShowResults(true); if (!e.target.value) setSelected(null); }}
+                onFocus={() => setShowResults(true)}
+                placeholder="Buscar medicamento (ej: oxycodone, ibuprofen...)"
+                style={{
+                  width: '100%', padding: '9px 12px 9px 30px', fontSize: 12,
+                  background: 'rgba(255,255,255,0.05)', border: `1px solid ${selected ? 'rgba(99,102,241,0.45)' : 'rgba(255,255,255,0.10)'}`,
+                  borderRadius: 7, color: '#fff', outline: 'none',
+                }}
+              />
+            </div>
+
+            {/* Dropdown results */}
+            {showResults && results.length > 0 && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                background: '#0f172a', border: '1px solid rgba(99,102,241,0.30)',
+                borderRadius: '0 0 8px 8px', boxShadow: '0 12px 32px rgba(0,0,0,0.50)',
+                maxHeight: 240, overflowY: 'auto',
+              }}>
+                {results.map((d, i) => (
+                  <button
+                    key={i}
+                    onMouseDown={() => handleSelectDrug(d)}
+                    style={{
+                      width: '100%', textAlign: 'left', padding: '9px 14px', fontSize: 12,
+                      background: selected?.name === d.name ? 'rgba(99,102,241,0.18)' : 'none',
+                      border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      color: 'rgba(255,255,255,0.85)', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                    }}
+                  >
+                    <span>{d.name}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {d.schedule && (
+                        <span style={{
+                          fontSize: 9, padding: '2px 6px', borderRadius: 4, fontWeight: 700,
+                          background: `${SCHEDULE_COLORS[d.schedule]}30`,
+                          color: SCHEDULE_COLORS[d.schedule],
+                        }}>
+                          ⚠ Schedule {d.schedule}
+                        </span>
+                      )}
+                      {selected?.name === d.name && <span style={{ fontSize: 11 }}>✓</span>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Schedule II-V warning */}
+          {selected?.schedule && (
+            <div style={{
+              background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.30)',
+              borderRadius: 6, padding: '9px 12px',
+              display: 'flex', alignItems: 'flex-start', gap: 8,
+            }}>
+              <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>⚠</span>
+              <span style={{ fontSize: 11, color: '#fda4af', lineHeight: 1.55 }}>
+                <strong>Sustancia controlada Schedule {selected.schedule}.</strong>{' '}
+                {selected.schedule === 'II'
+                  ? 'Se requiere EPCS con doble autenticación DEA. En Phase 2 se transmitirá vía DAW.'
+                  : 'Requiere EPCS para transmisión electrónica. Guardado local hasta integración DAW.'
+                }
+              </span>
+            </div>
+          )}
+
+          {/* Dose / Frequency / Duration */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            {[
+              { label: 'Dosis *',      val: dose,      set: setDose,      ph: 'ej: 1 tab, 600mg' },
+              { label: 'Frecuencia *', val: frequency, set: setFrequency, ph: 'ej: Cada 8h con alimentos' },
+              { label: 'Duración *',   val: duration,  set: setDuration,  ph: 'ej: 7 días, 2 semanas' },
+            ].map(f => (
+              <div key={f.label}>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
+                  {f.label}
+                </div>
+                <input
+                  value={f.val}
+                  onChange={e => f.set(e.target.value)}
+                  placeholder={f.ph}
+                  style={{
+                    width: '100%', padding: '8px 10px', fontSize: 12,
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                    borderRadius: 6, color: '#fff', outline: 'none',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Quantity / Refills */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
+                Cantidad total *
+              </div>
+              <input
+                type="number"
+                value={quantity}
+                onChange={e => setQuantity(e.target.value)}
+                placeholder="ej: 28"
+                style={{
+                  width: '100%', padding: '8px 10px', fontSize: 12,
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: 6, color: '#fff', outline: 'none',
+                }}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
+                Refills {selected?.schedule === 'II' ? '(Schedule II: máx 0)' : ''}
+              </div>
+              <input
+                type="number"
+                value={refills}
+                onChange={e => setRefills(e.target.value)}
+                disabled={selected?.schedule === 'II'}
+                min="0" max={selected?.schedule ? 1 : 5}
+                style={{
+                  width: '100%', padding: '8px 10px', fontSize: 12,
+                  background: selected?.schedule === 'II' ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: 6, color: selected?.schedule === 'II' ? 'rgba(255,255,255,0.35)' : '#fff',
+                  outline: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Clinical indication */}
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
+              Indicación clínica *
+            </div>
+            <textarea
+              value={indication}
+              onChange={e => setIndication(e.target.value)}
+              rows={3}
+              placeholder="Post-MVA cervical strain w/ radiculopathy. Dolor severo 8/10…"
+              style={{
+                width: '100%', padding: '9px 12px', fontSize: 12, resize: 'vertical',
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: 6, color: '#fff', outline: 'none', lineHeight: 1.6,
+              }}
+            />
+          </div>
+
+          {/* Interaction check */}
+          {hasInteraction && (
+            <div style={{
+              background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.25)',
+              borderRadius: 6, padding: '10px 12px',
+            }}>
+              <div style={{ fontSize: 11, color: '#fbbf24', fontWeight: 700, marginBottom: 4 }}>
+                ⚠️ Interaction check (Phase 1A local)
+              </div>
+              {interactions.map((i, idx) => (
+                <div key={idx} style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginBottom: 4, lineHeight: 1.55 }}>
+                  {i.warning}
+                </div>
+              ))}
+              <button
+                onClick={() => setInteractionOverride(o => !o)}
+                style={{
+                  marginTop: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                  background: interactionOverride ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(245,158,11,0.35)',
+                  borderRadius: 5, color: '#fbbf24', cursor: 'pointer',
+                }}
+              >
+                {interactionOverride ? '✓ Continuar con justificación' : 'Continuar con justificación clínica'}
+              </button>
+            </div>
+          )}
+
+          {/* PDMP (Phase 1A mock) */}
+          {isControlled && (
+            <div style={{
+              background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)',
+              borderRadius: 6, padding: '9px 12px',
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#a5b4fc', marginBottom: 4 }}>
+                📊 PDMP · Utah
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.55 }}>
+                Verificación del Prescription Drug Monitoring Program de Utah.{' '}
+                <strong style={{ color: '#34d399' }}>✓ Sin alertas — verificación local Phase 1A.</strong>{' '}
+                <span style={{ color: 'rgba(255,255,255,0.40)' }}>(Consulta real vía DAW en Phase 2)</span>
+              </div>
+            </div>
+          )}
+
+          {/* Pharmacy */}
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
+              Farmacia destino
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.20)',
+              borderRadius: 6, padding: '0 12px',
+            }}>
+              <span style={{ fontSize: 13, color: '#67e8f9', flexShrink: 0 }}>📍</span>
+              <input
+                value={pharmacy}
+                onChange={e => setPharmacy(e.target.value)}
+                placeholder="CVS Pharmacy — Provo · o nombre de farmacia preferida"
+                style={{
+                  flex: 1, padding: '9px 0', fontSize: 12, background: 'none',
+                  border: 'none', color: '#fff', outline: 'none',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* EPCS auth notice (controlled only) */}
+          {isControlled && (
+            <div style={{
+              background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.20)',
+              borderRadius: 6, padding: '10px 14px',
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#fda4af', marginBottom: 6 }}>
+                🔐 Autenticación EPCS requerida
+              </div>
+              <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.65)', lineHeight: 1.65 }}>
+                Por ser Schedule {selected?.schedule}, la DEA requiere:<br />
+                ✓ DEA # del prescriber: <strong style={{ color: 'rgba(255,255,255,0.85)' }}>— (configurar en perfil del doctor)</strong><br />
+                ⏳ Two-factor authentication: <strong style={{ color: 'rgba(255,255,255,0.85)' }}>Token DAW Soft (Phase 2)</strong>
+              </div>
+              <div style={{
+                marginTop: 8, padding: '6px 10px',
+                background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)',
+                borderRadius: 5, fontSize: 10.5, color: '#fbbf24',
+              }}>
+                ⚠ Integración DAW en desarrollo. La prescripción se guardará como <strong>PENDING_DAW</strong>
+                {' '}y se transmitirá al activar la integración.
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.07)',
+          display: 'flex', justifyContent: 'flex-end', gap: 8, flexShrink: 0,
+          background: 'rgba(255,255,255,0.01)',
+        }}>
+          <button
+            onClick={() => onClose()}
+            style={{
+              padding: '9px 16px', fontSize: 12, background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8,
+              color: 'rgba(255,255,255,0.60)', cursor: 'pointer',
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => void handleSubmit()}
+            disabled={saving || !canSubmit}
+            style={{
+              padding: '9px 22px', fontSize: 12, fontWeight: 700, borderRadius: 8, border: 'none',
+              background: !canSubmit
+                ? 'rgba(99,102,241,0.20)'
+                : isControlled
+                  ? 'linear-gradient(135deg,#ec4899,#f43f5e)'
+                  : 'linear-gradient(135deg,#7c3aed,#a78bfa)',
+              color: '#fff',
+              cursor: !canSubmit ? 'default' : 'pointer',
+              opacity: !canSubmit ? 0.50 : 1,
+              display: 'flex', alignItems: 'center', gap: 6,
+              boxShadow: !canSubmit ? 'none' : isControlled
+                ? '0 4px 14px rgba(244,63,94,0.35)'
+                : '0 4px 14px rgba(124,58,237,0.35)',
+            }}
+          >
+            {saving
+              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</>
+              : isControlled
+                ? <>🔐 Guardar (pendiente DAW) →</>
+                : <><CheckCircle2 size={13} /> Enviar prescripción →</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── B.21 CPT types ───────────────────────────────────────────────────────────
 interface VisitCpt {
@@ -1578,6 +2125,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showCptModal,       setShowCptModal]        = useState(false);
   const [showLabModal,       setShowLabModal]        = useState(false);
+  const [showRxModal,        setShowRxModal]         = useState(false);
   const [isSigned,    setIsSigned]    = useState(false);
   const [signedAt,    setSignedAt]    = useState<string | null>(null);
   const [signedBy,    setSignedBy]    = useState<string | null>(null);
@@ -1992,6 +2540,21 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
               <FlaskConical size={13} /> Lab / Imaging
             </button>
 
+            {/* B.19 — Rx */}
+            <button
+              onClick={() => setShowRxModal(true)}
+              style={{
+                padding: '10px 16px', borderRadius: 8,
+                background: 'rgba(167,139,250,0.10)',
+                border: '1px solid rgba(167,139,250,0.30)',
+                color: '#c4b5fd', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+              title="B.19 — Nueva prescripción (DAW/EPCS Phase 2)"
+            >
+              💊 Rx
+            </button>
+
             {/* CPTs + Firmar */}
             <button
               onClick={() => setShowCptModal(true)}
@@ -2072,6 +2635,22 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
               ? `Dr. ${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
               : 'Doctor'}
             onClose={() => setShowLabModal(false)}
+          />
+        )}
+
+        {/* B.19 Prescription */}
+        {showRxModal && data && (
+          <RxModal
+            appointmentId={appointmentId}
+            visitNoteId={data.appointment.visitNote?.id ?? null}
+            providerName={data.appointment.provider
+              ? `Dr. ${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`
+              : 'Doctor'}
+            patientName={data.appointment.patient
+              ? `${data.appointment.patient.lastName.toUpperCase()}, ${data.appointment.patient.firstName}`
+              : 'Paciente'}
+            caseCode={data.appointment.case?.caseCode ?? ''}
+            onClose={() => setShowRxModal(false)}
           />
         )}
       </div>

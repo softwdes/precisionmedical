@@ -776,6 +776,9 @@ model Appointment {
   // B.20 Órdenes de laboratorio / imaging
   labOrders       LabOrder[]
 
+  // B.19 Prescripciones electrónicas
+  prescriptions   Prescription[]
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -911,6 +914,9 @@ model VisitNote {
   // ─── B.20 Lab/imaging orders ────────────────────────────────────────────
   labOrders      LabOrder[]
 
+  // ─── B.19 Prescripciones electrónicas ───────────────────────────────────
+  prescriptions  Prescription[]
+
   // ─── Estado y firma ─────────────────────────────────────────────────────
   status         VisitNoteStatus @default(DRAFT)
   signedAt       DateTime?
@@ -1007,6 +1013,61 @@ model LabOrder {
   @@index([appointmentId])
   @@index([visitNoteId])
   @@map("lab_orders")
+}
+
+// ─── B.19 Prescriptions ────────────────────────────────────────────────────────
+
+enum RxStatus {
+  DRAFT
+  SENT
+  PENDING_DAW
+  VOIDED
+}
+
+/// Prescripción electrónica DAW/EPCS.
+/// Phase 1A: almacena localmente. Phase 2: integración real DAW.
+model Prescription {
+  id            String       @id @default(cuid())
+  appointmentId String
+  appointment   Appointment  @relation(fields: [appointmentId], references: [id])
+  visitNoteId   String?
+  visitNote     VisitNote?   @relation(fields: [visitNoteId], references: [id], onDelete: SetNull)
+
+  // Drug snapshot
+  drugName      String
+  drugGeneric   String?
+  deaSchedule   String?       // 'II' | 'III' | 'IV' | 'V' | null (non-controlled)
+
+  // Rx details
+  dose              String
+  frequency         String
+  durationStr       String
+  quantityTotal     Int
+  refills           Int       @default(0)
+  clinicalIndication String   @db.Text
+
+  // Pharmacy
+  pharmacyName    String?
+  pharmacyAddress String?
+
+  // Prescriber snapshot
+  prescriberName  String?
+  prescriberDea   String?
+
+  // Status
+  status          RxStatus  @default(DRAFT)
+
+  // DAW integration (Phase 2)
+  dawRxId         String?
+  dawSentAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([appointmentId])
+  @@index([visitNoteId])
+  @@index([status])
+  @@map("prescriptions")
 }
 
 /// Diagnóstico asociado a una nota de visita (ICD-10 + SNOMED dual).

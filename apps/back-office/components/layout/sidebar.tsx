@@ -52,7 +52,7 @@ const SECTIONS: NavSection[] = [
       { href: '/calendar',     icon: CalendarDays, labelKey: 'calendar',    mockup: 'B.10–B.11'  },
       { href: '/intake',       icon: Phone,          labelKey: 'intake',      mockup: 'B.12–B.13' },
       { href: '/admission',    icon: ClipboardCheck, labelKey: 'admission',   mockup: 'B.14–B.15' },
-      { href: '/billing',      icon: Briefcase,      labelKey: 'billing',     mockup: 'B.25–B.28', disabled: true },
+      { href: '/billing',      icon: Briefcase,      labelKey: 'billing',     mockup: 'B.25–B.28' },
       { href: '/dashboard',    icon: BarChart3,  labelKey: 'dashboard',   mockup: 'B.29' },
     ],
   },

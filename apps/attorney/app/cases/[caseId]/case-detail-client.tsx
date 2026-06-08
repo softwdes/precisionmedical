@@ -88,10 +88,11 @@ export default function CaseDetailClient({ caseId, caseCode, appointments, allLa
               style={{
                 flex: '1 1 0', padding: '12px 8px',
                 background: active ? 'rgba(244,63,94,0.08)' : 'transparent',
+                borderTop: 'none', borderLeft: 'none', borderRight: 'none',
                 borderBottom: active ? '2px solid #f43f5e' : '2px solid transparent',
                 color: active ? '#fb7185' : 'rgba(255,255,255,0.40)',
                 fontWeight: active ? 700 : 400,
-                fontSize: 12, cursor: 'pointer', border: 'none',
+                fontSize: 12, cursor: 'pointer',
                 transition: 'all 0.15s ease',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
               }}

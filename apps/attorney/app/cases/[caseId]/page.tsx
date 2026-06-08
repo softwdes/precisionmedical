@@ -42,9 +42,7 @@ export default async function CaseDetailPage({ params }: Props) {
           },
           provider: { select: { firstName: true, lastName: true } },
           clinic:   { select: { name: true } },
-          labOrders: {
-            select: { id: true, studyName: true, orderType: true, status: true, urgency: true, orderedAt: true },
-          },
+          // labOrders excluded — uses $queryRaw below (snake_case columns in DB)
         },
         orderBy: { scheduledFor: 'desc' },
       },
@@ -62,9 +60,37 @@ export default async function CaseDetailPage({ params }: Props) {
     ORDER BY signed_at ASC
   `;
 
+  // Lab orders via raw SQL (snake_case columns, no @map on LabOrder fields)
+  // Use appointment IDs already fetched by Prisma — avoids cross-column naming issues
+  interface RawLab {
+    id: string; appointment_id: string; study_name: string;
+    order_type: string; status: string; urgency: string; ordered_at: Date;
+  }
+  const apptIds = c.appointments.map(a => a.id);
+  const rawLabs: RawLab[] = apptIds.length === 0 ? [] : await db.$queryRaw<RawLab[]>`
+    SELECT id, appointment_id, study_name, order_type, status::text, urgency::text, ordered_at
+    FROM   lab_orders
+    WHERE  appointment_id = ANY(${apptIds})
+    ORDER BY ordered_at DESC
+  `;
+  const allLabs = rawLabs.map(l => ({
+    id:        l.id,
+    studyName: l.study_name,
+    orderType: l.order_type,
+    status:    l.status,
+    urgency:   l.urgency,
+    orderedAt: l.ordered_at.toISOString(),
+  }));
+
   const appts       = c.appointments;
   const signedAppts = appts.filter(a => a.visitNote?.status === 'SIGNED');
-  const allLabs     = appts.flatMap(a => a.labOrders);
+  // labOrders per appointment (for the Citas tab badge)
+  const labsByAppt = new Map(rawLabs.reduce((acc, l) => {
+    const arr = acc.get(l.appointment_id) ?? [];
+    arr.push(l);
+    acc.set(l.appointment_id, arr);
+    return acc;
+  }, new Map<string, RawLab[]>()));
   const nextAppt    = [...appts].reverse().find(a =>
     new Date(a.scheduledFor) >= new Date() && a.status !== 'COMPLETED',
   );
@@ -233,23 +259,16 @@ export default async function CaseDetailPage({ params }: Props) {
               plan:          a.visitNote.plan,
               diagnoses:     a.visitNote.diagnoses,
             } : null,
-            labOrders:    a.labOrders.map(l => ({
+            labOrders:    (labsByAppt.get(a.id) ?? []).map(l => ({
               id:        l.id,
-              studyName: l.studyName,
-              orderType: l.orderType,
+              studyName: l.study_name,
+              orderType: l.order_type,
               status:    l.status,
               urgency:   l.urgency,
-              orderedAt: l.orderedAt.toISOString(),
+              orderedAt: l.ordered_at.toISOString(),
             })),
           }))}
-          allLabs={allLabs.map(l => ({
-            id:        l.id,
-            studyName: l.studyName,
-            orderType: l.orderType as string,
-            status:    l.status as string,
-            urgency:   l.urgency as string,
-            orderedAt: l.orderedAt.toISOString(),
-          }))}
+          allLabs={allLabs}
           caseCode={c.caseCode}
         />
 

@@ -67,22 +67,28 @@ function ApptRow({
   };
   isHero?: boolean;
 }) {
-  const hasTriage  = !!appt.triageRecord;
-  const noteStatus = appt.visitNote?.status;
-  const isDone     = appt.status === 'COMPLETED';
-  const isNoShow   = appt.status === 'NO_SHOW';
+  const hasTriage   = !!appt.triageRecord;
+  const noteStatus  = appt.visitNote?.status;
+  const isDone      = appt.status === 'COMPLETED';
+  const isNoShow    = appt.status === 'NO_SHOW';
+  const isCheckedIn = appt.status === 'CHECKED_IN';
+  const isInRoom    = appt.status === 'IN_PROGRESS';
+  // Guardrail: triaje bloqueante solo cuando ya está en sala
+  const triageBlocking = isInRoom && !hasTriage;
 
   const statusColors: Record<string, string> = {
     SCHEDULED:   '#a78bfa',
     CONFIRMED:   '#34d399',
-    IN_PROGRESS: '#fbbf24',
+    CHECKED_IN:  '#fbbf24',
+    IN_PROGRESS: '#10b981',
     COMPLETED:   'rgba(255,255,255,0.35)',
     NO_SHOW:     '#f87171',
   };
   const statusLabels: Record<string, string> = {
     SCHEDULED:   'Agendada',
     CONFIRMED:   'Confirmada',
-    IN_PROGRESS: 'En progreso',
+    CHECKED_IN:  '✓ Check-in',
+    IN_PROGRESS: 'En triaje',
     COMPLETED:   'Completada',
     NO_SHOW:     'No se presentó',
   };
@@ -90,8 +96,16 @@ function ApptRow({
   return (
     <div style={{
       borderRadius: isHero ? 16 : 12,
-      border: `1px solid ${isHero ? 'rgba(139,92,246,0.40)' : 'rgba(255,255,255,0.07)'}`,
-      background: isHero ? 'rgba(139,92,246,0.08)' : 'rgba(255,255,255,0.02)',
+      border: `1px solid ${
+        isHero        ? 'rgba(139,92,246,0.40)' :
+        isCheckedIn   ? 'rgba(245,158,11,0.30)' :
+        isInRoom && hasTriage ? 'rgba(16,185,129,0.30)' :
+        'rgba(255,255,255,0.07)'
+      }`,
+      background: isHero        ? 'rgba(139,92,246,0.08)'  :
+                  isCheckedIn   ? 'rgba(245,158,11,0.03)'  :
+                  isInRoom && hasTriage ? 'rgba(16,185,129,0.04)' :
+                  'rgba(255,255,255,0.02)',
       padding: isHero ? '20px 24px' : '14px 18px',
       display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
     }}>
@@ -135,10 +149,19 @@ function ApptRow({
           {appt.clinic && <span>{appt.clinic.name}</span>}
           <span style={{ textTransform: 'capitalize' }}>{appt.type.replace(/_/g, ' ').toLowerCase()}</span>
           {/* Triaje badge */}
-          {hasTriage ? (
+          {hasTriage && (
             <span style={{ color: '#34d399', fontWeight: 600 }}>✓ Triaje listo</span>
-          ) : (
-            <span style={{ color: '#fbbf24' }}>⚠ Sin triaje</span>
+          )}
+          {triageBlocking && (
+            <span style={{
+              color: '#f87171', fontWeight: 700,
+              background: 'rgba(239,68,68,0.10)',
+              border: '1px solid rgba(239,68,68,0.25)',
+              padding: '1px 6px', borderRadius: 4, fontSize: 10,
+            }}>⛔ Esperando triaje MA</span>
+          )}
+          {isCheckedIn && !hasTriage && (
+            <span style={{ color: '#fbbf24', fontSize: 10 }}>⏱ En recepción</span>
           )}
           {/* Nota badge */}
           {noteStatus === 'SIGNED' && (
@@ -161,7 +184,7 @@ function ApptRow({
       </span>
 
       {/* CTA */}
-      {!isDone && !isNoShow && (
+      {!isDone && !isNoShow && !triageBlocking && (
         <Link
           href={`/visit/${appt.id}`}
           style={{
@@ -178,6 +201,22 @@ function ApptRow({
           <PenLine size={13} />
           {isHero ? 'Atender ahora →' : 'Nota →'}
         </Link>
+      )}
+      {/* Guardrail: triage bloqueante → botón deshabilitado */}
+      {!isDone && !isNoShow && triageBlocking && (
+        <span style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: isHero ? '10px 20px' : '8px 14px',
+          borderRadius: 8,
+          background: 'rgba(239,68,68,0.06)',
+          border: '1px solid rgba(239,68,68,0.20)',
+          color: '#f87171',
+          fontSize: isHero ? 13 : 12, fontWeight: 700,
+          whiteSpace: 'nowrap', opacity: 0.75, cursor: 'not-allowed',
+        }}>
+          <AlertTriangle size={13} />
+          Esperando MA
+        </span>
       )}
       {isDone && noteStatus !== 'SIGNED' && (
         <Link
@@ -227,10 +266,22 @@ export default async function DoctorMiDiaPage() {
   });
 
   // Clasificar citas
-  const upcoming = appointments.filter(a => ['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS'].includes(a.status));
-  const done     = appointments.filter(a => ['COMPLETED', 'NO_SHOW'].includes(a.status));
-  const nextAppt = upcoming[0] ?? null;
-  const queue    = upcoming.slice(1);
+  const upcoming = appointments.filter(a =>
+    ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(a.status),
+  );
+  const done = appointments.filter(a => ['COMPLETED', 'NO_SHOW'].includes(a.status));
+
+  // Prioridad: IN_PROGRESS con triaje > CHECKED_IN > CONFIRMED > SCHEDULED > resto (hora)
+  const priorityScore = (a: typeof upcoming[number]) => {
+    if (a.status === 'IN_PROGRESS' && a.triageRecord)  return 0;
+    if (a.status === 'IN_PROGRESS' && !a.triageRecord) return 1;
+    if (a.status === 'CHECKED_IN')                     return 2;
+    if (a.status === 'CONFIRMED')                      return 3;
+    return 4;
+  };
+  const sorted   = [...upcoming].sort((a, b) => priorityScore(a) - priorityScore(b) || a.scheduledFor.getTime() - b.scheduledFor.getTime());
+  const nextAppt = sorted[0] ?? null;
+  const queue    = sorted.slice(1);
 
   // Pendientes de firma
   const unsignedDone = done.filter(a => a.visitNote?.status !== 'SIGNED' && a.status !== 'NO_SHOW');

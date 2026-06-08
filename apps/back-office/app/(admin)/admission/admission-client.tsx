@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, Search, UserCheck, AlertTriangle,
-  Building2, Stethoscope, Phone,
+  Stethoscope,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -99,13 +99,13 @@ function ApptCard({
   const isInRoom    = appt.status === 'IN_PROGRESS';
   const isPending   = !isDone && !isCheckedIn && !isInRoom;
 
-  const borderClass = isDone || isCheckedIn || isInRoom
-    ? isInRoom
+  const borderClass = isCheckedIn
+    ? 'border-amber/50 bg-amber/[0.04] ring-1 ring-amber/20'
+    : isInRoom
       ? 'border-violet/30 bg-violet/[0.03]'
-      : 'border-emerald/30 bg-emerald/[0.02]'
-    : appt.case?.hasPending
-      ? 'border-amber/30 bg-amber/[0.02]'
-      : 'border-border bg-bg-1';
+      : appt.case?.hasPending
+        ? 'border-amber/30 bg-amber/[0.02]'
+        : 'border-border bg-bg-1';
 
   return (
     <div className={`rounded-lg border p-4 transition-all ${borderClass}`}>
@@ -215,13 +215,20 @@ function ApptCard({
             <button
               type="button"
               onClick={() => router.push(`/admission/${appt.id}`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald/10 border border-emerald/40 text-emerald text-xs font-semibold hover:bg-emerald/20 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-white text-xs font-semibold hover:bg-amber/90 transition-colors shadow-sm"
             >
-              Admisión →
+              <UserCheck className="w-3 h-3" />
+              Admitir →
             </button>
           )}
           {isInRoom && (
-            <span className="text-[10px] text-violet font-semibold">Con Dr. →</span>
+            <button
+              type="button"
+              onClick={() => router.push(`/admission/${appt.id}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet/10 border border-violet/40 text-violet text-xs font-semibold hover:bg-violet/20 transition-colors"
+            >
+              Con Dr. →
+            </button>
           )}
         </div>
       </div>
@@ -268,6 +275,11 @@ export function AdmissionClient() {
       setCheckingIn(null);
     }
   }
+
+  // Derivados de `active`: separar los que esperan admisión (CHECKED_IN)
+  // de los que ya pasaron a sala (IN_PROGRESS) para priorizar el orden visual.
+  const awaitingAdmission = active.filter(a => a.status === 'CHECKED_IN');
+  const inRoom            = active.filter(a => a.status === 'IN_PROGRESS');
 
   return (
     <div className="flex flex-col">
@@ -327,11 +339,36 @@ export function AdmissionClient() {
           />
         ) : (
           <>
-            {/* ── Próximos en llegar ── */}
+            {/* ── 1. Esperando admisión (CHECKED_IN) — ARRIBA, acción urgente ── */}
+            {awaitingAdmission.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber" />
+                  </span>
+                  <h2 className="text-[10px] uppercase tracking-wider font-semibold text-amber">
+                    Esperando admisión ({awaitingAdmission.length})
+                  </h2>
+                </div>
+                <div className="space-y-2.5">
+                  {awaitingAdmission.map(a => (
+                    <ApptCard
+                      key={a.id}
+                      appt={a}
+                      onCheckIn={handleCheckIn}
+                      checkingIn={checkingIn === a.id}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── 2. Próximos en llegar (SCHEDULED / CONFIRMED) ── */}
             {pending.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-amber" />
+                  <Clock className="w-4 h-4 text-text-muted" />
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
                     Próximos en llegar ({pending.length})
                   </h2>
@@ -349,17 +386,17 @@ export function AdmissionClient() {
               </section>
             )}
 
-            {/* ── En sala / Check-in hecho ── */}
-            {active.length > 0 && (
+            {/* ── 3. En sala con el doctor (IN_PROGRESS) ── */}
+            {inRoom.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <UserCheck className="w-4 h-4 text-emerald" />
-                  <h2 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                    Ya hicieron check-in ({active.length})
+                  <Stethoscope className="w-4 h-4 text-violet" />
+                  <h2 className="text-[10px] uppercase tracking-wider font-semibold text-violet">
+                    En sala ({inRoom.length})
                   </h2>
                 </div>
                 <div className="space-y-2.5">
-                  {active.map(a => (
+                  {inRoom.map(a => (
                     <ApptCard
                       key={a.id}
                       appt={a}
@@ -371,11 +408,11 @@ export function AdmissionClient() {
               </section>
             )}
 
-            {/* ── Completados ── */}
+            {/* ── 4. Completados — fondo, opacidad reducida ── */}
             {done.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <Building2 className="w-4 h-4 text-text-muted" />
+                  <CheckCircle2 className="w-4 h-4 text-text-muted" />
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
                     Completados ({done.length})
                   </h2>

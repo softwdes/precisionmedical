@@ -22,6 +22,7 @@ function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { bg: string; text: string; label: string }> = {
     SCHEDULED:   { bg: 'rgba(99,102,241,0.12)',  text: '#818cf8', label: 'Agendada'     },
     CONFIRMED:   { bg: 'rgba(16,185,129,0.12)',  text: '#34d399', label: 'Confirmada'   },
+    CHECKED_IN:  { bg: 'rgba(245,158,11,0.15)',  text: '#fbbf24', label: '✓ Check-in · Lista' },
     IN_PROGRESS: { bg: 'rgba(245,158,11,0.12)',  text: '#fbbf24', label: 'En triaje'    },
     COMPLETED:   { bg: 'rgba(255,255,255,0.06)', text: 'rgba(255,255,255,0.45)', label: 'Completada' },
     NO_SHOW:     { bg: 'rgba(239,68,68,0.12)',   text: '#f87171', label: 'No se presentó' },
@@ -57,7 +58,7 @@ export default async function ClinicalHomePage() {
     orderBy: { scheduledFor: 'asc' },
   });
 
-  const pending     = appointments.filter(a => ['SCHEDULED', 'CONFIRMED'].includes(a.status));
+  const pending     = appointments.filter(a => ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN'].includes(a.status));
   const inProgress  = appointments.filter(a => a.status === 'IN_PROGRESS');
   const done        = appointments.filter(a => ['COMPLETED', 'NO_SHOW'].includes(a.status));
 
@@ -94,7 +95,7 @@ export default async function ClinicalHomePage() {
       {/* KPIs */}
       <div style={{ padding: '16px 24px 0', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {[
-          { label: 'Pendientes', value: pending.length,    icon: Clock,         color: '#fbbf24', bg: 'rgba(245,158,11,0.08)'    },
+          { label: 'Disponibles', value: pending.length,    icon: Clock,         color: '#fbbf24', bg: 'rgba(245,158,11,0.08)'    },
           { label: 'En triaje',  value: inProgress.length, icon: AlertCircle,   color: '#10b981', bg: 'rgba(16,185,129,0.08)'    },
           { label: 'Completadas', value: done.length,      icon: CheckCircle2,  color: 'rgba(255,255,255,0.45)', bg: 'rgba(255,255,255,0.04)' },
         ].map(k => (
@@ -125,8 +126,14 @@ export default async function ClinicalHomePage() {
           return (
             <div key={appt.id} style={{
               borderRadius: 12,
-              border: `1px solid ${appt.status === 'IN_PROGRESS' ? 'rgba(16,185,129,0.30)' : 'rgba(255,255,255,0.07)'}`,
-              background: appt.status === 'IN_PROGRESS' ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${
+                appt.status === 'IN_PROGRESS' ? 'rgba(16,185,129,0.30)'  :
+                appt.status === 'CHECKED_IN'  ? 'rgba(245,158,11,0.40)'  :
+                'rgba(255,255,255,0.07)'
+              }`,
+              background: appt.status === 'IN_PROGRESS' ? 'rgba(16,185,129,0.05)' :
+                          appt.status === 'CHECKED_IN'  ? 'rgba(245,158,11,0.04)' :
+                          'rgba(255,255,255,0.02)',
               padding: '14px 18px',
               display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
             }}>

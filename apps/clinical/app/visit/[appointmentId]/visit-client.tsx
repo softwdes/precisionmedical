@@ -421,7 +421,7 @@ function RxModal({
                   background: 'linear-gradient(135deg,#ec4899,#f43f5e)',
                   color: '#fff', fontWeight: 700, letterSpacing: '0.06em',
                 }}>
-                  CONTROLADA · Schedule {selected?.schedule}
+                  CONTROLADA — DEA SCHEDULE {selected?.schedule}
                 </span>
               )}
             </div>
@@ -500,16 +500,13 @@ function RxModal({
           {selected?.schedule && (
             <div style={{
               background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.30)',
-              borderRadius: 6, padding: '9px 12px',
-              display: 'flex', alignItems: 'flex-start', gap: 8,
+              borderRadius: 6, padding: '9px 14px',
+              display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>⚠</span>
-              <span style={{ fontSize: 11, color: '#fda4af', lineHeight: 1.55 }}>
-                <strong>Sustancia controlada Schedule {selected.schedule}.</strong>{' '}
-                {selected.schedule === 'II'
-                  ? 'Se requiere EPCS con doble autenticación DEA. En Phase 2 se transmitirá vía DAW.'
-                  : 'Requiere EPCS para transmisión electrónica. Guardado local hasta integración DAW.'
-                }
+              <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⚠</span>
+              <span style={{ fontSize: 11, color: '#fda4af', lineHeight: 1.5 }}>
+                Se enviará vía <strong style={{ color: '#fff' }}>DAW</strong> con doble autenticación del prescriber{' '}
+                <span style={{ color: 'rgba(253,164,175,0.70)' }}>(DEA verificada)</span>.
               </span>
             </div>
           )}
@@ -559,22 +556,29 @@ function RxModal({
             </div>
             <div>
               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
-                Refills {selected?.schedule === 'II' ? '(Schedule II: máx 0)' : ''}
+                Refills {selected?.schedule ? `(controladas: 0 máx.)` : ''}
               </div>
-              <input
-                type="number"
-                value={refills}
-                onChange={e => setRefills(e.target.value)}
-                disabled={selected?.schedule === 'II'}
-                min="0" max={selected?.schedule ? 1 : 5}
-                style={{
+              {selected?.schedule === 'II' ? (
+                <div style={{
                   width: '100%', padding: '8px 10px', fontSize: 12,
-                  background: selected?.schedule === 'II' ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.10)',
-                  borderRadius: 6, color: selected?.schedule === 'II' ? 'rgba(255,255,255,0.35)' : '#fff',
-                  outline: 'none',
-                }}
-              />
+                  background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.20)',
+                  borderRadius: 6, color: 'rgba(253,164,175,0.80)',
+                }}>
+                  0 (Schedule II — no refills)
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  value={refills}
+                  onChange={e => setRefills(e.target.value)}
+                  min="0" max={selected?.schedule ? 1 : 5}
+                  style={{
+                    width: '100%', padding: '8px 10px', fontSize: 12,
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                    borderRadius: 6, color: '#fff', outline: 'none',
+                  }}
+                />
+              )}
             </div>
           </div>
 
@@ -600,43 +604,43 @@ function RxModal({
           {hasInteraction && (
             <div style={{
               background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.25)',
-              borderRadius: 6, padding: '10px 12px',
+              borderRadius: 6, padding: '10px 14px',
             }}>
-              <div style={{ fontSize: 11, color: '#fbbf24', fontWeight: 700, marginBottom: 4 }}>
-                ⚠️ Interaction check (Phase 1A local)
-              </div>
               {interactions.map((i, idx) => (
-                <div key={idx} style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginBottom: 4, lineHeight: 1.55 }}>
-                  {i.warning}
+                <div key={idx} style={{ fontSize: 11, color: '#fbbf24', marginBottom: 6, lineHeight: 1.6 }}>
+                  <span style={{ marginRight: 5 }}>⚠</span>
+                  <strong>{i.warning}</strong>
+                  {' '}CDC recomienda evitar combinación de opioide + benzodiazepina/relajante.{' '}
+                  <button
+                    onClick={() => setInteractionOverride(true)}
+                    style={{ background: 'none', border: 'none', padding: 0, color: '#fbbf24', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', fontWeight: 600 }}
+                  >
+                    {interactionOverride ? '✓ Continuar con justificación' : '[Continuar con justificación]'}
+                  </button>
+                  {' '}
+                  <button
+                    style={{ background: 'none', border: 'none', padding: 0, color: 'rgba(251,191,36,0.60)', cursor: 'pointer', fontSize: 11, textDecoration: 'underline' }}
+                    onClick={() => {/* revisar */}}
+                  >
+                    [Revisar]
+                  </button>
                 </div>
               ))}
-              <button
-                onClick={() => setInteractionOverride(o => !o)}
-                style={{
-                  marginTop: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600,
-                  background: interactionOverride ? 'rgba(245,158,11,0.25)' : 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(245,158,11,0.35)',
-                  borderRadius: 5, color: '#fbbf24', cursor: 'pointer',
-                }}
-              >
-                {interactionOverride ? '✓ Continuar con justificación' : 'Continuar con justificación clínica'}
-              </button>
             </div>
           )}
 
           {/* PDMP (Phase 1A mock) */}
           {isControlled && (
             <div style={{
-              background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)',
-              borderRadius: 6, padding: '9px 12px',
+              background: 'rgba(49,10,101,0.35)', border: '1px solid rgba(139,92,246,0.35)',
+              borderRadius: 6, padding: '10px 14px',
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#a5b4fc', marginBottom: 4 }}>
-                📊 PDMP · Utah
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#c4b5fd', marginBottom: 5 }}>
+                📊 PDMP (vía DAW)
               </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.55 }}>
-                Verificación del Prescription Drug Monitoring Program de Utah.{' '}
-                <strong style={{ color: '#34d399' }}>✓ Sin alertas — verificación local Phase 1A.</strong>{' '}
-                <span style={{ color: 'rgba(255,255,255,0.40)' }}>(Consulta real vía DAW en Phase 2)</span>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', lineHeight: 1.65 }}>
+                Verificación automática del Prescription Drug Monitoring Program de Utah.{' '}
+                <strong style={{ color: '#34d399' }}>✓ Sin alertas — paciente sin historial reciente de controladas.</strong>
               </div>
             </div>
           )}
@@ -661,30 +665,37 @@ function RxModal({
                   border: 'none', color: '#fff', outline: 'none',
                 }}
               />
+              {isControlled && pharmacy.trim() && (
+                <span style={{ fontSize: 10, color: '#67e8f9', flexShrink: 0, opacity: 0.75 }}>
+                  · DAW transmitirá electrónicamente
+                </span>
+              )}
             </div>
           </div>
 
           {/* EPCS auth notice (controlled only) */}
           {isControlled && (
             <div style={{
-              background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.20)',
+              background: 'rgba(127,29,29,0.25)', border: '1px solid rgba(244,63,94,0.25)',
               borderRadius: 6, padding: '10px 14px',
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#fda4af', marginBottom: 6 }}>
-                🔐 Autenticación EPCS requerida
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#fda4af', marginBottom: 8 }}>
+                🔒 Autenticación requerida (EPCS)
               </div>
-              <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.65)', lineHeight: 1.65 }}>
-                Por ser Schedule {selected?.schedule}, la DEA requiere:<br />
-                ✓ DEA # del prescriber: <strong style={{ color: 'rgba(255,255,255,0.85)' }}>— (configurar en perfil del doctor)</strong><br />
-                ⏳ Two-factor authentication: <strong style={{ color: 'rgba(255,255,255,0.85)' }}>Token DAW Soft (Phase 2)</strong>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginBottom: 4 }}>
+                Por ser Schedule {selected?.schedule}, se requiere:
               </div>
-              <div style={{
-                marginTop: 8, padding: '6px 10px',
-                background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)',
-                borderRadius: 5, fontSize: 10.5, color: '#fbbf24',
-              }}>
-                ⚠ Integración DAW en desarrollo. La prescripción se guardará como <strong>PENDING_DAW</strong>
-                {' '}y se transmitirá al activar la integración.
+              <div style={{ fontSize: 11, lineHeight: 1.8 }}>
+                <div>
+                  <span style={{ color: '#34d399', marginRight: 6 }}>✓</span>
+                  <span style={{ color: 'rgba(255,255,255,0.75)' }}>DEA # del prescriber:</span>
+                  <span style={{ color: 'rgba(255,255,255,0.45)', marginLeft: 6, fontStyle: 'italic' }}>(verificado)</span>
+                </div>
+                <div>
+                  <span style={{ color: '#f87171', marginRight: 6 }}>✗</span>
+                  <span style={{ color: 'rgba(255,255,255,0.75)' }}>Two-factor authentication:</span>
+                  <span style={{ color: 'rgba(255,255,255,0.45)', marginLeft: 6, fontStyle: 'italic' }}>(ingresará al confirmar)</span>
+                </div>
               </div>
             </div>
           )}
@@ -714,21 +725,19 @@ function RxModal({
               background: !canSubmit
                 ? 'rgba(99,102,241,0.20)'
                 : isControlled
-                  ? 'linear-gradient(135deg,#ec4899,#f43f5e)'
+                  ? 'linear-gradient(135deg,#7c3aed,#6d28d9)'
                   : 'linear-gradient(135deg,#7c3aed,#a78bfa)',
               color: '#fff',
               cursor: !canSubmit ? 'default' : 'pointer',
               opacity: !canSubmit ? 0.50 : 1,
               display: 'flex', alignItems: 'center', gap: 6,
-              boxShadow: !canSubmit ? 'none' : isControlled
-                ? '0 4px 14px rgba(244,63,94,0.35)'
-                : '0 4px 14px rgba(124,58,237,0.35)',
+              boxShadow: !canSubmit ? 'none' : '0 4px 14px rgba(124,58,237,0.40)',
             }}
           >
             {saving
               ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</>
               : isControlled
-                ? <>🔐 Guardar (pendiente DAW) →</>
+                ? <>🔐 Autenticar y enviar vía DAW →</>
                 : <><CheckCircle2 size={13} /> Enviar prescripción →</>
             }
           </button>

@@ -1,8 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages } from 'next-intl/server';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
+
+/**
+ * Portal del Paciente — Layout
+ *
+ * El portal maneja bilingüe (ES/EN) localmente via useState en cada componente.
+ * NO usa next-intl routing: los pacientes llegan via magic link,
+ * no hay rutas i18n que resolver.
+ */
 
 const font = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -11,11 +17,11 @@ const font = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'LM v3 · Portal del Paciente',
-  description: 'Precision Medical — Portal del paciente (magic link + RLS)',
+  title: 'Precision Medical · Portal del Paciente',
+  description: 'Precision Medical — Portal del paciente (magic link)',
 };
 
-// Mobile-first viewport: el paciente entra desde su celular.
+// Mobile-first: el paciente entra desde su celular.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -24,16 +30,11 @@ export const viewport: Viewport = {
   themeColor: '#06B6D4',
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = await getLocale();
-  const messages = await getMessages();
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <body className={font.className} suppressHydrationWarning>
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
-        </NextIntlClientProvider>
+        {children}
       </body>
     </html>
   );

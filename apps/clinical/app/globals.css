@@ -46,3 +46,13 @@ body {
   background: linear-gradient(180deg, rgba(99,102,241,0.85), rgba(139,92,246,0.85));
   background-clip: padding-box;
 }
+
+/* Hide number input spinners (iPad triage form) */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}

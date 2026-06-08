@@ -6,19 +6,19 @@
  * iPad-optimizado con dark theme clínico.
  * Colores: emerald como accent de identidad (Regla #5 · mockup aprobado).
  *
- * Layout:
- *   • Sidebar izquierdo (240px fijo): contexto del paciente, colapsable por sección
- *   • Área principal: formulario de signos vitales + chief complaint
- *   • Footer: botón "Pasar al doctor ✓"
+ * Layout mockup canónico:
+ *   • Sidebar 240px: avatar + personal info + contact + PIP + secondary ins
+ *                    + allergies + problem list + active med + emergency contact
+ *   • Main: Height (full) → Weight (full) → BP+Corazón (2-col)
+ *           → Temp+O2 (2-col) → Vision (full, toggle abajo)
+ *           → Note info / Chief complaint (con toolbar)
+ *   • Footer: "📌 Capturado por" + "Pasar a Dr. X ✓"
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ChevronDown, ChevronRight, ArrowLeftRight,
-  Activity, Heart, Thermometer, Wind, Eye,
-  FileText, User, Phone, Shield, AlertTriangle,
-  CheckCircle2, Loader2, X,
+  CheckCircle2, Loader2,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,11 +60,13 @@ interface TriageData {
 function calcAge(dob: string | null): string {
   if (!dob) return '';
   const years = Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000));
-  return `${years} a.`;
+  return `${years} y.o.`;
 }
 
 function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+  return new Date(iso).toLocaleTimeString('es-US', {
+    hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+  });
 }
 
 // ─── Conversion helpers ────────────────────────────────────────────────────────
@@ -81,99 +83,109 @@ const f_to_c = (f: number | null | undefined) => {
   return parseFloat(((f - 32) * 5 / 9).toFixed(1));
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function SidebarSection({
-  title, icon: Icon, children, defaultOpen = false,
-}: { title: string; icon: React.ElementType; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-          padding: '10px 14px', background: 'transparent', border: 'none',
-          cursor: 'pointer', textAlign: 'left',
-        }}
-      >
-        <Icon style={{ width: 14, height: 14, color: '#10b981', flexShrink: 0 }} />
-        <span style={{ flex: 1, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.65)' }}>
-          {title}
-        </span>
-        {open
-          ? <ChevronDown style={{ width: 12, height: 12, color: 'rgba(255,255,255,0.35)' }} />
-          : <ChevronRight style={{ width: 12, height: 12, color: 'rgba(255,255,255,0.35)' }} />
-        }
-      </button>
-      {open && (
-        <div style={{ padding: '4px 14px 12px 14px' }}>
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SidebarField({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 6 }}>
-      <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.40)', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)' }}>{value || '—'}</div>
-    </div>
-  );
-}
-
-function VitalInput({
-  label, value, onChange, placeholder, unit, readOnly = false, wide = false,
-}: {
-  label: string; value: string; onChange?: (v: string) => void;
-  placeholder?: string; unit: string; readOnly?: boolean; wide?: boolean;
-}) {
-  return (
-    <div style={{ marginBottom: 4 }}>
-      <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#a5b4fc', marginBottom: 4, fontWeight: 600 }}>{label}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <input
-          type={readOnly ? 'text' : 'number'}
-          value={value}
-          onChange={e => onChange?.(e.target.value)}
-          readOnly={readOnly}
-          placeholder={placeholder}
-          style={{
-            width: wide ? 80 : 64,
-            padding: '8px 10px',
-            background: readOnly ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${readOnly ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)'}`,
-            borderRadius: 8,
-            color: readOnly ? 'rgba(255,255,255,0.45)' : '#fff',
-            fontFamily: 'monospace',
-            fontSize: 16,
-            fontWeight: 600,
-            outline: 'none',
-            textAlign: 'center',
-          }}
-        />
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', minWidth: 30 }}>{unit}</span>
-      </div>
-    </div>
-  );
-}
-
-function VitalCard({
-  emoji, title, children,
-}: { emoji: string; title: string; children: React.ReactNode }) {
+// ─── VitalCard ────────────────────────────────────────────────────────────────
+function VitalCard({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
     <div style={{
-      borderRadius: 12,
+      background: 'rgba(255,255,255,0.03)',
       border: '1px solid rgba(255,255,255,0.07)',
-      background: 'rgba(255,255,255,0.02)',
-      padding: '16px 18px',
+      borderRadius: 10, padding: '10px 14px',
     }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.75)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span>{emoji}</span> {title}
+      <div style={{ fontSize: 11, color: '#a5b4fc', fontWeight: 600, marginBottom: 8 }}>
+        {emoji} {title}
       </div>
       {children}
+    </div>
+  );
+}
+
+// ─── VitalField: plain input matching mockup style ────────────────────────────
+function VitalField({
+  label, value, onChange, placeholder, readOnly = false,
+}: {
+  label: string; value: string; onChange?: (v: string) => void;
+  placeholder?: string; readOnly?: boolean;
+}) {
+  return (
+    <div>
+      <div style={{
+        fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em',
+        color: 'rgba(255,255,255,0.45)', marginBottom: 3, fontWeight: 600,
+      }}>
+        {label}
+      </div>
+      <input
+        type={readOnly ? 'text' : 'number'}
+        value={value}
+        onChange={e => onChange?.(e.target.value)}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        style={{
+          width: '100%', padding: '6px 10px',
+          background: readOnly ? 'rgba(255,255,255,0.015)' : 'rgba(255,255,255,0.05)',
+          border: `1px solid ${readOnly ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.10)'}`,
+          borderRadius: 6,
+          color: readOnly ? 'rgba(255,255,255,0.45)' : '#fff',
+          fontFamily: 'monospace', fontSize: 13, fontWeight: 600,
+          outline: 'none',
+          transition: 'border-color 0.15s',
+        }}
+        onFocus={e => { if (!readOnly) e.target.style.borderColor = 'rgba(163,148,252,0.45)'; }}
+        onBlur={e => { if (!readOnly) e.target.style.borderColor = 'rgba(255,255,255,0.10)'; }}
+      />
+    </div>
+  );
+}
+
+// ─── Sidebar inline section ───────────────────────────────────────────────────
+function SbSection({
+  label, amber = false, children, defaultOpen = false,
+}: {
+  label: string; amber?: boolean; children: React.ReactNode; defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div style={{
+          fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600,
+          color: amber ? '#fbbf24' : 'rgba(255,255,255,0.40)',
+        }}>
+          {label}
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', cursor: 'pointer' }}>✏</span>
+          <span
+            style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', cursor: 'pointer', userSelect: 'none' }}
+            onClick={() => setOpen(o => !o)}
+          >
+            {open ? '▾' : '▸'}
+          </span>
+        </div>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
+function SbRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75 }}>
+      <span style={{ color: 'rgba(255,255,255,0.45)' }}>{label}: </span>{value ?? '—'}
+    </div>
+  );
+}
+
+function EmptySlot({ text }: { text: string }) {
+  return (
+    <div style={{
+      fontSize: 10, color: 'rgba(255,255,255,0.40)', fontStyle: 'italic',
+      padding: '7px 10px', textAlign: 'center',
+      background: 'rgba(255,255,255,0.02)',
+      border: '1px dashed rgba(255,255,255,0.08)',
+      borderRadius: 6,
+    }}>
+      {text}
     </div>
   );
 }
@@ -243,18 +255,18 @@ export function TriageClient({ appointmentId }: { appointmentId: string }) {
     setSaving(true);
     try {
       const payload = {
-        heightFt:     parseFloat(heightFt)  || null,
-        heightIn:     parseFloat(heightIn)  || null,
+        heightFt:      parseFloat(heightFt)  || null,
+        heightIn:      parseFloat(heightIn)  || null,
         heightCm,
-        weightLbs:    parseFloat(weightLbs) || null,
-        weightOz:     parseFloat(weightOz)  || null,
+        weightLbs:     parseFloat(weightLbs) || null,
+        weightOz:      parseFloat(weightOz)  || null,
         weightKg,
-        systolicMmhg: parseFloat(systolic)  || null,
+        systolicMmhg:  parseFloat(systolic)  || null,
         diastolicMmhg: parseFloat(diastolic) || null,
-        pulseBpm:     parseFloat(pulse)     || null,
-        tempFahrenheit: parseFloat(tempF)   || null,
-        tempCelsius:  tempC,
-        o2Saturation: parseFloat(o2)        || null,
+        pulseBpm:      parseFloat(pulse)     || null,
+        tempFahrenheit: parseFloat(tempF)    || null,
+        tempCelsius:   tempC,
+        o2Saturation:  parseFloat(o2)        || null,
         onRoomAir,
         visualAcuityRight: visRight || null,
         visualAcuityLeft:  visLeft  || null,
@@ -281,208 +293,254 @@ export function TriageClient({ appointmentId }: { appointmentId: string }) {
     }
   }
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading || !appt) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a1224' }}>
         <Loader2 style={{ width: 32, height: 32, color: '#10b981', animation: 'spin 1s linear infinite' }} />
       </div>
     );
   }
 
-  const p       = appt.patient;
-  const c       = appt.case;
-  const dr      = appt.provider;
-  const drName  = dr ? `Dr. ${dr.lastName}` : 'el doctor';
+  const p      = appt.patient;
+  const c      = appt.case;
+  const dr     = appt.provider;
+  const drName = dr ? `Dr. ${dr.lastName}` : 'el doctor';
+  const now    = new Date().toISOString();
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#0a1224' }}>
 
-      {/* ─── Left Sidebar ─────────────────────────────────────────────────── */}
+      {/* ═══ SIDEBAR ════════════════════════════════════════════════════════════ */}
       <aside style={{
         width: 240, minWidth: 240, height: '100vh',
         background: 'rgba(255,255,255,0.015)',
         borderRight: '1px solid rgba(255,255,255,0.06)',
-        overflow: 'auto', flexShrink: 0,
-        display: 'flex', flexDirection: 'column',
+        display: 'flex', flexDirection: 'column', flexShrink: 0,
+        overflow: 'hidden',
       }}>
-        {/* Patient Header */}
-        <div style={{ padding: '16px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 800, fontSize: 14, marginBottom: 8,
-          }}>
-            {p.firstName[0]}{p.lastName[0]}
-          </div>
-          <div style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>
-            {p.lastName.toUpperCase()}, {p.firstName}
-          </div>
-          {c && (
-            <div style={{ fontSize: 11, color: '#10b981', fontFamily: 'monospace', fontWeight: 600 }}>
-              {c.caseCode}
+
+        {/* Patient header */}
+        <div style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontWeight: 700, fontSize: 12,
+            }}>
+              {p.firstName[0]}{p.lastName[0]}
             </div>
-          )}
-          {p.dateOfBirth && (
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
-              {calcAge(p.dateOfBirth)}
+            <div>
+              <div style={{ fontWeight: 700, color: '#fff', fontSize: 12 }}>
+                {p.lastName.toUpperCase()}, {p.firstName}
+              </div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>
+                {c?.caseCode ?? '—'} · {calcAge(p.dateOfBirth)}
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Sections */}
-        <div style={{ flex: 1, overflow: 'auto' }}>
-          <SidebarSection title="Datos personales" icon={User} defaultOpen>
-            <SidebarField label="Fecha NAC" value={p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('es-US', { timeZone: 'UTC' }) : null} />
-          </SidebarSection>
+        {/* Scrollable sections */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '12px 12px 0 12px' }}>
 
-          <SidebarSection title="Contacto" icon={Phone}>
-            <SidebarField label="Teléfono" value={p.phone} />
-            <SidebarField label="Email"    value={p.email} />
-          </SidebarSection>
+          {/* Personal Info */}
+          <SbSection label="Personal Info" defaultOpen>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 12 }}>
+              <SbRow label="DOB"      value={p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('en-US', { timeZone: 'UTC' }) : null} />
+              <SbRow label="Sex"      value="—" />
+              <SbRow label="Language" value="Spanish" />
+            </div>
+          </SbSection>
 
-          {c?.primaryInsurance && (
-            <SidebarSection title="PIP · Seguro" icon={Shield} defaultOpen>
-              <SidebarField label="Aseguradora"  value={c.primaryInsurance.name} />
-              <SidebarField label="Póliza"        value={c.primaryPolicyNumber} />
-              <SidebarField label="Claims Phone" value={c.primaryInsurance.claimsPhone} />
-            </SidebarSection>
-          )}
+          {/* Contact */}
+          <SbSection label="Contact" defaultOpen>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 12 }}>
+              {p.phone && <div>📱 {p.phone}</div>}
+              {p.email && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)' }}>{p.email}</div>}
+              {!p.phone && !p.email && <div style={{ color: 'rgba(255,255,255,0.40)', fontStyle: 'italic' }}>Sin datos</div>}
+            </div>
+          </SbSection>
 
+          {/* Primary Insurance · PIP */}
+          <SbSection label="Primary Insurance · PIP" defaultOpen>
+            {c?.primaryInsurance ? (
+              <div style={{
+                fontSize: 10.5, lineHeight: 1.65, marginBottom: 12,
+                padding: '6px 9px',
+                background: 'rgba(6,182,212,0.05)',
+                borderLeft: '2px solid rgba(6,182,212,0.40)',
+                borderRadius: 4,
+              }}>
+                <div style={{ fontWeight: 600, color: '#67e8f9' }}>🇺🇸 {c.primaryInsurance.name}</div>
+                <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)' }}>
+                  Póliza: {c.primaryPolicyNumber ?? '—'}
+                  {c.primaryInsurance.claimsPhone && ` · ${c.primaryInsurance.claimsPhone}`}
+                </div>
+              </div>
+            ) : (
+              <EmptySlot text="Sin seguro registrado" />
+            )}
+          </SbSection>
+
+          {/* Secondary Insurance */}
+          <SbSection label="Secondary Insurance">
+            <div style={{ marginBottom: 12 }}>
+              <EmptySlot text="No secondary insurance registered" />
+            </div>
+          </SbSection>
+
+          {/* Allergies */}
+          <SbSection label="⚠ Allergies" amber defaultOpen>
+            <div style={{
+              fontSize: 10.5, color: '#fbbf24', lineHeight: 1.65, marginBottom: 12,
+              padding: '6px 9px',
+              background: 'rgba(245,158,11,0.06)',
+              borderLeft: '2px solid rgba(245,158,11,0.40)',
+              borderRadius: 4,
+            }}>
+              <div>Revisar con el paciente</div>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
+                Confirmar alergias a medicamentos
+              </div>
+            </div>
+          </SbSection>
+
+          {/* Problem List */}
+          <SbSection label="♡ Problem List">
+            <div style={{ marginBottom: 12 }}>
+              <EmptySlot text="No active problems" />
+            </div>
+          </SbSection>
+
+          {/* Active Medication */}
+          <SbSection label="⛓ Active Medication">
+            <div style={{ marginBottom: 12 }}>
+              <EmptySlot text="No active medications" />
+            </div>
+          </SbSection>
+
+          {/* Lawyer / Attorney */}
           {(c?.attorney || c?.lawFirm) && (
-            <SidebarSection title="Abogado" icon={FileText}>
-              {c.lawFirm && <SidebarField label="Firma" value={c.lawFirm.firmName} />}
-              {c.attorney && (
-                <SidebarField
-                  label="Attorney"
-                  value={`${c.attorney.firstName ?? ''} ${c.attorney.lastName ?? ''}`.trim()}
-                />
-              )}
-            </SidebarSection>
+            <SbSection label="Attorney" defaultOpen>
+              <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 12 }}>
+                {c?.lawFirm && <div>{c.lawFirm.firmName}</div>}
+                {c?.attorney && (
+                  <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)' }}>
+                    {`${c.attorney.firstName ?? ''} ${c.attorney.lastName ?? ''}`.trim()}
+                  </div>
+                )}
+              </div>
+            </SbSection>
           )}
 
-          {/* Allergies — placeholder: highlighted amber */}
-          <SidebarSection title="Alergias" icon={AlertTriangle}>
-            <div style={{ fontSize: 11, color: '#fbbf24', background: 'rgba(245,158,11,0.06)', borderRadius: 6, padding: '6px 8px' }}>
-              Revisar en expediente
+          {/* Emergency Contact */}
+          <SbSection label="Emergency Contact">
+            <div style={{ marginBottom: 12 }}>
+              <EmptySlot text="Not registered" />
             </div>
-          </SidebarSection>
+          </SbSection>
         </div>
 
-        {/* Clinic + time */}
-        <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>
+        {/* Footer: clinic + time */}
+        <div style={{
+          padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.06)',
+          fontSize: 10, color: 'rgba(255,255,255,0.40)', flexShrink: 0,
+        }}>
           {appt.clinic.name} · {fmtTime(appt.scheduledFor)}
         </div>
       </aside>
 
-      {/* ─── Main Area ────────────────────────────────────────────────────── */}
-      <main style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+      {/* ═══ MAIN ═══════════════════════════════════════════════════════════════ */}
+      <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+
         {/* Header */}
         <div style={{
-          padding: '14px 24px',
+          padding: '14px 24px', flexShrink: 0,
           borderBottom: '1px solid rgba(255,255,255,0.06)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'rgba(255,255,255,0.01)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
-              📈 Vital signs
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>📈 Vital signs</div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
               Captura rápida · 5 min · sincroniza con la visita del doctor automáticamente
             </div>
           </div>
-          <div style={{
+          <span style={{
             padding: '4px 10px', borderRadius: 6,
             background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)',
-            color: '#fbbf24', fontSize: 11, fontWeight: 700,
+            color: '#fbbf24', fontSize: 10, fontWeight: 700,
           }}>
             ⏱ En triaje
-          </div>
+          </span>
         </div>
 
-        {/* Vitals Grid */}
-        <div style={{ padding: '20px 24px', flex: 1, overflow: 'auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginBottom: 16 }}>
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
 
-            {/* Height */}
-            <VitalCard emoji="📏" title="Height">
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <VitalInput label="Feet" value={heightFt} onChange={setHeightFt} placeholder="5" unit="ft" />
-                <VitalInput label="Inches" value={heightIn} onChange={setHeightIn} placeholder="8" unit="in" />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <ArrowLeftRight style={{ width: 12, height: 12, color: 'rgba(255,255,255,0.35)' }} />
-                  <span style={{ fontFamily: 'monospace', fontSize: 16, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>
-                    {heightCm ?? '—'}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>cm</span>
-                </div>
+          {/* ── Height (full width, 3-col) ── */}
+          <VitalCard emoji="📏" title="Height">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <VitalField label="Feet"   value={heightFt} onChange={setHeightFt} placeholder="5" />
+              <VitalField label="Inches" value={heightIn} onChange={setHeightIn} placeholder="8" />
+              <VitalField label="Cms ⇄"  value={heightCm != null ? String(heightCm) : ''} readOnly placeholder="—" />
+            </div>
+          </VitalCard>
+
+          {/* ── Weight (full width, 3-col) ── */}
+          <VitalCard emoji="⚖️" title="Weight">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <VitalField label="Lbs"    value={weightLbs} onChange={setWeightLbs} placeholder="150" />
+              <VitalField label="Oz"     value={weightOz}  onChange={setWeightOz}  placeholder="0"   />
+              <VitalField label="Kgs ⇄"  value={weightKg != null ? String(weightKg) : ''} readOnly placeholder="—" />
+            </div>
+          </VitalCard>
+
+          {/* ── Blood Pressure + Corazón & Pulmones (2-col) ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <VitalCard emoji="❤️" title="Blood pressure">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <VitalField label="Systolic mmHg"  value={systolic}  onChange={setSystolic}  placeholder="120" />
+                <VitalField label="Diastolic mmHg" value={diastolic} onChange={setDiastolic} placeholder="80"  />
               </div>
             </VitalCard>
 
-            {/* Weight */}
-            <VitalCard emoji="⚖️" title="Weight">
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <VitalInput label="Lbs" value={weightLbs} onChange={setWeightLbs} placeholder="150" unit="lbs" />
-                <VitalInput label="Oz" value={weightOz} onChange={setWeightOz} placeholder="0" unit="oz" />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <ArrowLeftRight style={{ width: 12, height: 12, color: 'rgba(255,255,255,0.35)' }} />
-                  <span style={{ fontFamily: 'monospace', fontSize: 16, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>
-                    {weightKg ?? '—'}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>kg</span>
-                </div>
-              </div>
+            <VitalCard emoji="💓" title="Corazón &amp; Pulmones">
+              <VitalField label="Pulse (bpm)" value={pulse} onChange={setPulse} placeholder="72" />
             </VitalCard>
+          </div>
 
-            {/* Blood Pressure */}
-            <VitalCard emoji="❤️" title="Blood Pressure">
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <VitalInput label="Systolic"  value={systolic}  onChange={setSystolic}  placeholder="120" unit="mmHg" />
-                <VitalInput label="Diastolic" value={diastolic} onChange={setDiastolic} placeholder="80"  unit="mmHg" />
-              </div>
-            </VitalCard>
-
-            {/* Pulse */}
-            <VitalCard emoji="💓" title="Heart Rate">
-              <VitalInput label="Pulse" value={pulse} onChange={setPulse} placeholder="72" unit="bpm" wide />
-            </VitalCard>
-
-            {/* Temperature */}
+          {/* ── Temperature + Oxygen (2-col) ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <VitalCard emoji="🌡️" title="Temperature">
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                <VitalInput label="Fahrenheit" value={tempF} onChange={setTempF} placeholder="98.6" unit="°F" wide />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <ArrowLeftRight style={{ width: 12, height: 12, color: 'rgba(255,255,255,0.35)' }} />
-                  <span style={{ fontFamily: 'monospace', fontSize: 16, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>
-                    {tempC ?? '—'}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>°C</span>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <VitalField label="°F"    value={tempF} onChange={setTempF} placeholder="98.6" />
+                <VitalField label="°C ⇄"  value={tempC != null ? String(tempC) : ''} readOnly placeholder="—" />
               </div>
             </VitalCard>
 
-            {/* Oxygen */}
             <VitalCard emoji="💨" title="Oxygen">
-              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <VitalInput label="O₂ Saturation" value={o2} onChange={setO2} placeholder="98" unit="%" wide />
-                <div style={{ marginBottom: 4 }}>
-                  <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#a5b4fc', marginBottom: 8, fontWeight: 600 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
+                <VitalField label="O₂ saturation (%)" value={o2} onChange={setO2} placeholder="98" />
+                <div style={{ paddingBottom: 2 }}>
+                  <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.45)', marginBottom: 6, fontWeight: 600, textAlign: 'center' }}>
                     On room air
                   </div>
                   <button
                     type="button"
                     onClick={() => setOnRoomAir(v => !v)}
                     style={{
-                      width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                      background: onRoomAir ? '#10b981' : 'rgba(255,255,255,0.12)',
-                      position: 'relative', transition: 'background 0.2s',
+                      width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
+                      background: onRoomAir ? '#10b981' : 'rgba(255,255,255,0.10)',
+                      position: 'relative', transition: 'background 0.2s', display: 'block',
                     }}
                   >
                     <span style={{
-                      position: 'absolute', top: 3, left: onRoomAir ? 23 : 3,
-                      width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                      position: 'absolute', top: 3,
+                      left: onRoomAir ? 21 : 3,
+                      width: 16, height: 16, borderRadius: '50%', background: '#fff',
                       transition: 'left 0.2s', display: 'block',
                     }} />
                   </button>
@@ -491,112 +549,155 @@ export function TriageClient({ appointmentId }: { appointmentId: string }) {
             </VitalCard>
           </div>
 
-          {/* Vision Acuity — full width */}
-          <VitalCard emoji="👁️" title="Vision Acuity">
-            {/* Corrected/Uncorrected toggle */}
-            <div style={{ marginBottom: 14, display: 'flex', gap: 6 }}>
+          {/* ── Vision (full width) — toggle al FONDO ── */}
+          <VitalCard emoji="👁️" title="Vision">
+            {/* 3 eye fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
               {[
-                { label: 'Uncorrected', val: false, sub: 'Sin gafas / lentes' },
-                { label: 'Corrected',   val: true,  sub: 'Con gafas / lentes' },
-              ].map(opt => (
-                <button
-                  key={opt.label}
-                  type="button"
-                  onClick={() => setCorrected(opt.val)}
-                  style={{
-                    padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                    background: corrected === opt.val ? '#6366f1' : 'rgba(255,255,255,0.06)',
-                    color: corrected === opt.val ? '#fff' : 'rgba(255,255,255,0.55)',
-                    fontSize: 12, fontWeight: corrected === opt.val ? 700 : 400,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {opt.label}
-                  <div style={{ fontSize: 9, color: corrected === opt.val ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.35)', marginTop: 2 }}>{opt.sub}</div>
-                </button>
-              ))}
-            </div>
-            {/* Vision inputs */}
-            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-              {[
-                { label: 'Right eye', val: visRight, set: setVisRight },
-                { label: 'Left eye',  val: visLeft,  set: setVisLeft  },
-                { label: 'Both',      val: visBoth,  set: setVisBoth  },
+                { label: 'Right · 20/', val: visRight, set: setVisRight },
+                { label: 'Left · 20/',  val: visLeft,  set: setVisLeft  },
+                { label: 'Both · 20/',  val: visBoth,  set: setVisBoth  },
               ].map(eye => (
                 <div key={eye.label}>
-                  <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#a5b4fc', marginBottom: 6, fontWeight: 600 }}>{eye.label}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.50)', fontFamily: 'monospace' }}>20/</span>
-                    <input
-                      type="number"
-                      value={eye.val}
-                      onChange={e => eye.set(e.target.value)}
-                      placeholder="20"
-                      style={{
-                        width: 56, padding: '8px 8px',
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: 8, color: '#fff',
-                        fontFamily: 'monospace', fontSize: 16, fontWeight: 600,
-                        outline: 'none', textAlign: 'center',
-                      }}
-                    />
+                  <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.45)', marginBottom: 3, fontWeight: 600 }}>
+                    {eye.label}
                   </div>
+                  <input
+                    type="number"
+                    value={eye.val}
+                    onChange={e => eye.set(e.target.value)}
+                    placeholder="20"
+                    style={{
+                      width: '100%', padding: '6px 10px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.10)',
+                      borderRadius: 6, color: '#fff',
+                      fontFamily: 'monospace', fontSize: 13, fontWeight: 600,
+                      outline: 'none',
+                    }}
+                  />
                 </div>
               ))}
             </div>
+
+            {/* Toggle Uncorrected/Corrected — ABAJO con separador */}
+            <div style={{
+              borderTop: '1px solid rgba(255,255,255,0.05)',
+              paddingTop: 8,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[
+                  { label: 'Uncorrected', val: false },
+                  { label: 'Corrected',   val: true  },
+                ].map(opt => (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => setCorrected(opt.val)}
+                    style={{
+                      padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 10, fontWeight: 600,
+                      background: corrected === opt.val ? '#6366f1' : 'rgba(255,255,255,0.05)',
+                      color: corrected === opt.val ? '#fff' : 'rgba(255,255,255,0.55)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)' }}>
+                {corrected ? 'Con gafas / lentes' : 'Sin gafas / lentes'}
+              </span>
+            </div>
           </VitalCard>
 
-          {/* Chief Complaint */}
+          {/* ── Note information · Chief Complaint ── */}
           <div style={{
-            marginTop: 16,
-            borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)',
-            background: 'rgba(255,255,255,0.02)', padding: '16px 18px',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: 10, padding: '10px 14px',
           }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.75)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              📝 Chief complaint
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: '#a5b4fc', fontWeight: 600 }}>
+                📝 Note information · Chief complaint
+              </div>
+              <button
+                type="button"
+                style={{
+                  fontSize: 10, padding: '3px 10px', borderRadius: 5, cursor: 'pointer',
+                  background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.30)',
+                  color: '#a5b4fc', fontWeight: 600,
+                }}
+              >
+                📄 Templates
+              </button>
             </div>
+
+            {/* Toolbar */}
+            <div style={{
+              display: 'flex', gap: 2, padding: '5px 8px',
+              background: 'rgba(0,0,0,0.20)', borderRadius: '6px 6px 0 0',
+              borderBottom: '1px solid rgba(255,255,255,0.05)',
+              flexWrap: 'wrap',
+            }}>
+              {['H', 'B', 'I'].map(t => (
+                <button key={t} type="button" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 3 }}>{t}</button>
+              ))}
+              <div style={{ width: 1, background: 'rgba(255,255,255,0.10)', margin: '0 3px' }} />
+              {['☰', '≡', '"', '🔗'].map(t => (
+                <button key={t} type="button" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.60)', cursor: 'pointer', fontSize: 11, padding: '2px 5px', borderRadius: 3 }}>{t}</button>
+              ))}
+            </div>
+
+            {/* Editor */}
             <textarea
               value={complaint}
               onChange={e => setComplaint(e.target.value)}
-              placeholder="Paciente refiere dolor cervical y lumbar desde el accidente del... Tipo de accidente: frontal · velocidad baja · sin airbag..."
+              placeholder="Dolor cervical y lumbar post-accidente automovilístico... Tipo: rear-end · velocidad baja · sin airbag..."
               maxLength={2000}
               rows={4}
               style={{
                 width: '100%', resize: 'vertical', minHeight: 80,
-                padding: '10px 12px',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: 8, color: '#fff',
-                fontFamily: 'inherit', fontSize: 13, lineHeight: 1.6,
-                outline: 'none',
+                padding: '9px 12px',
+                background: 'rgba(0,0,0,0.15)',
+                border: 'none', borderRadius: '0 0 6px 6px',
+                color: 'rgba(255,255,255,0.85)',
+                fontFamily: 'inherit', fontSize: 11, lineHeight: 1.6,
+                outline: 'none', display: 'block',
               }}
             />
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 6, textAlign: 'right' }}>
-              {complaint.length} / 2000 chars
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+              <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)' }}>
+                💡 Usa <strong style={{ color: 'rgba(255,255,255,0.70)' }}>Templates</strong> para pre-cargar plantillas comunes (whiplash, lumbar agudo, etc.)
+              </span>
+              <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)' }}>
+                {complaint.length} / 2000
+              </span>
             </div>
           </div>
 
-          {/* Metadata */}
-          <div style={{ marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
-            📌 Capturado por: <strong style={{ color: 'rgba(255,255,255,0.55)' }}>MA</strong> · {fmtTime(new Date().toISOString())}
+          {/* Captured by */}
+          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.40)', paddingBottom: 4 }}>
+            📌 Capturado por: <strong style={{ color: 'rgba(255,255,255,0.65)' }}>MA</strong> · {fmtTime(now)}
           </div>
         </div>
 
-        {/* ─── Footer ─────────────────────────────────────────────────────── */}
+        {/* ═══ FOOTER ══════════════════════════════════════════════════════════ */}
         <div style={{
-          padding: '12px 24px',
+          padding: '12px 24px', flexShrink: 0,
           borderTop: '1px solid rgba(255,255,255,0.06)',
           background: 'rgba(255,255,255,0.01)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
         }}>
-          {/* Save draft */}
           <button
             type="button"
             onClick={() => handleSave(false)}
             disabled={saving}
             style={{
-              padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)',
+              padding: '8px 16px', borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.12)',
               background: 'transparent', color: 'rgba(255,255,255,0.60)',
               fontSize: 13, fontWeight: 600, cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: 6,
@@ -609,24 +710,23 @@ export function TriageClient({ appointmentId }: { appointmentId: string }) {
             }
           </button>
 
-          {/* Complete triage */}
           <button
             type="button"
             onClick={() => handleSave(true)}
             disabled={saving}
             style={{
-              padding: '10px 24px', borderRadius: 10,
-              background: saving ? 'rgba(16,185,129,0.20)' : 'rgba(16,185,129,0.15)',
+              padding: '10px 22px', borderRadius: 10,
+              background: saving ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.18)',
               border: '1px solid rgba(16,185,129,0.35)',
-              color: '#34d399',
-              fontSize: 14, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
+              color: '#34d399', fontSize: 13, fontWeight: 800,
+              cursor: saving ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', gap: 8,
               transition: 'all 0.15s',
             }}
           >
             {saving
-              ? <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-              : <CheckCircle2 style={{ width: 16, height: 16 }} />
+              ? <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />
+              : <CheckCircle2 style={{ width: 15, height: 15 }} />
             }
             Pasar a {drName} ✓
           </button>

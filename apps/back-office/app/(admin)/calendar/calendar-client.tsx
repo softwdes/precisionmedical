@@ -14,7 +14,7 @@
  * Accent del módulo: cyan (Regla #5 tabla)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock } from 'lucide-react';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
@@ -78,8 +78,9 @@ function addDays(date: Date, n: number): Date {
   return d;
 }
 
-const WEEKDAYS_ES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
-const MONTHS_ES   = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const WEEKDAYS_ES     = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+const WEEKDAYS_ALL_ES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const MONTHS_ES       = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 const TIME_SLOTS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
                     '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
@@ -87,6 +88,29 @@ const TIME_SLOTS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
+}
+
+function getFirstDayOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+/** Devuelve un array de semanas (7 días c/u) que cubren el mes completo. */
+function getMonthGrid(monthRef: Date): Date[][] {
+  const firstDay  = getFirstDayOfMonth(monthRef);
+  const gridStart = getMondayOf(firstDay);
+  const weeks: Date[][] = [];
+  const cursor = new Date(gridStart);
+  while (weeks.length < 6) {
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push(week);
+    // Terminamos cuando salimos del mes y tenemos al menos 4 semanas
+    if (cursor.getMonth() !== monthRef.getMonth() && weeks.length >= 4) break;
+  }
+  return weeks;
 }
 
 // ─── Timezone helpers (Mountain Time / America/Denver) ────────────────────────
@@ -240,6 +264,42 @@ function FilterChip({
   );
 }
 
+// ─── LegendStats (shared entre las 3 vistas) ─────────────────────────────────
+
+function LegendStats({
+  appointments, firstVisitCount, pendingConfirm,
+}: {
+  appointments: CalendarAppointment[];
+  firstVisitCount: number;
+  pendingConfirm: number;
+}) {
+  return (
+    <div className="mt-3 flex items-center justify-between flex-wrap gap-y-2">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {([
+          { color: 'rgba(244,63,94,0.75)',                              label: 'MVA · seguimiento' },
+          { color: 'linear-gradient(135deg,#f43f5e,#ec4899)',           label: '🆕 MVA · 1ra cita', glow: true },
+          { color: 'rgba(16,185,129,0.75)',                             label: 'GP · seguimiento' },
+          { color: 'linear-gradient(135deg,#10b981,#14b8a6)',           label: '🆕 GP · 1ra cita', glow: true },
+          { color: 'rgba(245,158,11,0.75)',                             label: 'Sin confirmar' },
+          { color: 'rgba(99,102,241,0.50)',                             label: 'Atendida ✓' },
+        ] as { color: string; label: string; glow?: boolean }[]).map(item => (
+          <div key={item.label} className="flex items-center gap-1.5">
+            <div className="w-3.5 h-1.5 rounded-sm shrink-0"
+              style={{ background: item.color, boxShadow: item.glow ? '0 0 4px rgba(244,63,94,0.40)' : undefined }} />
+            <span className="text-[10px] text-text-muted">{item.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-3 text-[10px] text-text-muted shrink-0">
+        <span><span className="text-text-2 font-semibold">{appointments.length}</span> citas</span>
+        {firstVisitCount > 0 && <span className="text-rose font-semibold">{firstVisitCount} primeras 🆕</span>}
+        {pendingConfirm  > 0 && <span className="text-amber">{pendingConfirm} sin confirmar</span>}
+      </div>
+    </div>
+  );
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CalendarClient({ clinics, providers }: CalendarClientProps) {
@@ -254,43 +314,90 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const [filterType,     setFilterType]     = useState('');
   const [calView, setCalView] = useState<CalendarView>('week');
 
-  // Load appointments for the current week
-  const loadWeek = useCallback(async (start: Date) => {
+  // ─── Data loading — AbortController pattern ──────────────────────────────
+  // Cada vez que cambia weekStart, calView o filtros, el efecto se re-ejecuta.
+  // El cleanup cancela la petición anterior a nivel de red (AbortController),
+  // imposibilitando que una respuesta stale sobreescriba datos frescos.
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
-    const end = addDays(start, 4);
-    end.setHours(23, 59, 59, 999);
+
+    let from: Date;
+    let to:   Date;
+
+    if (calView === 'day') {
+      from = new Date(weekStart); from.setHours(0, 0, 0, 0);
+      to   = new Date(weekStart); to.setHours(23, 59, 59, 999);
+    } else if (calView === 'week') {
+      from = new Date(weekStart);
+      to   = addDays(weekStart, 4); to.setHours(23, 59, 59, 999);
+    } else {
+      const grid = getMonthGrid(weekStart);
+      from = new Date(grid[0][0]); from.setHours(0, 0, 0, 0);
+      const lastWeek = grid[grid.length - 1];
+      to = new Date(lastWeek[lastWeek.length - 1]); to.setHours(23, 59, 59, 999);
+    }
+
     const params = new URLSearchParams({
-      from: start.toISOString(),
-      to:   end.toISOString(),
+      from: from.toISOString(),
+      to:   to.toISOString(),
       ...(filterClinic   ? { clinicId:   filterClinic }   : {}),
       ...(filterProvider ? { providerId: filterProvider } : {}),
       ...(filterType     ? { type:       filterType }     : {}),
     });
-    try {
-      const res  = await fetch(`/api/admin/appointments?${params}`);
-      const data = await res.json();
-      setAppointments(data.appointments ?? []);
-    } catch { /* silently fail, show empty */ }
-    finally { setLoading(false); }
-  }, [filterClinic, filterProvider, filterType]);
 
-  useEffect(() => { loadWeek(weekStart); }, [weekStart, loadWeek]);
+    fetch(`/api/admin/appointments?${params}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(data => {
+        setAppointments(data.appointments ?? []);
+        setLoading(false);
+      })
+      .catch(err => {
+        // AbortError es cancelación intencional — no es un error real
+        if ((err as Error).name !== 'AbortError') setLoading(false);
+      });
 
-  const goToPrev  = () => setWeekStart(w => addDays(w, -7));
-  const goToNext  = () => setWeekStart(w => addDays(w,  7));
-  const goToToday = () => setWeekStart(getMondayOf(new Date()));
+    // Cleanup: cancela la petición en vuelo si el efecto se re-dispara
+    return () => controller.abort();
+  }, [weekStart, calView, filterClinic, filterProvider, filterType, refreshKey]);
 
-  // Build the 5-day headers
+  // ─── Navigation ─────────────────────────────────────────────────────────────
+  const goToPrev = () => {
+    if (calView === 'day')        setWeekStart(w => addDays(w, -1));
+    else if (calView === 'week')  setWeekStart(w => addDays(w, -7));
+    else setWeekStart(w => getFirstDayOfMonth(new Date(w.getFullYear(), w.getMonth() - 1, 1)));
+  };
+  const goToNext = () => {
+    if (calView === 'day')        setWeekStart(w => addDays(w, 1));
+    else if (calView === 'week')  setWeekStart(w => addDays(w, 7));
+    else setWeekStart(w => getFirstDayOfMonth(new Date(w.getFullYear(), w.getMonth() + 1, 1)));
+  };
+  const goToToday = () => {
+    const now = new Date();
+    if (calView === 'day')        setWeekStart(now);
+    else if (calView === 'week')  setWeekStart(getMondayOf(now));
+    else                          setWeekStart(getFirstDayOfMonth(now));
+  };
+  /** Cambia de vista ajustando weekStart al ancla correcta para esa vista. */
+  const switchView = (v: CalendarView) => {
+    setCalView(v);
+    if (v === 'week')       setWeekStart(w => getMondayOf(w));
+    else if (v === 'month') setWeekStart(w => getFirstDayOfMonth(w));
+    // day: mantiene el weekStart actual como "día seleccionado"
+  };
+
+  // ─── Derived state ───────────────────────────────────────────────────────────
+  // 5-day header array (week view)
   const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
-  const today = new Date(); today.setHours(0, 0, 0, 0);
 
-  // Index appointments by day×slot for quick lookup
-  type ApptMap = Record<string, Record<string, CalendarAppointment[]>>; // dayDenver → slot → []
+  // O(1) lookup: Denver-date → slot → appointments[]
+  type ApptMap = Record<string, Record<string, CalendarAppointment[]>>;
   const apptMap: ApptMap = {};
   for (const appt of appointments) {
-    const d   = new Date(appt.scheduledFor);
-    const day  = denverDateStr(d);          // ← Denver date, was: d.toISOString().slice(0,10)
-    const slot = slotOf(appt.scheduledFor); // ← Denver hour slot
+    const day  = denverDateStr(new Date(appt.scheduledFor));
+    const slot = slotOf(appt.scheduledFor);
     if (!apptMap[day]) apptMap[day] = {};
     if (!apptMap[day][slot]) apptMap[day][slot] = [];
     apptMap[day][slot].push(appt);
@@ -299,8 +406,18 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const firstVisitCount = appointments.filter(a => a.visitNumber === 0).length;
   const pendingConfirm  = appointments.filter(a => a.status === 'SCHEDULED').length;
 
-  const monthLabel = `${MONTHS_ES[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
-  const weekLabel  = `Semana del ${weekStart.getDate()} – ${addDays(weekStart, 4).getDate()} ${MONTHS_ES[addDays(weekStart, 4).getMonth()]}`;
+  // Labels en barra de título
+  const viewEnd4   = addDays(weekStart, 4);
+  const monthLabel =
+    calView === 'day'
+      ? `${weekStart.getDate()} ${MONTHS_ES[weekStart.getMonth()]} ${weekStart.getFullYear()}`
+      : `${MONTHS_ES[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
+  const weekLabel =
+    calView === 'day'
+      ? `${WEEKDAYS_ALL_ES[(weekStart.getDay() + 6) % 7]} · vista diaria`
+      : calView === 'week'
+        ? `Semana del ${weekStart.getDate()} – ${viewEnd4.getDate()} ${MONTHS_ES[viewEnd4.getMonth()]}`
+        : `${MONTHS_ES[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -371,36 +488,23 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           )}
         </div>
 
-        {/* Stats */}
-        <div className="ml-auto flex items-center gap-3 text-[11px] text-text-muted shrink-0">
-          <span className="text-text-2">{appointments.length} citas</span>
-          {firstVisitCount > 0 && (
-            <span className="text-rose font-semibold">{firstVisitCount} primeras 🆕</span>
-          )}
-          {pendingConfirm > 0 && (
-            <span className="text-amber">{pendingConfirm} sin confirmar</span>
-          )}
-        </div>
-
-        {/* Separator */}
-        <div className="w-px h-5 bg-border shrink-0" />
+        {/* ml-auto spacer */}
+        <div className="ml-auto" />
 
         {/* View toggle Día / Semana / Mes */}
-        <div className="flex items-center shrink-0">
-          {(['day', 'week', 'month'] as CalendarView[]).map((v, i) => {
+        <div className="flex items-center shrink-0 rounded overflow-hidden border border-white/[0.10]">
+          {(['day', 'week', 'month'] as CalendarView[]).map((v) => {
             const labels = { day: 'Día', week: 'Semana', month: 'Mes' };
             const isActive = calView === v;
             return (
               <button
                 key={v}
                 type="button"
-                onClick={() => setCalView(v)}
-                className={`px-3 h-7 text-[11px] font-medium border transition-colors ${
-                  i === 0 ? 'rounded-l' : i === 2 ? 'rounded-r' : ''
-                } ${
+                onClick={() => switchView(v)}
+                className={`px-3 h-7 text-[11px] font-semibold transition-all border-r border-white/[0.10] last:border-r-0 ${
                   isActive
-                    ? 'border-cyan bg-cyan/15 text-cyan z-10 relative'
-                    : 'border-border text-text-2 hover:bg-white/5 -ml-px'
+                    ? 'bg-violet text-white'
+                    : 'bg-transparent text-text-2 hover:bg-white/5 hover:text-text-1'
                 }`}
               >
                 {labels[v]}
@@ -410,139 +514,209 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         </div>
       </div>
 
-      {/* ─── Grid ────────────────────────────────────────────── */}
+      {/* ─── Grid (3 views) ──────────────────────────────────── */}
       <div className="flex-1 overflow-auto px-6 pb-6 min-h-0">
-        <div className="rounded-lg border border-border bg-bg-1 overflow-hidden min-w-[700px]">
 
-          {/* Header row — días */}
-          <div className="grid grid-cols-[64px_repeat(5,1fr)] border-b border-border">
-            <div className="border-r border-border" />
-            {days.map((day, i) => {
-              const isToday = day.getTime() === today.getTime();
-              return (
-                <div
-                  key={i}
-                  className={`py-2.5 text-center border-r border-border last:border-r-0 ${isToday ? 'bg-cyan/5' : ''}`}
-                >
-                  <div className={`text-[10px] uppercase tracking-wider font-semibold ${isToday ? 'text-cyan' : 'text-text-muted'}`}>
-                    {WEEKDAYS_ES[i]}
-                  </div>
-                  <div className={`text-lg font-bold mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>
-                    {day.getDate()}
-                  </div>
+        {/* ══════════════════════════ WEEK VIEW ══════════════════════════════ */}
+        {calView === 'week' && (() => {
+          const todayStr = denverDateStr(new Date());
+          return (
+            <>
+              <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
+                {/* Header row */}
+                <div className="grid grid-cols-[52px_repeat(5,1fr)] border-b border-white/[0.07]">
+                  <div className="border-r border-white/[0.07]" />
+                  {days.map((day, i) => {
+                    const isToday = denverDateStr(day) === todayStr;
+                    return (
+                      <div key={i} className={`py-3 text-center border-r border-white/[0.07] last:border-r-0 ${isToday ? 'bg-cyan/[0.06]' : ''}`}>
+                        <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>{WEEKDAYS_ES[i]}</div>
+                        <div className={`text-[28px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>{day.getDate()}</div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Loading overlay */}
-          {loading && (
-            <div className="absolute inset-0 bg-bg-1/60 flex items-center justify-center z-10 rounded-lg">
-              <div className="flex items-center gap-2 text-text-2 text-sm">
-                <Clock className="w-4 h-4 animate-spin" />
-                Cargando citas...
-              </div>
-            </div>
-          )}
-
-          {/* Time slots */}
-          {TIME_SLOTS.map((slot) => (
-            <div key={slot} className="grid grid-cols-[64px_repeat(5,1fr)] border-b border-border/50 last:border-b-0 min-h-[52px]">
-              {/* Time label */}
-              <div className="border-r border-border flex items-start justify-end pr-2.5 pt-1.5">
-                <span className="text-[10px] text-text-muted font-mono">{slot}</span>
-              </div>
-
-              {/* Day cells */}
-              {days.map((day, di) => {
-                const dayKey = denverDateStr(day);          // ← Denver date key
-                const isToday = day.getTime() === today.getTime();
-                const cellAppts = apptMap[dayKey]?.[slot] ?? [];
-
-                return (
-                  <div
-                    key={di}
-                    className={`border-r border-border/50 last:border-r-0 p-1 flex flex-col gap-1 ${isToday ? 'bg-cyan/[0.02]' : ''}`}
-                  >
-                    {cellAppts.map(appt => {
-                      const style = getEventStyle(appt);
-                      const isFirst = appt.visitNumber === 0;
-                      const drName = appt.provider
-                        ? `Dr. ${appt.provider.lastName}`
-                        : '';
-                      const visitLabel = isFirst
-                        ? '1ra cita'
-                        : appt.visitNumber > 0
-                          ? `visita ${appt.visitNumber + 1}`
-                          : '';
-
+                {loading && (
+                  <div className="absolute inset-0 bg-bg-1/70 flex items-center justify-center z-10 rounded-xl">
+                    <Clock className="w-4 h-4 animate-spin text-text-2" />
+                  </div>
+                )}
+                {TIME_SLOTS.map(slot => (
+                  <div key={slot} className="grid grid-cols-[52px_repeat(5,1fr)] border-b border-white/[0.04] last:border-b-0 min-h-[40px]">
+                    <div className="border-r border-white/[0.04] flex items-start justify-end pr-2 pt-1">
+                      <span className="text-[9px] text-white/30 font-mono tabular-nums">{slot}</span>
+                    </div>
+                    {days.map((day, di) => {
+                      const dayKey = denverDateStr(day);
+                      const isToday = dayKey === todayStr;
+                      const cellAppts = apptMap[dayKey]?.[slot] ?? [];
                       return (
-                        <button
-                          key={appt.id}
-                          type="button"
-                          onClick={() => setSelectedAppt(appt)}
-                          className="w-full text-left rounded-md px-2 py-1.5 transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
-                          style={{
-                            background: style.bg,
-                            border: `1px solid ${style.border}`,
-                            boxShadow: style.glow,
-                          }}
-                        >
-                          <div
-                            className="text-[11px] font-semibold truncate"
-                            style={{ color: style.text }}
-                          >
-                            {style.badge && <span className="mr-1">{style.badge}</span>}
-                            {appt.patient.firstName} {appt.patient.lastName}
-                          </div>
-                          <div className="text-[10px] text-text-muted truncate">
-                            {drName}
-                            {appt.case?.caseCode && (
-                              <span className="font-mono"> · #{appt.case.caseCode.replace('PMC-', '')}</span>
-                            )}
-                            {visitLabel && <span> · {visitLabel}</span>}
-                          </div>
-                        </button>
+                        <div key={di} className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-col gap-0.5 ${isToday ? 'bg-cyan/[0.025]' : ''}`}>
+                          {cellAppts.map(appt => {
+                            const s = getEventStyle(appt);
+                            const visitLabel = appt.visitNumber === 0 ? '1ra cita' : appt.visitNumber > 0 ? `visita ${appt.visitNumber + 1}` : '';
+                            const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                            return (
+                              <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
+                                className="w-full text-left rounded px-1.5 py-[3px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99]"
+                                style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
+                                <div className="text-[11px] font-bold leading-tight truncate" style={{ color: s.text }}>
+                                  {s.badge && <span className="mr-0.5">{s.badge}</span>}
+                                  {appt.patient.firstName} {appt.patient.lastName}
+                                </div>
+                                <div className="text-[9.5px] leading-tight truncate" style={{ color: s.text, opacity: 0.65 }}>
+                                  {drName}{appt.case?.caseCode && ` · #${appt.case.caseCode.replace('PMC-','')}`}{visitLabel && ` · ${visitLabel}`}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       );
                     })}
                   </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+                ))}
+              </div>
+              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} />
+            </>
+          );
+        })()}
 
-        {/* ─── Leyenda ─────────────────────────────────────────── */}
-        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
-          {[
-            { color: 'rgba(244,63,94,0.75)', label: 'MVA · seguimiento' },
-            { color: 'linear-gradient(135deg,#f43f5e,#ec4899)', label: '🆕 MVA · 1ra cita', glow: true },
-            { color: 'rgba(16,185,129,0.75)', label: 'GP · seguimiento' },
-            { color: 'linear-gradient(135deg,#10b981,#14b8a6)', label: '🆕 GP · 1ra cita', glow: true },
-            { color: 'rgba(245,158,11,0.75)', label: 'Sin confirmar' },
-            { color: 'rgba(99,102,241,0.50)', label: 'Atendida ✓' },
-          ].map(item => (
-            <div key={item.label} className="flex items-center gap-2">
-              <div
-                className="w-4 h-2 rounded-sm shrink-0"
-                style={{
-                  background: item.color,
-                  boxShadow: item.glow ? '0 0 5px rgba(244,63,94,0.45)' : undefined,
-                }}
-              />
-              <span className="text-[11px] text-text-muted">{item.label}</span>
-            </div>
-          ))}
-        </div>
+        {/* ══════════════════════════ DAY VIEW ═══════════════════════════════ */}
+        {calView === 'day' && (() => {
+          const dayKey  = denverDateStr(weekStart);
+          const todayStr = denverDateStr(new Date());
+          const isToday  = dayKey === todayStr;
+          const dowIdx   = (weekStart.getDay() + 6) % 7; // 0=Mon … 6=Sun
+          return (
+            <>
+              <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden max-w-[640px] relative">
+                {/* Header */}
+                <div className="grid grid-cols-[52px_1fr] border-b border-white/[0.07]">
+                  <div className="border-r border-white/[0.07]" />
+                  <div className={`py-3 text-center ${isToday ? 'bg-cyan/[0.06]' : ''}`}>
+                    <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>
+                      {WEEKDAYS_ALL_ES[dowIdx]}
+                    </div>
+                    <div className={`text-[28px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>
+                      {weekStart.getDate()}
+                    </div>
+                  </div>
+                </div>
+                {loading && (
+                  <div className="absolute inset-0 bg-bg-1/70 flex items-center justify-center z-10 rounded-xl">
+                    <Clock className="w-4 h-4 animate-spin text-text-2" />
+                  </div>
+                )}
+                {TIME_SLOTS.map(slot => {
+                  const cellAppts = apptMap[dayKey]?.[slot] ?? [];
+                  return (
+                    <div key={slot} className="grid grid-cols-[52px_1fr] border-b border-white/[0.04] last:border-b-0 min-h-[44px]">
+                      <div className="border-r border-white/[0.04] flex items-start justify-end pr-2 pt-1">
+                        <span className="text-[9px] text-white/30 font-mono tabular-nums">{slot}</span>
+                      </div>
+                      <div className={`p-0.5 flex flex-col gap-0.5 ${isToday ? 'bg-cyan/[0.015]' : ''}`}>
+                        {cellAppts.map(appt => {
+                          const s = getEventStyle(appt);
+                          const visitLabel = appt.visitNumber === 0 ? '1ra cita' : appt.visitNumber > 0 ? `visita ${appt.visitNumber + 1}` : '';
+                          const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                          return (
+                            <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
+                              className="w-full text-left rounded px-2 py-1 transition-all hover:brightness-110"
+                              style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
+                              <div className="text-[12px] font-bold leading-tight truncate" style={{ color: s.text }}>
+                                {s.badge && <span className="mr-1">{s.badge}</span>}
+                                {appt.patient.firstName} {appt.patient.lastName}
+                              </div>
+                              <div className="text-[10px] leading-tight truncate mt-0.5" style={{ color: s.text, opacity: 0.65 }}>
+                                {drName}{appt.case?.caseCode && ` · #${appt.case.caseCode.replace('PMC-','')}`}{visitLabel && ` · ${visitLabel}`}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} />
+            </>
+          );
+        })()}
+
+        {/* ══════════════════════════ MONTH VIEW ═════════════════════════════ */}
+        {calView === 'month' && (() => {
+          const grid     = getMonthGrid(weekStart);
+          const todayStr = denverDateStr(new Date());
+          return (
+            <>
+              <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
+                {/* Day-of-week headers (7 cols) */}
+                <div className="grid grid-cols-7 border-b border-white/[0.07]">
+                  {WEEKDAYS_ALL_ES.map(d => (
+                    <div key={d} className="py-2.5 text-center border-r border-white/[0.07] last:border-r-0">
+                      <span className="text-[9px] uppercase tracking-widest font-bold text-text-muted/60">{d}</span>
+                    </div>
+                  ))}
+                </div>
+                {loading && (
+                  <div className="absolute inset-0 bg-bg-1/70 flex items-center justify-center z-10 rounded-xl">
+                    <Clock className="w-4 h-4 animate-spin text-text-2" />
+                  </div>
+                )}
+                {/* Week rows */}
+                {grid.map((week, wi) => (
+                  <div key={wi} className="grid grid-cols-7 border-b border-white/[0.04] last:border-b-0" style={{ minHeight: '96px' }}>
+                    {week.map((day, di) => {
+                      const dayStr         = denverDateStr(day);
+                      const isCurrentMonth = day.getMonth() === weekStart.getMonth();
+                      const isToday        = dayStr === todayStr;
+                      // Flatten all slots for this day
+                      const dayAppts = Object.values(apptMap[dayStr] ?? {}).flat();
+                      const visible  = dayAppts.slice(0, 3);
+                      const overflow = dayAppts.length - visible.length;
+                      return (
+                        <div key={di}
+                          className={`border-r border-white/[0.04] last:border-r-0 p-1.5 flex flex-col ${
+                            !isCurrentMonth ? 'opacity-[0.22]' : ''
+                          } ${isToday ? 'bg-cyan/[0.04]' : ''}`}>
+                          {/* Date circle */}
+                          <div className={`w-6 h-6 flex items-center justify-center rounded-full text-[12px] font-bold mb-1 shrink-0 ${
+                            isToday ? 'bg-cyan text-bg-1' : 'text-text-1'
+                          }`}>
+                            {day.getDate()}
+                          </div>
+                          {/* Mini cards */}
+                          {visible.map(appt => {
+                            const s = getEventStyle(appt);
+                            return (
+                              <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
+                                className="w-full text-left text-[9.5px] px-1.5 py-[2px] rounded mb-[2px] truncate font-semibold transition-all hover:brightness-110"
+                                style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined }}>
+                                {s.badge && <span className="mr-0.5">{s.badge}</span>}
+                                {appt.patient.firstName} {appt.patient.lastName[0]}.
+                              </button>
+                            );
+                          })}
+                          {overflow > 0 && (
+                            <div className="text-[9px] text-text-muted text-center">+{overflow} más</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} />
+            </>
+          );
+        })()}
 
         {/* Empty state */}
         {!loading && appointments.length === 0 && (
           <div className="mt-12 text-center">
             <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
-            <p className="text-text-2 text-sm">No hay citas esta semana</p>
-            <p className="text-text-muted text-xs mt-1">
-              Agenda una cita desde el Front Office (B.2)
-            </p>
+            <p className="text-text-2 text-sm">No hay citas este período</p>
+            <p className="text-text-muted text-xs mt-1">Agenda una cita desde el Front Office (B.2)</p>
           </div>
         )}
       </div>
@@ -552,7 +726,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         <AppointmentDetailPanel
           appointment={selectedAppt}
           onClose={() => setSelectedAppt(null)}
-          onRefresh={() => loadWeek(weekStart)}
+          onRefresh={() => setRefreshKey(k => k + 1)}
         />
       )}
     </div>

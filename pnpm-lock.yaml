@@ -148,6 +148,9 @@ importers:
 
   apps/clinical:
     dependencies:
+      '@precision-medical/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@precision-medical/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n

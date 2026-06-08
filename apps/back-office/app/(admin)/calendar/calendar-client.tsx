@@ -120,7 +120,20 @@ function getMonthGrid(monthRef: Date): Date[][] {
 
 function denverDateStr(d: Date): string {
   // Returns 'YYYY-MM-DD' in America/Denver timezone
+  // Usar SOLO para bucketing de appointments (tienen UTC absoluto)
   return d.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+}
+
+function localDateStr(d: Date): string {
+  // Returns 'YYYY-MM-DD' usando la fecha LOCAL del objeto Date.
+  // Usar para las CLAVES del grid (días/columnas) porque weekStart
+  // se construye con setHours(0,0,0,0) en la timezone local del browser.
+  // Si el browser está en CDT (UTC-5), medianoche CDT ≠ medianoche MDT,
+  // y denverDateStr daría el día anterior. localDateStr evita ese mismatch.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function slotOf(isoString: string): string {
@@ -519,7 +532,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
         {/* ══════════════════════════ WEEK VIEW ══════════════════════════════ */}
         {calView === 'week' && (() => {
-          const todayStr = denverDateStr(new Date());
+          const todayStr = localDateStr(new Date());
           return (
             <>
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
@@ -547,7 +560,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                       <span className="text-[9px] text-white/30 font-mono tabular-nums">{slot}</span>
                     </div>
                     {days.map((day, di) => {
-                      const dayKey = denverDateStr(day);
+                      const dayKey = localDateStr(day);
                       const isToday = dayKey === todayStr;
                       const cellAppts = apptMap[dayKey]?.[slot] ?? [];
                       return (
@@ -583,8 +596,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
         {/* ══════════════════════════ DAY VIEW ═══════════════════════════════ */}
         {calView === 'day' && (() => {
-          const dayKey  = denverDateStr(weekStart);
-          const todayStr = denverDateStr(new Date());
+          const dayKey  = localDateStr(weekStart);
+          const todayStr = localDateStr(new Date());
           const isToday  = dayKey === todayStr;
           const dowIdx   = (weekStart.getDay() + 6) % 7; // 0=Mon … 6=Sun
           return (
@@ -646,7 +659,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         {/* ══════════════════════════ MONTH VIEW ═════════════════════════════ */}
         {calView === 'month' && (() => {
           const grid     = getMonthGrid(weekStart);
-          const todayStr = denverDateStr(new Date());
+          const todayStr = localDateStr(new Date());
           return (
             <>
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
@@ -667,7 +680,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                 {grid.map((week, wi) => (
                   <div key={wi} className="grid grid-cols-7 border-b border-white/[0.04] last:border-b-0" style={{ minHeight: '96px' }}>
                     {week.map((day, di) => {
-                      const dayStr         = denverDateStr(day);
+                      const dayStr         = localDateStr(day);
                       const isCurrentMonth = day.getMonth() === weekStart.getMonth();
                       const isToday        = dayStr === todayStr;
                       // Flatten all slots for this day

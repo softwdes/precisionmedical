@@ -2000,9 +2000,10 @@ model Case {
   source            ReferralSource      @default(PHONE_CALL)
   createdByUserId   String?             // FK opcional (Phase 1A user stub)
 
-  // Appointments y notas
+  // Appointments, notas y firmas del lien
   appointments      Appointment[]       @relation("CaseAppointments")
   notes             CaseNote[]
+  lienSignatures    LienSignature[]
 
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -2132,4 +2133,46 @@ model DoctorSpecialtyAssignment {
   @@index([specialtyId])
   @@index([doctorCredentialsId])
   @@map("doctor_specialty_assignments")
+}
+
+// ─── B.22 — Lien Signatures ──────────────────────────────────────────
+//
+// Firma digital del lien médico. Append-only — NUNCA se actualiza ni borra.
+// Cada parte (paciente, doctor, abogado, clínica) firma por separado.
+// La tabla espeja la migración 20260608050000_lien_signatures.sql.
+
+enum LienSignerType {
+  PATIENT
+  ATTORNEY
+  DOCTOR
+  CLINIC
+
+  @@map("lien_signer_type")
+}
+
+/// Firma digital del lien médico.
+/// Append-only — no UPDATE, no DELETE. Legalmente vinculante.
+model LienSignature {
+  id           String          @id @default(cuid())
+  caseId       String
+  case         Case            @relation(fields: [caseId], references: [id])
+
+  signerType   LienSignerType
+  signerName   String
+  signerEmail  String?
+
+  signatureSvg String?         @db.Text  // base64 PNG o SVG path data
+
+  signedAt     DateTime        @default(now())
+
+  // Audit trail
+  ipAddress    String?
+  userAgent    String?
+  sessionToken String?
+
+  createdAt    DateTime        @default(now())
+
+  @@index([caseId])
+  @@index([signerType])
+  @@map("lien_signatures")
 }

@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages } from 'next-intl/server';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
+
+/**
+ * Clinical — Layout
+ * iPad-first. next-intl NO se usa aquí: el módulo clínico opera solo en español.
+ */
 
 const font = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -15,7 +18,6 @@ export const metadata: Metadata = {
   description: 'Precision Medical — Clinical (Doctores + MAs · iPad-optimizado)',
 };
 
-// iPad-first viewport: no user scaling para evitar zoom accidental durante visita.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -24,16 +26,11 @@ export const viewport: Viewport = {
   themeColor: '#8B5CF6',
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = await getLocale();
-  const messages = await getMessages();
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <body className={font.className} suppressHydrationWarning>
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
-        </NextIntlClientProvider>
+        {children}
       </body>
     </html>
   );

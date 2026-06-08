@@ -2500,19 +2500,23 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
               </div>
             )}
 
-            {/* Spacer for footer */}
+            {/* Spacer so last section isn't hidden under footer */}
             <div style={{ height: 80 }} />
           </main>
         </div>
 
-        {/* ─── Footer (sign action) ─────────────────────────────────────────── */}
+        {/* ─── Footer (sign action) ────────────────────────────────────────────
+             position:fixed garantiza visibilidad sin importar el scroll del <main>.
+             El spacer de 80px dentro de <main> evita que el contenido quede tapado.
+        ─────────────────────────────────────────────────────────────────────── */}
         {!isSigned && (
           <footer style={{
-            position: 'sticky', bottom: 0,
+            position: 'fixed', bottom: 0, left: 0, right: 0,
             padding: '12px 24px',
             borderTop: '1px solid rgba(255,255,255,0.08)',
             background: '#0a1224',
             display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12,
+            zIndex: 400,
           }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', flex: 1 }}>
               Auto-guardado cada 30 seg. Asigna CPTs antes de firmar.

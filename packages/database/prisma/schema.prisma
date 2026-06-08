@@ -764,6 +764,9 @@ model Appointment {
 
   notes           String?
 
+  // B.14 Check-in: timestamp cuando recepción confirma la llegada del paciente
+  checkedInAt     DateTime?
+
   // B.16 Triaje — registro de signos vitales capturados por MA
   triageRecord    TriageRecord?
 
@@ -792,7 +795,8 @@ enum AppointmentType {
 enum AppointmentStatus {
   SCHEDULED
   CONFIRMED
-  IN_PROGRESS
+  CHECKED_IN   // B.14: paciente llegó físicamente y hizo check-in en recepción
+  IN_PROGRESS  // B.15: pasó a sala con el doctor
   COMPLETED
   CANCELLED
   NO_SHOW

@@ -17,6 +17,7 @@ import {
   Lock,
   X,
   CalendarDays,
+  ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
 
@@ -49,8 +50,9 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: '/front-office', icon: Building2,    labelKey: 'frontOffice', mockup: 'B.1–B.4'   },
       { href: '/calendar',     icon: CalendarDays, labelKey: 'calendar',    mockup: 'B.10–B.11'  },
-      { href: '/intake',       icon: Phone,        labelKey: 'intake',      mockup: 'B.12–B.13' },
-      { href: '/billing',      icon: Briefcase,  labelKey: 'billing',     mockup: 'B.25–B.28', disabled: true },
+      { href: '/intake',       icon: Phone,          labelKey: 'intake',      mockup: 'B.12–B.13' },
+      { href: '/admission',    icon: ClipboardCheck, labelKey: 'admission',   mockup: 'B.14–B.15' },
+      { href: '/billing',      icon: Briefcase,      labelKey: 'billing',     mockup: 'B.25–B.28', disabled: true },
       { href: '/dashboard',    icon: BarChart3,  labelKey: 'dashboard',   mockup: 'B.29' },
     ],
   },

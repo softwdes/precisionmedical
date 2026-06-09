@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Scale, ShieldCheck, Phone, Mail,
   CheckCircle2, Plus, FileText, DollarSign,
-  RefreshCw, AlertTriangle,
+  RefreshCw, AlertTriangle, BarChart3,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -248,6 +248,15 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
               <ArrowLeft className="w-3.5 h-3.5" />
               Bandeja
             </button>
+            {/* B.27 — Ledger */}
+            <button
+              type="button"
+              onClick={() => router.push(`/billing/${caseId}/ledger`)}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-brand/40 hover:text-brand transition-all"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              Ledger
+            </button>
             {/* B.26 — siempre visible; verde si ya generado, amber si no */}
             <button
               type="button"
@@ -357,6 +366,16 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                 🚀 Acciones del caso
               </div>
               <div className="space-y-2">
+                {/* B.27 Ledger */}
+                <button
+                  type="button"
+                  onClick={() => router.push(`/billing/${caseId}/ledger`)}
+                  className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-brand/30 bg-brand/5 text-brand text-xs font-semibold hover:bg-brand/10 transition-colors"
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  Ver ledger completo →
+                </button>
+
                 {d.attorney?.phone && (
                   <a
                     href={`tel:${d.attorney.phone}`}

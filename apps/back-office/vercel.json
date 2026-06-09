@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd ../.. && pnpm --filter=@precision-medical/database db:generate && pnpm --filter=@precision-medical/back-office build",
+  "outputDirectory": ".next",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "framework": "nextjs"
+}

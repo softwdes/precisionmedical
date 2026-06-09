@@ -76,7 +76,7 @@ export default function LoginPage(): React.ReactElement {
     setLoading(true);
     try {
       const { error: authError } = await createClient().auth.signInWithPassword({ email, password });
-      if (authError) { setError('Email o contraseña incorrectos.'); return; }
+      if (authError) { setError(authError.message); return; }
       router.push(redirectTo);
       router.refresh();
     } catch {

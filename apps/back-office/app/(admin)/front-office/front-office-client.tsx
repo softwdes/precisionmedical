@@ -21,7 +21,9 @@ import { IncomingCallSimulator, IncomingCallToast, type IncomingCallData } from 
 
 // B.1 — Front Office · Recepción primaria
 
-type CaseStatus = 'NEW_REFERRAL' | 'INTAKE_PENDING' | 'INTAKE_COMPLETED' | 'CONFIRMED';
+type CaseStatus =
+  | 'NEW_REFERRAL' | 'INTAKE_PENDING' | 'INTAKE_COMPLETED' | 'CONFIRMED'
+  | 'ACTIVE' | 'MMI' | 'CLOSED' | 'SETTLED' | 'ARCHIVED' | 'CANCELLED';
 
 interface PhoenixCase {
   id: string;

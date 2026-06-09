@@ -23,6 +23,9 @@ importers:
 
   apps/attorney:
     dependencies:
+      '@precision-medical/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@precision-medical/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -81,6 +84,9 @@ importers:
 
   apps/back-office:
     dependencies:
+      '@precision-medical/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@precision-medical/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -148,6 +154,9 @@ importers:
 
   apps/clinical:
     dependencies:
+      '@precision-medical/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@precision-medical/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -206,6 +215,9 @@ importers:
 
   apps/portal:
     dependencies:
+      '@precision-medical/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@precision-medical/database':
         specifier: workspace:*
         version: link:../../packages/database

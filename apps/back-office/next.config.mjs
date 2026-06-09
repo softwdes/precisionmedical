@@ -8,9 +8,17 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Necesario en monorepo pnpm: permite que Next.js trace los binarios de Prisma
-  // que viven en node_modules del root (../../) y no en apps/back-office/node_modules
+  // ── Prisma binary tracing (pnpm monorepo + Vercel) ───────────────────────────
+  // El binario nativo .so.node no es trazado por Next.js automáticamente.
+  // outputFileTracingRoot amplía el scope al monorepo root.
+  // outputFileTracingIncludes lo incluye explícitamente en el bundle serverless.
   outputFileTracingRoot: path.join(__dirname, '../../'),
+  outputFileTracingIncludes: {
+    '/**': [
+      '../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/libquery_engine-rhel-openssl-3.0.x.so.node',
+      '../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/schema.prisma',
+    ],
+  },
   transpilePackages: [
     '@precision/ui',
     '@precision-medical/auth',

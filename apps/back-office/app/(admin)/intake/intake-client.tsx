@@ -225,6 +225,7 @@ function CaseCard({ c }: { c: IntakeCase }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function IntakeClient() {
+  const router = useRouter();
   const [cases,   setCases]   = useState<IntakeCase[]>([]);
   const [kpis,    setKpis]    = useState<Kpis>({ newToday: 0, awaitingLawFirm: 0, awaitingPip: 0, readyForVisit: 0 });
   const [filter,  setFilter]  = useState<FilterTab>('all');
@@ -274,6 +275,26 @@ export function IntakeClient() {
       />
 
       <div className="px-6 pb-6 space-y-5">
+
+        {/* ── Toggle Pre / Post ─────────────────────────────────────────────── */}
+        <div className="flex items-center gap-1 rounded-xl border border-border bg-bg-1 p-1 w-fit">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12px] font-bold text-amber border border-amber/30 bg-amber/10"
+          >
+            Pre-visita · Verificación
+            <span className="rounded-full bg-amber/20 px-1.5 text-[10px] font-bold">{total}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push('/intake/seguimiento')}
+            className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12px] font-semibold text-text-muted hover:text-text-1 hover:bg-white/[0.04] transition-all"
+          >
+            Post-visita · Cobranzas
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
         {/* KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <KpiCard label="Nuevos hoy"          value={kpis.newToday}        tone="cyan"    sub="Creados hoy" />

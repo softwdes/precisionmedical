@@ -8,6 +8,10 @@ import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
 import { createClient } from '@precision-medical/auth/client';
 
+// Amber identity color for back-office (single value in tailwind config — no scale)
+const AMBER = '#F59E0B';
+const AMBER_DARK = '#D97706';
+
 interface TopbarProps {
   userName?:     string;
   userRole?:     string;
@@ -43,9 +47,9 @@ export function Topbar({
   userEmail    = '',
   onMenuClick,
 }: TopbarProps): React.ReactElement {
-  const router       = useRouter();
+  const router        = useRouter();
   const currentLocale = useLocale();
-  const t            = useTranslations('phoenix.topbar');
+  const t             = useTranslations('phoenix.topbar');
 
   const [time,        setTime]        = useState('');
   const [theme,       setTheme]       = useState<'dark' | 'light'>('dark');
@@ -66,12 +70,11 @@ export function Topbar({
   const [pwError,   setPwError]   = useState('');
   const [pwSuccess, setPwSuccess] = useState(false);
 
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef       = useRef<HTMLDivElement>(null);
   const switchingLocale = isPending && pendingLocale !== null;
 
   useTransitionProgress(isPending);
 
-  // Sync pendingLocale cuando el RSC re-render trae el locale actualizado
   useEffect(() => {
     if (pendingLocale && currentLocale === pendingLocale) setPendingLocale(null);
   }, [currentLocale, pendingLocale]);
@@ -104,7 +107,7 @@ export function Topbar({
     setTheme(saved === 'light' ? 'light' : 'dark');
   }, []);
 
-  // Cerrar dropdown al hacer click fuera
+  // Cerrar dropdown al click fuera
   useEffect(() => {
     if (!menuOpen) return;
     const handler = (e: MouseEvent): void => {
@@ -146,9 +149,7 @@ export function Topbar({
     setNewPw(pw); setConfirmPw(pw); setShowNew(true); setShowConf(true);
   };
 
-  const copyPassword = (): void => {
-    void navigator.clipboard.writeText(newPw);
-  };
+  const copyPassword = (): void => { void navigator.clipboard.writeText(newPw); };
 
   const handlePasswordChange = async (): Promise<void> => {
     if (!newPw)              return setPwError('Ingresa una nueva contraseña');
@@ -178,7 +179,7 @@ export function Topbar({
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Search — mobile: icono / desktop: barra */}
+        {/* Search */}
         <button
           type="button"
           onClick={() => setCmdOpen(true)}
@@ -209,7 +210,7 @@ export function Topbar({
             <span className="font-mono text-xs text-text-2 tabular-nums">{time}</span>
           </div>
 
-          {/* Language toggle */}
+          {/* Language toggle — usa AMBER inline para el estado activo */}
           <div
             className="inline-flex items-center h-9 p-0.5 rounded-md bg-bg-2 border border-border"
             role="group"
@@ -225,11 +226,13 @@ export function Topbar({
                   onClick={() => setLocale(code)}
                   disabled={switchingLocale}
                   aria-pressed={active}
-                  className={`px-2.5 h-full min-w-[2.25rem] rounded text-[11px] font-bold uppercase tracking-wider transition-all disabled:cursor-not-allowed ${
-                    active
-                      ? 'bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-sm'
-                      : 'text-text-muted hover:text-text-1'
-                  }`}
+                  className="px-2.5 h-full min-w-[2.25rem] rounded text-[11px] font-bold uppercase tracking-wider transition-all disabled:cursor-not-allowed"
+                  style={active ? {
+                    background: `linear-gradient(135deg, ${AMBER} 0%, ${AMBER_DARK} 100%)`,
+                    color: '#0a0a0a',
+                  } : {
+                    color: 'var(--text-muted)',
+                  }}
                 >
                   {code}
                 </button>
@@ -264,17 +267,26 @@ export function Topbar({
             <button
               type="button"
               onClick={() => setMenuOpen(v => !v)}
-              className={`flex items-center gap-2 sm:gap-3 rounded-xl border px-2 py-1 transition-all cursor-pointer ${
-                menuOpen
-                  ? 'border-amber-500/50 bg-amber-500/[0.06]'
-                  : 'border-border hover:border-border-strong'
-              }`}
+              className="flex items-center gap-2 sm:gap-3 rounded-xl border px-2 py-1 transition-all cursor-pointer"
+              style={menuOpen ? {
+                borderColor: `${AMBER}80`,
+                background: `${AMBER}0f`,
+              } : {
+                borderColor: 'var(--border)',
+              }}
             >
               <div className="hidden md:flex flex-col items-end leading-tight">
                 <span className="text-sm text-text-1 font-semibold">{userName}</span>
                 <span className="text-[10px] text-text-muted uppercase tracking-wider">{userRole}</span>
               </div>
-              <div className="relative w-9 h-9 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white text-xs font-bold shadow-sm overflow-hidden">
+              {/* Avatar circle — inline style porque amber no tiene escala de tonos */}
+              <div
+                className="relative w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                style={{
+                  background: `linear-gradient(135deg, ${AMBER} 0%, ${AMBER_DARK} 100%)`,
+                  boxShadow: `0 4px 12px ${AMBER}40`,
+                }}
+              >
                 {userInitials}
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald border-2 border-bg-0" />
               </div>
@@ -294,7 +306,7 @@ export function Topbar({
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-text-2 hover:bg-surface hover:text-text-1 transition-colors text-left"
                     onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
                   >
-                    <User className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <User className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
                     Ver perfil
                   </button>
                   <button
@@ -302,7 +314,7 @@ export function Topbar({
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-text-2 hover:bg-surface hover:text-text-1 transition-colors text-left"
                     onClick={openPwModal}
                   >
-                    <KeyRound className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <KeyRound className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
                     Cambiar contraseña
                   </button>
                 </div>
@@ -333,12 +345,25 @@ export function Topbar({
               <h2 className="text-[15px] font-bold text-text-1">Mi perfil</h2>
             </div>
             <div className="flex flex-col items-center gap-4 px-6 py-6">
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-2xl font-bold text-white shadow-lg">
+              <div
+                className="flex h-20 w-20 items-center justify-center rounded-2xl text-2xl font-bold text-white"
+                style={{
+                  background: `linear-gradient(135deg, ${AMBER} 0%, ${AMBER_DARK} 100%)`,
+                  boxShadow: `0 8px 24px ${AMBER}40`,
+                }}
+              >
                 {userInitials}
               </div>
               <div className="text-center">
                 <p className="text-lg font-bold text-text-1">{userName}</p>
-                <span className="mt-1 inline-block rounded-full bg-amber-500/10 border border-amber-500/20 px-3 py-0.5 text-xs font-semibold text-amber-400">
+                <span
+                  className="mt-1 inline-block rounded-full px-3 py-0.5 text-xs font-semibold border"
+                  style={{
+                    background: `${AMBER}1a`,
+                    color: AMBER,
+                    borderColor: `${AMBER}40`,
+                  }}
+                >
                   {userRole}
                 </span>
               </div>
@@ -364,7 +389,7 @@ export function Topbar({
       {pwOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={e => { if (e.target === e.currentTarget) { setPwOpen(false); } }}
+          onClick={e => { if (e.target === e.currentTarget) setPwOpen(false); }}
         >
           <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-1 shadow-2xl overflow-hidden">
             <div className="px-6 pt-5 pb-4 border-b border-border">
@@ -375,7 +400,12 @@ export function Topbar({
               <button
                 type="button"
                 onClick={suggestPassword}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] py-2.5 text-sm font-semibold text-amber-400 hover:bg-amber-500/[0.12] transition-colors"
+                className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold border transition-colors"
+                style={{
+                  borderColor: `${AMBER}40`,
+                  background: `${AMBER}12`,
+                  color: AMBER,
+                }}
               >
                 <Zap className="w-3.5 h-3.5" />
                 Sugerir contraseña segura
@@ -391,7 +421,8 @@ export function Topbar({
                       value={newPw}
                       onChange={e => { setNewPw(e.target.value); setPwError(''); }}
                       placeholder="••••••••••••••••"
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-9 text-sm text-text-1 placeholder:text-text-muted font-mono focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-9 text-sm text-text-1 placeholder:text-text-muted font-mono focus:outline-none"
+                      style={{ '--tw-ring-color': AMBER } as React.CSSProperties}
                     />
                     <button
                       type="button"
@@ -423,7 +454,7 @@ export function Topbar({
                     value={confirmPw}
                     onChange={e => { setConfirmPw(e.target.value); setPwError(''); }}
                     placeholder="••••••••••••••••"
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-9 text-sm text-text-1 placeholder:text-text-muted font-mono focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-9 text-sm text-text-1 placeholder:text-text-muted font-mono focus:outline-none"
                   />
                   <button
                     type="button"
@@ -442,7 +473,7 @@ export function Topbar({
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
               <button
                 type="button"
-                onClick={() => { setPwOpen(false); }}
+                onClick={() => setPwOpen(false)}
                 className="px-4 py-2 rounded-lg border border-border text-sm text-text-2 hover:bg-surface transition-colors"
               >
                 Cancelar
@@ -451,7 +482,11 @@ export function Topbar({
                 type="button"
                 onClick={() => void handlePasswordChange()}
                 disabled={pwLoading}
-                className="px-4 py-2 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                style={{
+                  background: `linear-gradient(135deg, ${AMBER} 0%, ${AMBER_DARK} 100%)`,
+                  color: '#0a0a0a',
+                }}
               >
                 {pwLoading ? 'Guardando…' : 'Guardar contraseña'}
               </button>

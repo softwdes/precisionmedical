@@ -402,10 +402,16 @@ function CaseCard({
   isMarkingIntake: boolean;
 }) {
   const statusMeta: Record<CaseStatus, { label: string; colorClass: string; icon: string }> = {
-    NEW_REFERRAL:     { label: 'Nuevo referido',      colorClass: 'bg-rose/10 text-rose border-rose/30',         icon: '🔴' },
-    INTAKE_PENDING:   { label: 'Intake pendiente',    colorClass: 'bg-amber/10 text-amber border-amber/30',     icon: '🟡' },
-    INTAKE_COMPLETED: { label: 'Por confirmar (24h)', colorClass: 'bg-cyan/10 text-cyan border-cyan/30',         icon: '🔵' },
+    NEW_REFERRAL:     { label: 'Nuevo referido',      colorClass: 'bg-rose/10 text-rose border-rose/30',           icon: '🔴' },
+    INTAKE_PENDING:   { label: 'Intake pendiente',    colorClass: 'bg-amber/10 text-amber border-amber/30',       icon: '🟡' },
+    INTAKE_COMPLETED: { label: 'Por confirmar (24h)', colorClass: 'bg-cyan/10 text-cyan border-cyan/30',           icon: '🔵' },
     CONFIRMED:        { label: 'Confirmado',          colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '🟢' },
+    ACTIVE:           { label: 'Activo',              colorClass: 'bg-brand/10 text-brand border-brand/30',       icon: '🟣' },
+    MMI:              { label: 'MMI',                 colorClass: 'bg-violet/10 text-violet border-violet/30',    icon: '⚕️' },
+    CLOSED:           { label: 'Cerrado',             colorClass: 'bg-text-muted/10 text-text-muted border-border', icon: '⬜' },
+    SETTLED:          { label: 'Settlement',          colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '✅' },
+    ARCHIVED:         { label: 'Archivado',           colorClass: 'bg-text-muted/10 text-text-muted border-border', icon: '📁' },
+    CANCELLED:        { label: 'Cancelado',           colorClass: 'bg-rose/10 text-rose border-rose/30',           icon: '❌' },
   };
   const st = statusMeta[c.status];
 

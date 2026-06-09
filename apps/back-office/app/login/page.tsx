@@ -79,8 +79,9 @@ export default function LoginPage(): React.ReactElement {
       if (authError) { setError(authError.message); return; }
       router.push(redirectTo);
       router.refresh();
-    } catch {
-      setError('Email o contraseña incorrectos.');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Error técnico: ${msg}`);
     } finally {
       setLoading(false);
     }

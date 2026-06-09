@@ -77,7 +77,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
       }
       const data = await res.json();
       setResult(data.sent);
-      router.refresh();
+      // router.refresh() se llama al cerrar el modal para no interrumpir la vista del link
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al enviar portal');
     } finally {
@@ -100,8 +100,12 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
 
   // ─── Success state ────────────────────────────────────────────────────────
   if (result) {
+    const handleCloseSuccess = (open: boolean) => {
+      onOpenChange(open);
+      if (!open) router.refresh(); // refresh solo cuando cerrás, no al recibir resultado
+    };
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleCloseSuccess}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-emerald">
@@ -151,7 +155,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
           </div>
 
           <DialogFooter>
-            <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
+            <Button onClick={() => handleCloseSuccess(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

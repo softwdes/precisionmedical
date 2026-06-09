@@ -19,6 +19,9 @@ interface RoleConfig {
   permissions: {
     lm_admin: Record<string, string>;
     pm_timeclock: boolean;
+    pm_clinic?:    boolean;   // Clinic Back-Office
+    pm_clinical?:  boolean;   // Doctors App
+    pm_attorney?:  boolean;   // Attorney Portal
   };
 }
 
@@ -98,10 +101,25 @@ function EditPermissionsModal({
   onClose: () => void;
   onSaved: () => void;
 }): React.ReactElement {
+  // Defaults para nuevas apps según v2-apps.ts (aplican cuando aún no hay valor en DB)
+  const V2_DEFAULTS: Record<string, { clinic: boolean; clinical: boolean; attorney: boolean }> = {
+    SUPER_ADMIN: { clinic: true,  clinical: true,  attorney: true  },
+    ADMIN:       { clinic: true,  clinical: true,  attorney: true  },
+    CONTADOR:    { clinic: true,  clinical: false, attorney: false },
+    EMPLOYEE:    { clinic: false, clinical: true,  attorney: false },
+    PROVIDER:    { clinic: false, clinical: true,  attorney: false },
+    LAWYER:      { clinic: false, clinical: false, attorney: true  },
+    AUDITOR_AI:  { clinic: false, clinical: false, attorney: false },
+  };
+  const v2 = V2_DEFAULTS[config.role.toUpperCase()] ?? { clinic: false, clinical: false, attorney: false };
+
   const [perms, setPerms] = useState<Record<string, string>>(
     { ...config.permissions.lm_admin },
   );
   const [timeclock, setTimeclock] = useState(config.permissions.pm_timeclock);
+  const [clinic,    setClinic]    = useState(config.permissions.pm_clinic    ?? v2.clinic);
+  const [clinical,  setClinical]  = useState(config.permissions.pm_clinical  ?? v2.clinical);
+  const [attorney,  setAttorney]  = useState(config.permissions.pm_attorney  ?? v2.attorney);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (): Promise<void> => {
@@ -110,7 +128,15 @@ function EditPermissionsModal({
       const res = await fetch(`/api/roles/${config.role}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ permissions: { lm_admin: perms, pm_timeclock: timeclock } }),
+        body: JSON.stringify({
+          permissions: {
+            lm_admin: perms,
+            pm_timeclock: timeclock,
+            pm_clinic:    clinic,
+            pm_clinical:  clinical,
+            pm_attorney:  attorney,
+          },
+        }),
       });
       if (!res.ok) {
         const d = await res.json() as { error?: string };
@@ -198,20 +224,29 @@ function EditPermissionsModal({
             <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-3">
               Apps Externas
             </p>
-            <div className="flex items-center gap-3 rounded-lg border border-border bg-surface/50 px-4 py-3">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald/15">
-                <span className="text-[11px]">⏱</span>
-              </div>
-              <span className="flex-1 text-[13px] text-text-2 font-medium">PM Time Clock</span>
-              <button
-                type="button"
-                onClick={() => setTimeclock(v => !v)}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${timeclock ? 'bg-emerald' : 'bg-border'}`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${timeclock ? 'translate-x-6' : 'translate-x-1'}`}
-                />
-              </button>
+            <div className="space-y-2">
+              {([
+                { key: 'timeclock', label: 'PM Time Clock',       emoji: '⏱', color: 'bg-emerald', val: timeclock, set: setTimeclock },
+                { key: 'clinic',    label: 'Clinic Back-Office',  emoji: '🏥', color: 'bg-amber',   val: clinic,    set: setClinic    },
+                { key: 'clinical',  label: 'Doctors App',         emoji: '🩺', color: 'bg-violet',  val: clinical,  set: setClinical  },
+                { key: 'attorney',  label: 'Attorney Portal',     emoji: '⚖️', color: 'bg-brand',   val: attorney,  set: setAttorney  },
+              ] as const).map(app => (
+                <div key={app.key} className="flex items-center gap-3 rounded-lg border border-border bg-surface/50 px-4 py-3">
+                  <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${app.color}/15`}>
+                    <span className="text-[11px]">{app.emoji}</span>
+                  </div>
+                  <span className="flex-1 text-[13px] text-text-2 font-medium">{app.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => app.set((v: boolean) => !v)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${app.val ? app.color : 'bg-border'}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${app.val ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>

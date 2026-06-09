@@ -18,8 +18,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Mail, BarChart3, TrendingUp, AlertCircle, Building2, Scale, Users, ChevronUp, ChevronDown } from 'lucide-react';
-import { PageHeader } from '@/components/ui-phoenix/PageHeader';
-import { EmptyState }  from '@/components/ui-phoenix/EmptyState';
+import { PageHeader } from '@/components/ui-phoenix/page-header';
+import { EmptyState }  from '@/components/ui-phoenix/empty-state';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

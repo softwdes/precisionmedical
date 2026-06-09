@@ -15,9 +15,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, Mail, BarChart3, Printer, ExternalLink, TrendingUp, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import { PageHeader } from '@/components/ui-phoenix/PageHeader';
-import { KpiCard }    from '@/components/ui-phoenix/KpiCard';
-import { EmptyState }  from '@/components/ui-phoenix/EmptyState';
+import { PageHeader } from '@/components/ui-phoenix/page-header';
+import { KpiCard }    from '@/components/ui-phoenix/kpi-card';
+import { EmptyState }  from '@/components/ui-phoenix/empty-state';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

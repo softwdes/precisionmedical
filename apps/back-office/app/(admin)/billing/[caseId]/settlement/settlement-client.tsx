@@ -18,8 +18,8 @@ import {
   ArrowLeft, CheckCircle2, AlertCircle, Scale,
   FileText, Mail, DollarSign, Calendar, User, Building2,
 } from 'lucide-react';
-import { PageHeader } from '@/components/ui-phoenix/PageHeader';
-import { EmptyState }  from '@/components/ui-phoenix/EmptyState';
+import { PageHeader } from '@/components/ui-phoenix/page-header';
+import { EmptyState }  from '@/components/ui-phoenix/empty-state';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

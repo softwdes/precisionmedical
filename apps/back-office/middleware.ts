@@ -24,6 +24,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/no-access') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
     pathname.startsWith('/api/auth');
 
   if (isPublic) return NextResponse.next();

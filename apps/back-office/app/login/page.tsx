@@ -232,6 +232,15 @@ export default function LoginPage(): React.ReactElement {
                     </>
                   ) : 'Ingresar →'}
                 </button>
+
+                {/* Forgot password */}
+                <div style={{textAlign:'center',marginTop:12}}>
+                  <a href="/forgot-password" style={{fontSize:12,color:'#F59E0B',opacity:0.7,textDecoration:'none',fontWeight:500,letterSpacing:'0.02em'}}
+                    onMouseEnter={e=>(e.currentTarget.style.opacity='1')}
+                    onMouseLeave={e=>(e.currentTarget.style.opacity='0.7')}>
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </div>
               </form>
             </div>
           </div>

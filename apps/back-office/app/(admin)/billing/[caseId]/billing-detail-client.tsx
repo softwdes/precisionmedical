@@ -248,22 +248,18 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
               <ArrowLeft className="w-3.5 h-3.5" />
               Bandeja
             </button>
-            {!isHcfaDone && (
-              <button
-                type="button"
-                onClick={generateHcfa}
-                disabled={hcfaBusy}
-                className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 disabled:opacity-50 transition-all"
-              >
-                📄 {hcfaBusy ? 'Generando...' : 'Generar HCFA →'}
-              </button>
-            )}
-            {isHcfaDone && (
-              <div className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-emerald/35 bg-emerald/8 text-emerald text-xs font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                HCFA enviado {fmtDate(d.hcfaGeneratedAt)}
-              </div>
-            )}
+            {/* B.26 — siempre visible; verde si ya generado, amber si no */}
+            <button
+              type="button"
+              onClick={() => router.push(`/billing/${caseId}/hcfa`)}
+              className={`flex items-center gap-1.5 px-3 h-8 rounded-md border text-xs font-semibold transition-all ${
+                isHcfaDone
+                  ? 'border-emerald/35 bg-emerald/8 text-emerald hover:bg-emerald/15'
+                  : 'bg-amber text-black hover:bg-amber/90'
+              }`}
+            >
+              📄 {isHcfaDone ? `HCFA generado ${fmtDate(d.hcfaGeneratedAt)} →` : 'Generar HCFA →'}
+            </button>
           </div>
         }
       />

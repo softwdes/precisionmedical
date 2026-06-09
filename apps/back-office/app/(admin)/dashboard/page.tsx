@@ -5,23 +5,6 @@ import { DashboardClient } from './dashboard-client';
 // Vista panel agregada · KPIs del día · cola por status · alertas · citas · activity feed
 
 export default async function DashboardPage() {
-  // DEBUG — captura error real para diagnóstico en Vercel
-  try {
-    return await DashboardPageInner();
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const stack = e instanceof Error ? (e.stack ?? '') : '';
-    return (
-      <div style={{ padding: 32, fontFamily: 'monospace', color: '#f87171', background: '#0a0a0a', minHeight: '100vh' }}>
-        <h2 style={{ color: '#fbbf24', marginBottom: 16 }}>🔴 Dashboard Error (DEBUG)</h2>
-        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 13 }}>{msg}</pre>
-        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 11, color: '#6b7280', marginTop: 16 }}>{stack}</pre>
-      </div>
-    );
-  }
-}
-
-async function DashboardPageInner() {
   // Definir "hoy" en Utah local (UTC-6/-7 según DST).
   // Para simplicidad acá usamos UTC midnight — Phase 2 con timezone lib propia.
   const now = new Date();

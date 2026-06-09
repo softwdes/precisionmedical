@@ -79,9 +79,8 @@ export default function LoginPage(): React.ReactElement {
       if (authError) { setError(authError.message); return; }
       router.push(redirectTo);
       router.refresh();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(`Error técnico: ${msg}`);
+    } catch {
+      setError('Error de conexión. Verificá tu red e intentá de nuevo.');
     } finally {
       setLoading(false);
     }

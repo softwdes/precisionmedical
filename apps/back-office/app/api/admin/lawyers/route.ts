@@ -8,7 +8,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
 
 const FirmInputSchema = z.object({
   id: z.string().optional(),
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     entityId: created.id,
     ipAddress: actor.ipAddress,
     userAgent: actor.userAgent,
-    after: created as unknown as Record<string, unknown>,
+    after: created as unknown as Prisma.JsonValue,
   });
 
   return NextResponse.json({ ok: true, firm: created }, { status: 201 });
@@ -125,8 +125,8 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     entityId: updated.id,
     ipAddress: actor.ipAddress,
     userAgent: actor.userAgent,
-    before: before as unknown as Record<string, unknown>,
-    after: updated as unknown as Record<string, unknown>,
+    before: before as unknown as Prisma.JsonValue,
+    after: updated as unknown as Prisma.JsonValue,
   });
 
   return NextResponse.json({ ok: true, firm: updated });
@@ -156,7 +156,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     entityId: id,
     ipAddress: actor.ipAddress,
     userAgent: actor.userAgent,
-    before: before as unknown as Record<string, unknown>,
+    before: before as unknown as Prisma.JsonValue,
   });
 
   return NextResponse.json({ ok: true, id });

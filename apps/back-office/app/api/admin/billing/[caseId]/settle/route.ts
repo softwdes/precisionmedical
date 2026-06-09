@@ -91,8 +91,7 @@ export async function POST(
     await tx.case.update({
       where: { id: caseId },
       data: {
-        status:   'SETTLED',
-        closedAt: new Date(),
+        status: 'SETTLED',
       },
     });
 
@@ -101,20 +100,21 @@ export async function POST(
       data: {
         caseId,
         content:    noteContent,
-        authorName: actor.actorName ?? 'Brunella',
-        tag:        'system',
+        authorName: 'Brunella',
       },
     });
   });
 
   // 3. Audit log (outside transaction — non-blocking)
   await writeAuditLog(db, {
-    action:      'SETTLEMENT_PROCESSED',
-    resource:    'Case',
-    resourceId:  caseId,
-    actorType:   actor.actorType,
-    actorId:     actor.actorId,
-    actorName:   actor.actorName,
+    action:       'SETTLEMENT_PROCESSED',
+    entityType:   'cases',
+    entityId:     caseId,
+    actorType:    actor.actorType,
+    actorUserId:  actor.actorUserId,
+    ipAddress:    actor.ipAddress,
+    userAgent:    actor.userAgent,
+    idempotencyKey: actor.idempotencyKey,
     metadata: {
       caseCode:    existing.caseCode,
       amount:      body.amount,

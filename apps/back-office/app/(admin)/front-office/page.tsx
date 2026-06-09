@@ -57,12 +57,18 @@ export default async function FrontOfficePage() {
     },
   });
 
-  // Stats agrupados por status
+  // Stats agrupados por status (todos los valores del enum CaseStatus)
   const byStatus = {
-    NEW_REFERRAL: cases.filter((c) => c.status === 'NEW_REFERRAL').length,
-    INTAKE_PENDING: cases.filter((c) => c.status === 'INTAKE_PENDING').length,
+    NEW_REFERRAL:     cases.filter((c) => c.status === 'NEW_REFERRAL').length,
+    INTAKE_PENDING:   cases.filter((c) => c.status === 'INTAKE_PENDING').length,
     INTAKE_COMPLETED: cases.filter((c) => c.status === 'INTAKE_COMPLETED').length,
-    CONFIRMED: cases.filter((c) => c.status === 'CONFIRMED').length,
+    CONFIRMED:        cases.filter((c) => c.status === 'CONFIRMED').length,
+    ACTIVE:           cases.filter((c) => c.status === 'ACTIVE').length,
+    MMI:              cases.filter((c) => c.status === 'MMI').length,
+    CLOSED:           cases.filter((c) => c.status === 'CLOSED').length,
+    SETTLED:          cases.filter((c) => c.status === 'SETTLED').length,
+    ARCHIVED:         cases.filter((c) => c.status === 'ARCHIVED').length,
+    CANCELLED:        cases.filter((c) => c.status === 'CANCELLED').length,
   };
 
   return (

@@ -29,7 +29,6 @@ interface CaseRow {
   caseType:            string;
   status:              string;
   accidentDate:        Date | null;
-  closedAt:            Date | null;
   primaryPolicyNumber: string | null;
   patient: {
     firstName: string;
@@ -107,7 +106,6 @@ export async function GET(
       caseType:            true,
       status:              true,
       accidentDate:        true,
-      closedAt:            true,
       primaryPolicyNumber: true,
       patient: { select: { firstName: true, lastName: true, phone: true, email: true } },
       lawFirm: { select: { firmName: true, phone: true, email: true } },

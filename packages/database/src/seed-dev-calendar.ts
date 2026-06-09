@@ -72,75 +72,82 @@ async function seedCalendar(): Promise<void> {
   //
   // TIMEZONE: MDT = UTC−6. Para mostrar a las 9:00 AM en Utah → guardar 15:00 UTC.
   //
-  // Status:
-  //   - Semana Jun 1-6 (pasada): COMPLETED → color índigo (atendidas)
-  //   - Semana Jun 9-13 (actual/siguiente): CONFIRMED → color por tipo (rose/emerald)
-  //                                          SCHEDULED  → color amber (sin confirmar)
+  // visitNumber es CALCULADO por la API (count de citas previas al rango),
+  // NO se almacena en DB. Estrategia para lograr el color correcto:
   //
-  // visitNumber: 0 = primera cita del paciente en este caso (→ badge 🆕 + glow)
+  //   • Semana 1 (Jun 1-5):  USA SOLO casos 0 y 1 → casos 2 y 3 quedan sin historial
+  //   • Semana 2 (Jun 8-12): casos 2 y 3 → visitNumber=0 → primera cita 🆕
+  //                          casos 0 y 1 → visitNumber>0  → seguimiento
+  //
+  // Colores resultantes:
+  //   CONFIRMED + AUTO_ACCIDENT   + v=0 → 🌹 MVA 1ra (rose gradient + glow + 🆕)
+  //   CONFIRMED + AUTO_ACCIDENT   + v>0 → 🌹 MVA seguimiento (rose sólido)
+  //   CONFIRMED + FAMILY_PRACTICE + v=0 → 🌿 GP  1ra (emerald gradient + glow + 🆕)
+  //   CONFIRMED + FAMILY_PRACTICE + v>0 → 🌿 GP  seguimiento (emerald sólido)
+  //   SCHEDULED + cualquier tipo        → 🟡 Sin confirmar (amber)
+  //   COMPLETED + cualquier tipo        → 🔵 Atendida (índigo)
   //
   type ApptSeed = {
-    isoDate: string;           // UTC
+    isoDate: string;       // UTC timestamp
     caseIdx: number;
     providerIdx: number;
     clinicId: string;
     type: 'AUTO_ACCIDENT' | 'FAMILY_PRACTICE' | 'FOLLOW_UP' | 'URGENT_CARE';
     status: 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED';
     durationMinutes: number;
-    visitNumber: number;
     notes?: string;
   };
 
   const apptSeeds: ApptSeed[] = [
-    // ─── Semana 1: Jun 1 (Lun) — Jun 6 (Sáb) · COMPLETED ───────────────────
-    // Lun Jun 1
-    { isoDate: '2026-06-01T15:00:00.000Z', caseIdx: 0, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 45, visitNumber: 0, notes: '1ra cita post-accidente' },
-    { isoDate: '2026-06-01T16:30:00.000Z', caseIdx: 1, providerIdx: 1, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 30, visitNumber: 0 },
+    // ─── Semana 1: Jun 1-5 · COMPLETED (índigo) ─────────────────────────────
+    // SOLO usa casos 0 y 1 → casos 2 y 3 son "vírgenes" para semana 2
+    //
+    { isoDate: '2026-06-01T15:00:00.000Z', caseIdx: 0, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 45, notes: '1ra consulta post-accidente' },
+    { isoDate: '2026-06-01T16:30:00.000Z', caseIdx: 1, providerIdx: 1, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 30 },
+    { isoDate: '2026-06-02T15:00:00.000Z', caseIdx: 0, providerIdx: 2, clinicId: proClinic.id, type: 'FOLLOW_UP',       status: 'COMPLETED', durationMinutes: 30 },
+    { isoDate: '2026-06-02T16:30:00.000Z', caseIdx: 1, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 30 },
+    { isoDate: '2026-06-03T14:30:00.000Z', caseIdx: 0, providerIdx: 1, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 30 },
+    { isoDate: '2026-06-03T21:00:00.000Z', caseIdx: 1, providerIdx: 2, clinicId: proClinic.id, type: 'FOLLOW_UP',       status: 'COMPLETED', durationMinutes: 30 },
+    { isoDate: '2026-06-04T15:00:00.000Z', caseIdx: 0, providerIdx: 2, clinicId: pgClinic.id,  type: 'FOLLOW_UP',       status: 'COMPLETED', durationMinutes: 30 },
+    { isoDate: '2026-06-04T16:30:00.000Z', caseIdx: 1, providerIdx: 0, clinicId: proClinic.id, type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 30 },
+    { isoDate: '2026-06-05T15:00:00.000Z', caseIdx: 0, providerIdx: 1, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 30 },
+    { isoDate: '2026-06-05T16:30:00.000Z', caseIdx: 1, providerIdx: 2, clinicId: proClinic.id, type: 'FOLLOW_UP',       status: 'COMPLETED', durationMinutes: 30 },
 
-    // Mar Jun 2
-    { isoDate: '2026-06-02T15:00:00.000Z', caseIdx: 2, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 30, visitNumber: 0 },
-    { isoDate: '2026-06-02T16:00:00.000Z', caseIdx: 3, providerIdx: 1, clinicId: proClinic.id, type: 'FOLLOW_UP',       status: 'COMPLETED', durationMinutes: 30, visitNumber: 3 },
-    { isoDate: '2026-06-02T20:00:00.000Z', caseIdx: 0, providerIdx: 2, clinicId: pgClinic.id,  type: 'FOLLOW_UP',       status: 'COMPLETED', durationMinutes: 30, visitNumber: 2 },
+    // ─── Semana 2: Jun 8-12 · LOS 5 COLORES EN PANTALLA ────────────────────
+    //
+    // Lun Jun 8 — DEMO COMPLETO: los 5 colores en un solo día
+    //   case 2 → sin historial → visitNumber=0 → MVA 1ra 🌹🆕
+    //   case 3 → sin historial → visitNumber=0 → GP  1ra 🌿🆕
+    //   case 0 → 5 citas previas (jun 1-5) → visitNumber>0 → MVA seguimiento 🌹
+    //   case 1 → 5 citas previas (jun 1-5) → visitNumber>0 → GP  seguimiento 🌿
+    //   SCHEDULED → amber 🟡 sin importar visitNumber
+    //
+    { isoDate: '2026-06-08T15:00:00.000Z', caseIdx: 2, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 45 }, // 🌹 MVA 1ra
+    { isoDate: '2026-06-08T16:00:00.000Z', caseIdx: 3, providerIdx: 1, clinicId: proClinic.id, type: 'FAMILY_PRACTICE', status: 'CONFIRMED', durationMinutes: 30 }, // 🌿 GP  1ra
+    { isoDate: '2026-06-08T16:30:00.000Z', caseIdx: 0, providerIdx: 2, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 30 }, // 🌹 MVA seguimiento
+    { isoDate: '2026-06-08T17:00:00.000Z', caseIdx: 1, providerIdx: 0, clinicId: proClinic.id, type: 'FAMILY_PRACTICE', status: 'CONFIRMED', durationMinutes: 30 }, // 🌿 GP  seguimiento
+    { isoDate: '2026-06-08T21:00:00.000Z', caseIdx: 0, providerIdx: 1, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'SCHEDULED', durationMinutes: 30 }, // 🟡 Sin confirmar
 
-    // Mié Jun 3
-    { isoDate: '2026-06-03T14:30:00.000Z', caseIdx: 1, providerIdx: 0, clinicId: proClinic.id, type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 30, visitNumber: 1 },
-    { isoDate: '2026-06-03T15:30:00.000Z', caseIdx: 2, providerIdx: 2, clinicId: pgClinic.id,  type: 'FAMILY_PRACTICE', status: 'COMPLETED', durationMinutes: 30, visitNumber: 0 },
-    { isoDate: '2026-06-03T21:00:00.000Z', caseIdx: 3, providerIdx: 1, clinicId: pgClinic.id,  type: 'FOLLOW_UP',       status: 'COMPLETED', durationMinutes: 30, visitNumber: 4 },
+    // Mar Jun 9
+    { isoDate: '2026-06-09T15:00:00.000Z', caseIdx: 2, providerIdx: 1, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 45 }, // 🌹 MVA visita 2
+    { isoDate: '2026-06-09T16:30:00.000Z', caseIdx: 0, providerIdx: 2, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 30 }, // 🌹 MVA seguimiento
+    { isoDate: '2026-06-09T20:00:00.000Z', caseIdx: 1, providerIdx: 0, clinicId: proClinic.id, type: 'FAMILY_PRACTICE', status: 'SCHEDULED', durationMinutes: 30 }, // 🟡 Sin confirmar
 
-    // Jue Jun 4
-    { isoDate: '2026-06-04T15:00:00.000Z', caseIdx: 0, providerIdx: 2, clinicId: proClinic.id, type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 45, visitNumber: 3 },
-    { isoDate: '2026-06-04T17:00:00.000Z', caseIdx: 1, providerIdx: 0, clinicId: pgClinic.id,  type: 'FOLLOW_UP',       status: 'COMPLETED', durationMinutes: 30, visitNumber: 5 },
+    // Mié Jun 10
+    { isoDate: '2026-06-10T14:30:00.000Z', caseIdx: 0, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 30 }, // 🌹 MVA seguimiento
+    { isoDate: '2026-06-10T15:00:00.000Z', caseIdx: 3, providerIdx: 1, clinicId: proClinic.id, type: 'FAMILY_PRACTICE', status: 'CONFIRMED', durationMinutes: 30 }, // 🌿 GP visita 2
+    { isoDate: '2026-06-10T16:30:00.000Z', caseIdx: 1, providerIdx: 2, clinicId: pgClinic.id,  type: 'FAMILY_PRACTICE', status: 'CONFIRMED', durationMinutes: 30 }, // 🌿 GP seguimiento
+    { isoDate: '2026-06-10T19:00:00.000Z', caseIdx: 2, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'SCHEDULED', durationMinutes: 30 }, // 🟡 Sin confirmar
+    { isoDate: '2026-06-10T21:30:00.000Z', caseIdx: 3, providerIdx: 1, clinicId: pgClinic.id,  type: 'FAMILY_PRACTICE', status: 'SCHEDULED', durationMinutes: 30 }, // 🟡 Sin confirmar
 
-    // Vie Jun 5
-    { isoDate: '2026-06-05T14:00:00.000Z', caseIdx: 2, providerIdx: 1, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'COMPLETED', durationMinutes: 30, visitNumber: 2 },
-    { isoDate: '2026-06-05T15:00:00.000Z', caseIdx: 3, providerIdx: 2, clinicId: proClinic.id, type: 'FAMILY_PRACTICE', status: 'COMPLETED', durationMinutes: 30, visitNumber: 1 },
-    { isoDate: '2026-06-05T20:30:00.000Z', caseIdx: 0, providerIdx: 0, clinicId: pgClinic.id,  type: 'FOLLOW_UP',       status: 'COMPLETED', durationMinutes: 30, visitNumber: 4 },
+    // Jue Jun 11
+    { isoDate: '2026-06-11T15:00:00.000Z', caseIdx: 2, providerIdx: 2, clinicId: proClinic.id, type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 30 }, // 🌹 MVA visita 3
+    { isoDate: '2026-06-11T16:00:00.000Z', caseIdx: 1, providerIdx: 0, clinicId: pgClinic.id,  type: 'FAMILY_PRACTICE', status: 'CONFIRMED', durationMinutes: 30 }, // 🌿 GP seguimiento
+    { isoDate: '2026-06-11T20:00:00.000Z', caseIdx: 0, providerIdx: 1, clinicId: proClinic.id, type: 'AUTO_ACCIDENT',   status: 'SCHEDULED', durationMinutes: 30 }, // 🟡 Sin confirmar
 
-    // ─── Semana 2: Jun 9 (Lun) — Jun 13 (Vie) · CONFIRMED + SCHEDULED ───────
-    // Lun Jun 9
-    { isoDate: '2026-06-09T15:00:00.000Z', caseIdx: 0, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 45, visitNumber: 0 },
-    { isoDate: '2026-06-09T16:30:00.000Z', caseIdx: 1, providerIdx: 1, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 30, visitNumber: 0 },
-    { isoDate: '2026-06-09T20:00:00.000Z', caseIdx: 2, providerIdx: 2, clinicId: proClinic.id, type: 'FOLLOW_UP',       status: 'SCHEDULED', durationMinutes: 30, visitNumber: 6 },
-
-    // Mar Jun 10
-    { isoDate: '2026-06-10T14:30:00.000Z', caseIdx: 3, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 30, visitNumber: 2 },
-    { isoDate: '2026-06-10T15:00:00.000Z', caseIdx: 0, providerIdx: 1, clinicId: proClinic.id, type: 'FAMILY_PRACTICE', status: 'CONFIRMED', durationMinutes: 30, visitNumber: 0 },
-    { isoDate: '2026-06-10T19:00:00.000Z', caseIdx: 1, providerIdx: 2, clinicId: pgClinic.id,  type: 'FOLLOW_UP',       status: 'SCHEDULED', durationMinutes: 30, visitNumber: 2 },
-    { isoDate: '2026-06-10T21:30:00.000Z', caseIdx: 2, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'SCHEDULED', durationMinutes: 45, visitNumber: 7 },
-
-    // Mié Jun 11
-    { isoDate: '2026-06-11T15:00:00.000Z', caseIdx: 3, providerIdx: 1, clinicId: proClinic.id, type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 30, visitNumber: 0 },
-    { isoDate: '2026-06-11T16:00:00.000Z', caseIdx: 0, providerIdx: 2, clinicId: pgClinic.id,  type: 'FOLLOW_UP',       status: 'CONFIRMED', durationMinutes: 30, visitNumber: 6 },
-    { isoDate: '2026-06-11T20:00:00.000Z', caseIdx: 1, providerIdx: 0, clinicId: proClinic.id, type: 'URGENT_CARE',     status: 'SCHEDULED', durationMinutes: 30, visitNumber: 0 },
-
-    // Jue Jun 12
-    { isoDate: '2026-06-12T14:00:00.000Z', caseIdx: 2, providerIdx: 1, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 45, visitNumber: 8 },
-    { isoDate: '2026-06-12T15:30:00.000Z', caseIdx: 3, providerIdx: 2, clinicId: pgClinic.id,  type: 'FOLLOW_UP',       status: 'SCHEDULED', durationMinutes: 30, visitNumber: 3 },
-
-    // Vie Jun 13
-    { isoDate: '2026-06-13T15:00:00.000Z', caseIdx: 0, providerIdx: 0, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 30, visitNumber: 7 },
-    { isoDate: '2026-06-13T17:00:00.000Z', caseIdx: 1, providerIdx: 1, clinicId: proClinic.id, type: 'FAMILY_PRACTICE', status: 'CONFIRMED', durationMinutes: 30, visitNumber: 3 },
-    { isoDate: '2026-06-13T20:00:00.000Z', caseIdx: 2, providerIdx: 2, clinicId: pgClinic.id,  type: 'FOLLOW_UP',       status: 'SCHEDULED', durationMinutes: 30, visitNumber: 9 },
+    // Vie Jun 12
+    { isoDate: '2026-06-12T14:00:00.000Z', caseIdx: 0, providerIdx: 2, clinicId: pgClinic.id,  type: 'AUTO_ACCIDENT',   status: 'CONFIRMED', durationMinutes: 45 }, // 🌹 MVA seguimiento
+    { isoDate: '2026-06-12T15:30:00.000Z', caseIdx: 3, providerIdx: 0, clinicId: pgClinic.id,  type: 'FAMILY_PRACTICE', status: 'SCHEDULED', durationMinutes: 30 }, // 🟡 Sin confirmar
   ];
 
   let created = 0;
@@ -166,8 +173,10 @@ async function seedCalendar(): Promise<void> {
   }
 
   console.warn(`✅ Appointments: ${created} created`);
-  console.warn('🗓  Semana Jun 1-5 → COMPLETED (índigo/atendidas)');
-  console.warn('🗓  Semana Jun 9-13 → CONFIRMED (rose/emerald) + SCHEDULED (amber)');
+  console.warn('🗓  Semana Jun 1-5  → COMPLETED (índigo/atendidas) — solo casos 0 y 1');
+  console.warn('🗓  Semana Jun 8-12 → Jun 8 tiene los 5 colores en un día:');
+  console.warn('     🌹 MVA 1ra (case2, sin historial), 🌿 GP 1ra (case3, sin historial)');
+  console.warn('     🌹 MVA seguimiento (case0), 🌿 GP seguimiento (case1), 🟡 Sin confirmar');
   console.warn('🎉 Calendar seed complete!');
 }
 

@@ -15,17 +15,19 @@ import { NavigationProgressProvider } from './navigation-progress';
 //  - NavigationProgressProvider: barra global de progress arriba
 
 interface AdminShellProps {
-  children:     React.ReactNode;
-  userName?:    string;
-  userRole?:    string;
+  children:      React.ReactNode;
+  userName?:     string;
+  userRole?:     string;
   userInitials?: string;
+  userEmail?:    string;
 }
 
 export function AdminShell({
   children,
-  userName    = 'Usuario',
-  userRole    = '',
+  userName     = 'Usuario',
+  userRole     = '',
   userInitials = 'U',
+  userEmail    = '',
 }: AdminShellProps): React.ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -49,6 +51,7 @@ export function AdminShell({
               userName={userName}
               userRole={userRole}
               userInitials={userInitials}
+              userEmail={userEmail}
               onMenuClick={() => setMobileOpen(true)}
             />
             <main className="flex-1 p-4 sm:p-6 lg:p-8 animate-fade-in">{children}</main>

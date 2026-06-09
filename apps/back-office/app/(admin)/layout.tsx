@@ -56,6 +56,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       userName={userName}
       userRole={userRole}
       userInitials={userInits}
+      userEmail={user.email ?? ''}
     >
       {children}
     </AdminShell>

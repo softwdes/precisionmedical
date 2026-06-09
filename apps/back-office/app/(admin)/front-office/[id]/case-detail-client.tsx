@@ -445,10 +445,15 @@ function ActionButtons({
         </Button>
       )}
       {status === 'INTAKE_PENDING' && (
-        <Button onClick={onSimulateIntake} variant="outline" size="sm" disabled={isMarkingIntake}>
-          <Zap className="w-3.5 h-3.5 mr-1" />
-          {isMarkingIntake ? 'Simulando...' : 'DEV · Simular portal completo'}
-        </Button>
+        <>
+          <Button onClick={onSendPortal} variant="outline" size="sm">
+            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar portal
+          </Button>
+          <Button onClick={onSimulateIntake} variant="outline" size="sm" disabled={isMarkingIntake}>
+            <Zap className="w-3.5 h-3.5 mr-1" />
+            {isMarkingIntake ? 'Simulando...' : 'DEV · Simular portal completo'}
+          </Button>
+        </>
       )}
       {status === 'INTAKE_COMPLETED' && (
         <Button onClick={onConfirm} size="sm">

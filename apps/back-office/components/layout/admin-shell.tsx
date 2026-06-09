@@ -14,7 +14,19 @@ import { NavigationProgressProvider } from './navigation-progress';
 //  - BootAnimation: splash 1.2s al primer mount + fade-in al contenido
 //  - NavigationProgressProvider: barra global de progress arriba
 
-export function AdminShell({ children }: { children: React.ReactNode }): React.ReactElement {
+interface AdminShellProps {
+  children:     React.ReactNode;
+  userName?:    string;
+  userRole?:    string;
+  userInitials?: string;
+}
+
+export function AdminShell({
+  children,
+  userName    = 'Usuario',
+  userRole    = '',
+  userInitials = 'U',
+}: AdminShellProps): React.ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -34,9 +46,9 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
 
           <div className="md:ml-[240px] flex flex-col min-h-screen">
             <Topbar
-              userName="Erick Salinas"
-              userRole="Super Admin"
-              userInitials="ES"
+              userName={userName}
+              userRole={userRole}
+              userInitials={userInitials}
               onMenuClick={() => setMobileOpen(true)}
             />
             <main className="flex-1 p-4 sm:p-6 lg:p-8 animate-fade-in">{children}</main>

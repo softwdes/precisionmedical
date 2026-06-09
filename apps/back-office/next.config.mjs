@@ -1,11 +1,19 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Necesario en monorepo pnpm: permite que Next.js trace los binarios de Prisma
+  // que viven en node_modules del root (../../) y no en apps/back-office/node_modules
+  outputFileTracingRoot: path.join(__dirname, '../../'),
   transpilePackages: [
     '@precision/ui',
+    '@precision-medical/auth',
     '@precision-medical/database',
     '@precision-medical/i18n',
     '@precision-medical/observability',

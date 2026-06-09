@@ -191,11 +191,11 @@ export default function LoginPage(): React.ReactElement {
               <div aria-hidden className="lm-radar-1" style={{position:'absolute',top:-4,left:-4,right:-4,bottom:-4,borderRadius:'50%',border:'1.5px solid rgba(245,158,11,0.55)',pointerEvents:'none'}} />
               <div aria-hidden className="lm-radar-2" style={{position:'absolute',top:-4,left:-4,right:-4,bottom:-4,borderRadius:'50%',border:'1.5px solid rgba(245,158,11,0.45)',pointerEvents:'none'}} />
               <div className="pm-logo-box" style={{width:68,height:68,borderRadius:20,background:'linear-gradient(135deg,#F59E0B 0%,#D97706 50%,#FBBF24 100%)',boxShadow:'0 0 40px rgba(245,158,11,0.65),0 0 80px rgba(245,158,11,0.25)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <span style={{color:'#0a0a0a',fontWeight:800,fontSize:20}}>BO</span>
+                <span style={{color:'#0a0a0a',fontWeight:800,fontSize:20}}>PM</span>
               </div>
             </div>
             <p className="pm-title" style={{color:'#F5F7FB',fontWeight:800,fontSize:26,letterSpacing:'-0.5px',margin:'0 0 5px',textShadow:'0 1px 2px rgba(0,0,0,0.45)'}}>Precision Medical</p>
-            <p style={{color:'#4A5474',fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Back Office · Facturación</p>
+            <p style={{color:'#4A5474',fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Clinic · Gestión Clínica</p>
           </div>
 
           {/* Card */}
@@ -253,7 +253,7 @@ export default function LoginPage(): React.ReactElement {
 
           {/* Footer */}
           <p className="lm-fade-380" style={{color:'#2C3248',fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:'2rem'}}>
-            Precision Medical · Back Office · Facturación
+            Precision Medical · Clinic · Utah, USA
           </p>
         </div>
       </div>

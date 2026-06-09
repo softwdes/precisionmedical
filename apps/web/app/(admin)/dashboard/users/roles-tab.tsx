@@ -81,12 +81,12 @@ function RoleBadge({ role }: { role: Role }): React.ReactElement {
 // ─── Role description per card ────────────────────────────────────────────────
 
 const ROLE_DESCRIPTIONS: Record<Role, string> = {
-  super_admin: 'Acceso total al sistema.',
-  admin:       'Dashboard, empleados y métricas. Sin usuarios ni configuración.',
-  contador:    'Solo Asistencia y Reporte de Horas.',
-  employee:    'Acceso exclusivo a PM Time Clock.',
-  lawyer:      'Métricas de sus casos.',
-  provider:    'Métricas de sus propios datos.',
+  super_admin: 'Acceso total · Admin · Clinic Back-Office · Doctors App · Attorney Portal.',
+  admin:       'Admin · Clinic Back-Office · Doctors App · Attorney Portal. Sin configuración.',
+  contador:    'Clinic Back-Office · Nómina y Asistencia.',
+  employee:    'PM Time Clock · Doctors App.',
+  lawyer:      'Attorney Portal · Métricas de sus casos.',
+  provider:    'Doctors App · Métricas de sus propios datos.',
   ia_auditor:  'Agentes IA y Finanzas (solo lectura).',
 };
 
@@ -347,10 +347,17 @@ export function RolesTab(): React.ReactElement {
 
   const fetchConfigs = useCallback(async (): Promise<void> => {
     try {
-      const res = await fetch('/api/roles');
-      if (res.ok) {
-        const data = await res.json() as RoleConfig[];
+      const [rolesRes, countsRes] = await Promise.all([
+        fetch('/api/roles'),
+        fetch('/api/roles/counts'),
+      ]);
+      if (rolesRes.ok) {
+        const data = await rolesRes.json() as RoleConfig[];
         setConfigs(data);
+      }
+      if (countsRes.ok) {
+        const counts = await countsRes.json() as Record<string, number>;
+        setUserCounts(counts);
       }
     } catch {
       /* silently fail, show defaults */

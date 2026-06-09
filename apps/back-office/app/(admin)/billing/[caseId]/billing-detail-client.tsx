@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Scale, ShieldCheck, Phone, Mail,
   CheckCircle2, Plus, FileText, DollarSign,
-  RefreshCw, AlertTriangle, BarChart3,
+  RefreshCw, AlertTriangle, BarChart3, Target,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -257,6 +257,27 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
               <BarChart3 className="w-3.5 h-3.5" />
               Ledger
             </button>
+            {/* B.28 — Settlement */}
+            {d.status !== 'SETTLED' && d.status !== 'CLOSED' && (
+              <button
+                type="button"
+                onClick={() => router.push(`/billing/${caseId}/settlement`)}
+                className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-emerald/30 bg-emerald/8 text-emerald text-xs font-semibold hover:bg-emerald/15 transition-all"
+              >
+                <Target className="w-3.5 h-3.5" />
+                Settlement
+              </button>
+            )}
+            {(d.status === 'SETTLED' || d.status === 'CLOSED') && (
+              <button
+                type="button"
+                onClick={() => router.push(`/billing/${caseId}/settlement`)}
+                className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-emerald/35 bg-emerald/8 text-emerald text-xs hover:bg-emerald/15 transition-all"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Settlado ✓
+              </button>
+            )}
             {/* B.26 — siempre visible; verde si ya generado, amber si no */}
             <button
               type="button"
@@ -375,6 +396,17 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                   <BarChart3 className="w-3.5 h-3.5" />
                   Ver ledger completo →
                 </button>
+                {/* B.28 Settlement */}
+                {d.status !== 'SETTLED' && d.status !== 'CLOSED' && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/billing/${caseId}/settlement`)}
+                    className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-emerald/30 bg-emerald/8 text-emerald text-xs font-semibold hover:bg-emerald/15 transition-colors"
+                  >
+                    <Target className="w-3.5 h-3.5" />
+                    🎯 Procesar Settlement →
+                  </button>
+                )}
 
                 {d.attorney?.phone && (
                   <a

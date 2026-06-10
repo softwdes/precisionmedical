@@ -7,6 +7,7 @@ import {
   ChevronRight, Clock, Calendar, Stethoscope, Building2, MessageSquarePlus,
   FileText, Bot, Cpu, User, Plus, BarChart3,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@precision/ui';
 import {
   PageHeader, KpiCard, TagPill, PersonAvatar, EmptyState,
@@ -84,6 +85,7 @@ export function DashboardClient({
   recentActivity,
   todayBoundary,
 }: Props) {
+  const t = useTranslations('phoenix.dashboard');
   const router = useRouter();
   const totalAlerts = alerts.newReferralsAged.length + alerts.intakeStalled.length + alerts.confirmedNoSched.length;
 
@@ -97,20 +99,20 @@ export function DashboardClient({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dashboard de Recepción"
+        title={t('title')}
         subtitle={
           <span className="flex items-center gap-2 flex-wrap">
             <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold flex items-center gap-1">
               <BarChart3 className="w-3 h-3" /> B.29
             </span>
-            <span>· Vista panel del día · {formatDate(new Date())}</span>
+            <span>· {t('subtitle')} · {formatDate(new Date())}</span>
           </span>
         }
         action={
           <Link href="/front-office">
             <Button>
               <PhoneCall className="w-4 h-4 mr-2" />
-              Ir al queue
+              {t('goToQueue')}
             </Button>
           </Link>
         }
@@ -118,30 +120,30 @@ export function DashboardClient({
 
       {/* ───── KPIs del día ───────────────────────────────────────────────── */}
       <div>
-        <SectionHeader icon={Clock} label="Métricas de hoy" />
+        <SectionHeader icon={Clock} label={t('todayMetrics')} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KpiCard
-            label="Casos creados"
+            label={t('casesCreated')}
             value={kpis.casesCreatedToday}
-            sub="Nuevas llamadas atendidas"
+            sub={t('casesCreatedSub')}
             color="text-brand"
           />
           <KpiCard
-            label="Portales enviados"
+            label={t('portalsSent')}
             value={kpis.portalsSentToday}
-            sub="SMS/Email al paciente"
+            sub={t('portalsSentSub')}
             color="text-cyan"
           />
           <KpiCard
-            label="Confirmaciones"
+            label={t('confirmations')}
             value={kpis.confirmsToday}
-            sub="Llamadas 24h antes"
+            sub={t('confirmationsSub')}
             color="text-amber"
           />
           <KpiCard
-            label="Citas agendadas"
+            label={t('scheduledAppointments')}
             value={kpis.schedulesToday}
-            sub="Pasaron a ACTIVE"
+            sub={t('scheduledAppointmentsSub')}
             color="text-emerald"
           />
         </div>
@@ -151,13 +153,13 @@ export function DashboardClient({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Cola por status */}
         <div className="lg:col-span-2 rounded-lg border border-border bg-bg-1 p-5">
-          <SectionHeader icon={Building2} label="Cola por status · click para filtrar" />
+          <SectionHeader icon={Building2} label={t('queueByStatus')} />
           <div className="space-y-2">
-            <StatusRow status="NEW_REFERRAL"     count={statusCounts.NEW_REFERRAL}     label="Nuevo referido"      action="Enviar portal"          color="rose"    icon="🔴" />
-            <StatusRow status="INTAKE_PENDING"   count={statusCounts.INTAKE_PENDING}   label="Intake pendiente"    action="Esperando paciente"     color="amber"   icon="🟡" />
-            <StatusRow status="INTAKE_COMPLETED" count={statusCounts.INTAKE_COMPLETED} label="Por confirmar (24h)" action="Llamar para confirmar"  color="cyan"    icon="🔵" />
-            <StatusRow status="CONFIRMED"        count={statusCounts.CONFIRMED}        label="Confirmado"          action="Agendar primera cita"    color="emerald" icon="🟢" />
-            <StatusRow status="ACTIVE"           count={statusCounts.ACTIVE}           label="En tratamiento"      action="Doctor toma el caso"     color="brand"   icon="⚕" />
+            <StatusRow status="NEW_REFERRAL"     count={statusCounts.NEW_REFERRAL}     label={t('statusNewReferral')}      action={t('statusNewReferralAction')}          color="rose"    icon="🔴" />
+            <StatusRow status="INTAKE_PENDING"   count={statusCounts.INTAKE_PENDING}   label={t('statusIntakePending')}    action={t('statusIntakePendingAction')}     color="amber"   icon="🟡" />
+            <StatusRow status="INTAKE_COMPLETED" count={statusCounts.INTAKE_COMPLETED} label={t('statusIntakeCompleted')} action={t('statusIntakeCompletedAction')}  color="cyan"    icon="🔵" />
+            <StatusRow status="CONFIRMED"        count={statusCounts.CONFIRMED}        label={t('statusConfirmed')}          action={t('statusConfirmedAction')}    color="emerald" icon="🟢" />
+            <StatusRow status="ACTIVE"           count={statusCounts.ACTIVE}           label={t('statusActive')}      action={t('statusActiveAction')}     color="brand"   icon="⚕" />
           </div>
         </div>
 
@@ -165,7 +167,7 @@ export function DashboardClient({
         <div className="rounded-lg border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-amber" />
-            <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Atención requerida</h3>
+            <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('attentionRequired')}</h3>
             <TagPill
               label={String(totalAlerts)}
               colorClass={totalAlerts === 0 ? 'bg-emerald/15 text-emerald border-emerald/30' : 'bg-amber/15 text-amber border-amber/30'}
@@ -174,44 +176,44 @@ export function DashboardClient({
           </div>
           {totalAlerts === 0 ? (
             <div className="rounded-md border border-emerald/30 bg-emerald/5 px-3 py-4 text-center">
-              <div className="text-emerald font-semibold text-sm">✓ Todo al día</div>
-              <div className="text-text-muted text-xs mt-1">No hay casos atrasados.</div>
+              <div className="text-emerald font-semibold text-sm">{t('allCaughtUp')}</div>
+              <div className="text-text-muted text-xs mt-1">{t('noDelayedCases')}</div>
             </div>
           ) : (
             <div className="space-y-3 max-h-[400px] overflow-y-auto scroll-thin pr-1">
               <AlertGroup
-                title="Sin portal enviado (>1h)"
+                title={t('alertNoPortalSent')}
                 tone="rose"
                 items={alerts.newReferralsAged.map((c) => ({
                   id: c.id,
                   caseCode: c.caseCode,
                   patientName: c.patientName,
                   time: c.createdAt,
-                  timeLabel: 'hace',
+                  timeLabel: t('timeLabelAgo'),
                 }))}
                 onClick={(id) => router.push(`/front-office/${id}`)}
               />
               <AlertGroup
-                title="Paciente sin responder (>24h)"
+                title={t('alertPatientNoResponse')}
                 tone="amber"
                 items={alerts.intakeStalled.map((c) => ({
                   id: c.id,
                   caseCode: c.caseCode,
                   patientName: c.patientName,
                   time: c.sentAt,
-                  timeLabel: 'enviado hace',
+                  timeLabel: t('timeLabelSentAgo'),
                 }))}
                 onClick={(id) => router.push(`/front-office/${id}`)}
               />
               <AlertGroup
-                title="Confirmado sin agendar (>48h)"
+                title={t('alertConfirmedNoSched')}
                 tone="emerald"
                 items={alerts.confirmedNoSched.map((c) => ({
                   id: c.id,
                   caseCode: c.caseCode,
                   patientName: c.patientName,
                   time: c.confirmedAt,
-                  timeLabel: 'confirmado hace',
+                  timeLabel: t('timeLabelConfirmedAgo'),
                 }))}
                 onClick={(id) => router.push(`/front-office/${id}`)}
               />
@@ -226,22 +228,22 @@ export function DashboardClient({
         <div className="rounded-lg border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Calendar className="w-4 h-4 text-brand" />
-            <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Próximas citas</h3>
+            <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('upcomingAppointments')}</h3>
             <span className="text-text-muted text-xs font-mono ml-auto">
-              {apptsToday.length} hoy · {apptsTomorrow.length} mañana
+              {apptsToday.length} {t('today')} · {apptsTomorrow.length} {t('tomorrow')}
             </span>
           </div>
 
           {upcomingAppointments.length === 0 ? (
             <div className="text-text-muted text-sm italic text-center py-6">
-              Sin citas agendadas para hoy o mañana.
+              {t('noAppointmentsScheduled')}
             </div>
           ) : (
             <div className="space-y-4 max-h-[450px] overflow-y-auto scroll-thin pr-1">
               {apptsToday.length > 0 && (
                 <div>
                   <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-2">
-                    Hoy · {formatDate(new Date())}
+                    {t('today')} · {formatDate(new Date())}
                   </div>
                   <div className="space-y-1.5">
                     {apptsToday.map((a) => <AppointmentRow key={a.id} appt={a} />)}
@@ -251,7 +253,7 @@ export function DashboardClient({
               {apptsTomorrow.length > 0 && (
                 <div>
                   <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-2">
-                    Mañana · {formatDate(new Date(todayBoundary.tomorrowStart))}
+                    {t('tomorrow')} · {formatDate(new Date(todayBoundary.tomorrowStart))}
                   </div>
                   <div className="space-y-1.5">
                     {apptsTomorrow.map((a) => <AppointmentRow key={a.id} appt={a} />)}
@@ -266,13 +268,13 @@ export function DashboardClient({
         <div className="rounded-lg border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Clock className="w-4 h-4 text-brand" />
-            <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Actividad reciente</h3>
-            <span className="text-text-muted text-xs font-mono ml-auto">{recentActivity.length} eventos</span>
+            <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('recentActivity')}</h3>
+            <span className="text-text-muted text-xs font-mono ml-auto">{recentActivity.length} {t('events')}</span>
           </div>
 
           {recentActivity.length === 0 ? (
             <div className="text-text-muted text-sm italic text-center py-6">
-              Sin actividad reciente.
+              {t('noRecentActivity')}
             </div>
           ) : (
             <div className="space-y-2 max-h-[450px] overflow-y-auto scroll-thin pr-1">
@@ -383,6 +385,7 @@ function AlertGroup({
 // ─── Appointment row ──────────────────────────────────────────────────────────
 
 function AppointmentRow({ appt }: { appt: UpcomingAppointment }) {
+  const t = useTranslations('phoenix.dashboard');
   const time = new Date(appt.scheduledFor).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit' });
   const statusColors: Record<string, string> = {
     SCHEDULED:   'bg-cyan/15 text-cyan border-cyan/30',
@@ -404,7 +407,7 @@ function AppointmentRow({ appt }: { appt: UpcomingAppointment }) {
         <div className="text-text-1 text-sm font-medium truncate">{appt.patientName}</div>
         <div className="flex items-center gap-1 text-text-muted text-[11px] truncate">
           <Stethoscope className="w-3 h-3 shrink-0" />
-          {appt.providerName ?? 'Sin doctor asignado'}
+          {appt.providerName ?? t('noDoctorAssigned')}
           {appt.providerSpecialty && (
             <span className="opacity-70">· {appt.providerSpecialty}</span>
           )}
@@ -434,16 +437,17 @@ function AppointmentRow({ appt }: { appt: UpcomingAppointment }) {
 
 // ─── Activity row ─────────────────────────────────────────────────────────────
 
-const ACTION_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  CREATE_CASE_FROM_CALL:    { label: 'Caso creado',              icon: PhoneCall,          color: 'text-brand' },
-  SEND_PORTAL_LINK:         { label: 'Portal enviado',           icon: Send,               color: 'text-cyan' },
-  MARK_INTAKE_COMPLETE_DEV: { label: 'Intake completado (dev)',  icon: FileText,           color: 'text-amber' },
-  CONFIRM_FIRST_APPOINTMENT:{ label: 'Cita confirmada',          icon: FileCheck,          color: 'text-emerald' },
-  SCHEDULE_FIRST_APPOINTMENT:{ label: 'Cita agendada',           icon: CalendarCheck,      color: 'text-brand' },
-  INSERT_CASE_NOTE:         { label: 'Nota agregada',            icon: MessageSquarePlus,  color: 'text-violet' },
+const ACTION_META: Record<string, { labelKey: string; icon: React.ElementType; color: string }> = {
+  CREATE_CASE_FROM_CALL:    { labelKey: 'actionCaseCreated',          icon: PhoneCall,          color: 'text-brand' },
+  SEND_PORTAL_LINK:         { labelKey: 'actionPortalSent',           icon: Send,               color: 'text-cyan' },
+  MARK_INTAKE_COMPLETE_DEV: { labelKey: 'actionIntakeCompletedDev',   icon: FileText,           color: 'text-amber' },
+  CONFIRM_FIRST_APPOINTMENT:{ labelKey: 'actionAppointmentConfirmed', icon: FileCheck,          color: 'text-emerald' },
+  SCHEDULE_FIRST_APPOINTMENT:{ labelKey: 'actionAppointmentScheduled', icon: CalendarCheck,     color: 'text-brand' },
+  INSERT_CASE_NOTE:         { labelKey: 'actionNoteAdded',            icon: MessageSquarePlus,  color: 'text-violet' },
 };
 
 function ActivityRow({ event }: { event: ActivityEvent }) {
+  const t = useTranslations('phoenix.dashboard');
   const meta = ACTION_META[event.action];
   if (!meta) return null;
   const Icon = meta.icon;
@@ -456,7 +460,7 @@ function ActivityRow({ event }: { event: ActivityEvent }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-text-1 text-sm font-medium">{meta.label}</span>
+          <span className="text-text-1 text-sm font-medium">{t(meta.labelKey as Parameters<typeof t>[0])}</span>
           {event.caseCode && <code className="text-text-muted text-[10px] font-mono">{event.caseCode}</code>}
         </div>
         <div className="flex items-center gap-2 text-text-muted text-[10px] mt-0.5 truncate">

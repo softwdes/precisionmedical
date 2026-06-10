@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, Mail, BarChart3, Printer, ExternalLink, TrendingUp, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
@@ -75,10 +76,10 @@ interface LedgerData {
 
 // ─── TX badge config ──────────────────────────────────────────────────────────
 
-const TX_CONFIG = {
-  visit:           { label: 'Visita',        bg: 'bg-cyan/15 text-cyan border-cyan/25' },
-  hcfa_payment:    { label: 'Pago PIP',      bg: 'bg-emerald/15 text-emerald border-emerald/25' },
-  partial_payment: { label: 'Pago parcial',  bg: 'bg-emerald/10 text-emerald/80 border-emerald/20' },
+const TX_BG = {
+  visit:           'bg-cyan/15 text-cyan border-cyan/25',
+  hcfa_payment:    'bg-emerald/15 text-emerald border-emerald/25',
+  partial_payment: 'bg-emerald/10 text-emerald/80 border-emerald/20',
 } as const;
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -287,6 +288,7 @@ function AccountOverview({ d, financial, transactions }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function LedgerClient() {
+  const t = useTranslations('phoenix.billing');
   const params = useParams<{ caseId: string }>();
   const router = useRouter();
   const caseId = params.caseId;
@@ -306,7 +308,7 @@ export function LedgerClient() {
       if (!json.ok) throw new Error('NOT_FOUND');
       setData(json);
     } catch (e) {
-      setError('No se pudo cargar el ledger del caso.');
+      setError(t('errorLoadLedger'));
     } finally {
       setLoading(false);
     }
@@ -357,8 +359,8 @@ export function LedgerClient() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <EmptyState.Rich
           icon={AlertCircle}
-          title="Error cargando ledger"
-          subtitle={error ?? 'Caso no encontrado'}
+          title={t('errorLoadLedger')}
+          subtitle={error ?? t('caseNotFound')}
         />
       </div>
     );
@@ -419,9 +421,9 @@ export function LedgerClient() {
             <div className="mt-1 flex items-center gap-3 flex-wrap text-[11px] text-text-muted">
               <span>DOL: {accDate}</span>
               <span className="text-border">·</span>
-              <span>{d.visitCount} visita{d.visitCount !== 1 ? 's' : ''}</span>
+              <span>{t('visitCount', { count: d.visitCount })}</span>
               <span className="text-border">·</span>
-              <span>{d.firmName ?? 'Sin bufete'}</span>
+              <span>{d.firmName ?? t('noFirm')}</span>
               {d.insurerName && <>
                 <span className="text-border">·</span>
                 <span>{d.insurerName}</span>
@@ -437,7 +439,7 @@ export function LedgerClient() {
               className="flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/8 px-3 py-1.5 text-[11px] text-brand hover:bg-brand/15 transition-colors"
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              Reporte mensual
+              {t('monthlyReport')}
             </button>
           </div>
         </div>
@@ -450,10 +452,10 @@ export function LedgerClient() {
             style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.10),rgba(99,102,241,0.04))', borderColor: 'rgba(99,102,241,0.25)' }}
           >
             <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
-              Total facturado
+              {t('kpiTotalCharged')}
             </div>
             <div className="text-2xl font-bold font-mono text-text-1">{financial.totalChargeFmt}</div>
-            <div className="text-[11px] text-text-muted mt-1">{financial.cptCount} líneas CPT</div>
+            <div className="text-[11px] text-text-muted mt-1">{t('cptLines', { count: financial.cptCount })}</div>
           </div>
 
           {/* Cobrado del PIP */}
@@ -462,7 +464,7 @@ export function LedgerClient() {
             style={{ background: 'linear-gradient(135deg,rgba(52,211,153,0.10),rgba(52,211,153,0.04))', borderColor: 'rgba(52,211,153,0.25)' }}
           >
             <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
-              Cobrado del PIP
+              {t('kpiCollectedPip')}
             </div>
             <div className="text-2xl font-bold font-mono" style={{ color: '#34d399' }}>{financial.totalPaymentFmt}</div>
             <div className="text-[11px] text-text-muted mt-1">{d.insurerName ?? 'Insurer'}</div>
@@ -474,32 +476,32 @@ export function LedgerClient() {
             style={{ background: 'linear-gradient(135deg,rgba(251,113,133,0.10),rgba(251,113,133,0.04))', borderColor: 'rgba(251,113,133,0.25)' }}
           >
             <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
-              Balance → Lien
+              {t('kpiBalanceLien')}
             </div>
             <div className="text-2xl font-bold font-mono" style={{ color: '#fda4af' }}>{financial.totalBalanceFmt}</div>
             <div className="text-[11px] text-text-muted mt-1">
-              {d.lienSignedAt ? '⚖ Lien firmado' : 'Pendiente cobro'}
+              {d.lienSignedAt ? t('lienSigned') : t('lienPending')}
             </div>
           </div>
         </div>
 
         {/* ── Tabs ── */}
         <div className="flex items-center gap-1 border-b border-border pb-0">
-          {(['movimientos', 'account-overview'] as const).map(t => (
+          {(['movimientos', 'account-overview'] as const).map(tabKey => (
             <button
-              key={t}
+              key={tabKey}
               type="button"
-              onClick={() => setTab(t)}
+              onClick={() => setTab(tabKey)}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-medium border-b-2 transition-colors -mb-px ${
-                tab === t
+                tab === tabKey
                   ? 'border-amber text-amber'
                   : 'border-transparent text-text-muted hover:text-text-1'
               }`}
             >
-              {t === 'movimientos' ? (
-                <><TrendingUp className="w-3.5 h-3.5" />Movimientos</>
+              {tabKey === 'movimientos' ? (
+                <><TrendingUp className="w-3.5 h-3.5" />{t('tabMovements')}</>
               ) : (
-                <><FileText className="w-3.5 h-3.5" />Account Overview</>
+                <><FileText className="w-3.5 h-3.5" />{t('tabAccountOverview')}</>
               )}
             </button>
           ))}
@@ -511,25 +513,30 @@ export function LedgerClient() {
             {transactions.length === 0 ? (
               <EmptyState.Rich
                 icon={TrendingUp}
-                title="Sin transacciones"
-                subtitle="No hay cargos ni pagos registrados para este caso"
+                title={t('emptyTransactions')}
+                subtitle={t('emptyTransactionsSub')}
               />
             ) : (
               <div className="overflow-x-auto rounded-xl border border-border bg-bg-1">
                 <table className="w-full text-[12.5px] min-w-[600px]">
                   <thead>
                     <tr className="border-b border-border bg-bg-2/40">
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Fecha</th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Tipo</th>
-                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Descripción</th>
-                      <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Cargo</th>
-                      <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Pago</th>
-                      <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Balance</th>
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colDate')}</th>
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colType')}</th>
+                      <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colDescription')}</th>
+                      <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colCharge')}</th>
+                      <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colPayment')}</th>
+                      <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colBalance')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {transactions.map((tx, i) => {
-                      const cfg = TX_CONFIG[tx.subtype];
+                      const txBg = TX_BG[tx.subtype];
+                      const txLabels: Record<string, string> = {
+                        visit:           t('txVisit'),
+                        hcfa_payment:    t('txHcfaPayment'),
+                        partial_payment: t('txPartialPayment'),
+                      };
                       return (
                         <tr
                           key={tx.id}
@@ -537,8 +544,8 @@ export function LedgerClient() {
                         >
                           <td className="px-4 py-3 text-text-muted whitespace-nowrap">{tx.date}</td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${cfg.bg}`}>
-                              {cfg.label}
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${txBg}`}>
+                              {txLabels[tx.subtype] ?? tx.subtype}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-text-1 max-w-[260px] truncate" title={tx.description}>
@@ -571,7 +578,7 @@ export function LedgerClient() {
                   <tfoot>
                     <tr className="border-t-2 border-border bg-bg-2/60">
                       <td colSpan={3} className="px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">
-                        Total · {transactions.length} mov · {d.visitCount} visita{d.visitCount !== 1 ? 's' : ''}
+                        {t('tableTotal', { mov: transactions.length, visits: d.visitCount })}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-rose/90">{financial.totalChargeFmt}</td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-emerald">{financial.totalPaymentFmt}</td>
@@ -590,7 +597,7 @@ export function LedgerClient() {
                 className="flex items-center gap-2 rounded-lg border border-amber/30 bg-amber/10 px-4 py-2 text-[12px] font-medium text-amber hover:bg-amber/20 transition-colors"
               >
                 <FileText className="w-3.5 h-3.5" />
-                Account Overview PDF
+                {t('tabAccountOverview')} PDF
               </button>
               {d.firmEmail && (
                 <a
@@ -598,7 +605,7 @@ export function LedgerClient() {
                   className="flex items-center gap-2 rounded-lg border border-border bg-bg-1 px-4 py-2 text-[12px] text-text-muted hover:text-text-1 hover:border-amber/30 transition-colors"
                 >
                   <Mail className="w-3.5 h-3.5" />
-                  Enviar a {d.firmName ?? 'bufete'}
+                  {t('sendToFirm', { firm: d.firmName ?? t('defaultFirm') })}
                 </a>
               )}
               <button
@@ -607,7 +614,7 @@ export function LedgerClient() {
                 className="flex items-center gap-2 rounded-lg border border-border bg-bg-1 px-4 py-2 text-[12px] text-text-muted hover:text-text-1 hover:border-brand/30 transition-colors"
               >
                 <BarChart3 className="w-3.5 h-3.5" />
-                Reporte mensual consolidado
+                {t('monthlyReportConsolidated')}
               </button>
             </div>
           </div>
@@ -624,7 +631,7 @@ export function LedgerClient() {
                 className="flex items-center gap-2 rounded-lg bg-amber px-4 py-2 text-[12px] font-medium text-black hover:bg-amber/90 transition-colors"
               >
                 <Printer className="w-3.5 h-3.5" />
-                Imprimir / Guardar PDF
+                {t('printSavePdf')}
               </button>
               {d.firmEmail && (
                 <a
@@ -632,7 +639,7 @@ export function LedgerClient() {
                   className="flex items-center gap-2 rounded-lg border border-border bg-bg-1 px-4 py-2 text-[12px] text-text-muted hover:text-text-1 transition-colors"
                 >
                   <Mail className="w-3.5 h-3.5" />
-                  Enviar a {d.firmName ?? 'bufete'}
+                  {t('sendToFirm', { firm: d.firmName ?? t('defaultFirm') })}
                 </a>
               )}
             </div>

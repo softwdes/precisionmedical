@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, Search, UserCheck, AlertTriangle,
@@ -46,13 +47,6 @@ interface Totals {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const TYPE_LABELS: Record<string, string> = {
-  AUTO_ACCIDENT:  'Auto Accident',
-  FAMILY_PRACTICE:'Family Practice',
-  URGENT_CARE:    'Urgent Care',
-  FOLLOW_UP:      'Follow-up',
-  CONSULTATION:   'Consulta',
-};
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('es-US', {
@@ -94,6 +88,14 @@ function ApptCard({
   checkingIn: boolean;
 }) {
   const router = useRouter();
+  const t = useTranslations('phoenix.admission');
+  const TYPE_LABELS: Record<string, string> = {
+    AUTO_ACCIDENT:   t('typeAutoAccident'),
+    FAMILY_PRACTICE: t('typeFamilyPractice'),
+    URGENT_CARE:     t('typeUrgentCare'),
+    FOLLOW_UP:       t('typeFollowUp'),
+    CONSULTATION:    t('typeConsultation'),
+  };
   const isDone      = appt.status === 'COMPLETED' || appt.status === 'NO_SHOW';
   const isCheckedIn = appt.status === 'CHECKED_IN';
   const isInRoom    = appt.status === 'IN_PROGRESS';
@@ -129,27 +131,27 @@ function ApptCard({
             )}
             {/* Status badge */}
             {isInRoom && (
-              <StatusPill label="En sala" state="info" />
+              <StatusPill label={t('statusInRoom')} state="info" />
             )}
             {isCheckedIn && (
-              <StatusPill label="Check-in ✓" state="success" />
+              <StatusPill label={t('statusCheckedIn')} state="success" />
             )}
             {appt.status === 'COMPLETED' && (
-              <StatusPill label="Completado" state="success" />
+              <StatusPill label={t('statusCompleted')} state="success" />
             )}
             {appt.status === 'NO_SHOW' && (
-              <StatusPill label="No asistió" state="danger" />
+              <StatusPill label={t('statusNoShow')} state="danger" />
             )}
             {appt.case?.hasPending && isPending && (
               <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-amber/30 bg-amber/10 text-amber">
                 <AlertTriangle className="w-2.5 h-2.5" />
-                Verificación pendiente
+                {t('verificationPending')}
               </span>
             )}
             {appt.case?.isReady && isPending && (
               <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold border border-emerald/30 bg-emerald/10 text-emerald">
                 <CheckCircle2 className="w-2.5 h-2.5" />
-                Documentos OK
+                {t('documentsOk')}
               </span>
             )}
           </div>
@@ -183,7 +185,7 @@ function ApptCard({
           {/* Checked-in time */}
           {appt.checkedInAt && (
             <div className="mt-1 text-[10px] text-emerald">
-              ✓ Check-in a las {fmtTime(appt.checkedInAt)}
+              {t('checkedInAt', { time: fmtTime(appt.checkedInAt) })}
             </div>
           )}
         </div>
@@ -199,13 +201,13 @@ function ApptCard({
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-xs font-semibold hover:bg-emerald/90 transition-colors disabled:opacity-50"
               >
                 <CheckCircle2 className="w-3 h-3" />
-                Check-in
+                {t('checkIn')}
               </button>
               <button
                 type="button"
                 onClick={() => router.push(`/admission/${appt.id}`)}
                 className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-emerald/40 text-emerald text-xs hover:bg-emerald/10 transition-colors"
-                title="Ver admisión completa"
+                title={t('viewFullAdmission')}
               >
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
@@ -218,7 +220,7 @@ function ApptCard({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-white text-xs font-semibold hover:bg-amber/90 transition-colors shadow-sm"
             >
               <UserCheck className="w-3 h-3" />
-              Admitir →
+              {t('admit')}
             </button>
           )}
           {isInRoom && (
@@ -227,7 +229,7 @@ function ApptCard({
               onClick={() => router.push(`/admission/${appt.id}`)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet/10 border border-violet/40 text-violet text-xs font-semibold hover:bg-violet/20 transition-colors"
             >
-              Con Dr. →
+              {t('withDoctor')}
             </button>
           )}
         </div>
@@ -239,6 +241,7 @@ function ApptCard({
 // ─── Main component ───────────────────────────────────────────────────────────
 export function AdmissionClient() {
   const router = useRouter();
+  const t = useTranslations('phoenix.admission');
   const [pending,     setPending]     = useState<AdmissionAppt[]>([]);
   const [active,      setActive]      = useState<AdmissionAppt[]>([]);
   const [done,        setDone]        = useState<AdmissionAppt[]>([]);
@@ -284,8 +287,8 @@ export function AdmissionClient() {
   return (
     <div className="flex flex-col">
       <PageHeader
-        title="Check-in del día"
-        subtitle={displayDate || 'Admisión · Recepción'}
+        title={t('pageTitle')}
+        subtitle={displayDate || t('pageSubtitle')}
         action={
           <div className="flex items-center gap-2">
             <button
@@ -294,7 +297,7 @@ export function AdmissionClient() {
               className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all"
             >
               <Search className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Buscar paciente</span>
+              <span className="hidden sm:inline">{t('searchPatient')}</span>
             </button>
             <button
               type="button"
@@ -302,7 +305,7 @@ export function AdmissionClient() {
               className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all"
             >
               <CalendarDays className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Ver agenda</span>
+              <span className="hidden sm:inline">{t('viewAgenda')}</span>
             </button>
             <button
               type="button"
@@ -319,10 +322,10 @@ export function AdmissionClient() {
       <div className="px-4 sm:px-6 pb-8 space-y-5">
         {/* KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <KpiCard label="Citas hoy"    value={totals.total}     tone="cyan"    icon={CalendarDays} />
-          <KpiCard label="Check-in"     value={totals.checkedIn} tone="emerald" icon={CheckCircle2} />
-          <KpiCard label="En sala"      value={totals.inRoom}    tone="violet"  icon={Stethoscope} />
-          <KpiCard label="Pendientes"   value={totals.pending}   tone="amber"   icon={Clock} />
+          <KpiCard label={t('kpiAppointmentsToday')} value={totals.total}     tone="cyan"    icon={CalendarDays} />
+          <KpiCard label={t('kpiCheckedIn')}          value={totals.checkedIn} tone="emerald" icon={CheckCircle2} />
+          <KpiCard label={t('kpiInRoom')}              value={totals.inRoom}    tone="violet"  icon={Stethoscope} />
+          <KpiCard label={t('kpiPending')}             value={totals.pending}   tone="amber"   icon={Clock} />
         </div>
 
         {loading ? (
@@ -334,8 +337,8 @@ export function AdmissionClient() {
         ) : totals.total === 0 ? (
           <EmptyState.Rich
             icon={CalendarDays}
-            title="Sin citas para hoy"
-            subtitle="No hay citas programadas para hoy. Revisá el calendario para otros días."
+            title={t('emptyTitle')}
+            subtitle={t('emptySubtitle')}
           />
         ) : (
           <>
@@ -348,7 +351,7 @@ export function AdmissionClient() {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-amber" />
                   </span>
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-amber">
-                    Esperando admisión ({awaitingAdmission.length})
+                    {t('sectionAwaitingAdmission', { count: awaitingAdmission.length })}
                   </h2>
                 </div>
                 <div className="space-y-2.5">
@@ -370,7 +373,7 @@ export function AdmissionClient() {
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="w-4 h-4 text-text-muted" />
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                    Próximos en llegar ({pending.length})
+                    {t('sectionUpcoming', { count: pending.length })}
                   </h2>
                 </div>
                 <div className="space-y-2.5">
@@ -392,7 +395,7 @@ export function AdmissionClient() {
                 <div className="flex items-center gap-2 mb-3">
                   <Stethoscope className="w-4 h-4 text-violet" />
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-violet">
-                    En sala ({inRoom.length})
+                    {t('sectionInRoom', { count: inRoom.length })}
                   </h2>
                 </div>
                 <div className="space-y-2.5">
@@ -414,7 +417,7 @@ export function AdmissionClient() {
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-4 h-4 text-text-muted" />
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                    Completados ({done.length})
+                    {t('sectionCompleted', { count: done.length })}
                   </h2>
                 </div>
                 <div className="space-y-2 opacity-60">

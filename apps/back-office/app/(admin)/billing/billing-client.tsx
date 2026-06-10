@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   RefreshCw, DollarSign, FileText, CheckCircle2,
   Clock, ChevronRight, Phone, Scale, ShieldCheck,
@@ -70,9 +71,10 @@ function fmtMoney(n: number): string {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function CaseRow({ item, onHcfa }: {
+function CaseRow({ item, onHcfa, t }: {
   item: BillingItem;
   onHcfa: (item: BillingItem) => void;
+  t: ReturnType<typeof useTranslations>;
 }) {
   const router = useRouter();
   const isNew   = !item.hcfaGeneratedAt;
@@ -94,11 +96,11 @@ function CaseRow({ item, onHcfa }: {
 
             {isNew ? (
               <span className="border border-brand/30 rounded-full px-2 py-0.5 text-[9px] bg-brand/10 text-brand font-semibold uppercase tracking-wide">
-                Nueva nota
+                {t('badgeNewNote')}
               </span>
             ) : (
               <span className="border border-emerald/30 rounded-full px-2 py-0.5 text-[9px] bg-emerald/8 text-emerald font-semibold">
-                ✓ HCFA generado
+                {t('badgeHcfaGenerated')}
               </span>
             )}
 
@@ -147,7 +149,7 @@ function CaseRow({ item, onHcfa }: {
 
           {item.hcfaGeneratedAt && (
             <div className="text-[10px] text-text-muted mt-1">
-              HCFA enviado el {fmtDate(item.hcfaGeneratedAt)}
+              {t('hcfaSentOn')} {fmtDate(item.hcfaGeneratedAt)}
             </div>
           )}
         </div>
@@ -159,7 +161,7 @@ function CaseRow({ item, onHcfa }: {
             onClick={() => router.push(`/billing/${item.caseId}`)}
             className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/35 hover:text-amber transition-all"
           >
-            👁 Ver nota
+            {t('btnViewNote')}
           </button>
 
           {isReady ? (
@@ -168,7 +170,7 @@ function CaseRow({ item, onHcfa }: {
               onClick={() => onHcfa(item)}
               className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-all"
             >
-              📄 Generar HCFA →
+              {t('btnGenerateHcfa')}
             </button>
           ) : item.primaryInsurance?.['claimsPhone' as keyof typeof item.primaryInsurance] && (
             <a
@@ -176,7 +178,7 @@ function CaseRow({ item, onHcfa }: {
               className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-cyan/35 hover:text-cyan transition-all"
             >
               <Phone className="w-3 h-3" />
-              Llamar aseguradora
+              {t('btnCallInsurer')}
             </a>
           )}
 
@@ -189,6 +191,7 @@ function CaseRow({ item, onHcfa }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export function BillingClient() {
+  const t = useTranslations('phoenix.billing');
   const [items,   setItems]   = useState<BillingItem[]>([]);
   const [kpis,    setKpis]    = useState<Kpis>({ notesReady: 0, hcfaSent: 0, totalBilled: 0, pendingCollection: 0 });
   const [tab,     setTab]     = useState<TabKey>('pending');
@@ -223,11 +226,11 @@ export function BillingClient() {
   }
 
   const TABS: { key: TabKey; label: string; count?: number; locked?: boolean }[] = [
-    { key: 'pending',     label: '📝 Notas pendientes',  count: kpis.notesReady },
-    { key: 'hcfa',        label: '📄 HCFA generados',    count: kpis.hcfaSent   },
-    { key: 'ledger',      label: '💰 Ledgers',            locked: true           },
-    { key: 'legal',       label: '⚖️ Comunicación legal', locked: true           },
-    { key: 'settlements', label: '🎯 Settlements',        locked: true           },
+    { key: 'pending',     label: t('tabPending'),     count: kpis.notesReady },
+    { key: 'hcfa',        label: t('tabHcfa'),         count: kpis.hcfaSent   },
+    { key: 'ledger',      label: t('tabLedger'),       locked: true           },
+    { key: 'legal',       label: t('tabLegal'),        locked: true           },
+    { key: 'settlements', label: t('tabSettlements'),  locked: true           },
   ];
 
   const isActiveContent = tab === 'pending' || tab === 'hcfa';
@@ -235,8 +238,8 @@ export function BillingClient() {
   return (
     <div className="flex flex-col">
       <PageHeader
-        title="Bandeja de Brunella"
-        subtitle="Billing & Finance · Notas firmadas listas para HCFA"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         action={
           <button
             type="button"
@@ -245,7 +248,7 @@ export function BillingClient() {
             className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
+            {t('btnRefresh')}
           </button>
         }
       />
@@ -254,10 +257,10 @@ export function BillingClient() {
 
         {/* KPI row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <KpiCard label="Notas listas"       value={kpis.notesReady}                  color="text-cyan"    sub="Generar HCFA"    compact />
-          <KpiCard label="HCFA enviados"      value={kpis.hcfaSent}                    color="text-brand"   sub="Confirmados"     compact />
-          <KpiCard label="Cobros recibidos"   value={fmtMoney(kpis.totalBilled)}       color="text-emerald" sub="Mes (mock)"      compact />
-          <KpiCard label="Pendiente cobro"    value={fmtMoney(kpis.pendingCollection)} color="text-amber"   sub="Lien acumulado"  compact />
+          <KpiCard label={t('kpiNotesReady')}        value={kpis.notesReady}                  color="text-cyan"    sub={t('kpiNotesReadySub')}    compact />
+          <KpiCard label={t('kpiHcfaSent')}          value={kpis.hcfaSent}                    color="text-brand"   sub={t('kpiHcfaSentSub')}      compact />
+          <KpiCard label={t('kpiCollected')}         value={fmtMoney(kpis.totalBilled)}       color="text-emerald" sub={t('kpiCollectedSub')}     compact />
+          <KpiCard label={t('kpiPendingCollection')} value={fmtMoney(kpis.pendingCollection)} color="text-amber"   sub={t('kpiPendingCollectionSub')} compact />
         </div>
 
         {/* Tabs */}
@@ -293,7 +296,7 @@ export function BillingClient() {
         {/* Content */}
         {!isActiveContent ? (
           <div className="rounded-lg border border-dashed border-border p-12 text-center text-text-muted text-sm">
-            Disponible en Phase 2 🔒
+            {t('phase2Locked')}
           </div>
         ) : loading ? (
           <div className="space-y-3">
@@ -304,21 +307,22 @@ export function BillingClient() {
         ) : items.length === 0 ? (
           <EmptyState.Rich
             icon={Briefcase}
-            title={tab === 'pending' ? 'No hay notas pendientes de billing' : 'No hay HCFA generados aún'}
+            title={tab === 'pending' ? t('emptyPendingTitle') : t('emptyHcfaTitle')}
             subtitle={tab === 'pending'
-              ? 'Cuando el doctor firme una nota SOAP, aparecerá aquí.'
-              : 'Las notas con HCFA generado aparecerán aquí.'}
+              ? t('emptyPendingSubtitle')
+              : t('emptyHcfaSubtitle')}
           />
         ) : (
           <div className="space-y-2.5">
             <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted px-1">
-              {items.length} caso{items.length !== 1 ? 's' : ''}
+              {t('caseCount', { count: items.length })}
             </div>
             {items.map(item => (
               <CaseRow
                 key={item.caseId}
                 item={{ ...item, primaryInsurance: item.primaryInsurance }}
                 onHcfa={hcfaLoading ? () => {} : handleHcfa}
+                t={t}
               />
             ))}
           </div>

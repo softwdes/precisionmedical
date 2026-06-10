@@ -13,6 +13,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Scale, ShieldCheck, Phone, Mail, CheckCircle2,
@@ -72,10 +73,7 @@ function fmtDateTime(iso: string | null) {
   });
 }
 
-const ACCIDENT_TYPE_LABELS: Record<string, string> = {
-  AUTO: 'Auto', MOTORCYCLE: 'Moto', PEDESTRIAN: 'Peatón',
-  WORKPLACE: 'Trabajo', OTHER: 'Otro',
-};
+// Accident type labels resolved via t() in the component — see accidentTypeLabel usage
 
 // ─── ChecklistItem ────────────────────────────────────────────────────────────
 function ChecklistItem({ done, label, meta }: { done: boolean; label: string; meta?: string }) {
@@ -99,6 +97,7 @@ function ChecklistItem({ done, label, meta }: { done: boolean; label: string; me
 function LogContactModal({
   caseId, onClose, onDone,
 }: { caseId: string; onClose: () => void; onDone: () => void }) {
+  const t = useTranslations('phoenix.intake');
   const [type,        setType]        = useState<'call' | 'email'>('call');
   const [contactName, setContactName] = useState('');
   const [description, setDescription] = useState('');
@@ -123,32 +122,32 @@ function LogContactModal({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-xl border border-border bg-bg-1 shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <div className="font-semibold text-text-1 text-sm">Registrar comunicación</div>
+          <div className="font-semibold text-text-1 text-sm">{t('logContactTitle')}</div>
           <button onClick={onClose} className="text-text-muted hover:text-text-1 text-lg leading-none">×</button>
         </div>
         <div className="p-5 space-y-4">
           {/* Type toggle */}
           <div className="flex gap-2">
-            {(['call', 'email'] as const).map(t => (
+            {(['call', 'email'] as const).map(contactType => (
               <button
-                key={t}
+                key={contactType}
                 type="button"
-                onClick={() => setType(t)}
+                onClick={() => setType(contactType)}
                 className={`flex items-center gap-1.5 flex-1 justify-center py-2 rounded-md border text-xs font-semibold transition-all ${
-                  type === t
+                  type === contactType
                     ? 'border-amber/40 bg-amber/10 text-amber'
                     : 'border-border text-text-2 hover:border-border-strong'
                 }`}
               >
-                {t === 'call' ? <Phone className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
-                {t === 'call' ? 'Llamada' : 'Email'}
+                {contactType === 'call' ? <Phone className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+                {contactType === 'call' ? t('contactTypeCall') : t('contactTypeEmail')}
               </button>
             ))}
           </div>
           {/* Contact name */}
           <div>
             <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1 block">
-              Contacto
+              {t('contactFieldName')}
             </label>
             <input
               value={contactName}
@@ -160,7 +159,7 @@ function LogContactModal({
           {/* Description */}
           <div>
             <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1 block">
-              Descripción *
+              {t('contactFieldDescription')}
             </label>
             <textarea
               value={description}
@@ -176,14 +175,14 @@ function LogContactModal({
             onClick={onClose}
             className="flex-1 py-2 rounded-md border border-border text-text-2 text-sm hover:bg-white/5 transition-colors"
           >
-            Cancelar
+            {t('actionCancel')}
           </button>
           <button
             onClick={submit}
             disabled={saving || !description.trim()}
             className="flex-1 py-2 rounded-md bg-amber text-black text-sm font-semibold hover:bg-amber/90 transition-colors disabled:opacity-50"
           >
-            {saving ? 'Guardando...' : 'Registrar'}
+            {saving ? t('actionSaving') : t('actionRegister')}
           </button>
         </div>
       </div>
@@ -193,6 +192,7 @@ function LogContactModal({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function IntakeDetailClient({ caseId }: { caseId: string }) {
+  const t = useTranslations('phoenix.intake');
   const router = useRouter();
   const [detail,      setDetail]      = useState<CaseDetail | null>(null);
   const [loading,     setLoading]     = useState(true);
@@ -225,7 +225,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
   if (loading || !detail) {
     return (
       <div className="flex flex-col">
-        <PageHeader title="Cargando..." subtitle="Verificación de caso" />
+        <PageHeader title={t('loading')} subtitle={t('caseVerification')} />
         <div className="px-6 pb-6 space-y-4">
           {[1, 2, 3].map(i => (
             <div key={i} className="h-40 rounded-lg bg-bg-2/40 animate-pulse" />
@@ -240,18 +240,18 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
 
   // ─── Checklist law firm ─────────────────────────────────────────────────
   const lawFirmItems = [
-    { done: !!d.lawFirm,    label: 'Representación confirmada',    meta: d.lawFirm?.firmName ?? undefined },
-    { done: !!d.accidentDate, label: 'DOL confirmado',             meta: d.accidentDate ? fmtDate(d.accidentDate) : undefined },
-    { done: !!d.attorney,   label: 'Attorney asignado',            meta: d.attorney ? `${d.attorney.firstName ?? ''} ${d.attorney.lastName ?? ''}`.trim() || undefined : undefined },
-    { done: false,          label: 'Lien pendiente firma',         meta: 'Esperando firma del abogado' },
+    { done: !!d.lawFirm,    label: t('checkRepresentation'),          meta: d.lawFirm?.firmName ?? undefined },
+    { done: !!d.accidentDate, label: t('checkDolConfirmed'),          meta: d.accidentDate ? fmtDate(d.accidentDate) : undefined },
+    { done: !!d.attorney,   label: t('checkAttorneyAssigned'),        meta: d.attorney ? `${d.attorney.firstName ?? ''} ${d.attorney.lastName ?? ''}`.trim() || undefined : undefined },
+    { done: false,          label: t('checkLienPending'),             meta: t('checkLienPendingMeta') },
   ];
 
   // ─── Checklist PIP ──────────────────────────────────────────────────────
   const pipItems = [
-    { done: !!d.pipVerifiedAt, label: 'Cobertura PIP confirmada',  meta: d.pipVerifiedAt ? `Verificado ${fmtDate(d.pipVerifiedAt)}` : undefined },
-    { done: false,             label: 'Beneficios disponibles ($)', meta: undefined },
-    { done: false,             label: 'Contacto del ajustador',     meta: undefined },
-    { done: false,             label: 'Facturación & documentos',   meta: undefined },
+    { done: !!d.pipVerifiedAt, label: t('checkPipCoverage'),          meta: d.pipVerifiedAt ? t('checkPipVerifiedMeta', { date: fmtDate(d.pipVerifiedAt) }) : undefined },
+    { done: false,             label: t('checkPipBenefits'),          meta: undefined },
+    { done: false,             label: t('checkAdjusterContact'),      meta: undefined },
+    { done: false,             label: t('checkBillingDocs'),          meta: undefined },
   ];
 
   const overallState: StatusState = d.isReady ? 'success' : d.awaitingLawFirm && d.awaitingPip ? 'warning' : 'info';
@@ -277,7 +277,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
               className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Bandeja
+              {t('actionInbox')}
             </button>
           }
         />
@@ -292,16 +292,25 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                   <span className="font-bold text-text-1">{patientName}</span>
                   <span className="font-mono text-[11px] text-amber">{d.caseCode}</span>
                   <StatusPill
-                    label={d.isReady ? 'Listo para cita' : 'En verificación'}
+                    label={d.isReady ? t('statusReadyForAppt') : t('statusInVerification')}
                     state={overallState}
                   />
                   {!d.isReady && (
-                    <StatusPill label="⚠ Verificación pendiente" state="warning" />
+                    <StatusPill label={t('statusVerificationPending')} state="warning" />
                   )}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
                   {d.accidentDate && <span>DOL: {fmtDate(d.accidentDate)}</span>}
-                  {d.accidentType && <span>{ACCIDENT_TYPE_LABELS[d.accidentType] ?? d.accidentType}</span>}
+                  {d.accidentType && (() => {
+                    const accidentTypeLabels: Record<string, string> = {
+                      AUTO: t('accidentTypeAuto'),
+                      MOTORCYCLE: t('accidentTypeMotorcycle'),
+                      PEDESTRIAN: t('accidentTypePedestrian'),
+                      WORKPLACE: t('accidentTypeWorkplace'),
+                      OTHER: t('accidentTypeOther'),
+                    };
+                    return <span>{accidentTypeLabels[d.accidentType] ?? d.accidentType}</span>;
+                  })()}
                   {d.accidentLocation && <span>{d.accidentLocation}</span>}
                   {d.lawFirm?.firmName && (
                     <span className="flex items-center gap-1">
@@ -309,7 +318,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                     </span>
                   )}
                   {d.intakeFormCompletedAt && (
-                    <span className="text-emerald">✓ Form completado {fmtDateTime(d.intakeFormCompletedAt)}</span>
+                    <span className="text-emerald">{t('formCompleted', { datetime: fmtDateTime(d.intakeFormCompletedAt) })}</span>
                   )}
                 </div>
               </div>
@@ -325,10 +334,10 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Scale className={`w-4 h-4 ${d.awaitingLawFirm ? 'text-amber' : 'text-emerald'}`} />
-                  <span className="text-sm font-bold text-text-1">Verificación · Law Firm</span>
+                  <span className="text-sm font-bold text-text-1">{t('panelLawFirm')}</span>
                 </div>
                 <StatusPill
-                  label={d.awaitingLawFirm ? 'En proceso' : 'Completado'}
+                  label={d.awaitingLawFirm ? t('statusInProcess') : t('statusCompleted')}
                   state={d.awaitingLawFirm ? 'warning' : 'success'}
                 />
               </div>
@@ -348,7 +357,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                       className="flex items-center justify-center gap-2 py-2 rounded-md bg-amber/10 border border-amber/30 text-amber text-xs font-semibold hover:bg-amber/15 transition-colors"
                     >
                       <Phone className="w-3.5 h-3.5" />
-                      Llamar a {d.lawFirm.firmName ?? 'Law Firm'}
+                      {t('actionCallFirm', { firm: d.lawFirm.firmName ?? 'Law Firm' })}
                     </a>
                   )}
                   {d.attorney?.email && (
@@ -357,7 +366,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                       className="flex items-center justify-center gap-2 py-2 rounded-md border border-border text-text-2 text-xs hover:border-amber/30 hover:text-amber transition-colors"
                     >
                       <Mail className="w-3.5 h-3.5" />
-                      Reenviar link de firma
+                      {t('actionResendSignLink')}
                     </a>
                   )}
                 </div>
@@ -371,10 +380,10 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className={`w-4 h-4 ${d.pipVerifiedAt ? 'text-emerald' : 'text-rose'}`} />
-                  <span className="text-sm font-bold text-text-1">Verificación · PIP</span>
+                  <span className="text-sm font-bold text-text-1">{t('panelPip')}</span>
                 </div>
                 <StatusPill
-                  label={d.pipVerifiedAt ? 'Verificado' : 'No iniciado'}
+                  label={d.pipVerifiedAt ? t('statusVerified') : t('statusNotStarted')}
                   state={d.pipVerifiedAt ? 'success' : 'danger'}
                 />
               </div>
@@ -412,7 +421,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                       className="flex items-center justify-center gap-2 py-2 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors"
                     >
                       <Phone className="w-3.5 h-3.5" />
-                      Llamar a {d.primaryInsurance.name}
+                      {t('actionCallInsurer', { insurer: d.primaryInsurance.name })}
                     </a>
                   )}
                   {d.primaryInsurance?.claimsEmail && (
@@ -421,7 +430,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                       className="flex items-center justify-center gap-2 py-2 rounded-md border border-border text-text-2 text-xs hover:border-rose/30 hover:text-rose transition-colors"
                     >
                       <Mail className="w-3.5 h-3.5" />
-                      Email a aseguradora
+                      {t('actionEmailInsurer')}
                     </a>
                   )}
                   <button
@@ -431,7 +440,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                     className="flex items-center justify-center gap-2 py-2 rounded-md border border-emerald/40 text-emerald text-xs font-semibold hover:bg-emerald/10 transition-colors disabled:opacity-50"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    {verifyingPip ? 'Marcando...' : 'Marcar PIP verificado ✓'}
+                    {verifyingPip ? t('actionMarkingPip') : t('actionMarkPipVerified')}
                   </button>
                 </div>
               )}
@@ -443,9 +452,9 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
             <div className="rounded-lg border border-emerald/40 bg-emerald/10 p-4 flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald shrink-0" />
               <div>
-                <div className="text-emerald font-bold text-sm">Caso listo para primera cita</div>
+                <div className="text-emerald font-bold text-sm">{t('readyBannerTitle')}</div>
                 <div className="text-emerald/70 text-[11px]">
-                  Law Firm + PIP verificados · Agendá la cita en el Calendario (B.10)
+                  {t('readyBannerSub')}
                 </div>
               </div>
               <button
@@ -453,7 +462,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                 onClick={() => router.push('/calendar')}
                 className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-xs font-semibold hover:bg-emerald/90 transition-colors shrink-0"
               >
-                Ir al Calendario
+                {t('actionGoToCalendar')}
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -464,7 +473,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
             <div className="rounded-lg border border-border bg-bg-1 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <CalendarDays className="w-4 h-4 text-amber" />
-                <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">Citas agendadas</span>
+                <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionAppointments')}</span>
               </div>
               <div className="space-y-2">
                 {d.appointments.map(a => (
@@ -484,7 +493,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-amber" />
                 <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">
-                  Historial de comunicación
+                  {t('sectionCommHistory')}
                 </span>
               </div>
               <button
@@ -493,13 +502,13 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                 className="flex items-center gap-1.5 px-2.5 h-7 rounded-md border border-amber/35 text-amber text-[11px] font-semibold hover:bg-amber/10 transition-colors"
               >
                 <Plus className="w-3 h-3" />
-                Registrar
+                {t('actionRegister')}
               </button>
             </div>
 
             {d.notes.length === 0 ? (
               <div className="text-center py-6 text-text-muted text-sm">
-                Sin comunicaciones registradas
+                {t('emptyComms')}
               </div>
             ) : (
               <div className="space-y-2">

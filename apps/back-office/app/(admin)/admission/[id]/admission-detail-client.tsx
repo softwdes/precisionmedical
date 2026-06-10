@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, ShieldCheck, Scale, CheckCircle2, Clock,
   DollarSign, FileText, Stethoscope, AlertTriangle,
@@ -101,6 +102,7 @@ function ChecklistRow({ done, label, meta }: { done: boolean; label: string; met
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function AdmissionDetailClient({ appointmentId }: { appointmentId: string }) {
   const router = useRouter();
+  const t = useTranslations('phoenix.admission');
   const [detail,    setDetail]    = useState<ApptDetail | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [admitting, setAdmitting] = useState(false);
@@ -134,7 +136,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   if (loading || !detail) {
     return (
       <div className="flex flex-col">
-        <PageHeader title="Cargando..." subtitle="Admisión" />
+        <PageHeader title={t('loading')} subtitle={t('detailPageSubtitle')} />
         <div className="px-6 pb-6 space-y-4">
           {[1, 2, 3].map(i => <div key={i} className="h-40 rounded-lg bg-bg-2/40 animate-pulse" />)}
         </div>
@@ -154,18 +156,18 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const docItems = [
     {
       done:  !!d.case?.intakeFormCompletedAt,
-      label: 'Formulario de intake completado',
-      meta:  d.case?.intakeFormCompletedAt ? `Completado ${fmtDate(d.case.intakeFormCompletedAt)}` : undefined,
+      label: t('docIntakeForm'),
+      meta:  d.case?.intakeFormCompletedAt ? t('docIntakeFormCompleted', { date: fmtDate(d.case.intakeFormCompletedAt) }) : undefined,
     },
     {
       done:  !!d.case?.pipActive,
-      label: 'PIP verificado',
-      meta:  d.case?.pipVerifiedAt ? `Verificado ${fmtDate(d.case.pipVerifiedAt)}` : 'Sin verificar',
+      label: t('docPipVerified'),
+      meta:  d.case?.pipVerifiedAt ? t('docPipVerifiedOn', { date: fmtDate(d.case.pipVerifiedAt) }) : t('docPipNotVerified'),
     },
     {
       done:  !!d.case?.lienSigned,
-      label: 'Acuerdo de lien firmado',
-      meta:  d.case?.lienSigned ? 'Firmado por paciente y abogado' : 'Pendiente de firma',
+      label: t('docLienSigned'),
+      meta:  d.case?.lienSigned ? t('docLienSignedMeta') : t('docLienPending'),
     },
   ];
 
@@ -173,7 +175,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
     <div className="flex flex-col">
       <PageHeader
         title={patientName}
-        subtitle={d.case?.caseCode ?? 'Admisión'}
+        subtitle={d.case?.caseCode ?? t('detailPageSubtitle')}
         action={
           <button
             type="button"
@@ -181,7 +183,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Cola del día
+            {t('dailyQueue')}
           </button>
         }
       />
@@ -192,7 +194,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-emerald flex items-center justify-center text-white text-[11px] font-bold">✓</div>
-            <span className="text-emerald text-[11px] font-semibold hidden sm:inline">Check-in</span>
+            <span className="text-emerald text-[11px] font-semibold hidden sm:inline">{t('stepCheckIn')}</span>
           </div>
           <div className="flex-1 h-px bg-border" />
           <div className="flex items-center gap-2">
@@ -202,7 +204,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 : 'bg-brand text-white'
             }`}>2</div>
             <span className={`text-[11px] font-semibold hidden sm:inline ${isAlreadyInRoom ? 'text-emerald' : 'text-text-1'}`}>
-              Pagos y Cobros
+              {t('stepPayments')}
             </span>
           </div>
           <div className="flex-1 h-px bg-border" />
@@ -211,7 +213,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               isAlreadyInRoom ? 'bg-violet text-white' : 'bg-bg-2 text-text-muted'
             }`}>3</div>
             <span className={`text-[11px] font-semibold hidden sm:inline ${isAlreadyInRoom ? 'text-violet' : 'text-text-muted'}`}>
-              En sala
+              {t('stepInRoom')}
             </span>
           </div>
         </div>
@@ -224,7 +226,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <span className="font-bold text-text-1">{patientName}</span>
                 {d.case && <span className="font-mono text-[11px] text-emerald">{d.case.caseCode}</span>}
-                <StatusPill label={isAlreadyInRoom ? 'En sala' : 'En admisión'} state={overallState} />
+                <StatusPill label={isAlreadyInRoom ? t('statusInRoom') : t('statusInAdmission')} state={overallState} />
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-text-muted">
                 <span className="flex items-center gap-1">
@@ -253,10 +255,10 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             <Stethoscope className="w-5 h-5 text-violet shrink-0" />
             <div>
               <div className="text-violet font-bold text-sm">
-                {d.status === 'COMPLETED' ? 'Visita completada' : 'Paciente pasó a la sala'}
+                {d.status === 'COMPLETED' ? t('visitCompleted') : t('patientPassedToRoom')}
               </div>
               <div className="text-violet/70 text-[11px]">
-                {d.provider ? `Con Dr. ${d.provider.firstName} ${d.provider.lastName}` : 'Sin proveedor asignado'}
+                {d.provider ? t('withDoctorName', { firstName: d.provider.firstName, lastName: d.provider.lastName }) : t('noProviderAssigned')}
               </div>
             </div>
             {d.status === 'IN_PROGRESS' && (
@@ -265,7 +267,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 onClick={() => router.push('/calendar')}
                 className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet text-white text-xs font-semibold hover:bg-violet/90 shrink-0"
               >
-                Ver calendario <ChevronRight className="w-3.5 h-3.5" />
+                {t('viewCalendar')} <ChevronRight className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
@@ -281,16 +283,16 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Stethoscope className="w-4 h-4 text-emerald" />
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">Servicio del día</span>
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionServiceToday')}</span>
                 </div>
                 <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 text-sm">
                   <div className="font-semibold text-text-1">{TYPE_LABELS[d.type] ?? d.type}</div>
                   {d.provider && (
                     <div className="text-text-muted text-[11px] mt-0.5">
-                      Dr. {d.provider.firstName} {d.provider.lastName} · {d.durationMinutes} min estimados
+                      Dr. {d.provider.firstName} {d.provider.lastName} · {t('estimatedMinutes', { minutes: d.durationMinutes })}
                     </div>
                   )}
-                  <div className="text-text-muted text-[11px] mt-0.5">CPT asignado por el doctor después de la visita</div>
+                  <div className="text-text-muted text-[11px] mt-0.5">{t('cptAssignedAfterVisit')}</div>
                 </div>
               </div>
 
@@ -299,7 +301,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald" />
-                    <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">Cobertura</span>
+                    <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionCoverage')}</span>
                   </div>
                   {d.case?.primaryInsurance && (
                     <div
@@ -314,14 +316,14 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   <div className={`rounded-md border p-3 ${d.case.pipActive ? 'border-emerald/30 bg-emerald/5' : 'border-amber/30 bg-amber/5'}`}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-semibold text-text-1 text-sm">{d.case.primaryInsurance.name}</span>
-                      <StatusPill label={d.case.pipActive ? 'PIP Activo' : 'Sin verificar'} state={d.case.pipActive ? 'success' : 'warning'} />
+                      <StatusPill label={d.case.pipActive ? t('pipActive') : t('pipNotVerified')} state={d.case.pipActive ? 'success' : 'warning'} />
                     </div>
                     {d.case.primaryPolicyNumber && (
                       <div className="text-[10px] text-text-muted font-mono">{d.case.primaryPolicyNumber}</div>
                     )}
                     {d.case.pipVerifiedAt && (
                       <div className="text-[10px] text-emerald mt-1">
-                        ✓ Verificado {fmtDate(d.case.pipVerifiedAt)} por Edson
+                        {t('pipVerifiedBy', { date: fmtDate(d.case.pipVerifiedAt) })}
                       </div>
                     )}
                     {d.case.primaryInsurance.claimsPhone && (
@@ -333,7 +335,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 ) : (
                   <div className="rounded-md border border-amber/30 bg-amber/5 p-3 text-[11px] text-amber">
                     <AlertTriangle className="w-3.5 h-3.5 inline mr-1" />
-                    Sin seguro registrado — verificar con Edson
+                    {t('noInsuranceRegistered')}
                   </div>
                 )}
               </div>
@@ -342,13 +344,13 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Scale className="w-4 h-4 text-emerald" />
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">Acuerdo de Lien</span>
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionLien')}</span>
                 </div>
                 {d.case?.lienSigned ? (
                   <div className="rounded-md border border-emerald/30 bg-emerald/5 p-3 text-[11px] text-emerald space-y-0.5">
-                    <div>✓ Firmado por paciente</div>
+                    <div>{t('lienSignedByPatient')}</div>
                     {d.case.attorney && (
-                      <div>✓ Firmado por {d.case.attorney.firstName} {d.case.attorney.lastName}</div>
+                      <div>{t('lienSignedByAttorney', { firstName: d.case.attorney.firstName, lastName: d.case.attorney.lastName })}</div>
                     )}
                     {d.case.lawFirm?.firmName && (
                       <div className="text-text-muted">{d.case.lawFirm.firmName}</div>
@@ -357,7 +359,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 ) : (
                   <div className="rounded-md border border-amber/30 bg-amber/5 p-3 text-[11px] text-amber">
                     <AlertTriangle className="w-3.5 h-3.5 inline mr-1" />
-                    Lien pendiente — coordinar con Edson
+                    {t('lienPending')}
                   </div>
                 )}
               </div>
@@ -369,34 +371,34 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <DollarSign className="w-4 h-4 text-emerald" />
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">Cargo del día</span>
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionDailyCharge')}</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-[12px] text-text-2">
-                    <span>{TYPE_LABELS[d.type] ?? d.type} (estimado)</span>
+                    <span>{TYPE_LABELS[d.type] ?? d.type} ({t('estimated')})</span>
                     <span>{fmtUSD(d.financial.serviceEstimate)}</span>
                   </div>
                   {d.financial.pipCovers > 0 && (
                     <div className="flex justify-between text-[12px] text-emerald">
-                      <span>Aplica al PIP</span>
+                      <span>{t('appliesToPip')}</span>
                       <span>−{fmtUSD(d.financial.pipCovers)}</span>
                     </div>
                   )}
                   <div className="border-t border-border pt-2 flex justify-between font-bold text-sm">
-                    <span className="text-text-1">Paga el paciente</span>
+                    <span className="text-text-1">{t('patientPays')}</span>
                     <span className={d.financial.patientOwes === 0 ? 'text-emerald' : 'text-text-1'}>
                       {fmtUSD(d.financial.patientOwes)}
                     </span>
                   </div>
                   {d.financial.patientOwes === 0 && (
                     <div className="text-[10px] text-text-muted">
-                      {d.case?.isMVA ? 'MVA con PIP activo — sin copago para el paciente' : 'Sin cobro al paciente'}
+                      {d.case?.isMVA ? t('mvaNoCopayCopy') : t('noChargeToPatient')}
                     </div>
                   )}
                   {d.financial.patientOwes === null && (
                     <div className="text-[10px] text-amber">
                       <AlertTriangle className="w-3 h-3 inline mr-0.5" />
-                      Cobro a definir según seguro médico del paciente
+                      {t('chargeToBeDefinedCopy')}
                     </div>
                   )}
                 </div>
@@ -405,7 +407,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               {/* Nota operativa */}
               {d.case?.isMVA && (
                 <div className="rounded-md border border-amber/30 bg-amber/5 px-3 py-2.5 text-[11px] text-amber leading-relaxed">
-                  ℹ Si el doctor agrega procedimientos (ej. inyección), Brunella facturará el delta al PIP después de la visita.
+                  {t('mvaOperationalNote')}
                 </div>
               )}
 
@@ -413,7 +415,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <FileText className="w-4 h-4 text-emerald" />
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">Documentos</span>
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionDocuments')}</span>
                 </div>
                 <div className="space-y-1.5">
                   {docItems.map((item, i) => (
@@ -425,7 +427,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               {/* Confirmaciones */}
               <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="text-[11px] uppercase tracking-wider font-semibold text-text-muted mb-3">
-                  Confirmar antes de pasar a sala
+                  {t('confirmBeforeRoom')}
                 </div>
                 <div className="space-y-2">
                   {[
@@ -433,13 +435,13 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                       id: 'c1', checked: confirm1,
                       onChange: () => setConfirm1(v => !v),
                       label: d.financial.patientOwes === 0
-                        ? 'He explicado al paciente que no debe pagar hoy'
-                        : `He cobrado ${fmtUSD(d.financial.patientOwes)} al paciente`,
+                        ? t('confirmNoPaymentExplained')
+                        : t('confirmPaymentCollected', { amount: fmtUSD(d.financial.patientOwes) }),
                     },
                     {
                       id: 'c2', checked: confirm2,
                       onChange: () => setConfirm2(v => !v),
-                      label: 'El paciente recibió copia de la admisión',
+                      label: t('confirmAdmissionCopyGiven'),
                     },
                   ].map(item => (
                     <label
@@ -476,7 +478,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-md border border-border text-text-2 text-sm hover:bg-white/5 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Volver
+              {t('goBack')}
             </button>
             <button
               type="button"
@@ -485,11 +487,11 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-md bg-emerald text-white text-sm font-bold hover:bg-emerald/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {admitting ? (
-                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Procesando...</>
+                <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {t('processing')}</>
               ) : (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Pasar a la sala{d.provider ? ` con Dr. ${d.provider.lastName}` : ''} →
+                  {d.provider ? t('passToRoomWithDoctor', { lastName: d.provider.lastName }) : t('passToRoom')}
                 </>
               )}
             </button>

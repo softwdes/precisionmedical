@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   Scale,
   ShieldCheck,
@@ -63,10 +64,6 @@ interface Kpis {
 type FilterTab = 'all' | 'urgent' | 'lawFirm' | 'pip';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const ACCIDENT_TYPE_LABELS: Record<string, string> = {
-  AUTO: 'Auto', MOTORCYCLE: 'Moto', PEDESTRIAN: 'Peatón',
-  WORKPLACE: 'Trabajo', OTHER: 'Otro',
-};
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
@@ -111,7 +108,13 @@ function StatusChip({ label, ok }: { label: string; ok: boolean }) {
 }
 
 function CaseCard({ c }: { c: IntakeCase }) {
+  const t = useTranslations('phoenix.intake');
   const router = useRouter();
+  const ACCIDENT_TYPE_LABELS: Record<string, string> = {
+    AUTO: t('accidentTypeAuto'), MOTORCYCLE: t('accidentTypeMotorcycle'),
+    PEDESTRIAN: t('accidentTypePedestrian'), WORKPLACE: t('accidentTypeWorkplace'),
+    OTHER: t('accidentTypeOther'),
+  };
   const borderClass = c.isReady
     ? 'border-emerald/30 hover:border-emerald/50'
     : c.isUrgent
@@ -124,7 +127,7 @@ function CaseCard({ c }: { c: IntakeCase }) {
       ? 'bg-rose/10 text-rose border-rose/25'
       : 'bg-amber/10 text-amber border-amber/25';
 
-  const badgeLabel = c.isReady ? 'Listo para cita' : c.isUrgent ? '⚠ Urgente' : 'En verificación';
+  const badgeLabel = c.isReady ? t('badgeReady') : c.isUrgent ? t('badgeUrgent') : t('badgeVerifying');
 
   return (
     <div
@@ -144,7 +147,7 @@ function CaseCard({ c }: { c: IntakeCase }) {
             </span>
             {c.intakeFormCompletedAt && (
               <span className="border border-emerald/25 rounded-full px-2 py-0.5 text-[9px] bg-emerald/5 text-emerald font-semibold">
-                ✓ Form completo
+                {t('formComplete')}
               </span>
             )}
           </div>
@@ -225,6 +228,7 @@ function CaseCard({ c }: { c: IntakeCase }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function IntakeClient() {
+  const t = useTranslations('phoenix.intake');
   const router = useRouter();
   const [cases,   setCases]   = useState<IntakeCase[]>([]);
   const [kpis,    setKpis]    = useState<Kpis>({ newToday: 0, awaitingLawFirm: 0, awaitingPip: 0, readyForVisit: 0 });
@@ -250,17 +254,17 @@ export function IntakeClient() {
   useEffect(() => { void load(filter); }, [filter, load]);
 
   const tabs: { key: FilterTab; label: string; count?: number }[] = [
-    { key: 'all',     label: 'Todos',              count: kpis.newToday + kpis.awaitingLawFirm + kpis.awaitingPip },
-    { key: 'urgent',  label: '⚠ Urgentes'                                                                         },
-    { key: 'lawFirm', label: '⚖ Esperando Law Firm', count: kpis.awaitingLawFirm                                  },
-    { key: 'pip',     label: '🚗 Esperando PIP',       count: kpis.awaitingPip                                     },
+    { key: 'all',     label: t('tabAll'),              count: kpis.newToday + kpis.awaitingLawFirm + kpis.awaitingPip },
+    { key: 'urgent',  label: t('tabUrgent')                                                                            },
+    { key: 'lawFirm', label: t('tabAwaitingLawFirm'),  count: kpis.awaitingLawFirm                                    },
+    { key: 'pip',     label: t('tabAwaitingPip'),      count: kpis.awaitingPip                                        },
   ];
 
   return (
     <div className="flex flex-col">
       <PageHeader
-        title="Bandeja de Edson"
-        subtitle="Verificación pre-visita · Law Firm + PIP"
+        title={t('pageTitle')}
+        subtitle={t('pageSubtitle')}
         action={
           <button
             type="button"
@@ -269,7 +273,7 @@ export function IntakeClient() {
             className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
+            {t('refresh')}
           </button>
         }
       />
@@ -282,7 +286,7 @@ export function IntakeClient() {
             type="button"
             className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12px] font-bold text-amber border border-amber/30 bg-amber/10"
           >
-            Pre-visita · Verificación
+            {t('togglePreVisit')}
             <span className="rounded-full bg-amber/20 px-1.5 text-[10px] font-bold">{total}</span>
           </button>
           <button
@@ -290,17 +294,17 @@ export function IntakeClient() {
             onClick={() => router.push('/intake/seguimiento')}
             className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12px] font-semibold text-text-muted hover:text-text-1 hover:bg-white/[0.04] transition-all"
           >
-            Post-visita · Cobranzas
+            {t('togglePostVisit')}
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <KpiCard label="Nuevos hoy"          value={kpis.newToday}        tone="cyan"    sub="Creados hoy" />
-          <KpiCard label="Esperando Law Firm"  value={kpis.awaitingLawFirm} tone="amber"   sub="Sin abogado" />
-          <KpiCard label="Esperando PIP"       value={kpis.awaitingPip}     tone="amber"   sub="Sin PIP" />
-          <KpiCard label="Listos para cita"    value={kpis.readyForVisit}   tone="emerald" sub="Verificados" />
+          <KpiCard label={t('kpiNewToday')}         value={kpis.newToday}        tone="cyan"    sub={t('kpiNewTodaySub')} />
+          <KpiCard label={t('kpiAwaitingLawFirm')}  value={kpis.awaitingLawFirm} tone="amber"   sub={t('kpiAwaitingLawFirmSub')} />
+          <KpiCard label={t('kpiAwaitingPip')}      value={kpis.awaitingPip}     tone="amber"   sub={t('kpiAwaitingPipSub')} />
+          <KpiCard label={t('kpiReadyForVisit')}    value={kpis.readyForVisit}   tone="emerald" sub={t('kpiReadyForVisitSub')} />
         </div>
 
         {/* Filter tabs */}
@@ -338,17 +342,17 @@ export function IntakeClient() {
         ) : cases.length === 0 ? (
           <EmptyState.Rich
             icon={UserCheck}
-            title={filter === 'all' ? 'No hay casos pendientes' : 'Ningún caso en este filtro'}
+            title={filter === 'all' ? t('emptyAllTitle') : t('emptyFilterTitle')}
             subtitle={
               filter === 'all'
-                ? 'Todos los casos han sido verificados o están activos.'
-                : 'Cambiá el filtro para ver otros casos.'
+                ? t('emptyAllSubtitle')
+                : t('emptyFilterSubtitle')
             }
           />
         ) : (
           <div className="space-y-2.5">
             <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted px-1">
-              {total} caso{total !== 1 ? 's' : ''}
+              {t('caseCount', { count: total })}
             </div>
             {cases.map(c => (
               <CaseCard key={c.id} c={c} />

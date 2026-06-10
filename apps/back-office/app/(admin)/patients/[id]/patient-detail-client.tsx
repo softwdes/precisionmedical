@@ -13,6 +13,7 @@
  * o (futuro) clic en nombre de paciente en la queue.
  */
 
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Phone, Mail, Calendar, MapPin, Scale, FileText,
@@ -70,25 +71,26 @@ interface PatientData {
 
 // ─── Status meta ─────────────────────────────────────────────────────────────
 
-const PATIENT_STATUS_META: Record<PatientStatus, { label: string; colorClass: string }> = {
-  NEW:        { label: 'Nuevo',       colorClass: 'bg-brand/10 text-brand border-brand/30' },
-  ACTIVE:     { label: 'Activo',      colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
-  COMPLETED:  { label: 'Completado',  colorClass: 'bg-cyan/10 text-cyan border-cyan/30' },
-  DISCHARGED: { label: 'Dado de alta',colorClass: 'bg-violet/10 text-violet border-violet/30' },
-  INACTIVE:   { label: 'Inactivo',    colorClass: 'bg-bg-2 text-text-muted border-border' },
+const PATIENT_STATUS_COLORS: Record<PatientStatus, { colorClass: string }> = {
+  NEW:        { colorClass: 'bg-brand/10 text-brand border-brand/30' },
+  ACTIVE:     { colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
+  COMPLETED:  { colorClass: 'bg-cyan/10 text-cyan border-cyan/30' },
+  DISCHARGED: { colorClass: 'bg-violet/10 text-violet border-violet/30' },
+  INACTIVE:   { colorClass: 'bg-bg-2 text-text-muted border-border' },
 };
 
-const CASE_STATUS_META: Record<string, { label: string; colorClass: string; dot: string }> = {
-  NEW_REFERRAL:     { label: 'Nuevo referido',       colorClass: 'bg-rose/10 text-rose border-rose/30',           dot: 'bg-rose' },
-  INTAKE_PENDING:   { label: 'Intake pendiente',     colorClass: 'bg-amber/10 text-amber border-amber/30',        dot: 'bg-amber' },
-  INTAKE_COMPLETED: { label: 'Por confirmar',        colorClass: 'bg-cyan/10 text-cyan border-cyan/30',           dot: 'bg-cyan' },
-  CONFIRMED:        { label: 'Confirmado',           colorClass: 'bg-emerald/10 text-emerald border-emerald/30',  dot: 'bg-emerald' },
-  ACTIVE:           { label: 'Activo (en clínica)',  colorClass: 'bg-brand/10 text-brand border-brand/30',        dot: 'bg-brand' },
+const CASE_STATUS_COLORS: Record<string, { colorClass: string; dot: string }> = {
+  NEW_REFERRAL:     { colorClass: 'bg-rose/10 text-rose border-rose/30',           dot: 'bg-rose' },
+  INTAKE_PENDING:   { colorClass: 'bg-amber/10 text-amber border-amber/30',        dot: 'bg-amber' },
+  INTAKE_COMPLETED: { colorClass: 'bg-cyan/10 text-cyan border-cyan/30',           dot: 'bg-cyan' },
+  CONFIRMED:        { colorClass: 'bg-emerald/10 text-emerald border-emerald/30',  dot: 'bg-emerald' },
+  ACTIVE:           { colorClass: 'bg-brand/10 text-brand border-brand/30',        dot: 'bg-brand' },
 };
 
 // ─── Component principal ──────────────────────────────────────────────────────
 
 export function PatientDetailClient({ patient }: { patient: PatientData }) {
+  const t = useTranslations('phoenix.patients');
   const router = useRouter();
 
   // Estadísticas del paciente
@@ -104,7 +106,15 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
     ? Math.floor((Date.now() - new Date(patient.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : null;
 
-  const patientStatusMeta = PATIENT_STATUS_META[patient.status];
+  const patientStatusColors = PATIENT_STATUS_COLORS[patient.status];
+  const PATIENT_STATUS_LABEL_KEYS: Record<PatientStatus, string> = {
+    NEW:        t('patientStatus.NEW'),
+    ACTIVE:     t('patientStatus.ACTIVE'),
+    COMPLETED:  t('patientStatus.COMPLETED'),
+    DISCHARGED: t('patientStatus.DISCHARGED'),
+    INACTIVE:   t('patientStatus.INACTIVE'),
+  };
+  const patientStatusLabel = PATIENT_STATUS_LABEL_KEYS[patient.status];
 
   return (
     <div className="space-y-6">
@@ -123,19 +133,19 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span>{patient.firstName} {patient.lastName}</span>
                 <TagPill
-                  label={patientStatusMeta.label}
-                  colorClass={patientStatusMeta.colorClass}
+                  label={patientStatusLabel}
+                  colorClass={patientStatusColors.colorClass}
                 />
               </div>
               <div className="flex items-center gap-3 mt-1 flex-wrap">
                 <code className="text-text-muted text-xs font-mono font-normal">{patient.patientCode}</code>
                 {age !== null && (
                   <span className="text-text-muted text-xs font-normal flex items-center gap-1">
-                    <Cake className="w-3 h-3" /> {age} años
+                    <Cake className="w-3 h-3" /> {t('ageYears', { age })}
                   </span>
                 )}
                 <span className="text-text-muted text-xs font-normal flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Registrado {formatRelative(patient.createdAt)}
+                  <Clock className="w-3 h-3" /> {t('registeredRelative', { relative: formatRelative(patient.createdAt, t) })}
                 </span>
               </div>
             </div>
@@ -149,7 +159,7 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
               className="shrink-0"
             >
               <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
-              Volver
+              {t('actionBack')}
             </Button>
             {patient.phone && (
               <Button
@@ -158,7 +168,7 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
                 onClick={() => window.open(`tel:${patient.phone}`)}
               >
                 <Phone className="w-3.5 h-3.5 mr-1.5" />
-                <span className="hidden sm:inline">Llamar</span>
+                <span className="hidden sm:inline">{t('actionCall')}</span>
               </Button>
             )}
           </div>
@@ -167,31 +177,31 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
 
       {/* KPIs strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <KpiCard label="Casos totales"    value={totalCases}       sub="en este sistema"   color="text-brand" />
-        <KpiCard label="Casos activos"    value={activeCases}      sub="en proceso"         color="text-emerald" />
-        <KpiCard label="Citas totales"    value={totalAppointments} sub="acumuladas"        color="text-cyan" />
-        <KpiCard label="Notas internas"   value={totalNotes}        sub="de encargados"     color="text-violet" />
+        <KpiCard label={t('kpiTotalCases')}       value={totalCases}        sub={t('kpiTotalCasesSub')}        color="text-brand" />
+        <KpiCard label={t('kpiActiveCases')}      value={activeCases}       sub={t('kpiActiveCasesSub')}       color="text-emerald" />
+        <KpiCard label={t('kpiTotalAppointments')} value={totalAppointments} sub={t('kpiTotalAppointmentsSub')} color="text-cyan" />
+        <KpiCard label={t('kpiInternalNotes')}    value={totalNotes}        sub={t('kpiInternalNotesSub')}     color="text-violet" />
       </div>
 
       {/* Info grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Datos personales */}
-        <InfoCard title="Datos personales" icon={User}>
+        <InfoCard title={t('sectionPersonalData')} icon={User}>
           <InfoRow
-            label="Código"
+            label={t('fieldCode')}
             value={<code className="font-mono text-brand text-[11px]">{patient.patientCode}</code>}
           />
           <InfoRow
-            label="Fecha nac."
+            label={t('fieldDob')}
             value={
               patient.dateOfBirth
-                ? <span>{formatDate(patient.dateOfBirth)}{age !== null ? <span className="text-text-muted ml-2">({age} años)</span> : null}</span>
-                : <span className="text-text-muted italic">No registrada</span>
+                ? <span>{formatDate(patient.dateOfBirth)}{age !== null ? <span className="text-text-muted ml-2">({t('ageYears', { age })})</span> : null}</span>
+                : <span className="text-text-muted italic">{t('dobNotRegistered')}</span>
             }
           />
           <InfoRow
-            label="Teléfono"
+            label={t('fieldPhone')}
             value={
               patient.phone
                 ? <a href={`tel:${patient.phone}`} className="text-brand hover:underline font-mono text-[12.5px]">{patient.phone}</a>
@@ -199,7 +209,7 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
             }
           />
           <InfoRow
-            label="Email"
+            label={t('fieldEmail')}
             value={
               patient.email
                 ? <a href={`mailto:${patient.email}`} className="text-brand hover:underline text-[12.5px] break-all">{patient.email}</a>
@@ -207,15 +217,15 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
             }
           />
           <InfoRow
-            label="Status"
-            value={<TagPill label={patientStatusMeta.label} colorClass={patientStatusMeta.colorClass} />}
+            label={t('fieldStatus')}
+            value={<TagPill label={patientStatusLabel} colorClass={patientStatusColors.colorClass} />}
           />
         </InfoCard>
 
         {/* Referido por */}
-        <InfoCard title="Referido por" icon={Scale}>
+        <InfoCard title={t('sectionReferredBy')} icon={Scale}>
           <InfoRow
-            label="Bufete"
+            label={t('fieldFirm')}
             value={
               patient.lawyerReferrer
                 ? <span className="flex items-center gap-1.5"><Scale className="w-3 h-3 text-text-muted" />{patient.lawyerReferrer.firmName}</span>
@@ -223,7 +233,7 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
             }
           />
           <InfoRow
-            label="Proveedor"
+            label={t('fieldProvider')}
             value={
               patient.providerReferrer
                 ? `${patient.providerReferrer.firstName} ${patient.providerReferrer.lastName}`
@@ -231,14 +241,14 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
             }
           />
           <InfoRow
-            label="Registrado"
+            label={t('fieldRegistered')}
             value={<span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-text-muted" />{formatDate(patient.createdAt)}</span>}
           />
           <InfoRow
-            label="Total casos"
+            label={t('fieldTotalCases')}
             value={
               <span className="flex items-center gap-1 text-brand font-semibold">
-                <Hash className="w-3 h-3" />{totalCases} caso{totalCases !== 1 ? 's' : ''}
+                <Hash className="w-3 h-3" />{t('caseCount', { count: totalCases })}
               </span>
             }
           />
@@ -247,18 +257,18 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
 
       {/* Historial de casos */}
       <InfoCard
-        title="Historial de casos"
+        title={t('sectionCaseHistory')}
         icon={ClipboardList}
         rightSlot={
           <TagPill
-            label={`${totalCases} caso${totalCases !== 1 ? 's' : ''}`}
+            label={t('caseCount', { count: totalCases })}
             colorClass="bg-brand/10 text-brand border-brand/30"
             compact
           />
         }
       >
         {patient.cases.length === 0 ? (
-          <EmptyState.Inline message="No hay casos registrados para este paciente" />
+          <EmptyState.Inline message={t('emptyCases')} />
         ) : (
           <div className="space-y-2 -mx-1">
             {patient.cases.map((c) => (
@@ -283,9 +293,18 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
 // ─── CaseRow — fila de caso dentro de la ficha del paciente ─────────────────
 
 function CaseRow({ case: c, onClick }: { case: PatientCase; onClick: () => void }) {
-  const st = CASE_STATUS_META[c.status] ?? CASE_STATUS_META.NEW_REFERRAL;
+  const t = useTranslations('phoenix.patients');
+  const stColors = CASE_STATUS_COLORS[c.status] ?? CASE_STATUS_COLORS.NEW_REFERRAL;
+  const CASE_STATUS_LABEL_KEYS: Record<string, string> = {
+    NEW_REFERRAL:     t('caseStatus.NEW_REFERRAL'),
+    INTAKE_PENDING:   t('caseStatus.INTAKE_PENDING'),
+    INTAKE_COMPLETED: t('caseStatus.INTAKE_COMPLETED'),
+    CONFIRMED:        t('caseStatus.CONFIRMED'),
+    ACTIVE:           t('caseStatus.ACTIVE'),
+  };
+  const stLabel = CASE_STATUS_LABEL_KEYS[c.status] ?? t('caseStatus.NEW_REFERRAL');
   const ageH = (Date.now() - new Date(c.createdAt).getTime()) / (1000 * 60 * 60);
-  const ageLabel = ageH < 1 ? 'hace minutos' : ageH < 24 ? `hace ${Math.floor(ageH)}h` : `hace ${Math.floor(ageH / 24)}d`;
+  const ageLabel = ageH < 1 ? t('ageMinutes') : ageH < 24 ? t('ageHours', { h: Math.floor(ageH) }) : t('ageDays', { d: Math.floor(ageH / 24) });
 
   return (
     <button
@@ -297,14 +316,14 @@ function CaseRow({ case: c, onClick }: { case: PatientCase; onClick: () => void 
 
         {/* Status dot + code */}
         <div className="flex items-center gap-2 shrink-0 mt-0.5">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${st.dot}`} />
+          <span className={`w-2 h-2 rounded-full shrink-0 ${stColors.dot}`} />
           <code className="text-text-2 text-xs font-mono">{c.caseCode}</code>
         </div>
 
         {/* Main info */}
         <div className="flex-1 min-w-0 space-y-1.5">
           <div className="flex items-center gap-2 flex-wrap">
-            <TagPill label={st.label} colorClass={st.colorClass} compact />
+            <TagPill label={stLabel} colorClass={stColors.colorClass} compact />
             {c.specialty && (
               <TagPill
                 label={c.specialty.name}
@@ -343,10 +362,10 @@ function CaseRow({ case: c, onClick }: { case: PatientCase; onClick: () => void 
 
           <div className="flex items-center gap-3 text-[10px] text-text-muted">
             <span className="flex items-center gap-1">
-              <MessageSquare className="w-3 h-3" />{c._count.notes} nota{c._count.notes !== 1 ? 's' : ''}
+              <MessageSquare className="w-3 h-3" />{t('noteCount', { count: c._count.notes })}
             </span>
             <span className="flex items-center gap-1">
-              <Stethoscope className="w-3 h-3" />{c._count.appointments} cita{c._count.appointments !== 1 ? 's' : ''}
+              <Stethoscope className="w-3 h-3" />{t('appointmentCount', { count: c._count.appointments })}
             </span>
             <span className="ml-auto">{ageLabel}</span>
           </div>
@@ -367,12 +386,14 @@ function formatDate(d: Date | string): string {
   });
 }
 
-function formatRelative(d: Date | string): string {
+type TFn = ReturnType<typeof useTranslations<'phoenix.patients'>>;
+
+function formatRelative(d: Date | string, t: TFn): string {
   const h = (Date.now() - new Date(d).getTime()) / (1000 * 60 * 60);
-  if (h < 1) return 'hace minutos';
-  if (h < 24) return `hace ${Math.floor(h)}h`;
+  if (h < 1) return t('ageMinutes');
+  if (h < 24) return t('ageHours', { h: Math.floor(h) });
   const days = Math.floor(h / 24);
-  if (days < 30) return `hace ${days}d`;
+  if (days < 30) return t('ageDays', { d: days });
   const months = Math.floor(days / 30);
-  return `hace ${months} mes${months !== 1 ? 'es' : ''}`;
+  return t('ageMonths', { m: months });
 }

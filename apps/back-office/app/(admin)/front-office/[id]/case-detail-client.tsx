@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, Scale, Shield, AlertCircle,
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
@@ -122,26 +123,27 @@ interface Props {
   auditEvents: AuditEvent[];
 }
 
-const STATUS_META: Record<CaseStatus, { label: string; colorClass: string; icon: string }> = {
-  NEW_REFERRAL:     { label: 'Nuevo referido',      colorClass: 'bg-rose/10 text-rose border-rose/30',         icon: '🔴' },
-  INTAKE_PENDING:   { label: 'Intake pendiente',    colorClass: 'bg-amber/10 text-amber border-amber/30',     icon: '🟡' },
-  INTAKE_COMPLETED: { label: 'Por confirmar (24h)', colorClass: 'bg-cyan/10 text-cyan border-cyan/30',         icon: '🔵' },
-  CONFIRMED:        { label: 'Confirmado',          colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '🟢' },
-  ACTIVE:           { label: 'En tratamiento',      colorClass: 'bg-brand/10 text-brand border-brand/30',     icon: '⚕️' },
-  MMI:              { label: 'MMI',                 colorClass: 'bg-violet/10 text-violet border-violet/30',  icon: '🏁' },
-  CLOSED:           { label: 'Cerrado',             colorClass: 'bg-bg-2 text-text-2 border-border',           icon: '✓' },
-  SETTLED:          { label: 'Settled',             colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '💰' },
-  ARCHIVED:         { label: 'Archivado',           colorClass: 'bg-bg-2 text-text-muted border-border',       icon: '📦' },
-  CANCELLED:        { label: 'Cancelado',           colorClass: 'bg-rose/10 text-rose border-rose/30',         icon: '✗' },
-};
-
 export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
+  const t = useTranslations('phoenix.caseDetail');
   const router = useRouter();
   const [sendPortalOpen, setSendPortalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [markingIntake, setMarkingIntake] = useState(false);
+
+  const STATUS_META: Record<CaseStatus, { label: string; colorClass: string; icon: string }> = {
+    NEW_REFERRAL:     { label: t('statusNewReferral'),      colorClass: 'bg-rose/10 text-rose border-rose/30',         icon: '🔴' },
+    INTAKE_PENDING:   { label: t('statusIntakePending'),    colorClass: 'bg-amber/10 text-amber border-amber/30',     icon: '🟡' },
+    INTAKE_COMPLETED: { label: t('statusIntakeCompleted'),  colorClass: 'bg-cyan/10 text-cyan border-cyan/30',         icon: '🔵' },
+    CONFIRMED:        { label: t('statusConfirmed'),        colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '🟢' },
+    ACTIVE:           { label: t('statusActive'),           colorClass: 'bg-brand/10 text-brand border-brand/30',     icon: '⚕️' },
+    MMI:              { label: t('statusMmi'),              colorClass: 'bg-violet/10 text-violet border-violet/30',  icon: '🏁' },
+    CLOSED:           { label: t('statusClosed'),           colorClass: 'bg-bg-2 text-text-2 border-border',           icon: '✓' },
+    SETTLED:          { label: t('statusSettled'),          colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '💰' },
+    ARCHIVED:         { label: t('statusArchived'),         colorClass: 'bg-bg-2 text-text-muted border-border',       icon: '📦' },
+    CANCELLED:        { label: t('statusCancelled'),        colorClass: 'bg-rose/10 text-rose border-rose/30',         icon: '✗' },
+  };
 
   const st = STATUS_META[caseInfo.status];
   const age = (caseInfo.patient.dateOfBirth)
@@ -169,7 +171,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
           href="/front-office"
           className="inline-flex items-center gap-1.5 text-text-2 hover:text-text-1 text-sm transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Volver a la cola
+          <ArrowLeft className="w-4 h-4" /> {t('backToQueue')}
         </Link>
         <TagPill label={<span><span className="mr-1">{st.icon}</span>{st.label}</span>} colorClass={st.colorClass} />
       </div>
@@ -184,7 +186,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
               <span className="block text-text-muted text-xs font-normal font-mono mt-1">
                 {caseInfo.caseCode}
                 {caseInfo.patient.patientCode && <span className="ml-2">· {caseInfo.patient.patientCode}</span>}
-                {age !== null && <span className="ml-2">· {age} años</span>}
+                {age !== null && <span className="ml-2">· {age} {t('yearsOld')}</span>}
               </span>
             </span>
           </span>
@@ -213,14 +215,14 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Columna izquierda · datos del caso */}
         <div className="space-y-4 lg:col-span-2">
-          <InfoCard title="Accidente" icon={Calendar}>
-            <InfoRow label="DOL (Date of Loss)" value={caseInfo.accidentDate ? formatDate(caseInfo.accidentDate) : '—'} />
-            <InfoRow label="Tipo" value={caseInfo.accidentType ?? '—'} />
-            <InfoRow label="Lugar" value={caseInfo.accidentLocation ?? '—'} />
+          <InfoCard title={t('sectionAccident')} icon={Calendar}>
+            <InfoRow label={t('fieldDol')} value={caseInfo.accidentDate ? formatDate(caseInfo.accidentDate) : '—'} />
+            <InfoRow label={t('fieldType')} value={caseInfo.accidentType ?? '—'} />
+            <InfoRow label={t('fieldLocation')} value={caseInfo.accidentLocation ?? '—'} />
             {caseInfo.accidentNotes && (
-              <InfoRow label="Notas" value={<div className="text-text-2 text-xs whitespace-pre-wrap">{caseInfo.accidentNotes}</div>} />
+              <InfoRow label={t('fieldNotes')} value={<div className="text-text-2 text-xs whitespace-pre-wrap">{caseInfo.accidentNotes}</div>} />
             )}
-            <InfoRow label="Especialidad" value={
+            <InfoRow label={t('fieldSpecialty')} value={
               caseInfo.specialty ? (
                 <TagPill
                   label={caseInfo.specialty.name}
@@ -230,10 +232,10 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                 />
               ) : '—'
             } />
-            <InfoRow label="Workflow" value={<code className="text-text-2 font-mono text-xs">{caseInfo.caseType}</code>} />
+            <InfoRow label={t('fieldWorkflow')} value={<code className="text-text-2 font-mono text-xs">{caseInfo.caseType}</code>} />
           </InfoCard>
 
-          <InfoCard title="Legal · Bufete + Attorney" icon={Scale}>
+          <InfoCard title={t('sectionLegal')} icon={Scale}>
             {caseInfo.lawFirm ? (
               <>
                 <div className="flex items-center gap-3 mb-3">
@@ -249,15 +251,15 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                     )}
                   </div>
                   {caseInfo.lawFirm.paymentSpeed === 'SLOW' && (
-                    <TagPill label="⚠ Lento" colorClass="bg-amber/15 text-amber border-amber/30" />
+                    <TagPill label={`⚠ ${t('tagSlow')}`} colorClass="bg-amber/15 text-amber border-amber/30" />
                   )}
                 </div>
-                <InfoRow label="Email firma" value={
+                <InfoRow label={t('fieldFirmEmail')} value={
                   <a href={`mailto:${caseInfo.lawFirm.email}`} className="text-cyan hover:text-text-1">{caseInfo.lawFirm.email}</a>
                 } />
-                {caseInfo.lawFirm.phone && <InfoRow label="Teléfono" value={<span className="font-mono">{caseInfo.lawFirm.phone}</span>} />}
+                {caseInfo.lawFirm.phone && <InfoRow label={t('fieldPhone')} value={<span className="font-mono">{caseInfo.lawFirm.phone}</span>} />}
                 {caseInfo.lawFirm.caseflowFlags.length > 0 && (
-                  <InfoRow label="Flags" value={
+                  <InfoRow label={t('fieldFlags')} value={
                     <div className="flex flex-wrap gap-1">
                       {caseInfo.lawFirm.caseflowFlags.map((f) => (
                         <TagPill key={f} label={f} colorClass="bg-brand/10 text-brand border-brand/20" mono compact />
@@ -267,7 +269,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                 )}
                 {caseInfo.attorney && (
                   <div className="mt-3 pt-3 border-t border-border/30">
-                    <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-2">Attorney asignado</div>
+                    <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-2">{t('assignedAttorney')}</div>
                     <div className="flex items-center gap-2">
                       <PersonAvatar firstName={caseInfo.attorney.firstName ?? '?'} lastName={caseInfo.attorney.lastName ?? ''} size={8} />
                       <div className="min-w-0 flex-1">
@@ -282,11 +284,11 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                 )}
               </>
             ) : (
-              <div className="text-text-muted text-sm italic">Sin bufete asignado.</div>
+              <div className="text-text-muted text-sm italic">{t('noLawFirm')}</div>
             )}
           </InfoCard>
 
-          <InfoCard title="Seguro · PIP + Med Pay" icon={Shield}>
+          <InfoCard title={t('sectionInsurance')} icon={Shield}>
             {caseInfo.primaryInsurance ? (
               <div className="space-y-3">
                 <div className="rounded-md border border-cyan/30 bg-cyan/5 p-3">
@@ -311,18 +313,18 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                     )}
                     <div><span className="text-text-muted">HCFA:</span> <span className="text-text-1">{caseInfo.primaryInsurance.hcfaChannel}</span></div>
                     {caseInfo.primaryInsurance.preauthRequired && (
-                      <div className="text-amber">⚠ Pre-auth requerido</div>
+                      <div className="text-amber">⚠ {t('preauthRequired')}</div>
                     )}
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-xs">
                     {caseInfo.pipVerifiedAt ? (
                       <TagPill
-                        label={`✓ Verificado ${formatRelative(caseInfo.pipVerifiedAt)}`}
+                        label={`✓ ${t('pipVerified')} ${formatRelative(caseInfo.pipVerifiedAt)}`}
                         colorClass="bg-emerald/10 text-emerald border-emerald/30"
                       />
                     ) : (
                       <TagPill
-                        label="⏳ Sin verificar (B.12 Edson)"
+                        label={`⏳ ${t('pipNotVerified')}`}
                         colorClass="bg-amber/10 text-amber border-amber/30"
                       />
                     )}
@@ -345,7 +347,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                 )}
               </div>
             ) : (
-              <div className="text-text-muted text-sm italic">Sin aseguradora primaria.</div>
+              <div className="text-text-muted text-sm italic">{t('noPrimaryInsurance')}</div>
             )}
           </InfoCard>
         </div>
@@ -437,46 +439,47 @@ function ActionButtons({
   onSimulateIntake: () => void;
   isMarkingIntake: boolean;
 }) {
+  const t = useTranslations('phoenix.caseDetail');
   return (
     <div className="flex items-center gap-2 flex-wrap">
       {status === 'NEW_REFERRAL' && (
         <Button onClick={onSendPortal} size="sm">
-          <Send className="w-3.5 h-3.5 mr-1" /> Enviar Forms
+          <Send className="w-3.5 h-3.5 mr-1" /> {t('btnSendForms')}
         </Button>
       )}
       {status === 'INTAKE_PENDING' && (
         <>
           <Button onClick={onSendPortal} variant="outline" size="sm">
-            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar Forms
+            <Send className="w-3.5 h-3.5 mr-1" /> {t('btnResendForms')}
           </Button>
           <Button onClick={onSimulateIntake} variant="outline" size="sm" disabled={isMarkingIntake}>
             <Zap className="w-3.5 h-3.5 mr-1" />
-            {isMarkingIntake ? 'Simulando...' : 'DEV · Simular Forms completo'}
+            {isMarkingIntake ? t('btnSimulating') : t('btnSimulateForms')}
           </Button>
         </>
       )}
       {status === 'INTAKE_COMPLETED' && (
         <>
           <Button onClick={onConfirm} size="sm">
-            <FileCheck className="w-3.5 h-3.5 mr-1" /> Confirmar cita
+            <FileCheck className="w-3.5 h-3.5 mr-1" /> {t('btnConfirmAppointment')}
           </Button>
           <Button onClick={onSendPortal} variant="outline" size="sm">
-            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar Forms
+            <Send className="w-3.5 h-3.5 mr-1" /> {t('btnResendForms')}
           </Button>
         </>
       )}
       {status === 'CONFIRMED' && (
         <>
           <Button onClick={onSchedule} size="sm">
-            <CalendarCheck className="w-3.5 h-3.5 mr-1" /> Agendar primera cita
+            <CalendarCheck className="w-3.5 h-3.5 mr-1" /> {t('btnScheduleFirst')}
           </Button>
           <Button onClick={onSendPortal} variant="outline" size="sm">
-            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar Forms
+            <Send className="w-3.5 h-3.5 mr-1" /> {t('btnResendForms')}
           </Button>
         </>
       )}
       <Button onClick={onAddNote} variant="outline" size="sm">
-        <MessageSquarePlus className="w-3.5 h-3.5 mr-1" /> Agregar nota
+        <MessageSquarePlus className="w-3.5 h-3.5 mr-1" /> {t('btnAddNote')}
       </Button>
     </div>
   );
@@ -485,12 +488,14 @@ function ActionButtons({
 // ─── Next action banner ────────────────────────────────────────────────────────
 
 function NextActionBanner({ caseInfo }: { caseInfo: CaseInfo }) {
+  const t = useTranslations('phoenix.caseDetail');
+
   const cfg: Record<CaseStatus, { title: string; message: string; tone: 'rose' | 'amber' | 'cyan' | 'emerald' | 'brand' } | null> = {
-    NEW_REFERRAL:     { title: 'Próxima acción: enviar Forms al paciente', message: 'El paciente todavía no recibió el link al intake. Llamalo y enviá los Forms por SMS o email.', tone: 'rose' },
-    INTAKE_PENDING:   { title: 'Esperando paciente complete los Forms', message: 'Los Forms fueron enviados. Si no responde en 24h, llamar para recordar.', tone: 'amber' },
-    INTAKE_COMPLETED: { title: 'Próxima acción: llamar 24h antes para confirmar', message: 'El paciente completó intake. Ejecutá checklist de confirmación.', tone: 'cyan' },
-    CONFIRMED:        { title: 'Próxima acción: agendar primera cita', message: 'Caso confirmado. Asignar doctor + clínica + horario para mover al flujo clínico.', tone: 'emerald' },
-    ACTIVE:           { title: 'En tratamiento', message: 'Caso activo. El doctor toma el caso en /clinical · Recepción puede agregar notas y agendar follow-ups.', tone: 'brand' },
+    NEW_REFERRAL:     { title: t('bannerNewReferralTitle'), message: t('bannerNewReferralMsg'), tone: 'rose' },
+    INTAKE_PENDING:   { title: t('bannerIntakePendingTitle'), message: t('bannerIntakePendingMsg'), tone: 'amber' },
+    INTAKE_COMPLETED: { title: t('bannerIntakeCompletedTitle'), message: t('bannerIntakeCompletedMsg'), tone: 'cyan' },
+    CONFIRMED:        { title: t('bannerConfirmedTitle'), message: t('bannerConfirmedMsg'), tone: 'emerald' },
+    ACTIVE:           { title: t('bannerActiveTitle'), message: t('bannerActiveMsg'), tone: 'brand' },
     MMI:              null,
     CLOSED:           null,
     SETTLED:          null,
@@ -545,6 +550,8 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 // ─── Timeline ──────────────────────────────────────────────────────────────────
 
 function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: AuditEvent[] }) {
+  const t = useTranslations('phoenix.caseDetail');
+
   // Combinar audit events + key milestones del case en un solo feed
   type Event = {
     id: string;
@@ -562,12 +569,12 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
   // Always: created
   events.push({
     id: 'created',
-    title: 'Caso creado',
+    title: t('timelineCaseCreated'),
     detail: `Source: ${caseInfo.source}`,
     icon: PhoneCall,
     iconColor: 'text-brand',
     at: caseInfo.createdAt,
-    actor: 'Front Office',
+    actor: t('timelineActorFrontOffice'),
     actorType: 'HUMAN_USER',
   });
 
@@ -581,7 +588,7 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
       icon: cfg.icon,
       iconColor: cfg.iconColor,
       at: e.createdAt,
-      actor: e.actorUserId ?? (e.actorType === 'SYSTEM' ? 'Sistema' : 'Front Office'),
+      actor: e.actorUserId ?? (e.actorType === 'SYSTEM' ? t('timelineActorSystem') : t('timelineActorFrontOffice')),
       actorType: e.actorType as 'HUMAN_USER' | 'AI_AGENT' | 'SYSTEM',
     });
   });
@@ -593,10 +600,10 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
       <div className="flex items-center gap-2 mb-4">
         <Clock className="w-4 h-4 text-brand" />
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Timeline</h3>
-        <span className="text-text-muted text-xs font-mono ml-auto">{events.length} eventos</span>
+        <span className="text-text-muted text-xs font-mono ml-auto">{events.length} {t('timelineEvents')}</span>
       </div>
       {events.length === 0 ? (
-        <div className="text-text-muted text-sm italic">Sin eventos todavía.</div>
+        <div className="text-text-muted text-sm italic">{t('timelineEmpty')}</div>
       ) : (
         <div className="space-y-3">
           {events.map((e, idx) => {
@@ -692,18 +699,19 @@ function NotesPanel({ notes, onAddNote }: {
   notes: CaseInfo['notes'];
   onAddNote: () => void;
 }) {
+  const t = useTranslations('phoenix.caseDetail');
   return (
     <div className="rounded-lg border border-border bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-3">
         <MessageSquarePlus className="w-4 h-4 text-brand" />
-        <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Notas internas</h3>
+        <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('sectionInternalNotes')}</h3>
         <span className="text-text-muted text-xs font-mono ml-auto">{notes.length}</span>
       </div>
       <Button onClick={onAddNote} variant="outline" size="sm" className="w-full mb-3">
-        <MessageSquarePlus className="w-3.5 h-3.5 mr-1" /> Agregar nota
+        <MessageSquarePlus className="w-3.5 h-3.5 mr-1" /> {t('btnAddNote')}
       </Button>
       {notes.length === 0 ? (
-        <div className="text-text-muted text-xs italic text-center py-4">Sin notas todavía.</div>
+        <div className="text-text-muted text-xs italic text-center py-4">{t('notesEmpty')}</div>
       ) : (
         <div className="space-y-2 max-h-[400px] overflow-y-auto scroll-thin pr-1">
           {notes.map((n) => (
@@ -712,7 +720,7 @@ function NotesPanel({ notes, onAddNote }: {
                 <span className="font-semibold text-text-2">{n.authorName}</span>
                 <span>·</span>
                 <span>{formatRelative(n.createdAt)}</span>
-                {n.isPrivate && <TagPill label="🔒 Privada" colorClass="bg-bg-1 text-text-muted border-border" compact />}
+                {n.isPrivate && <TagPill label={`🔒 ${t('notePrivate')}`} colorClass="bg-bg-1 text-text-muted border-border" compact />}
               </div>
               <div className="text-text-1 text-xs whitespace-pre-wrap leading-relaxed">{n.content}</div>
             </div>

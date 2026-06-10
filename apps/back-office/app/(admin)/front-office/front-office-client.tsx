@@ -235,16 +235,16 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
       {/* Acciones rápidas */}
       <div className="flex items-center gap-2 flex-wrap">
         <Button size="sm" variant="outline" onClick={handleNewCase}>
-          <Plus className="w-3 h-3 mr-1" /> Nueva llamada
+          <Plus className="w-3 h-3 mr-1" /> {t('quickNewCall')}
         </Button>
         <Button size="sm" variant="outline" onClick={handleNewCase}>
-          <Send className="w-3 h-3 mr-1" /> Procesar referido
+          <Send className="w-3 h-3 mr-1" /> {t('quickProcessReferral')}
         </Button>
         <Button size="sm" variant="outline" onClick={() => setScheduleCase(cases.find(c => c.status === 'CONFIRMED') ?? null)}>
-          <Calendar className="w-3 h-3 mr-1" /> Agendar cita
+          <Calendar className="w-3 h-3 mr-1" /> {t('quickSchedule')}
         </Button>
         <Button size="sm" variant="outline" onClick={() => setSendPortalCase(cases.find(c => c.status === 'NEW_REFERRAL') ?? null)}>
-          <Mail className="w-3 h-3 mr-1" /> Reenviar formulario
+          <Mail className="w-3 h-3 mr-1" /> {t('quickResendForm')}
         </Button>
       </div>
 
@@ -262,7 +262,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-muted pointer-events-none" />
           <input
             type="text"
-            placeholder="Buscar..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-7 pr-6 py-1.5 text-xs bg-bg-2 border border-border rounded-lg text-text-1 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/40 transition-colors w-36 focus:w-52 transition-[width]"
@@ -282,9 +282,9 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             className="py-1.5 pl-1.5 pr-5 text-xs bg-bg-2 border border-border rounded-lg text-text-1 focus:outline-none focus:ring-1 focus:ring-brand/40 appearance-none cursor-pointer"
           >
-            <option value="urgency">Urgencia</option>
-            <option value="dol">DOL</option>
-            <option value="created">En cola</option>
+            <option value="urgency">{t('sortUrgency')}</option>
+            <option value="dol">{t('sortDOL')}</option>
+            <option value="created">{t('sortInQueue')}</option>
           </select>
         </div>
       </div>
@@ -293,9 +293,9 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
       <div className="flex items-center justify-between">
         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
           <FileText className="w-3.5 h-3.5 text-brand" />
-          Casos en cola
+          {t('queueSectionTitle')}
           {(search || filter !== 'all') && (
-            <span className="text-text-muted font-normal ml-1">— {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
+            <span className="text-text-muted font-normal ml-1">— {filtered.length} {t(filtered.length !== 1 ? 'resultadosPlural' : 'resultadoSingular')}</span>
           )}
         </span>
       </div>
@@ -306,19 +306,19 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
           <div className="p-6">
             <EmptyState.Rich
               icon={FileText}
-              title="No hay casos en esta cola"
-              subtitle='Buen trabajo. Cuando entre una llamada, click "Nueva llamada".'
+              title={t('emptyQueueTitle')}
+              subtitle={t('emptyQueueSubtitle')}
             />
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-6">
             <EmptyState.Rich
               icon={Search}
-              title={search ? `Sin resultados para "${search}"` : 'No hay casos con este filtro'}
+              title={search ? t('emptySearchTitle', { query: search }) : t('emptyFilterTitle')}
               subtitle={
                 search
-                  ? 'Probá con el nombre completo, número de teléfono o código del caso'
-                  : 'Cambiá el filtro de status para ver otros casos'
+                  ? t('emptySearchSubtitle')
+                  : t('emptyFilterSubtitle')
               }
             />
           </div>
@@ -333,6 +333,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
               onSchedule={() => handleSchedule(c)}
               onSimulateIntake={() => handleSimulateIntake(c)}
               isMarkingIntake={markingIntake === c.id}
+              t={t}
             />
           ))
         )}
@@ -420,6 +421,7 @@ function CaseCard({
   onSchedule,
   onSimulateIntake,
   isMarkingIntake,
+  t,
 }: {
   case: PhoenixCase;
   onClick: () => void;
@@ -428,28 +430,29 @@ function CaseCard({
   onSchedule: () => void;
   onSimulateIntake: () => void;
   isMarkingIntake: boolean;
+  t: ReturnType<typeof useTranslations<'phoenix.frontOffice'>>;
 }) {
   const statusMeta: Record<CaseStatus, { label: string; colorClass: string }> = {
-    NEW_REFERRAL:     { label: 'Nuevo',             colorClass: 'bg-rose/10 text-rose border-rose/30' },
-    INTAKE_PENDING:   { label: 'Intake pendiente',  colorClass: 'bg-amber/10 text-amber border-amber/30' },
-    INTAKE_COMPLETED: { label: 'Por confirmar',     colorClass: 'bg-cyan/10 text-cyan border-cyan/30' },
-    CONFIRMED:        { label: 'Confirmado',        colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
-    ACTIVE:           { label: 'Activo',            colorClass: 'bg-brand/10 text-brand border-brand/30' },
-    MMI:              { label: 'MMI',               colorClass: 'bg-violet/10 text-violet border-violet/30' },
-    CLOSED:           { label: 'Cerrado',           colorClass: 'bg-text-muted/10 text-text-muted border-border' },
-    SETTLED:          { label: 'Settlement',        colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
-    ARCHIVED:         { label: 'Archivado',         colorClass: 'bg-text-muted/10 text-text-muted border-border' },
-    CANCELLED:        { label: 'Cancelado',         colorClass: 'bg-rose/10 text-rose border-rose/30' },
+    NEW_REFERRAL:     { label: t('statusNew'),            colorClass: 'bg-rose/10 text-rose border-rose/30' },
+    INTAKE_PENDING:   { label: t('statusIntakePending'),  colorClass: 'bg-amber/10 text-amber border-amber/30' },
+    INTAKE_COMPLETED: { label: t('statusToConfirm'),      colorClass: 'bg-cyan/10 text-cyan border-cyan/30' },
+    CONFIRMED:        { label: t('statusConfirmed'),      colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
+    ACTIVE:           { label: t('statusActive'),         colorClass: 'bg-brand/10 text-brand border-brand/30' },
+    MMI:              { label: t('statusMMI'),            colorClass: 'bg-violet/10 text-violet border-violet/30' },
+    CLOSED:           { label: t('statusClosed'),         colorClass: 'bg-text-muted/10 text-text-muted border-border' },
+    SETTLED:          { label: t('statusSettled'),        colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
+    ARCHIVED:         { label: t('statusArchived'),       colorClass: 'bg-text-muted/10 text-text-muted border-border' },
+    CANCELLED:        { label: t('statusCancelled'),      colorClass: 'bg-rose/10 text-rose border-rose/30' },
   };
   const st = statusMeta[c.status];
 
   const age = ageInHours(c.createdAt);
-  const ageLabel = age < 1 ? 'ahora' : age < 24 ? `${Math.floor(age)}h` : `${Math.floor(age / 24)}d`;
+  const ageLabel = age < 1 ? t('ageNow') : age < 24 ? `${Math.floor(age)}h` : `${Math.floor(age / 24)}d`;
 
   // Fuente del referido (source → label corto + bufete si hay)
   const sourceMap: Record<string, string> = {
-    PHONE_CALL: 'Llamada', FAX: 'Fax', EMAIL: 'Email',
-    WALK_IN: 'Walk-in', REFERRAL: 'Referido', WEBSITE: 'Web',
+    PHONE_CALL: t('sourcePhoneCall'), FAX: t('sourceFax'), EMAIL: t('sourceEmail'),
+    WALK_IN: t('sourceWalkIn'), REFERRAL: t('sourceReferral'), WEBSITE: t('sourceWebsite'),
   };
   const sourceText = sourceMap[c.source] ?? c.source;
   const subLine = [
@@ -464,7 +467,7 @@ function CaseCard({
     if (c.status === 'NEW_REFERRAL')
       return (
         <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onSendPortal(); }}>
-          <Send className="w-3 h-3 mr-1" /> Enviar Forms
+          <Send className="w-3 h-3 mr-1" /> {t('actionSendForms')}
         </Button>
       );
     if (c.status === 'INTAKE_PENDING')
@@ -482,13 +485,13 @@ function CaseCard({
     if (c.status === 'INTAKE_COMPLETED')
       return (
         <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onConfirm(); }}>
-          <FileCheck className="w-3 h-3 mr-1" /> Confirmar
+          <FileCheck className="w-3 h-3 mr-1" /> {t('actionConfirm')}
         </Button>
       );
     if (c.status === 'CONFIRMED')
       return (
         <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onSchedule(); }}>
-          <CalendarCheck className="w-3 h-3 mr-1" /> Agendar
+          <CalendarCheck className="w-3 h-3 mr-1" /> {t('actionSchedule')}
         </Button>
       );
     return null;
@@ -534,9 +537,3 @@ function formatDate(d: Date): string {
   return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function formatRelative(d: Date): string {
-  const h = ageInHours(d);
-  if (h < 1) return 'hace minutos';
-  if (h < 24) return `hace ${Math.floor(h)}h`;
-  return `hace ${Math.floor(h / 24)}d`;
-}

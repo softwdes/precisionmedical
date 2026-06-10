@@ -17,6 +17,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { ArrowLeft, Download, Mail, BarChart3, TrendingUp, AlertCircle, Building2, Scale, Users, ChevronUp, ChevronDown } from 'lucide-react';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { EmptyState }  from '@/components/ui-phoenix/empty-state';
@@ -111,6 +112,7 @@ function nextMonth(param: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ReportClient() {
+  const t = useTranslations('phoenix.billing');
   const router = useRouter();
 
   const [data,    setData]    = useState<ReportData | null>(null);
@@ -129,11 +131,11 @@ export function ReportClient() {
       setData(json);
       if (!m) setMonth(json.monthParam); // capture actual month
     } catch {
-      setError('No se pudo cargar el reporte mensual.');
+      setError(t('errorLoadingReport'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { void load(''); }, [load]);
 
@@ -159,8 +161,8 @@ export function ReportClient() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <EmptyState.Rich
           icon={AlertCircle}
-          title="Error cargando reporte"
-          subtitle={error ?? 'No se encontraron datos'}
+          title={t('errorTitle')}
+          subtitle={error ?? t('errorNoData')}
         />
       </div>
     );
@@ -180,7 +182,7 @@ export function ReportClient() {
           className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] text-text-muted transition-colors hover:bg-bg-1 hover:text-text-1"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Billing
+          {t('navBackToBilling')}
         </button>
         <span className="text-border">/</span>
 
@@ -205,8 +207,8 @@ export function ReportClient() {
       </div>
 
       <PageHeader
-        title="Reporte mensual consolidado"
-        subtitle={`Resumen de facturación y cobranza · ${data.monthLabel}`}
+        title={t('reportTitle')}
+        subtitle={`${t('reportSubtitle')} · ${data.monthLabel}`}
         action={
           <div className="flex items-center gap-2">
             <button
@@ -214,14 +216,14 @@ export function ReportClient() {
               className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-1 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
             >
               <Mail className="w-3.5 h-3.5" />
-              Email gerencia
+              {t('btnEmailManagement')}
             </button>
             <button
               type="button"
               className="flex items-center gap-1.5 rounded-lg bg-amber px-3 py-1.5 text-[11px] font-medium text-black hover:bg-amber/90 transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
-              Descargar PDF
+              {t('btnDownloadPdf')}
             </button>
           </div>
         }
@@ -232,13 +234,13 @@ export function ReportClient() {
 
         {/* Total facturado */}
         <div className="rounded-xl border border-border bg-bg-1 p-4">
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">Total facturado</div>
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">{t('kpiTotalBilled')}</div>
           <div className="text-2xl font-bold font-mono text-text-1">{kpis.totalBilledFmt}</div>
           <div className="mt-2 flex items-center gap-1.5">
             <span className={`text-[10px] font-medium ${kpis.billedChangePct >= 0 ? 'text-emerald' : 'text-rose'}`}>
               {kpis.billedChangePct >= 0 ? '+' : ''}{kpis.billedChangePct}%
             </span>
-            <span className="text-[10px] text-text-muted">vs mes anterior</span>
+            <span className="text-[10px] text-text-muted">{t('vsPrevMonth')}</span>
           </div>
         </div>
 
@@ -247,10 +249,10 @@ export function ReportClient() {
           className="rounded-xl border p-4"
           style={{ background: 'linear-gradient(135deg,rgba(52,211,153,0.10),rgba(52,211,153,0.04))', borderColor: 'rgba(52,211,153,0.25)' }}
         >
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">Cobrado PIP</div>
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">{t('kpiCollectedPip')}</div>
           <div className="text-2xl font-bold font-mono" style={{ color: '#34d399' }}>{kpis.totalCollectedFmt}</div>
           <div className="mt-2 text-[10px] text-text-muted">
-            {kpis.totalBilled > 0 ? Math.round((kpis.totalCollected / kpis.totalBilled) * 100) : 0}% del facturado
+            {kpis.totalBilled > 0 ? Math.round((kpis.totalCollected / kpis.totalBilled) * 100) : 0}% {t('ofBilled')}
           </div>
         </div>
 
@@ -259,9 +261,9 @@ export function ReportClient() {
           className="rounded-xl border p-4"
           style={{ background: 'linear-gradient(135deg,rgba(245,158,11,0.10),rgba(245,158,11,0.04))', borderColor: 'rgba(245,158,11,0.25)' }}
         >
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">Pendiente PIP</div>
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">{t('kpiPendingPip')}</div>
           <div className="text-2xl font-bold font-mono" style={{ color: '#f59e0b' }}>{kpis.pendingPipFmt}</div>
-          <div className="mt-2 text-[10px] text-text-muted">Por cobrar del seguro</div>
+          <div className="mt-2 text-[10px] text-text-muted">{t('kpiPendingPipSub')}</div>
         </div>
 
         {/* Lien acumulado */}
@@ -269,9 +271,9 @@ export function ReportClient() {
           className="rounded-xl border p-4"
           style={{ background: 'linear-gradient(135deg,rgba(251,113,133,0.10),rgba(251,113,133,0.04))', borderColor: 'rgba(251,113,133,0.25)' }}
         >
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">Lien acumulado</div>
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">{t('kpiLienAccumulated')}</div>
           <div className="text-2xl font-bold font-mono" style={{ color: '#fda4af' }}>{kpis.lienFmt}</div>
-          <div className="mt-2 text-[10px] text-text-muted">Balance total en lien</div>
+          <div className="mt-2 text-[10px] text-text-muted">{t('kpiLienAccumulatedSub')}</div>
         </div>
       </div>
 
@@ -282,11 +284,11 @@ export function ReportClient() {
         <div className="rounded-xl border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="w-4 h-4 text-brand" />
-            <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">Desglose por proveedor</span>
+            <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionByProvider')}</span>
           </div>
 
           {providers.length === 0 ? (
-            <div className="text-[12px] text-text-muted">Sin datos este mes</div>
+            <div className="text-[12px] text-text-muted">{t('noDataThisMonth')}</div>
           ) : (
             <div className="flex flex-col gap-3">
               {providers.map(p => (
@@ -305,7 +307,7 @@ export function ReportClient() {
                     />
                   </div>
                   <div className="mt-0.5 flex items-center gap-2 text-[10px] text-text-muted">
-                    <span>{p.visits} visitas</span>
+                    <span>{p.visits} {t('visits')}</span>
                     {p.clinics && <span>· {p.clinics}</span>}
                   </div>
                 </div>
@@ -318,11 +320,11 @@ export function ReportClient() {
         <div className="rounded-xl border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Building2 className="w-4 h-4 text-brand" />
-            <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">Desglose por clínica</span>
+            <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionByClinic')}</span>
           </div>
 
           {facilities.length === 0 ? (
-            <div className="text-[12px] text-text-muted">Sin datos este mes</div>
+            <div className="text-[12px] text-text-muted">{t('noDataThisMonth')}</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {facilities.slice(0, 6).map((f, i) => (
@@ -336,7 +338,7 @@ export function ReportClient() {
                 >
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1 truncate">{f.name}</div>
                   <div className="text-lg font-bold font-mono text-text-1">{f.amountFmt}</div>
-                  <div className="text-[10px] text-text-muted mt-0.5">{f.visits} visitas</div>
+                  <div className="text-[10px] text-text-muted mt-0.5">{f.visits} {t('visits')}</div>
                 </div>
               ))}
             </div>
@@ -348,7 +350,7 @@ export function ReportClient() {
       <div className="rounded-xl border border-border bg-bg-1 p-5">
         <div className="flex items-center gap-2 mb-4">
           <Scale className="w-4 h-4 text-brand" />
-          <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">Lien aging</span>
+          <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionLienAging')}</span>
         </div>
 
         {/* Horizontal stacked bar */}
@@ -372,7 +374,7 @@ export function ReportClient() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <div className="h-2.5 w-2.5 rounded-full bg-emerald" />
-              <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">Menos de 90 días</span>
+              <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('agingUnder90')}</span>
             </div>
             <div className="text-lg font-bold font-mono text-text-1">{lienAging.under90.amountFmt}</div>
             <div className="text-[11px] text-text-muted">{lienAging.under90.count} caso{lienAging.under90.count !== 1 ? 's' : ''}</div>
@@ -380,7 +382,7 @@ export function ReportClient() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <div className="h-2.5 w-2.5 rounded-full bg-amber" />
-              <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">90 – 180 días</span>
+              <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('aging90to180')}</span>
             </div>
             <div className="text-lg font-bold font-mono text-text-1">{lienAging.between90and180.amountFmt}</div>
             <div className="text-[11px] text-text-muted">{lienAging.between90and180.count} caso{lienAging.between90and180.count !== 1 ? 's' : ''}</div>
@@ -388,7 +390,7 @@ export function ReportClient() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <div className="h-2.5 w-2.5 rounded-full" style={{ background: '#fda4af' }} />
-              <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">Más de 180 días</span>
+              <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('agingOver180')}</span>
             </div>
             <div className="text-lg font-bold font-mono text-text-1">{lienAging.over180.amountFmt}</div>
             <div className="text-[11px] text-text-muted">{lienAging.over180.count} caso{lienAging.over180.count !== 1 ? 's' : ''}</div>
@@ -403,18 +405,18 @@ export function ReportClient() {
         <div className="rounded-xl border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Users className="w-4 h-4 text-brand" />
-            <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">Top bufetes</span>
+            <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionTopFirms')}</span>
           </div>
 
           {topFirms.length === 0 ? (
-            <div className="text-[12px] text-text-muted">Sin bufetes activos</div>
+            <div className="text-[12px] text-text-muted">{t('noActiveFirms')}</div>
           ) : (
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Bufete</th>
-                  <th className="text-right pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Casos</th>
-                  <th className="text-right pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Facturado</th>
+                  <th className="text-left pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('thFirm')}</th>
+                  <th className="text-right pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('thCases')}</th>
+                  <th className="text-right pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('thBilled')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -442,11 +444,11 @@ export function ReportClient() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-rose" />
-                <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">Casos críticos &gt;180d</span>
+                <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionCriticalCases')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-rose/20 border border-rose/30 text-rose text-[10px] font-bold px-2 py-0.5">
-                  {data.criticalCount} casos
+                  {data.criticalCount} {t('cases')}
                 </span>
                 <span className="text-[11px] font-mono text-rose">{data.criticalAmountFmt}</span>
               </div>
@@ -462,14 +464,14 @@ export function ReportClient() {
                 >
                   <div className="min-w-0">
                     <div className="text-[12px] font-medium text-text-1 truncate">{c.patientName}</div>
-                    <div className="text-[10px] text-text-muted">{c.firmName ?? 'Sin bufete'} · {c.daysSinceDol}d</div>
+                    <div className="text-[10px] text-text-muted">{c.firmName ?? t('noFirm')} · {c.daysSinceDol}d</div>
                   </div>
                   <div className="shrink-0 ml-2 font-mono text-[12px] text-rose font-bold">{c.totalChargedFmt}</div>
                 </button>
               ))}
               {data.criticalCount > 10 && (
                 <div className="text-center text-[11px] text-text-muted py-1">
-                  +{data.criticalCount - 10} casos más
+                  +{data.criticalCount - 10} {t('moreCases')}
                 </div>
               )}
             </div>
@@ -481,14 +483,14 @@ export function ReportClient() {
                 className="flex items-center gap-1.5 rounded-lg border border-rose/30 bg-rose/10 px-3 py-1.5 text-[11px] font-medium text-rose hover:bg-rose/15 transition-colors"
               >
                 <Mail className="w-3.5 h-3.5" />
-                Email {data.criticalCount} bufetes
+                {t('btnEmailFirms', { count: data.criticalCount })}
               </button>
               <button
                 type="button"
                 className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-1 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
-                Descargar lista
+                {t('btnDownloadList')}
               </button>
             </div>
           </div>
@@ -499,9 +501,9 @@ export function ReportClient() {
           >
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="w-4 h-4 text-emerald" />
-              <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">Sin casos críticos</span>
+              <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('noCriticalCasesTitle')}</span>
             </div>
-            <p className="text-[12px] text-text-muted">No hay casos con más de 180 días pendientes. Excelente gestión de cobranza.</p>
+            <p className="text-[12px] text-text-muted">{t('noCriticalCasesBody')}</p>
           </div>
         )}
       </div>
@@ -509,13 +511,13 @@ export function ReportClient() {
       {/* ── Bottom schedule note ── */}
       <div className="rounded-lg border border-border bg-bg-2/30 p-3 flex items-center justify-between flex-wrap gap-2">
         <div className="text-[11px] text-text-muted">
-          📅 Próximo reporte: primer día del mes siguiente · distribución automática a gerencia
+          {t('scheduleNote')}
         </div>
         <button
           type="button"
           className="text-[11px] text-brand hover:underline"
         >
-          Configurar schedule →
+          {t('btnConfigureSchedule')}
         </button>
       </div>
 

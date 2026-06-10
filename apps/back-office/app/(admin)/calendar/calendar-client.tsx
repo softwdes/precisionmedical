@@ -16,6 +16,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 
@@ -77,10 +78,6 @@ function addDays(date: Date, n: number): Date {
   d.setDate(d.getDate() + n);
   return d;
 }
-
-const WEEKDAYS_ES     = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
-const WEEKDAYS_ALL_ES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-const MONTHS_ES       = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 const TIME_SLOTS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
                     '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
@@ -280,22 +277,23 @@ function FilterChip({
 // ─── LegendStats (shared entre las 3 vistas) ─────────────────────────────────
 
 function LegendStats({
-  appointments, firstVisitCount, pendingConfirm,
+  appointments, firstVisitCount, pendingConfirm, t,
 }: {
   appointments: CalendarAppointment[];
   firstVisitCount: number;
   pendingConfirm: number;
+  t: ReturnType<typeof useTranslations<'phoenix.calendar'>>;
 }) {
   return (
     <div className="mt-3 flex items-center justify-between flex-wrap gap-y-2">
       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {([
-          { color: 'rgba(244,63,94,0.75)',                              label: 'MVA · seguimiento' },
-          { color: 'linear-gradient(135deg,#f43f5e,#ec4899)',           label: '🆕 MVA · 1ra cita', glow: true },
-          { color: 'rgba(16,185,129,0.75)',                             label: 'GP · seguimiento' },
-          { color: 'linear-gradient(135deg,#10b981,#14b8a6)',           label: '🆕 GP · 1ra cita', glow: true },
-          { color: 'rgba(245,158,11,0.75)',                             label: 'Sin confirmar' },
-          { color: 'rgba(99,102,241,0.50)',                             label: 'Atendida ✓' },
+          { color: 'rgba(244,63,94,0.75)',                              label: t('legendMvaFollowUp') },
+          { color: 'linear-gradient(135deg,#f43f5e,#ec4899)',           label: t('legendMvaFirst'), glow: true },
+          { color: 'rgba(16,185,129,0.75)',                             label: t('legendGpFollowUp') },
+          { color: 'linear-gradient(135deg,#10b981,#14b8a6)',           label: t('legendGpFirst'), glow: true },
+          { color: 'rgba(245,158,11,0.75)',                             label: t('legendUnconfirmed') },
+          { color: 'rgba(99,102,241,0.50)',                             label: t('legendAttended') },
         ] as { color: string; label: string; glow?: boolean }[]).map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
             <div className="w-3.5 h-1.5 rounded-sm shrink-0"
@@ -305,9 +303,9 @@ function LegendStats({
         ))}
       </div>
       <div className="flex items-center gap-3 text-[10px] text-text-muted shrink-0">
-        <span><span className="text-text-2 font-semibold">{appointments.length}</span> citas</span>
-        {firstVisitCount > 0 && <span className="text-rose font-semibold">{firstVisitCount} primeras 🆕</span>}
-        {pendingConfirm  > 0 && <span className="text-amber">{pendingConfirm} sin confirmar</span>}
+        <span><span className="text-text-2 font-semibold">{appointments.length}</span> {t('statAppointments')}</span>
+        {firstVisitCount > 0 && <span className="text-rose font-semibold">{firstVisitCount} {t('statFirstVisits')} 🆕</span>}
+        {pendingConfirm  > 0 && <span className="text-amber">{pendingConfirm} {t('statUnconfirmed')}</span>}
       </div>
     </div>
   );
@@ -316,6 +314,12 @@ function LegendStats({
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CalendarClient({ clinics, providers }: CalendarClientProps) {
+  const t = useTranslations('phoenix.calendar');
+
+  const WEEKDAYS     = Object.values(t.raw('weekdays') as Record<string, string>);
+  const WEEKDAYS_ALL = Object.values(t.raw('weekdaysAll') as Record<string, string>);
+  const MONTHS       = Object.values(t.raw('months') as Record<string, string>);
+
   const [weekStart, setWeekStart]       = useState<Date>(() => getMondayOf(new Date()));
   const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);
   const [loading, setLoading]           = useState(false);
@@ -423,19 +427,19 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const viewEnd4   = addDays(weekStart, 4);
   const monthLabel =
     calView === 'day'
-      ? `${weekStart.getDate()} ${MONTHS_ES[weekStart.getMonth()]} ${weekStart.getFullYear()}`
-      : `${MONTHS_ES[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
+      ? `${weekStart.getDate()} ${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`
+      : `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
   const weekLabel =
     calView === 'day'
-      ? `${WEEKDAYS_ALL_ES[(weekStart.getDay() + 6) % 7]} · vista diaria`
+      ? `${WEEKDAYS_ALL[(weekStart.getDay() + 6) % 7]} · ${t('viewDailySuffix')}`
       : calView === 'week'
-        ? `Semana del ${weekStart.getDate()} – ${viewEnd4.getDate()} ${MONTHS_ES[viewEnd4.getMonth()]}`
-        : `${MONTHS_ES[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
+        ? t('weekRangeLabel', { start: weekStart.getDate(), end: viewEnd4.getDate(), month: MONTHS[viewEnd4.getMonth()] })
+        : `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <PageHeader
-        title="Calendario"
+        title={t('pageTitle')}
         subtitle={weekLabel}
       />
 
@@ -455,7 +459,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           </button>
           <button type="button" onClick={goToToday}
             className="ml-1 px-2.5 h-7 rounded border border-border hover:bg-white/5 text-text-2 text-xs transition-colors">
-            Hoy
+            {t('today')}
           </button>
         </div>
 
@@ -466,27 +470,27 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         <div className="flex flex-wrap items-center gap-1.5">
           <FilterChip
             emoji="🏥"
-            placeholder="Todas las clínicas"
+            placeholder={t('filterAllClinics')}
             value={filterClinic}
             options={clinics.map(c => ({ value: c.id, label: c.name }))}
             onChange={setFilterClinic}
           />
           <FilterChip
             emoji="👨‍⚕️"
-            placeholder="Todos los doctores"
+            placeholder={t('filterAllDoctors')}
             value={filterProvider}
             options={providers.map(p => ({ value: p.id, label: `Dr. ${p.lastName}` }))}
             onChange={setFilterProvider}
           />
           <FilterChip
             emoji="🚗"
-            placeholder="MVA + GP"
+            placeholder={t('filterAllTypes')}
             value={filterType}
             options={[
-              { value: 'AUTO_ACCIDENT',   label: '🚗 MVA (auto)' },
-              { value: 'FAMILY_PRACTICE', label: '🩺 Family Practice' },
-              { value: 'URGENT_CARE',     label: '⚡ Urgent Care' },
-              { value: 'FOLLOW_UP',       label: '🔄 Follow-up' },
+              { value: 'AUTO_ACCIDENT',   label: t('typeAutoAccident') },
+              { value: 'FAMILY_PRACTICE', label: t('typeFamilyPractice') },
+              { value: 'URGENT_CARE',     label: t('typeUrgentCare') },
+              { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
             ]}
             onChange={setFilterType}
           />
@@ -507,7 +511,11 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         {/* View toggle Día / Semana / Mes */}
         <div className="flex items-center shrink-0 rounded overflow-hidden border border-white/[0.10]">
           {(['day', 'week', 'month'] as CalendarView[]).map((v) => {
-            const labels = { day: 'Día', week: 'Semana', month: 'Mes' };
+            const labels: Record<CalendarView, string> = {
+              day:   t('viewDay'),
+              week:  t('viewWeek'),
+              month: t('viewMonth'),
+            };
             const isActive = calView === v;
             return (
               <button
@@ -543,7 +551,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                     const isToday = denverDateStr(day) === todayStr;
                     return (
                       <div key={i} className={`py-3 text-center border-r border-white/[0.07] last:border-r-0 ${isToday ? 'bg-cyan/[0.06]' : ''}`}>
-                        <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>{WEEKDAYS_ES[i]}</div>
+                        <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>{WEEKDAYS[i]}</div>
                         <div className={`text-[28px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>{day.getDate()}</div>
                       </div>
                     );
@@ -567,7 +575,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                         <div key={di} className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-col gap-0.5 ${isToday ? 'bg-cyan/[0.025]' : ''}`}>
                           {cellAppts.map(appt => {
                             const s = getEventStyle(appt);
-                            const visitLabel = appt.visitNumber === 0 ? '1ra cita' : appt.visitNumber > 0 ? `visita ${appt.visitNumber + 1}` : '';
+                            const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                             const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
                             return (
                               <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
@@ -589,7 +597,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                   </div>
                 ))}
               </div>
-              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} />
+              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
             </>
           );
         })()}
@@ -608,7 +616,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                   <div className="border-r border-white/[0.07]" />
                   <div className={`py-3 text-center ${isToday ? 'bg-cyan/[0.06]' : ''}`}>
                     <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>
-                      {WEEKDAYS_ALL_ES[dowIdx]}
+                      {WEEKDAYS_ALL[dowIdx]}
                     </div>
                     <div className={`text-[28px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>
                       {weekStart.getDate()}
@@ -630,7 +638,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                       <div className={`p-0.5 flex flex-col gap-0.5 ${isToday ? 'bg-cyan/[0.015]' : ''}`}>
                         {cellAppts.map(appt => {
                           const s = getEventStyle(appt);
-                          const visitLabel = appt.visitNumber === 0 ? '1ra cita' : appt.visitNumber > 0 ? `visita ${appt.visitNumber + 1}` : '';
+                          const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                           const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
                           return (
                             <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
@@ -651,7 +659,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                   );
                 })}
               </div>
-              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} />
+              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
             </>
           );
         })()}
@@ -665,7 +673,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
                 {/* Day-of-week headers (7 cols) */}
                 <div className="grid grid-cols-7 border-b border-white/[0.07]">
-                  {WEEKDAYS_ALL_ES.map(d => (
+                  {WEEKDAYS_ALL.map(d => (
                     <div key={d} className="py-2.5 text-center border-r border-white/[0.07] last:border-r-0">
                       <span className="text-[9px] uppercase tracking-widest font-bold text-text-muted/60">{d}</span>
                     </div>
@@ -711,7 +719,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                             );
                           })}
                           {overflow > 0 && (
-                            <div className="text-[9px] text-text-muted text-center">+{overflow} más</div>
+                            <div className="text-[9px] text-text-muted text-center">+{overflow} {t('overflowMore')}</div>
                           )}
                         </div>
                       );
@@ -719,7 +727,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                   </div>
                 ))}
               </div>
-              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} />
+              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
             </>
           );
         })()}
@@ -728,8 +736,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         {!loading && appointments.length === 0 && (
           <div className="mt-12 text-center">
             <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
-            <p className="text-text-2 text-sm">No hay citas este período</p>
-            <p className="text-text-muted text-xs mt-1">Agenda una cita desde el Front Office (B.2)</p>
+            <p className="text-text-2 text-sm">{t('emptyTitle')}</p>
+            <p className="text-text-muted text-xs mt-1">{t('emptySubtitle')}</p>
           </div>
         )}
       </div>

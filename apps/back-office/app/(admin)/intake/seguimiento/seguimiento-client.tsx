@@ -15,6 +15,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   DollarSign,
   Clock,
@@ -155,6 +156,7 @@ function Badge({ children, className }: { children: React.ReactNode; className: 
 }
 
 function CaseRow({ c, onClick }: { c: FollowupCase; onClick: () => void }) {
+  const t = useTranslations('phoenix.intake');
   const cfg = URGENCY_CONFIG[c.urgency];
 
   return (
@@ -177,19 +179,19 @@ function CaseRow({ c, onClick }: { c: FollowupCase; onClick: () => void }) {
           {c.urgency === 'urgent' && (
             <Badge className="bg-rose/10 text-rose border-rose/30">
               <AlertTriangle className="w-2.5 h-2.5" />
-              ⚠ {c.daysPending} días sin cobrar
+              {t('urgentDaysUnbilled', { count: c.daysPending })}
             </Badge>
           )}
           {c.urgency === 'warning' && (
             <Badge className="bg-amber/10 text-amber border-amber/30">
               <Clock className="w-2.5 h-2.5" />
-              {c.daysPending} días pendiente
+              {t('warningDaysPending', { count: c.daysPending })}
             </Badge>
           )}
           {c.urgency === 'partial' && (
             <Badge className="bg-emerald/10 text-emerald border-emerald/30">
               <CreditCard className="w-2.5 h-2.5" />
-              Pago parcial
+              {t('partialPayment')}
             </Badge>
           )}
 
@@ -197,13 +199,13 @@ function CaseRow({ c, onClick }: { c: FollowupCase; onClick: () => void }) {
           {c.sinRespuesta && c.urgency !== 'partial' && (
             <Badge className="bg-rose/8 text-rose/80 border-rose/20">
               <Phone className="w-2.5 h-2.5" />
-              Sin respuesta del bufete
+              {t('noResponseFromFirm')}
             </Badge>
           )}
           {c.faltaDocs && (
             <Badge className="bg-amber/8 text-amber/80 border-amber/20">
               <FileText className="w-2.5 h-2.5" />
-              Falta docs PIP
+              {t('missingPipDocs')}
             </Badge>
           )}
         </div>
@@ -212,14 +214,14 @@ function CaseRow({ c, onClick }: { c: FollowupCase; onClick: () => void }) {
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
             <div className={`text-lg font-black ${cfg.amount}`}>{c.totalBilledFmt}</div>
-            <div className="text-[10px] text-text-muted">{c.visitCount} visita{c.visitCount !== 1 ? 's' : ''}</div>
+            <div className="text-[10px] text-text-muted">{t('visitCount', { count: c.visitCount })}</div>
           </div>
           <button
             type="button"
             onClick={e => { e.stopPropagation(); onClick(); }}
             className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-all ${cfg.button}`}
           >
-            Trabajar
+            {t('work')}
             <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
@@ -243,7 +245,7 @@ function CaseRow({ c, onClick }: { c: FollowupCase; onClick: () => void }) {
             <span className="text-border">·</span>
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              Última visita: {fmtDate(c.lastVisitDate)}
+              {t('lastVisit', { date: fmtDate(c.lastVisitDate) })}
             </span>
           </>
         )}
@@ -258,6 +260,7 @@ function CaseRow({ c, onClick }: { c: FollowupCase; onClick: () => void }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function SeguimientoClient() {
+  const t = useTranslations('phoenix.intake');
   const router = useRouter();
 
   const [tab,     setTab]     = useState<FilterTab>('all');
@@ -268,11 +271,11 @@ export function SeguimientoClient() {
   const [total,   setTotal]   = useState(0);
   const [error,   setError]   = useState<string | null>(null);
 
-  const fetch = useCallback(async (t: FilterTab) => {
+  const fetch = useCallback(async (tabKey: FilterTab) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await window.fetch(`/api/admin/intake/seguimiento?tab=${t}`);
+      const res = await window.fetch(`/api/admin/intake/seguimiento?tab=${tabKey}`);
       if (!res.ok) throw new Error('Error al cargar datos');
       const json = await res.json() as {
         ok: boolean; items: FollowupCase[]; kpis: Kpis; counts: Counts; total: number;
@@ -282,27 +285,27 @@ export function SeguimientoClient() {
       setCounts(json.counts);
       setTotal(json.total);
     } catch (err) {
-      setError('No se pudo cargar la bandeja. Intentá de nuevo.');
+      setError(t('loadError'));
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { void fetch('all'); }, [fetch]);
 
-  function switchTab(t: FilterTab) {
-    setTab(t);
-    void fetch(t);
+  function switchTab(tabKey: FilterTab) {
+    setTab(tabKey);
+    void fetch(tabKey);
   }
 
   // ─── Filter tab definitions
   const TABS: { key: FilterTab; label: string; emoji: string; count?: number }[] = [
-    { key: 'all',     label: 'Todos',              emoji: '',   count: counts?.all },
-    { key: 'urgent',  label: 'Urgentes >60d',      emoji: '⚠',  count: counts?.urgent },
-    { key: 'waiting', label: 'Esperando bufete',   emoji: '📞', count: counts?.waiting },
-    { key: 'docs',    label: 'Falta documentación',emoji: '📄', count: counts?.docs },
-    { key: 'partial', label: 'Pago parcial',        emoji: '💰', count: counts?.partial },
+    { key: 'all',     label: t('segTabAll'),      emoji: '',   count: counts?.all },
+    { key: 'urgent',  label: t('segTabUrgent'),   emoji: '⚠',  count: counts?.urgent },
+    { key: 'waiting', label: t('segTabWaiting'),  emoji: '📞', count: counts?.waiting },
+    { key: 'docs',    label: t('segTabDocs'),      emoji: '📄', count: counts?.docs },
+    { key: 'partial', label: t('segTabPartial'),   emoji: '💰', count: counts?.partial },
   ];
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -315,10 +318,10 @@ export function SeguimientoClient() {
         title={
           <span className="flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-amber" />
-            Seguimiento y Cobranzas
+            {t('segPageTitle')}
           </span>
         }
-        subtitle="Casos post-visita pendientes de cobro"
+        subtitle={t('segPageSubtitle')}
         action={
           <button
             type="button"
@@ -326,7 +329,7 @@ export function SeguimientoClient() {
             className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-text-muted hover:text-text-1 hover:border-border/70 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
+            {t('refresh')}
           </button>
         }
       />
@@ -341,7 +344,7 @@ export function SeguimientoClient() {
             className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12px] font-semibold text-text-muted hover:text-text-1 hover:bg-white/[0.04] transition-all"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Pre-visita
+            {t('togglePreVisitShort')}
             {total > 0 && (
               <span className="rounded-full bg-white/10 px-1.5 text-[10px]">{total}</span>
             )}
@@ -351,7 +354,7 @@ export function SeguimientoClient() {
             className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12px] font-bold transition-all
               bg-gradient-to-r from-amber to-rose/80 text-white shadow-sm"
           >
-            Post-visita · Cobranzas
+            {t('togglePostVisit')}
             {total > 0 && (
               <span className="rounded-full bg-white/20 px-1.5 text-[10px]">{total}</span>
             )}
@@ -362,30 +365,30 @@ export function SeguimientoClient() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard
             icon={DollarSign}
-            label="Pendiente cobro"
+            label={t('kpiPendingCollection')}
             value={kpis?.totalPending ?? '—'}
-            sub="Total facturado sin cobrar"
+            sub={t('kpiPendingCollectionSub')}
             tone="amber"
           />
           <KpiCard
             icon={Clock}
-            label="Casos >30 días"
+            label={t('kpiOver30')}
             value={kpis?.over30 ?? '—'}
-            sub="Seguimiento prioritario"
+            sub={t('kpiOver30Sub')}
             tone="amber"
           />
           <KpiCard
             icon={AlertTriangle}
-            label="Casos >60 días"
+            label={t('kpiOver60')}
             value={kpis?.over60 ?? '—'}
-            sub="Acción inmediata"
+            sub={t('kpiOver60Sub')}
             tone="rose"
           />
           <KpiCard
             icon={TrendingUp}
-            label="Recuperado este mes"
+            label={t('kpiRecoveredMonth')}
             value={kpis?.recoveredMonth ?? '—'}
-            sub="Phase 2: ledger real"
+            sub={t('kpiRecoveredMonthSub')}
             tone="emerald"
           />
         </div>
@@ -437,11 +440,11 @@ export function SeguimientoClient() {
         {!loading && !error && items.length === 0 && (
           <EmptyState.Rich
             icon={TrendingUp}
-            title="No hay casos pendientes"
+            title={t('segEmptyTitle')}
             subtitle={
               tab === 'all'
-                ? 'Todos los casos están al día. ¡Buen trabajo!'
-                : 'No hay casos que coincidan con este filtro.'
+                ? t('segEmptyAllSubtitle')
+                : t('segEmptyFilterSubtitle')
             }
           />
         )}
@@ -461,7 +464,7 @@ export function SeguimientoClient() {
         {/* Phase 2 notice */}
         {!loading && items.length > 0 && (
           <p className="text-center text-[11px] text-text-muted italic py-2">
-            Phase 2: ledger de pagos real, integración bufete, generación de balances.
+            {t('phase2Notice')}
           </p>
         )}
 

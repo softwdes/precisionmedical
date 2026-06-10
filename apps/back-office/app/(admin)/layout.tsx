@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/admin';
 import { AdminShell } from '@/components/layout/admin-shell';
+import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 
 // Back-Office · Admin layout
 // Server Component — obtiene sesión de Supabase y pasa nombre/rol al shell.
@@ -52,13 +53,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <AdminShell
-      userName={userName}
-      userRole={userRole}
-      userInitials={userInits}
-      userEmail={user.email ?? ''}
-    >
-      {children}
-    </AdminShell>
+    <>
+      <UpdateBanner />
+      <AdminShell
+        userName={userName}
+        userRole={userRole}
+        userInitials={userInits}
+        userEmail={user.email ?? ''}
+      >
+        {children}
+      </AdminShell>
+    </>
   );
 }

@@ -441,17 +441,17 @@ function ActionButtons({
     <div className="flex items-center gap-2 flex-wrap">
       {status === 'NEW_REFERRAL' && (
         <Button onClick={onSendPortal} size="sm">
-          <Send className="w-3.5 h-3.5 mr-1" /> Enviar portal
+          <Send className="w-3.5 h-3.5 mr-1" /> Enviar Forms
         </Button>
       )}
       {status === 'INTAKE_PENDING' && (
         <>
           <Button onClick={onSendPortal} variant="outline" size="sm">
-            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar portal
+            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar Forms
           </Button>
           <Button onClick={onSimulateIntake} variant="outline" size="sm" disabled={isMarkingIntake}>
             <Zap className="w-3.5 h-3.5 mr-1" />
-            {isMarkingIntake ? 'Simulando...' : 'DEV · Simular portal completo'}
+            {isMarkingIntake ? 'Simulando...' : 'DEV · Simular Forms completo'}
           </Button>
         </>
       )}
@@ -461,7 +461,7 @@ function ActionButtons({
             <FileCheck className="w-3.5 h-3.5 mr-1" /> Confirmar cita
           </Button>
           <Button onClick={onSendPortal} variant="outline" size="sm">
-            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar portal
+            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar Forms
           </Button>
         </>
       )}
@@ -471,7 +471,7 @@ function ActionButtons({
             <CalendarCheck className="w-3.5 h-3.5 mr-1" /> Agendar primera cita
           </Button>
           <Button onClick={onSendPortal} variant="outline" size="sm">
-            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar portal
+            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar Forms
           </Button>
         </>
       )}
@@ -486,8 +486,8 @@ function ActionButtons({
 
 function NextActionBanner({ caseInfo }: { caseInfo: CaseInfo }) {
   const cfg: Record<CaseStatus, { title: string; message: string; tone: 'rose' | 'amber' | 'cyan' | 'emerald' | 'brand' } | null> = {
-    NEW_REFERRAL:     { title: 'Próxima acción: enviar portal al paciente', message: 'El paciente todavía no recibió el link al intake. Llamalo y enviá el portal por SMS o email.', tone: 'rose' },
-    INTAKE_PENDING:   { title: 'Esperando paciente complete portal', message: 'El portal fue enviado. Si no responde en 24h, llamar para recordar.', tone: 'amber' },
+    NEW_REFERRAL:     { title: 'Próxima acción: enviar Forms al paciente', message: 'El paciente todavía no recibió el link al intake. Llamalo y enviá los Forms por SMS o email.', tone: 'rose' },
+    INTAKE_PENDING:   { title: 'Esperando paciente complete los Forms', message: 'Los Forms fueron enviados. Si no responde en 24h, llamar para recordar.', tone: 'amber' },
     INTAKE_COMPLETED: { title: 'Próxima acción: llamar 24h antes para confirmar', message: 'El paciente completó intake. Ejecutá checklist de confirmación.', tone: 'cyan' },
     CONFIRMED:        { title: 'Próxima acción: agendar primera cita', message: 'Caso confirmado. Asignar doctor + clínica + horario para mover al flujo clínico.', tone: 'emerald' },
     ACTIVE:           { title: 'En tratamiento', message: 'Caso activo. El doctor toma el caso en /clinical · Recepción puede agregar notas y agendar follow-ups.', tone: 'brand' },

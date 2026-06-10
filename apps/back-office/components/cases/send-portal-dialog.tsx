@@ -110,7 +110,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-emerald">
               <Check className="w-5 h-5" />
-              Portal enviado · mock Phase 1A
+              Forms enviado · mock Phase 1A
             </DialogTitle>
             <DialogDescription>
               Phoenix Phase 1A — el SMS NO se envió de verdad (Weave BAA pendiente). Phase 2 con BAA firmado activa el envío real.
@@ -150,7 +150,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
 
             <div className="text-xs text-text-muted text-center pt-2">
               ✓ Status del caso actualizado a <code className="text-amber">INTAKE_PENDING</code><br />
-              Próximo: paciente completa portal (B.5-B.9) · 24h antes de cita confirmás (B.4)
+              Próximo: paciente completa Forms (B.5-B.9) · 24h antes de cita confirmás (B.4)
             </div>
           </div>
 
@@ -172,10 +172,10 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5 text-brand" />
-            Enviar portal al paciente
+            Enviar Forms al paciente
           </DialogTitle>
           <DialogDescription>
-            Magic link al portal (B.5-B.9) para que <strong className="text-text-1">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> complete su intake. Expira en 24h.
+            Magic link a los Forms (B.5-B.9) para que <strong className="text-text-1">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> complete su intake. Expira en 24h.
           </DialogDescription>
         </DialogHeader>
 

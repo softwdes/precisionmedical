@@ -502,27 +502,27 @@ function CaseCard({
             {c.status === 'NEW_REFERRAL' && (
               <div className="mt-3 flex items-center gap-2 text-xs text-rose">
                 <AlertCircle className="w-3.5 h-3.5" />
-                <span className="font-semibold">Acción: contactar paciente + enviar portal SMS</span>
+                <span className="font-semibold">Acción: contactar paciente + enviar Forms SMS</span>
                 <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onSendPortal(); }}>
-                  <Send className="w-3 h-3 mr-1" /> Enviar portal
+                  <Send className="w-3 h-3 mr-1" /> Enviar Forms
                 </Button>
               </div>
             )}
             {c.status === 'INTAKE_PENDING' && c.intakeFormSentAt && (
               <div className="mt-3 flex items-center gap-2 text-xs text-amber flex-wrap">
                 <Mail className="w-3.5 h-3.5" />
-                <span>Portal {c.intakeFormSentVia} enviado {formatRelative(c.intakeFormSentAt)} · Esperando paciente complete</span>
-                {/* Phase 1A dev helper — simula que el paciente completó el portal */}
+                <span>Forms {c.intakeFormSentVia} enviado {formatRelative(c.intakeFormSentAt)} · Esperando paciente complete</span>
+                {/* Phase 1A dev helper — simula que el paciente completó los Forms */}
                 <Button
                   size="sm"
                   variant="outline"
                   className="ml-auto text-[10px] opacity-70 hover:opacity-100"
                   onClick={(e) => { e.stopPropagation(); onSimulateIntake(); }}
                   disabled={isMarkingIntake}
-                  title="Phase 1A dev · Simula que el paciente completó el portal (B.5-B.9 stub)"
+                  title="Phase 1A dev · Simula que el paciente completó los Forms (B.5-B.9 stub)"
                 >
                   <Zap className="w-3 h-3 mr-1" />
-                  {isMarkingIntake ? 'Simulando...' : 'DEV · Simular portal completo'}
+                  {isMarkingIntake ? 'Simulando...' : 'DEV · Simular Forms completo'}
                 </Button>
               </div>
             )}

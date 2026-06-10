@@ -68,7 +68,7 @@ export default function LoginPage(): React.ReactElement {
   const [password,     setPassword]     = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState(callbackErr ? 'Error de autenticación. Intentá de nuevo.' : '');
+  const [error,        setError]        = useState(callbackErr ? 'Authentication error. Please try again.' : '');
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -80,7 +80,7 @@ export default function LoginPage(): React.ReactElement {
       router.push(redirectTo);
       router.refresh();
     } catch {
-      setError('Error de conexión. Verificá tu red e intentá de nuevo.');
+      setError('Connection error. Check your network and try again.');
     } finally {
       setLoading(false);
     }
@@ -195,7 +195,7 @@ export default function LoginPage(): React.ReactElement {
               </div>
             </div>
             <p className="pm-title" style={{color:'#F5F7FB',fontWeight:800,fontSize:26,letterSpacing:'-0.5px',margin:'0 0 5px',textShadow:'0 1px 2px rgba(0,0,0,0.45)'}}>Precision Medical</p>
-            <p style={{color:'#4A5474',fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Clinic · Gestión Clínica</p>
+            <p style={{color:'#4A5474',fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Clinic · Clinical Management</p>
           </div>
 
           {/* Card */}
@@ -211,7 +211,7 @@ export default function LoginPage(): React.ReactElement {
                 <div className="pm-field" style={{position:'relative',display:'flex',alignItems:'center',gap:10,borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'14px 0',marginBottom:4}}>
                   <Lock size={17} color="#F59E0B" style={{flexShrink:0}} />
                   <input className="pm-input" type={showPassword?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password" />
-                  <button type="button" onClick={()=>setShowPassword(!showPassword)} aria-label={showPassword?'Ocultar':'Mostrar'} style={{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:1,flexShrink:0}}>
+                  <button type="button" onClick={()=>setShowPassword(!showPassword)} aria-label={showPassword?'Hide password':'Show password'} style={{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:1,flexShrink:0}}>
                     {showPassword?<EyeOff size={14} color="#4A5474"/>:<Eye size={14} color="#4A5474"/>}
                   </button>
                   <div style={{position:'absolute',bottom:-4,left:0,right:0,height:8,background:'linear-gradient(180deg,rgba(245,158,11,0.10),transparent)',borderRadius:'0 0 4px 4px',pointerEvents:'none'}} />
@@ -228,9 +228,9 @@ export default function LoginPage(): React.ReactElement {
                   {loading ? (
                     <>
                       <svg className="lm-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                      Ingresando...
+                      Signing in...
                     </>
-                  ) : 'Ingresar →'}
+                  ) : 'Sign in →'}
                 </button>
 
                 {/* Forgot password */}
@@ -238,7 +238,7 @@ export default function LoginPage(): React.ReactElement {
                   <a href="/forgot-password" style={{fontSize:12,color:'#F59E0B',opacity:0.7,textDecoration:'none',fontWeight:500,letterSpacing:'0.02em'}}
                     onMouseEnter={e=>(e.currentTarget.style.opacity='1')}
                     onMouseLeave={e=>(e.currentTarget.style.opacity='0.7')}>
-                    ¿Olvidaste tu contraseña?
+                    Forgot your password?
                   </a>
                 </div>
               </form>
@@ -248,7 +248,7 @@ export default function LoginPage(): React.ReactElement {
           {/* Status */}
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginTop:16,marginBottom:10}}>
             <div className="lm-sys" style={{width:6,height:6,borderRadius:'50%',background:'#10B981',boxShadow:'0 0 6px #10B981,0 0 12px rgba(16,185,129,0.4)'}} />
-            <span style={{fontSize:11,color:'#4A5474',fontWeight:600,letterSpacing:'0.04em'}}>Todos los sistemas operacionales</span>
+            <span style={{fontSize:11,color:'#4A5474',fontWeight:600,letterSpacing:'0.04em'}}>All systems operational</span>
           </div>
 
           {/* Security pills */}

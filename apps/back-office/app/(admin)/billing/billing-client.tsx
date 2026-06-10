@@ -19,6 +19,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
+import { KpiCard    } from '@/components/ui-phoenix/kpi-card';
 import { EmptyState  } from '@/components/ui-phoenix/empty-state';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -69,25 +70,6 @@ function fmtMoney(n: number): string {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, tone }: {
-  label: string; value: string | number; sub?: string;
-  tone: 'cyan' | 'amber' | 'emerald' | 'rose';
-}) {
-  const clr: Record<typeof tone, string> = {
-    cyan:    'text-cyan    border-cyan/30    bg-cyan/5',
-    amber:   'text-amber   border-amber/30   bg-amber/5',
-    emerald: 'text-emerald border-emerald/30 bg-emerald/5',
-    rose:    'text-rose    border-rose/30    bg-rose/5',
-  };
-  return (
-    <div className={`rounded-lg border p-4 ${clr[tone]}`}>
-      <div className="text-[10px] uppercase tracking-wider font-semibold opacity-70 mb-1">{label}</div>
-      <div className="text-2xl font-black">{value}</div>
-      {sub && <div className="text-[10px] opacity-60 mt-0.5">{sub}</div>}
-    </div>
-  );
-}
-
 function CaseRow({ item, onHcfa }: {
   item: BillingItem;
   onHcfa: (item: BillingItem) => void;
@@ -98,8 +80,8 @@ function CaseRow({ item, onHcfa }: {
 
   const borderCls = item.hcfaGeneratedAt
     ? 'border-border hover:border-border-strong'
-    : 'border-amber/25 hover:border-amber/45';
-  const bgCls = item.hcfaGeneratedAt ? 'bg-bg-1' : 'bg-amber/[0.02]';
+    : 'border-brand/20 hover:border-brand/35';
+  const bgCls = item.hcfaGeneratedAt ? 'bg-bg-1' : 'bg-brand/[0.03]';
 
   return (
     <div className={`rounded-lg border ${borderCls} ${bgCls} p-4 transition-all`}>
@@ -111,7 +93,7 @@ function CaseRow({ item, onHcfa }: {
             <span className="font-mono text-[11px] font-bold text-amber">{item.caseCode}</span>
 
             {isNew ? (
-              <span className="border border-amber/35 rounded-full px-2 py-0.5 text-[9px] bg-amber/10 text-amber font-semibold uppercase tracking-wide">
+              <span className="border border-brand/30 rounded-full px-2 py-0.5 text-[9px] bg-brand/10 text-brand font-semibold uppercase tracking-wide">
                 Nueva nota
               </span>
             ) : (
@@ -272,10 +254,10 @@ export function BillingClient() {
 
         {/* KPI row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <KpiCard label="Notas listas"       value={kpis.notesReady}               tone="amber"   sub="Generar HCFA"      />
-          <KpiCard label="HCFA enviados"      value={kpis.hcfaSent}                 tone="cyan"    sub="Confirmados"       />
-          <KpiCard label="Cobros recibidos"   value={fmtMoney(kpis.totalBilled)}    tone="emerald" sub="Mes (mock)"        />
-          <KpiCard label="Pendiente cobro"    value={fmtMoney(kpis.pendingCollection)} tone="rose" sub="Lien acumulado"   />
+          <KpiCard label="Notas listas"       value={kpis.notesReady}                  color="text-cyan"    sub="Generar HCFA"    compact />
+          <KpiCard label="HCFA enviados"      value={kpis.hcfaSent}                    color="text-brand"   sub="Confirmados"     compact />
+          <KpiCard label="Cobros recibidos"   value={fmtMoney(kpis.totalBilled)}       color="text-emerald" sub="Mes (mock)"      compact />
+          <KpiCard label="Pendiente cobro"    value={fmtMoney(kpis.pendingCollection)} color="text-amber"   sub="Lien acumulado"  compact />
         </div>
 
         {/* Tabs */}

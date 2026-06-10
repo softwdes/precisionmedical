@@ -1,13 +1,34 @@
 import { db } from '@precision-medical/database';
+import { createServerClient } from '@precision-medical/auth/server';
+import { createAdminClient } from '@precision-medical/auth/admin';
 import { FrontOfficeClient } from './front-office-client';
 
 // B.1 + B.2 — Recepción primaria · Front Office workspace
 // Vista de Recepción + modal de crear caso.
 
 export default async function FrontOfficePage() {
+  // Nombre del usuario para el saludo personalizado
+  let userName = 'Recepción';
+  try {
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.email) {
+      const admin = createAdminClient();
+      const { data } = await admin.from('users').select('firstName').eq('email', user.email).single();
+      if (data?.firstName) userName = data.firstName as string;
+    }
+  } catch { /* fallback a 'Recepción' */ }
+
+  // Rango de hoy y ayer en UTC (Mountain Daylight Time = UTC-7)
+  // Para Phase 1A con mock data, usamos medianoche UTC como aproximación.
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+  const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  const yesterdayEnd   = new Date(todayEnd);   yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
   // Specialties + clinics + providers para los dropdowns del modal B.2
   // + samplePatients para el IncomingCallSimulator (DEV · simula Weave webhook)
-  const [specialties, clinics, providers, samplePatients] = await Promise.all([
+  const [specialties, clinics, providers, samplePatients, citasHoy, noShowsAyer] = await Promise.all([
     db.specialtyCatalog.findMany({
       where: { isActive: true, deletedAt: null },
       orderBy: { sortOrder: 'asc' },
@@ -35,6 +56,20 @@ export default async function FrontOfficePage() {
         phone: true,
         email: true,
         _count: { select: { cases: true } },
+      },
+    }),
+    // Citas del día (scheduled/in-progress · no canceladas)
+    db.appointment.count({
+      where: {
+        scheduledFor: { gte: todayStart, lte: todayEnd },
+        status: { notIn: ['CANCELLED'] },
+      },
+    }),
+    // No-shows de ayer
+    db.appointment.count({
+      where: {
+        scheduledFor: { gte: yesterdayStart, lte: yesterdayEnd },
+        status: 'NO_SHOW',
       },
     }),
   ]);
@@ -71,8 +106,13 @@ export default async function FrontOfficePage() {
     CANCELLED:        cases.filter((c) => c.status === 'CANCELLED').length,
   };
 
+  // Casos creados hoy (de los ya cargados · rango local aproximado)
+  const casosHoy = cases.filter((c) => new Date(c.createdAt) >= todayStart).length;
+
   return (
     <FrontOfficeClient
+      userName={userName}
+      kpis={{ casosHoy, citasHoy, formulariosPendientes: byStatus.INTAKE_PENDING, noShowsAyer }}
       specialties={specialties}
       clinics={clinics}
       providers={providers}

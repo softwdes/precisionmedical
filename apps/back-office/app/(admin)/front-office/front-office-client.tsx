@@ -62,6 +62,14 @@ interface PhoenixCase {
 interface Props {
   cases: PhoenixCase[];
   stats: Record<CaseStatus, number>;
+  /** KPIs operacionales del día — alineados al mockup B.1 */
+  kpis: {
+    casosHoy:              number;
+    citasHoy:              number;
+    formulariosPendientes: number;
+    noShowsAyer:           number;
+  };
+  userName: string;
   specialties: Array<{ id: string; name: string; color: string }>;
   clinics: Array<{ id: string; name: string; address: string | null }>;
   providers: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
@@ -76,7 +84,7 @@ interface Props {
   }>;
 }
 
-export function FrontOfficeClient({ cases, stats, specialties, clinics, providers, samplePatients }: Props) {
+export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, clinics, providers, samplePatients }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.frontOffice');
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
@@ -174,10 +182,14 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
     }
   };
 
+  // Saludo según hora local del navegador (se evalúa en cliente)
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? t('greetingMorning') : hour < 18 ? t('greetingAfternoon') : t('greetingEvening');
+
   return (
     <div className="space-y-4">
       <PageHeader
-        title={t('title')}
+        title={`${greeting}, ${userName}`}
         subtitle={
           <span className="flex items-center gap-2 flex-wrap">
             <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold flex items-center gap-1">
@@ -212,12 +224,12 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
         <span className="text-text-muted text-[10px] font-mono shrink-0">{t('callReady')}</span>
       </div>
 
-      {/* KPIs — compact 4-col grid */}
+      {/* KPIs — mockup B.1: amber / neutral / brand / rose */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label={t('kpiNewReferrals')}     value={stats.NEW_REFERRAL}     sub={t('kpiNewReferralsSub')}    color="text-rose"    compact />
-        <KpiCard label={t('kpiIntakePending')}    value={stats.INTAKE_PENDING}   sub={t('kpiIntakePendingSub')}   color="text-amber"   compact />
-        <KpiCard label={t('kpiIntakeCompleted')}  value={stats.INTAKE_COMPLETED} sub={t('kpiIntakeCompletedSub')} color="text-cyan"    compact />
-        <KpiCard label={t('kpiConfirmed')}        value={stats.CONFIRMED}        sub={t('kpiConfirmedSub')}       color="text-emerald" compact />
+        <KpiCard label={t('kpiCasosHoy')}    value={kpis.casosHoy}              sub={t('kpiCasosHoySub')}    color="text-amber"   compact />
+        <KpiCard label={t('kpiCitasHoy')}    value={kpis.citasHoy}              sub={t('kpiCitasHoySub')}    color="text-text-1"  compact />
+        <KpiCard label={t('kpiFormularios')} value={kpis.formulariosPendientes}  sub={t('kpiFormulariosSub')} color="text-brand"   compact />
+        <KpiCard label={t('kpiNoShows')}     value={kpis.noShowsAyer}           sub={t('kpiNoShowsSub')}     color="text-rose"    compact />
       </div>
 
       {/* Acciones rápidas */}

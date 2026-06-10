@@ -32,9 +32,10 @@ export default async function DonePage({ params }: Props) {
     },
   });
 
-  const firstName  = rec?.patient.firstName ?? 'Paciente';
-  const caseCode   = rec?.caseCode ?? '';
+  const firstName   = rec?.patient.firstName ?? 'Paciente';
+  const caseCode    = rec?.caseCode ?? '';
   const completedAt = rec?.intakeFormCompletedAt ?? null;
+  const patientEmail = rec?.patient.email ?? null;
 
   return (
     <div style={{
@@ -65,9 +66,16 @@ export default async function DonePage({ params }: Props) {
             ¡Listo, {firstName}! 🎉
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 15, lineHeight: 1.65 }}>
-            Tu registro está completo. Nuestro equipo revisará tu información
-            y se comunicará contigo para confirmar tu primera cita.
+            Tu registro está completo. Nuestro equipo revisará tu información y se comunicará contigo pronto.
           </p>
+          {patientEmail && (
+            <p style={{
+              marginTop: 10, fontSize: 13, color: 'rgba(255,255,255,0.40)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              📧 Te enviamos los documentos a <span style={{ color: '#A5B4FC', fontFamily: 'monospace' }}>{patientEmail}</span>
+            </p>
+          )}
         </div>
 
         {/* Case code card */}
@@ -107,9 +115,9 @@ export default async function DonePage({ params }: Props) {
             Próximos pasos
           </div>
           {[
-            { icon: '📞', title: 'Te llamamos', sub: 'Nuestro equipo te contactará en 24-48 horas para confirmar tu cita.' },
-            { icon: '📅', title: 'Primera visita', sub: 'Recibirás un SMS de recordatorio el día anterior a tu cita.' },
-            { icon: '📄', title: 'Trae tu ID', sub: 'Lleva tu licencia de conducir y tarjeta de seguro a tu primera visita.' },
+            { icon: '🔍', title: 'Verificamos tu caso', sub: 'Confirmamos tu seguro y coordinamos con tu abogado. Esto toma 24-48 horas.' },
+            { icon: '📞', title: 'Te llamamos para confirmar', sub: 'Nuestro equipo te llama para confirmar tu cita y resolver cualquier duda.' },
+            { icon: '🏥', title: 'Vienes a la clínica', sub: 'Trae tu licencia de conducir y tarjeta de seguro a tu primera visita. Te cuidamos.' },
           ].map((item, i) => (
             <div key={i} style={{
               display: 'flex', gap: 12,

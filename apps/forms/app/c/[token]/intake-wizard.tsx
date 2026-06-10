@@ -1,21 +1,15 @@
 'use client';
 
 /**
- * B.5–B.8 — IntakeWizard · Portal del Paciente
+ * B.5–B.8 — IntakeWizard · Forms del Paciente
  *
- * Mobile-first. Dark background #0a1224. Colores portal:
- *   cyan   #06B6D4 (accent principal)
- *   indigo #6366F1 (buttons)
- *   emerald #10B981 (success / firma)
- *
- * Pasos:
- *   1 · Landing        — saludo, Sifo bot, lista de pasos (B.5)
- *   2 · Datos personales (B.6 p1)
- *   3 · Tu accidente    (B.6 p2)
- *   4 · Tu seguro       (B.6 p3)
- *   5 · Identificación  (B.7 — file upload Phase 1A)
- *   6 · Firma del Lien  (B.8 — canvas)
- *   7 · Confirmación    (B.9 — redirige a /c/[token]/done)
+ * Phase 1A additions:
+ *   ✓ Bilingual toggle (ES/EN) + preferredLanguage field in Step 2
+ *   ✓ Appointment info on Step 1 landing (doctor + date)
+ *   ✓ Auto-save indicator "💾 HH:MM" in top bar after each save
+ *   ✓ "Ver texto legal completo ›" expandable section in Step 6
+ *   ✓ Signature metadata (timestamp · device) in Step 6
+ *   ✓ "Lo tomo en la clínica" fallback button in Step 5
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -41,6 +35,11 @@ interface AccidentData {
   location: string | null;
 }
 
+interface NextAppointment {
+  scheduledFor: string;
+  providerName: string | null;
+}
+
 interface Props {
   token: string;
   caseId: string;
@@ -48,30 +47,255 @@ interface Props {
   patient: PatientData;
   accident: AccidentData;
   casePolicyNumber: string | null;
+  nextAppointment: NextAppointment | null;
 }
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 type AccidentType = 'AUTO' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WORKPLACE' | 'OTHER';
+type Lang = 'es' | 'en';
 
-// ─── Sifo hints por paso ──────────────────────────────────────────────────────
+// ─── Bilingual string table ───────────────────────────────────────────────────
 
-const SIFO_HINTS: Record<number, string> = {
-  1:  '¡Hola! Soy Sifo ✨ Te guío en cada paso. Solo toma ~5 minutos.',
-  2:  'Verifica que tus datos coincidan con tu ID. Los usaremos en tus documentos médicos.',
-  3:  'La fecha exacta del accidente es clave para procesar tu caso correctamente.',
-  4:  'Tu seguro PIP (Personal Injury Protection) cubre los tratamientos del accidente.',
-  5:  'Necesitamos tu ID para verificar tu identidad. Tus fotos están seguras 🔒',
-  6:  'Esta firma autoriza a Precision Medical a tratar tu lesión bajo lien. Es legal y vinculante.',
+const STRINGS = {
+  es: {
+    // Top bar
+    langToggle: 'EN',
+
+    // Step 1
+    greeting: (n: string) => `Hola, ${n} 👋`,
+    greetingSub: 'Te acompaño en tu registro inicial. Solo toma 5 minutos.',
+    caseNumberLabel: 'Número de caso',
+    accidentLabel: 'Accidente',
+    apptLabel: 'Tu próxima cita',
+    apptWith: 'con Dr.',
+    todayStepsLabel: 'Lo que completarás hoy',
+    todaySteps: [
+      { icon: '👤', label: 'Datos personales' },
+      { icon: '🚗', label: 'Detalles del accidente' },
+      { icon: '🏥', label: 'Información de tu seguro' },
+      { icon: '📸', label: 'Foto de identificación' },
+      { icon: '✍️', label: 'Firma del acuerdo de lien' },
+    ],
+    startBtn: 'Comenzar →',
+    secureNote: '🔒 Tu información es confidencial y segura',
+    sifoHint1: '¡Hola! Soy Sifo ✨ Te guío en cada paso. Solo toma ~5 minutos.',
+
+    // Step 2
+    personalTitle: 'Datos personales',
+    personalSub: 'Verifica que tu información esté correcta.',
+    firstName: 'Nombre',
+    lastName: 'Apellido',
+    dob: 'Fecha de nacimiento',
+    phone: 'Teléfono',
+    email: 'Correo electrónico',
+    preferredLangLabel: 'Idioma preferido',
+    langOptionEs: '🇪🇸 Español',
+    langOptionEn: '🇺🇸 English',
+    sifoHint2: 'Verifica que tus datos coincidan con tu ID. Los usaremos en tus documentos médicos.',
+
+    // Step 3
+    accidentTitle: 'Tu accidente',
+    accidentSub: 'Necesitamos los detalles del accidente para procesar tu caso.',
+    accidentDate: 'Fecha del accidente',
+    accidentTypeLabel: 'Tipo de accidente',
+    accidentTypesMap: {
+      AUTO: '🚗 Auto',
+      MOTORCYCLE: '🏍️ Moto',
+      PEDESTRIAN: '🚶 Peatón',
+      WORKPLACE: '🏭 Trabajo',
+      OTHER: '❓ Otro',
+    } as Record<AccidentType, string>,
+    accidentLocation: 'Ubicación del accidente',
+    accidentLocationPh: 'Ej: I-15 y 500 S, Provo, UT',
+    accidentDesc: 'Describe brevemente cómo ocurrió',
+    accidentDescPh: 'Ej: Me impactaron por detrás mientras esperaba en semáforo...',
+    sifoHint3: 'La fecha exacta del accidente es clave para procesar tu caso correctamente.',
+
+    // Step 4
+    insuranceTitle: 'Tu seguro',
+    insuranceSub: 'Información de tu seguro Personal Injury Protection (PIP).',
+    pipTitle: '¿Qué es el PIP?',
+    pipDesc: 'Personal Injury Protection (PIP) es la cobertura de tu seguro de auto que paga los tratamientos médicos causados por el accidente, sin importar quién tuvo la culpa.',
+    carrier: 'Compañía aseguradora (PIP)',
+    carrierPh: 'Ej: State Farm, Progressive, GEICO...',
+    policyNum: 'Número de póliza',
+    policyNumPh: 'Ej: POL-123456789',
+    sifoHint4: 'Tu seguro PIP (Personal Injury Protection) cubre los tratamientos del accidente.',
+
+    // Step 5
+    idTitle: 'Tu identificación',
+    idSub: 'Necesitamos tu ID para verificar tu identidad. Fase 1A: fotos se revisan en tu primera visita.',
+    selfieLabel: 'Selfie tipo ID',
+    selfieBtn: 'Seleccionar selfie',
+    dlLabel: 'Licencia de conducir',
+    dlFront: '📷 Frente de la licencia',
+    dlBack: '📷 Reverso de la licencia',
+    insCardLabel: 'Tarjeta de seguro',
+    insCardBtn: '📷 Foto de tu tarjeta de seguro',
+    phase1Note: '📋 Fase de Registro: Tus fotos serán revisadas en tu primera visita. No se almacenan en el sistema hasta completar el protocolo de seguridad HIPAA.',
+    cantPhotoTitle: '¿No puedes tomar las fotos ahora?',
+    takeAtClinicBtn: '📋 Lo tomo en la clínica el día de mi cita',
+    clinicSelectedMsg: '✓ Llevarás tu ID a la clínica. El equipo te ayudará con las fotos.',
+    continueToSign: 'Continuar a firma →',
+    sifoHint5: 'Necesitamos tu ID para verificar tu identidad. Tus fotos están seguras 🔒',
+
+    // Step 6
+    lienTitle: 'Firma del Lien',
+    lienSub: 'Este acuerdo autoriza a Precision Medical a tratar tu lesión. Es un documento legal.',
+    plainLangLabel: 'EN LENGUAJE CLARO',
+    lienSimple: 'Tu tratamiento médico se paga cuando termine tu caso legal. No tienes que pagar de tu bolsillo. Precision Medical cobra directamente del settlement de tu caso.',
+    showFullLegal: 'Ver texto legal completo ›',
+    hideFullLegal: 'Ocultar texto legal ‹',
+    lienLegalTitle: 'Acuerdo de Gravamen Médico — Precision Medical Care',
+    lienLegalBody: 'Al firmar este documento, autorizo a Precision Medical Care a proporcionar los tratamientos médicos necesarios para las lesiones derivadas del accidente. Entiendo y acepto que:\n\n• Los costos del tratamiento serán cubiertos bajo lien contra la demanda de lesiones personales.\n• Precision Medical Care tiene derecho a cobrar directamente de cualquier liquidación, sentencia o pago de seguros.\n• Tengo el derecho de conocer todos los cargos y de recibir una copia de este acuerdo.\n• Puedo retirar este consentimiento en cualquier momento mediante aviso escrito.\n\nEsta firma tiene validez legal conforme a ESIGN Act y UETA (Utah Code § 46-4-101 et seq.).',
+    signHereLabel: 'Tu firma (dibuja aquí)',
+    signPlaceholder: '✍️ Dibuja tu firma aquí',
+    clearSigBtn: '× Borrar y volver a firmar',
+    signerNameLabel: 'Nombre completo del firmante',
+    signerEmailLabel: 'Correo electrónico (opcional)',
+    signerEmailPh: 'para recibir copia',
+    agreeCheckbox: 'He leído y acepto el Acuerdo de Lien Médico. Entiendo que esta firma es legalmente vinculante.',
+    signBtn: '✓ Firmar y completar registro',
+    signing: '⏳ Firmando...',
+    legalNote: '🔒 Firmado digitalmente — ESIGN Act · UETA Utah',
+    sigMetaLabel: 'REGISTRO DE FIRMA',
+    sigTimeLabel: 'Fecha y hora',
+    sigDeviceLabel: 'Dispositivo',
+    sifoHint6: 'Esta firma autoriza a Precision Medical a tratar tu lesión bajo lien. Es legal y vinculante.',
+
+    // Common
+    back: '← Atrás',
+    continue: 'Continuar →',
+    saving: '⏳ Guardando...',
+    savedAt: (t: string) => `💾 ${t}`,
+    saveError: 'Error guardando. Intenta de nuevo.',
+    signError: 'Error al firmar. Intenta de nuevo.',
+  },
+
+  en: {
+    // Top bar
+    langToggle: 'ES',
+
+    // Step 1
+    greeting: (n: string) => `Hello, ${n} 👋`,
+    greetingSub: 'Let me guide you through your initial registration. It only takes 5 minutes.',
+    caseNumberLabel: 'Case number',
+    accidentLabel: 'Accident',
+    apptLabel: 'Your next appointment',
+    apptWith: 'with Dr.',
+    todayStepsLabel: 'What you will complete today',
+    todaySteps: [
+      { icon: '👤', label: 'Personal information' },
+      { icon: '🚗', label: 'Accident details' },
+      { icon: '🏥', label: 'Insurance information' },
+      { icon: '📸', label: 'Photo ID' },
+      { icon: '✍️', label: 'Medical lien agreement' },
+    ],
+    startBtn: 'Get started →',
+    secureNote: '🔒 Your information is confidential and secure',
+    sifoHint1: "Hi! I'm Sifo ✨ I'll guide you through each step. It only takes ~5 minutes.",
+
+    // Step 2
+    personalTitle: 'Personal information',
+    personalSub: 'Please verify that your information is correct.',
+    firstName: 'First name',
+    lastName: 'Last name',
+    dob: 'Date of birth',
+    phone: 'Phone number',
+    email: 'Email address',
+    preferredLangLabel: 'Preferred language',
+    langOptionEs: '🇪🇸 Spanish',
+    langOptionEn: '🇺🇸 English',
+    sifoHint2: 'Make sure your info matches your ID. We use it in your medical documents.',
+
+    // Step 3
+    accidentTitle: 'Your accident',
+    accidentSub: 'We need the accident details to process your case.',
+    accidentDate: 'Accident date',
+    accidentTypeLabel: 'Accident type',
+    accidentTypesMap: {
+      AUTO: '🚗 Auto',
+      MOTORCYCLE: '🏍️ Motorcycle',
+      PEDESTRIAN: '🚶 Pedestrian',
+      WORKPLACE: '🏭 Workplace',
+      OTHER: '❓ Other',
+    } as Record<AccidentType, string>,
+    accidentLocation: 'Accident location',
+    accidentLocationPh: 'E.g., I-15 & 500 S, Provo, UT',
+    accidentDesc: 'Briefly describe what happened',
+    accidentDescPh: 'E.g., I was rear-ended while waiting at a red light...',
+    sifoHint3: 'The exact accident date is key to processing your case correctly.',
+
+    // Step 4
+    insuranceTitle: 'Your insurance',
+    insuranceSub: 'Information about your Personal Injury Protection (PIP) insurance.',
+    pipTitle: 'What is PIP?',
+    pipDesc: 'Personal Injury Protection (PIP) is your auto insurance coverage that pays for medical treatments caused by the accident, regardless of who was at fault.',
+    carrier: 'Insurance company (PIP)',
+    carrierPh: 'E.g., State Farm, Progressive, GEICO...',
+    policyNum: 'Policy number',
+    policyNumPh: 'E.g., POL-123456789',
+    sifoHint4: 'Your PIP (Personal Injury Protection) insurance covers accident-related treatments.',
+
+    // Step 5
+    idTitle: 'Your identification',
+    idSub: 'We need your ID to verify your identity. Phase 1A: photos are reviewed at your first visit.',
+    selfieLabel: 'ID-style selfie',
+    selfieBtn: 'Select selfie',
+    dlLabel: "Driver's license",
+    dlFront: '📷 Front of license',
+    dlBack: '📷 Back of license',
+    insCardLabel: 'Insurance card',
+    insCardBtn: '📷 Photo of your insurance card',
+    phase1Note: '📋 Registration Phase: Your photos will be reviewed at your first visit. They are not stored until the HIPAA security protocol is complete.',
+    cantPhotoTitle: "Can't take photos right now?",
+    takeAtClinicBtn: '📋 I will take them at the clinic on my appointment day',
+    clinicSelectedMsg: '✓ You will bring your ID to the clinic. Staff will help with photos.',
+    continueToSign: 'Continue to signature →',
+    sifoHint5: 'We need your ID to verify your identity. Your photos are secure 🔒',
+
+    // Step 6
+    lienTitle: 'Lien Signature',
+    lienSub: 'This agreement authorizes Precision Medical to treat your injury. It is a legal document.',
+    plainLangLabel: 'IN PLAIN LANGUAGE',
+    lienSimple: 'Your medical treatment is paid when your legal case ends. You do not pay out of pocket. Precision Medical collects directly from your case settlement.',
+    showFullLegal: 'View full legal text ›',
+    hideFullLegal: 'Hide legal text ‹',
+    lienLegalTitle: 'Medical Lien Agreement — Precision Medical Care',
+    lienLegalBody: 'By signing this document, I authorize Precision Medical Care to provide the necessary medical treatments for injuries resulting from the accident. I understand and agree that:\n\n• Treatment costs will be covered under a lien against the personal injury claim.\n• Precision Medical Care has the right to collect directly from any settlement, judgment, or insurance payment.\n• I have the right to know all charges and to receive a copy of this agreement.\n• I may withdraw this consent at any time in writing.\n\nThis signature is legally valid under ESIGN Act and UETA (Utah Code § 46-4-101 et seq.).',
+    signHereLabel: 'Your signature (draw here)',
+    signPlaceholder: '✍️ Draw your signature here',
+    clearSigBtn: '× Clear and re-sign',
+    signerNameLabel: 'Full name of signer',
+    signerEmailLabel: 'Email address (optional)',
+    signerEmailPh: 'to receive a copy',
+    agreeCheckbox: 'I have read and accept the Medical Lien Agreement. I understand that this signature is legally binding.',
+    signBtn: '✓ Sign and complete registration',
+    signing: '⏳ Signing...',
+    legalNote: '🔒 Digitally signed — ESIGN Act · UETA Utah',
+    sigMetaLabel: 'SIGNATURE RECORD',
+    sigTimeLabel: 'Date and time',
+    sigDeviceLabel: 'Device',
+    sifoHint6: 'This signature authorizes Precision Medical to treat your injury under a lien. It is legal and binding.',
+
+    // Common
+    back: '← Back',
+    continue: 'Continue →',
+    saving: '⏳ Saving...',
+    savedAt: (t: string) => `💾 ${t}`,
+    saveError: 'Error saving. Please try again.',
+    signError: 'Error signing. Please try again.',
+  },
 };
 
-// ─── Estilos base ─────────────────────────────────────────────────────────────
+// ─── Style constants ──────────────────────────────────────────────────────────
 
-const BG        = '#0a1224';
-const CYAN      = '#06B6D4';
-const INDIGO    = '#6366F1';
-const EMERALD   = '#10B981';
-const CARD_BG   = 'rgba(255,255,255,0.04)';
-const CARD_BORDER = 'rgba(255,255,255,0.08)';
+const BG           = '#0a1224';
+const CYAN         = '#06B6D4';
+const INDIGO       = '#6366F1';
+const EMERALD      = '#10B981';
+const CARD_BG      = 'rgba(255,255,255,0.04)';
+const CARD_BORDER  = 'rgba(255,255,255,0.08)';
 
 const S = {
   screen: {
@@ -168,39 +392,64 @@ const S = {
     borderRadius: 12,
     padding: 16,
   } as React.CSSProperties,
-
-  label: {
-    display: 'block',
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase' as const,
-    color: 'rgba(255,255,255,0.45)',
-    marginBottom: 6,
-  } as React.CSSProperties,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function isoToInput(iso: string | null): string {
   if (!iso) return '';
-  return iso.slice(0, 10); // yyyy-MM-dd
+  return iso.slice(0, 10);
 }
 
-function fmtDate(iso: string | null): string {
+function fmtDate(iso: string | null, locale: string): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-US', {
-    month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
+  return new Date(iso).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+    timeZone: 'America/Denver',
   });
 }
 
-// ─── Componente principal ─────────────────────────────────────────────────────
+function fmtAppt(iso: string, locale: string): string {
+  const d = new Date(iso);
+  const datePart = d.toLocaleDateString(locale === 'en' ? 'en-US' : 'es-US', {
+    weekday: 'long', month: 'long', day: 'numeric',
+    timeZone: 'America/Denver',
+  });
+  const timePart = d.toLocaleTimeString(locale === 'en' ? 'en-US' : 'es-US', {
+    hour: 'numeric', minute: '2-digit',
+    timeZone: 'America/Denver',
+  });
+  return `${datePart} · ${timePart}`;
+}
 
-export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accident, casePolicyNumber }: Props) {
+function fmtSigTime(d: Date, locale: string): string {
+  return d.toLocaleString(locale === 'en' ? 'en-US' : 'es-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+    timeZone: 'America/Denver',
+  });
+}
+
+function getSavedLabel(d: Date, locale: string): string {
+  return d.toLocaleTimeString(locale === 'en' ? 'en-US' : 'es-US', {
+    hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Denver',
+  });
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function IntakeWizard({
+  token, caseId: _caseId, caseCode, patient, accident, casePolicyNumber, nextAppointment,
+}: Props) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>(1);
-  const [saving, setSaving] = useState(false);
+
+  // ── UI state ────────────────────────────────────────────────────────────────
+  const [step, setStep]         = useState<Step>(1);
+  const [lang, setLang]         = useState<Lang>('es');
+  const [saving, setSaving]     = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [personal, setPersonal] = useState({
@@ -223,22 +472,25 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
     policyNumber: casePolicyNumber ?? patient.policyNumber ?? '',
   });
 
-  // Phase 1A: ID photos — we collect them but don't upload to avoid PHI storage pre-BAA
+  // Step 5 — ID photos (Phase 1A: collected but not uploaded pre-HIPAA BAA)
   const [idPhotos, setIdPhotos] = useState({
-    selfie:          null as File | null,
-    dlFront:         null as File | null,
-    dlBack:          null as File | null,
-    insuranceCard:   null as File | null,
+    selfie:        null as File | null,
+    dlFront:       null as File | null,
+    dlBack:        null as File | null,
+    insuranceCard: null as File | null,
   });
+  const [takeAtClinic, setTakeAtClinic] = useState(false);
 
-  // Canvas signature (B.8)
-  const canvasRef     = useRef<HTMLCanvasElement>(null);
-  const isDrawing     = useRef(false);
-  const [hasSig, setHasSig]         = useState(false);
-  const [signerName, setSignerName] = useState(`${patient.firstName} ${patient.lastName}`);
-  const [signerEmail, setSignerEmail] = useState(patient.email ?? '');
-  const [agreed, setAgreed]         = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  // Step 6 — Lien signature
+  const [showFullLegal, setShowFullLegal] = useState(false);
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const isDrawing    = useRef(false);
+  const [hasSig, setHasSig]             = useState(false);
+  const [sigTimestamp, setSigTimestamp] = useState<Date | null>(null);
+  const [signerName, setSignerName]     = useState(`${patient.firstName} ${patient.lastName}`);
+  const [signerEmail, setSignerEmail]   = useState(patient.email ?? '');
+  const [agreed, setAgreed]             = useState(false);
+  const [submitting, setSubmitting]     = useState(false);
 
   // ── Canvas drawing ──────────────────────────────────────────────────────────
   const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
@@ -259,10 +511,12 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     isDrawing.current = true;
+    // Record timestamp of first stroke
+    if (!sigTimestamp) setSigTimestamp(new Date());
     const { x, y } = getPos(e, canvas);
     ctx.beginPath();
     ctx.moveTo(x, y);
-  }, []);
+  }, [sigTimestamp]);
 
   const draw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -288,12 +542,12 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
     setHasSig(false);
+    setSigTimestamp(null);
   }, []);
 
-  // Canvas size on mount
+  // Canvas size on mount / resize
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -308,13 +562,13 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
     return () => window.removeEventListener('resize', resize);
   }, []);
 
-  // ── Save step data to API ───────────────────────────────────────────────────
-  const saveStepData = async (stepNum: number) => {
+  // ── API helpers ─────────────────────────────────────────────────────────────
+  const saveStepData = async (stepNum: number): Promise<boolean> => {
     setSaving(true);
     setSaveError('');
     try {
       let body: Record<string, unknown> = {};
-      if (stepNum === 2) body = { personal };
+      if (stepNum === 2) body = { personal: { ...personal, preferredLanguage: lang } };
       if (stepNum === 3) body = { accident: acc };
       if (stepNum === 4) body = { insurance };
 
@@ -324,13 +578,14 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
         body: JSON.stringify({ step: stepNum, data: body }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setLastSaved(new Date());
+      return true;
     } catch {
-      setSaveError('Error guardando. Intenta de nuevo.');
+      setSaveError(STRINGS[lang].saveError);
       return false;
     } finally {
       setSaving(false);
     }
-    return true;
   };
 
   const goNext = async (fromStep: Step) => {
@@ -343,67 +598,72 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
   };
 
   const goBack = () => {
+    setSaveError('');
     setStep(s => (s - 1) as Step);
     window.scrollTo(0, 0);
   };
 
-  // ── Submit lien signature ──────────────────────────────────────────────────
   const submitSignature = async () => {
     if (!hasSig || !signerName.trim() || !agreed) return;
     setSubmitting(true);
     setSaveError('');
     try {
-      const canvas = canvasRef.current;
+      const canvas  = canvasRef.current;
       const svgData = canvas ? canvas.toDataURL('image/png') : '';
-
       const res = await fetch(`/api/intake/${token}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          signerName:  signerName.trim(),
-          signerEmail: signerEmail.trim() || null,
+          signerName:   signerName.trim(),
+          signerEmail:  signerEmail.trim() || null,
           signatureSvg: svgData,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       router.push(`/c/${token}/done`);
     } catch {
-      setSaveError('Error al firmar. Intenta de nuevo.');
+      setSaveError(STRINGS[lang].signError);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-  const totalSteps = 6;
+  // ── Render helpers ──────────────────────────────────────────────────────────
+  const t             = STRINGS[lang];
+  const totalSteps    = 6;
   const progressSteps = step <= 6 ? step : 6;
+  const savedLabel    = lastSaved ? t.savedAt(getSavedLabel(lastSaved, lang)) : null;
+  const deviceInfo    = typeof window !== 'undefined'
+    ? (window.innerWidth < 768 ? (lang === 'es' ? 'Móvil' : 'Mobile') : 'Desktop')
+    : '—';
 
+  // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
     <div style={S.screen}>
 
-      {/* Top progress bar */}
+      {/* ── Top progress bar ─────────────────────────────────────────────────── */}
       {step < 7 && (
         <div style={S.topBar}>
-          <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            maxWidth: 480, margin: '0 auto',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
             {/* Logo chip */}
             <div style={{
-              padding: '4px 10px', borderRadius: 20,
-              background: `rgba(6,182,212,0.10)`, border: `1px solid rgba(6,182,212,0.25)`,
+              padding: '4px 10px', borderRadius: 20, flexShrink: 0,
+              background: 'rgba(6,182,212,0.10)', border: '1px solid rgba(6,182,212,0.25)',
               fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: CYAN,
-              whiteSpace: 'nowrap', flexShrink: 0,
             }}>
               PM
             </div>
 
-            {/* Progress dots */}
+            {/* Progress segments */}
             <div style={{ display: 'flex', gap: 4, flex: 1 }}>
               {Array.from({ length: totalSteps }, (_, i) => i + 1).map(s => (
                 <div
                   key={s}
                   style={{
-                    height: 4,
-                    flex: 1,
-                    borderRadius: 2,
+                    height: 4, flex: 1, borderRadius: 2,
                     background: s < progressSteps
                       ? EMERALD
                       : s === progressSteps
@@ -419,13 +679,38 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', flexShrink: 0 }}>
               {progressSteps}/{totalSteps}
             </span>
+
+            {/* Auto-save indicator */}
+            {savedLabel && (
+              <span style={{
+                fontSize: 10, color: EMERALD, flexShrink: 0,
+                whiteSpace: 'nowrap',
+              }}>
+                {savedLabel}
+              </span>
+            )}
+
+            {/* Language toggle */}
+            <button
+              type="button"
+              onClick={() => setLang(l => l === 'es' ? 'en' : 'es')}
+              style={{
+                padding: '3px 8px', borderRadius: 6, flexShrink: 0,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(255,255,255,0.60)', fontSize: 10, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.06em',
+              }}
+              title={lang === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+            >
+              {t.langToggle}
+            </button>
           </div>
         </div>
       )}
 
       <div style={S.container}>
 
-        {/* ══════════════ STEP 1 — Landing / B.5 ══════════════════════════════ */}
+        {/* ══════ STEP 1 — Landing / B.5 ══════════════════════════════════════ */}
         {step === 1 && (
           <div style={{ paddingTop: 40 }}>
             {/* Header */}
@@ -440,40 +725,65 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                 </span>
               </div>
               <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 10, lineHeight: 1.2 }}>
-                Hola, {patient.firstName} 👋
+                {t.greeting(patient.firstName)}
               </h1>
               <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 15, lineHeight: 1.65 }}>
-                Te acompaño en tu registro inicial. Solo toma 5 minutos.
+                {t.greetingSub}
               </p>
             </div>
 
-            {/* Case code */}
-            <div style={{ ...S.card, marginBottom: 20, textAlign: 'center' }}>
-              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
-                Número de caso
+            {/* Case + appointment card */}
+            <div style={{ ...S.card, marginBottom: 20 }}>
+              {/* Case code */}
+              <div style={{ textAlign: 'center', paddingBottom: nextAppointment ? 12 : 0, marginBottom: nextAppointment ? 12 : 0, borderBottom: nextAppointment ? `1px solid ${CARD_BORDER}` : 'none' }}>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
+                  {t.caseNumberLabel}
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 900, fontFamily: 'monospace', color: '#A5B4FC', letterSpacing: '0.06em' }}>
+                  {caseCode}
+                </div>
+                {accident.date && (
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 6 }}>
+                    {t.accidentLabel}: {fmtDate(accident.date, lang)}
+                  </div>
+                )}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 900, fontFamily: 'monospace', color: '#A5B4FC', letterSpacing: '0.06em' }}>
-                {caseCode}
-              </div>
-              {accident.date && (
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 6 }}>
-                  Accidente: {fmtDate(accident.date)}
+
+              {/* Next appointment — B.5 new */}
+              {nextAppointment && (
+                <div style={{
+                  display: 'flex', gap: 10, alignItems: 'center',
+                  padding: '2px 0',
+                }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                    background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 15,
+                  }}>📅</div>
+                  <div>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: CYAN, fontWeight: 700, marginBottom: 3 }}>
+                      {t.apptLabel}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', lineHeight: 1.4 }}>
+                      {fmtAppt(nextAppointment.scheduledFor, lang)}
+                    </div>
+                    {nextAppointment.providerName && (
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
+                        {t.apptWith} {nextAppointment.providerName}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* 5-step list */}
+            {/* 5-step checklist */}
             <div style={{ ...S.card, marginBottom: 24 }}>
               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.35)', marginBottom: 14 }}>
-                Lo que completarás hoy
+                {t.todayStepsLabel}
               </div>
-              {[
-                { icon: '👤', label: 'Datos personales' },
-                { icon: '🚗', label: 'Detalles del accidente' },
-                { icon: '🏥', label: 'Información de tu seguro' },
-                { icon: '📸', label: 'Foto de identificación' },
-                { icon: '✍️', label: 'Firma del acuerdo de lien' },
-              ].map((item, i) => (
+              {t.todaySteps.map((item, i) => (
                 <div key={i} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '10px 0',
@@ -481,46 +791,50 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                 }}>
                   <div style={{
                     width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                    background: `rgba(6,182,212,0.10)`,
+                    background: 'rgba(6,182,212,0.10)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 15,
-                  }}>{item.icon}</div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
-                      Paso {i + 1} · {item.label}
-                    </div>
+                  }}>
+                    {item.icon}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
+                    {lang === 'es' ? `Paso ${i + 1} · ` : `Step ${i + 1} · `}{item.label}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Sifo */}
-            <SifoHint hint={SIFO_HINTS[1]} />
+            <SifoHint hint={t.sifoHint1} />
 
-            <button type="button" style={{ ...S.btnPrimary, marginTop: 20 }} onClick={() => goNext(1 as Step)}>
-              Comenzar →
+            <button
+              type="button"
+              style={{ ...S.btnPrimary, marginTop: 20 }}
+              onClick={() => { setStep(2); window.scrollTo(0, 0); }}
+            >
+              {t.startBtn}
             </button>
             <p style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
-              🔒 Tu información es confidencial y segura
+              {t.secureNote}
             </p>
           </div>
         )}
 
-        {/* ══════════════ STEP 2 — Datos personales ════════════════════════════ */}
+        {/* ══════ STEP 2 — Datos personales ════════════════════════════════════ */}
         {step === 2 && (
           <div style={{ paddingTop: 28 }}>
-            <StepHeader icon="👤" title="Datos personales" sub="Verifica que tu información esté correcta." />
+            <StepHeader icon="👤" title={t.personalTitle} sub={t.personalSub} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Name row */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <Field label="Nombre">
+                <Field label={t.firstName}>
                   <input
                     type="text" style={S.input}
                     value={personal.firstName}
                     onChange={e => setPersonal(p => ({ ...p, firstName: e.target.value }))}
                   />
                 </Field>
-                <Field label="Apellido">
+                <Field label={t.lastName}>
                   <input
                     type="text" style={S.input}
                     value={personal.lastName}
@@ -529,7 +843,7 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                 </Field>
               </div>
 
-              <Field label="Fecha de nacimiento">
+              <Field label={t.dob}>
                 <input
                   type="date" style={S.input}
                   value={personal.dateOfBirth}
@@ -537,7 +851,7 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                 />
               </Field>
 
-              <Field label="Teléfono">
+              <Field label={t.phone}>
                 <input
                   type="tel" style={S.input}
                   value={personal.phone}
@@ -546,7 +860,7 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                 />
               </Field>
 
-              <Field label="Correo electrónico">
+              <Field label={t.email}>
                 <input
                   type="email" style={S.input}
                   value={personal.email}
@@ -554,21 +868,53 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                   onChange={e => setPersonal(p => ({ ...p, email: e.target.value }))}
                 />
               </Field>
+
+              {/* Preferred language — B.6 Phase 1A */}
+              <Field label={t.preferredLangLabel}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {(['es', 'en'] as Lang[]).map(l => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setLang(l)}
+                      style={{
+                        padding: '11px 8px',
+                        borderRadius: 10,
+                        border: lang === l
+                          ? '1px solid rgba(6,182,212,0.55)'
+                          : '1px solid rgba(255,255,255,0.10)',
+                        background: lang === l
+                          ? 'rgba(6,182,212,0.12)'
+                          : 'rgba(255,255,255,0.03)',
+                        color: lang === l ? CYAN : 'rgba(255,255,255,0.55)',
+                        fontSize: 13,
+                        fontWeight: lang === l ? 700 : 400,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        textAlign: 'center',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {l === 'es' ? t.langOptionEs : t.langOptionEn}
+                    </button>
+                  ))}
+                </div>
+              </Field>
             </div>
 
-            <SifoHint hint={SIFO_HINTS[2]} />
+            <SifoHint hint={t.sifoHint2} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(2 as Step)} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(2 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════════════ STEP 3 — Tu accidente ════════════════════════════════ */}
+        {/* ══════ STEP 3 — Tu accidente ═════════════════════════════════════════ */}
         {step === 3 && (
           <div style={{ paddingTop: 28 }}>
-            <StepHeader icon="🚗" title="Tu accidente" sub="Necesitamos los detalles del accidente para procesar tu caso." />
+            <StepHeader icon="🚗" title={t.accidentTitle} sub={t.accidentSub} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Field label="Fecha del accidente">
+              <Field label={t.accidentDate}>
                 <input
                   type="date" style={S.input}
                   value={acc.date}
@@ -576,228 +922,314 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                 />
               </Field>
 
-              <Field label="Tipo de accidente">
+              <Field label={t.accidentTypeLabel}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-                  {([
-                    { key: 'AUTO',       label: '🚗 Auto' },
-                    { key: 'MOTORCYCLE', label: '🏍️ Moto' },
-                    { key: 'PEDESTRIAN', label: '🚶 Peatón' },
-                    { key: 'WORKPLACE',  label: '🏭 Trabajo' },
-                    { key: 'OTHER',      label: '❓ Otro' },
-                  ] as { key: AccidentType; label: string }[]).map(opt => (
+                  {(Object.keys(t.accidentTypesMap) as AccidentType[]).map(key => (
                     <button
-                      key={opt.key}
+                      key={key}
                       type="button"
-                      onClick={() => setAcc(a => ({ ...a, type: opt.key }))}
+                      onClick={() => setAcc(a => ({ ...a, type: key }))}
                       style={{
                         padding: '10px 6px',
                         borderRadius: 8,
-                        border: acc.type === opt.key
-                          ? `1px solid rgba(6,182,212,0.60)`
-                          : `1px solid rgba(255,255,255,0.10)`,
-                        background: acc.type === opt.key
+                        border: acc.type === key
+                          ? '1px solid rgba(6,182,212,0.60)'
+                          : '1px solid rgba(255,255,255,0.10)',
+                        background: acc.type === key
                           ? 'rgba(6,182,212,0.12)'
                           : 'rgba(255,255,255,0.03)',
-                        color: acc.type === opt.key ? CYAN : 'rgba(255,255,255,0.60)',
+                        color: acc.type === key ? CYAN : 'rgba(255,255,255,0.60)',
                         fontSize: 12,
-                        fontWeight: acc.type === opt.key ? 700 : 400,
+                        fontWeight: acc.type === key ? 700 : 400,
                         cursor: 'pointer',
                         fontFamily: 'inherit',
                         textAlign: 'center',
                       }}
                     >
-                      {opt.label}
+                      {t.accidentTypesMap[key]}
                     </button>
                   ))}
                 </div>
               </Field>
 
-              <Field label="Ubicación del accidente">
+              <Field label={t.accidentLocation}>
                 <input
                   type="text" style={S.input}
                   value={acc.location}
-                  placeholder="Ej: I-15 y 500 S, Provo, UT"
+                  placeholder={t.accidentLocationPh}
                   onChange={e => setAcc(a => ({ ...a, location: e.target.value }))}
                 />
               </Field>
 
-              <Field label="Describe brevemente cómo ocurrió">
+              <Field label={t.accidentDesc}>
                 <textarea
                   style={S.textarea}
                   value={acc.notes}
-                  placeholder="Ej: Me impactaron por detrás mientras esperaba en semáforo..."
+                  placeholder={t.accidentDescPh}
                   onChange={e => setAcc(a => ({ ...a, notes: e.target.value }))}
                 />
               </Field>
             </div>
 
-            <SifoHint hint={SIFO_HINTS[3]} />
+            <SifoHint hint={t.sifoHint3} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(3 as Step)} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(3 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════════════ STEP 4 — Tu seguro ═══════════════════════════════════ */}
+        {/* ══════ STEP 4 — Tu seguro ════════════════════════════════════════════ */}
         {step === 4 && (
           <div style={{ paddingTop: 28 }}>
-            <StepHeader icon="🏥" title="Tu seguro" sub="Información de tu seguro Personal Injury Protection (PIP)." />
+            <StepHeader icon="🏥" title={t.insuranceTitle} sub={t.insuranceSub} />
 
-            {/* PIP info banner */}
+            {/* PIP explainer */}
             <div style={{
               ...S.card, marginBottom: 16,
               background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.20)',
             }}>
               <div style={{ fontSize: 12, color: CYAN, fontWeight: 700, marginBottom: 4 }}>
-                ¿Qué es el PIP?
+                {t.pipTitle}
               </div>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.60)', lineHeight: 1.55 }}>
-                Personal Injury Protection (PIP) es la cobertura de tu seguro de auto que paga los tratamientos médicos causados por el accidente, sin importar quién tuvo la culpa.
+                {t.pipDesc}
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Field label="Compañía aseguradora (PIP)">
+              <Field label={t.carrier}>
                 <input
                   type="text" style={S.input}
                   value={insurance.carrier}
-                  placeholder="Ej: State Farm, Progressive, GEICO..."
+                  placeholder={t.carrierPh}
                   onChange={e => setInsurance(i => ({ ...i, carrier: e.target.value }))}
                 />
               </Field>
 
-              <Field label="Número de póliza">
+              <Field label={t.policyNum}>
                 <input
                   type="text" style={S.input}
                   value={insurance.policyNumber}
-                  placeholder="Ej: POL-123456789"
+                  placeholder={t.policyNumPh}
                   onChange={e => setInsurance(i => ({ ...i, policyNumber: e.target.value }))}
                 />
               </Field>
             </div>
 
-            <SifoHint hint={SIFO_HINTS[4]} />
+            <SifoHint hint={t.sifoHint4} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(4 as Step)} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(4 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════════════ STEP 5 — Identificación / B.7 ═══════════════════════ */}
+        {/* ══════ STEP 5 — Identificación / B.7 ═══════════════════════════════ */}
         {step === 5 && (
           <div style={{ paddingTop: 28 }}>
-            <StepHeader icon="📸" title="Tu identificación" sub="Necesitamos tu ID para verificar tu identidad. Fase 1A: fotos se revisan en tu primera visita." />
+            <StepHeader icon="📸" title={t.idTitle} sub={t.idSub} />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-              {/* Selfie */}
-              <div style={S.card}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  Selfie
-                </div>
-                {/* Oval overlay hint */}
-                <div style={{
-                  position: 'relative', width: 160, height: 200, margin: '0 auto 12px',
-                  border: '2px dashed rgba(6,182,212,0.40)', borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(6,182,212,0.04)',
-                }}>
-                  {idPhotos.selfie ? (
-                    <div style={{ fontSize: 40 }}>✅</div>
-                  ) : (
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 28 }}>🤳</div>
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>Centra tu rostro</div>
+            {/* "Lo tomo en la clínica" fallback — B.7 Phase 1A */}
+            {!takeAtClinic ? (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Selfie */}
+                  <div style={S.card}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      {t.selfieLabel}
                     </div>
-                  )}
-                </div>
-                <PhotoInput
-                  label={idPhotos.selfie ? `✓ ${idPhotos.selfie.name}` : 'Seleccionar selfie'}
-                  accept="image/*"
-                  capture="user"
-                  onChange={file => setIdPhotos(p => ({ ...p, selfie: file }))}
-                  color={CYAN}
-                />
-              </div>
+                    <div style={{
+                      position: 'relative', width: 160, height: 200, margin: '0 auto 12px',
+                      border: '2px dashed rgba(6,182,212,0.40)', borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'rgba(6,182,212,0.04)',
+                    }}>
+                      {idPhotos.selfie ? (
+                        <div style={{ fontSize: 40 }}>✅</div>
+                      ) : (
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 28 }}>🤳</div>
+                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
+                            {lang === 'es' ? 'Centra tu rostro' : 'Center your face'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <PhotoInput
+                      label={idPhotos.selfie ? `✓ ${idPhotos.selfie.name}` : t.selfieBtn}
+                      accept="image/*"
+                      capture="user"
+                      onChange={file => setIdPhotos(p => ({ ...p, selfie: file }))}
+                      color={CYAN}
+                    />
+                  </div>
 
-              {/* Driver's License */}
-              <div style={S.card}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  Licencia de conducir
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <PhotoInput
-                    label={idPhotos.dlFront ? `✓ ${idPhotos.dlFront.name}` : '📷 Frente de la licencia'}
-                    accept="image/*"
-                    onChange={file => setIdPhotos(p => ({ ...p, dlFront: file }))}
-                    color={INDIGO}
-                  />
-                  <PhotoInput
-                    label={idPhotos.dlBack ? `✓ ${idPhotos.dlBack.name}` : '📷 Reverso de la licencia'}
-                    accept="image/*"
-                    onChange={file => setIdPhotos(p => ({ ...p, dlBack: file }))}
-                    color={INDIGO}
-                  />
-                </div>
-              </div>
+                  {/* Driver's license */}
+                  <div style={S.card}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      {t.dlLabel}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <PhotoInput
+                        label={idPhotos.dlFront ? `✓ ${idPhotos.dlFront.name}` : t.dlFront}
+                        accept="image/*"
+                        onChange={file => setIdPhotos(p => ({ ...p, dlFront: file }))}
+                        color={INDIGO}
+                      />
+                      <PhotoInput
+                        label={idPhotos.dlBack ? `✓ ${idPhotos.dlBack.name}` : t.dlBack}
+                        accept="image/*"
+                        onChange={file => setIdPhotos(p => ({ ...p, dlBack: file }))}
+                        color={INDIGO}
+                      />
+                    </div>
+                  </div>
 
-              {/* Insurance card */}
-              <div style={S.card}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  Tarjeta de seguro
-                </div>
-                <PhotoInput
-                  label={idPhotos.insuranceCard ? `✓ ${idPhotos.insuranceCard.name}` : '📷 Foto de tu tarjeta de seguro'}
-                  accept="image/*"
-                  onChange={file => setIdPhotos(p => ({ ...p, insuranceCard: file }))}
-                  color={EMERALD}
-                />
-              </div>
+                  {/* Insurance card */}
+                  <div style={S.card}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      {t.insCardLabel}
+                    </div>
+                    <PhotoInput
+                      label={idPhotos.insuranceCard ? `✓ ${idPhotos.insuranceCard.name}` : t.insCardBtn}
+                      accept="image/*"
+                      onChange={file => setIdPhotos(p => ({ ...p, insuranceCard: file }))}
+                      color={EMERALD}
+                    />
+                  </div>
 
-              {/* Phase 1A note */}
+                  {/* Phase 1A note */}
+                  <div style={{
+                    padding: '10px 14px', borderRadius: 8,
+                    background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.20)',
+                    fontSize: 12, color: 'rgba(245,158,11,0.80)',
+                  }}>
+                    {t.phase1Note}
+                  </div>
+                </div>
+
+                {/* Fallback option */}
+                <div style={{
+                  marginTop: 20,
+                  padding: '14px 16px', borderRadius: 12,
+                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginBottom: 10, fontWeight: 600 }}>
+                    {t.cantPhotoTitle}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTakeAtClinic(true)}
+                    style={{
+                      width: '100%', padding: '12px 16px',
+                      borderRadius: 10,
+                      background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.30)',
+                      color: '#A5B4FC', fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                    }}
+                  >
+                    {t.takeAtClinicBtn}
+                  </button>
+                </div>
+
+              </>
+            ) : (
+              /* Clinic fallback selected */
               <div style={{
-                padding: '10px 14px', borderRadius: 8,
-                background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.20)',
-                fontSize: 12, color: 'rgba(245,158,11,0.80)',
+                ...S.card, marginBottom: 20, textAlign: 'center',
+                background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.25)',
               }}>
-                📋 <strong>Fase de Registro:</strong> Tus fotos serán revisadas en tu primera visita. No se almacenan en el sistema hasta completar el protocolo de seguridad HIPAA.
+                <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#A5B4FC', marginBottom: 8 }}>
+                  {t.clinicSelectedMsg}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTakeAtClinic(false)}
+                  style={{
+                    marginTop: 8, padding: '8px 16px', borderRadius: 8,
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'rgba(255,255,255,0.50)', fontSize: 12, cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {lang === 'es' ? '← Volver y tomar fotos' : '← Go back and take photos'}
+                </button>
               </div>
-            </div>
+            )}
 
-            <SifoHint hint={SIFO_HINTS[5]} />
-            <NavButtons saving={false} onBack={goBack} onNext={() => { setStep(6); window.scrollTo(0, 0); }} nextLabel="Continuar a firma →" />
+            <SifoHint hint={t.sifoHint5} />
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
+              <button type="button" style={{ ...S.btnOutline, flex: '0 0 auto' }} onClick={goBack}>
+                {t.back}
+              </button>
+              <button
+                type="button"
+                style={{ ...S.btnPrimary, flex: 1 }}
+                onClick={() => { setStep(6); window.scrollTo(0, 0); }}
+              >
+                {t.continueToSign}
+              </button>
+            </div>
           </div>
         )}
 
-        {/* ══════════════ STEP 6 — Firma del Lien / B.8 ══════════════════════ */}
+        {/* ══════ STEP 6 — Firma del Lien / B.8 ════════════════════════════════ */}
         {step === 6 && (
           <div style={{ paddingTop: 28 }}>
-            <StepHeader
-              icon="✍️"
-              title="Firma del Lien"
-              sub="Este acuerdo autoriza a Precision Medical a tratar tu lesión. Es un documento legal."
-            />
+            <StepHeader icon="✍️" title={t.lienTitle} sub={t.lienSub} />
 
-            {/* Legal text */}
+            {/* Plain language summary */}
             <div style={{
-              ...S.card, marginBottom: 16,
-              maxHeight: 160, overflowY: 'auto',
-              fontSize: 12, color: 'rgba(255,255,255,0.60)', lineHeight: 1.70,
+              ...S.card, marginBottom: 14,
+              background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.20)',
             }}>
-              <strong style={{ color: '#fff', display: 'block', marginBottom: 8 }}>
-                Acuerdo de Lien Médico — Precision Medical Care
-              </strong>
-              Al firmar este documento, autorizo a Precision Medical Care a proporcionar los tratamientos médicos necesarios para las lesiones derivadas del accidente. Entiendo y acepto que:{'\n\n'}
-              • Los costos del tratamiento serán cubiertos bajo lien contra la demanda de lesiones personales.{'\n'}
-              • Precision Medical Care tiene derecho a cobrar directamente de cualquier liquidación, sentencia o pago de seguros.{'\n'}
-              • Tengo el derecho de conocer todos los cargos y de recibir una copia de este acuerdo.{'\n'}
-              • Puedo retirar este consentimiento en cualquier momento mediante aviso escrito.{'\n\n'}
-              Esta firma tiene validez legal conforme a ESIGN Act y UETA (Utah Code § 46-4-101 et seq.).
+              <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', color: EMERALD, marginBottom: 6, textTransform: 'uppercase' }}>
+                {t.plainLangLabel}
+              </div>
+              <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.80)', lineHeight: 1.65 }}>
+                {t.lienSimple}
+              </div>
             </div>
 
-            {/* Canvas pad */}
-            <Field label="Tu firma (dibuja aquí)">
+            {/* Expandable full legal text — B.8 Phase 1A */}
+            <div style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={() => setShowFullLegal(v => !v)}
+                style={{
+                  background: 'transparent', border: 'none',
+                  color: CYAN, fontSize: 13, cursor: 'pointer',
+                  fontFamily: 'inherit', padding: '4px 0',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}
+              >
+                {showFullLegal ? t.hideFullLegal : t.showFullLegal}
+              </button>
+
+              {showFullLegal && (
+                <div style={{
+                  ...S.card,
+                  marginTop: 8,
+                  maxHeight: 200, overflowY: 'auto',
+                  fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.70,
+                }}>
+                  <strong style={{ color: '#fff', display: 'block', marginBottom: 8, fontSize: 12 }}>
+                    {t.lienLegalTitle}
+                  </strong>
+                  {t.lienLegalBody.split('\n').map((line, i) => (
+                    <span key={i}>
+                      {line}
+                      {i < t.lienLegalBody.split('\n').length - 1 && <br />}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Signature canvas */}
+            <Field label={t.signHereLabel}>
               <div style={{
                 position: 'relative',
-                border: `1px solid rgba(16,185,129,0.35)`,
+                border: '1px solid rgba(16,185,129,0.35)',
                 borderRadius: 10,
                 background: 'rgba(16,185,129,0.04)',
                 overflow: 'hidden',
@@ -821,7 +1253,7 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                     pointerEvents: 'none',
                     fontSize: 13, color: 'rgba(255,255,255,0.20)',
                   }}>
-                    ✍️ Dibuja tu firma aquí
+                    {t.signPlaceholder}
                   </div>
                 )}
               </div>
@@ -836,29 +1268,50 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                     fontFamily: 'inherit',
                   }}
                 >
-                  × Borrar y volver a firmar
+                  {t.clearSigBtn}
                 </button>
               )}
             </Field>
 
+            {/* Signature metadata — B.8 Phase 1A */}
+            {hasSig && sigTimestamp && (
+              <div style={{
+                marginTop: 10, padding: '10px 14px', borderRadius: 8,
+                background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)',
+                display: 'flex', flexDirection: 'column', gap: 4,
+              }}>
+                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', color: EMERALD, marginBottom: 2, textTransform: 'uppercase' }}>
+                  {t.sigMetaLabel}
+                </div>
+                <div style={{ display: 'flex', gap: 8, fontSize: 11, color: 'rgba(255,255,255,0.50)' }}>
+                  <span style={{ fontWeight: 600 }}>{t.sigTimeLabel}:</span>
+                  <span>{fmtSigTime(sigTimestamp, lang)}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8, fontSize: 11, color: 'rgba(255,255,255,0.50)' }}>
+                  <span style={{ fontWeight: 600 }}>{t.sigDeviceLabel}:</span>
+                  <span>{deviceInfo}</span>
+                </div>
+              </div>
+            )}
+
             <div style={{ height: 14 }} />
 
-            <Field label="Nombre completo del firmante">
+            <Field label={t.signerNameLabel}>
               <input
                 type="text" style={S.input}
                 value={signerName}
-                placeholder="Nombre completo"
+                placeholder={lang === 'es' ? 'Nombre completo' : 'Full name'}
                 onChange={e => setSignerName(e.target.value)}
               />
             </Field>
 
             <div style={{ height: 12 }} />
 
-            <Field label="Correo electrónico (opcional)">
+            <Field label={t.signerEmailLabel}>
               <input
                 type="email" style={S.input}
                 value={signerEmail}
-                placeholder="para recibir copia"
+                placeholder={t.signerEmailPh}
                 onChange={e => setSignerEmail(e.target.value)}
               />
             </Field>
@@ -880,13 +1333,12 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                 style={{ width: 18, height: 18, marginTop: 2, accentColor: EMERALD, cursor: 'pointer', flexShrink: 0 }}
               />
               <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>
-                He leído y acepto el Acuerdo de Lien Médico. Entiendo que esta firma es legalmente vinculante.
+                {t.agreeCheckbox}
               </span>
             </label>
 
             {saveError && <SaveError error={saveError} />}
-
-            <SifoHint hint={SIFO_HINTS[6]} />
+            <SifoHint hint={t.sifoHint6} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
               <button
@@ -899,14 +1351,14 @@ export function IntakeWizard({ token, caseId: _caseId, caseCode, patient, accide
                   cursor: (!hasSig || !signerName.trim() || !agreed || submitting) ? 'not-allowed' : 'pointer',
                 }}
               >
-                {submitting ? '⏳ Firmando...' : '✓ Firmar y completar registro'}
+                {submitting ? t.signing : t.signBtn}
               </button>
               <button type="button" style={S.btnOutline} onClick={goBack}>
-                ← Atrás
+                {t.back}
               </button>
             </div>
             <p style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.20)' }}>
-              🔒 Firmado digitalmente — ESIGN Act · UETA Utah
+              {t.legalNote}
             </p>
           </div>
         )}
@@ -985,17 +1437,17 @@ function SaveError({ error }: { error: string }) {
 }
 
 function NavButtons({
-  saving, onBack, onNext, nextLabel,
+  saving, onBack, onNext, t,
 }: {
   saving: boolean;
   onBack: () => void;
   onNext: () => void;
-  nextLabel?: string;
+  t: { back: string; continue: string; saving: string };
 }) {
   return (
     <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
       <button type="button" style={{ ...S.btnOutline, flex: '0 0 auto' }} onClick={onBack}>
-        ← Atrás
+        {t.back}
       </button>
       <button
         type="button"
@@ -1007,7 +1459,7 @@ function NavButtons({
         }}
         onClick={onNext}
       >
-        {saving ? '⏳ Guardando...' : (nextLabel ?? 'Continuar →')}
+        {saving ? t.saving : t.continue}
       </button>
     </div>
   );
@@ -1023,6 +1475,13 @@ function PhotoInput({
   color: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const isConfirmed = label.startsWith('✓');
+
+  // Derive rgba from color
+  const colorRgb =
+    color === CYAN    ? '6,182,212' :
+    color === INDIGO  ? '99,102,241' :
+    color === EMERALD ? '16,185,129' : '6,182,212';
 
   return (
     <div>
@@ -1043,16 +1502,17 @@ function PhotoInput({
         style={{
           width: '100%', padding: '12px 16px',
           borderRadius: 10,
-          background: `rgba(${color === CYAN ? '6,182,212' : color === INDIGO ? '99,102,241' : '16,185,129'},0.07)`,
+          background: `rgba(${colorRgb},0.07)`,
           border: `1px solid ${color}40`,
-          color: label.startsWith('✓') ? '#10B981' : color,
+          color: isConfirmed ? EMERALD : color,
           fontSize: 13, fontWeight: 600,
           cursor: 'pointer', fontFamily: 'inherit',
           textAlign: 'left',
           display: 'flex', alignItems: 'center', gap: 8,
         }}
       >
-        {label.startsWith('✓') ? '✓' : '📷'} {label.startsWith('✓') ? label.slice(2) : label}
+        <span>{isConfirmed ? '✓' : '📷'}</span>
+        <span>{isConfirmed ? label.slice(2) : label}</span>
       </button>
     </div>
   );

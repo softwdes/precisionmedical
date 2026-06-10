@@ -26,6 +26,16 @@ export default async function PatientPortalPage({ params }: Props) {
       accidentLocation: true,
       primaryPolicyNumber: true,
       intakeFormCompletedAt: true,
+      // Próxima cita para mostrar en el landing (B.5)
+      appointments: {
+        where: { scheduledFor: { gte: new Date() } },
+        orderBy: { scheduledFor: 'asc' },
+        take: 1,
+        select: {
+          scheduledFor: true,
+          provider: { select: { firstName: true, lastName: true } },
+        },
+      },
       patient: {
         select: {
           id: true,
@@ -52,6 +62,8 @@ export default async function PatientPortalPage({ params }: Props) {
     );
   }
 
+  const appt = rec.appointments[0] ?? null;
+
   return (
     <IntakeWizard
       token={token}
@@ -74,6 +86,16 @@ export default async function PatientPortalPage({ params }: Props) {
         location: rec.accidentLocation ?? null,
       }}
       casePolicyNumber={rec.primaryPolicyNumber ?? null}
+      nextAppointment={
+        appt
+          ? {
+              scheduledFor: appt.scheduledFor.toISOString(),
+              providerName: appt.provider
+                ? `${appt.provider.firstName} ${appt.provider.lastName}`
+                : null,
+            }
+          : null
+      }
     />
   );
 }

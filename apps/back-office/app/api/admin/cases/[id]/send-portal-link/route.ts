@@ -64,9 +64,10 @@ export async function POST(
   // Phase 2: hash almacenado + Supabase Auth magic links después de BAA
   const magicToken = `pt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
   const expiresIn24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  // Phase 1A: localhost · Phase 2: portal.lienmaster.net
+  // Phase 1A: localhost · Phase 2: forms.lienmaster.net
+  // Ruta /c/[token] = wizard completo (B.5-B.8) · /intake/[token] = legacy 4 pasos
   const portalBase = process.env.PORTAL_URL ?? 'http://localhost:3004';
-  const portalUrl = `${portalBase}/intake/${magicToken}`;
+  const portalUrl = `${portalBase}/c/${magicToken}`;
 
   // SMS template
   const recipient = parsed.via === 'SMS' ? caseRecord.patient.phone! : caseRecord.patient.email!;

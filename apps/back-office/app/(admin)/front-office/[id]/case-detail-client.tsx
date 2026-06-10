@@ -456,14 +456,24 @@ function ActionButtons({
         </>
       )}
       {status === 'INTAKE_COMPLETED' && (
-        <Button onClick={onConfirm} size="sm">
-          <FileCheck className="w-3.5 h-3.5 mr-1" /> Confirmar cita
-        </Button>
+        <>
+          <Button onClick={onConfirm} size="sm">
+            <FileCheck className="w-3.5 h-3.5 mr-1" /> Confirmar cita
+          </Button>
+          <Button onClick={onSendPortal} variant="outline" size="sm">
+            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar portal
+          </Button>
+        </>
       )}
       {status === 'CONFIRMED' && (
-        <Button onClick={onSchedule} size="sm">
-          <CalendarCheck className="w-3.5 h-3.5 mr-1" /> Agendar primera cita
-        </Button>
+        <>
+          <Button onClick={onSchedule} size="sm">
+            <CalendarCheck className="w-3.5 h-3.5 mr-1" /> Agendar primera cita
+          </Button>
+          <Button onClick={onSendPortal} variant="outline" size="sm">
+            <Send className="w-3.5 h-3.5 mr-1" /> Re-enviar portal
+          </Button>
+        </>
       )}
       <Button onClick={onAddNote} variant="outline" size="sm">
         <MessageSquarePlus className="w-3.5 h-3.5 mr-1" /> Agregar nota

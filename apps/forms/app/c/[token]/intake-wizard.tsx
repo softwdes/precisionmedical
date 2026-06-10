@@ -160,6 +160,19 @@ const STRINGS = {
     clinicSelectedMsg: '✓ Llevarás tu ID a la clínica. El equipo te ayudará con las fotos.',
     continueToSign: 'Continuar a firma →',
     sifoHint6: 'Necesitamos tu ID para verificar tu identidad. Tus fotos están seguras 🔒',
+    // Step 6 — Photo capture guidance
+    selfieInstructions: ['Buena iluminación frontal', 'Centra tu rostro en el óvalo', 'Sin lentes ni gorras'],
+    dlFrontInstructions: ['Superficie plana, sin reflejos', 'Toda la licencia visible', 'Texto legible y nítido'],
+    dlBackInstructions: ['Reverso completo visible', 'Sin reflejos ni sombras', 'Código de barras sin cortar'],
+    insCardInstructions: ['Tarjeta completa visible', 'Nombre y número de póliza legibles', 'Sin reflejos ni dedos'],
+    reviewQuestion: '¿Se ve bien?',
+    usePhotoBtn: '✅ Usar esta foto',
+    retakeBtn: '🔄 Retomar',
+    changePhotoBtn: 'Cambiar',
+    selfieCaptureLabel: '📷 Tomar selfie',
+    dlFrontCaptureLabel: '📷 Fotografiar frente',
+    dlBackCaptureLabel: '📷 Fotografiar reverso',
+    insCardCaptureLabel: '📷 Fotografiar tarjeta',
     // Step 7
     lienTitle: 'Firma del Lien',
     lienSub: 'Este acuerdo autoriza a Precision Medical a tratar tu lesión. Es un documento legal.',
@@ -287,6 +300,19 @@ const STRINGS = {
     clinicSelectedMsg: '✓ You will bring your ID to the clinic. Staff will help with photos.',
     continueToSign: 'Continue to signature →',
     sifoHint6: 'We need your ID to verify your identity. Your photos are secure 🔒',
+    // Step 6 — Photo capture guidance
+    selfieInstructions: ['Good front lighting', 'Center your face in the oval', 'No glasses or hats'],
+    dlFrontInstructions: ['Flat surface, no glare', 'Full license visible', 'Text readable and in focus'],
+    dlBackInstructions: ['Full back side visible', 'No glare or shadows', 'Barcode not cut off'],
+    insCardInstructions: ['Full card visible', 'Name and policy number readable', 'No glare or fingers'],
+    reviewQuestion: 'Does this look good?',
+    usePhotoBtn: '✅ Use this photo',
+    retakeBtn: '🔄 Retake',
+    changePhotoBtn: 'Change',
+    selfieCaptureLabel: '📷 Take selfie',
+    dlFrontCaptureLabel: '📷 Photograph front',
+    dlBackCaptureLabel: '📷 Photograph back',
+    insCardCaptureLabel: '📷 Photograph card',
     // Step 7
     lienTitle: 'Lien Signature',
     lienSub: 'This agreement authorizes Precision Medical to treat your injury. It is a legal document.',
@@ -468,22 +494,6 @@ export function IntakeWizard({
     insuranceCard: null as File | null,
   });
   const [takeAtClinic, setTakeAtClinic] = useState(false);
-
-  // Photo previews — object URLs for thumbnails; revoked on replace to avoid leaks
-  const [previews, setPreviews] = useState({
-    selfie:        null as string | null,
-    dlFront:       null as string | null,
-    dlBack:        null as string | null,
-    insuranceCard: null as string | null,
-  });
-
-  const handlePhoto = (key: keyof typeof idPhotos) => (file: File) => {
-    setIdPhotos(p => ({ ...p, [key]: file }));
-    setPreviews(prev => {
-      if (prev[key]) URL.revokeObjectURL(prev[key]!);
-      return { ...prev, [key]: URL.createObjectURL(file) };
-    });
-  };
 
   // Step 7 — Lien signature
   const [showFullLegal, setShowFullLegal] = useState(false);
@@ -1032,72 +1042,85 @@ export function IntakeWizard({
 
             {!takeAtClinic ? (
               <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
                   {/* Selfie */}
-                  <div style={S.card}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.10em' }}>
                       {t.selfieLabel}
                     </div>
-                    <div style={{
-                      position: 'relative', width: 160, height: 200, margin: '0 auto 12px',
-                      border: previews.selfie
-                        ? '2px solid rgba(16,185,129,0.70)'
-                        : '2px dashed rgba(6,182,212,0.40)',
-                      borderRadius: '50%',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: previews.selfie ? 'transparent' : 'rgba(6,182,212,0.04)',
-                      overflow: 'hidden',
-                    }}>
-                      {previews.selfie ? (
-                        <img
-                          src={previews.selfie}
-                          alt="selfie"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 28 }}>🤳</div>
-                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
-                            {lang === 'es' ? 'Centra tu rostro' : 'Center your face'}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <PhotoInput
-                      label={idPhotos.selfie ? `✓ ${idPhotos.selfie.name}` : t.selfieBtn}
-                      accept="image/*" capture="user" color={CYAN}
-                      preview={previews.selfie}
-                      onChange={handlePhoto('selfie')}
+                    <PhotoCaptureCard
+                      guideType="face"
+                      title={t.selfieLabel}
+                      instructions={t.selfieInstructions}
+                      captureLabel={t.selfieCaptureLabel}
+                      reviewQuestion={t.reviewQuestion}
+                      usePhotoLabel={t.usePhotoBtn}
+                      retakeLabel={t.retakeBtn}
+                      changeLabel={t.changePhotoBtn}
+                      confirmed={idPhotos.selfie}
+                      onConfirm={file => setIdPhotos(p => ({ ...p, selfie: file }))}
+                      capture="user"
+                      color={CYAN}
                     />
                   </div>
 
                   {/* Licencia */}
-                  <div style={S.card}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.10em' }}>
                       {t.dlLabel}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <PhotoInput label={idPhotos.dlFront ? `✓ ${idPhotos.dlFront.name}` : t.dlFront}
-                        accept="image/*" capture="environment" color={INDIGO}
-                        preview={previews.dlFront}
-                        onChange={handlePhoto('dlFront')} />
-                      <PhotoInput label={idPhotos.dlBack ? `✓ ${idPhotos.dlBack.name}` : t.dlBack}
-                        accept="image/*" capture="environment" color={INDIGO}
-                        preview={previews.dlBack}
-                        onChange={handlePhoto('dlBack')} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <PhotoCaptureCard
+                        guideType="document"
+                        title={t.dlFront}
+                        instructions={t.dlFrontInstructions}
+                        captureLabel={t.dlFrontCaptureLabel}
+                        reviewQuestion={t.reviewQuestion}
+                        usePhotoLabel={t.usePhotoBtn}
+                        retakeLabel={t.retakeBtn}
+                        changeLabel={t.changePhotoBtn}
+                        confirmed={idPhotos.dlFront}
+                        onConfirm={file => setIdPhotos(p => ({ ...p, dlFront: file }))}
+                        capture="environment"
+                        color={INDIGO}
+                      />
+                      <PhotoCaptureCard
+                        guideType="document"
+                        title={t.dlBack}
+                        instructions={t.dlBackInstructions}
+                        captureLabel={t.dlBackCaptureLabel}
+                        reviewQuestion={t.reviewQuestion}
+                        usePhotoLabel={t.usePhotoBtn}
+                        retakeLabel={t.retakeBtn}
+                        changeLabel={t.changePhotoBtn}
+                        confirmed={idPhotos.dlBack}
+                        onConfirm={file => setIdPhotos(p => ({ ...p, dlBack: file }))}
+                        capture="environment"
+                        color={INDIGO}
+                      />
                     </div>
                   </div>
 
                   {/* Tarjeta seguro */}
-                  <div style={S.card}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.45)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.10em' }}>
                       {t.insCardLabel}
                     </div>
-                    <PhotoInput label={idPhotos.insuranceCard ? `✓ ${idPhotos.insuranceCard.name}` : t.insCardBtn}
-                      accept="image/*" capture="environment" color={EMERALD}
-                      preview={previews.insuranceCard}
-                      onChange={handlePhoto('insuranceCard')} />
+                    <PhotoCaptureCard
+                      guideType="document"
+                      title={t.insCardLabel}
+                      instructions={t.insCardInstructions}
+                      captureLabel={t.insCardCaptureLabel}
+                      reviewQuestion={t.reviewQuestion}
+                      usePhotoLabel={t.usePhotoBtn}
+                      retakeLabel={t.retakeBtn}
+                      changeLabel={t.changePhotoBtn}
+                      confirmed={idPhotos.insuranceCard}
+                      onConfirm={file => setIdPhotos(p => ({ ...p, insuranceCard: file }))}
+                      capture="environment"
+                      color={EMERALD}
+                    />
                   </div>
 
                   <div style={{
@@ -1407,55 +1430,223 @@ function NavButtons({
   );
 }
 
-function PhotoInput({
-  label, accept, capture, onChange, color, preview,
+/**
+ * PhotoCaptureCard — 3-state photo capture component
+ *
+ * STATE 1 · Guidance: shows instructions + visual guide + capture button
+ * STATE 2 · Review:   shows photo large with "¿Se ve bien?" confirm/retake
+ * STATE 3 · Confirmed: shows thumbnail + "Cambiar" label trigger
+ *
+ * Uses <label htmlFor> pattern — reliable on Android + iOS Safari.
+ */
+function PhotoCaptureCard({
+  guideType, title, instructions,
+  captureLabel, reviewQuestion, usePhotoLabel, retakeLabel, changeLabel,
+  confirmed, onConfirm, capture, color,
 }: {
-  label: string; accept: string; capture?: string;
-  onChange: (f: File) => void; color: string; preview?: string | null;
+  guideType: 'face' | 'document';
+  title: string;
+  instructions: string[];
+  captureLabel: string;
+  reviewQuestion: string;
+  usePhotoLabel: string;
+  retakeLabel: string;
+  changeLabel: string;
+  confirmed: File | null;
+  onConfirm: (f: File) => void;
+  capture: 'user' | 'environment';
+  color: string;
 }) {
-  // useId + <label htmlFor> is the correct pattern for mobile camera access.
-  // display:none blocks programmatic .click() on some Android/iOS browsers.
-  // Using opacity:0 + position:absolute keeps the input reachable via the label.
   const id = useId();
-  const isConfirmed = label.startsWith('✓');
+  const [pending, setPending]               = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+  const [confirmedUrl, setConfirmedUrl]     = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!confirmed) { setConfirmedUrl(null); return; }
+    const url = URL.createObjectURL(confirmed);
+    setConfirmedUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [confirmed]);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPending(file);
+    setPendingPreview(URL.createObjectURL(file));
+    e.target.value = '';
+  };
+
+  const handleConfirm = () => {
+    if (!pending) return;
+    onConfirm(pending);
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPending(null);
+    setPendingPreview(null);
+  };
+
+  const handleRetake = () => {
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPending(null);
+    setPendingPreview(null);
+  };
+
   const colorRgb =
     color === CYAN    ? '6,182,212' :
     color === INDIGO  ? '99,102,241' :
     color === EMERALD ? '16,185,129' : '6,182,212';
 
+  // Hidden file input — present in ALL states so label always works
+  const hiddenInput = (
+    <input
+      id={id} type="file" accept="image/*" capture={capture}
+      style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden', zIndex: -1 }}
+      onChange={handleFile}
+    />
+  );
+
+  // ── STATE 2: Review pending photo ──────────────────────────────────────────
+  if (pending && pendingPreview) {
+    const isOval = guideType === 'face';
+    return (
+      <div style={{
+        position: 'relative',
+        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
+        borderRadius: 12, padding: 16,
+      }}>
+        {hiddenInput}
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', textAlign: 'center', marginBottom: 12 }}>
+          {reviewQuestion}
+        </div>
+        <div style={{
+          width: isOval ? 140 : '100%',
+          height: isOval ? 175 : 170,
+          margin: isOval ? '0 auto 14px' : '0 0 14px',
+          borderRadius: isOval ? '50%' : 10,
+          overflow: 'hidden',
+          border: '2px solid rgba(255,255,255,0.18)',
+        }}>
+          <img src={pendingPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" onClick={handleRetake} style={{
+            flex: 1, padding: '12px 8px', borderRadius: 10,
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+            color: 'rgba(255,255,255,0.60)', fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}>{retakeLabel}</button>
+          <button type="button" onClick={handleConfirm} style={{
+            flex: 2, padding: '12px 8px', borderRadius: 10,
+            background: 'linear-gradient(135deg,#10B981,#06B6D4)', border: 'none',
+            color: '#fff', fontSize: 13, fontWeight: 700,
+            cursor: 'pointer', fontFamily: 'inherit',
+          }}>{usePhotoLabel}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── STATE 3: Confirmed photo ───────────────────────────────────────────────
+  if (confirmed && confirmedUrl) {
+    return (
+      <div style={{
+        position: 'relative',
+        background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.28)',
+        borderRadius: 12, padding: '12px 14px',
+        display: 'flex', alignItems: 'center', gap: 12,
+      }}>
+        {hiddenInput}
+        <img src={confirmedUrl} alt="" style={{
+          width: 56, height: 56,
+          borderRadius: guideType === 'face' ? '50%' : 8,
+          objectFit: 'cover', flexShrink: 0,
+          border: '2px solid rgba(16,185,129,0.50)',
+        }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: EMERALD }}>✓ {title}</div>
+          <div style={{
+            fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{confirmed.name}</div>
+        </div>
+        <label htmlFor={id} style={{
+          padding: '6px 10px', borderRadius: 8, flexShrink: 0,
+          background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+          color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}>{changeLabel}</label>
+      </div>
+    );
+  }
+
+  // ── STATE 1: Guidance (idle) ───────────────────────────────────────────────
   return (
-    <div style={{ position: 'relative' }}>
-      <input
-        id={id}
-        type="file"
-        accept={accept}
-        capture={capture as 'user' | 'environment' | undefined}
-        style={{
-          position: 'absolute', width: 1, height: 1,
-          opacity: 0, overflow: 'hidden', zIndex: -1,
-        }}
-        onChange={e => { const f = e.target.files?.[0]; if (f) onChange(f); }}
-      />
+    <div style={{
+      position: 'relative',
+      background: 'rgba(255,255,255,0.03)',
+      border: `1px solid rgba(${colorRgb},0.22)`,
+      borderRadius: 12, padding: 14,
+    }}>
+      {hiddenInput}
+
+      {/* Instructions numbered list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+        {instructions.map((ins, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+              background: `rgba(${colorRgb},0.15)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 9, fontWeight: 800, color: color,
+            }}>{i + 1}</div>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>{ins}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Visual guide */}
+      {guideType === 'face' ? (
+        <div style={{
+          width: 110, height: 140, margin: '0 auto 14px',
+          border: `2px dashed rgba(${colorRgb},0.50)`,
+          borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: `rgba(${colorRgb},0.04)`,
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 26 }}>👤</div>
+            <div style={{ fontSize: 9, color: `rgba(${colorRgb},0.70)`, marginTop: 3, fontWeight: 700, letterSpacing: '0.08em' }}>SELFIE</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          width: '100%', height: 72, margin: '0 0 14px',
+          border: `1px dashed rgba(${colorRgb},0.38)`,
+          borderRadius: 8, position: 'relative',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: `rgba(${colorRgb},0.03)`,
+        }}>
+          {/* Corner alignment markers */}
+          <div style={{ position:'absolute', top:4, left:4, width:12, height:12, borderTop:`2px solid ${color}`, borderLeft:`2px solid ${color}` }} />
+          <div style={{ position:'absolute', top:4, right:4, width:12, height:12, borderTop:`2px solid ${color}`, borderRight:`2px solid ${color}` }} />
+          <div style={{ position:'absolute', bottom:4, left:4, width:12, height:12, borderBottom:`2px solid ${color}`, borderLeft:`2px solid ${color}` }} />
+          <div style={{ position:'absolute', bottom:4, right:4, width:12, height:12, borderBottom:`2px solid ${color}`, borderRight:`2px solid ${color}` }} />
+          <span style={{ fontSize: 11, color: `rgba(${colorRgb},0.55)`, fontWeight: 600 }}>📄 {title}</span>
+        </div>
+      )}
+
+      {/* Capture trigger */}
       <label htmlFor={id} style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        width: '100%', padding: '12px 16px', borderRadius: 10,
-        background: `rgba(${colorRgb},0.07)`,
-        border: isConfirmed ? '1px solid rgba(16,185,129,0.40)' : `1px solid ${color}40`,
-        color: isConfirmed ? EMERALD : color,
-        fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        width: '100%', padding: '13px 16px', borderRadius: 10,
+        background: `rgba(${colorRgb},0.10)`,
+        border: `1px solid rgba(${colorRgb},0.38)`,
+        color: color, fontSize: 14, fontWeight: 700,
+        cursor: 'pointer', fontFamily: 'inherit',
         boxSizing: 'border-box',
       }}>
-        {preview ? (
-          <img
-            src={preview} alt=""
-            style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }}
-          />
-        ) : (
-          <span style={{ flexShrink: 0 }}>{isConfirmed ? '✓' : '📷'}</span>
-        )}
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {isConfirmed ? label.slice(2) : label}
-        </span>
+        {captureLabel}
       </label>
     </div>
   );

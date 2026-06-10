@@ -19,7 +19,7 @@
  *   ✓ "Lo tomo en la clínica" fallback en Step 6
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -150,10 +150,10 @@ const STRINGS = {
     selfieLabel: 'Selfie tipo ID',
     selfieBtn: 'Seleccionar selfie',
     dlLabel: 'Licencia de conducir',
-    dlFront: '📷 Frente de la licencia',
-    dlBack: '📷 Reverso de la licencia',
+    dlFront: 'Frente de la licencia',
+    dlBack: 'Reverso de la licencia',
     insCardLabel: 'Tarjeta de seguro',
-    insCardBtn: '📷 Foto de tu tarjeta de seguro',
+    insCardBtn: 'Foto de tu tarjeta de seguro',
     phase1Note: '📋 Fase de Registro: Tus fotos serán revisadas en tu primera visita. No se almacenan en el sistema hasta completar el protocolo de seguridad HIPAA.',
     cantPhotoTitle: '¿No puedes tomar las fotos ahora?',
     takeAtClinicBtn: '📋 Lo tomo en la clínica el día de mi cita',
@@ -277,10 +277,10 @@ const STRINGS = {
     selfieLabel: 'ID-style selfie',
     selfieBtn: 'Select selfie',
     dlLabel: "Driver's license",
-    dlFront: '📷 Front of license',
-    dlBack: '📷 Back of license',
+    dlFront: 'Front of license',
+    dlBack: 'Back of license',
     insCardLabel: 'Insurance card',
-    insCardBtn: '📷 Photo of your insurance card',
+    insCardBtn: 'Photo of your insurance card',
     phase1Note: '📋 Registration Phase: Your photos will be reviewed at your first visit. They are not stored until the HIPAA security protocol is complete.',
     cantPhotoTitle: "Can't take photos right now?",
     takeAtClinicBtn: '📋 I will take them at the clinic on my appointment day',
@@ -468,6 +468,22 @@ export function IntakeWizard({
     insuranceCard: null as File | null,
   });
   const [takeAtClinic, setTakeAtClinic] = useState(false);
+
+  // Photo previews — object URLs for thumbnails; revoked on replace to avoid leaks
+  const [previews, setPreviews] = useState({
+    selfie:        null as string | null,
+    dlFront:       null as string | null,
+    dlBack:        null as string | null,
+    insuranceCard: null as string | null,
+  });
+
+  const handlePhoto = (key: keyof typeof idPhotos) => (file: File) => {
+    setIdPhotos(p => ({ ...p, [key]: file }));
+    setPreviews(prev => {
+      if (prev[key]) URL.revokeObjectURL(prev[key]!);
+      return { ...prev, [key]: URL.createObjectURL(file) };
+    });
+  };
 
   // Step 7 — Lien signature
   const [showFullLegal, setShowFullLegal] = useState(false);
@@ -1025,12 +1041,20 @@ export function IntakeWizard({
                     </div>
                     <div style={{
                       position: 'relative', width: 160, height: 200, margin: '0 auto 12px',
-                      border: '2px dashed rgba(6,182,212,0.40)', borderRadius: '50%',
+                      border: previews.selfie
+                        ? '2px solid rgba(16,185,129,0.70)'
+                        : '2px dashed rgba(6,182,212,0.40)',
+                      borderRadius: '50%',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: 'rgba(6,182,212,0.04)',
+                      background: previews.selfie ? 'transparent' : 'rgba(6,182,212,0.04)',
+                      overflow: 'hidden',
                     }}>
-                      {idPhotos.selfie ? (
-                        <div style={{ fontSize: 40 }}>✅</div>
+                      {previews.selfie ? (
+                        <img
+                          src={previews.selfie}
+                          alt="selfie"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
                       ) : (
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: 28 }}>🤳</div>
@@ -1043,7 +1067,8 @@ export function IntakeWizard({
                     <PhotoInput
                       label={idPhotos.selfie ? `✓ ${idPhotos.selfie.name}` : t.selfieBtn}
                       accept="image/*" capture="user" color={CYAN}
-                      onChange={file => setIdPhotos(p => ({ ...p, selfie: file }))}
+                      preview={previews.selfie}
+                      onChange={handlePhoto('selfie')}
                     />
                   </div>
 
@@ -1054,11 +1079,13 @@ export function IntakeWizard({
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <PhotoInput label={idPhotos.dlFront ? `✓ ${idPhotos.dlFront.name}` : t.dlFront}
-                        accept="image/*" color={INDIGO}
-                        onChange={file => setIdPhotos(p => ({ ...p, dlFront: file }))} />
+                        accept="image/*" capture="environment" color={INDIGO}
+                        preview={previews.dlFront}
+                        onChange={handlePhoto('dlFront')} />
                       <PhotoInput label={idPhotos.dlBack ? `✓ ${idPhotos.dlBack.name}` : t.dlBack}
-                        accept="image/*" color={INDIGO}
-                        onChange={file => setIdPhotos(p => ({ ...p, dlBack: file }))} />
+                        accept="image/*" capture="environment" color={INDIGO}
+                        preview={previews.dlBack}
+                        onChange={handlePhoto('dlBack')} />
                     </div>
                   </div>
 
@@ -1068,8 +1095,9 @@ export function IntakeWizard({
                       {t.insCardLabel}
                     </div>
                     <PhotoInput label={idPhotos.insuranceCard ? `✓ ${idPhotos.insuranceCard.name}` : t.insCardBtn}
-                      accept="image/*" color={EMERALD}
-                      onChange={file => setIdPhotos(p => ({ ...p, insuranceCard: file }))} />
+                      accept="image/*" capture="environment" color={EMERALD}
+                      preview={previews.insuranceCard}
+                      onChange={handlePhoto('insuranceCard')} />
                   </div>
 
                   <div style={{
@@ -1380,12 +1408,15 @@ function NavButtons({
 }
 
 function PhotoInput({
-  label, accept, capture, onChange, color,
+  label, accept, capture, onChange, color, preview,
 }: {
   label: string; accept: string; capture?: string;
-  onChange: (f: File) => void; color: string;
+  onChange: (f: File) => void; color: string; preview?: string | null;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  // useId + <label htmlFor> is the correct pattern for mobile camera access.
+  // display:none blocks programmatic .click() on some Android/iOS browsers.
+  // Using opacity:0 + position:absolute keeps the input reachable via the label.
+  const id = useId();
   const isConfirmed = label.startsWith('✓');
   const colorRgb =
     color === CYAN    ? '6,182,212' :
@@ -1393,21 +1424,39 @@ function PhotoInput({
     color === EMERALD ? '16,185,129' : '6,182,212';
 
   return (
-    <div>
-      <input ref={inputRef} type="file" accept={accept}
+    <div style={{ position: 'relative' }}>
+      <input
+        id={id}
+        type="file"
+        accept={accept}
         capture={capture as 'user' | 'environment' | undefined}
-        style={{ display: 'none' }}
-        onChange={e => { const f = e.target.files?.[0]; if (f) onChange(f); }} />
-      <button type="button" onClick={() => inputRef.current?.click()} style={{
+        style={{
+          position: 'absolute', width: 1, height: 1,
+          opacity: 0, overflow: 'hidden', zIndex: -1,
+        }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) onChange(f); }}
+      />
+      <label htmlFor={id} style={{
+        display: 'flex', alignItems: 'center', gap: 10,
         width: '100%', padding: '12px 16px', borderRadius: 10,
-        background: `rgba(${colorRgb},0.07)`, border: `1px solid ${color}40`,
+        background: `rgba(${colorRgb},0.07)`,
+        border: isConfirmed ? '1px solid rgba(16,185,129,0.40)' : `1px solid ${color}40`,
         color: isConfirmed ? EMERALD : color,
         fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-        textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
+        boxSizing: 'border-box',
       }}>
-        <span>{isConfirmed ? '✓' : '📷'}</span>
-        <span>{isConfirmed ? label.slice(2) : label}</span>
-      </button>
+        {preview ? (
+          <img
+            src={preview} alt=""
+            style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }}
+          />
+        ) : (
+          <span style={{ flexShrink: 0 }}>{isConfirmed ? '✓' : '📷'}</span>
+        )}
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {isConfirmed ? label.slice(2) : label}
+        </span>
+      </label>
     </div>
   );
 }

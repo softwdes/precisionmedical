@@ -169,10 +169,18 @@ const STRINGS = {
     usePhotoBtn: '✅ Usar esta foto',
     retakeBtn: '🔄 Retomar',
     changePhotoBtn: 'Cambiar',
-    selfieCaptureLabel: '📷 Tomar selfie',
-    dlFrontCaptureLabel: '📷 Fotografiar frente',
-    dlBackCaptureLabel: '📷 Fotografiar reverso',
-    insCardCaptureLabel: '📷 Fotografiar tarjeta',
+    selfieCaptureLabel: '📷 Abrir cámara — selfie',
+    dlFrontCaptureLabel: '📷 Abrir cámara',
+    dlBackCaptureLabel: '📷 Abrir cámara',
+    insCardCaptureLabel: '📷 Abrir cámara',
+    // Cámara in-app
+    camGuideFace: 'Centra tu rostro en el óvalo',
+    camGuideDoc: 'Alinea el documento dentro del marco',
+    camCapture: 'Capturar',
+    camCancel: 'Cancelar',
+    camPermError: 'No se pudo acceder a la cámara. Verifica los permisos de tu navegador.',
+    camFallback: 'Usar galería en su lugar',
+    camLoading: 'Iniciando cámara...',
     // Step 7
     lienTitle: 'Firma del Lien',
     lienSub: 'Este acuerdo autoriza a Precision Medical a tratar tu lesión. Es un documento legal.',
@@ -309,10 +317,18 @@ const STRINGS = {
     usePhotoBtn: '✅ Use this photo',
     retakeBtn: '🔄 Retake',
     changePhotoBtn: 'Change',
-    selfieCaptureLabel: '📷 Take selfie',
-    dlFrontCaptureLabel: '📷 Photograph front',
-    dlBackCaptureLabel: '📷 Photograph back',
-    insCardCaptureLabel: '📷 Photograph card',
+    selfieCaptureLabel: '📷 Open camera — selfie',
+    dlFrontCaptureLabel: '📷 Open camera',
+    dlBackCaptureLabel: '📷 Open camera',
+    insCardCaptureLabel: '📷 Open camera',
+    // In-app camera
+    camGuideFace: 'Center your face in the oval',
+    camGuideDoc: 'Align the document within the frame',
+    camCapture: 'Capture',
+    camCancel: 'Cancel',
+    camPermError: 'Could not access camera. Please check your browser permissions.',
+    camFallback: 'Use gallery instead',
+    camLoading: 'Starting camera...',
     // Step 7
     lienTitle: 'Lien Signature',
     lienSub: 'This agreement authorizes Precision Medical to treat your injury. It is a legal document.',
@@ -1062,6 +1078,7 @@ export function IntakeWizard({
                       onConfirm={file => setIdPhotos(p => ({ ...p, selfie: file }))}
                       capture="user"
                       color={CYAN}
+                      lang={lang}
                     />
                   </div>
 
@@ -1084,6 +1101,7 @@ export function IntakeWizard({
                         onConfirm={file => setIdPhotos(p => ({ ...p, dlFront: file }))}
                         capture="environment"
                         color={INDIGO}
+                        lang={lang}
                       />
                       <PhotoCaptureCard
                         guideType="document"
@@ -1098,6 +1116,7 @@ export function IntakeWizard({
                         onConfirm={file => setIdPhotos(p => ({ ...p, dlBack: file }))}
                         capture="environment"
                         color={INDIGO}
+                        lang={lang}
                       />
                     </div>
                   </div>
@@ -1120,6 +1139,7 @@ export function IntakeWizard({
                       onConfirm={file => setIdPhotos(p => ({ ...p, insuranceCard: file }))}
                       capture="environment"
                       color={EMERALD}
+                      lang={lang}
                     />
                   </div>
 
@@ -1442,7 +1462,7 @@ function NavButtons({
 function PhotoCaptureCard({
   guideType, title, instructions,
   captureLabel, reviewQuestion, usePhotoLabel, retakeLabel, changeLabel,
-  confirmed, onConfirm, capture, color,
+  confirmed, onConfirm, capture, color, lang,
 }: {
   guideType: 'face' | 'document';
   title: string;
@@ -1456,8 +1476,10 @@ function PhotoCaptureCard({
   onConfirm: (f: File) => void;
   capture: 'user' | 'environment';
   color: string;
+  lang: Lang;
 }) {
-  const id = useId();
+  const fallbackId = useId();
+  const [stage, setStage]                   = useState<'guide' | 'camera' | 'review' | 'confirmed'>('guide');
   const [pending, setPending]               = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
   const [confirmedUrl, setConfirmedUrl]     = useState<string | null>(null);
@@ -1469,12 +1491,17 @@ function PhotoCaptureCard({
     return () => URL.revokeObjectURL(url);
   }, [confirmed]);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Called from InAppCamera (getUserMedia snapshot) or fallback file input
+  const receiveFile = (file: File) => {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPending(file);
     setPendingPreview(URL.createObjectURL(file));
+    setStage('review');
+  };
+
+  const handleFallbackFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) receiveFile(file);
     e.target.value = '';
   };
 
@@ -1484,12 +1511,27 @@ function PhotoCaptureCard({
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPending(null);
     setPendingPreview(null);
+    setStage('confirmed');
   };
 
   const handleRetake = () => {
     if (pendingPreview) URL.revokeObjectURL(pendingPreview);
     setPending(null);
     setPendingPreview(null);
+    setStage('guide');
+  };
+
+  const openCamera = () => {
+    const hasGetUserMedia =
+      typeof navigator !== 'undefined' &&
+      typeof navigator.mediaDevices !== 'undefined' &&
+      typeof (navigator.mediaDevices as { getUserMedia?: unknown }).getUserMedia === 'function';
+    if (hasGetUserMedia) {
+      setStage('camera');
+    } else {
+      // Fallback: trigger file input (opens native camera / gallery)
+      document.getElementById(fallbackId)?.click();
+    }
   };
 
   const colorRgb =
@@ -1497,17 +1539,37 @@ function PhotoCaptureCard({
     color === INDIGO  ? '99,102,241' :
     color === EMERALD ? '16,185,129' : '6,182,212';
 
-  // Hidden file input — present in ALL states so label always works
-  const hiddenInput = (
+  // Fallback file input — for browsers without getUserMedia or after permission error
+  const fallbackInput = (
     <input
-      id={id} type="file" accept="image/*" capture={capture}
+      id={fallbackId} type="file" accept="image/*" capture={capture}
       style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden', zIndex: -1 }}
-      onChange={handleFile}
+      onChange={handleFallbackFile}
     />
   );
 
+  // ── STAGE: In-app camera ───────────────────────────────────────────────────
+  if (stage === 'camera') {
+    return (
+      <InAppCamera
+        facingMode={capture}
+        guideType={guideType}
+        color={color}
+        colorRgb={colorRgb}
+        lang={lang}
+        onCapture={file => receiveFile(file)}
+        onCancel={() => setStage('guide')}
+        onPermissionError={() => {
+          setStage('guide');
+          // After error, clicking again will use fallback
+          document.getElementById(fallbackId)?.click();
+        }}
+      />
+    );
+  }
+
   // ── STATE 2: Review pending photo ──────────────────────────────────────────
-  if (pending && pendingPreview) {
+  if (stage === 'review' && pending && pendingPreview) {
     const isOval = guideType === 'face';
     return (
       <div style={{
@@ -1515,7 +1577,7 @@ function PhotoCaptureCard({
         background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
         borderRadius: 12, padding: 16,
       }}>
-        {hiddenInput}
+        {fallbackInput}
         <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', textAlign: 'center', marginBottom: 12 }}>
           {reviewQuestion}
         </div>
@@ -1548,7 +1610,7 @@ function PhotoCaptureCard({
   }
 
   // ── STATE 3: Confirmed photo ───────────────────────────────────────────────
-  if (confirmed && confirmedUrl) {
+  if ((stage === 'confirmed' || confirmed) && confirmedUrl && confirmed) {
     return (
       <div style={{
         position: 'relative',
@@ -1556,7 +1618,7 @@ function PhotoCaptureCard({
         borderRadius: 12, padding: '12px 14px',
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
-        {hiddenInput}
+        {fallbackInput}
         <img src={confirmedUrl} alt="" style={{
           width: 56, height: 56,
           borderRadius: guideType === 'face' ? '50%' : 8,
@@ -1570,12 +1632,12 @@ function PhotoCaptureCard({
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{confirmed.name}</div>
         </div>
-        <label htmlFor={id} style={{
+        <button type="button" onClick={openCamera} style={{
           padding: '6px 10px', borderRadius: 8, flexShrink: 0,
           background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
           color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 600,
           cursor: 'pointer', fontFamily: 'inherit',
-        }}>{changeLabel}</label>
+        }}>{changeLabel}</button>
       </div>
     );
   }
@@ -1588,7 +1650,7 @@ function PhotoCaptureCard({
       border: `1px solid rgba(${colorRgb},0.22)`,
       borderRadius: 12, padding: 14,
     }}>
-      {hiddenInput}
+      {fallbackInput}
 
       {/* Instructions numbered list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
@@ -1636,8 +1698,8 @@ function PhotoCaptureCard({
         </div>
       )}
 
-      {/* Capture trigger */}
-      <label htmlFor={id} style={{
+      {/* Capture trigger — opens in-app camera (or fallback to file picker) */}
+      <button type="button" onClick={openCamera} style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         width: '100%', padding: '13px 16px', borderRadius: 10,
         background: `rgba(${colorRgb},0.10)`,
@@ -1647,7 +1709,259 @@ function PhotoCaptureCard({
         boxSizing: 'border-box',
       }}>
         {captureLabel}
-      </label>
+      </button>
+    </div>
+  );
+}
+
+// ─── In-App Camera ──────────────────────────────────────────────────────────
+// Uses getUserMedia API to show live camera feed inside the card.
+// Self-contained lifecycle: requests permission → streams video → captures frame.
+
+function InAppCamera({
+  facingMode, guideType, color, colorRgb, lang, onCapture, onCancel, onPermissionError,
+}: {
+  facingMode: 'user' | 'environment';
+  guideType: 'face' | 'document';
+  color: string;
+  colorRgb: string;
+  lang: Lang;
+  onCapture: (f: File) => void;
+  onCancel: () => void;
+  onPermissionError: () => void;
+}) {
+  const videoRef  = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [ready, setReady]   = useState(false);
+  const [error, setError]   = useState<string | null>(null);
+
+  const t = STRINGS[lang];
+
+  useEffect(() => {
+    let active = true;
+
+    navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: facingMode },
+        width:  { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    }).then(stream => {
+      if (!active) { stream.getTracks().forEach(tr => tr.stop()); return; }
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    }).catch(() => {
+      if (active) setError(t.camPermError);
+    });
+
+    return () => {
+      active = false;
+      streamRef.current?.getTracks().forEach(tr => tr.stop());
+      streamRef.current = null;
+    };
+  }, [facingMode, t.camPermError]);
+
+  const handleCapture = () => {
+    const video  = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || !ready) return;
+
+    const w = video.videoWidth  || 1280;
+    const h = video.videoHeight || 720;
+    canvas.width  = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Front camera: draw raw (world sees you, matches ID photo orientation)
+    ctx.drawImage(video, 0, 0, w, h);
+
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      // Stop stream before handing off
+      streamRef.current?.getTracks().forEach(tr => tr.stop());
+      onCapture(file);
+    }, 'image/jpeg', 0.92);
+  };
+
+  // ── Error state ─────────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div style={{
+        background: '#0a0f1c', border: '1px solid rgba(244,63,94,0.25)',
+        borderRadius: 12, padding: '20px 16px', textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 32, marginBottom: 10 }}>📷</div>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 16, lineHeight: 1.55 }}>
+          {error}
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" onClick={onCancel} style={{
+            flex: 1, padding: '11px 8px', borderRadius: 10,
+            background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+            color: 'rgba(255,255,255,0.55)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+          }}>{t.camCancel}</button>
+          <button type="button" onClick={onPermissionError} style={{
+            flex: 2, padding: '11px 8px', borderRadius: 10,
+            background: `rgba(${colorRgb},0.10)`, border: `1px solid rgba(${colorRgb},0.35)`,
+            color: color, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+          }}>{t.camFallback}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Live camera UI ──────────────────────────────────────────────────────────
+  const isOval = guideType === 'face';
+
+  return (
+    <div style={{
+      background: '#000', borderRadius: 14,
+      overflow: 'hidden', border: `1px solid rgba(${colorRgb},0.30)`,
+    }}>
+      {/* Top bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 14px',
+        background: 'rgba(0,0,0,0.70)',
+      }}>
+        <button type="button" onClick={onCancel} style={{
+          background: 'transparent', border: 'none',
+          color: 'rgba(255,255,255,0.65)', fontSize: 13, cursor: 'pointer',
+          fontFamily: 'inherit', padding: 0,
+        }}>← {t.camCancel}</button>
+        <span style={{ fontSize: 11, color: `rgba(${colorRgb},0.90)`, fontWeight: 700, letterSpacing: '0.08em' }}>
+          {isOval ? 'SELFIE' : 'DOCUMENTO'}
+        </span>
+        <div style={{ width: 40 }} /> {/* spacer */}
+      </div>
+
+      {/* Video preview */}
+      <div style={{
+        position: 'relative',
+        background: '#111',
+        ...(isOval
+          ? { padding: '16px 32px 8px' }
+          : { padding: '8px 12px' }
+        ),
+      }}>
+        {isOval ? (
+          /* Selfie: oval crop with mirror */
+          <div style={{
+            width: '100%', maxWidth: 220, aspectRatio: '3/4',
+            margin: '0 auto',
+            borderRadius: '50%', overflow: 'hidden',
+            border: `3px solid rgba(${colorRgb},0.65)`,
+            boxShadow: `0 0 0 5px rgba(${colorRgb},0.12)`,
+            background: '#111', position: 'relative',
+          }}>
+            <video
+              ref={videoRef}
+              autoPlay playsInline muted
+              style={{
+                width: '100%', height: '100%', objectFit: 'cover',
+                transform: 'scaleX(-1)', // mirror so preview is natural (like selfie camera)
+                display: 'block',
+              }}
+              onCanPlay={() => setReady(true)}
+            />
+            {!ready && (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,0,0,0.60)', fontSize: 12,
+                color: 'rgba(255,255,255,0.50)',
+              }}>{t.camLoading}</div>
+            )}
+          </div>
+        ) : (
+          /* Document: rect with alignment corner markers overlay */
+          <div style={{
+            width: '100%', aspectRatio: '4/3',
+            borderRadius: 8, overflow: 'hidden',
+            position: 'relative', background: '#111',
+          }}>
+            <video
+              ref={videoRef}
+              autoPlay playsInline muted
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              onCanPlay={() => setReady(true)}
+            />
+            {/* Alignment overlay */}
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              <div style={{ position: 'absolute', inset: '14%' }}>
+                {/* Corner markers */}
+                <div style={{ position:'absolute', top:0, left:0, width:22, height:22, borderTop:`2.5px solid ${color}`, borderLeft:`2.5px solid ${color}` }} />
+                <div style={{ position:'absolute', top:0, right:0, width:22, height:22, borderTop:`2.5px solid ${color}`, borderRight:`2.5px solid ${color}` }} />
+                <div style={{ position:'absolute', bottom:0, left:0, width:22, height:22, borderBottom:`2.5px solid ${color}`, borderLeft:`2.5px solid ${color}` }} />
+                <div style={{ position:'absolute', bottom:0, right:0, width:22, height:22, borderBottom:`2.5px solid ${color}`, borderRight:`2.5px solid ${color}` }} />
+              </div>
+              {/* Semi-transparent vignette outside the guide area */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                boxShadow: 'inset 0 0 0 14% rgba(0,0,0,0.55)',
+                borderRadius: 8,
+              }} />
+            </div>
+            {!ready && (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,0,0,0.60)', fontSize: 12,
+                color: 'rgba(255,255,255,0.50)',
+              }}>{t.camLoading}</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Hidden canvas for frame capture */}
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+      {/* Bottom bar: guidance text + shutter button */}
+      <div style={{
+        padding: '14px 20px 20px',
+        textAlign: 'center',
+        background: 'rgba(0,0,0,0.80)',
+      }}>
+        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 16, lineHeight: 1.5 }}>
+          {isOval ? t.camGuideFace : t.camGuideDoc}
+        </p>
+
+        {/* Shutter button */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={handleCapture}
+            disabled={!ready}
+            aria-label={t.camCapture}
+            style={{
+              width: 74, height: 74, borderRadius: '50%', padding: 0,
+              background: 'transparent', outline: 'none',
+              border: '3px solid rgba(255,255,255,0.70)',
+              cursor: ready ? 'pointer' : 'not-allowed',
+              boxShadow: ready ? '0 0 0 6px rgba(255,255,255,0.10)' : 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'transform 0.1s',
+            }}
+          >
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%',
+              background: ready ? '#fff' : 'rgba(255,255,255,0.30)',
+              transition: 'background 0.2s',
+            }} />
+          </button>
+        </div>
+        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 10 }}>
+          {t.camCapture}
+        </p>
+      </div>
     </div>
   );
 }

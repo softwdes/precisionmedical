@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, AlertCircle, Plus, Calendar, MapPin, Building2, FileCheck, Zap, CalendarCheck, Search, X, ArrowUpDown } from 'lucide-react';
+import { Phone, PhoneCall, FileText, Mail, Send, ChevronRight, Plus, Calendar, Building2, FileCheck, Zap, CalendarCheck, Search, X, ArrowUpDown } from 'lucide-react';
 import { Button } from '@precision/ui';
 import {
   PageHeader,
@@ -175,7 +175,7 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PageHeader
         title={t('title')}
         subtitle={
@@ -201,100 +201,115 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
       <IncomingCallToast onAnswer={handleAnswerIncoming} />
 
       {/* Phone-style call indicator — específico de Front Office */}
-      <div className="rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-3 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-emerald/15 flex items-center justify-center">
-          <Phone className="w-4 h-4 text-emerald" />
+      <div className="rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-2.5 flex items-center gap-3">
+        <div className="w-7 h-7 rounded-full bg-emerald/15 flex items-center justify-center shrink-0">
+          <Phone className="w-3.5 h-3.5 text-emerald" />
         </div>
-        <div className="flex-1">
-          <div className="text-emerald text-xs font-semibold uppercase tracking-wider">{t('lineAvailable')}</div>
-          <div className="text-text-2 text-xs">{t('lineSubtitle')}</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-emerald text-[10px] font-semibold uppercase tracking-wider">{t('lineAvailable')}</div>
+          <div className="text-text-muted text-[11px] truncate">{t('lineSubtitle')}</div>
         </div>
-        <span className="text-text-muted text-[10px] font-mono">{t('callReady')}</span>
+        <span className="text-text-muted text-[10px] font-mono shrink-0">{t('callReady')}</span>
       </div>
 
-      {/* KPIs por status — usan KpiCard shared */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label={t('kpiNewReferrals')}     value={stats.NEW_REFERRAL}    sub={t('kpiNewReferralsSub')}    color="text-rose" />
-        <KpiCard label={t('kpiIntakePending')}    value={stats.INTAKE_PENDING}  sub={t('kpiIntakePendingSub')}   color="text-amber" />
-        <KpiCard label={t('kpiIntakeCompleted')}  value={stats.INTAKE_COMPLETED} sub={t('kpiIntakeCompletedSub')} color="text-cyan" />
-        <KpiCard label={t('kpiConfirmed')}        value={stats.CONFIRMED}       sub={t('kpiConfirmedSub')}       color="text-emerald" />
+      {/* KPIs — compact 4-col grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard label={t('kpiNewReferrals')}     value={stats.NEW_REFERRAL}     sub={t('kpiNewReferralsSub')}    color="text-rose"    compact />
+        <KpiCard label={t('kpiIntakePending')}    value={stats.INTAKE_PENDING}   sub={t('kpiIntakePendingSub')}   color="text-amber"   compact />
+        <KpiCard label={t('kpiIntakeCompleted')}  value={stats.INTAKE_COMPLETED} sub={t('kpiIntakeCompletedSub')} color="text-cyan"    compact />
+        <KpiCard label={t('kpiConfirmed')}        value={stats.CONFIRMED}        sub={t('kpiConfirmedSub')}       color="text-emerald" compact />
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 items-center flex-wrap">
-        <span className="text-text-muted text-xs uppercase tracking-wider font-semibold mr-2">{t('queueTitle')}:</span>
-        <FilterPill active={filter === 'all'}              onClick={() => setFilter('all')}              label={t('filterAll')}        count={cases.length} />
-        <FilterPill active={filter === 'NEW_REFERRAL'}     onClick={() => setFilter('NEW_REFERRAL')}     label={t('filterNew')}         count={stats.NEW_REFERRAL} />
-        <FilterPill active={filter === 'INTAKE_PENDING'}   onClick={() => setFilter('INTAKE_PENDING')}   label={t('filterPending')}     count={stats.INTAKE_PENDING} />
-        <FilterPill active={filter === 'INTAKE_COMPLETED'} onClick={() => setFilter('INTAKE_COMPLETED')} label={t('filterToConfirm')}   count={stats.INTAKE_COMPLETED} />
-        <FilterPill active={filter === 'CONFIRMED'}        onClick={() => setFilter('CONFIRMED')}        label={t('filterConfirmed')}   count={stats.CONFIRMED} />
-      </div>
-
-      {/* Search + Sort bar */}
+      {/* Acciones rápidas */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Input de búsqueda */}
-        <div className="flex-1 min-w-[200px] relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+        <Button size="sm" variant="outline" onClick={handleNewCase}>
+          <Plus className="w-3 h-3 mr-1" /> Nueva llamada
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleNewCase}>
+          <Send className="w-3 h-3 mr-1" /> Procesar referido
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setScheduleCase(cases.find(c => c.status === 'CONFIRMED') ?? null)}>
+          <Calendar className="w-3 h-3 mr-1" /> Agendar cita
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setSendPortalCase(cases.find(c => c.status === 'NEW_REFERRAL') ?? null)}>
+          <Mail className="w-3 h-3 mr-1" /> Reenviar formulario
+        </Button>
+      </div>
+
+      {/* Filters + Search + Sort — en una sola línea compacta */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold shrink-0">{t('queueTitle')}:</span>
+        <FilterPill active={filter === 'all'}              onClick={() => setFilter('all')}              label={t('filterAll')}       count={cases.length} />
+        <FilterPill active={filter === 'NEW_REFERRAL'}     onClick={() => setFilter('NEW_REFERRAL')}     label={t('filterNew')}        count={stats.NEW_REFERRAL} />
+        <FilterPill active={filter === 'INTAKE_PENDING'}   onClick={() => setFilter('INTAKE_PENDING')}   label={t('filterPending')}    count={stats.INTAKE_PENDING} />
+        <FilterPill active={filter === 'INTAKE_COMPLETED'} onClick={() => setFilter('INTAKE_COMPLETED')} label={t('filterToConfirm')}  count={stats.INTAKE_COMPLETED} />
+        <FilterPill active={filter === 'CONFIRMED'}        onClick={() => setFilter('CONFIRMED')}        label={t('filterConfirmed')}  count={stats.CONFIRMED} />
+
+        {/* Search inline */}
+        <div className="relative ml-auto">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-muted pointer-events-none" />
           <input
             type="text"
-            placeholder="Buscar por nombre, código, teléfono, bufete..."
+            placeholder="Buscar..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-sm bg-bg-2 border border-border rounded-lg text-text-1 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/40 transition-colors"
+            className="pl-7 pr-6 py-1.5 text-xs bg-bg-2 border border-border rounded-lg text-text-1 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/40 transition-colors w-36 focus:w-52 transition-[width]"
           />
           {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1 transition-colors"
-              aria-label="Limpiar búsqueda"
-            >
-              <X className="w-3.5 h-3.5" />
+            <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1">
+              <X className="w-3 h-3" />
             </button>
           )}
         </div>
 
-        {/* Sort selector */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <ArrowUpDown className="w-3.5 h-3.5 text-text-muted" />
+        {/* Sort */}
+        <div className="flex items-center gap-1 shrink-0">
+          <ArrowUpDown className="w-3 h-3 text-text-muted" />
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="py-2 pl-2 pr-6 text-sm bg-bg-2 border border-border rounded-lg text-text-1 focus:outline-none focus:ring-1 focus:ring-brand/40 appearance-none cursor-pointer"
+            className="py-1.5 pl-1.5 pr-5 text-xs bg-bg-2 border border-border rounded-lg text-text-1 focus:outline-none focus:ring-1 focus:ring-brand/40 appearance-none cursor-pointer"
           >
             <option value="urgency">Urgencia</option>
-            <option value="dol">DOL (antiguo→reciente)</option>
-            <option value="created">Más tiempo en cola</option>
+            <option value="dol">DOL</option>
+            <option value="created">En cola</option>
           </select>
         </div>
-
-        {/* Contador de resultados — solo cuando hay filtro activo */}
-        {(search || filter !== 'all') && (
-          <span className="text-text-muted text-[11px] shrink-0">
-            {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
-            {search && <> para <span className="text-text-2 font-medium">"{search}"</span></>}
-          </span>
-        )}
       </div>
 
-      {/* Case list */}
-      <div className="space-y-3">
+      {/* Section header */}
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
+          <FileText className="w-3.5 h-3.5 text-brand" />
+          Casos en cola
+          {(search || filter !== 'all') && (
+            <span className="text-text-muted font-normal ml-1">— {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
+          )}
+        </span>
+      </div>
+
+      {/* Case list — filas compactas */}
+      <div className="rounded-lg border border-border overflow-hidden divide-y divide-border/60">
         {filtered.length === 0 && !search && filter === 'all' ? (
-          <EmptyState.Rich
-            icon={FileText}
-            title="No hay casos en esta cola"
-            subtitle='Buen trabajo. Cuando entre una llamada, click "Nueva llamada".'
-          />
+          <div className="p-6">
+            <EmptyState.Rich
+              icon={FileText}
+              title="No hay casos en esta cola"
+              subtitle='Buen trabajo. Cuando entre una llamada, click "Nueva llamada".'
+            />
+          </div>
         ) : filtered.length === 0 ? (
-          <EmptyState.Rich
-            icon={Search}
-            title={search ? `Sin resultados para "${search}"` : 'No hay casos con este filtro'}
-            subtitle={
-              search
-                ? 'Probá con el nombre completo, número de teléfono o código del caso'
-                : 'Cambiá el filtro de status para ver otros casos'
-            }
-          />
+          <div className="p-6">
+            <EmptyState.Rich
+              icon={Search}
+              title={search ? `Sin resultados para "${search}"` : 'No hay casos con este filtro'}
+              subtitle={
+                search
+                  ? 'Probá con el nombre completo, número de teléfono o código del caso'
+                  : 'Cambiá el filtro de status para ver otros casos'
+              }
+            />
+          </div>
         ) : (
           filtered.map((c) => (
             <CaseCard
@@ -312,7 +327,7 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
       </div>
 
       {/* Footer help */}
-      <div className="text-xs text-text-muted text-center pt-4 border-t border-border/40">
+      <div className="text-xs text-text-muted text-center pt-2 border-t border-border/40">
         {t('footerMockData')}
       </div>
 
@@ -382,7 +397,8 @@ export function FrontOfficeClient({ cases, stats, specialties, clinics, provider
   );
 }
 
-// ─── CaseCard (queue inbox · forma única de Front Office) ────────────────────
+// ─── CaseCard — fila compacta estilo mockup ──────────────────────────────────
+// Altura ~60px: avatar + nombre + fuente · status badge · botón de acción · chevron
 
 function CaseCard({
   case: c,
@@ -401,158 +417,98 @@ function CaseCard({
   onSimulateIntake: () => void;
   isMarkingIntake: boolean;
 }) {
-  const statusMeta: Record<CaseStatus, { label: string; colorClass: string; icon: string }> = {
-    NEW_REFERRAL:     { label: 'Nuevo referido',      colorClass: 'bg-rose/10 text-rose border-rose/30',           icon: '🔴' },
-    INTAKE_PENDING:   { label: 'Intake pendiente',    colorClass: 'bg-amber/10 text-amber border-amber/30',       icon: '🟡' },
-    INTAKE_COMPLETED: { label: 'Por confirmar (24h)', colorClass: 'bg-cyan/10 text-cyan border-cyan/30',           icon: '🔵' },
-    CONFIRMED:        { label: 'Confirmado',          colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '🟢' },
-    ACTIVE:           { label: 'Activo',              colorClass: 'bg-brand/10 text-brand border-brand/30',       icon: '🟣' },
-    MMI:              { label: 'MMI',                 colorClass: 'bg-violet/10 text-violet border-violet/30',    icon: '⚕️' },
-    CLOSED:           { label: 'Cerrado',             colorClass: 'bg-text-muted/10 text-text-muted border-border', icon: '⬜' },
-    SETTLED:          { label: 'Settlement',          colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '✅' },
-    ARCHIVED:         { label: 'Archivado',           colorClass: 'bg-text-muted/10 text-text-muted border-border', icon: '📁' },
-    CANCELLED:        { label: 'Cancelado',           colorClass: 'bg-rose/10 text-rose border-rose/30',           icon: '❌' },
+  const statusMeta: Record<CaseStatus, { label: string; colorClass: string }> = {
+    NEW_REFERRAL:     { label: 'Nuevo',             colorClass: 'bg-rose/10 text-rose border-rose/30' },
+    INTAKE_PENDING:   { label: 'Intake pendiente',  colorClass: 'bg-amber/10 text-amber border-amber/30' },
+    INTAKE_COMPLETED: { label: 'Por confirmar',     colorClass: 'bg-cyan/10 text-cyan border-cyan/30' },
+    CONFIRMED:        { label: 'Confirmado',        colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
+    ACTIVE:           { label: 'Activo',            colorClass: 'bg-brand/10 text-brand border-brand/30' },
+    MMI:              { label: 'MMI',               colorClass: 'bg-violet/10 text-violet border-violet/30' },
+    CLOSED:           { label: 'Cerrado',           colorClass: 'bg-text-muted/10 text-text-muted border-border' },
+    SETTLED:          { label: 'Settlement',        colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
+    ARCHIVED:         { label: 'Archivado',         colorClass: 'bg-text-muted/10 text-text-muted border-border' },
+    CANCELLED:        { label: 'Cancelado',         colorClass: 'bg-rose/10 text-rose border-rose/30' },
   };
   const st = statusMeta[c.status];
 
   const age = ageInHours(c.createdAt);
-  const ageLabel = age < 1 ? 'hace minutos' : age < 24 ? `hace ${Math.floor(age)}h` : `hace ${Math.floor(age / 24)}d`;
+  const ageLabel = age < 1 ? 'ahora' : age < 24 ? `${Math.floor(age)}h` : `${Math.floor(age / 24)}d`;
+
+  // Fuente del referido (source → label corto + bufete si hay)
+  const sourceMap: Record<string, string> = {
+    PHONE_CALL: 'Llamada', FAX: 'Fax', EMAIL: 'Email',
+    WALK_IN: 'Walk-in', REFERRAL: 'Referido', WEBSITE: 'Web',
+  };
+  const sourceText = sourceMap[c.source] ?? c.source;
+  const subLine = [
+    sourceText,
+    c.lawFirm?.firmName,
+    c.primaryInsurance?.shortCode,
+    c.accidentDate ? `DOL ${formatDate(c.accidentDate)}` : null,
+  ].filter(Boolean).join(' · ');
+
+  // Botón de acción contextual
+  const actionBtn = (() => {
+    if (c.status === 'NEW_REFERRAL')
+      return (
+        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onSendPortal(); }}>
+          <Send className="w-3 h-3 mr-1" /> Enviar Forms
+        </Button>
+      );
+    if (c.status === 'INTAKE_PENDING')
+      return (
+        <Button
+          size="sm" variant="outline"
+          className="text-[10px] opacity-60 hover:opacity-100"
+          onClick={(e) => { e.stopPropagation(); onSimulateIntake(); }}
+          disabled={isMarkingIntake}
+          title="Phase 1A dev: simula que el paciente completó el portal"
+        >
+          <Zap className="w-3 h-3 mr-1" />{isMarkingIntake ? '...' : 'DEV ⚡'}
+        </Button>
+      );
+    if (c.status === 'INTAKE_COMPLETED')
+      return (
+        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onConfirm(); }}>
+          <FileCheck className="w-3 h-3 mr-1" /> Confirmar
+        </Button>
+      );
+    if (c.status === 'CONFIRMED')
+      return (
+        <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onSchedule(); }}>
+          <CalendarCheck className="w-3 h-3 mr-1" /> Agendar
+        </Button>
+      );
+    return null;
+  })();
 
   return (
     <div
       onClick={onClick}
-      className="group rounded-lg border border-border bg-bg-1 p-5 hover:border-border-strong hover:bg-bg-1/80 cursor-pointer transition-all"
+      className="group flex items-center gap-3 bg-bg-1 px-4 py-3 hover:bg-white/[0.02] cursor-pointer transition-colors"
     >
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-4 flex-1 min-w-0">
-          <PersonAvatar firstName={c.patient.firstName} lastName={c.patient.lastName} size={12} gradientClass="bg-gradient-cyan" />
+      {/* Avatar pequeño */}
+      <PersonAvatar firstName={c.patient.firstName} lastName={c.patient.lastName} size={9} gradientClass="bg-gradient-brand" />
 
-          {/* Main info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <div className="text-text-1 font-bold text-base">
-                {c.patient.firstName} {c.patient.lastName}
-              </div>
-              <code className="text-text-muted text-xs font-mono">{c.caseCode}</code>
-              <TagPill label={<span><span className="mr-1">{st.icon}</span>{st.label}</span>} colorClass={st.colorClass} />
-            </div>
-
-            {/* Sub-info */}
-            <div className="flex items-center gap-x-4 gap-y-1 text-xs text-text-2 flex-wrap mt-1">
-              {c.patient.phone && (
-                <span className="flex items-center gap-1 font-mono">
-                  <Phone className="w-3 h-3 text-text-muted" /> {c.patient.phone}
-                </span>
-              )}
-              {c.accidentDate && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-text-muted" /> DOL: {formatDate(c.accidentDate)}
-                </span>
-              )}
-              {c.accidentLocation && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-text-muted" /> {c.accidentLocation}
-                </span>
-              )}
-            </div>
-
-            {/* Pills row · domain tags (specialty + lawFirm + insurance) */}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {c.specialty && (
-                <TagPill
-                  label={c.specialty.name}
-                  colorClass="bg-bg-2 text-text-2 border-border"
-                  compact
-                  icon={<span className="w-1.5 h-1.5 rounded-full" style={{ background: c.specialty.color }} />}
-                />
-              )}
-              {c.lawFirm && (
-                <TagPill
-                  label={
-                    <>
-                      ⚖️ {c.lawFirm.firmName}
-                      {c.lawFirm.paymentSpeed === 'SLOW' && <span className="text-amber ml-1" title="Pago lento">⚠</span>}
-                    </>
-                  }
-                  colorClass="bg-bg-2 text-text-2 border-border"
-                  compact
-                />
-              )}
-              {c.primaryInsurance && (
-                <TagPill
-                  label={
-                    <>
-                      {c.primaryInsurance.name}
-                      {c.primaryInsurance.responseSpeed === 'SLOW' && <span className="text-amber ml-1">⚠</span>}
-                    </>
-                  }
-                  colorClass="bg-bg-2 text-text-2 border-border"
-                  compact
-                  icon={
-                    <span className="w-3 h-3 rounded flex items-center justify-center text-white text-[7px] font-bold" style={{ background: c.primaryInsurance.color }}>
-                      {c.primaryInsurance.shortCode}
-                    </span>
-                  }
-                />
-              )}
-              <span className="text-text-muted text-[10px] ml-auto">{ageLabel}</span>
-            </div>
-
-            {/* Action prompt by status */}
-            {c.status === 'NEW_REFERRAL' && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-rose">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span className="font-semibold">Acción: contactar paciente + enviar Forms SMS</span>
-                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onSendPortal(); }}>
-                  <Send className="w-3 h-3 mr-1" /> Enviar Forms
-                </Button>
-              </div>
-            )}
-            {c.status === 'INTAKE_PENDING' && c.intakeFormSentAt && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-amber flex-wrap">
-                <Mail className="w-3.5 h-3.5" />
-                <span>Forms {c.intakeFormSentVia} enviado {formatRelative(c.intakeFormSentAt)} · Esperando paciente complete</span>
-                {/* Phase 1A dev helper — simula que el paciente completó los Forms */}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="ml-auto text-[10px] opacity-70 hover:opacity-100"
-                  onClick={(e) => { e.stopPropagation(); onSimulateIntake(); }}
-                  disabled={isMarkingIntake}
-                  title="Phase 1A dev · Simula que el paciente completó los Forms (B.5-B.9 stub)"
-                >
-                  <Zap className="w-3 h-3 mr-1" />
-                  {isMarkingIntake ? 'Simulando...' : 'DEV · Simular Forms completo'}
-                </Button>
-              </div>
-            )}
-            {c.status === 'INTAKE_COMPLETED' && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-cyan">
-                <Phone className="w-3.5 h-3.5" />
-                <span className="font-semibold">Acción: llamar 24h antes para confirmar cita</span>
-                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onConfirm(); }}>
-                  <FileCheck className="w-3 h-3 mr-1" />
-                  Confirmar
-                </Button>
-              </div>
-            )}
-            {c.status === 'CONFIRMED' && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-emerald flex-wrap">
-                <CalendarCheck className="w-3.5 h-3.5" />
-                <span className="font-semibold">Acción: agendar primera cita (doctor + slot)</span>
-                {c.firstAppointmentConfirmedAt && (
-                  <span className="text-text-muted">· confirmado {formatRelative(c.firstAppointmentConfirmedAt)}</span>
-                )}
-                <Button size="sm" variant="outline" className="ml-auto" onClick={(e) => { e.stopPropagation(); onSchedule(); }}>
-                  <CalendarCheck className="w-3 h-3 mr-1" />
-                  Agendar
-                </Button>
-              </div>
-            )}
-          </div>
+      {/* Nombre + sub-line */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span className="text-text-1 font-semibold text-sm truncate">
+            {c.patient.firstName} {c.patient.lastName}
+          </span>
+          <code className="text-text-muted text-[10px] font-mono shrink-0 hidden sm:inline">{c.caseCode}</code>
         </div>
+        {subLine && (
+          <div className="text-text-muted text-xs mt-0.5 truncate">{subLine}</div>
+        )}
+      </div>
 
-        <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-text-1 transition-colors shrink-0 self-center" />
+      {/* Right side */}
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="text-text-muted text-[10px] hidden md:inline">{ageLabel}</span>
+        <TagPill label={st.label} colorClass={st.colorClass} compact />
+        {actionBtn}
+        <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-text-1 transition-colors" />
       </div>
     </div>
   );

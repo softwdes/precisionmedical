@@ -18,15 +18,17 @@ export interface KpiCardProps {
   sub?: React.ReactNode;
   /** Clase Tailwind para color del número grande. Ej: "text-emerald", "text-rose", "text-brand". */
   color?: string;
+  /** Número más pequeño + menos padding — para vistas con muchos KPIs. */
+  compact?: boolean;
 }
 
-export function KpiCard({ label, value, sub, color = 'text-text-1' }: KpiCardProps) {
+export function KpiCard({ label, value, sub, color = 'text-text-1', compact = false }: KpiCardProps) {
   return (
-    <div className="rounded-lg border border-border bg-bg-1 px-5 py-4">
+    <div className={`rounded-lg border border-border bg-bg-1 ${compact ? 'px-4 py-3' : 'px-5 py-4'}`}>
       <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">
         {label}
       </div>
-      <div className={`text-3xl font-bold mt-1 ${color}`}>{value}</div>
+      <div className={`font-bold mt-0.5 ${color} ${compact ? 'text-2xl' : 'text-3xl'}`}>{value}</div>
       {sub && (
         <div className="text-[11px] text-text-muted mt-0.5">{sub}</div>
       )}

@@ -14,7 +14,7 @@ const ROLE_APP_ACCESS: Record<string, V2App[]> = {
   SUPER_ADMIN:  ['back-office', 'clinical', 'attorney'],
   ADMIN:        ['back-office', 'clinical', 'attorney'],
   CONTADOR:     ['back-office'],
-  EMPLOYEE:     ['clinical'],
+  EMPLOYEE:     ['back-office', 'clinical'],
   PROVIDER:     ['clinical'],
   LAWYER:       ['attorney'],
   AUDITOR_AI:   [],

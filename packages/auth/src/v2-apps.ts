@@ -31,6 +31,36 @@ export function canAccessV2App(dbRole: string, app: V2App): boolean {
 }
 
 /**
+ * Verifica acceso al back-office usando la configuración dinámica en roles_config.
+ * Para roles que ya tienen acceso por la matriz estática (SUPER_ADMIN, ADMIN, CONTADOR),
+ * devuelve true directamente. Para el resto, consulta roles_config.permissions.pm_clinic.
+ * Usar junto con caché en cookie (1h) para evitar llamadas repetidas por request.
+ */
+export async function fetchRoleClinicAccess(dbRole: string): Promise<boolean> {
+  // Roles con acceso garantizado por la matriz estática
+  if (canAccessV2App(dbRole, 'back-office')) return true;
+
+  try {
+    const url =
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/roles_config` +
+      `?select=permissions&role=eq.${encodeURIComponent(dbRole)}&limit=1`;
+
+    const res = await fetch(url, {
+      headers: {
+        apikey:        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+      },
+    });
+
+    if (!res.ok) return false;
+    const data = (await res.json()) as Array<{ permissions?: { pm_clinic?: boolean } }>;
+    return data[0]?.permissions?.pm_clinic === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Fetch del role del usuario desde Supabase REST API.
  * Edge-safe — no usa el SDK de Supabase, solo fetch.
  * Cachear el resultado en cookie (1h) para evitar llamadas repetidas.

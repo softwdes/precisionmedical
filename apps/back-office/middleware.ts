@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@precision-medical/auth/middleware';
-import { canAccessV2App, fetchDbRole } from '@precision-medical/auth/v2-apps';
+import { fetchDbRole, fetchRoleClinicAccess } from '@precision-medical/auth/v2-apps';
 
 /**
  * Back-Office middleware.
  *
- * Roles permitidos: SUPER_ADMIN · ADMIN · CONTADOR
+ * Roles permitidos: SUPER_ADMIN · ADMIN · CONTADOR · cualquier rol con pm_clinic=true en roles_config
  *
  * Flujo:
  *   1. Rutas públicas (/login, /api/auth/*) → pass-through
@@ -15,7 +15,8 @@ import { canAccessV2App, fetchDbRole } from '@precision-medical/auth/v2-apps';
  *   5. Todo OK → continúa
  */
 
-const ROLE_COOKIE = 'pm_role';
+const ROLE_COOKIE   = 'pm_role';
+const CLINIC_COOKIE = 'pm_clinic';
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
@@ -49,13 +50,29 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     response.cookies.set(ROLE_COOKIE, dbRole, {
       httpOnly: true,
       path:     '/',
-      maxAge:   3600,    // 1 hora
+      maxAge:   3600,
       sameSite: 'lax',
     });
   }
 
-  // Verificar acceso a back-office
-  if (!canAccessV2App(dbRole ?? '', 'back-office')) {
+  // Verificar acceso al back-office.
+  // Primero revisa cookie cacheada (1h); si no hay, consulta roles_config en DB.
+  // fetchRoleClinicAccess devuelve true para SUPER_ADMIN/ADMIN/CONTADOR directamente,
+  // y para otros roles consulta pm_clinic en roles_config (ej: EMPLOYEE con toggle ON).
+  let clinicAccess = request.cookies.get(CLINIC_COOKIE)?.value;
+
+  if (clinicAccess === undefined && dbRole) {
+    const hasAccess = await fetchRoleClinicAccess(dbRole);
+    clinicAccess = hasAccess ? '1' : '0';
+    response.cookies.set(CLINIC_COOKIE, clinicAccess, {
+      httpOnly: true,
+      path:     '/',
+      maxAge:   3600,
+      sameSite: 'lax',
+    });
+  }
+
+  if (clinicAccess !== '1') {
     const url = request.nextUrl.clone();
     url.pathname = '/no-access';
     return NextResponse.redirect(url);

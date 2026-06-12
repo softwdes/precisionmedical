@@ -17,7 +17,11 @@ const MemberInputSchema = z.object({
   lastName: z.string().min(1).max(100),
   email: z.string().email(),
   phone: z.string().max(50).nullable().optional(),
-  memberRole: z.enum(['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'OTHER']).default('ATTORNEY'),
+  address: z.string().max(200).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  state: z.string().max(50).nullable().optional(),
+  zip: z.string().max(20).nullable().optional(),
+  memberRole: z.enum(['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER']).default('ATTORNEY'),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -55,9 +59,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       lastName: parsed.lastName,
       email: parsed.email,
       phone: parsed.phone ?? null,
+      address: parsed.address ?? null,
+      city: parsed.city ?? firm.city,
+      state: parsed.state ?? firm.state,
+      zip: parsed.zip ?? null,
       memberRole: parsed.memberRole,
-      city: firm.city,
-      state: firm.state,
       status: firm.status,
     },
   });
@@ -110,6 +116,10 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       lastName: parsed.lastName,
       email: parsed.email,
       phone: parsed.phone ?? null,
+      address: parsed.address ?? null,
+      city: parsed.city ?? null,
+      state: parsed.state ?? null,
+      zip: parsed.zip ?? null,
       memberRole: parsed.memberRole,
     },
   });

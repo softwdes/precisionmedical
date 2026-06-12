@@ -42,6 +42,10 @@ export default async function LawyerDetailPage({ params }: { params: Promise<{ i
         lastName: m.lastName,
         email: m.email,
         phone: m.phone,
+        address: m.address,
+        city: m.city,
+        state: m.state,
+        zip: m.zip,
         memberRole: m.memberRole,
         status: m.status,
       }))}

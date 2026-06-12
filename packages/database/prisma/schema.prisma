@@ -566,6 +566,7 @@ model Lawyer {
   // Phoenix 2026-06-06 (B.30/B.31): campos extra para catálogo de Bufetes
   city             String?           // Provo, West Valley, etc.
   state            String?           // ISO state code (UT)
+  zip              String?           // ZIP code del member (puede diferir del bufete)
   memberRole       LawyerMemberRole? // solo aplica si parentFirmId is set
   notes            String?           // notas internas de Edson (privadas)
   paymentSpeed     PaymentSpeed?     // marca rápido/lento para badge en B.30
@@ -594,9 +595,10 @@ model Lawyer {
 
 // Phoenix 2026-06-06: rol del member dentro del bufete (B.31)
 enum LawyerMemberRole {
-  ATTORNEY       // Abogado titular
-  CASE_MANAGER   // Manejador de casos · contacto operativo
-  PARALEGAL      // Asistente legal
+  ATTORNEY        // Abogado titular
+  CASE_MANAGER    // Manejador de casos · contacto operativo
+  PARALEGAL       // Asistente legal certificado
+  LEGAL_ASSISTANT // Asistente legal
   OTHER
 }
 

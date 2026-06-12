@@ -39,6 +39,10 @@ interface Member {
   lastName: string | null;
   email: string;
   phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
   memberRole: string | null;
   status: string;
 }
@@ -59,10 +63,11 @@ export function LawyerDetailClient({ firm, members }: Props) {
 
   const refresh = () => startTransition(() => router.refresh());
 
-  const attorneys      = members.filter((m) => m.memberRole === 'ATTORNEY');
-  const caseManagers   = members.filter((m) => m.memberRole === 'CASE_MANAGER');
-  const paralegals     = members.filter((m) => m.memberRole === 'PARALEGAL');
-  const otherMembers   = members.filter((m) => !['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL'].includes(m.memberRole ?? ''));
+  const attorneys       = members.filter((m) => m.memberRole === 'ATTORNEY');
+  const caseManagers    = members.filter((m) => m.memberRole === 'CASE_MANAGER');
+  const paralegals      = members.filter((m) => m.memberRole === 'PARALEGAL');
+  const legalAssistants = members.filter((m) => m.memberRole === 'LEGAL_ASSISTANT');
+  const otherMembers    = members.filter((m) => !['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT'].includes(m.memberRole ?? ''));
 
   return (
     <div className="space-y-6">
@@ -140,6 +145,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
           attorneys={attorneys}
           caseManagers={caseManagers}
           paralegals={paralegals}
+          legalAssistants={legalAssistants}
           others={otherMembers}
           onAddMember={() => { setEditingMember(null); setMemberDialogOpen(true); }}
           onEditMember={(m) => { setEditingMember(m); setMemberDialogOpen(true); }}
@@ -271,6 +277,7 @@ function MembersTab({
   attorneys,
   caseManagers,
   paralegals,
+  legalAssistants,
   others,
   onAddMember,
   onEditMember,
@@ -280,17 +287,17 @@ function MembersTab({
   attorneys: Member[];
   caseManagers: Member[];
   paralegals: Member[];
+  legalAssistants: Member[];
   others: Member[];
   onAddMember: () => void;
   onEditMember: (m: Member) => void;
   onDeletedMember: () => void;
 }) {
+  const total = attorneys.length + caseManagers.length + paralegals.length + legalAssistants.length + others.length;
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div className="text-text-2 text-sm">
-          {attorneys.length + caseManagers.length + paralegals.length + others.length} miembros
-        </div>
+        <div className="text-text-2 text-sm">{total} miembros</div>
         <Button onClick={onAddMember}>
           <Plus className="w-4 h-4 mr-1" /> Agregar miembro
         </Button>
@@ -299,9 +306,10 @@ function MembersTab({
       <MemberGroup title="Attorneys" icon={Briefcase} members={attorneys} onEdit={onEditMember} onDeleted={onDeletedMember} />
       <MemberGroup title="Case Managers" icon={UserCircle} members={caseManagers} onEdit={onEditMember} onDeleted={onDeletedMember} />
       <MemberGroup title="Paralegals" icon={UserCircle} members={paralegals} onEdit={onEditMember} onDeleted={onDeletedMember} />
+      <MemberGroup title="Legal Assistants" icon={UserCircle} members={legalAssistants} onEdit={onEditMember} onDeleted={onDeletedMember} />
       <MemberGroup title="Otros" icon={UserCircle} members={others} onEdit={onEditMember} onDeleted={onDeletedMember} />
 
-      {attorneys.length + caseManagers.length + paralegals.length + others.length === 0 && (
+      {total === 0 && (
         <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-8 text-center text-text-muted text-sm">
           Sin miembros aún. Agregá el primero arriba.
         </div>
@@ -525,10 +533,11 @@ function formatDate(d: Date): string {
 // ─── Member Dialog ──────────────────────────────────────────────────────────
 
 const MEMBER_ROLES = [
-  { value: 'ATTORNEY',     label: 'Attorney (Abogado)' },
-  { value: 'CASE_MANAGER', label: 'Case Manager' },
-  { value: 'PARALEGAL',    label: 'Paralegal' },
-  { value: 'OTHER',        label: 'Otro' },
+  { value: 'ATTORNEY',        label: 'Attorney (Abogado)' },
+  { value: 'CASE_MANAGER',    label: 'Case Manager' },
+  { value: 'PARALEGAL',       label: 'Paralegal' },
+  { value: 'LEGAL_ASSISTANT', label: 'Legal Assistant' },
+  { value: 'OTHER',           label: 'Otro' },
 ];
 
 function MemberDialog({
@@ -544,11 +553,15 @@ function MemberDialog({
   editing: Member | null;
   onSaved: () => void;
 }) {
-  const [firstName, setFirstName] = useState(editing?.firstName ?? '');
-  const [lastName, setLastName]   = useState(editing?.lastName ?? '');
-  const [email, setEmail]         = useState(editing?.email ?? '');
-  const [phone, setPhone]         = useState(editing?.phone ?? '');
-  const [memberRole, setMemberRole] = useState(editing?.memberRole ?? 'ATTORNEY');
+  const [firstName,   setFirstName]   = useState(editing?.firstName ?? '');
+  const [lastName,    setLastName]    = useState(editing?.lastName ?? '');
+  const [email,       setEmail]       = useState(editing?.email ?? '');
+  const [phone,       setPhone]       = useState(editing?.phone ?? '');
+  const [address,     setAddress]     = useState(editing?.address ?? '');
+  const [city,        setCity]        = useState(editing?.city ?? '');
+  const [state,       setState]       = useState(editing?.state ?? '');
+  const [zip,         setZip]         = useState(editing?.zip ?? '');
+  const [memberRole,  setMemberRole]  = useState(editing?.memberRole ?? 'ATTORNEY');
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
 
@@ -559,6 +572,10 @@ function MemberDialog({
     setLastName(editing?.lastName ?? '');
     setEmail(editing?.email ?? '');
     setPhone(editing?.phone ?? '');
+    setAddress(editing?.address ?? '');
+    setCity(editing?.city ?? '');
+    setState(editing?.state ?? '');
+    setZip(editing?.zip ?? '');
     setMemberRole(editing?.memberRole ?? 'ATTORNEY');
     setError(null);
     setLastEditingId(editingId);
@@ -580,6 +597,10 @@ function MemberDialog({
           lastName: lastName.trim(),
           email: email.trim(),
           phone: phone.trim() || null,
+          address: address.trim() || null,
+          city: city.trim() || null,
+          state: state.trim() || null,
+          zip: zip.trim() || null,
           memberRole,
         }),
       });
@@ -599,12 +620,12 @@ function MemberDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editing ? `Editar miembro` : 'Agregar miembro al bufete'}</DialogTitle>
-          <DialogDescription>Attorney, Case Manager o Paralegal del bufete.</DialogDescription>
+          <DialogTitle>{editing ? 'Editar miembro' : 'Agregar miembro al bufete'}</DialogTitle>
+          <DialogDescription>Attorney, Case Manager, Paralegal o Legal Assistant del bufete.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label htmlFor="firstName">Nombre <span className="text-rose">*</span></Label>
               <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoFocus />
@@ -615,7 +636,7 @@ function MemberDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label htmlFor="email">Email <span className="text-rose">*</span></Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -623,6 +644,26 @@ function MemberDialog({
             <div>
               <Label htmlFor="phone">Teléfono</Label>
               <Input id="phone" value={phone ?? ''} onChange={(e) => setPhone(e.target.value)} placeholder="+1-801-..." />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="address">Dirección</Label>
+            <Input id="address" value={address ?? ''} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-1">
+              <Label htmlFor="city">Ciudad</Label>
+              <Input id="city" value={city ?? ''} onChange={(e) => setCity(e.target.value)} placeholder="Provo" />
+            </div>
+            <div>
+              <Label htmlFor="state">Estado</Label>
+              <Input id="state" value={state ?? ''} onChange={(e) => setState(e.target.value)} placeholder="UT" maxLength={2} />
+            </div>
+            <div>
+              <Label htmlFor="zip">ZIP</Label>
+              <Input id="zip" value={zip ?? ''} onChange={(e) => setZip(e.target.value)} placeholder="84601" maxLength={10} />
             </div>
           </div>
 
@@ -645,9 +686,9 @@ function MemberDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving}>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="w-full sm:w-auto">Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
             {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Agregar miembro'}
           </Button>
         </DialogFooter>

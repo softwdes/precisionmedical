@@ -469,6 +469,24 @@ export default function ClockPage({ userId }: { userId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Capa 3: listener global de auth ──────────────────────────────────────
+  // Si el token expira DURANTE la sesion (no en mount), redirige al login
+  // antes de que el empleado intente Clock In y vea un toast confuso de
+  // error. Detecta SIGNED_OUT (signOut explicito o sesion invalidada por
+  // el server) y el caso unico de refresh-fallido en Supabase: TOKEN_REFRESHED
+  // con session=null. clearSessionGuard se llama para evitar el login-loop
+  // (ver useSessionGuard.ts).
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+        clearSessionGuard();
+        window.location.href = '/login?expired=true';
+      }
+    });
+    return () => { subscription.unsubscribe(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ─── Realtime: cross-device sync ─────────────────────────────────────────
   // Subscribe to the employee's attendance_records changes so a clock-in /
   // break / clock-out done on one device (e.g. mobile) is reflected on
@@ -501,9 +519,23 @@ export default function ClockPage({ userId }: { userId: string }) {
   }, [employee?.id]);
 
   async function loadProfile() {
-    // Resolve auth user email — employees are looked up by email, not by auth UUID
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser?.email) { setProfileError(true); setClockState('idle'); return; }
+    // ── Capa 1: distinguir auth-fallido de cuenta-no-configurada ──────────
+    // El authError o un authUser nulo indica que el token expiro / el
+    // refresh fallo / iOS PWA standalone libero el localStorage en
+    // background. NO es "cuenta no configurada" — el empleado SI esta
+    // configurado, solo necesita re-autenticarse.
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    if (authError || !authUser) {
+      window.location.href = '/login?expired=true';
+      return;
+    }
+    if (!authUser.email) {
+      // Caso real: auth valido pero sin email (estado raro de Supabase).
+      // Aqui si corresponde profileError porque la cuenta no esta usable.
+      setProfileError(true);
+      setClockState('idle');
+      return;
+    }
 
     // Fetch employee record + role in parallel. We need the role even
     // when there's no employee record, to distinguish "admin landed on
@@ -511,7 +543,7 @@ export default function ClockPage({ userId }: { userId: string }) {
     // Employee join brings country.code so the clinic dropdown can be
     // filtered by country (Bolivia/Perú employees only see their one
     // clinic; US employees see the 5 Utah clinics).
-    const [{ data: rawEmp }, { data: userData }] = await Promise.all([
+    const [{ data: rawEmp, error: empErr }, { data: userData, error: usrErr }] = await Promise.all([
       supabase
         .from('employees')
         .select('id, firstName, lastName, employeeCode, type, country:countries(code)')
@@ -523,6 +555,27 @@ export default function ClockPage({ userId }: { userId: string }) {
         .eq('email', authUser.email)
         .maybeSingle(),
     ]);
+
+    // ── Capa 2: errores de query != "cuenta no configurada" ──────────────
+    // Si las queries fallaron por network o por auth expirada despues del
+    // getUser() (ventana de carrera <1s), tampoco es profileError.
+    // Codigos 401/PGRST de PostgREST significan token muerto → al login.
+    if (empErr || usrErr) {
+      const err = empErr ?? usrErr;
+      // PostgREST devuelve PGRST301 cuando el JWT es invalido. Tambien
+      // los 401 caen aqui. Para cualquier error de query asumimos auth
+      // o network — mejor mandar al login que mostrar mensaje confuso.
+      if (err && (err.code === 'PGRST301' || err.message.includes('JWT') || err.message.includes('401'))) {
+        window.location.href = '/login?expired=true';
+        return;
+      }
+      // Otros errores (network blip, server down): tampoco mostramos
+      // "cuenta no configurada". Mejor al login — al menos el usuario
+      // puede intentar de nuevo en vez de pensar que tiene que llamar
+      // al administrador.
+      window.location.href = '/login?expired=true';
+      return;
+    }
 
     const userRole = userData?.role ?? 'EMPLOYEE';
     setRole(userRole);

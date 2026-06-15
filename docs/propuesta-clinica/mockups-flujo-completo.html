@@ -248,7 +248,7 @@
       Mockups conceptuales pantalla por pantalla del flujo end-to-end: desde que el paciente entra al sistema hasta que el caso se cierra. Diseñados para sustentar la propuesta ante alta gerencia.
     </p>
     <div style="margin-top: 60px; padding-top: 28px; border-top: 1px solid rgba(255,255,255,0.10);">
-      <p class="small" style="color: rgba(255,255,255,0.55);">Complemento del documento principal "LienMaster Propuesta Ejecutiva". 10 módulos · <strong style="color:rgba(255,255,255,0.85);">55 mockups aprobados</strong> (Phase 0 cerrada 2026-06-05).</p>
+      <p class="small" style="color: rgba(255,255,255,0.55);">Complemento del documento principal "LienMaster Propuesta Ejecutiva". 10 módulos · <strong style="color:rgba(255,255,255,0.85);">53 mockups aprobados</strong> (Phase 0 cerrada 2026-06-05).</p>
     </div>
   </div>
 </div>
@@ -365,8 +365,8 @@
   <h4 style="color: #6366f1;">🔐 Administración del sistema</h4>
   <ul style="list-style: none; margin-left: 0;">
     <li><strong>B.44 — Login interno</strong> · email + contraseña · MFA opcional · recuperación · redirección por rol</li>
-    <li><strong>B.42 — Gestión de usuarios</strong> · crear · editar · desactivar · invitación por email</li>
-    <li><strong>B.43 — Roles y permisos · Matriz RBAC</strong> · 11 roles · solo lectura · cambios vía código</li>
+    <li style="color:var(--ink-3);">B.42 — Gestión de usuarios <em>(vive en apps/web · admin existente)</em></li>
+    <li style="color:var(--ink-3);">B.43 — Roles y permisos RBAC <em>(vive en apps/web · admin existente)</em></li>
   </ul>
 
   <h4 style="color: #8b5cf6;">🛠 Utilidades transversales</h4>
@@ -382,7 +382,7 @@
   </ul>
 
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>55 mockups</strong> — 29 del flujo end-to-end cronológico + 3 del flujo Doctor Notes (B.17.5/B.17.6/B.17.7) + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby + 1 de roadmap futuro (B.38) + <strong>14 nuevos: B.11.1–B.11.3 (calendario completo) · B.15.1 (cobertura múltiple) · B.22.1–B.22.2 (portal abogado) · B.28.1 (settlement parcial) · B.31.1 (abogado CRUD) · B.39–B.41 (utilidades) · B.42–B.44 (login · usuarios · roles)</strong>. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. <strong>Doctor Notes (B.17.5-B.18)</strong>: cadena completa de modales capturada del legacy 2026-06-05 (Detalles cita → Cargar nota → Copiar plantilla → editor con 7 secciones · plantillas por sección · diagnósticos dual ICD-10+SNOMED · closing case prices snapshot). Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), <strong>Diagnósticos ICD-10+SNOMED (B.35 expandido)</strong> y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket. <strong>B.38 (Roadmap)</strong>: AI Receptionist NO va en Phase 0-2 — se evalúa en Phase 3+ cuando Claude lo recomiende según criterios de madurez del sistema.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>53 mockups</strong> — 29 del flujo end-to-end cronológico + 3 del flujo Doctor Notes (B.17.5/B.17.6/B.17.7) + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby + 1 de roadmap futuro (B.38) + <strong>12 nuevos: B.11.1–B.11.3 (calendario completo) · B.15.1 (cobertura múltiple) · B.22.1–B.22.2 (portal abogado) · B.28.1 (settlement parcial) · B.31.1 (abogado CRUD) · B.39–B.41 (utilidades) · B.44 (login interno)</strong>. B.42/B.43 (usuarios y roles) viven en <code>apps/admin</code> existente. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. <strong>Doctor Notes (B.17.5-B.18)</strong>: cadena completa de modales capturada del legacy 2026-06-05 (Detalles cita → Cargar nota → Copiar plantilla → editor con 7 secciones · plantillas por sección · diagnósticos dual ICD-10+SNOMED · closing case prices snapshot). Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), <strong>Diagnósticos ICD-10+SNOMED (B.35 expandido)</strong> y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket. <strong>B.38 (Roadmap)</strong>: AI Receptionist NO va en Phase 0-2 — se evalúa en Phase 3+ cuando Claude lo recomiende según criterios de madurez del sistema.
   </div>
 </div>
 
@@ -8793,8 +8793,10 @@ UserDiagnosisFavorite {
   </table>
 </div>
 
-<!-- ═══ B.42 — GESTIÓN DE USUARIOS ═══ -->
-<div class="page">
+<!-- B.42 y B.43: Gestión de usuarios y roles viven en apps/web (admin existente) — excluidos intencionalmente de este documento -->
+<!-- ═══ B.42 — GESTIÓN DE USUARIOS (excluido — vive en apps/web) ═══ -->
+<!-- REMOVED -->
+<div class="page" style="display:none;">
   <span class="section-anchor" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">B.42 · Admin · Usuarios</span>
   <h2>Gestión de usuarios · Crear · Editar · Desactivar</h2>
   <p><strong>Concepto:</strong> el Super Admin gestiona todo el personal del sistema desde esta pantalla. Crear un usuario nuevo genera sus credenciales y le asigna un rol. Cada rol determina a qué apps y módulos tiene acceso (RBAC). Desactivar un usuario revoca acceso inmediatamente sin borrar su historial de auditoría.</p>
@@ -8919,8 +8921,8 @@ UserDiagnosisFavorite {
   </div>
 </div>
 
-<!-- ═══ B.43 — ASIGNACIÓN DE ROLES (RBAC) ═══ -->
-<div class="page">
+<!-- ═══ B.43 — ROLES (excluido — vive en apps/web) ═══ -->
+<div class="page" style="display:none;">
   <span class="section-anchor" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">B.43 · Admin · Roles</span>
   <h2>Roles y permisos · Matriz RBAC</h2>
   <p><strong>Concepto:</strong> esta pantalla muestra la matriz de permisos por rol — qué módulos y acciones puede hacer cada tipo de usuario. El Super Admin puede ver la matriz pero <strong>no puede editarla desde la UI</strong> (los permisos están hardcodeados por seguridad HIPAA). Si se necesita un cambio de permisos, se hace vía código con revisión de seguridad.</p>
@@ -9371,7 +9373,7 @@ UserDiagnosisFavorite {
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:580px;margin:0 auto 30px;">55 pantallas conceptuales: 29 del flujo cronológico end-to-end + <strong style="color:#a5b4fc;">3 Doctor Notes (B.17.5/B.17.6/B.17.7)</strong> + 6 catálogos + 1 búsqueda + 1 lobby (HIPAA-safe) + 1 roadmap (B.38) + <strong style="color:#fda4af;">14 nuevos: calendario completo · cobertura múltiple · portal abogado · settlement parcial · abogado CRUD · utilidades · login · usuarios · roles</strong>. La spec completa del LienMaster v3 / Phoenix lista para Phase 1.</p>
+  <p class="small" style="max-width:580px;margin:0 auto 30px;">53 pantallas conceptuales: 29 del flujo cronológico end-to-end + <strong style="color:#a5b4fc;">3 Doctor Notes (B.17.5/B.17.6/B.17.7)</strong> + 6 catálogos + 1 búsqueda + 1 lobby (HIPAA-safe) + 1 roadmap (B.38) + <strong style="color:#fda4af;">12 nuevos: calendario completo · cobertura múltiple · portal abogado · settlement parcial · abogado CRUD · utilidades · login</strong>. B.42/B.43 (usuarios/roles) viven en apps/admin existente. La spec completa del LienMaster v3 / Phoenix lista para Phase 1.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

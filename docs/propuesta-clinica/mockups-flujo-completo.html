@@ -248,7 +248,7 @@
       Mockups conceptuales pantalla por pantalla del flujo end-to-end: desde que el paciente entra al sistema hasta que el caso se cierra. Diseñados para sustentar la propuesta ante alta gerencia.
     </p>
     <div style="margin-top: 60px; padding-top: 28px; border-top: 1px solid rgba(255,255,255,0.10);">
-      <p class="small" style="color: rgba(255,255,255,0.55);">Complemento del documento principal "LienMaster Propuesta Ejecutiva". 10 módulos · <strong style="color:rgba(255,255,255,0.85);">44 mockups aprobados</strong> (Phase 0 cerrada 2026-06-05).</p>
+      <p class="small" style="color: rgba(255,255,255,0.55);">Complemento del documento principal "LienMaster Propuesta Ejecutiva". 10 módulos · <strong style="color:rgba(255,255,255,0.85);">49 mockups aprobados</strong> (Phase 0 cerrada 2026-06-05).</p>
     </div>
   </div>
 </div>
@@ -284,6 +284,8 @@
     <li>B.10 — Vista semana con filtros avanzados</li>
     <li>B.11 — Detalle de cita · al hacer click en el calendario</li>
     <li><strong>B.11.1 — Modal "Crear cita" mejorado</strong> · desde el botón + Nueva cita</li>
+    <li><strong>B.11.2 — No-show · Cancelación · Reagendar</strong> · panel de gestión desde detalle de cita</li>
+    <li><strong>B.11.3 — Confirmación de primera cita</strong> · checklist 24h antes con alerta en dashboard</li>
   </ul>
 
   <h4>Intake &amp; Verification (Edson)</h4>
@@ -357,13 +359,20 @@
     <li><strong>B.37 — Vista de Sala / Waiting Room TV</strong> · iniciales anonimizadas (HIPAA), realtime WebSocket, multi-idioma ES/EN, status automático según flujo, QR para mobile</li>
   </ul>
 
+  <h4 style="color: #8b5cf6;">🛠 Utilidades transversales</h4>
+  <ul style="list-style: none; margin-left: 0;">
+    <li><strong>B.39 — Estados vacío · Skeleton · Error</strong> · patrones reutilizables en todos los módulos</li>
+    <li><strong>B.40 — Audit Log viewer</strong> · visor HIPAA · append-only · exportable · actor_type visible</li>
+    <li><strong>B.41 — Centro de notificaciones</strong> · SMS (Weave) · Email (Resend) · In-app · bandeja de respuestas</li>
+  </ul>
+
   <h4 style="color: #f59e0b;">🤖 Roadmap futuro — Phase 3+ (NO en scope de Phase 0-2)</h4>
   <ul style="list-style: none; margin-left: 0;">
     <li><strong>B.38 — AI Receptionist (voice AI conversacional)</strong> · capa encima de Weave para after-hours/overflow inicialmente · activación cuando Claude la recomiende según criterios técnicos · APIs preparadas desde Phase 0 con campo <code>actor_type</code></li>
   </ul>
 
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>44 mockups</strong> — 29 del flujo end-to-end cronológico + 3 nuevos del flujo Doctor Notes (B.17.5/B.17.6/B.17.7) + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby + <strong>1 de roadmap futuro (B.38)</strong> + <strong>3 nuevos: B.11.1 (Modal crear cita) · B.22.1 (Acceso portal abogado) · B.22.2 (Firma del Lien)</strong>. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. <strong>Doctor Notes (B.17.5-B.18)</strong>: cadena completa de modales capturada del legacy 2026-06-05 (Detalles cita → Cargar nota → Copiar plantilla → editor con 7 secciones · plantillas por sección · diagnósticos dual ICD-10+SNOMED · closing case prices snapshot). Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), <strong>Diagnósticos ICD-10+SNOMED (B.35 expandido)</strong> y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket. <strong>B.38 (Roadmap)</strong>: AI Receptionist NO va en Phase 0-2 — se evalúa en Phase 3+ cuando Claude lo recomiende según criterios de madurez del sistema.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>49 mockups</strong> — 29 del flujo end-to-end cronológico + 3 del flujo Doctor Notes (B.17.5/B.17.6/B.17.7) + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby + 1 de roadmap futuro (B.38) + <strong>8 nuevos: B.11.1 (Crear cita) · B.11.2 (No-show/Cancelar/Reagendar) · B.11.3 (Confirmación primera cita) · B.22.1 (Acceso portal abogado) · B.22.2 (Firma del Lien) · B.39 (Estados vacío/Skeleton/Error) · B.40 (Audit Log HIPAA) · B.41 (Centro de notificaciones)</strong>. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. <strong>Doctor Notes (B.17.5-B.18)</strong>: cadena completa de modales capturada del legacy 2026-06-05 (Detalles cita → Cargar nota → Copiar plantilla → editor con 7 secciones · plantillas por sección · diagnósticos dual ICD-10+SNOMED · closing case prices snapshot). Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), <strong>Diagnósticos ICD-10+SNOMED (B.35 expandido)</strong> y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket. <strong>B.38 (Roadmap)</strong>: AI Receptionist NO va en Phase 0-2 — se evalúa en Phase 3+ cuando Claude lo recomiende según criterios de madurez del sistema.
   </div>
 </div>
 
@@ -2308,6 +2317,209 @@
       <tr><td>Slots tachados</td><td>Doctor ya tiene cita en ese slot o marcó bloqueo en su agenda</td></tr>
       <tr><td>SMS al confirmar</td><td>Envía automáticamente link del portal (B.5) si formulario no está completado</td></tr>
       <tr><td>Sin case activo</td><td>Modal bloquea y muestra botón "Crear caso primero" → flujo B.2</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ B.11.2 — NO-SHOW / CANCELACIÓN / REAGENDAR ═══ -->
+<div class="page">
+  <span class="section-anchor">B.11.2 · Calendario</span>
+  <h2>No-show · Cancelación · Reagendar</h2>
+  <p><strong>Concepto:</strong> cuando un paciente no se presenta o cancela, el encargado accede a este panel desde el detalle de cita (B.11). Tres acciones posibles: marcar no-show, cancelar definitivamente, o reagendar. Cada acción tiene su flujo corto y queda registrada en el audit log con actor y timestamp.</p>
+
+  <div class="callout callout-warn">
+    <strong>Regla de negocio:</strong> una cita marcada como no-show <strong>no se elimina</strong> — queda en el historial del case para reportes y para que Edson pueda dar seguimiento. Si se reagenda, la cita original queda como "reagendada" y se crea una nueva.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">Calendario · acción sobre cita</div>
+        <span class="mock-time">10:05</span>
+      </div>
+      <div class="mock-body">
+
+        <div class="mock-title">📅 Gestionar cita</div>
+        <div class="mock-subtitle">Sandra López · Lun 16 Jun · 10:00 am · Dr. Nielsen</div>
+
+        <!-- Banner de primera cita -->
+        <div style="background:rgba(244,63,94,0.10);border:1px solid rgba(244,63,94,0.30);border-radius:8px;padding:9px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;font-size:11px;">
+          <span style="font-size:14px;">🆕</span>
+          <span style="color:#fda4af;font-weight:600;">Primera cita del paciente</span>
+          <span style="color:rgba(255,255,255,0.55);">— registrar correctamente es crítico para el caso</span>
+        </div>
+
+        <!-- 3 opciones -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px;">
+
+          <!-- No-show -->
+          <div style="background:rgba(244,63,94,0.08);border:2px solid rgba(244,63,94,0.35);border-radius:10px;padding:14px;cursor:pointer;">
+            <div style="font-size:20px;margin-bottom:6px;">🚫</div>
+            <div style="color:white;font-weight:700;font-size:11.5px;margin-bottom:4px;">No-show</div>
+            <div style="color:rgba(255,255,255,0.55);font-size:9.5px;line-height:1.5;">El paciente no llegó y no avisó. La cita queda en historial marcada como ausente.</div>
+          </div>
+
+          <!-- Cancelación -->
+          <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:14px;cursor:pointer;">
+            <div style="font-size:20px;margin-bottom:6px;">❌</div>
+            <div style="color:white;font-weight:700;font-size:11.5px;margin-bottom:4px;">Cancelar</div>
+            <div style="color:rgba(255,255,255,0.55);font-size:9.5px;line-height:1.5;">El paciente o la clínica cancela. Se puede registrar el motivo.</div>
+          </div>
+
+          <!-- Reagendar -->
+          <div style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.30);border-radius:10px;padding:14px;cursor:pointer;">
+            <div style="font-size:20px;margin-bottom:6px;">🔄</div>
+            <div style="color:white;font-weight:700;font-size:11.5px;margin-bottom:4px;">Reagendar</div>
+            <div style="color:rgba(255,255,255,0.55);font-size:9.5px;line-height:1.5;">Se elige nueva fecha y hora. La cita original queda como "reagendada".</div>
+          </div>
+
+        </div>
+
+        <!-- Panel expandido: No-show seleccionado -->
+        <div style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.25);border-radius:8px;padding:14px;margin-bottom:14px;">
+          <div style="font-size:11px;font-weight:700;color:#fda4af;margin-bottom:10px;">🚫 Confirmar no-show</div>
+          <div class="mock-form-label">Motivo (opcional)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px;">
+            <div style="padding:4px 10px;border-radius:100px;background:rgba(244,63,94,0.15);border:1px solid rgba(244,63,94,0.35);color:#fda4af;font-size:10px;cursor:pointer;">Sin aviso</div>
+            <div style="padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.60);font-size:10px;cursor:pointer;">Emergencia</div>
+            <div style="padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.60);font-size:10px;cursor:pointer;">Transporte</div>
+            <div style="padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.60);font-size:10px;cursor:pointer;">No contestó</div>
+            <div style="padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.60);font-size:10px;cursor:pointer;">Otro</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+            <div style="width:14px;height:14px;border:1px solid rgba(6,182,212,0.60);border-radius:3px;background:rgba(6,182,212,0.15);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--brand-cyan);">✓</div>
+            <span style="font-size:10.5px;color:rgba(255,255,255,0.70);">Ofrecer reagendar vía SMS automáticamente</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="mock-action-btn" style="flex:1;">Volver</button>
+            <button style="flex:2;padding:8px;border-radius:7px;background:linear-gradient(135deg,#ef4444,#f43f5e);border:none;color:white;font-weight:700;font-size:11px;cursor:pointer;">🚫 Registrar no-show</button>
+          </div>
+        </div>
+
+        <!-- Resultado en el calendario -->
+        <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em;">Vista en calendario después de marcar no-show</div>
+        <div class="mock-card" style="opacity:0.70;border-left:3px solid #ef4444;">
+          <span class="mock-status" style="background:rgba(239,68,68,0.15);color:#fca5a5;">NO-SHOW</span>
+          <span class="mock-card" style="border:none;padding:0;gap:6px;">
+            <span class="name">Sandra López</span>
+            <span class="case">#2103</span>
+          </span>
+          <span style="flex:1;"></span>
+          <span style="font-size:10px;color:rgba(255,255,255,0.40);text-decoration:line-through;">10:00 am</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:18px;">Comportamiento por acción</h3>
+  <table>
+    <thead><tr><th>Acción</th><th>Estado resultante</th><th>SMS al paciente</th><th>Audit log</th></tr></thead>
+    <tbody>
+      <tr><td>No-show</td><td>Cita → <code>NO_SHOW</code> · slot liberado</td><td>Opcional: "Te esperamos, reagenda aquí"</td><td>actor, motivo, timestamp</td></tr>
+      <tr><td>Cancelar</td><td>Cita → <code>CANCELLED</code> · slot liberado</td><td>Opcional: confirmación de cancelación</td><td>actor, motivo, timestamp</td></tr>
+      <tr><td>Reagendar</td><td>Cita original → <code>RESCHEDULED</code> · cita nueva creada</td><td>Confirmación con nueva fecha + portal link</td><td>link entre cita original y nueva</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ B.11.3 — CONFIRMACIÓN DE PRIMERA CITA (CHECKLIST 24H) ═══ -->
+<div class="page">
+  <span class="section-anchor">B.11.3 · Calendario</span>
+  <h2>Confirmación de primera cita · Checklist 24h antes</h2>
+  <p><strong>Concepto:</strong> el sistema detecta automáticamente las citas que son <strong>primera vez</strong> del paciente y genera una tarea para la encargada: llamar 24h antes y repasar un checklist. Este panel aparece en el dashboard de recepción (B.1) como alerta y también se puede acceder desde el detalle de cita (B.11). Al completar la llamada, queda registrado quién llamó, a qué hora y qué se verificó.</p>
+
+  <div class="callout callout-success">
+    <strong>Impacto operativo:</strong> este checklist elimina el ~80% de los problemas de primera cita — paciente sin formulario, DOL incorrecto, sin abogado confirmado, sin ID — que hoy se descubren en sala con el doctor ya esperando.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">Confirmación primera cita · Reagin Hernández</div>
+        <span class="mock-time">02:30 pm</span>
+      </div>
+      <div class="mock-body">
+
+        <!-- Alerta en dashboard -->
+        <div style="background:linear-gradient(135deg,rgba(244,63,94,0.12),rgba(236,72,153,0.08));border:1px solid rgba(244,63,94,0.40);border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:14px;">
+          <span style="font-size:28px;">📞</span>
+          <div style="flex:1;">
+            <div style="color:white;font-weight:700;font-size:13px;margin-bottom:2px;">2 primeras citas requieren confirmación hoy</div>
+            <div style="color:rgba(255,255,255,0.60);font-size:10.5px;">Deben confirmarse antes de las 5:00 pm · mañana es el día de las citas</div>
+          </div>
+          <button class="mock-action-btn primary" style="white-space:nowrap;">Ver checklist →</button>
+        </div>
+
+        <!-- Checklist de una cita -->
+        <div class="mock-title" style="font-size:14px;">📋 Confirmación · Sandra López</div>
+        <div class="mock-subtitle">🆕 Primera cita · Mié 17 Jun · 9:00 am · Dr. Nielsen · Case #2103</div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;margin:14px 0;">
+
+          <!-- Items del checklist -->
+          <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:18px;height:18px;border-radius:4px;background:rgba(16,185,129,0.20);border:1px solid #10b981;display:flex;align-items:center;justify-content:center;color:#34d399;font-size:11px;flex-shrink:0;">✓</div>
+            <div style="flex:1;font-size:11px;color:rgba(255,255,255,0.85);">Formulario completado · <span style="color:#34d399;">Sí, llenado el 14 Jun</span></div>
+          </div>
+
+          <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:18px;height:18px;border-radius:4px;background:rgba(16,185,129,0.20);border:1px solid #10b981;display:flex;align-items:center;justify-content:center;color:#34d399;font-size:11px;flex-shrink:0;">✓</div>
+            <div style="flex:1;font-size:11px;color:rgba(255,255,255,0.85);">Abogado confirmado · <span style="color:#34d399;">Smith &amp; Johnson LLP · Mary Smith</span></div>
+          </div>
+
+          <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.30);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:18px;height:18px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.20);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.30);font-size:11px;flex-shrink:0;cursor:pointer;"></div>
+            <div style="flex:1;font-size:11px;color:rgba(255,255,255,0.85);">Fecha de accidente (DOL) verificada verbalmente</div>
+            <span style="font-size:9.5px;color:#fbbf24;font-weight:600;">⚠ Pendiente</span>
+          </div>
+
+          <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.30);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:18px;height:18px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.20);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.30);font-size:11px;flex-shrink:0;cursor:pointer;"></div>
+            <div style="flex:1;font-size:11px;color:rgba(255,255,255,0.85);">Paciente sabe qué traer · ID, seguro, transportación</div>
+            <span style="font-size:9.5px;color:#fbbf24;font-weight:600;">⚠ Pendiente</span>
+          </div>
+
+          <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.30);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:18px;height:18px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.20);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.30);font-size:11px;flex-shrink:0;cursor:pointer;"></div>
+            <div style="flex:1;font-size:11px;color:rgba(255,255,255,0.85);">Seguro PIP activo · número de póliza verificado</div>
+            <span style="font-size:9.5px;color:#fbbf24;font-weight:600;">⚠ Pendiente</span>
+          </div>
+
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:18px;height:18px;border-radius:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.20);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.30);font-size:11px;flex-shrink:0;cursor:pointer;"></div>
+            <div style="flex:1;font-size:11px;color:rgba(255,255,255,0.85);">Notas de la llamada (libre)</div>
+          </div>
+        </div>
+
+        <!-- Progreso y acciones -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <div style="flex:1;background:rgba(255,255,255,0.07);border-radius:100px;height:6px;overflow:hidden;">
+            <div style="width:40%;height:100%;background:linear-gradient(90deg,#f59e0b,#10b981);border-radius:100px;"></div>
+          </div>
+          <span style="font-size:10px;color:rgba(255,255,255,0.55);">2 de 5 verificados</span>
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button class="mock-action-btn" style="flex:1;">📞 Llamar ahora</button>
+          <button class="mock-action-btn primary" style="flex:2;">✓ Marcar confirmación completa</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:18px;">Lógica de generación del checklist</h3>
+  <table>
+    <thead><tr><th>Condición</th><th>Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>Cita = primera cita del case (<code>appointments.count === 1</code>)</td><td>Se crea tarea "Confirmar primera cita" automáticamente</td></tr>
+      <tr><td>Fecha de la cita = mañana (T-1)</td><td>Tarea aparece como urgente en dashboard B.1 con alerta roja</td></tr>
+      <tr><td>Formulario no completado</td><td>Item correspondiente aparece en rojo con botón "Reenviar SMS"</td></tr>
+      <tr><td>Tarea completada</td><td>Se registra en audit log: quién llamó, hora, items verificados</td></tr>
+      <tr><td>Tarea no completada a las 5 pm</td><td>Notificación al supervisor / encargado principal</td></tr>
     </tbody>
   </table>
 </div>
@@ -8127,11 +8339,365 @@ UserDiagnosisFavorite {
   </div>
 </div>
 
+<!-- ═══ B.39 — ESTADOS VACÍO / SKELETON / ERROR ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">B.39 · Utilidad Transversal</span>
+  <h2>Estados vacío · Skeleton · Error — patrones reutilizables</h2>
+  <p><strong>Concepto:</strong> toda lista o tabla del sistema tiene tres estados posibles además del estado normal: <strong>vacío</strong> (sin datos aún), <strong>cargando</strong> (skeleton mientras llega la respuesta) y <strong>error</strong> (algo falló). Estos patrones son consistentes en todos los módulos — mismo componente, distinto mensaje contextual.</p>
+
+  <div class="callout">
+    <strong>Por qué importa:</strong> una pantalla vacía sin guía deja al usuario desorientado. Un skeleton correcto evita el "parpadeo" de contenido. Un mensaje de error útil reduce llamadas al soporte. Los tres son parte de la definición de "hecho" en cada pantalla.
+  </div>
+
+  <!-- Estado vacío -->
+  <h3>Estado vacío · "No hay datos aún"</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;">
+
+    <!-- Bandeja vacía genérica -->
+    <div class="mockup" style="margin:0;">
+      <div class="mockup-frame">
+        <div class="mock-topbar">
+          <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+          <div class="mock-search">Bandeja de Edson · Pre-visita</div>
+        </div>
+        <div class="mock-body" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 20px;">
+          <div style="width:52px;height:52px;border-radius:50%;background:rgba(99,102,241,0.10);border:1px solid rgba(99,102,241,0.20);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px;">📋</div>
+          <div style="color:white;font-size:13px;font-weight:600;margin-bottom:4px;">Sin casos pendientes</div>
+          <div style="color:rgba(255,255,255,0.45);font-size:10.5px;max-width:220px;line-height:1.5;">Todos los casos están verificados o aún no hay referidos nuevos esta semana.</div>
+          <button class="mock-action-btn" style="margin-top:14px;font-size:10px;">🔄 Actualizar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Calendario vacío -->
+    <div class="mockup" style="margin:0;">
+      <div class="mockup-frame">
+        <div class="mock-topbar">
+          <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+          <div class="mock-search">Calendario · Lun 16 Jun</div>
+        </div>
+        <div class="mock-body" style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 20px;">
+          <div style="font-size:32px;margin-bottom:10px;">📅</div>
+          <div style="color:white;font-size:13px;font-weight:600;margin-bottom:4px;">No hay citas hoy</div>
+          <div style="color:rgba(255,255,255,0.45);font-size:10.5px;max-width:200px;line-height:1.5;">El calendario está vacío para este día. Puedes agendar una nueva cita.</div>
+          <button class="mock-action-btn primary" style="margin-top:14px;font-size:10px;">+ Nueva cita</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Estado skeleton -->
+  <h3>Estado cargando · Skeleton</h3>
+  <div class="mockup" style="margin-bottom:22px;">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">Cargando bandeja...</div>
+      </div>
+      <div class="mock-body">
+        <!-- KPI skeletons -->
+        <div class="mock-kpi-row" style="margin-bottom:14px;">
+          <div class="mock-kpi" style="background:rgba(255,255,255,0.04);">
+            <div style="height:9px;width:60%;background:linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06));border-radius:4px;margin-bottom:8px;animation:pulse 1.5s infinite;"></div>
+            <div style="height:22px;width:40%;background:linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06));border-radius:4px;"></div>
+          </div>
+          <div class="mock-kpi"><div style="height:9px;width:70%;background:linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06));border-radius:4px;margin-bottom:8px;"></div><div style="height:22px;width:35%;background:linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06));border-radius:4px;"></div></div>
+          <div class="mock-kpi"><div style="height:9px;width:55%;background:linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06));border-radius:4px;margin-bottom:8px;"></div><div style="height:22px;width:45%;background:linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06));border-radius:4px;"></div></div>
+          <div class="mock-kpi"><div style="height:9px;width:65%;background:linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06));border-radius:4px;margin-bottom:8px;"></div><div style="height:22px;width:30%;background:linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.10),rgba(255,255,255,0.06));border-radius:4px;"></div></div>
+        </div>
+        <!-- Row skeletons -->
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="height:38px;background:linear-gradient(90deg,rgba(255,255,255,0.04),rgba(255,255,255,0.07),rgba(255,255,255,0.04));border-radius:8px;border:1px solid rgba(255,255,255,0.06);"></div>
+          <div style="height:38px;background:linear-gradient(90deg,rgba(255,255,255,0.04),rgba(255,255,255,0.07),rgba(255,255,255,0.04));border-radius:8px;border:1px solid rgba(255,255,255,0.06);"></div>
+          <div style="height:38px;background:linear-gradient(90deg,rgba(255,255,255,0.04),rgba(255,255,255,0.07),rgba(255,255,255,0.04));border-radius:8px;border:1px solid rgba(255,255,255,0.06);opacity:0.6;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado error -->
+  <h3>Estado error</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+    <div class="mockup" style="margin:0;">
+      <div class="mockup-frame">
+        <div class="mock-topbar"><span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span><div class="mock-search">Error de conexión</div></div>
+        <div class="mock-body" style="min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">
+          <div style="font-size:28px;margin-bottom:8px;">⚠️</div>
+          <div style="color:white;font-size:12px;font-weight:600;margin-bottom:4px;">No se pudo cargar la información</div>
+          <div style="color:rgba(255,255,255,0.45);font-size:9.5px;max-width:180px;line-height:1.5;">Verifica tu conexión a internet o intenta de nuevo.</div>
+          <button class="mock-action-btn" style="margin-top:12px;font-size:10px;">🔄 Reintentar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mockup" style="margin:0;">
+      <div class="mockup-frame">
+        <div class="mock-topbar"><span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span><div class="mock-search">Sin permiso</div></div>
+        <div class="mock-body" style="min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">
+          <div style="font-size:28px;margin-bottom:8px;">🔒</div>
+          <div style="color:white;font-size:12px;font-weight:600;margin-bottom:4px;">Acceso restringido</div>
+          <div style="color:rgba(255,255,255,0.45);font-size:9.5px;max-width:180px;line-height:1.5;">No tienes permiso para ver esta sección. Contacta al administrador.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ B.40 — AUDIT LOG VIEWER ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366f1);">B.40 · Admin · HIPAA</span>
+  <h2>Audit Log · Visor de auditoría HIPAA</h2>
+  <p><strong>Concepto:</strong> cada mutación de datos en el sistema queda registrada en una tabla append-only con <code>actor_type</code>, <code>actor_id</code>, acción, entidad afectada y timestamp. Esta pantalla permite al Super Admin y al Consultor HIPAA consultar ese log, filtrar por fecha / usuario / tipo de acción, y exportar para auditorías externas. <strong>Nadie puede borrar entradas del log</strong> — ni siquiera el Super Admin.</p>
+
+  <div class="callout callout-warn">
+    <strong>Requisito HIPAA:</strong> el §164.312(b) exige que todo acceso a PHI quede registrado con suficiente detalle para identificar quién accedió, cuándo y qué hizo. Este visor es la interfaz sobre esa obligación técnica.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">🔒 Audit Log · Solo Super Admin + Consultor HIPAA</div>
+        <span class="mock-time">Admin</span>
+      </div>
+      <div class="mock-layout">
+        <div class="mock-sidebar">
+          <div class="mock-sidebar-brand"><div class="logo">⚖</div>Admin</div>
+          <div class="mock-sidebar-section">Seguridad</div>
+          <div class="mock-sidebar-item active"><span class="ico">📜</span>Audit Log</div>
+          <div class="mock-sidebar-item"><span class="ico">👥</span>Usuarios</div>
+          <div class="mock-sidebar-item"><span class="ico">🔑</span>Roles</div>
+          <div class="mock-sidebar-section">Sistema</div>
+          <div class="mock-sidebar-item"><span class="ico">⚙️</span>Configuración</div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-title">📜 Audit Log</div>
+          <div class="mock-subtitle">Registro immutable de toda actividad · append-only</div>
+
+          <!-- Filtros -->
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+            <div class="mock-input selected" style="display:flex;align-items:center;gap:5px;padding:5px 10px;font-size:10px;">📅 Hoy</div>
+            <div class="mock-input" style="display:flex;align-items:center;gap:5px;padding:5px 10px;font-size:10px;">📅 Rango</div>
+            <div class="mock-input" style="padding:5px 10px;font-size:10px;">Usuario ▼</div>
+            <div class="mock-input" style="padding:5px 10px;font-size:10px;">Tipo de acción ▼</div>
+            <div class="mock-input" style="padding:5px 10px;font-size:10px;">Módulo ▼</div>
+            <button class="mock-action-btn" style="margin-left:auto;font-size:10px;">⬇ Exportar CSV</button>
+          </div>
+
+          <!-- Tabla de eventos -->
+          <table style="font-size:10px;">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Actor</th>
+                <th>Tipo</th>
+                <th>Acción</th>
+                <th>Entidad</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-family:monospace;color:rgba(255,255,255,0.55);font-size:9px;">2026-06-16 10:42:07</td>
+                <td><div style="color:white;">Reagin H.</div><div style="font-size:8px;color:rgba(255,255,255,0.40);">HUMAN_USER</div></td>
+                <td><span class="mock-status new">READ</span></td>
+                <td>view_patient_record</td>
+                <td style="font-family:monospace;color:var(--brand-cyan);">Patient #P-4821</td>
+                <td style="color:rgba(255,255,255,0.55);">Ficha completa vista desde B.4</td>
+              </tr>
+              <tr>
+                <td style="font-family:monospace;color:rgba(255,255,255,0.55);font-size:9px;">2026-06-16 10:38:22</td>
+                <td><div style="color:white;">Dr. Nielsen</div><div style="font-size:8px;color:rgba(255,255,255,0.40);">HUMAN_USER</div></td>
+                <td><span class="mock-status in-room">WRITE</span></td>
+                <td>sign_clinical_note</td>
+                <td style="font-family:monospace;color:var(--brand-cyan);">Note #N-9103</td>
+                <td style="color:rgba(255,255,255,0.55);">Nota firmada · Case #2103</td>
+              </tr>
+              <tr>
+                <td style="font-family:monospace;color:rgba(255,255,255,0.55);font-size:9px;">2026-06-16 10:15:04</td>
+                <td><div style="color:#a5b4fc;">AI Receptionist</div><div style="font-size:8px;color:rgba(255,255,255,0.40);">AI_AGENT</div></td>
+                <td><span class="mock-status pending">WRITE</span></td>
+                <td>create_appointment</td>
+                <td style="font-family:monospace;color:var(--brand-cyan);">Appt #A-7741</td>
+                <td style="color:rgba(255,255,255,0.55);">Cita creada por AI · Case #2109</td>
+              </tr>
+              <tr>
+                <td style="font-family:monospace;color:rgba(255,255,255,0.55);font-size:9px;">2026-06-16 09:46:02</td>
+                <td><div style="color:white;">Bob Jones</div><div style="font-size:8px;color:rgba(255,255,255,0.40);">HUMAN_USER · Ext.</div></td>
+                <td><span class="mock-status in-room">WRITE</span></td>
+                <td>sign_lien</td>
+                <td style="font-family:monospace;color:var(--brand-cyan);">Lien #L-2103</td>
+                <td style="color:rgba(255,255,255,0.55);">Firma abogado · SHA-256 a3f7c2</td>
+              </tr>
+              <tr>
+                <td style="font-family:monospace;color:rgba(255,255,255,0.55);font-size:9px;">2026-06-16 09:10:58</td>
+                <td><div style="color:white;">Sistema</div><div style="font-size:8px;color:rgba(255,255,255,0.40);">SYSTEM</div></td>
+                <td><span class="mock-status done">WRITE</span></td>
+                <td>generate_hcfa</td>
+                <td style="font-family:monospace;color:var(--brand-cyan);">HCFA #H-1055</td>
+                <td style="color:rgba(255,255,255,0.55);">HCFA auto-generado · Case #2087</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+            <span style="font-size:9.5px;color:rgba(255,255,255,0.40);">847 eventos hoy · mostrando 5 de 847</span>
+            <div style="display:flex;gap:6px;">
+              <button class="mock-action-btn" style="font-size:9.5px;padding:4px 10px;">← Anterior</button>
+              <button class="mock-action-btn" style="font-size:9.5px;padding:4px 10px;">Siguiente →</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:18px;">Campos del registro de auditoría</h3>
+  <table>
+    <thead><tr><th>Campo</th><th>Tipo</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td>UUID</td><td>Identificador único inmutable del evento</td></tr>
+      <tr><td><code>actor_type</code></td><td>Enum</td><td>HUMAN_USER · AI_AGENT · SYSTEM</td></tr>
+      <tr><td><code>actor_id</code></td><td>UUID</td><td>ID del usuario, agente o proceso que ejecutó la acción</td></tr>
+      <tr><td><code>action</code></td><td>String</td><td>Verbo + entidad en snake_case: sign_lien, view_patient_record…</td></tr>
+      <tr><td><code>entity_type</code></td><td>String</td><td>Patient, Case, Note, Lien, HCFA, Appointment…</td></tr>
+      <tr><td><code>entity_id</code></td><td>UUID</td><td>ID de la entidad afectada</td></tr>
+      <tr><td><code>ip_address</code></td><td>String</td><td>IP del cliente (para accesos externos como el portal del abogado)</td></tr>
+      <tr><td><code>created_at</code></td><td>Timestamp</td><td>UTC · inmutable · no editable nunca</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ B.41 — CENTRO DE NOTIFICACIONES ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #06b6d4, #6366f1);">B.41 · Utilidad Transversal</span>
+  <h2>Centro de notificaciones · SMS · Email · In-app</h2>
+  <p><strong>Concepto:</strong> el sistema envía notificaciones automáticas en tres canales — SMS (Weave), email (Resend) e in-app. Esta pantalla permite al encargado ver el historial de todas las notificaciones enviadas, su estado de entrega, y reenviar manualmente cuando sea necesario. También muestra el inbox de respuestas de pacientes vía SMS.</p>
+
+  <div class="callout">
+    <strong>Weave + Resend:</strong> los SMS van por Weave (el sistema que la clínica ya usa, HIPAA-compliant). Los emails transaccionales van por Resend. Los mensajes in-app son solo para usuarios internos del sistema (Recepción, Edson, Brunella, Doctores).
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">💬 Centro de Notificaciones</div>
+        <span class="mock-time">3 sin leer</span>
+      </div>
+      <div class="mock-layout">
+        <div class="mock-sidebar">
+          <div class="mock-sidebar-brand"><div class="logo">💬</div>Mensajes</div>
+          <div class="mock-sidebar-section">Canales</div>
+          <div class="mock-sidebar-item active"><span class="ico">📱</span>SMS enviados</div>
+          <div class="mock-sidebar-item"><span class="ico">📧</span>Emails</div>
+          <div class="mock-sidebar-item"><span class="ico">🔔</span>In-app</div>
+          <div class="mock-sidebar-section">Respuestas</div>
+          <div class="mock-sidebar-item"><span class="ico">💬</span>SMS recibidos <span style="margin-left:auto;background:rgba(244,63,94,0.25);color:#fda4af;padding:1px 6px;border-radius:100px;font-size:9px;">3</span></div>
+        </div>
+        <div class="mock-main">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div>
+              <div class="mock-title">📱 SMS enviados</div>
+              <div class="mock-subtitle">Últimas 24 horas · 18 mensajes</div>
+            </div>
+            <button class="mock-action-btn" style="font-size:10px;">+ Enviar SMS manual</button>
+          </div>
+
+          <!-- Filtros rápidos -->
+          <div style="display:flex;gap:6px;margin-bottom:12px;">
+            <div style="padding:4px 10px;border-radius:100px;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.35);color:var(--brand-cyan);font-size:10px;cursor:pointer;">Todos (18)</div>
+            <div style="padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.55);font-size:10px;cursor:pointer;">✓ Entregados (15)</div>
+            <div style="padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.55);font-size:10px;cursor:pointer;">⚠ Fallidos (2)</div>
+            <div style="padding:4px 10px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.55);font-size:10px;cursor:pointer;">⏳ Pendientes (1)</div>
+          </div>
+
+          <!-- Lista de notificaciones -->
+          <div style="display:flex;flex-direction:column;gap:6px;">
+
+            <div class="mock-card" style="flex-direction:column;align-items:flex-start;gap:6px;">
+              <div style="display:flex;width:100%;align-items:center;gap:8px;">
+                <span class="mock-status in-room" style="font-size:8.5px;">✓ Entregado</span>
+                <span style="color:white;font-size:11px;font-weight:500;">Sandra López · (801) 555-0142</span>
+                <span style="margin-left:auto;font-size:9px;color:rgba(255,255,255,0.40);font-family:monospace;">10:15 am</span>
+              </div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.60);line-height:1.4;">"Hola Sandra, tu cita en Precision Medical es mañana Mié 17 Jun a las 9:00 am. Completa tu formulario aquí: https://portal.pm/f/abc123"</div>
+              <div style="display:flex;gap:6px;">
+                <span style="font-size:9px;color:rgba(255,255,255,0.35);">Portal link · Weave · Case #2103</span>
+              </div>
+            </div>
+
+            <div class="mock-card" style="flex-direction:column;align-items:flex-start;gap:6px;border-color:rgba(239,68,68,0.30);">
+              <div style="display:flex;width:100%;align-items:center;gap:8px;">
+                <span class="mock-status urgent" style="font-size:8.5px;">✗ Fallido</span>
+                <span style="color:white;font-size:11px;font-weight:500;">Carlos Mendez · (801) 555-9871</span>
+                <span style="margin-left:auto;font-size:9px;color:rgba(255,255,255,0.40);font-family:monospace;">09:30 am</span>
+              </div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.60);line-height:1.4;">"Recordatorio: tu cita mañana Mié 17 Jun a las 11:00 am..."</div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span style="font-size:9px;color:#fca5a5;">Error: número no válido (Weave 30003)</span>
+                <button class="mock-action-btn" style="font-size:9px;padding:2px 8px;margin-left:auto;">🔄 Reenviar</button>
+              </div>
+            </div>
+
+            <div class="mock-card" style="flex-direction:column;align-items:flex-start;gap:6px;">
+              <div style="display:flex;width:100%;align-items:center;gap:8px;">
+                <span class="mock-status in-room" style="font-size:8.5px;">✓ Entregado</span>
+                <span style="color:white;font-size:11px;font-weight:500;">Bob Jones · cases@smithjohnson.com</span>
+                <span style="margin-left:auto;font-size:9px;color:rgba(255,255,255,0.40);font-family:monospace;">09:46 am</span>
+              </div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.60);line-height:1.4;">📧 Email: "Lien pendiente de firma · Sandra López · Case #2103 — [Magic link]"</div>
+              <span style="font-size:9px;color:rgba(255,255,255,0.35);">Resend · Magic link abogado · Case #2103</span>
+            </div>
+
+          </div>
+
+          <!-- Respuestas SMS recibidas -->
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.07);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <div style="font-size:12px;font-weight:600;color:white;">💬 Respuestas recibidas</div>
+              <span style="background:rgba(244,63,94,0.20);color:#fda4af;padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;">3 nuevas</span>
+            </div>
+            <div class="mock-card" style="background:rgba(6,182,212,0.06);border-color:rgba(6,182,212,0.25);">
+              <div style="flex:1;">
+                <div style="color:white;font-size:11px;font-weight:500;">Sandra López · (801) 555-0142</div>
+                <div style="color:rgba(255,255,255,0.60);font-size:10px;margin-top:2px;">"Sí ya lo llené, gracias!" · hace 5 min</div>
+              </div>
+              <button class="mock-action-btn" style="font-size:9.5px;">Responder</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:18px;">Tipos de notificación automática</h3>
+  <table>
+    <thead><tr><th>Evento</th><th>Canal</th><th>Destinatario</th></tr></thead>
+    <tbody>
+      <tr><td>Caso creado → portal link</td><td>SMS + Email</td><td>Paciente</td></tr>
+      <tr><td>Cita agendada · confirmación</td><td>SMS</td><td>Paciente</td></tr>
+      <tr><td>Recordatorio 24h antes (primera cita)</td><td>SMS</td><td>Paciente</td></tr>
+      <tr><td>Formulario completado</td><td>In-app</td><td>Recepción (Reagin/Pamela)</td></tr>
+      <tr><td>No-show registrado</td><td>SMS opcional + In-app</td><td>Paciente + Edson</td></tr>
+      <tr><td>Lien pendiente de firma</td><td>Email (magic link)</td><td>Case manager del bufete</td></tr>
+      <tr><td>Lien firmado por abogado</td><td>In-app</td><td>Brunella</td></tr>
+      <tr><td>HCFA generado</td><td>In-app</td><td>Brunella</td></tr>
+      <tr><td>Nota firmada por doctor</td><td>In-app</td><td>Edson + Brunella</td></tr>
+    </tbody>
+  </table>
+</div>
+
 <!-- ═══ CIERRE ═══ -->
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:580px;margin:0 auto 30px;">44 pantallas conceptuales: 29 del flujo cronológico end-to-end + <strong style="color:#a5b4fc;">3 del flujo Doctor Notes capturado del legacy (B.17.5/B.17.6/B.17.7)</strong> + 6 de catálogos master data + 1 de búsqueda transversal + 1 de display público en lobby (HIPAA-safe) + <strong style="color:#fbbf24;">1 de roadmap futuro (B.38 — AI Receptionist Phase 3+)</strong> + <strong style="color:#fda4af;">3 nuevos: B.11.1 (Modal crear cita) · B.22.1 (Acceso portal abogado) · B.22.2 (Firma del Lien)</strong>. La spec completa del LienMaster v3 (público) / Phoenix (interno) lista para Phase 1.</p>
+  <p class="small" style="max-width:580px;margin:0 auto 30px;">49 pantallas conceptuales: 29 del flujo cronológico end-to-end + <strong style="color:#a5b4fc;">3 del flujo Doctor Notes (B.17.5/B.17.6/B.17.7)</strong> + 6 de catálogos master data + 1 búsqueda transversal + 1 display lobby (HIPAA-safe) + 1 roadmap futuro (B.38) + <strong style="color:#fda4af;">8 nuevos: B.11.1–B.11.3 (flujo calendario completo) · B.22.1–B.22.2 (portal abogado completo) · B.39–B.41 (estados vacío · audit log · notificaciones)</strong>. La spec completa del LienMaster v3 / Phoenix lista para Phase 1.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

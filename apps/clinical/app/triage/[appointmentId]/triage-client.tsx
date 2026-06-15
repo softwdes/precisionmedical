@@ -15,7 +15,7 @@
  *   • Footer: "📌 Capturado por" + "Pasar a Dr. X ✓"
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CheckCircle2, Loader2,
@@ -191,12 +191,19 @@ function EmptySlot({ text }: { text: string }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function TriageClient({ appointmentId }: { appointmentId: string }) {
+export function TriageClient({
+  appointmentId,
+  currentUserName = 'MA',
+}: {
+  appointmentId: string;
+  currentUserName?: string;
+}) {
   const router = useRouter();
   const [appt,    setAppt]    = useState<AppointmentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
+  const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ─── Vital Signs State ─────────────────────────────────────────────────────
   const [heightFt,  setHeightFt]  = useState('');
@@ -251,35 +258,39 @@ export function TriageClient({ appointmentId }: { appointmentId: string }) {
   useEffect(() => { void load(); }, [load]);
 
   // ─── Save / Complete ───────────────────────────────────────────────────────
+  const buildPayload = useCallback(() => ({
+    heightFt:      parseFloat(heightFt)  || null,
+    heightIn:      parseFloat(heightIn)  || null,
+    heightCm,
+    weightLbs:     parseFloat(weightLbs) || null,
+    weightOz:      parseFloat(weightOz)  || null,
+    weightKg,
+    systolicMmhg:  parseFloat(systolic)  || null,
+    diastolicMmhg: parseFloat(diastolic) || null,
+    pulseBpm:      parseFloat(pulse)     || null,
+    tempFahrenheit: parseFloat(tempF)    || null,
+    tempCelsius:   tempC,
+    o2Saturation:  parseFloat(o2)        || null,
+    onRoomAir,
+    visualAcuityRight: visRight || null,
+    visualAcuityLeft:  visLeft  || null,
+    visualAcuityBoth:  visBoth  || null,
+    visionCorrected:   corrected,
+    chiefComplaint:    complaint || null,
+    capturedByName:    currentUserName,
+  }), [
+    heightFt, heightIn, heightCm, weightLbs, weightOz, weightKg,
+    systolic, diastolic, pulse, tempF, tempC, o2, onRoomAir,
+    visRight, visLeft, visBoth, corrected, complaint, currentUserName,
+  ]);
+
   async function handleSave(complete = false) {
     setSaving(true);
     try {
-      const payload = {
-        heightFt:      parseFloat(heightFt)  || null,
-        heightIn:      parseFloat(heightIn)  || null,
-        heightCm,
-        weightLbs:     parseFloat(weightLbs) || null,
-        weightOz:      parseFloat(weightOz)  || null,
-        weightKg,
-        systolicMmhg:  parseFloat(systolic)  || null,
-        diastolicMmhg: parseFloat(diastolic) || null,
-        pulseBpm:      parseFloat(pulse)     || null,
-        tempFahrenheit: parseFloat(tempF)    || null,
-        tempCelsius:   tempC,
-        o2Saturation:  parseFloat(o2)        || null,
-        onRoomAir,
-        visualAcuityRight: visRight || null,
-        visualAcuityLeft:  visLeft  || null,
-        visualAcuityBoth:  visBoth  || null,
-        visionCorrected:   corrected,
-        chiefComplaint:    complaint || null,
-        capturedByName:    'MA',
-      };
-
       await fetch(`/api/triage/${appointmentId}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
+        body:    JSON.stringify(buildPayload()),
       });
 
       if (complete) {
@@ -292,6 +303,19 @@ export function TriageClient({ appointmentId }: { appointmentId: string }) {
       setSaving(false);
     }
   }
+
+  // Auto-save every 30s (silent — no visual flash)
+  useEffect(() => {
+    if (loading) return;
+    autoSaveRef.current = setInterval(() => {
+      void fetch(`/api/triage/${appointmentId}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(buildPayload()),
+      });
+    }, 30_000);
+    return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current); };
+  }, [loading, appointmentId, buildPayload]);
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading || !appt) {
@@ -680,7 +704,8 @@ export function TriageClient({ appointmentId }: { appointmentId: string }) {
 
           {/* Captured by */}
           <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.40)', paddingBottom: 4 }}>
-            📌 Capturado por: <strong style={{ color: 'rgba(255,255,255,0.65)' }}>MA</strong> · {fmtTime(now)}
+            📌 Capturado por: <strong style={{ color: 'rgba(255,255,255,0.65)' }}>{currentUserName}</strong> · {fmtTime(now)}
+            <span style={{ marginLeft: 10, fontSize: 9, opacity: 0.6 }}>Auto-guardado cada 30 seg.</span>
           </div>
         </div>
 

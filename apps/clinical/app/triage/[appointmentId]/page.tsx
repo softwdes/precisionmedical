@@ -8,9 +8,10 @@
  * Layout: sidebar con contexto del paciente + área principal con el formulario.
  */
 
-import { notFound } from 'next/navigation';
-import { db }       from '@precision-medical/database';
-import { TriageClient } from './triage-client';
+import { notFound }         from 'next/navigation';
+import { db }               from '@precision-medical/database';
+import { createServerClient } from '@precision-medical/auth/server';
+import { TriageClient }     from './triage-client';
 
 interface Props {
   params: Promise<{ appointmentId: string }>;
@@ -35,5 +36,19 @@ export default async function TriagePage({ params }: Props) {
   });
   if (!exists) notFound();
 
-  return <TriageClient appointmentId={appointmentId} />;
+  // Get the current user's name to show as "Captured by" in triage
+  let currentUserName = 'MA';
+  try {
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.user_metadata?.full_name) {
+      currentUserName = user.user_metadata.full_name as string;
+    } else if (user?.email) {
+      currentUserName = user.email.split('@')[0];
+    }
+  } catch {
+    // fallback to 'MA'
+  }
+
+  return <TriageClient appointmentId={appointmentId} currentUserName={currentUserName} />;
 }

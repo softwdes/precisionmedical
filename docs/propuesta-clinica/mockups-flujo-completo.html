@@ -248,7 +248,7 @@
       Mockups conceptuales pantalla por pantalla del flujo end-to-end: desde que el paciente entra al sistema hasta que el caso se cierra. Diseñados para sustentar la propuesta ante alta gerencia.
     </p>
     <div style="margin-top: 60px; padding-top: 28px; border-top: 1px solid rgba(255,255,255,0.10);">
-      <p class="small" style="color: rgba(255,255,255,0.55);">Complemento del documento principal "LienMaster Propuesta Ejecutiva". 10 módulos · <strong style="color:rgba(255,255,255,0.85);">49 mockups aprobados</strong> (Phase 0 cerrada 2026-06-05).</p>
+      <p class="small" style="color: rgba(255,255,255,0.55);">Complemento del documento principal "LienMaster Propuesta Ejecutiva". 10 módulos · <strong style="color:rgba(255,255,255,0.85);">55 mockups aprobados</strong> (Phase 0 cerrada 2026-06-05).</p>
     </div>
   </div>
 </div>
@@ -298,6 +298,7 @@
   <ul style="list-style: none; margin-left: 0;">
     <li>B.14 — Check-in del paciente</li>
     <li>B.15 — Admisión "Pagos y Cobros"</li>
+    <li><strong>B.15.1 — Cobertura múltiple · PIP agotado · Seguro secundario</strong></li>
   </ul>
 
   <h4 style="color: var(--brand-violet);">🩺 Triaje + Vista del Doctor (Clinical Visit)</h4>
@@ -336,6 +337,7 @@
   <h4>Cierre + Inteligencia</h4>
   <ul style="list-style: none; margin-left: 0;">
     <li>B.28 — Workflow de Settlement</li>
+    <li><strong>B.28.1 — Settlement parcial · Write-off · Aprobación de gerencia</strong></li>
     <li>B.29 — Dashboard ejecutivo de Gerencia</li>
   </ul>
 
@@ -343,6 +345,7 @@
   <ul style="list-style: none; margin-left: 0;">
     <li><strong>B.30 — Catálogo de Bufetes</strong> · lista con métricas (recovery rate, avg settle, casos activos)</li>
     <li>B.31 — Detalle de bufete · sub-listas de abogados + case managers + métricas + notas</li>
+    <li><strong>B.31.1 — Detalle de abogado individual · CRUD + historial + portal access</strong></li>
     <li><strong>B.32 — Catálogo de Aseguradoras</strong> (PIP / Med Pay / Health) · canal preferido HCFA + tiempo de respuesta</li>
     <li><strong>B.33 — Catálogo de Servicios</strong> (CPT/HCPCS/Custom) · fee schedule por año fiscal + favoritos por usuario + bundling rules</li>
     <li><strong>B.35 — Catálogo de ICD-10</strong> (diagnósticos) · descarga gratuita del CDC + curaduría a ~300 códigos PI + NLP auto-suggest</li>
@@ -359,6 +362,13 @@
     <li><strong>B.37 — Vista de Sala / Waiting Room TV</strong> · iniciales anonimizadas (HIPAA), realtime WebSocket, multi-idioma ES/EN, status automático según flujo, QR para mobile</li>
   </ul>
 
+  <h4 style="color: #6366f1;">🔐 Administración del sistema</h4>
+  <ul style="list-style: none; margin-left: 0;">
+    <li><strong>B.44 — Login interno</strong> · email + contraseña · MFA opcional · recuperación · redirección por rol</li>
+    <li><strong>B.42 — Gestión de usuarios</strong> · crear · editar · desactivar · invitación por email</li>
+    <li><strong>B.43 — Roles y permisos · Matriz RBAC</strong> · 11 roles · solo lectura · cambios vía código</li>
+  </ul>
+
   <h4 style="color: #8b5cf6;">🛠 Utilidades transversales</h4>
   <ul style="list-style: none; margin-left: 0;">
     <li><strong>B.39 — Estados vacío · Skeleton · Error</strong> · patrones reutilizables en todos los módulos</li>
@@ -372,7 +382,7 @@
   </ul>
 
   <div class="callout callout-success" style="margin-top: 24px;">
-    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>49 mockups</strong> — 29 del flujo end-to-end cronológico + 3 del flujo Doctor Notes (B.17.5/B.17.6/B.17.7) + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby + 1 de roadmap futuro (B.38) + <strong>8 nuevos: B.11.1 (Crear cita) · B.11.2 (No-show/Cancelar/Reagendar) · B.11.3 (Confirmación primera cita) · B.22.1 (Acceso portal abogado) · B.22.2 (Firma del Lien) · B.39 (Estados vacío/Skeleton/Error) · B.40 (Audit Log HIPAA) · B.41 (Centro de notificaciones)</strong>. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. <strong>Doctor Notes (B.17.5-B.18)</strong>: cadena completa de modales capturada del legacy 2026-06-05 (Detalles cita → Cargar nota → Copiar plantilla → editor con 7 secciones · plantillas por sección · diagnósticos dual ICD-10+SNOMED · closing case prices snapshot). Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), <strong>Diagnósticos ICD-10+SNOMED (B.35 expandido)</strong> y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket. <strong>B.38 (Roadmap)</strong>: AI Receptionist NO va en Phase 0-2 — se evalúa en Phase 3+ cuando Claude lo recomiende según criterios de madurez del sistema.
+    <strong>Documento todo-en-uno:</strong> este archivo contiene <strong>55 mockups</strong> — 29 del flujo end-to-end cronológico + 3 del flujo Doctor Notes (B.17.5/B.17.6/B.17.7) + 6 de catálogos/master data + 1 de búsqueda transversal + 1 de display público en lobby + 1 de roadmap futuro (B.38) + <strong>14 nuevos: B.11.1–B.11.3 (calendario completo) · B.15.1 (cobertura múltiple) · B.22.1–B.22.2 (portal abogado) · B.28.1 (settlement parcial) · B.31.1 (abogado CRUD) · B.39–B.41 (utilidades) · B.42–B.44 (login · usuarios · roles)</strong>. El calendario (B.10-B.11) es <strong>compartido entre roles</strong> con permisos diferenciados. <strong>Triaje (B.16)</strong> lo hace la MA en iPad entre la admisión y la consulta del doctor. <strong>Doctor Notes (B.17.5-B.18)</strong>: cadena completa de modales capturada del legacy 2026-06-05 (Detalles cita → Cargar nota → Copiar plantilla → editor con 7 secciones · plantillas por sección · diagnósticos dual ICD-10+SNOMED · closing case prices snapshot). Edson tiene <strong>doble rol</strong>: pre-visita (B.12-B.13, verifica law firm + PIP) y post-visita (B.23-B.24, seguimiento + cobranzas). El Portal del Abogado (B.22) cierra el ciclo clínico antes de pasar a Brunella (B.25-B.27) y settlement (B.28-B.29). <strong>Catálogos master data (B.30-B.33, B.35-B.36)</strong>: Bufetes, Aseguradoras, Servicios (CPT/HCPCS/Custom), <strong>Diagnósticos ICD-10+SNOMED (B.35 expandido)</strong> y Especialidades — son la base sin la cual el flujo no puede arrancar. <strong>Clínicas (locations)</strong> vive en <code>apps/admin</code> existente, no se duplica. <strong>Patient Global Search (B.34)</strong>: búsqueda transversal con ⌘K. <strong>Lobby Display (B.37)</strong>: TV público con iniciales HIPAA-safe y realtime via WebSocket. <strong>B.38 (Roadmap)</strong>: AI Receptionist NO va en Phase 0-2 — se evalúa en Phase 3+ cuando Claude lo recomiende según criterios de madurez del sistema.
   </div>
 </div>
 
@@ -2934,6 +2944,107 @@
   <div class="callout">
     <strong>Diferencia entre MVA y GM:</strong> en MVA con PIP activo, el paciente NO paga nada en el momento (el PIP cubre y el saldo restante va al lien). En GM, el paciente paga su copago según su seguro médico. La pantalla se adapta automáticamente al tipo de caso.
   </div>
+</div>
+
+<!-- ═══ B.15.1 — COBERTURA MÚLTIPLE / PIP AGOTADO ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, var(--brand-emerald), #14b8a6);">B.15.1 · Admisión</span>
+  <h2>Cobertura múltiple · PIP agotado · Seguro secundario</h2>
+  <p><strong>Concepto:</strong> en Utah el PIP auto cubre hasta $3,000 (o $10,000 con cobertura extendida). Cuando se agota — o cuando el paciente tiene seguro médico como cobertura secundaria — la admisión registra la cobertura adicional y el billing sabe exactamente a qué seguro facturar cada visita. Este panel extiende B.15 para esos escenarios.</p>
+
+  <div class="callout callout-warn">
+    <strong>Regla de negocio crítica:</strong> una vez que el PIP se agota, cada visita siguiente debe billed a la aseguradora secundaria o al lien médico directamente. Si no hay secundaria, el paciente queda en "self-pay contra settlement". Brunella (B.25) necesita ver esto claramente en la bandeja.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">Admisión · Cobertura de seguro · Carlos Mendez · Case #2109</div>
+      </div>
+      <div class="mock-body">
+
+        <div class="mock-title">🏥 Cobertura de seguro · Escenario múltiple</div>
+        <div class="mock-subtitle">PIP agotado · activando seguro secundario</div>
+
+        <!-- Banner de alerta PIP -->
+        <div style="background:rgba(244,63,94,0.10);border:1px solid rgba(244,63,94,0.40);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:24px;">⚠️</span>
+          <div>
+            <div style="color:#fda4af;font-weight:700;font-size:12px;">PIP agotado</div>
+            <div style="color:rgba(255,255,255,0.65);font-size:10.5px;">State Farm · Póliza #SF-448821 · Límite $3,000 · Usado $3,000 · Restante <strong style="color:#fca5a5;">$0.00</strong></div>
+          </div>
+        </div>
+
+        <!-- Capas de cobertura -->
+        <div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Capas de cobertura · orden de facturación</div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
+
+          <!-- Capa 1: PIP agotado -->
+          <div style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.25);border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(244,63,94,0.20);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fda4af;flex-shrink:0;">1</div>
+            <div style="flex:1;">
+              <div style="color:white;font-size:11px;font-weight:600;">PIP Auto · State Farm <span style="font-size:10px;color:#fca5a5;font-weight:400;">(AGOTADO)</span></div>
+              <div style="color:rgba(255,255,255,0.55);font-size:9.5px;">Póliza SF-448821 · $0 disponible de $3,000 · <span style="color:#34d399;">Visitas 1–8 ya cubiertas</span></div>
+            </div>
+            <span class="mock-status urgent" style="font-size:9px;">AGOTADO</span>
+          </div>
+
+          <!-- Capa 2: Seguro médico secundario -->
+          <div style="background:rgba(16,185,129,0.06);border:2px solid rgba(16,185,129,0.30);border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.20);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#34d399;flex-shrink:0;">2</div>
+            <div style="flex:1;">
+              <div style="color:white;font-size:11px;font-weight:600;">Blue Cross Blue Shield · Plan Gold</div>
+              <div style="color:rgba(255,255,255,0.55);font-size:9.5px;">Miembro #BCBS-7742001 · Deducible $1,200 · Usado $340 · Restante $860</div>
+            </div>
+            <span class="mock-status in-room" style="font-size:9px;">ACTIVO</span>
+          </div>
+
+          <!-- Capa 3: Lien médico -->
+          <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.20);border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:10px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#a5b4fc;flex-shrink:0;">3</div>
+            <div style="flex:1;">
+              <div style="color:white;font-size:11px;font-weight:600;">Lien médico · Smith &amp; Johnson LLP</div>
+              <div style="color:rgba(255,255,255,0.55);font-size:9.5px;">Saldo acumulado: $2,840 · Se cobra al settlement final</div>
+            </div>
+            <span class="mock-status pending" style="font-size:9px;">LIEN</span>
+          </div>
+
+        </div>
+
+        <!-- Cobertura por visita: histórico -->
+        <div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Visitas — cobertura aplicada</div>
+        <table style="font-size:10px;">
+          <thead>
+            <tr><th>#</th><th>Fecha</th><th>Monto</th><th>Capa</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1–7</td><td>Feb–May 2026</td><td>$2,680</td><td style="color:var(--brand-cyan);">PIP</td><td><span class="mock-status in-room" style="font-size:8.5px;">Cobrado</span></td></tr>
+            <tr><td>8</td><td>12 Jun 2026</td><td>$320</td><td style="color:var(--brand-cyan);">PIP (últimos $320)</td><td><span class="mock-status in-room" style="font-size:8.5px;">Cobrado</span></td></tr>
+            <tr><td style="color:white;font-weight:600;">9 (hoy)</td><td style="color:white;">16 Jun 2026</td><td style="color:white;">~$380</td><td style="color:#34d399;font-weight:600;">BCBS</td><td><span class="mock-status pending" style="font-size:8.5px;">Pendiente</span></td></tr>
+          </tbody>
+        </table>
+
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <button class="mock-action-btn" style="flex:1;">✏️ Editar coberturas</button>
+          <button class="mock-action-btn primary" style="flex:1;">✓ Confirmar admisión</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:18px;">Lógica de facturación por capa</h3>
+  <table>
+    <thead><tr><th>Escenario</th><th>Capa activa</th><th>Acción en Billing (B.25)</th></tr></thead>
+    <tbody>
+      <tr><td>PIP disponible</td><td>PIP auto</td><td>HCFA a aseguradora del auto</td></tr>
+      <tr><td>PIP agotado + tiene seguro médico</td><td>Health insurance</td><td>HCFA a aseguradora de salud · deducible del paciente</td></tr>
+      <tr><td>PIP agotado + sin seguro médico</td><td>Lien médico</td><td>Saldo se acumula al lien · se cobra al settlement</td></tr>
+      <tr><td>PIP agotado + Med Pay disponible</td><td>Med Pay primero, luego lien</td><td>HCFA a Med Pay · exceso al lien</td></tr>
+    </tbody>
+  </table>
 </div>
 
 <!-- Banner Fase 6 -->
@@ -6127,6 +6238,118 @@
   </div>
 </div>
 
+<!-- ═══ B.28.1 — SETTLEMENT PARCIAL / WRITE-OFF ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #f59e0b, #d97706);">B.28.1 · Cierre · Billing</span>
+  <h2>Settlement parcial · Write-off · Saldo pendiente</h2>
+  <p><strong>Concepto:</strong> en PI es muy común que el abogado negocie un settlement por debajo del total facturado. La clínica acepta un "write-off" — descuento sobre el lien — y Brunella registra: cuánto se cobró realmente, cuánto se perdonó y qué queda como balance irrecuperable. El ledger (B.27) debe reflejar esto correctamente para reportes de gerencia (B.29).</p>
+
+  <div class="callout callout-warn">
+    <strong>Regla append-only:</strong> el write-off no borra los cargos originales — crea una entrada negativa en el ledger. Los financieros siempre son append-only: se puede ver el historial completo de qué se cobró, qué se negoció y cuándo.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">Settlement parcial · Case #2103 · Sandra López</div>
+        <span class="mock-time">Brunella</span>
+      </div>
+      <div class="mock-body">
+
+        <div class="mock-title">⚖️ Settlement parcial · Registrar acuerdo</div>
+        <div class="mock-subtitle">Smith &amp; Johnson LLP negoció por debajo del lien total</div>
+
+        <!-- Resumen financiero del caso -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">
+          <div class="mock-kpi">
+            <div class="mock-kpi-label">Total facturado</div>
+            <div class="mock-kpi-value" style="font-size:16px;color:#a5b4fc;">$12,480</div>
+          </div>
+          <div class="mock-kpi">
+            <div class="mock-kpi-label">Settlement acordado</div>
+            <div class="mock-kpi-value" style="font-size:16px;color:#fbbf24;">$9,200</div>
+          </div>
+          <div class="mock-kpi">
+            <div class="mock-kpi-label">Write-off propuesto</div>
+            <div class="mock-kpi-value" style="font-size:16px;color:#fca5a5;">$3,280</div>
+          </div>
+          <div class="mock-kpi">
+            <div class="mock-kpi-label">Recovery rate</div>
+            <div class="mock-kpi-value" style="font-size:16px;color:#34d399;">73.7%</div>
+          </div>
+        </div>
+
+        <!-- Formulario de registro -->
+        <div class="mock-form-grid" style="margin-bottom:12px;">
+          <div>
+            <div class="mock-form-label">Monto de settlement</div>
+            <div class="mock-form-input selected" style="color:white;font-weight:600;">$9,200.00</div>
+          </div>
+          <div>
+            <div class="mock-form-label">Fecha del acuerdo</div>
+            <div class="mock-form-input">16/Jun/2026</div>
+          </div>
+          <div>
+            <div class="mock-form-label">Fecha de pago esperado</div>
+            <div class="mock-form-input">30/Jun/2026</div>
+          </div>
+          <div>
+            <div class="mock-form-label">Motivo del write-off</div>
+            <div class="mock-form-input" style="display:flex;justify-content:space-between;"><span>Negociación de bufete</span><span style="color:rgba(255,255,255,0.40);">▼</span></div>
+          </div>
+        </div>
+
+        <!-- Distribución del settlement -->
+        <div style="font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Distribución de los $9,200</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;font-size:10.5px;">
+            <span style="color:rgba(255,255,255,0.70);">Honorarios del abogado (33%)</span>
+            <span style="color:white;font-weight:600;">$3,036.00</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;font-size:10.5px;">
+            <span style="color:rgba(255,255,255,0.70);">Lien médico · Precision Medical</span>
+            <span style="color:#34d399;font-weight:600;">$6,164.00</span>
+          </div>
+          <div style="background:rgba(244,63,94,0.06);border:1px dashed rgba(244,63,94,0.30);border-radius:7px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;font-size:10.5px;">
+            <span style="color:rgba(255,255,255,0.70);">Write-off a registrar en ledger</span>
+            <span style="color:#fca5a5;font-weight:600;">- $3,280.00</span>
+          </div>
+        </div>
+
+        <!-- Nota interna -->
+        <div style="margin-bottom:14px;">
+          <div class="mock-form-label">Nota interna (requerida para write-off)</div>
+          <div class="mock-form-input" style="min-height:40px;color:rgba(255,255,255,0.60);font-style:italic;">Bufete negoció reducción por tiempo transcurrido post-alta. Aprobado por gerencia el 16/Jun/2026.</div>
+        </div>
+
+        <!-- Alerta de aprobación -->
+        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.30);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:10.5px;color:rgba(255,255,255,0.75);">
+          ⚠️ Write-offs mayores a <strong style="color:#fbbf24;">$2,000</strong> requieren aprobación de gerencia. <span style="color:#fbbf24;">Pendiente de autorización.</span>
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button class="mock-action-btn" style="flex:1;">Cancelar</button>
+          <button class="mock-action-btn" style="flex:1;background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.40);color:#fbbf24;">📨 Enviar a gerencia</button>
+          <button class="mock-action-btn primary" style="flex:1;opacity:0.45;cursor:not-allowed;">✓ Registrar settlement</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:18px;">Estados del settlement</h3>
+  <table>
+    <thead><tr><th>Estado</th><th>Descripción</th><th>Quién puede avanzar</th></tr></thead>
+    <tbody>
+      <tr><td><span class="mock-status pending" style="font-size:9px;">PENDIENTE APROBACIÓN</span></td><td>Write-off &gt;$2,000, esperando gerencia</td><td>Gerencia / Super Admin</td></tr>
+      <tr><td><span class="mock-status in-room" style="font-size:9px;">APROBADO</span></td><td>Gerencia autorizó, listo para registrar</td><td>Brunella</td></tr>
+      <tr><td><span class="mock-status done" style="font-size:9px;">REGISTRADO</span></td><td>Settlement en ledger, pago esperado</td><td>Sistema al recibir pago</td></tr>
+      <tr><td><span class="mock-status" style="background:rgba(16,185,129,0.15);color:#34d399;font-size:9px;">COBRADO</span></td><td>Pago recibido, caso listo para cerrar</td><td>Brunella → flujo B.28</td></tr>
+    </tbody>
+  </table>
+</div>
+
 <!-- ═══ B.29 — DASHBOARD EJECUTIVO (era B.28) ═══ -->
 <div class="page">
   <span class="section-anchor">B.29 · Inteligencia</span>
@@ -6623,6 +6846,120 @@
   <div class="callout">
     <strong>Por qué Case Managers están destacados:</strong> en la práctica diaria, Edson y Brunella hablan con los <strong>case managers</strong>, no con los abogados (ellos están en corte). Tenerlos modelados separado del array de abogados ahorra fricción operativa. Cuando una llamada de cobranza falla, Edson sabe a cuál CM llamar después.
   </div>
+</div>
+
+<!-- ═══ B.31.1 — DETALLE / CRUD DE ABOGADO INDIVIDUAL ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #0ea5e9, #6366f1);">B.31.1 · Catálogos</span>
+  <h2>Detalle de abogado individual · CRUD + historial de casos</h2>
+  <p><strong>Concepto:</strong> dentro del bufete (B.31) cada abogado tiene su propio perfil con datos de contacto, Bar number, especialidades, casos activos y métricas históricas. Este detalle se abre desde la lista de abogados en B.31. También es la pantalla que se usa para crear un abogado nuevo o reasignarlo si cambia de firma.</p>
+
+  <div class="callout">
+    <strong>Caso de uso clave:</strong> en PI, Edson y Brunella se comunican casi siempre con el <em>case manager</em> del bufete, no con el abogado. Pero cuando hay un problema legal o hay que coordinar la firma del lien, necesitan los datos directos del abogado. Esta pantalla los centraliza.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">Catálogos · Bufetes · Smith &amp; Johnson LLP · Mary Smith</div>
+      </div>
+      <div class="mock-body">
+
+        <!-- Cabecera del abogado -->
+        <div class="profile-header" style="margin-bottom:14px;">
+          <div class="profile-avatar" style="background:linear-gradient(135deg,#f43f5e,#ec4899);font-size:18px;">MS</div>
+          <div style="flex:1;">
+            <div class="profile-name">Mary Smith, Esq.</div>
+            <div class="profile-meta">Smith &amp; Johnson LLP · Partner · Bar# UT-48572</div>
+            <div class="profile-meta" style="margin-top:3px;">📞 (801) 555-1234 · 📧 msmith@smithjohnson.com</div>
+          </div>
+          <div class="profile-badges">
+            <span class="badge badge-rose">Abogado</span>
+            <span class="badge badge-emerald">Activo</span>
+          </div>
+        </div>
+
+        <div class="tab-row">
+          <div class="tab-item active">Datos</div>
+          <div class="tab-item">Casos activos (8)</div>
+          <div class="tab-item">Historial (34)</div>
+          <div class="tab-item">Portal</div>
+        </div>
+
+        <!-- Datos del abogado -->
+        <div class="mock-form-grid" style="margin-bottom:12px;">
+          <div>
+            <div class="mock-form-label">Nombre completo</div>
+            <div class="mock-form-input">Mary Elizabeth Smith</div>
+          </div>
+          <div>
+            <div class="mock-form-label">Sufijo / Título</div>
+            <div class="mock-form-input">Esq.</div>
+          </div>
+          <div>
+            <div class="mock-form-label">Bar Number</div>
+            <div class="mock-form-input" style="font-family:monospace;">UT-48572</div>
+          </div>
+          <div>
+            <div class="mock-form-label">Estado del Bar</div>
+            <div class="mock-form-input" style="display:flex;justify-content:space-between;"><span style="color:#34d399;">✓ Active — Utah State Bar</span></div>
+          </div>
+          <div>
+            <div class="mock-form-label">Teléfono directo</div>
+            <div class="mock-form-input">(801) 555-1234</div>
+          </div>
+          <div>
+            <div class="mock-form-label">Email directo</div>
+            <div class="mock-form-input">msmith@smithjohnson.com</div>
+          </div>
+          <div>
+            <div class="mock-form-label">Bufete actual</div>
+            <div class="mock-form-input" style="display:flex;justify-content:space-between;"><span style="color:var(--brand-cyan);">Smith &amp; Johnson LLP</span><span style="color:rgba(255,255,255,0.40);">▼</span></div>
+          </div>
+          <div>
+            <div class="mock-form-label">Especialidad PI</div>
+            <div class="mock-form-input" style="display:flex;justify-content:space-between;"><span>MVA · Slip &amp; Fall</span><span style="color:rgba(255,255,255,0.40);">▼</span></div>
+          </div>
+        </div>
+
+        <!-- Acceso al portal -->
+        <div style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.20);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:16px;">⚖️</span>
+          <div style="flex:1;">
+            <div style="color:white;font-size:11px;font-weight:600;">Acceso al Portal del Abogado</div>
+            <div style="color:rgba(255,255,255,0.55);font-size:9.5px;">Magic link se envía al email directo · último acceso: 16/Jun/2026 09:46</div>
+          </div>
+          <button class="mock-action-btn" style="font-size:10px;">📧 Enviar acceso</button>
+        </div>
+
+        <!-- KPIs del abogado -->
+        <div class="mock-kpi-row">
+          <div class="mock-kpi"><div class="mock-kpi-label">Casos activos</div><div class="mock-kpi-value">8</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Casos cerrados</div><div class="mock-kpi-value">34</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Recovery rate</div><div class="mock-kpi-value" style="color:#34d399;">81%</div></div>
+          <div class="mock-kpi"><div class="mock-kpi-label">Avg. settlement</div><div class="mock-kpi-value" style="font-size:16px;">$11.2k</div></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <button class="mock-action-btn" style="flex:1;color:#fca5a5;border-color:rgba(244,63,94,0.30);">⚠ Desactivar</button>
+          <button class="mock-action-btn" style="flex:1;">🔀 Cambiar bufete</button>
+          <button class="mock-action-btn primary" style="flex:2;">💾 Guardar cambios</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:18px;">Reasignación de bufete</h3>
+  <table>
+    <thead><tr><th>Escenario</th><th>Qué pasa con los casos activos</th></tr></thead>
+    <tbody>
+      <tr><td>Abogado cambia de firma</td><td>Se elige nuevo bufete; casos activos se reasignan al nuevo bufete. El bufete anterior queda en historial de cada case.</td></tr>
+      <tr><td>Abogado se retira / inactivo</td><td>Casos activos quedan "sin abogado asignado" — aparecen como alerta en bandeja de Edson para reasignar.</td></tr>
+      <tr><td>Caso nuevo con abogado de otro bufete</td><td>B.2 permite buscar abogado por nombre sin importar el bufete — el sistema sugiere el bufete actual del abogado.</td></tr>
+    </tbody>
+  </table>
 </div>
 
 <!-- ═══ B.32 — CATÁLOGO DE ASEGURADORAS (PIP / MED PAY) ═══ -->
@@ -8339,6 +8676,343 @@ UserDiagnosisFavorite {
   </div>
 </div>
 
+<!-- ═══ B.44 — LOGIN INTERNO ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">B.44 · Admin · Acceso</span>
+  <h2>Login interno · Autenticación del personal</h2>
+  <p><strong>Concepto:</strong> la pantalla de acceso para todo el personal interno (Recepción, Edson, MA, Doctor, Brunella, Admin). El sistema usa <strong>email + contraseña</strong> gestionados por Supabase Auth. Después del primer login, el sistema detecta el rol del usuario y redirige al app correspondiente: back-office, clinical, o admin. MFA opcional para roles con acceso a PHI.</p>
+
+  <div class="callout callout-warn">
+    <strong>HIPAA:</strong> cada login queda registrado en el audit log con actor_type, IP y timestamp. Tres intentos fallidos bloquean la cuenta temporalmente. El Super Admin puede desbloquear desde B.42.
+  </div>
+
+  <div class="device-row">
+
+    <!-- Login desktop -->
+    <div style="width:360px;">
+      <div style="font-size:10px;color:var(--ink-3);text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;">Desktop — back-office / admin</div>
+      <div style="background:#0a1224;border-radius:14px;padding:36px 32px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 20px 50px rgba(0,0,0,0.40);">
+
+        <div style="text-align:center;margin-bottom:28px;">
+          <div style="width:48px;height:48px;background:linear-gradient(135deg,var(--brand-cyan),var(--brand-violet));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin:0 auto 10px;">⚕️</div>
+          <div style="color:white;font-weight:700;font-size:15px;">Precision Medical</div>
+          <div style="color:rgba(255,255,255,0.45);font-size:10.5px;margin-top:2px;">LienMaster v3 · Phoenix</div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div class="mock-form-label">Email</div>
+          <div class="mock-form-input" style="background:rgba(6,182,212,0.08);border-color:rgba(6,182,212,0.40);color:white;">reagin@precisionmedicalcare.com</div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="mock-form-label">Contraseña</div>
+            <span style="font-size:9.5px;color:var(--brand-cyan);cursor:pointer;">¿Olvidaste tu contraseña?</span>
+          </div>
+          <div class="mock-form-input" style="color:rgba(255,255,255,0.40);letter-spacing:0.2em;">••••••••••</div>
+        </div>
+
+        <button style="width:100%;padding:11px;border-radius:8px;background:linear-gradient(135deg,var(--brand-indigo),var(--brand-violet));border:none;color:white;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(99,102,241,0.40);">Entrar al sistema</button>
+
+        <div style="text-align:center;margin-top:14px;font-size:9.5px;color:rgba(255,255,255,0.30);">🔒 Sesión encriptada · HIPAA compliant</div>
+      </div>
+    </div>
+
+    <!-- Login mobile (para MAs e iPads en clínica) -->
+    <div class="mobile-frame">
+      <div class="mobile-screen">
+        <div class="mobile-statusbar"><span>9:00</span><span>⚡ 📶</span></div>
+        <div style="padding:24px 16px;">
+          <div style="text-align:center;margin-bottom:22px;">
+            <div style="width:44px;height:44px;background:linear-gradient(135deg,var(--brand-violet),#ec4899);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;margin:0 auto 8px;">🩺</div>
+            <div style="color:white;font-weight:700;font-size:13px;">Clinical App</div>
+            <div style="color:rgba(255,255,255,0.45);font-size:9.5px;">Médicos y Asistentes</div>
+          </div>
+
+          <div style="margin-bottom:10px;">
+            <div class="mock-form-label">Email</div>
+            <div class="mock-form-input" style="font-size:10px;">nielsen@precisionmedicalcare.com</div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <div class="mock-form-label">Contraseña</div>
+            <div class="mock-form-input" style="font-size:10px;color:rgba(255,255,255,0.40);letter-spacing:0.2em;">••••••••</div>
+          </div>
+
+          <!-- MFA si está activado -->
+          <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px;margin-bottom:12px;text-align:center;">
+            <div style="color:#fbbf24;font-size:10px;font-weight:600;margin-bottom:6px;">🔐 Verificación en 2 pasos</div>
+            <div style="display:flex;gap:6px;justify-content:center;">
+              <div style="width:30px;height:34px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;">4</div>
+              <div style="width:30px;height:34px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;">8</div>
+              <div style="width:30px;height:34px;border-radius:6px;background:rgba(6,182,212,0.20);border:2px solid var(--brand-cyan);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:13px;">_</div>
+              <div style="width:30px;height:34px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);"></div>
+              <div style="width:30px;height:34px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);"></div>
+              <div style="width:30px;height:34px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);"></div>
+            </div>
+            <div style="color:rgba(255,255,255,0.40);font-size:9px;margin-top:5px;">Código de tu app de autenticación</div>
+          </div>
+
+          <button style="width:100%;padding:10px;border-radius:8px;background:linear-gradient(135deg,var(--brand-violet),#ec4899);border:none;color:white;font-weight:700;font-size:11px;">Verificar y entrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recuperar contraseña -->
+    <div style="width:280px;">
+      <div style="font-size:10px;color:var(--ink-3);text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;">Recuperar contraseña</div>
+      <div style="background:#0a1224;border-radius:14px;padding:24px 20px;border:1px solid rgba(255,255,255,0.08);">
+        <div style="text-align:center;margin-bottom:16px;">
+          <div style="font-size:24px;margin-bottom:6px;">🔑</div>
+          <div style="color:white;font-weight:600;font-size:12px;">Restablecer contraseña</div>
+          <div style="color:rgba(255,255,255,0.45);font-size:9.5px;margin-top:2px;">Te enviamos un link por email</div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div class="mock-form-label">Email corporativo</div>
+          <div class="mock-form-input" style="font-size:10px;">reagin@precisionmedicalcare.com</div>
+        </div>
+        <button style="width:100%;padding:9px;border-radius:7px;background:linear-gradient(135deg,var(--brand-indigo),var(--brand-violet));border:none;color:white;font-weight:700;font-size:11px;">Enviar link</button>
+        <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:7px;padding:9px;margin-top:10px;text-align:center;">
+          <div style="color:#34d399;font-size:11px;font-weight:600;">✓ Link enviado</div>
+          <div style="color:rgba(255,255,255,0.50);font-size:9px;margin-top:2px;">Revisa reagin@precisionmedicalcare.com · válido 1 hora</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <h3 style="margin-top:18px;">Redirección por rol después del login</h3>
+  <table>
+    <thead><tr><th>Rol</th><th>App destino</th><th>Pantalla inicial</th></tr></thead>
+    <tbody>
+      <tr><td>Recepción (Reagin, Pamela)</td><td>apps/back-office</td><td>B.1 Dashboard de recepción</td></tr>
+      <tr><td>Intake Specialist (Edson)</td><td>apps/back-office</td><td>B.12 Bandeja pre-visita</td></tr>
+      <tr><td>Medical Assistant</td><td>apps/clinical</td><td>B.16 Triaje del día</td></tr>
+      <tr><td>Doctor</td><td>apps/clinical</td><td>B.17 Mi día</td></tr>
+      <tr><td>Billing (Brunella)</td><td>apps/back-office</td><td>B.25 Bandeja billing</td></tr>
+      <tr><td>Super Admin</td><td>apps/back-office</td><td>B.42 Panel de usuarios</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══ B.42 — GESTIÓN DE USUARIOS ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">B.42 · Admin · Usuarios</span>
+  <h2>Gestión de usuarios · Crear · Editar · Desactivar</h2>
+  <p><strong>Concepto:</strong> el Super Admin gestiona todo el personal del sistema desde esta pantalla. Crear un usuario nuevo genera sus credenciales y le asigna un rol. Cada rol determina a qué apps y módulos tiene acceso (RBAC). Desactivar un usuario revoca acceso inmediatamente sin borrar su historial de auditoría.</p>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">Admin · Gestión de Usuarios</div>
+        <span class="mock-time">Super Admin</span>
+      </div>
+      <div class="mock-layout">
+        <div class="mock-sidebar">
+          <div class="mock-sidebar-brand"><div class="logo">⚙</div>Admin</div>
+          <div class="mock-sidebar-section">Acceso</div>
+          <div class="mock-sidebar-item active"><span class="ico">👥</span>Usuarios</div>
+          <div class="mock-sidebar-item"><span class="ico">🔑</span>Roles</div>
+          <div class="mock-sidebar-section">Seguridad</div>
+          <div class="mock-sidebar-item"><span class="ico">📜</span>Audit Log</div>
+          <div class="mock-sidebar-section">Sistema</div>
+          <div class="mock-sidebar-item"><span class="ico">🏥</span>Clínica</div>
+          <div class="mock-sidebar-item"><span class="ico">⚙️</span>Config</div>
+        </div>
+        <div class="mock-main">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+            <div>
+              <div class="mock-title">👥 Usuarios del sistema</div>
+              <div class="mock-subtitle">11 usuarios · 9 activos · 2 inactivos</div>
+            </div>
+            <button class="mock-action-btn primary" style="font-size:10px;">+ Nuevo usuario</button>
+          </div>
+
+          <!-- Filtro por rol -->
+          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+            <div style="padding:3px 9px;border-radius:100px;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.35);color:var(--brand-cyan);font-size:10px;">Todos (11)</div>
+            <div style="padding:3px 9px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.55);font-size:10px;">Recepción (2)</div>
+            <div style="padding:3px 9px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.55);font-size:10px;">Doctores (2)</div>
+            <div style="padding:3px 9px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.55);font-size:10px;">MA (2)</div>
+            <div style="padding:3px 9px;border-radius:100px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.55);font-size:10px;">Inactivos (2)</div>
+          </div>
+
+          <!-- Tabla de usuarios -->
+          <table style="font-size:10.5px;">
+            <thead>
+              <tr><th>Usuario</th><th>Rol</th><th>App</th><th>Último acceso</th><th>Estado</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div style="color:white;font-weight:600;">Reagin Hernández</div><div style="font-size:9px;color:rgba(255,255,255,0.45);">reagin@precisionmedicalcare.com</div></td>
+                <td><span class="badge badge-cyan" style="font-size:9px;">Recepción</span></td>
+                <td style="color:rgba(255,255,255,0.60);">back-office</td>
+                <td style="font-size:9.5px;color:rgba(255,255,255,0.55);">Hoy 10:42</td>
+                <td><span class="mock-status in-room">Activo</span></td>
+                <td><button class="mock-action-btn" style="font-size:9px;padding:2px 8px;">✏️</button></td>
+              </tr>
+              <tr>
+                <td><div style="color:white;font-weight:600;">Dr. Andrew Nielsen</div><div style="font-size:9px;color:rgba(255,255,255,0.45);">nielsen@precisionmedicalcare.com</div></td>
+                <td><span class="badge badge-violet" style="font-size:9px;">Doctor</span></td>
+                <td style="color:rgba(255,255,255,0.60);">clinical</td>
+                <td style="font-size:9.5px;color:rgba(255,255,255,0.55);">Hoy 09:15</td>
+                <td><span class="mock-status in-room">Activo</span></td>
+                <td><button class="mock-action-btn" style="font-size:9px;padding:2px 8px;">✏️</button></td>
+              </tr>
+              <tr>
+                <td><div style="color:white;font-weight:600;">Edson Martinez</div><div style="font-size:9px;color:rgba(255,255,255,0.45);">edson@precisionmedicalcare.com</div></td>
+                <td><span class="badge badge-amber" style="font-size:9px;">Intake Specialist</span></td>
+                <td style="color:rgba(255,255,255,0.60);">back-office</td>
+                <td style="font-size:9.5px;color:rgba(255,255,255,0.55);">Hoy 08:50</td>
+                <td><span class="mock-status in-room">Activo</span></td>
+                <td><button class="mock-action-btn" style="font-size:9px;padding:2px 8px;">✏️</button></td>
+              </tr>
+              <tr>
+                <td><div style="color:white;font-weight:600;">Brunella Vega</div><div style="font-size:9px;color:rgba(255,255,255,0.45);">brunella@precisionmedicalcare.com</div></td>
+                <td><span class="badge badge-amber" style="font-size:9px;">Billing</span></td>
+                <td style="color:rgba(255,255,255,0.60);">back-office</td>
+                <td style="font-size:9.5px;color:rgba(255,255,255,0.55);">Ayer 16:30</td>
+                <td><span class="mock-status in-room">Activo</span></td>
+                <td><button class="mock-action-btn" style="font-size:9px;padding:2px 8px;">✏️</button></td>
+              </tr>
+              <tr style="opacity:0.55;">
+                <td><div style="color:white;">Ana Pérez</div><div style="font-size:9px;color:rgba(255,255,255,0.45);">ana@precisionmedicalcare.com</div></td>
+                <td><span class="badge badge-indigo" style="font-size:9px;">MA</span></td>
+                <td style="color:rgba(255,255,255,0.60);">clinical</td>
+                <td style="font-size:9.5px;color:rgba(255,255,255,0.55);">10/Jun/2026</td>
+                <td><span class="mock-status done">Inactivo</span></td>
+                <td><button class="mock-action-btn" style="font-size:9px;padding:2px 8px;">✏️</button></td>
+              </tr>
+            </tbody>
+          </table>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal crear usuario -->
+  <h3 style="margin-top:18px;">Modal · Crear usuario nuevo</h3>
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-body" style="padding:20px;">
+        <div style="max-width:480px;margin:0 auto;background:#131c34;border:1px solid rgba(99,102,241,0.30);border-radius:12px;padding:20px 22px;">
+          <div style="font-size:14px;font-weight:700;color:white;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);">+ Nuevo usuario</div>
+          <div class="mock-form-grid" style="margin-bottom:10px;">
+            <div><div class="mock-form-label">Nombre</div><div class="mock-form-input">Pamela</div></div>
+            <div><div class="mock-form-label">Apellido</div><div class="mock-form-input">Torres</div></div>
+            <div><div class="mock-form-label">Email corporativo</div><div class="mock-form-input selected">pamela@precisionmedicalcare.com</div></div>
+            <div>
+              <div class="mock-form-label">Rol</div>
+              <div class="mock-form-input" style="display:flex;justify-content:space-between;"><span style="color:var(--brand-cyan);">Recepción</span><span style="color:rgba(255,255,255,0.40);">▼</span></div>
+            </div>
+          </div>
+          <div style="background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.20);border-radius:7px;padding:9px 12px;margin-bottom:12px;font-size:9.5px;color:rgba(255,255,255,0.65);">
+            📧 Se enviará un email de activación con link para crear contraseña. El usuario debe activar su cuenta antes de poder entrar.
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="mock-action-btn" style="flex:1;">Cancelar</button>
+            <button class="mock-action-btn primary" style="flex:2;">✓ Crear usuario y enviar invitación</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ B.43 — ASIGNACIÓN DE ROLES (RBAC) ═══ -->
+<div class="page">
+  <span class="section-anchor" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">B.43 · Admin · Roles</span>
+  <h2>Roles y permisos · Matriz RBAC</h2>
+  <p><strong>Concepto:</strong> esta pantalla muestra la matriz de permisos por rol — qué módulos y acciones puede hacer cada tipo de usuario. El Super Admin puede ver la matriz pero <strong>no puede editarla desde la UI</strong> (los permisos están hardcodeados por seguridad HIPAA). Si se necesita un cambio de permisos, se hace vía código con revisión de seguridad.</p>
+
+  <div class="callout">
+    <strong>11 roles del sistema:</strong> Super Admin · Gerencia · Recepción · Intake Specialist (Edson) · Medical Assistant · Doctor · Billing (Brunella) · Attorney (portal externo) · Patient (portal externo) · Law Firm Admin · Legal Assistant.
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-frame">
+      <div class="mock-topbar">
+        <span class="mock-dot red"></span><span class="mock-dot amber"></span><span class="mock-dot green"></span>
+        <div class="mock-search">Admin · Roles y permisos · Solo lectura</div>
+      </div>
+      <div class="mock-body">
+
+        <div class="mock-title">🔑 Matriz de permisos por rol</div>
+        <div class="mock-subtitle">Solo lectura · Cambios de permisos requieren deploy de código (seguridad HIPAA)</div>
+
+        <div style="overflow-x:auto;margin-top:14px;">
+          <table style="font-size:9.5px;min-width:700px;">
+            <thead>
+              <tr>
+                <th style="min-width:140px;">Módulo / Acción</th>
+                <th style="text-align:center;">Super Admin</th>
+                <th style="text-align:center;">Recepción</th>
+                <th style="text-align:center;">Edson</th>
+                <th style="text-align:center;">MA</th>
+                <th style="text-align:center;">Doctor</th>
+                <th style="text-align:center;">Brunella</th>
+                <th style="text-align:center;">Abogado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:rgba(6,182,212,0.04);">
+                <td style="font-weight:700;color:rgba(255,255,255,0.80);">Pacientes · ver</td>
+                <td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;color:rgba(255,255,255,0.80);">Pacientes · editar</td>
+                <td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td>
+              </tr>
+              <tr style="background:rgba(6,182,212,0.04);">
+                <td style="font-weight:700;color:rgba(255,255,255,0.80);">Citas · crear/editar</td>
+                <td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;color:rgba(255,255,255,0.80);">Notas clínicas · ver</td>
+                <td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:#fbbf24;">Solo suyas</td>
+              </tr>
+              <tr style="background:rgba(6,182,212,0.04);">
+                <td style="font-weight:700;color:rgba(255,255,255,0.80);">Notas clínicas · firmar</td>
+                <td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;color:rgba(255,255,255,0.80);">Billing · HCFA</td>
+                <td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td>
+              </tr>
+              <tr style="background:rgba(6,182,212,0.04);">
+                <td style="font-weight:700;color:rgba(255,255,255,0.80);">Settlement · write-off</td>
+                <td style="text-align:center;color:#34d399;">✓ + aprueba</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:#fbbf24;">Solo propone</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td>
+              </tr>
+              <tr>
+                <td style="font-weight:700;color:rgba(255,255,255,0.80);">Audit Log · ver</td>
+                <td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td>
+              </tr>
+              <tr style="background:rgba(6,182,212,0.04);">
+                <td style="font-weight:700;color:rgba(255,255,255,0.80);">Usuarios · gestionar</td>
+                <td style="text-align:center;color:#34d399;">✓</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td><td style="text-align:center;color:rgba(255,255,255,0.25);">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+          <div style="display:flex;gap:6px;align-items:center;font-size:10px;color:rgba(255,255,255,0.55);">
+            <span style="color:#34d399;">✓</span> Permitido
+            <span style="color:rgba(255,255,255,0.25);margin-left:8px;">—</span> Sin acceso
+            <span style="color:#fbbf24;margin-left:8px;">Condicional</span>
+          </div>
+          <button class="mock-action-btn" style="margin-left:auto;font-size:10px;">⬇ Exportar matriz PDF</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-warn" style="margin-top:18px;">
+    <strong>¿Por qué no se edita desde la UI?</strong> En sistemas HIPAA, los permisos de acceso a PHI son un control de seguridad técnico (§164.312(a)(1)). Permitir que el Super Admin cambie permisos desde una UI sin revisión de código crea un vector de abuso interno. Si un rol necesita más acceso, el cambio pasa por code review, PR aprobado y deploy — con rastro en git.
+  </div>
+</div>
+
 <!-- ═══ B.39 — ESTADOS VACÍO / SKELETON / ERROR ═══ -->
 <div class="page">
   <span class="section-anchor" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">B.39 · Utilidad Transversal</span>
@@ -8697,7 +9371,7 @@ UserDiagnosisFavorite {
 <div class="page" style="text-align:center;padding-top:100px;">
   <span class="section-anchor">Cierre</span>
   <h1 style="font-size:32px;margin:24px 0 14px;">Listos para presentar a Gerencia</h1>
-  <p class="small" style="max-width:580px;margin:0 auto 30px;">49 pantallas conceptuales: 29 del flujo cronológico end-to-end + <strong style="color:#a5b4fc;">3 del flujo Doctor Notes (B.17.5/B.17.6/B.17.7)</strong> + 6 de catálogos master data + 1 búsqueda transversal + 1 display lobby (HIPAA-safe) + 1 roadmap futuro (B.38) + <strong style="color:#fda4af;">8 nuevos: B.11.1–B.11.3 (flujo calendario completo) · B.22.1–B.22.2 (portal abogado completo) · B.39–B.41 (estados vacío · audit log · notificaciones)</strong>. La spec completa del LienMaster v3 / Phoenix lista para Phase 1.</p>
+  <p class="small" style="max-width:580px;margin:0 auto 30px;">55 pantallas conceptuales: 29 del flujo cronológico end-to-end + <strong style="color:#a5b4fc;">3 Doctor Notes (B.17.5/B.17.6/B.17.7)</strong> + 6 catálogos + 1 búsqueda + 1 lobby (HIPAA-safe) + 1 roadmap (B.38) + <strong style="color:#fda4af;">14 nuevos: calendario completo · cobertura múltiple · portal abogado · settlement parcial · abogado CRUD · utilidades · login · usuarios · roles</strong>. La spec completa del LienMaster v3 / Phoenix lista para Phase 1.</p>
 
   <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:680px;margin:40px auto;">
     <div class="callout callout-success" style="margin:0;">

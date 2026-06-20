@@ -238,7 +238,7 @@ export default async function AttendancePrintPage({ params }: Props) {
 
         {/* Footer */}
         <div className="footer">
-          Precision Medical Care · Documento generado {fmtDateTime(new Date())} · HIPAA compliant · Phase 1A
+          Precision Medical Care · Documento generado {fmtDateTime(new Date())} · HIPAA compliant
         </div>
       </div>
     </>

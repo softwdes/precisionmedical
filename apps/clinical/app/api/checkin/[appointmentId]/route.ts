@@ -10,7 +10,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     );
   }
 
+  const actor = actorFromHeaders(req.headers);
   const body = await req.json().catch(() => ({})) as { staffNote?: string };
 
   await db.appointment.update({
@@ -55,8 +56,8 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
 
   await writeAuditLog(db, {
-    actorType:   'HUMAN_USER',
-    actorUserId: null, // Phase 1A: no auth en clinical
+    actorType:   actor.actorType,
+    actorUserId: actor.actorUserId,
     action:      'PATIENT_CHECKED_IN',
     entityType:  'Appointment',
     entityId:    appointmentId,

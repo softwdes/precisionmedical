@@ -13,7 +13,7 @@
 
 import { createHash } from 'crypto';
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -56,6 +56,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     return NextResponse.json({ error: 'SIGNER_NAME_REQUIRED' }, { status: 400 });
   }
 
+  const actor    = actorFromHeaders(req.headers);
   const signedAt  = new Date();
   const sigHash   = createHash('sha256')
     .update(body.signatureSvg + appointmentId + body.signerName.trim() + signedAt.toISOString())
@@ -71,8 +72,8 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
 
   await writeAuditLog(db, {
-    actorType:   'HUMAN_USER',
-    actorUserId: null,
+    actorType:   actor.actorType,
+    actorUserId: actor.actorUserId,
     action:      'PATIENT_SIGN_ATTENDANCE',
     entityType:  'Appointment',
     entityId:    appointmentId,

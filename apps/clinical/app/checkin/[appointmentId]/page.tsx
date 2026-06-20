@@ -38,12 +38,13 @@ export default async function CheckinPage({ params }: Props) {
   const appt = await db.appointment.findUnique({
     where: { id: appointmentId },
     select: {
-      id:           true,
-      scheduledFor: true,
-      status:       true,
-      type:         true,
-      checkedInAt:  true,
-      notes:        true,
+      id:                      true,
+      scheduledFor:            true,
+      status:                  true,
+      type:                    true,
+      checkedInAt:             true,
+      attendanceSignedAt:      true,
+      notes:                   true,
       patient: {
         select: {
           id:          true,
@@ -72,6 +73,7 @@ export default async function CheckinPage({ params }: Props) {
 
   const age = calcAge(appt.patient.dateOfBirth);
   const alreadyCheckedIn = appt.status === 'CHECKED_IN' || appt.status === 'IN_PROGRESS';
+  const alreadySigned    = !!appt.attendanceSignedAt;
 
   return (
     <div style={{
@@ -242,6 +244,19 @@ export default async function CheckinPage({ params }: Props) {
                   Formulario de intake
                 </span>
               </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
+                <span style={{ color: alreadySigned ? '#10B981' : '#fbbf24' }}>
+                  {alreadySigned ? '✓' : '○'}
+                </span>
+                <span style={{ color: alreadySigned ? '#10B981' : 'rgba(255,255,255,0.40)' }}>
+                  Firma de asistencia
+                  {appt.attendanceSignedAt && (
+                    <span style={{ marginLeft: 6, fontSize: 10, opacity: 0.6 }}>
+                      {fmtTime(appt.attendanceSignedAt)}
+                    </span>
+                  )}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -251,6 +266,7 @@ export default async function CheckinPage({ params }: Props) {
           appointmentId={appointmentId}
           patientName={`${appt.patient.firstName} ${appt.patient.lastName}`}
           alreadyCheckedIn={alreadyCheckedIn}
+          alreadySigned={alreadySigned}
         />
 
       </div>

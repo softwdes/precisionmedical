@@ -21,7 +21,9 @@ const MemberInputSchema = z.object({
   city: z.string().max(100).nullable().optional(),
   state: z.string().max(50).nullable().optional(),
   zip: z.string().max(20).nullable().optional(),
-  memberRole: z.enum(['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER']).default('ATTORNEY'),
+  memberRole:   z.enum(['ATTORNEY', 'CASE_MANAGER', 'PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER']).default('ATTORNEY'),
+  barNumber:    z.string().max(50).nullable().optional().or(z.literal('').transform(() => null)),
+  recoveryRate: z.number().min(0).max(100).nullable().optional(),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -63,7 +65,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       city: parsed.city ?? firm.city,
       state: parsed.state ?? firm.state,
       zip: parsed.zip ?? null,
-      memberRole: parsed.memberRole,
+      memberRole:   parsed.memberRole,
+      barNumber:    parsed.memberRole === 'ATTORNEY' ? (parsed.barNumber ?? null) : null,
+      recoveryRate: parsed.memberRole === 'ATTORNEY' ? (parsed.recoveryRate ?? null) : null,
       status: firm.status,
     },
   });
@@ -117,10 +121,12 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       email: parsed.email,
       phone: parsed.phone ?? null,
       address: parsed.address ?? null,
-      city: parsed.city ?? null,
-      state: parsed.state ?? null,
-      zip: parsed.zip ?? null,
-      memberRole: parsed.memberRole,
+      city:         parsed.city ?? null,
+      state:        parsed.state ?? null,
+      zip:          parsed.zip ?? null,
+      memberRole:   parsed.memberRole,
+      barNumber:    parsed.memberRole === 'ATTORNEY' ? (parsed.barNumber ?? null) : null,
+      recoveryRate: parsed.memberRole === 'ATTORNEY' ? (parsed.recoveryRate ?? null) : null,
     },
   });
 

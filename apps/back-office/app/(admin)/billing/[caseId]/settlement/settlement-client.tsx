@@ -120,7 +120,8 @@ function DiffIndicator({ lienTotal, amountStr }: { lienTotal: number; amountStr:
 
 // ─── Success overlay ──────────────────────────────────────────────────────────
 
-function SuccessScreen({ caseCode, amount, method, payor, onBack }: {
+function SuccessScreen({ caseId, caseCode, amount, method, payor, onBack }: {
+  caseId:   string;
   caseCode: string;
   amount:   string;
   method:   string;
@@ -158,13 +159,23 @@ function SuccessScreen({ caseCode, amount, method, payor, onBack }: {
         <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> Nota de settlement registrada</div>
         <div className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald" /> Audit log guardado</div>
       </div>
-      <button
-        type="button"
-        onClick={onBack}
-        className="rounded-lg bg-amber px-6 py-2.5 text-[13px] font-semibold text-black hover:bg-amber/90 transition-colors"
-      >
-        Volver al billing ←
-      </button>
+      <div className="flex items-center gap-3 flex-wrap justify-center">
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-lg bg-amber px-6 py-2.5 text-[13px] font-semibold text-black hover:bg-amber/90 transition-colors"
+        >
+          Volver al billing ←
+        </button>
+        <a
+          href={`/billing/${caseId}/settlement/print`}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-lg border border-emerald/30 bg-emerald/10 px-6 py-2.5 text-[13px] font-semibold text-emerald hover:bg-emerald/15 transition-colors"
+        >
+          🖨 Imprimir comprobante
+        </a>
+      </div>
     </div>
   );
 }
@@ -323,6 +334,7 @@ export function SettlementClient() {
   if (settled && settledResult) {
     return (
       <SuccessScreen
+        caseId={caseId}
         caseCode={s.caseCode}
         amount={settledResult.amount}
         method={settledResult.method}

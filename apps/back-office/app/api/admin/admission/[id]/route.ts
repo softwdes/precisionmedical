@@ -54,6 +54,13 @@ export async function GET(
                 claimsPhone: true, claimsEmail: true,
               },
             },
+            secondaryInsurance: {
+              select: {
+                id: true, name: true, shortCode: true, color: true,
+                claimsPhone: true, claimsEmail: true,
+              },
+            },
+            secondaryPolicyNumber: true,
           },
         },
       },
@@ -65,14 +72,18 @@ export async function GET(
     const isMVA      = c?.caseType === 'MVA';
     const pipActive  = isMVA && !!c?.pipVerifiedAt;
     const lienSigned = !!(c?.lawFirmId || c?.attorneyId);
+    const hasSecondary = !!c?.secondaryInsurance;
 
-    // Cálculo financiero simplificado (Phase 0 — mock)
-    // MVA + PIP activo → $0 para el paciente
+    // Cálculo financiero simplificado (Phase 1)
+    // MVA + PIP activo + sin seguro secundario → $0 para el paciente
+    // MVA + PIP agotado + seguro secundario (Med Pay) → cubierto por secondary
     // Otros → copago TBD
     const financial = {
-      serviceEstimate: 500,         // USD — placeholder, CPT real viene de B.18
+      serviceEstimate: 500,
       pipCovers:       pipActive ? 500 : 0,
-      patientOwes:     pipActive ? 0 : null,  // null = TBD
+      medPayCovers:    !pipActive && hasSecondary ? 500 : 0,
+      patientOwes:     pipActive || (!pipActive && hasSecondary) ? 0 : null,
+      coverageSource:  pipActive ? 'PIP' : hasSecondary ? 'MED_PAY' : 'PATIENT',
       currency:        'USD',
     };
 
@@ -122,7 +133,9 @@ export async function GET(
             lastName:  c.attorney.lastName,
             email:     c.attorney.email,
           } : null,
-          primaryInsurance: c.primaryInsurance ?? null,
+          primaryInsurance:      c.primaryInsurance ?? null,
+          secondaryInsurance:    c.secondaryInsurance ?? null,
+          secondaryPolicyNumber: c.secondaryPolicyNumber ?? null,
         } : null,
         financial,
       },

@@ -279,6 +279,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             primaryInsuranceId: insurance?.id ?? null,
             primaryPolicyNumber: policyNumber.trim() || null,
           },
+          existingPatientId: existingPatientId ?? null,
           specialtyId: specialtyId || null,
           caseType,
           source: referralSource,
@@ -398,8 +399,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               {/* Pills compactos: en mobile solo el timer · en sm+ ambos */}
               <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                 <TagPill
-                  label="REFERRAL_RECEIVED"
-                  colorClass="bg-rose/15 text-rose border-rose/30 hidden sm:inline-flex"
+                  label={existingPatientId ? 'paciente conocido' : 'NEW_REFERRAL'}
+                  colorClass={existingPatientId ? 'bg-cyan/15 text-cyan border-cyan/30 hidden sm:inline-flex' : 'bg-rose/15 text-rose border-rose/30 hidden sm:inline-flex'}
                   mono
                 />
                 <TagPill

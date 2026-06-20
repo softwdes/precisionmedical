@@ -30,9 +30,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     where: {
       isActive: true,
       OR: [
-        { icd10Code:        { contains: q, mode: 'insensitive' } },
-        { icd10Description: { contains: q, mode: 'insensitive' } },
-        { snomedDescription:{ contains: q, mode: 'insensitive' } },
+        { icd10Code:         { contains: q, mode: 'insensitive' } },
+        { icd10Description:  { contains: q, mode: 'insensitive' } },
+        { snomedCode:        { contains: q, mode: 'insensitive' } },
+        { snomedDescription: { contains: q, mode: 'insensitive' } },
       ],
     },
     orderBy: [{ piRelevant: 'desc' }, { usageCount: 'desc' }],

@@ -51,8 +51,11 @@ model User {
   lawyer          Lawyer?
   provider        Provider?
   
-  lastLoginAt     DateTime?
-  lastLoginIp     String?
+  lastLoginAt          DateTime?
+  lastLoginIp          String?
+  failedLoginAttempts  Int       @default(0)
+  lockedUntil          DateTime?
+  lastFailedAttemptAt  DateTime?
   
   sessions        Session[]
   notifications   Notification[]
@@ -567,6 +570,8 @@ model Lawyer {
   city             String?           // Provo, West Valley, etc.
   state            String?           // ISO state code (UT)
   zip              String?           // ZIP code del member (puede diferir del bufete)
+  barNumber        String?           // Número de colegiado (solo ATTORNEY)
+  recoveryRate     Float?            // % de honorarios típico, ej. 33.3 = 33.3% (solo ATTORNEY)
   memberRole       LawyerMemberRole? // solo aplica si parentFirmId is set
   notes            String?           // notas internas de Edson (privadas)
   paymentSpeed     PaymentSpeed?     // marca rápido/lento para badge en B.30
@@ -699,7 +704,12 @@ model Patient {
   providerReferrer   Provider?       @relation("ProviderReferrer", fields: [providerReferrerId], references: [id])
   
   status             PatientStatus   @default(NEW)
-  
+
+  // Intake preferences (capturadas en B.6 portal)
+  preferredLanguage      String?
+  emergencyContactName   String?
+  emergencyContactPhone  String?
+
   appointments       Appointment[]
   commissions        Commission[]
 
@@ -768,6 +778,11 @@ model Appointment {
 
   // B.14 Check-in: timestamp cuando recepción confirma la llegada del paciente
   checkedInAt     DateTime?
+
+  // B.14.1 Firma de asistencia (paciente firma en tablet al llegar)
+  attendanceSignedAt      DateTime?
+  attendanceSignatureSvg  String?   @db.Text  // PNG base64 del canvas
+  attendanceSignatureHash String?             // SHA-256(svg+appointmentId+timestamp)
 
   // B.16 Triaje — registro de signos vitales capturados por MA
   triageRecord    TriageRecord?
@@ -2006,6 +2021,7 @@ model Case {
   appointments      Appointment[]       @relation("CaseAppointments")
   notes             CaseNote[]
   lienSignatures    LienSignature[]
+  intakeSubmission  IntakeSubmission?   @relation("CaseIntakeSubmission")
 
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -2019,6 +2035,34 @@ model Case {
   @@index([source])
   @@index([createdAt])
   @@map("cases")
+}
+
+// Historial médico + preferencias capturadas en el portal B.5-B.9
+// Phase 1A: almacenamiento en claro · Phase 2: encriptar PHI tras BAA Supabase
+model IntakeSubmission {
+  id                  String   @id @default(cuid())
+  caseId              String   @unique
+  case                Case     @relation("CaseIntakeSubmission", fields: [caseId], references: [id])
+
+  // Step 5 — Historial médico (B.7)
+  healthStatus        String?
+  hasMedications      Boolean  @default(false)
+  medications         String?  @db.Text
+  hasAllergies        Boolean  @default(false)
+  allergies           String?  @db.Text
+  hasPreviousInjuries Boolean  @default(false)
+  previousInjuries    String?  @db.Text
+
+  // Step 6 — Fotos ID
+  takePhotosAtClinic  Boolean  @default(false)
+
+  // Idioma elegido en el wizard
+  language            String   @default("es")
+
+  submittedAt         DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("intake_submissions")
 }
 
 model CaseNote {

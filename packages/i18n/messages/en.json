@@ -3,6 +3,7 @@
     "appName": "LM Super Admin",
     "loading": "Loading...",
     "save": "Save",
+    "saving": "Saving...",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
@@ -1289,11 +1290,14 @@
       "workspaces": "Workspaces",
       "frontOffice": "Front Office",
       "calendar": "Calendar",
+      "edson": "Edson Queue",
       "intake": "Intake (Edson)",
       "admission": "Day Admission",
       "billing": "Billing (Brunella)",
       "dashboard": "Dashboard",
       "globalSearch": "Global Search",
+      "compliance": "Compliance",
+      "auditLog": "Audit Log",
       "footerStatus": "Phase 1A · Catalogs in progress",
       "comingSoon": "Coming soon"
     },
@@ -1979,7 +1983,32 @@
       "sectionCaseHistory": "Case history",
       "emptyCases": "No cases registered for this patient",
       "noteCount": "{count} note{count, plural, one {} other {s}}",
-      "appointmentCount": "{count} appt{count, plural, one {} other {s}}"
+      "appointmentCount": "{count} appt{count, plural, one {} other {s}}",
+      "actionEdit": "Edit patient",
+      "editDialogTitle": "Edit patient details",
+      "editDialogSubtitle": "Changes are recorded in the audit log.",
+      "editSuccess": "Patient updated successfully",
+      "editError": "Error updating. Please try again.",
+      "fieldFirstName": "First name",
+      "fieldLastName": "Last name",
+      "fieldPreferredLanguage": "Preferred language",
+      "langEs": "Spanish",
+      "langEn": "English",
+      "sectionContactEmergency": "Emergency contact",
+      "fieldEmergencyName": "Contact name",
+      "fieldEmergencyPhone": "Contact phone",
+      "sectionAccidentInfo": "Accident details",
+      "fieldAccidentDate": "Accident date",
+      "fieldAccidentType": "Accident type",
+      "fieldInsuranceCarrier": "Insurance carrier",
+      "fieldPolicyNumber": "Policy number",
+      "accidentType": {
+        "AUTO": "Automobile",
+        "MOTORCYCLE": "Motorcycle",
+        "PEDESTRIAN": "Pedestrian",
+        "WORKPLACE": "Workplace",
+        "OTHER": "Other"
+      }
     }
   }
 }

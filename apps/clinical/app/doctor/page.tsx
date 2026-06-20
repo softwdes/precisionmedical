@@ -11,7 +11,7 @@ import Link  from 'next/link';
 import { db } from '@precision-medical/database';
 import {
   ClipboardList, UserCheck, CheckCircle2,
-  Clock, AlertTriangle, ChevronRight, PenLine,
+  Clock, AlertTriangle, ChevronRight, PenLine, FlaskConical,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -64,11 +64,13 @@ function ApptRow({
     provider: { firstName: string; lastName: string } | null;
     triageRecord: { id: string } | null;
     visitNote: { id: string; status: string } | null;
+    labOrders: { id: string; status: string; studyName: string }[];
   };
   isHero?: boolean;
 }) {
   const hasTriage   = !!appt.triageRecord;
   const noteStatus  = appt.visitNote?.status;
+  const pendingLabs = appt.labOrders.filter(l => l.status === 'ORDERED' || l.status === 'IN_PROGRESS');
   const isDone      = appt.status === 'COMPLETED';
   const isNoShow    = appt.status === 'NO_SHOW';
   const isCheckedIn = appt.status === 'CHECKED_IN';
@@ -162,6 +164,12 @@ function ApptRow({
           )}
           {isCheckedIn && !hasTriage && (
             <span style={{ color: '#fbbf24', fontSize: 10 }}>⏱ En recepción</span>
+          )}
+          {/* Labs badge */}
+          {pendingLabs.length > 0 && (
+            <span style={{ color: '#38bdf8', fontWeight: 600, fontSize: 10 }}>
+              🧪 {pendingLabs.length} lab{pendingLabs.length > 1 ? 's' : ''} pendiente{pendingLabs.length > 1 ? 's' : ''}
+            </span>
           )}
           {/* Nota badge */}
           {noteStatus === 'SIGNED' && (
@@ -261,6 +269,7 @@ export default async function DoctorMiDiaPage() {
       provider: { select: { id: true, firstName: true, lastName: true } },
       triageRecord: { select: { id: true } },
       visitNote:    { select: { id: true, status: true } },
+      labOrders:    { select: { id: true, status: true, studyName: true } },
     },
     orderBy: { scheduledFor: 'asc' },
   });
@@ -285,6 +294,11 @@ export default async function DoctorMiDiaPage() {
 
   // Pendientes de firma
   const unsignedDone = done.filter(a => a.visitNote?.status !== 'SIGNED' && a.status !== 'NO_SHOW');
+
+  // Labs pendientes del día (todas las citas)
+  const totalPendingLabs = appointments.reduce((acc, a) =>
+    acc + a.labOrders.filter(l => l.status === 'ORDERED' || l.status === 'IN_PROGRESS').length, 0,
+  );
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a1224' }}>
@@ -312,6 +326,13 @@ export default async function DoctorMiDiaPage() {
           <Link href="/" style={{ fontSize: 11, color: '#a78bfa', textDecoration: 'none' }}>
             ← Cola MA
           </Link>
+          <Link href="/doctor/templates" style={{
+            fontSize: 11, color: '#a78bfa', textDecoration: 'none',
+            padding: '4px 10px', borderRadius: 6,
+            background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.20)',
+          }}>
+            📋 Plantillas
+          </Link>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
             {now.toLocaleDateString('es-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver' })}
           </div>
@@ -321,9 +342,10 @@ export default async function DoctorMiDiaPage() {
       <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 24 }}>
         {/* KPIs */}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <KpiCard label="Pendientes" value={upcoming.length}  icon={Clock}         color="#a78bfa" bg="rgba(139,92,246,0.08)"  />
-          <KpiCard label="Completadas" value={done.length}     icon={CheckCircle2}  color="rgba(255,255,255,0.45)" bg="rgba(255,255,255,0.03)" />
-          <KpiCard label="Sin firmar"  value={unsignedDone.length} icon={AlertTriangle} color="#fbbf24" bg="rgba(245,158,11,0.07)"  />
+          <KpiCard label="Pendientes"  value={upcoming.length}       icon={Clock}         color="#a78bfa" bg="rgba(139,92,246,0.08)"  />
+          <KpiCard label="Completadas" value={done.length}           icon={CheckCircle2}  color="rgba(255,255,255,0.45)" bg="rgba(255,255,255,0.03)" />
+          <KpiCard label="Sin firmar"  value={unsignedDone.length}   icon={AlertTriangle} color="#fbbf24" bg="rgba(245,158,11,0.07)"  />
+          <KpiCard label="Labs pend."  value={totalPendingLabs}      icon={FlaskConical}  color="#38bdf8" bg="rgba(56,189,248,0.07)"  />
         </div>
 
         {/* Acción requerida: notas sin firmar */}

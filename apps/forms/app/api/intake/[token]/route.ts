@@ -86,9 +86,20 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const body = await req.json() as {
     step: number;
     data: {
-      personal?:  { firstName?: string; lastName?: string; dateOfBirth?: string; phone?: string; email?: string };
+      personal?:  {
+        firstName?: string; lastName?: string; dateOfBirth?: string;
+        phone?: string; email?: string; preferredLanguage?: string;
+        emergencyContactName?: string; emergencyContactPhone?: string;
+      };
       accident?:  { date?: string; type?: string; location?: string; notes?: string };
       insurance?: { carrier?: string; policyNumber?: string };
+      health?: {
+        healthStatus?: string;
+        hasMedications?: boolean; medications?: string;
+        hasAllergies?: boolean; allergies?: string;
+        hasPreviousInjuries?: boolean; previousInjuries?: string;
+        preferredLanguage?: string;
+      };
     };
   };
 
@@ -97,11 +108,16 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   if (step === 2 && data.personal) {
     const p = data.personal;
     const patientData: Record<string, unknown> = {};
-    if (p.firstName)   patientData.firstName   = p.firstName;
-    if (p.lastName)    patientData.lastName    = p.lastName;
-    if (p.phone)       patientData.phone       = p.phone;
-    if (p.email)       patientData.email       = p.email;
-    if (p.dateOfBirth) patientData.dateOfBirth = new Date(p.dateOfBirth);
+    if (p.firstName)              patientData.firstName             = p.firstName;
+    if (p.lastName)               patientData.lastName              = p.lastName;
+    if (p.phone)                  patientData.phone                 = p.phone;
+    if (p.email !== undefined)    patientData.email                 = p.email;
+    if (p.dateOfBirth)            patientData.dateOfBirth           = new Date(p.dateOfBirth);
+    if (p.preferredLanguage)      patientData.preferredLanguage     = p.preferredLanguage;
+    if (p.emergencyContactName !== undefined)
+                                  patientData.emergencyContactName  = p.emergencyContactName;
+    if (p.emergencyContactPhone !== undefined)
+                                  patientData.emergencyContactPhone = p.emergencyContactPhone;
 
     if (Object.keys(patientData).length > 0) {
       await db.patient.update({
@@ -137,6 +153,34 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         data:  { insuranceCarrier: ins.carrier },
       });
     }
+  }
+
+  if (step === 5 && data.health) {
+    const h = data.health;
+    await db.intakeSubmission.upsert({
+      where:  { caseId: rec.id },
+      create: {
+        caseId:             rec.id,
+        healthStatus:       h.healthStatus ?? null,
+        hasMedications:     h.hasMedications ?? false,
+        medications:        h.medications ?? null,
+        hasAllergies:       h.hasAllergies ?? false,
+        allergies:          h.allergies ?? null,
+        hasPreviousInjuries: h.hasPreviousInjuries ?? false,
+        previousInjuries:   h.previousInjuries ?? null,
+        language:           h.preferredLanguage ?? 'es',
+      },
+      update: {
+        healthStatus:       h.healthStatus ?? null,
+        hasMedications:     h.hasMedications ?? false,
+        medications:        h.medications ?? null,
+        hasAllergies:       h.hasAllergies ?? false,
+        allergies:          h.allergies ?? null,
+        hasPreviousInjuries: h.hasPreviousInjuries ?? false,
+        previousInjuries:   h.previousInjuries ?? null,
+        language:           h.preferredLanguage ?? 'es',
+      },
+    });
   }
 
   // Audit log — autosave (non-blocking, best-effort)

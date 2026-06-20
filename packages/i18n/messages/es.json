@@ -3,6 +3,7 @@
     "appName": "LM Super Admin",
     "loading": "Cargando...",
     "save": "Guardar",
+    "saving": "Guardando...",
     "cancel": "Cancelar",
     "delete": "Eliminar",
     "edit": "Editar",
@@ -1289,11 +1290,14 @@
       "workspaces": "Workspaces",
       "frontOffice": "Front Office",
       "calendar": "Calendario",
+      "edson": "Bandeja Edson",
       "intake": "Intake (Edson)",
       "admission": "Admisión del día",
       "billing": "Billing (Brunella)",
       "dashboard": "Dashboard",
       "globalSearch": "Búsqueda Global",
+      "compliance": "Compliance",
+      "auditLog": "Audit Log",
       "footerStatus": "Phase 1A · Catálogos en construcción",
       "comingSoon": "Próximamente"
     },
@@ -1979,7 +1983,32 @@
       "sectionCaseHistory": "Historial de casos",
       "emptyCases": "No hay casos registrados para este paciente",
       "noteCount": "{count} nota{count, plural, one {} other {s}}",
-      "appointmentCount": "{count} cita{count, plural, one {} other {s}}"
+      "appointmentCount": "{count} cita{count, plural, one {} other {s}}",
+      "actionEdit": "Editar paciente",
+      "editDialogTitle": "Editar datos del paciente",
+      "editDialogSubtitle": "Los cambios quedan registrados en el audit log.",
+      "editSuccess": "Paciente actualizado correctamente",
+      "editError": "Error al actualizar. Intenta de nuevo.",
+      "fieldFirstName": "Nombre",
+      "fieldLastName": "Apellido",
+      "fieldPreferredLanguage": "Idioma preferido",
+      "langEs": "Español",
+      "langEn": "Inglés",
+      "sectionContactEmergency": "Contacto de emergencia",
+      "fieldEmergencyName": "Nombre contacto",
+      "fieldEmergencyPhone": "Teléfono contacto",
+      "sectionAccidentInfo": "Datos del accidente",
+      "fieldAccidentDate": "Fecha del accidente",
+      "fieldAccidentType": "Tipo de accidente",
+      "fieldInsuranceCarrier": "Aseguradora",
+      "fieldPolicyNumber": "Número de póliza",
+      "accidentType": {
+        "AUTO": "Automóvil",
+        "MOTORCYCLE": "Motocicleta",
+        "PEDESTRIAN": "Peatón",
+        "WORKPLACE": "Accidente laboral",
+        "OTHER": "Otro"
+      }
     }
   }
 }

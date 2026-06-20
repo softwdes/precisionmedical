@@ -277,14 +277,14 @@ export default async function CaseDetailPage({ params }: Props) {
           display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 4,
           borderTop: '1px solid rgba(255,255,255,0.06)',
         }}>
-          <button style={{
+          <Link href={`/cases/${caseId}/documents`} target="_blank" style={{
             padding: '10px 18px', borderRadius: 9, fontSize: 12, fontWeight: 600,
             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.60)', cursor: 'pointer',
+            color: 'rgba(255,255,255,0.60)', cursor: 'pointer', textDecoration: 'none',
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
             <Download size={13} /> Descargar paquete
-          </button>
+          </Link>
           {!attorneySigned && (
             <Link href={`/cases/${caseId}/sign`} style={{
               padding: '10px 22px', borderRadius: 9, fontSize: 13, fontWeight: 700,

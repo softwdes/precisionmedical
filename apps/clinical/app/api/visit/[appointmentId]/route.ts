@@ -40,6 +40,8 @@ export async function GET(
       clinic:      { select: { id: true, name: true } },
       provider:    { select: { id: true, firstName: true, lastName: true, specialty: true } },
       triageRecord: true,
+      // Guardrail fields — included so visit-client can show blocking UI
+
       visitNote: {
         include: {
           diagnoses: {

@@ -15,6 +15,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { PatientEditDialog } from './patient-edit-dialog';
 import {
   ArrowLeft, Phone, Mail, Calendar, MapPin, Scale, FileText,
   User, Building2, ChevronRight, MessageSquare, ClipboardList,
@@ -54,6 +55,8 @@ interface PatientCase {
   _count: { notes: number; appointments: number };
 }
 
+type AccidentType = 'AUTO' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WORKPLACE' | 'OTHER';
+
 interface PatientData {
   id: string;
   patientCode: string;
@@ -64,6 +67,13 @@ interface PatientData {
   dateOfBirth: Date | null;
   status: PatientStatus;
   createdAt: Date;
+  preferredLanguage: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  accidentDate: Date | null;
+  accidentType: AccidentType | null;
+  insuranceCarrier: string | null;
+  policyNumber: string | null;
   lawyerReferrer: { id: string; firmName: string | null } | null;
   providerReferrer: { id: string; firstName: string; lastName: string } | null;
   cases: PatientCase[];
@@ -171,6 +181,7 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
                 <span className="hidden sm:inline">{t('actionCall')}</span>
               </Button>
             )}
+            <PatientEditDialog patient={patient} />
           </div>
         }
       />

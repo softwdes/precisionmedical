@@ -34,17 +34,20 @@ interface Firm {
 }
 
 interface Member {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  email: string;
-  phone: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zip: string | null;
-  memberRole: string | null;
-  status: string;
+  id:           string;
+  firstName:    string | null;
+  lastName:     string | null;
+  email:        string;
+  phone:        string | null;
+  address:      string | null;
+  city:         string | null;
+  state:        string | null;
+  zip:          string | null;
+  memberRole:   string | null;
+  status:       string;
+  barNumber:    string | null;
+  recoveryRate: number | null;
+  casesCount:   number;
 }
 
 interface Props {
@@ -363,6 +366,7 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
   };
 
   const fullName = `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim() || '(sin nombre)';
+  const isAttorney = member.memberRole === 'ATTORNEY';
 
   return (
     <div className="flex items-center gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors">
@@ -380,6 +384,21 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
             <span className="flex items-center gap-1 font-mono">
               <Phone className="w-3 h-3 text-text-muted" />
               {member.phone}
+            </span>
+          )}
+          {isAttorney && member.barNumber && (
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-brand/10 text-brand border border-brand/20">
+              Bar #{member.barNumber}
+            </span>
+          )}
+          {isAttorney && member.recoveryRate != null && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet/10 text-violet border border-violet/20">
+              {member.recoveryRate.toFixed(1)}% honorarios
+            </span>
+          )}
+          {isAttorney && member.casesCount > 0 && (
+            <span className="text-text-muted text-[10px]">
+              {member.casesCount} caso{member.casesCount !== 1 ? 's' : ''}
             </span>
           )}
         </div>
@@ -553,15 +572,17 @@ function MemberDialog({
   editing: Member | null;
   onSaved: () => void;
 }) {
-  const [firstName,   setFirstName]   = useState(editing?.firstName ?? '');
-  const [lastName,    setLastName]    = useState(editing?.lastName ?? '');
-  const [email,       setEmail]       = useState(editing?.email ?? '');
-  const [phone,       setPhone]       = useState(editing?.phone ?? '');
-  const [address,     setAddress]     = useState(editing?.address ?? '');
-  const [city,        setCity]        = useState(editing?.city ?? '');
-  const [state,       setState]       = useState(editing?.state ?? '');
-  const [zip,         setZip]         = useState(editing?.zip ?? '');
-  const [memberRole,  setMemberRole]  = useState(editing?.memberRole ?? 'ATTORNEY');
+  const [firstName,    setFirstName]    = useState(editing?.firstName ?? '');
+  const [lastName,     setLastName]     = useState(editing?.lastName ?? '');
+  const [email,        setEmail]        = useState(editing?.email ?? '');
+  const [phone,        setPhone]        = useState(editing?.phone ?? '');
+  const [address,      setAddress]      = useState(editing?.address ?? '');
+  const [city,         setCity]         = useState(editing?.city ?? '');
+  const [state,        setState]        = useState(editing?.state ?? '');
+  const [zip,          setZip]          = useState(editing?.zip ?? '');
+  const [memberRole,   setMemberRole]   = useState(editing?.memberRole ?? 'ATTORNEY');
+  const [barNumber,    setBarNumber]    = useState(editing?.barNumber ?? '');
+  const [recoveryRate, setRecoveryRate] = useState(editing?.recoveryRate != null ? String(editing.recoveryRate) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
 
@@ -577,6 +598,8 @@ function MemberDialog({
     setState(editing?.state ?? '');
     setZip(editing?.zip ?? '');
     setMemberRole(editing?.memberRole ?? 'ATTORNEY');
+    setBarNumber(editing?.barNumber ?? '');
+    setRecoveryRate(editing?.recoveryRate != null ? String(editing.recoveryRate) : '');
     setError(null);
     setLastEditingId(editingId);
   }
@@ -591,17 +614,21 @@ function MemberDialog({
         method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: editing?.id,
+          id:           editing?.id,
           parentFirmId: firmId,
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim(),
-          phone: phone.trim() || null,
-          address: address.trim() || null,
-          city: city.trim() || null,
-          state: state.trim() || null,
-          zip: zip.trim() || null,
+          firstName:    firstName.trim(),
+          lastName:     lastName.trim(),
+          email:        email.trim(),
+          phone:        phone.trim() || null,
+          address:      address.trim() || null,
+          city:         city.trim() || null,
+          state:        state.trim() || null,
+          zip:          zip.trim() || null,
           memberRole,
+          barNumber:    memberRole === 'ATTORNEY' ? (barNumber.trim() || null) : null,
+          recoveryRate: memberRole === 'ATTORNEY' && recoveryRate !== ''
+            ? parseFloat(recoveryRate)
+            : null,
         }),
       });
       if (!res.ok) {
@@ -678,6 +705,43 @@ function MemberDialog({
               {MEMBER_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
+
+          {memberRole === 'ATTORNEY' && (
+            <div className="rounded-md border border-brand/20 bg-brand/5 p-3 space-y-3">
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-brand">
+                Datos del abogado
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="barNumber">Número de colegiado</Label>
+                  <Input
+                    id="barNumber"
+                    value={barNumber}
+                    onChange={(e) => setBarNumber(e.target.value)}
+                    placeholder="Ej. 123456"
+                    maxLength={50}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="recoveryRate">Honorarios típicos (%)</Label>
+                  <div className="relative">
+                    <Input
+                      id="recoveryRate"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.1}
+                      value={recoveryRate}
+                      onChange={(e) => setRecoveryRate(e.target.value)}
+                      placeholder="33.3"
+                      className="pr-7"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="text-rose text-sm bg-rose/10 border border-rose/30 rounded-md px-3 py-2">

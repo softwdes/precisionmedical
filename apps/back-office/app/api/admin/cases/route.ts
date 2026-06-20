@@ -67,6 +67,9 @@ const InputSchema = z.object({
   // ─── Form delivery (opcional · si se elige durante la llamada) ──────
   formDelivery: z.enum(['SEND_NOW', 'TABLET_AT_CLINIC']).nullable().optional(),
 
+  // ─── Paciente existente (desde PreCallStep · evita duplicados) ─────
+  existingPatientId: z.string().cuid().nullable().optional(),
+
   // ─── Métrica de la llamada ──────────────────────────────────────────
   callDurationSeconds: z.number().int().min(0).max(7200).optional(),
 });
@@ -122,20 +125,36 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ─── Transacción · Patient + Case (+ Appointment opcional) ──────────
   const result = await db.$transaction(async (tx) => {
-    const patient = await tx.patient.create({
-      data: {
-        patientCode,
-        firstName: parsed.patient.firstName,
-        lastName: parsed.patient.lastName,
-        email: parsed.patient.email,
-        phone: parsed.patient.phone,
-        dateOfBirth: parsed.patient.dateOfBirth ? new Date(parsed.patient.dateOfBirth) : null,
-        accidentDate: parsed.accident.date ? new Date(parsed.accident.date) : null,
-        accidentType: parsed.accident.type,
-        lawyerReferrerId: parsed.legal.lawFirmId ?? null,
-        status: 'NEW',
-      },
-    });
+    // Paciente conocido → actualizar datos del call y reusar · nunca crear duplicado
+    // Paciente nuevo    → crear con código generado
+    const patient = parsed.existingPatientId
+      ? await tx.patient.update({
+          where: { id: parsed.existingPatientId },
+          data: {
+            firstName: parsed.patient.firstName,
+            lastName: parsed.patient.lastName,
+            phone: parsed.patient.phone,
+            ...(parsed.patient.email !== undefined && { email: parsed.patient.email }),
+            ...(parsed.patient.dateOfBirth && { dateOfBirth: new Date(parsed.patient.dateOfBirth) }),
+            ...(parsed.accident.date && { accidentDate: new Date(parsed.accident.date) }),
+            accidentType: parsed.accident.type,
+            ...(parsed.legal.lawFirmId && { lawyerReferrerId: parsed.legal.lawFirmId }),
+          },
+        })
+      : await tx.patient.create({
+          data: {
+            patientCode,
+            firstName: parsed.patient.firstName,
+            lastName: parsed.patient.lastName,
+            email: parsed.patient.email,
+            phone: parsed.patient.phone,
+            dateOfBirth: parsed.patient.dateOfBirth ? new Date(parsed.patient.dateOfBirth) : null,
+            accidentDate: parsed.accident.date ? new Date(parsed.accident.date) : null,
+            accidentType: parsed.accident.type,
+            lawyerReferrerId: parsed.legal.lawFirmId ?? null,
+            status: 'NEW',
+          },
+        });
 
     const newCase = await tx.case.create({
       data: {
@@ -233,6 +252,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     metadata: {
       caseCode: result.case.caseCode,
       patientCode: result.patient.patientCode,
+      existingPatient: !!parsed.existingPatientId,
       source: parsed.source,
       caseType: parsed.caseType,
       lawyerStatus: parsed.legal.lawyerStatus,

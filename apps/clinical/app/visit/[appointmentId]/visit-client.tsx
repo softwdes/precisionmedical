@@ -68,6 +68,8 @@ interface VisitData {
     type: string;
     status: string;
     notes: string | null;
+    checkedInAt:        string | null;
+    attendanceSignedAt: string | null;
     patient: {
       id: string;
       firstName: string;
@@ -748,6 +750,17 @@ function RxModal({
 }
 
 // ─── B.21 CPT types ───────────────────────────────────────────────────────────
+interface CatalogCode {
+  id:               string;
+  code:             string;
+  type:             string;
+  shortDescription: string;
+  currentFee:       number;
+  category:         string;
+  modifiersAllowed: string[];
+  isInternalOnly:   boolean;
+}
+
 interface VisitCpt {
   id:             string;
   visitNoteId:    string;
@@ -780,6 +793,7 @@ function CptSignModal({
   onClose:       () => void;
 }) {
   const [assigned,    setAssigned]    = useState<VisitCpt[]>([]);
+  const [catalog,     setCatalog]     = useState<CatalogCode[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [mutating,    setMutating]    = useState(false);
   const [editingId,   setEditingId]   = useState<string | null>(null);
@@ -791,14 +805,33 @@ function CptSignModal({
   useEffect(() => {
     void (async () => {
       try {
-        const res  = await fetch(`/api/visit/${appointmentId}/cpt`);
-        const json = await res.json() as { ok: boolean; cpts: VisitCpt[] };
-        if (json.ok) setAssigned(json.cpts);
+        const [cptRes, catRes] = await Promise.all([
+          fetch(`/api/visit/${appointmentId}/cpt`),
+          fetch('/api/visit/cpt-catalog'),
+        ]);
+        const [cptJson, catJson] = await Promise.all([
+          cptRes.json() as Promise<{ ok: boolean; cpts: VisitCpt[] }>,
+          catRes.json() as Promise<{ ok: boolean; codes: CatalogCode[] }>,
+        ]);
+        if (cptJson.ok) setAssigned(cptJson.cpts);
+        if (catJson.ok) setCatalog(catJson.codes);
       } finally {
         setLoading(false);
       }
     })();
   }, [appointmentId]);
+
+  // Búsqueda dinámica en catálogo cuando query ≥ 2 caracteres
+  useEffect(() => {
+    if (cptSearch.length < 2) return;
+    const t = setTimeout(() => {
+      void fetch(`/api/visit/cpt-catalog?q=${encodeURIComponent(cptSearch)}`)
+        .then(r => r.json() as Promise<{ ok: boolean; codes: CatalogCode[] }>)
+        .then(d => { if (d.ok) setCatalog(d.codes); })
+        .catch(() => undefined);
+    }, 280);
+    return () => clearTimeout(t);
+  }, [cptSearch]);
 
   const handleAdd = async (code: string, description: string, fee: number) => {
     setMutating(true);
@@ -842,10 +875,10 @@ function CptSignModal({
   const isAssigned = (code: string) => assigned.some(a => a.cptCode === code);
 
   const suggestions = (cptSearch
-    ? SUGGESTED_CPTS.filter(s =>
+    ? catalog.filter(s =>
         s.code.toLowerCase().includes(cptSearch.toLowerCase()) ||
-        s.description.toLowerCase().includes(cptSearch.toLowerCase()))
-    : SUGGESTED_CPTS
+        s.shortDescription.toLowerCase().includes(cptSearch.toLowerCase()))
+    : catalog
   ).filter(s => !isAssigned(s.code));
 
   const total         = assigned.reduce((s, c) => s + (c.feeOverride ?? c.feeCatalog), 0);
@@ -937,17 +970,17 @@ function CptSignModal({
                       borderRadius: 8, padding: '9px 12px',
                     }}>
                       <span style={{ fontSize: 9, background: 'rgba(16,185,129,0.25)', color: '#34d399', padding: '2px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        SUGERIDO
+                        {s.type === 'CUSTOM_PM' ? 'PM' : s.type}
                       </span>
-                      <span style={{ fontFamily: 'monospace', color: '#67e8f9', fontSize: 12, fontWeight: 700, width: 52, flexShrink: 0 }}>
+                      <span style={{ fontFamily: 'monospace', color: '#67e8f9', fontSize: 12, fontWeight: 700, width: 60, flexShrink: 0 }}>
                         {s.code}
                       </span>
-                      <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.80)' }}>{s.description}</span>
+                      <span style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.80)' }}>{s.shortDescription}</span>
                       <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace', flexShrink: 0 }}>
-                        ${s.fee.toFixed(2)}
+                        ${s.currentFee.toFixed(2)}
                       </span>
                       <button
-                        onClick={() => void handleAdd(s.code, s.description, s.fee)}
+                        onClick={() => void handleAdd(s.code, s.shortDescription, s.currentFee)}
                         disabled={mutating}
                         style={{
                           padding: '4px 10px', fontSize: 11, fontWeight: 700,
@@ -962,7 +995,7 @@ function CptSignModal({
                   ))}
                   {suggestions.length === 0 && (
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.30)', textAlign: 'center', padding: '12px 0' }}>
-                      {cptSearch ? 'Sin resultados' : 'Todos los CPTs sugeridos ya asignados'}
+                      {cptSearch ? 'Sin resultados en el catálogo' : loading ? 'Cargando catálogo...' : 'Todos los CPTs ya asignados'}
                     </div>
                   )}
                 </div>
@@ -1807,10 +1840,11 @@ function DiagnosesPanel({
   onChange: (d: VisitNoteDiagnosis[]) => void;
   isSigned: boolean;
 }) {
-  const [query, setQuery]     = useState('');
-  const [results, setResults] = useState<DiagnosisResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [query,      setQuery]      = useState('');
+  const [results,    setResults]    = useState<DiagnosisResult[]>([]);
+  const [loading,    setLoading]    = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchMode, setSearchMode] = useState<'icd' | 'snomed'>('icd');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback(async (q: string) => {
@@ -1941,17 +1975,40 @@ function DiagnosesPanel({
       {/* Search */}
       {showSearch && !isSigned && (
         <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          {/* Mode toggle */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+            {(['icd', 'snomed'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setSearchMode(mode)}
+                style={{
+                  padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                  background: searchMode === mode
+                    ? (mode === 'icd' ? 'rgba(139,92,246,0.25)' : 'rgba(6,182,212,0.20)')
+                    : 'rgba(255,255,255,0.04)',
+                  border: searchMode === mode
+                    ? (mode === 'icd' ? '1px solid rgba(139,92,246,0.5)' : '1px solid rgba(6,182,212,0.4)')
+                    : '1px solid rgba(255,255,255,0.10)',
+                  color: searchMode === mode
+                    ? (mode === 'icd' ? '#a78bfa' : '#22d3ee')
+                    : 'rgba(255,255,255,0.45)',
+                }}
+              >
+                {mode === 'icd' ? 'ICD-10' : 'SNOMED CT'}
+              </button>
+            ))}
+          </div>
           <div style={{ position: 'relative', marginBottom: 8 }}>
             <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} />
             <input
               autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar ICD-10, descripción..."
+              placeholder={searchMode === 'icd' ? 'Buscar ICD-10, código o descripción...' : 'Buscar SNOMED CT, código o término...'}
               style={{
                 width: '100%', padding: '8px 10px 8px 30px', boxSizing: 'border-box',
                 borderRadius: 8, background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.12)',
+                border: `1px solid ${searchMode === 'icd' ? 'rgba(139,92,246,0.25)' : 'rgba(6,182,212,0.25)'}`,
                 color: '#fff', fontSize: 13, outline: 'none',
               }}
             />
@@ -1963,6 +2020,7 @@ function DiagnosesPanel({
             }}>
               {results.map(d => {
                 const alreadyAdded = diagnoses.some(dx => dx.diagnosisId === d.id);
+                const snomedFirst = searchMode === 'snomed';
                 return (
                   <button
                     key={d.id}
@@ -1976,24 +2034,46 @@ function DiagnosesPanel({
                       color: '#fff',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{
-                        fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#a78bfa',
-                        background: 'rgba(139,92,246,0.12)', padding: '1px 5px', borderRadius: 3, flexShrink: 0,
-                      }}>
-                        {d.icd10Code}
-                      </span>
-                      <span style={{ fontSize: 12 }}>{d.icd10Description}</span>
-                      {d.piRelevant && (
-                        <span style={{ fontSize: 9, color: '#34d399', background: 'rgba(16,185,129,0.12)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>
-                          PI
-                        </span>
-                      )}
-                    </div>
-                    {d.snomedDescription && (
-                      <div style={{ marginTop: 2, fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>
-                        {d.snomedDescription}
-                      </div>
+                    {snomedFirst ? (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {d.snomedCode && (
+                            <span style={{
+                              fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#22d3ee',
+                              background: 'rgba(6,182,212,0.12)', padding: '1px 5px', borderRadius: 3, flexShrink: 0,
+                            }}>
+                              {d.snomedCode}
+                            </span>
+                          )}
+                          <span style={{ fontSize: 12 }}>{d.snomedDescription ?? d.icd10Description}</span>
+                          {d.piRelevant && (
+                            <span style={{ fontSize: 9, color: '#34d399', background: 'rgba(16,185,129,0.12)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>PI</span>
+                          )}
+                        </div>
+                        <div style={{ marginTop: 2, fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>
+                          ICD-10 {d.icd10Code}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{
+                            fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#a78bfa',
+                            background: 'rgba(139,92,246,0.12)', padding: '1px 5px', borderRadius: 3, flexShrink: 0,
+                          }}>
+                            {d.icd10Code}
+                          </span>
+                          <span style={{ fontSize: 12 }}>{d.icd10Description}</span>
+                          {d.piRelevant && (
+                            <span style={{ fontSize: 9, color: '#34d399', background: 'rgba(16,185,129,0.12)', padding: '1px 5px', borderRadius: 3, flexShrink: 0 }}>PI</span>
+                          )}
+                        </div>
+                        {d.snomedDescription && (
+                          <div style={{ marginTop: 2, fontSize: 10, color: 'rgba(255,255,255,0.40)' }}>
+                            SNOMED {d.snomedCode} · {d.snomedDescription}
+                          </div>
+                        )}
+                      </>
                     )}
                   </button>
                 );
@@ -2248,13 +2328,14 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
   }, [isSigned, doSave]);
 
   // ── Sign ──
+  const [guardrailMissing, setGuardrailMissing] = useState<string[]>([]);
+
   const handleSign = useCallback(async () => {
     if (isSigned || signing) return;
     setSigning(true);
+    setGuardrailMissing([]);
     try {
-      // Guardar primero
       await doSave(true);
-      // Firmar
       const res = await fetch(`/api/visit/${appointmentId}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2263,11 +2344,13 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
           : 'Doctor',
         }),
       });
-      const json = await res.json() as { ok: boolean };
+      const json = await res.json() as { ok: boolean; error?: string; missing?: string[] };
       if (json.ok) {
         setIsSigned(true);
         setSignedAt(new Date().toISOString());
         setTimeout(() => router.push('/doctor'), 1500);
+      } else if (json.error === 'GUARDRAIL_FAILED' && json.missing) {
+        setGuardrailMissing(json.missing);
       }
     } catch {
       /* ignore */
@@ -2449,14 +2532,31 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
                     padding: '12px 16px', borderRadius: 10,
                     background: 'rgba(139,92,246,0.10)',
                     border: '1px solid rgba(139,92,246,0.30)',
-                    display: 'flex', alignItems: 'center', gap: 10,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
                     color: '#a78bfa', fontSize: 12, fontWeight: 600,
+                    flexWrap: 'wrap',
                   }}>
-                    <CheckCircle2 size={16} />
-                    <span>
-                      Nota firmada por {signedBy ?? 'Doctor'}{' '}
-                      {signedAt ? `el ${new Date(signedAt).toLocaleDateString('es-US', { timeZone: 'America/Denver' })} a las ${new Date(signedAt).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })}` : ''}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <CheckCircle2 size={16} />
+                      <span>
+                        Nota firmada por {signedBy ?? 'Doctor'}{' '}
+                        {signedAt ? `el ${new Date(signedAt).toLocaleDateString('es-US', { timeZone: 'America/Denver' })} a las ${new Date(signedAt).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })}` : ''}
+                      </span>
+                    </div>
+                    <a
+                      href={`/visit/${appointmentId}/print`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        padding: '5px 12px', borderRadius: 7,
+                        background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.35)',
+                        color: '#a78bfa', fontSize: 11, fontWeight: 700, textDecoration: 'none',
+                        flexShrink: 0,
+                      }}
+                    >
+                      🖨 Imprimir / PDF
+                    </a>
                   </div>
                 )}
 
@@ -2518,8 +2618,21 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12,
             zIndex: 400,
           }}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', flex: 1 }}>
-              Auto-guardado cada 30 seg. Asigna CPTs antes de firmar.
+            <div style={{ fontSize: 11, flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {data && (!data.appointment.checkedInAt || !data.appointment.attendanceSignedAt || !data.appointment.triageRecord) ? (
+                <span style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <AlertTriangle size={11} />
+                  {[
+                    !data.appointment.checkedInAt        && 'Check-in pendiente',
+                    !data.appointment.attendanceSignedAt && 'Firma asistencia pendiente',
+                    !data.appointment.triageRecord       && 'Triaje pendiente',
+                  ].filter(Boolean).join(' · ')}
+                </span>
+              ) : (
+                <span style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  Auto-guardado cada 30 seg. Asigna CPTs antes de firmar.
+                </span>
+              )}
             </div>
 
             {/* Guardar borrador */}
@@ -2585,6 +2698,51 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
               <ClipboardList size={14} /> CPTs + Firmar →
             </button>
           </footer>
+        )}
+
+        {/* Guardrail banner — se muestra al intentar firmar sin precondiciones */}
+        {guardrailMissing.length > 0 && (
+          <div style={{
+            position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 900, minWidth: 320, maxWidth: 480,
+            background: '#1c0a00', border: '1px solid rgba(239,68,68,0.50)',
+            borderRadius: 12, padding: '14px 18px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.60)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <AlertTriangle size={16} color="#f87171" />
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#f87171' }}>
+                No se puede firmar — precondiciones pendientes
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {guardrailMissing.includes('CHECK_IN') && (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#f87171' }}>⛔</span> El paciente no hizo check-in en recepción
+                </div>
+              )}
+              {guardrailMissing.includes('ATTENDANCE_SIGNATURE') && (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#f87171' }}>⛔</span> Falta la firma de asistencia del paciente
+                </div>
+              )}
+              {guardrailMissing.includes('TRIAGE') && (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: '#f87171' }}>⛔</span> Falta el triaje del MA (signos vitales)
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setGuardrailMissing([])}
+              style={{
+                marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.40)',
+                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              }}
+            >
+              Cerrar ×
+            </button>
+          </div>
         )}
 
         {/* ─── AI Bot FAB ───────────────────────────────────────────────────── */}

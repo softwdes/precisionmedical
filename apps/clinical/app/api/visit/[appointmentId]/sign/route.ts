@@ -27,14 +27,30 @@ export async function POST(
     where: { id: appointmentId },
     select: {
       id: true, status: true,
-      visitNote: { select: { id: true, status: true } },
+      checkedInAt:          true,
+      attendanceSignedAt:   true,
+      triageRecord:         { select: { id: true } },
+      visitNote:            { select: { id: true, status: true } },
     },
   });
 
-  if (!appt)                         return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
-  if (!appt.visitNote)               return NextResponse.json({ error: 'NO_NOTE' },   { status: 400 });
+  if (!appt)            return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  if (!appt.visitNote)  return NextResponse.json({ error: 'NO_NOTE' },   { status: 400 });
   if (appt.visitNote.status === 'SIGNED')
-                                      return NextResponse.json({ error: 'ALREADY_SIGNED' }, { status: 409 });
+                        return NextResponse.json({ error: 'ALREADY_SIGNED' }, { status: 409 });
+
+  // ── Guardrails clínicos ────────────────────────────────────────────────────
+  const missing: string[] = [];
+  if (!appt.checkedInAt)        missing.push('CHECK_IN');
+  if (!appt.attendanceSignedAt) missing.push('ATTENDANCE_SIGNATURE');
+  if (!appt.triageRecord)       missing.push('TRIAGE');
+
+  if (missing.length > 0) {
+    return NextResponse.json(
+      { error: 'GUARDRAIL_FAILED', missing },
+      { status: 422 },
+    );
+  }
 
   const now = new Date();
 

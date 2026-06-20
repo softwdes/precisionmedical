@@ -49,10 +49,15 @@ interface ApptDetail {
       id: string; name: string; shortCode: string; color: string;
       claimsPhone: string | null; claimsEmail: string | null;
     } | null;
+    secondaryInsurance: {
+      id: string; name: string; shortCode: string; color: string;
+      claimsPhone: string | null; claimsEmail: string | null;
+    } | null;
+    secondaryPolicyNumber: string | null;
   } | null;
   financial: {
-    serviceEstimate: number; pipCovers: number;
-    patientOwes: number | null; currency: string;
+    serviceEstimate: number; pipCovers: number; medPayCovers: number;
+    patientOwes: number | null; coverageSource: string; currency: string;
   };
 }
 
@@ -338,6 +343,41 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                     {t('noInsuranceRegistered')}
                   </div>
                 )}
+
+                {/* Seguro secundario (Med Pay) — se muestra cuando existe */}
+                {d.case?.secondaryInsurance && (
+                  <div className="mt-3">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <div
+                        className="inline-flex items-center justify-center w-5 h-5 rounded text-[8px] font-black text-white"
+                        style={{ backgroundColor: d.case.secondaryInsurance.color }}
+                      >
+                        {d.case.secondaryInsurance.shortCode}
+                      </div>
+                      <span className="text-[10px] uppercase tracking-wider font-semibold text-violet">
+                        Med Pay / Cobertura secundaria
+                      </span>
+                    </div>
+                    <div className={`rounded-md border p-3 ${!d.case.pipActive ? 'border-violet/35 bg-violet/5' : 'border-border bg-bg-2/30'}`}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="font-semibold text-text-1 text-[12px]">{d.case.secondaryInsurance.name}</span>
+                        {!d.case.pipActive && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-violet bg-violet/10 px-2 py-0.5 rounded-full">
+                            PIP agotado — activo
+                          </span>
+                        )}
+                      </div>
+                      {d.case.secondaryPolicyNumber && (
+                        <div className="text-[10px] text-text-muted font-mono">{d.case.secondaryPolicyNumber}</div>
+                      )}
+                      {d.case.secondaryInsurance.claimsPhone && (
+                        <a href={`tel:${d.case.secondaryInsurance.claimsPhone}`} className="flex items-center gap-1 text-[10px] text-cyan mt-1 hover:text-cyan/80">
+                          <Phone className="w-3 h-3" /> {d.case.secondaryInsurance.claimsPhone}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Lien */}
@@ -382,6 +422,12 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                     <div className="flex justify-between text-[12px] text-emerald">
                       <span>{t('appliesToPip')}</span>
                       <span>−{fmtUSD(d.financial.pipCovers)}</span>
+                    </div>
+                  )}
+                  {d.financial.medPayCovers > 0 && (
+                    <div className="flex justify-between text-[12px] text-violet">
+                      <span>Cubre Med Pay (secundario)</span>
+                      <span>−{fmtUSD(d.financial.medPayCovers)}</span>
                     </div>
                   )}
                   <div className="border-t border-border pt-2 flex justify-between font-bold text-sm">

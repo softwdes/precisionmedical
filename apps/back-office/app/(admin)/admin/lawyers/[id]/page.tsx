@@ -12,6 +12,9 @@ export default async function LawyerDetailPage({ params }: { params: Promise<{ i
       members: {
         where: { deletedAt: null },
         orderBy: [{ memberRole: 'asc' }, { lastName: 'asc' }],
+        include: {
+          _count: { select: { casesAsAttorney: true } },
+        },
       },
     },
   });
@@ -37,17 +40,20 @@ export default async function LawyerDetailPage({ params }: { params: Promise<{ i
         createdAt: firm.createdAt,
       }}
       members={firm.members.map((m) => ({
-        id: m.id,
-        firstName: m.firstName,
-        lastName: m.lastName,
-        email: m.email,
-        phone: m.phone,
-        address: m.address,
-        city: m.city,
-        state: m.state,
-        zip: m.zip,
-        memberRole: m.memberRole,
-        status: m.status,
+        id:           m.id,
+        firstName:    m.firstName,
+        lastName:     m.lastName,
+        email:        m.email,
+        phone:        m.phone,
+        address:      m.address,
+        city:         m.city,
+        state:        m.state,
+        zip:          m.zip,
+        memberRole:   m.memberRole,
+        status:       m.status,
+        barNumber:    m.barNumber,
+        recoveryRate: m.recoveryRate,
+        casesCount:   m._count.casesAsAttorney,
       }))}
     />
   );

@@ -24,6 +24,16 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const c = await db.case.findUnique({ where: { id: caseId, deletedAt: null }, select: { id: true, caseCode: true } });
   if (!c) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
+  // Idempotency: block duplicate attorney signature on the same case
+  const existing = await db.$queryRaw<{ id: string }[]>`
+    SELECT id FROM lien_signatures
+    WHERE case_id = ${caseId} AND signer_type = 'ATTORNEY'
+    LIMIT 1
+  `;
+  if (existing.length > 0) {
+    return NextResponse.json({ error: 'ALREADY_SIGNED' }, { status: 409 });
+  }
+
   await db.$executeRaw`
     INSERT INTO lien_signatures
       (id, case_id, signer_type, signer_name, signer_email, signature_svg, ip_address, user_agent)

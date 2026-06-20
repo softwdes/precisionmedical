@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manual con Mockups — Precision Medical</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/tabler-icons.min.css" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px;color:#111;background:#fff;padding:2rem 1rem}
+.container{max-width:900px;margin:0 auto}
+.hero{padding:1.5rem 0 1rem;border-bottom:1px solid #e5e7eb;margin-bottom:1.5rem}
+.hero h1{font-size:20px;font-weight:500;margin-bottom:4px}
+.hero p{font-size:13px;color:#6b7280}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 0 16px}
+.tab{padding:5px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:12px;cursor:pointer;background:#fff;color:#6b7280;transition:all .12s;font-family:inherit}
+.tab:hover{background:#f9fafb}
+.tab.on{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd}
+.sec{display:none;flex-direction:column;gap:16px}
+.sec.on{display:flex}
+.flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 0 4px}
+.fb{padding:4px 10px;border-radius:8px;font-size:11px;font-weight:500;border:1px solid #e5e7eb;background:#f9fafb;color:#374151}
+.fa{color:#9ca3af;font-size:12px}
+.frame{border:1px solid #d1d5db;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.chrome{background:#f3f4f6;border-bottom:1px solid #e5e7eb;padding:8px 12px;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot-r{background:#f09595}.dot-y{background:#fac775}.dot-g{background:#97c459}
+.bar{flex:1;background:#fff;border:1px solid #e5e7eb;border-radius:4px;padding:2px 8px;font-size:11px;color:#9ca3af;font-family:"SF Mono",Monaco,Consolas,monospace}
+.app{display:flex;min-height:300px}
+.sidebar{width:148px;border-right:1px solid #f3f4f6;background:#f9fafb;padding:8px;flex-shrink:0}
+.shead{font-size:9px;font-weight:600;color:#9ca3af;padding:8px 6px 4px;text-transform:uppercase;letter-spacing:.07em}
+.sitem{padding:5px 8px;border-radius:6px;font-size:12px;color:#6b7280;cursor:pointer;display:flex;align-items:center;gap:6px;margin-bottom:1px}
+.sitem.active{background:#fff;color:#111;border:1px solid #e5e7eb}
+.sitem i{font-size:14px}
+.main{flex:1;padding:16px;overflow:hidden}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.title{font-size:15px;font-weight:500;color:#111}
+.btn-sm{padding:4px 10px;border-radius:6px;font-size:11px;border:1px solid #d1d5db;background:#f9fafb;color:#111;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-family:inherit}
+.btn-primary{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.btn-violet{background:#7c3aed;color:#fff;border-color:#7c3aed}
+.btn-indigo{background:#4f46e5;color:#fff;border-color:#4f46e5}
+.tag{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:500}
+.tag-new{background:#e6f1fb;color:#185fa5;border:1px solid #b5d4f4}
+.tag-ok{background:#eaf3de;color:#3b6d11;border:1px solid #c0dd97}
+.tag-warn{background:#faeeda;color:#854f0b;border:1px solid #fac775}
+.tag-red{background:#fcebeb;color:#a32d2d;border:1px solid #f7c1c1}
+.tag-purple{background:#eeedfe;color:#534ab7;border:1px solid #afa9ec}
+.tag-signed{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+.row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:12px}
+.row:last-child{border-bottom:none}
+.col-name{flex:1;font-weight:500;color:#111}
+.col-sub{flex:1;color:#6b7280}
+.col-sm{width:90px;color:#6b7280}
+.col-xs{width:70px;text-align:right}
+.avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;flex-shrink:0}
+.av-blue{background:#e6f1fb;color:#185fa5}
+.av-violet{background:#eeedfe;color:#534ab7}
+.av-green{background:#eaf3de;color:#3b6d11}
+.field{flex:1;margin-bottom:0}
+.field-row{display:flex;gap:8px;margin-bottom:8px}
+.flabel{font-size:10px;color:#9ca3af;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em}
+.finput{width:100%;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;background:#fff;color:#111;font-family:inherit}
+.vital-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.vital{background:#f9fafb;border-radius:6px;padding:6px 8px;border:1px solid #e5e7eb}
+.vital-val{font-size:16px;font-weight:500;color:#111}
+.vital-lbl{font-size:10px;color:#9ca3af}
+.dx-row{display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:4px;font-size:11px}
+.progress-ring{display:flex;align-items:center;gap:6px}
+.ring{width:32px;height:32px;border-radius:50%;border:3px solid #e6f1fb;border-top-color:#378add;flex-shrink:0}
+.ring.done{border-color:#c0dd97;border-top-color:#639922}
+.checklist{margin-top:8px}
+.check-item{display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;color:#9ca3af}
+.check-item.done{color:#374151}
+.check-item i{font-size:13px}
+.mfa-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;text-align:center;max-width:240px;margin:0 auto}
+.code-inputs{display:flex;gap:6px;justify-content:center;margin:12px 0}
+.code-digit{width:32px;height:36px;border:1px solid #d1d5db;border-radius:6px;background:#fff;text-align:center;font-size:16px;font-family:"SF Mono",Monaco,Consolas,monospace;color:#111}
+.code-digit.active{border-color:#378add;box-shadow:0 0 0 3px #bfdbfe}
+.lock-banner{background:#faeeda;border:1px solid #fac775;border-radius:6px;padding:8px 12px;font-size:11px;color:#854f0b;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.caption{font-size:12px;color:#6b7280;padding:6px 0 0;display:flex;align-items:center;gap:6px}
+.step-num{width:18px;height:18px;border-radius:50%;background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.soap-section{margin-bottom:8px}
+.soap-label{font-size:10px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.soap-content{background:#f9fafb;border-radius:4px;padding:5px 8px;font-size:11px;color:#111;min-height:24px}
+.search-box{display:flex;align-items:center;gap:6px;border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;margin-bottom:8px;background:#fff}
+.search-box i{color:#9ca3af;font-size:16px}
+.search-box span{font-size:12px;color:#9ca3af}
+.toggle-group{display:inline-flex;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;margin-bottom:8px}
+.tg-btn{padding:3px 10px;font-size:11px;background:#fff;color:#6b7280;cursor:pointer;border:none;font-family:inherit}
+.tg-btn.on{background:#eeedfe;color:#534ab7}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11px}
+.cal-day{padding:4px;text-align:center;border-radius:4px;cursor:pointer;color:#6b7280}
+.cal-day.today{background:#eff6ff;color:#1d4ed8;font-weight:500}
+.cal-day.has-event{position:relative}
+.cal-day.has-event::after{content:'';width:4px;height:4px;border-radius:50%;background:#378add;position:absolute;bottom:2px;left:50%;transform:translateX(-50%)}
+.cal-head{font-size:10px;color:#9ca3af;text-align:center;padding:3px}
+.sign-prereq{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.prereq-item{display:flex;align-items:center;gap:6px;font-size:12px;padding:5px 8px;border-radius:6px;border:1px solid #e5e7eb;background:#f9fafb;color:#374151}
+.prereq-item.ok{border-color:#c0dd97;background:#eaf3de;color:#3b6d11}
+.qr-mock{width:80px;height:80px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;display:flex;align-items:center;justify-content:center;margin:0 auto 8px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){
+  .two-col{grid-template-columns:1fr}
+  .app{flex-direction:column}
+  .sidebar{width:100%;border-right:none;border-bottom:1px solid #e5e7eb}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <h1>Manual con mockups — Precision Medical</h1>
+  <p>Flujos visuales de cada aplicación: Back-office · Clínica · Attorney portal · Walk-in kiosk · Seguridad</p>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab on" onclick="sw('bo',this)"><i class="ti ti-building-hospital" aria-hidden="true"></i> Back-office</button>
+  <button class="tab" onclick="sw('cl',this)"><i class="ti ti-stethoscope" aria-hidden="true"></i> Clínica</button>
+  <button class="tab" onclick="sw('at',this)"><i class="ti ti-scale" aria-hidden="true"></i> Attorney</button>
+  <button class="tab" onclick="sw('fo',this)"><i class="ti ti-device-mobile" aria-hidden="true"></i> Walk-in / Forms</button>
+  <button class="tab" onclick="sw('sec',this)"><i class="ti ti-shield-lock" aria-hidden="true"></i> Seguridad / MFA</button>
+</div>
+
+<!-- ══ BACK-OFFICE ══ -->
+<div id="bo" class="sec on">
+  <div class="flow">
+    <div class="fb">1. Nuevo caso</div><span class="fa">→</span>
+    <div class="fb">2. Intake</div><span class="fa">→</span>
+    <div class="fb">3. Bandeja Edson</div><span class="fa">→</span>
+    <div class="fb">4. Calendario</div><span class="fa">→</span>
+    <div class="fb">5. Admisión</div>
+  </div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3003 / front-office</div></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="shead">Back-office</div>
+        <div class="sitem active"><i class="ti ti-folder" aria-hidden="true"></i>Front Office</div>
+        <div class="sitem"><i class="ti ti-calendar" aria-hidden="true"></i>Calendario</div>
+        <div class="sitem"><i class="ti ti-inbox" aria-hidden="true"></i>Bandeja Edson</div>
+        <div class="sitem"><i class="ti ti-receipt" aria-hidden="true"></i>Billing</div>
+        <div class="sitem"><i class="ti ti-users" aria-hidden="true"></i>Directorio</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div class="title">Front Office</div><button class="btn-sm btn-primary"><i class="ti ti-plus" aria-hidden="true"></i> Nuevo caso</button></div>
+        <div class="row" style="background:#f9fafb;border-radius:6px 6px 0 0;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.05em">
+          <div class="col-name">Paciente</div><div class="col-sub">Abogado / Bufete</div><div class="col-sm">Fecha acc.</div><div class="col-xs">Estado</div>
+        </div>
+        <div class="row"><div class="avatar av-blue">MR</div><div class="col-name">María Rivera<br><span style="font-size:10px;color:#9ca3af">PM-2026-0042</span></div><div class="col-sub">J. Smith · Smith &amp; Assoc.</div><div class="col-sm">12 jun 2026</div><div class="col-xs"><span class="tag tag-warn">Intake</span></div></div>
+        <div class="row"><div class="avatar av-violet">CA</div><div class="col-name">Carlos Acosta<br><span style="font-size:10px;color:#9ca3af">PM-2026-0041</span></div><div class="col-sub">L. Torres · Torres Law</div><div class="col-sm">8 jun 2026</div><div class="col-xs"><span class="tag tag-ok">Activo</span></div></div>
+        <div class="row"><div class="avatar av-green">LP</div><div class="col-name">Lucía Pérez<br><span style="font-size:10px;color:#9ca3af">PM-2026-0040</span></div><div class="col-sub">R. Díaz · Díaz &amp; Partners</div><div class="col-sm">2 jun 2026</div><div class="col-xs"><span class="tag tag-new">Nuevo</span></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">1</div>Front Office — lista de casos. Botón <b>+ Nuevo caso</b> abre el modal de creación.</div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3003 / bandeja-edson</div></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="shead">Back-office</div>
+        <div class="sitem"><i class="ti ti-folder" aria-hidden="true"></i>Front Office</div>
+        <div class="sitem"><i class="ti ti-calendar" aria-hidden="true"></i>Calendario</div>
+        <div class="sitem active"><i class="ti ti-inbox" aria-hidden="true"></i>Bandeja Edson</div>
+        <div class="sitem"><i class="ti ti-receipt" aria-hidden="true"></i>Billing</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div class="title">Bandeja Edson</div><div style="display:flex;gap:4px"><button class="btn-sm btn-primary">Pre-visita</button><button class="btn-sm">Cobranzas</button></div></div>
+        <div class="row">
+          <div class="ring" style="width:32px;height:32px;border-radius:50%;border:3px solid #e6f1fb;border-top-color:#378add;flex-shrink:0"></div>
+          <div style="flex:1"><div style="font-size:12px;font-weight:500">María Rivera <span style="font-size:10px;color:#9ca3af">PM-2026-0042</span></div><div style="font-size:10px;color:#9ca3af">Cita: 25 jun 2026 · 5 días</div></div>
+          <span class="tag tag-warn">5/7 tareas</span>
+        </div>
+        <div style="padding:6px 16px 10px 50px;border-bottom:1px solid #f3f4f6">
+          <div class="checklist">
+            <div class="check-item done"><i class="ti ti-circle-check" style="color:#639922" aria-hidden="true"></i>Bufete asignado</div>
+            <div class="check-item done"><i class="ti ti-circle-check" style="color:#639922" aria-hidden="true"></i>Seguro / PIP registrado</div>
+            <div class="check-item done"><i class="ti ti-circle-check" style="color:#639922" aria-hidden="true"></i>Intake completado</div>
+            <div class="check-item"><i class="ti ti-circle" style="color:#d1d5db" aria-hidden="true"></i>Lien paciente firmado</div>
+            <div class="check-item"><i class="ti ti-circle" style="color:#d1d5db" aria-hidden="true"></i>Lien abogado firmado</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="ring done" style="width:32px;height:32px;border-radius:50%;border:3px solid #c0dd97;border-top-color:#639922;flex-shrink:0"></div>
+          <div style="flex:1"><div style="font-size:12px;font-weight:500">Carlos Acosta <span style="font-size:10px;color:#9ca3af">PM-2026-0041</span></div><div style="font-size:10px;color:#9ca3af">Cita: 22 jun 2026 · 2 días</div></div>
+          <span class="tag tag-ok">7/7 tareas</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">2</div>Bandeja Edson — anillo de progreso por caso. Se expande para ver el checklist completo de 7 tareas.</div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3003 / calendario</div></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="shead">Back-office</div>
+        <div class="sitem"><i class="ti ti-folder" aria-hidden="true"></i>Front Office</div>
+        <div class="sitem active"><i class="ti ti-calendar" aria-hidden="true"></i>Calendario</div>
+        <div class="sitem"><i class="ti ti-inbox" aria-hidden="true"></i>Bandeja Edson</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div class="title">Junio 2026</div><div style="display:flex;gap:4px"><button class="btn-sm"><i class="ti ti-chevron-left" aria-hidden="true"></i></button><button class="btn-sm"><i class="ti ti-chevron-right" aria-hidden="true"></i></button><button class="btn-sm btn-primary"><i class="ti ti-plus" aria-hidden="true"></i> Cita</button></div></div>
+        <div class="cal-grid">
+          <div class="cal-head">Lu</div><div class="cal-head">Ma</div><div class="cal-head">Mi</div><div class="cal-head">Ju</div><div class="cal-head">Vi</div><div class="cal-head">Sa</div><div class="cal-head">Do</div>
+          <div class="cal-day"></div><div class="cal-day"></div><div class="cal-day"></div><div class="cal-day"></div><div class="cal-day"></div><div class="cal-day">1</div><div class="cal-day">2</div>
+          <div class="cal-day">3</div><div class="cal-day">4</div><div class="cal-day">5</div><div class="cal-day">6</div><div class="cal-day">7</div><div class="cal-day">8</div><div class="cal-day">9</div>
+          <div class="cal-day">10</div><div class="cal-day">11</div><div class="cal-day">12</div><div class="cal-day">13</div><div class="cal-day">14</div><div class="cal-day">15</div><div class="cal-day">16</div>
+          <div class="cal-day">17</div><div class="cal-day">18</div><div class="cal-day today">19</div><div class="cal-day has-event">20</div><div class="cal-day has-event">21</div><div class="cal-day has-event">22</div><div class="cal-day">23</div>
+          <div class="cal-day">24</div><div class="cal-day has-event">25</div><div class="cal-day">26</div><div class="cal-day has-event">27</div><div class="cal-day">28</div><div class="cal-day">29</div><div class="cal-day">30</div>
+        </div>
+        <div style="margin-top:10px;padding:7px 10px;background:#eff6ff;border-radius:6px;font-size:11px;color:#1d4ed8;border:1px solid #bfdbfe">
+          <b>Vie 20</b> · 10:00 am — María Rivera con Dr. Martínez
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">3</div>Calendario — puntos azules indican citas. Clic en slot vacío para agendar.</div>
+</div>
+
+<!-- ══ CLINICAL ══ -->
+<div id="cl" class="sec">
+  <div class="flow">
+    <div class="fb">1. Check-in</div><span class="fa">→</span>
+    <div class="fb">2. Triaje</div><span class="fa">→</span>
+    <div class="fb">3. Nota SOAP</div><span class="fa">→</span>
+    <div class="fb">4. Diagnósticos</div><span class="fa">→</span>
+    <div class="fb">5. Firmar nota</div>
+  </div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3002 / checkin / apt_0042</div></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="shead">Clínica</div>
+        <div class="sitem active"><i class="ti ti-clipboard-check" aria-hidden="true"></i>Check-in</div>
+        <div class="sitem"><i class="ti ti-heartbeat" aria-hidden="true"></i>Triaje</div>
+        <div class="sitem"><i class="ti ti-notes-medical" aria-hidden="true"></i>Mis notas</div>
+        <div class="sitem"><i class="ti ti-template" aria-hidden="true"></i>Templates</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div class="title">Check-in — María Rivera</div></div>
+        <div style="font-size:11px;color:#6b7280;margin-bottom:10px">Cita: Vie 20 jun · 10:00 am · Dr. Martínez</div>
+        <div class="sign-prereq">
+          <div class="prereq-item ok"><i class="ti ti-circle-check" aria-hidden="true"></i>Check-in registrado — 10:03 am</div>
+          <div class="prereq-item"><i class="ti ti-signature" style="color:#9ca3af" aria-hidden="true"></i>Firma de asistencia pendiente</div>
+        </div>
+        <button class="btn-sm btn-primary" style="margin-bottom:8px"><i class="ti ti-signature" aria-hidden="true"></i> Capturar firma de asistencia</button>
+        <div style="border:1px dashed #d1d5db;border-radius:6px;height:60px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#9ca3af">Área de firma del paciente</div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">1</div>Check-in — MA registra llegada y captura firma de asistencia.</div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3002 / triaje / apt_0042</div></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="shead">Clínica</div>
+        <div class="sitem"><i class="ti ti-clipboard-check" aria-hidden="true"></i>Check-in</div>
+        <div class="sitem active"><i class="ti ti-heartbeat" aria-hidden="true"></i>Triaje</div>
+        <div class="sitem"><i class="ti ti-notes-medical" aria-hidden="true"></i>Mis notas</div>
+        <div class="sitem"><i class="ti ti-template" aria-hidden="true"></i>Templates</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div class="title">Triaje — María Rivera</div><button class="btn-sm btn-violet"><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardado</button></div>
+        <div class="vital-grid">
+          <div class="vital"><div class="vital-val">120/80</div><div class="vital-lbl">Presión (mmHg)</div></div>
+          <div class="vital"><div class="vital-val">72</div><div class="vital-lbl">Pulso (bpm)</div></div>
+          <div class="vital"><div class="vital-val">36.7°</div><div class="vital-lbl">Temperatura</div></div>
+          <div class="vital"><div class="vital-val">98%</div><div class="vital-lbl">O₂ Sat.</div></div>
+          <div class="vital"><div class="vital-val">62 kg</div><div class="vital-lbl">Peso</div></div>
+          <div class="vital"><div class="vital-val" style="color:#a32d2d">7/10</div><div class="vital-lbl" style="color:#a32d2d">Dolor</div></div>
+        </div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:4px"><i class="ti ti-refresh" aria-hidden="true"></i> Auto-guardado hace 12s · MA: Sandra López</div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">2</div>Triaje — vitales con auto-guardado cada 30s. Nombre del MA se registra automáticamente.</div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3002 / visit / apt_0042</div></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="shead">Clínica</div>
+        <div class="sitem"><i class="ti ti-clipboard-check" aria-hidden="true"></i>Check-in</div>
+        <div class="sitem"><i class="ti ti-heartbeat" aria-hidden="true"></i>Triaje</div>
+        <div class="sitem active"><i class="ti ti-notes-medical" aria-hidden="true"></i>Nota médica</div>
+        <div class="sitem"><i class="ti ti-template" aria-hidden="true"></i>Templates</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div class="title">Nota — María Rivera</div><button class="btn-sm btn-violet"><i class="ti ti-template" aria-hidden="true"></i> Plantilla</button></div>
+        <div class="soap-section"><div class="soap-label">S — Subjetivo</div><div class="soap-content">Paciente refiere dolor cervical 7/10 post-MVA del 12/06. Irradia a hombro derecho.</div></div>
+        <div class="soap-section"><div class="soap-label">O — Objetivo</div><div class="soap-content">TA 120/80, FC 72, T 36.7°, Sat 98%. ROM cervical limitado 60%.</div></div>
+        <div class="soap-section"><div class="soap-label">A — Assessment</div><div class="soap-content">Esguince cervical grado II post-MVA. Contusión de tejidos blandos.</div></div>
+        <div class="soap-section"><div class="soap-label">P — Plan</div><div class="soap-content">Fisioterapia 3x/sem × 6 sem. AINE. Seguimiento en 2 semanas.</div></div>
+        <div style="margin-top:10px">
+          <div class="soap-label" style="margin-bottom:6px">Diagnósticos ICD-10 / SNOMED</div>
+          <div class="toggle-group"><button class="tg-btn on">ICD-10</button><button class="tg-btn">SNOMED CT</button></div>
+          <div class="search-box"><i class="ti ti-search" aria-hidden="true"></i><span>Buscar ICD-10, código o descripción…</span></div>
+          <div class="dx-row"><span class="tag tag-purple" style="font-family:'SF Mono',monospace;font-size:10px">S13.4XXA</span><span style="flex:1;font-size:11px">Esguince de ligamentos cervicales</span><span class="tag tag-purple" style="font-size:9px">PI</span></div>
+          <div class="dx-row"><span class="tag tag-purple" style="font-family:'SF Mono',monospace;font-size:10px">M54.2</span><span style="flex:1;font-size:11px">Cervicalgia</span><span class="tag tag-purple" style="font-size:9px">PI</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">3</div>Nota médica SOAP + diagnósticos. Toggle ICD-10 / SNOMED CT para buscar en el sistema preferido.</div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3002 / visit / apt_0042 — firma</div></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="shead">Clínica</div>
+        <div class="sitem active"><i class="ti ti-notes-medical" aria-hidden="true"></i>Nota médica</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div class="title">Firmar nota</div></div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:10px">Requisitos para firma:</div>
+        <div class="sign-prereq">
+          <div class="prereq-item ok"><i class="ti ti-circle-check" aria-hidden="true"></i>Check-in registrado</div>
+          <div class="prereq-item ok"><i class="ti ti-circle-check" aria-hidden="true"></i>Firma de asistencia capturada</div>
+          <div class="prereq-item ok"><i class="ti ti-circle-check" aria-hidden="true"></i>Triaje completado</div>
+        </div>
+        <button class="btn-sm btn-violet" style="font-size:12px;padding:7px 16px"><i class="ti ti-pen" aria-hidden="true"></i> Firmar nota — irreversible</button>
+        <div style="margin-top:8px;font-size:10px;color:#9ca3af">Nota firmada queda en estado SIGNED y no puede modificarse.</div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">4</div>Firma — el botón solo aparece cuando los 3 requisitos están completos. Acción irreversible.</div>
+</div>
+
+<!-- ══ ATTORNEY ══ -->
+<div id="at" class="sec">
+  <div class="flow">
+    <div class="fb">1. Login</div><span class="fa">→</span>
+    <div class="fb">2. Lista casos</div><span class="fa">→</span>
+    <div class="fb">3. Detalle</div><span class="fa">→</span>
+    <div class="fb">4. Firmar lien</div><span class="fa">→</span>
+    <div class="fb">5. PDF</div>
+  </div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3001 / cases</div></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="shead">Attorney portal</div>
+        <div class="sitem active"><i class="ti ti-folder" aria-hidden="true"></i>Mis casos</div>
+        <div class="sitem"><i class="ti ti-file-description" aria-hidden="true"></i>Documentos</div>
+        <div class="sitem"><i class="ti ti-user" aria-hidden="true"></i>Mi perfil</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div class="title">Mis casos</div><span style="font-size:11px;color:#9ca3af">J. Smith · Smith &amp; Assoc.</span></div>
+        <div class="row" style="background:#f9fafb;border-radius:6px 6px 0 0;font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.05em">
+          <div class="col-name">Paciente</div><div class="col-sm">Fecha</div><div class="col-xs">Lien</div>
+        </div>
+        <div class="row"><div class="avatar av-blue">MR</div><div class="col-name">María Rivera<br><span style="font-size:10px;color:#9ca3af">PM-2026-0042</span></div><div class="col-sm">12 jun 2026</div><div class="col-xs"><span class="tag tag-warn">Pendiente</span></div></div>
+        <div class="row"><div class="avatar av-violet">CA</div><div class="col-name">Carlos Acosta<br><span style="font-size:10px;color:#9ca3af">PM-2026-0039</span></div><div class="col-sm">2 may 2026</div><div class="col-xs"><span class="tag tag-signed">Firmado</span></div></div>
+        <div class="row"><div class="avatar av-green">LP</div><div class="col-name">Lucía Pérez<br><span style="font-size:10px;color:#9ca3af">PM-2026-0035</span></div><div class="col-sm">10 abr 2026</div><div class="col-xs"><span class="tag tag-signed">Firmado</span></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">1</div>Portal attorney — lista de casos del bufete. Columna Lien muestra si falta firma.</div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3001 / cases / PM-2026-0042</div></div>
+    <div class="app">
+      <div class="sidebar">
+        <div class="shead">Attorney portal</div>
+        <div class="sitem active"><i class="ti ti-folder" aria-hidden="true"></i>Mis casos</div>
+        <div class="sitem"><i class="ti ti-file-description" aria-hidden="true"></i>Documentos</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><div class="title">PM-2026-0042 — María Rivera</div></div>
+        <div style="display:flex;gap:6px;margin-bottom:10px"><span class="tag tag-ok">Activo</span><span class="tag tag-warn">Lien pendiente</span></div>
+        <div class="row" style="background:#f9fafb;border-radius:6px;font-size:11px;margin-bottom:10px">
+          <div style="flex:1"><b>Fecha accidente</b><br>12 jun 2026</div>
+          <div style="flex:1"><b>Tipo</b><br>MVA</div>
+          <div style="flex:1"><b>Seguro</b><br>Allstate · PIP activo</div>
+        </div>
+        <div style="margin-bottom:6px;font-size:12px;font-weight:500">Visitas</div>
+        <div class="dx-row"><i class="ti ti-calendar" style="font-size:14px;color:#9ca3af" aria-hidden="true"></i><span style="flex:1">20 jun 2026 · Dr. Martínez</span><span class="tag tag-signed">Firmada</span></div>
+        <div style="margin-top:12px;padding:10px;background:#faeeda;border:1px solid #fac775;border-radius:8px">
+          <div style="font-size:11px;font-weight:600;color:#854f0b;margin-bottom:6px"><i class="ti ti-file-text" aria-hidden="true"></i> Lien de honorarios — pendiente de firma</div>
+          <button class="btn-sm" style="background:#4f46e5;color:#fff;border-color:#4f46e5;font-size:12px"><i class="ti ti-pen" aria-hidden="true"></i> Firmar lien</button>
+          <button class="btn-sm" style="margin-left:6px;font-size:12px"><i class="ti ti-file-download" aria-hidden="true"></i> Ver paquete PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">2</div>Detalle del caso — historial de visitas firmadas + banner de lien pendiente con botón de firma.</div>
+</div>
+
+<!-- ══ WALK-IN / FORMS ══ -->
+<div id="fo" class="sec">
+  <div class="flow">
+    <div class="fb">1. Lobby display</div><span class="fa">→</span>
+    <div class="fb">2. Paciente escanea QR</div><span class="fa">→</span>
+    <div class="fb">3. Walk-in kiosk</div><span class="fa">→</span>
+    <div class="fb">4. Intake multistep</div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="frame">
+        <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">:3004 / lobby / clinic_01</div></div>
+        <div style="padding:24px;text-align:center;background:#f9fafb;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-size:13px;font-weight:500;margin-bottom:4px">Precision Medical</div>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:14px">Escanea para registrarte</div>
+          <div class="qr-mock"><i class="ti ti-qrcode" style="font-size:40px;color:#9ca3af" aria-hidden="true"></i></div>
+          <div style="font-size:10px;color:#9ca3af">Apunta la cámara de tu teléfono</div>
+        </div>
+      </div>
+      <div class="caption"><div class="step-num">1</div>Lobby display — iPad en recepción con QR.</div>
+    </div>
+    <div>
+      <div class="frame">
+        <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">:3004 / walkin / clinic_01</div></div>
+        <div style="padding:16px;min-height:220px">
+          <div style="font-size:13px;font-weight:500;margin-bottom:2px">Bienvenido / Welcome</div>
+          <div style="font-size:10px;color:#6b7280;margin-bottom:12px">Precision Medical</div>
+          <div class="field-row">
+            <div class="field"><div class="flabel">Nombre</div><div class="finput">María</div></div>
+            <div class="field"><div class="flabel">Apellido</div><div class="finput">Rivera</div></div>
+          </div>
+          <div style="margin-bottom:10px"><div class="flabel">Teléfono</div><div class="finput">(305) 555-0142</div></div>
+          <button class="btn-sm btn-primary" style="width:100%;justify-content:center;font-size:12px;padding:7px"><i class="ti ti-arrow-right" aria-hidden="true"></i> Continuar</button>
+          <div style="text-align:right;margin-top:8px"><button class="btn-sm" style="font-size:10px;color:#9ca3af">English</button></div>
+        </div>
+      </div>
+      <div class="caption"><div class="step-num">2</div>Walk-in kiosk — formulario mínimo con toggle idioma.</div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3004 / c / [token]</div></div>
+    <div class="app">
+      <div class="main">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:10px">
+          <div style="flex:1;height:4px;background:#378add;border-radius:2px"></div>
+          <div style="flex:1;height:4px;background:#378add;border-radius:2px"></div>
+          <div style="flex:1;height:4px;background:#e5e7eb;border-radius:2px"></div>
+          <div style="flex:1;height:4px;background:#e5e7eb;border-radius:2px"></div>
+          <div style="flex:1;height:4px;background:#e5e7eb;border-radius:2px"></div>
+        </div>
+        <div style="font-size:11px;color:#6b7280;margin-bottom:10px">Paso 2 de 5 — Información del accidente</div>
+        <div class="topbar" style="margin-bottom:10px"><div class="title">Detalles del accidente</div></div>
+        <div class="field-row">
+          <div class="field"><div class="flabel">Fecha del accidente</div><div class="finput">12/06/2026</div></div>
+          <div class="field"><div class="flabel">Tipo</div><div class="finput">Accidente de auto (MVA)</div></div>
+        </div>
+        <div style="margin-bottom:8px"><div class="flabel">Descripción breve</div><div class="finput" style="min-height:40px">Impacto trasero en la Calle 8. Dolor inmediato en cuello y espalda.</div></div>
+        <div class="field-row">
+          <div class="field"><div class="flabel">¿Tenías seguro activo?</div><div class="finput">Sí</div></div>
+          <div class="field"><div class="flabel">Aseguradora</div><div class="finput">Allstate</div></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px">
+          <button class="btn-sm"><i class="ti ti-arrow-left" aria-hidden="true"></i> Anterior</button>
+          <button class="btn-sm btn-primary">Siguiente <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption"><div class="step-num">3</div>Intake multistep — 5 pasos, barra de progreso. El paciente completa desde su teléfono.</div>
+</div>
+
+<!-- ══ SECURITY / MFA ══ -->
+<div id="sec" class="sec">
+  <div class="flow">
+    <div class="fb">1. Login normal</div><span class="fa">→</span>
+    <div class="fb">2. Lockout (5 intentos)</div><span class="fa">→</span>
+    <div class="fb">3. Login + MFA</div><span class="fa">→</span>
+    <div class="fb">4. Configurar MFA</div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="frame">
+        <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3003 / login</div></div>
+        <div style="padding:24px;display:flex;flex-direction:column;align-items:center;min-height:240px">
+          <div style="font-size:14px;font-weight:500;margin-bottom:16px">Precision Medical</div>
+          <div style="width:100%;margin-bottom:8px"><div class="flabel">Correo</div><div class="finput">erick@precisionmedicalcare.com</div></div>
+          <div style="width:100%;margin-bottom:12px"><div class="flabel">Contraseña</div><div class="finput">••••••••••</div></div>
+          <button class="btn-sm btn-primary" style="width:100%;justify-content:center;font-size:12px;padding:7px">Ingresar</button>
+          <div style="font-size:10px;color:#9ca3af;margin-top:8px;cursor:pointer">¿Olvidaste tu contraseña?</div>
+        </div>
+      </div>
+      <div class="caption"><div class="step-num">1</div>Login estándar — correo + contraseña.</div>
+    </div>
+    <div>
+      <div class="frame">
+        <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3003 / login</div></div>
+        <div style="padding:16px;min-height:240px">
+          <div style="font-size:14px;font-weight:500;text-align:center;margin-bottom:12px">Precision Medical</div>
+          <div class="lock-banner"><i class="ti ti-lock" aria-hidden="true"></i>Cuenta bloqueada — 12 min 43s</div>
+          <div style="margin-bottom:8px"><div class="flabel">Correo</div><div class="finput" style="color:#9ca3af">correo@ejemplo.com</div></div>
+          <div style="margin-bottom:12px"><div class="flabel">Contraseña</div><div class="finput" style="color:#9ca3af">••••••••</div></div>
+          <button class="btn-sm" style="width:100%;justify-content:center;font-size:12px;padding:7px;opacity:.4" disabled>Ingresar</button>
+          <div style="font-size:10px;color:#854f0b;margin-top:8px;text-align:center">5 intentos fallidos. Reintenta en 13 min.</div>
+        </div>
+      </div>
+      <div class="caption"><div class="step-num">2</div>Lockout — banner con tiempo restante, botón deshabilitado.</div>
+    </div>
+    <div>
+      <div class="frame">
+        <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3003 / login — MFA</div></div>
+        <div style="padding:20px;display:flex;flex-direction:column;align-items:center;min-height:240px">
+          <div style="font-size:14px;font-weight:500;margin-bottom:4px">Verificación MFA</div>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:16px;text-align:center">Ingresa el código de tu app autenticadora</div>
+          <div class="code-inputs">
+            <input class="code-digit" value="4" readonly><input class="code-digit" value="8" readonly><input class="code-digit" value="3" readonly>
+            <input class="code-digit active" value="" readonly placeholder=" "><input class="code-digit" value="" readonly placeholder=" "><input class="code-digit" value="" readonly placeholder=" ">
+          </div>
+          <div style="font-size:10px;color:#9ca3af;margin-bottom:14px">El código cambia cada 30 segundos</div>
+          <button class="btn-sm btn-primary" style="width:100%;justify-content:center;font-size:12px;padding:7px">Verificar →</button>
+          <button class="btn-sm" style="width:100%;justify-content:center;font-size:11px;padding:5px;margin-top:6px;color:#6b7280"><i class="ti ti-arrow-left" aria-hidden="true"></i> Volver</button>
+        </div>
+      </div>
+      <div class="caption"><div class="step-num">3</div>Paso MFA — aparece tras la contraseña cuando MFA está activo.</div>
+    </div>
+    <div>
+      <div class="frame">
+        <div class="chrome"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span><div class="bar">localhost:3003 / settings / security</div></div>
+        <div style="padding:16px;min-height:240px">
+          <div style="font-size:13px;font-weight:500;margin-bottom:12px">Seguridad</div>
+          <div style="border:1px solid #d1d5db;border-radius:12px;padding:12px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <i class="ti ti-qrcode" style="font-size:18px;color:#378add" aria-hidden="true"></i>
+              <div style="flex:1"><div style="font-size:12px;font-weight:500">Autenticación de dos factores</div><div style="font-size:10px;color:#6b7280">Google Authenticator, Authy…</div></div>
+              <span class="tag tag-ok" style="font-size:9px">Activo</span>
+            </div>
+            <div style="border-top:1px solid #f3f4f6;padding-top:8px">
+              <div style="font-size:11px;color:#3b6d11;display:flex;align-items:center;gap:4px;margin-bottom:8px"><i class="ti ti-circle-check" aria-hidden="true"></i>MFA configurado. Cuenta protegida.</div>
+              <button class="btn-sm" style="font-size:10px;color:#a32d2d;border-color:#f7c1c1;background:#fcebeb"><i class="ti ti-trash" aria-hidden="true"></i> Eliminar autenticador</button>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:6px 10px;background:#e1f5ee;border:1px solid #5dcaa5;border-radius:6px;font-size:10px;color:#085041">
+            HIPAA · MFA requerido para PHI — 45 CFR § 164.312(d)
+          </div>
+        </div>
+      </div>
+      <div class="caption"><div class="step-num">4</div>Settings › Seguridad — estado de MFA y opción para eliminar o configurar.</div>
+    </div>
+  </div>
+</div>
+
+</div>
+<script>
+function sw(id,btn){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  btn.classList.add('on');
+}
+</script>
+</body>
+</html>

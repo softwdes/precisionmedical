@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manual de Usuario — Precision Medical</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#111;font-size:15px;line-height:1.7;background:#fff;padding:2rem 1rem}
+.container{max-width:820px;margin:0 auto}
+h1{font-size:22px;font-weight:500;margin-bottom:4px;color:#111}
+h3{font-size:15px;font-weight:500;margin:1.25rem 0 .5rem;color:#111}
+p{margin:.5rem 0;color:#555}
+.hero{padding:2rem 0 1.5rem;border-bottom:1px solid #e5e7eb;margin-bottom:1.5rem}
+.hero p{font-size:14px}
+.tab-row{display:flex;gap:6px;margin-bottom:1.5rem;flex-wrap:wrap}
+.tab{padding:6px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;cursor:pointer;background:#fff;color:#6b7280;transition:all .15s;font-family:inherit}
+.tab:hover{background:#f9fafb}
+.tab.active{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd}
+.section{display:none}
+.section.active{display:block}
+.app-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:500;margin-bottom:.75rem}
+.badge-bo{background:#fff8e7;color:#92400e;border:1px solid #fde68a}
+.badge-cl{background:#f3f0ff;color:#5b21b6;border:1px solid #ddd6fe}
+.badge-at{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.badge-fo{background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+.step-list{counter-reset:steps;list-style:none;margin:.75rem 0 1.25rem}
+.step-list li{counter-increment:steps;display:flex;gap:12px;padding:.6rem 0;border-bottom:1px solid #f3f4f6}
+.step-list li:last-child{border-bottom:none}
+.step-num{width:24px;height:24px;border-radius:50%;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.step-num::before{content:counter(steps)}
+.step-body{flex:1}
+.step-body strong{color:#111;font-weight:500}
+.step-body p{font-size:13px;margin:1px 0;color:#6b7280}
+.path{display:inline-block;font-family:"SF Mono",Monaco,Consolas,monospace;font-size:12px;background:#f3f4f6;padding:1px 7px;border-radius:4px;color:#374151}
+.note{margin:.75rem 0;padding:.65rem 1rem;background:#f9fafb;border-left:3px solid #93c5fd;border-radius:0 8px 8px 0;font-size:13px;color:#6b7280}
+.warn{border-left-color:#f59e0b;background:#fffbeb;color:#92400e}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.role-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:1rem 0}
+.role-card{border:1px solid #e5e7eb;border-radius:8px;padding:.75rem;background:#f9fafb}
+.role-card .role-name{font-size:13px;font-weight:500;color:#111}
+.role-card .role-app{font-size:11px;color:#9ca3af;margin-top:2px}
+.flow-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:1rem 0}
+.flow-box{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid #e5e7eb;background:#f9fafb;color:#374151}
+.flow-arrow{color:#9ca3af;font-size:14px}
+.url-chip{display:inline-block;font-family:"SF Mono",Monaco,Consolas,monospace;font-size:11px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:2px 8px;color:#6b7280}
+.route{display:inline-flex;align-items:center;gap:5px;font-family:"SF Mono",Monaco,Consolas,monospace;font-size:11px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:3px 9px;color:#3730a3;margin:4px 0;white-space:nowrap}
+.route-label{font-size:10px;font-weight:500;background:#c7d2fe;color:#312e81;border-radius:3px;padding:1px 5px;font-family:inherit}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:600px){
+  body{padding:1rem .75rem}
+  .tab{padding:5px 10px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h2 class="sr-only">Manual de usuario del sistema Precision Medical — flujo completo de operaciones clínicas</h2>
+
+<div class="hero">
+  <h1>Manual de usuario — Precision Medical</h1>
+  <p>Guía paso a paso del flujo completo: desde la apertura de caso hasta el cierre con bufete.</p>
+</div>
+
+<div class="tab-row">
+  <button class="tab active" onclick="show('overview',this)">Visión general</button>
+  <button class="tab" onclick="show('backoffice',this)">Back-office</button>
+  <button class="tab" onclick="show('clinical',this)">Clínica</button>
+  <button class="tab" onclick="show('attorney',this)">Portal abogados</button>
+  <button class="tab" onclick="show('walkin',this)">Walk-in kiosk</button>
+  <button class="tab" onclick="show('security',this)">Seguridad / MFA</button>
+</div>
+
+<!-- ── OVERVIEW ── -->
+<div id="overview" class="section active">
+
+  <div class="card">
+    <h3>Las cuatro aplicaciones</h3>
+    <div class="role-grid">
+      <div class="role-card">
+        <div class="role-name">Back-office</div>
+        <div class="role-app">localhost:3003</div>
+        <div class="role-app" style="margin-top:4px">Admin · Edson · Brunella</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Clinical</div>
+        <div class="role-app">localhost:3002</div>
+        <div class="role-app" style="margin-top:4px">Doctor · MA · Triaje</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Attorney portal</div>
+        <div class="role-app">localhost:3001</div>
+        <div class="role-app" style="margin-top:4px">Abogado · Vista de casos</div>
+      </div>
+      <div class="role-card">
+        <div class="role-name">Forms</div>
+        <div class="role-app">localhost:3004</div>
+        <div class="role-app" style="margin-top:4px">Intake paciente · Walk-in</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Flujo de vida de un caso (de inicio a fin)</h3>
+    <div class="flow-row">
+      <div class="flow-box">1. Nuevo caso</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">2. Intake (paciente)</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">3. Admisión</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">4. Cita agendada</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-box">5. Check-in</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">6. Triaje (MA)</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">7. Visita médica</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">8. Firma nota</div>
+    </div>
+    <div class="flow-row">
+      <div class="flow-box">9. Billing / CPT</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">10. Lien abogado</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box">11. Settlement</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Roles y quién usa qué</h3>
+    <ul class="step-list">
+      <li><div class="step-num" style="background:#fef3c7;color:#92400e">A</div><div class="step-body"><strong>Admin / Edson</strong><p>Back-office. Abre casos, intake, firma lien paciente, coordina bufetes.</p></div></li>
+      <li><div class="step-num" style="background:#ede9fe;color:#5b21b6">D</div><div class="step-body"><strong>Doctor (Provider)</strong><p>Clinical. Completa nota de visita, diagnósticos, CPT, firma.</p></div></li>
+      <li><div class="step-num" style="background:#ecfdf5;color:#065f46">M</div><div class="step-body"><strong>Medical Assistant (MA)</strong><p>Clinical. Check-in, firma asistencia, triaje, vitales.</p></div></li>
+      <li><div class="step-num" style="background:#eff6ff;color:#1e40af">L</div><div class="step-body"><strong>Abogado (Lawyer)</strong><p>Attorney portal. Ve casos, firma lien, descarga paquete de documentos.</p></div></li>
+      <li><div class="step-num" style="background:#fce7f3;color:#9d174d">B</div><div class="step-body"><strong>Billing (Brunella)</strong><p>Back-office. Revisa billing, CPT codes, cierre financiero.</p></div></li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ── BACK-OFFICE ── -->
+<div id="backoffice" class="section">
+
+  <div class="app-badge badge-bo">&#x1F3E5; Back-office · localhost:3003</div>
+
+  <div class="card">
+    <h3>1. Crear un nuevo caso</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ir a Front Office</strong><p>Menú lateral → <span class="path">Front Office</span> → botón <span class="path">+ Nuevo caso</span> en la esquina superior derecha.</p><div class="route"><span class="route-label">URL</span>localhost:3003/front-office</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Completar el modal</strong><p>Nombre, apellido, teléfono del paciente. Fecha de accidente. Tipo de accidente (MVA, Slip &amp; Fall, etc.). Clínica asignada.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Asignar bufete y abogado</strong><p>Seleccionar de la lista de bufetes existentes. Si el bufete no existe, crearlo primero en <span class="path">Directorio → Bufetes</span>.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Guardar</strong><p>El sistema genera un código de caso único (ej. <span class="path">PM-2026-0042</span>) y el caso queda en estado <em>Nuevo referido</em>.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>2. Enviar intake al paciente</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Abrir el caso</strong><p>Desde Front Office clic en el caso → botón <span class="path">Enviar formulario de intake</span>.</p><div class="route"><span class="route-label">URL</span>localhost:3003/cases/[caseId]</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>El paciente recibe el link</strong><p>Un token único se genera. El paciente lo completa en Forms (localhost:3004) desde su teléfono.</p><div class="route"><span class="route-label">URL</span>localhost:3004/c/[token]</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Verificar completado</strong><p>Cuando el paciente termina, el estado del caso cambia a <em>Intake completado</em>. Edson ve la tarea marcada en su bandeja.</p><div class="route"><span class="route-label">URL</span>localhost:3003/edson</div></div></li>
+    </ul>
+    <div class="note">El paciente no necesita cuenta. El link del token funciona desde cualquier navegador.</div>
+  </div>
+
+  <div class="card">
+    <h3>3. Bandeja Edson (seguimiento de casos)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ir a la Bandeja Edson</strong><p>Menú lateral → <span class="path">Bandeja Edson</span>.</p><div class="route"><span class="route-label">URL</span>localhost:3003/edson</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Tab "Pre-visita"</strong><p>Muestra casos con citas próximas (14 días). Cada fila tiene un anillo de progreso con las tareas pendientes: bufete asignado, seguro, PIP, intake, lien paciente, lien abogado, cita confirmada.</p><div class="route"><span class="route-label">URL</span>localhost:3003/edson?tab=pre-visit</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Expandir fila</strong><p>Clic en la fila para ver el checklist completo y los accesos rápidos (Ver caso · Llamar · Email bufete).</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Tab "Cobranzas"</strong><p>Casos activos/cerrados ordenados por días desde último contacto. Rojo = +60 días sin contacto.</p><div class="route"><span class="route-label">URL</span>localhost:3003/edson?tab=collections</div></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4. Firmar lien del paciente</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ir al caso</strong><p>Front Office → clic en el caso → sección <em>Lien / Firmas</em>.</p><div class="route"><span class="route-label">URL</span>localhost:3003/cases/[caseId]</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Firma paciente</strong><p>Botón <span class="path">Firma paciente</span>. El paciente firma en el pad o se envía el link al teléfono.</p><div class="route"><span class="route-label">URL</span>localhost:3003/cases/[caseId]/sign</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Firma clínica</strong><p>Admin firma en nombre de la clínica. Ambas firmas quedan con timestamp en el PDF del lien.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>5. Agendar cita</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ir al Calendario</strong><p>Menú lateral → <span class="path">Calendario</span>. Vista semanal o mensual.</p><div class="route"><span class="route-label">URL</span>localhost:3003/calendar</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Nueva cita</strong><p>Clic en el slot de tiempo → seleccionar paciente/caso, doctor, tipo de visita. Guardar.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Confirmar con paciente</strong><p>Desde el caso → botón <span class="path">Confirmar cita</span> o llamar directamente.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>6. Admisión (día de la visita)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ir a Admisión</strong><p>Menú lateral → <span class="path">Admisión</span> → seleccionar cita del día.</p><div class="route"><span class="route-label">URL</span>localhost:3003/admission</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Revisar cobertura PIP</strong><p>El sistema muestra si el PIP está activo o agotado. Si hay seguro secundario, aparece la sección Med Pay en violeta.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Registrar copago</strong><p>Ingresar monto cobrado si aplica. Guardar.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>7. Billing (post-visita)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Acceder a Billing</strong><p>Menú lateral → <span class="path">Billing</span>. Vista de Brunella con resumen de servicios facturados.</p><div class="route"><span class="route-label">URL</span>localhost:3003/billing</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Revisar CPT codes</strong><p>Los CPT codes que el doctor ingresó en la nota aparecen aquí con sus montos. Verificar que estén completos.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Actualizar estado</strong><p>Marcar como enviado a seguro, recibido, o en disputa según corresponda.</p></div></li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ── CLINICAL ── -->
+<div id="clinical" class="section">
+
+  <div class="app-badge badge-cl">&#x1FA7A; Clinical · localhost:3002</div>
+
+  <div class="card">
+    <h3>1. Check-in del paciente (MA)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Dashboard MA</strong><p>Al ingresar se muestra la lista de citas del día. Buscar al paciente por nombre o caso.</p><div class="route"><span class="route-label">URL</span>localhost:3002/doctor</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Botón Check-in</strong><p>Clic en <span class="path">Check-in</span> en la fila del paciente. El sistema registra la hora exacta.</p><div class="route"><span class="route-label">URL</span>localhost:3002/checkin/[appointmentId]</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Firma de asistencia</strong><p>El paciente firma en el pad o tablet que el MA le presenta. Botón <span class="path">Firma asistencia</span>.</p><div class="route"><span class="route-label">URL</span>localhost:3002/checkin/[appointmentId] → sección firma</div></div></li>
+    </ul>
+    <div class="note warn">Sin check-in y sin firma de asistencia, la nota médica no se puede firmar. Son requisitos del sistema.</div>
+  </div>
+
+  <div class="card">
+    <h3>2. Triaje (MA)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ir a Triaje</strong><p>Desde la cita → botón <span class="path">Triaje</span>, o menú lateral → <span class="path">Triaje</span> → seleccionar cita.</p><div class="route"><span class="route-label">URL</span>localhost:3002/checkin/[appointmentId]/triage</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Ingresar vitales</strong><p>Presión arterial (sistólica/diastólica), pulso, temperatura, peso, talla, saturación de O₂, escala de dolor (0–10).</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Auto-guardado</strong><p>El triaje guarda automáticamente cada 30 segundos. También hay botón <span class="path">Guardar</span> manual. El nombre del MA se registra automáticamente.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>3. Nota de visita médica (Doctor)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Dashboard Doctor</strong><p>Muestra las citas del día con KPIs: citas totales, completadas, en progreso, labs pendientes.</p><div class="route"><span class="route-label">URL</span>localhost:3002/doctor</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Abrir nota</strong><p>Clic en <span class="path">Iniciar nota</span> junto a la cita del paciente.</p><div class="route"><span class="route-label">URL</span>localhost:3002/visit/[appointmentId]</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Cargar template (opcional)</strong><p>Botón <span class="path">Plantilla</span> en la esquina superior. Seleccionar una plantilla para pre-llenar las secciones SOAP.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Completar secciones SOAP</strong><p>Chief Complaint · HPI · ROS · Examen físico · Assessment · Plan. Los vitales del triaje aparecen pre-llenados.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Diagnósticos (ICD-10 / SNOMED)</strong><p>Sección 7 de la nota. Clic en <span class="path">+ Agregar</span>. Escribir código o descripción. Usar toggle <span class="path">ICD-10</span> / <span class="path">SNOMED CT</span> para buscar por el sistema que prefieras. Los diagnósticos PI-relevantes aparecen marcados con <span class="path">PI</span>.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>CPT codes (servicios)</strong><p>Sección de servicios. Buscar en el catálogo CPT o ingresar el código. Cada servicio tiene unidades y descripción.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Guardar borrador</strong><p>Botón <span class="path">Guardar borrador</span>. La nota queda en estado DRAFT y se puede editar.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4. Firmar la nota médica</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Verificar prerrequisitos</strong><p>El sistema verifica automáticamente: ✓ check-in registrado · ✓ firma de asistencia · ✓ triaje completo. Si falta alguno, aparece un banner rojo indicando qué falta.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Botón "Firmar nota"</strong><p>Disponible solo cuando los tres requisitos están completos. La firma es irreversible — la nota queda en estado SIGNED.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>La cita pasa a COMPLETED</strong><p>El sistema marca automáticamente la cita como completada en el calendario.</p></div></li>
+    </ul>
+    <div class="note warn">Una nota firmada no se puede modificar. Si hay un error, contactar al administrador para generar una nota de corrección.</div>
+  </div>
+
+  <div class="card">
+    <h3>5. Templates de notas</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Gestionar templates</strong><p>Menú lateral → <span class="path">Templates</span>. Ver, crear, editar y eliminar plantillas de notas.</p><div class="route"><span class="route-label">URL</span>localhost:3002/doctor/templates</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Crear template</strong><p>Botón <span class="path">+ Nuevo template</span>. Asignar nombre, especialidad, y pre-llenar las secciones que apliquen.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Marcar favorito</strong><p>Estrella en la fila del template. Los favoritos aparecen primero en el picker de notas.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>6. Imprimir nota (PDF)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Nota firmada</strong><p>Desde la nota firmada → botón <span class="path">Imprimir</span> o <span class="path">Vista de impresión</span>.</p><div class="route"><span class="route-label">URL</span>localhost:3002/visit/[appointmentId]/print</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Guardar como PDF</strong><p>En el diálogo de impresión del navegador, seleccionar <em>"Guardar como PDF"</em> como destino.</p></div></li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ── ATTORNEY ── -->
+<div id="attorney" class="section">
+
+  <div class="app-badge badge-at">&#x2696;&#xFE0F; Attorney portal · localhost:3001</div>
+
+  <div class="card">
+    <h3>1. Acceso del abogado</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ingresar</strong><p>El admin crea la cuenta del abogado en back-office → Directorio → Abogados. El abogado recibe credenciales por correo.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Login</strong><p>Ir a <span class="url-chip">localhost:3001</span> → ingresar correo y contraseña.</p><div class="route"><span class="route-label">URL</span>localhost:3001/login</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Dashboard de casos</strong><p>Se muestran solo los casos asignados a ese abogado / bufete.</p><div class="route"><span class="route-label">URL</span>localhost:3001/cases</div></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>2. Ver un caso</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Lista de casos</strong><p>Clic en el caso deseado. Se muestra la información del paciente, estado, fechas de visita y documentos.</p><div class="route"><span class="route-label">URL</span>localhost:3001/cases/[caseId]</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Historial de visitas</strong><p>Cada visita completada aparece con diagnósticos (ICD-10) y servicios (CPT). Los datos solo son visibles una vez que la nota está firmada por el doctor.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>3. Firmar el lien (abogado)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ir a la sección Lien</strong><p>Desde el caso → sección <em>Lien / Firmas</em>.</p><div class="route"><span class="route-label">URL</span>localhost:3001/cases/[caseId]</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Revisar el lien</strong><p>Leer el documento de lien generado. Verificar monto, fechas, partes.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Firmar</strong><p>Botón <span class="path">Firmar lien</span>. La firma queda con timestamp y es idempotente (firmar dos veces no duplica la firma).</p><div class="route"><span class="route-label">URL</span>localhost:3001/cases/[caseId]/sign</div></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4. Descargar paquete de documentos</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Desde el caso</strong><p>Botón <span class="path">Ver paquete de documentos</span> (se abre en nueva pestaña).</p><div class="route"><span class="route-label">URL</span>localhost:3001/cases/[caseId]/package</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Contenido del paquete</strong><p>Incluye: portada con tabla de contenidos · sección lien con firmas · notas de visita por fecha con diagnósticos y CPT.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Guardar como PDF</strong><p>Botón <span class="path">Imprimir / Guardar como PDF</span> → en el diálogo del navegador elegir "Guardar como PDF".</p></div></li>
+    </ul>
+    <div class="note">El paquete está disponible solo cuando hay al menos una nota firmada en el caso.</div>
+  </div>
+
+</div>
+
+<!-- ── WALK-IN ── -->
+<div id="walkin" class="section">
+
+  <div class="app-badge badge-fo">&#x1F4F1; Walk-in kiosk · Forms</div>
+
+  <div class="card">
+    <h3>Cómo funciona el walk-in</h3>
+    <p style="margin-bottom:.75rem;color:#555">Para pacientes que llegan sin cita. La recepción tiene un iPad con el lobby display que muestra el QR. El paciente escanea y llena el formulario.</p>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Lobby display</strong><p>En recepción abrir: <span class="url-chip">localhost:3004/lobby/[clinicId]</span>. Pantalla con QR decorativo y link al kiosk.</p><div class="route"><span class="route-label">URL</span>localhost:3004/lobby/[clinicId]</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Paciente escanea</strong><p>Con la cámara del teléfono → se abre el kiosk en: <span class="url-chip">localhost:3004/walkin/[clinicId]</span>.</p><div class="route"><span class="route-label">URL</span>localhost:3004/walkin/[clinicId]</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>El paciente completa el formulario</strong><p>Nombre, apellido, teléfono. Disponible en español e inglés (toggle en la pantalla).</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Sistema crea el caso</strong><p>Si el teléfono ya existe, usa el paciente existente. Si es nuevo, crea uno. El caso queda con <em>source: WALK_IN</em>.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Redirige al intake</strong><p>El paciente queda en el formulario de intake para completar sus datos clínicos antes de pasar con el doctor.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Intake del paciente (Forms)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Acceso</strong><p>Vía link enviado por admin o vía walk-in. La URL tiene un token único: <span class="url-chip">/c/[token]</span>.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Formulario multipasos</strong><p>Datos personales · información del accidente · seguro médico · síntomas · historial médico · firma de autorización.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Completado</strong><p>Al finalizar, el caso en back-office pasa a estado <em>Intake completado</em>. Edson ve la tarea marcada.</p></div></li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ── SECURITY ── -->
+<div id="security" class="section">
+
+  <div class="app-badge badge-bo">&#x1F512; Seguridad</div>
+
+  <div class="card">
+    <h3>Login y bloqueo de cuenta</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ingresar credenciales</strong><p>En cualquiera de las 3 apps: correo institucional + contraseña.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>5 intentos fallidos</strong><p>La cuenta se bloquea automáticamente por 15 minutos. El sistema muestra el tiempo restante en la pantalla de login.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Bloqueos progresivos</strong><p>Si se vuelve a fallar después de desbloquear: 30 min → 60 min → 120 min → 24 horas máximo.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Desbloqueo automático</strong><p>Al vencer el tiempo, el bloqueo se libera solo. No es necesario contactar al admin.</p></div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Configurar MFA (autenticación de dos factores)</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Descargar app autenticadora</strong><p>Google Authenticator, Authy, o cualquier app TOTP compatible (iOS o Android).</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Ir a configuración de seguridad</strong><p>En back-office: <span class="url-chip">localhost:3003/settings/security</span>. Botón <span class="path">Configurar autenticador</span>.</p><div class="route"><span class="route-label">URL</span>localhost:3003/settings/security</div></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Escanear el QR</strong><p>Abrir la app autenticadora → icono "+" → escanear el código QR que muestra la pantalla. Si no podés escanear, ingresar la clave manual que aparece debajo.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Ingresar código de verificación</strong><p>La app genera un código de 6 dígitos que cambia cada 30 segundos. Ingresarlo en el campo y clic en <span class="path">Activar MFA</span>.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>MFA activo</strong><p>A partir de ahora, en cada login se pedirá el código después de la contraseña.</p></div></li>
+    </ul>
+    <div class="note warn">Guardá la clave manual en un lugar seguro. Si perdés el teléfono, la necesitás para recuperar el acceso.</div>
+  </div>
+
+  <div class="card">
+    <h3>Login con MFA habilitado</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Ingresar correo y contraseña</strong><p>El proceso habitual.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Pantalla de código MFA</strong><p>Abrir la app autenticadora → ver el código de 6 dígitos → ingresarlo en el campo que aparece.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Verificar</strong><p>Clic en <span class="path">Verificar →</span>. Si el código es correcto, acceso concedido.</p></div></li>
+    </ul>
+    <div class="note">El código cambia cada 30 segundos. Si expiró, esperar al siguiente ciclo.</div>
+  </div>
+
+  <div class="card">
+    <h3>Contraseña olvidada</h3>
+    <ul class="step-list">
+      <li><div class="step-num"></div><div class="step-body"><strong>Link en la pantalla de login</strong><p>Clic en <span class="path">¿Olvidaste tu contraseña?</span> (solo en back-office y web admin).</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Ingresar correo</strong><p>Se envía un link de restablecimiento al correo institucional.</p></div></li>
+      <li><div class="step-num"></div><div class="step-body"><strong>Seguir el link</strong><p>El link expira en 1 hora. Ingresar la nueva contraseña dos veces y confirmar.</p></div></li>
+    </ul>
+  </div>
+
+</div>
+
+</div>
+<script>
+function show(id,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

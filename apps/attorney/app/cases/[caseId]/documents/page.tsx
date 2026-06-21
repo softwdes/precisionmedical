@@ -151,7 +151,7 @@ export default async function DocumentPackagePage({ params }: Props) {
               signedByName: true,
               diagnoses: {
                 orderBy: { sortOrder: 'asc' },
-                select: { icdCode: true, description: true, isPrimary: true },
+                select: { icd10Code: true, icd10Label: true, sortOrder: true },
               },
               serviceCodes: {
                 select: { cptCode: true, description: true, units: true },
@@ -390,9 +390,9 @@ export default async function DocumentPackagePage({ params }: Props) {
                   <div className="note-header">
                     <div>
                       <div className="note-date">
-                        Visita #{idx + 1} · {fmtDate(appt.appointmentDate)}
+                        Visita #{idx + 1} · {fmtDate(appt.scheduledFor)}
                       </div>
-                      <div className="note-type">{appt.appointmentType ?? 'Consulta médica'}</div>
+                      <div className="note-type">Consulta médica</div>
                     </div>
                     {note.signedAt ? (
                       <div className="note-signed">
@@ -451,8 +451,8 @@ export default async function DocumentPackagePage({ params }: Props) {
                       <div className="note-field-label">Diagnósticos (ICD-10)</div>
                       <div style={{ marginTop: 6 }}>
                         {note.diagnoses.map((dx) => (
-                          <span key={dx.icdCode} className="dx-chip">
-                            {dx.icdCode}{dx.isPrimary ? ' ★' : ''} — {dx.description}
+                          <span key={dx.icd10Code} className="dx-chip">
+                            {dx.icd10Code}{dx.sortOrder === 0 ? ' ★' : ''} — {dx.icd10Label}
                           </span>
                         ))}
                       </div>

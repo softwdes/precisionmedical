@@ -135,123 +135,25 @@ function fmtTime(iso: string): string {
   });
 }
 
-// ─── B.19 — Catálogo Rx local (Phase 1A) ─────────────────────────────────────
+// ─── Drug / Lab types ────────────────────────────────────────────────────────
 
 interface RxDrug {
+  id:       number;
   name:     string;
   generic:  string;
-  schedule: string | null;  // 'II' | 'III' | 'IV' | 'V' | null
+  schedule: string | null;
   category: string;
 }
 
-const RX_CATALOG: RxDrug[] = [
-  // NSAIDs
-  { name: 'Ibuprofen 600mg Tab',              generic: 'Ibuprofen',           schedule: null, category: 'NSAID' },
-  { name: 'Ibuprofen 800mg Tab',              generic: 'Ibuprofen',           schedule: null, category: 'NSAID' },
-  { name: 'Naproxen 500mg Tab',               generic: 'Naproxen Sodium',     schedule: null, category: 'NSAID' },
-  { name: 'Meloxicam 15mg Tab',               generic: 'Meloxicam',           schedule: null, category: 'NSAID' },
-  { name: 'Diclofenac 75mg EC Tab',           generic: 'Diclofenac Na',       schedule: null, category: 'NSAID' },
-  { name: 'Ketorolac 10mg Tab',               generic: 'Ketorolac',           schedule: null, category: 'NSAID' },
-  { name: 'Celecoxib 200mg Cap',              generic: 'Celecoxib',           schedule: null, category: 'NSAID' },
-  // Muscle Relaxants
-  { name: 'Cyclobenzaprine 5mg Tab',          generic: 'Cyclobenzaprine',     schedule: null, category: 'RELAXANT' },
-  { name: 'Cyclobenzaprine 10mg Tab',         generic: 'Cyclobenzaprine',     schedule: null, category: 'RELAXANT' },
-  { name: 'Methocarbamol 750mg Tab',          generic: 'Methocarbamol',       schedule: null, category: 'RELAXANT' },
-  { name: 'Tizanidine 4mg Tab',               generic: 'Tizanidine',          schedule: null, category: 'RELAXANT' },
-  { name: 'Baclofen 10mg Tab',                generic: 'Baclofen',            schedule: null, category: 'RELAXANT' },
-  // Opioids (controlled)
-  { name: 'Oxycodone 5mg Tab',                generic: 'Oxycodone HCl',       schedule: 'II',  category: 'OPIOID' },
-  { name: 'Oxycodone 10mg Tab',               generic: 'Oxycodone HCl',       schedule: 'II',  category: 'OPIOID' },
-  { name: 'Oxycodone/APAP 5/325 Tab',         generic: 'Oxycodone HCl',       schedule: 'II',  category: 'OPIOID' },
-  { name: 'Hydrocodone/APAP 5/325 Tab',       generic: 'Hydrocodone',         schedule: 'II',  category: 'OPIOID' },
-  { name: 'Hydrocodone/APAP 10/325 Tab',      generic: 'Hydrocodone',         schedule: 'II',  category: 'OPIOID' },
-  { name: 'Tramadol 50mg Tab',                generic: 'Tramadol HCl',        schedule: 'IV',  category: 'OPIOID' },
-  { name: 'Tramadol 100mg ER Tab',            generic: 'Tramadol HCl ER',     schedule: 'IV',  category: 'OPIOID' },
-  // Neuropathic / Adjuvant
-  { name: 'Gabapentin 300mg Cap',             generic: 'Gabapentin',          schedule: null,  category: 'NEURO' },
-  { name: 'Gabapentin 600mg Tab',             generic: 'Gabapentin',          schedule: null,  category: 'NEURO' },
-  { name: 'Pregabalin 75mg Cap',              generic: 'Pregabalin',          schedule: 'V',   category: 'NEURO' },
-  { name: 'Pregabalin 150mg Cap',             generic: 'Pregabalin',          schedule: 'V',   category: 'NEURO' },
-  { name: 'Duloxetine 30mg Cap',              generic: 'Duloxetine HCl',      schedule: null,  category: 'NEURO' },
-  { name: 'Amitriptyline 25mg Tab',           generic: 'Amitriptyline',       schedule: null,  category: 'NEURO' },
-  // Topical
-  { name: 'Diclofenac Gel 1% (100g)',         generic: 'Diclofenac Na',       schedule: null,  category: 'TOPICAL' },
-  { name: 'Lidocaine Patch 5% (30ct)',        generic: 'Lidocaine',           schedule: null,  category: 'TOPICAL' },
-  { name: 'Capsaicin Cream 0.025% (60g)',     generic: 'Capsaicin',           schedule: null,  category: 'TOPICAL' },
-  // Steroids
-  { name: 'Methylprednisolone 4mg Dose Pack', generic: 'Methylprednisolone',  schedule: null,  category: 'STEROID' },
-  { name: 'Prednisone 10mg Tab',              generic: 'Prednisone',          schedule: null,  category: 'STEROID' },
-  { name: 'Prednisone 20mg Tab',              generic: 'Prednisone',          schedule: null,  category: 'STEROID' },
-  // Other
-  { name: 'Pantoprazole 40mg Tab',            generic: 'Pantoprazole',        schedule: null,  category: 'OTHER' },
-  { name: 'Omeprazole 20mg Cap',              generic: 'Omeprazole',          schedule: null,  category: 'OTHER' },
-  { name: 'Ondansetron 4mg ODT',              generic: 'Ondansetron',         schedule: null,  category: 'OTHER' },
-];
-
-// Known interactions (simplified Phase 1A — real check via DAW in Phase 2)
-const RX_INTERACTIONS: Record<string, { with: string; warning: string }[]> = {
-  Cyclobenzaprine: [
-    { with: 'Tramadol',    warning: 'Tramadol + Cyclobenzaprine = riesgo serotonín syndrome. Evitar combinación.' },
-    { with: 'Oxycodone',   warning: 'Opioide + relajante muscular = depresión SNC potenciada. CDC advierte.' },
-    { with: 'Hydrocodone', warning: 'Opioide + relajante muscular = depresión SNC potenciada. CDC advierte.' },
-  ],
-  Tramadol: [
-    { with: 'Cyclobenzaprine', warning: 'Tramadol + Cyclobenzaprine = riesgo serotonín syndrome.' },
-    { with: 'Gabapentin',      warning: 'Tramadol + Gabapentin = CNS depression aumentada.' },
-    { with: 'Pregabalin',      warning: 'Tramadol + Pregabalin = CNS depression + seizure risk.' },
-  ],
-  Oxycodone: [
-    { with: 'Cyclobenzaprine', warning: 'Opioide + relajante muscular = depresión SNC potenciada.' },
-    { with: 'Gabapentin',      warning: 'Oxycodone + Gabapentin = CNS depression + respiratory depression.' },
-  ],
-};
+interface LabEntry {
+  code:     string;
+  name:     string;
+  loinc?:   string | null;
+  category: string;
+}
 
 const SCHEDULE_COLORS: Record<string, string> = {
   II:  '#f43f5e', III: '#f97316', IV: '#fbbf24', V: '#a3e635',
-};
-
-// ─── B.21 / B.20 — Catálogos locales (Phase 1A) ───────────────────────────────
-
-const SUGGESTED_CPTS = [
-  { code: '99213', description: 'Office Outpatient Visit 15 min',     fee: 250 },
-  { code: '99214', description: 'Office Outpatient Visit 25 min',     fee: 350 },
-  { code: '99215', description: 'Office Outpatient Visit 40 min',     fee: 450 },
-  { code: '97110', description: 'Therapeutic Exercise per 15 min',    fee: 120 },
-  { code: '97140', description: 'Manual Therapy Techniques',          fee: 130 },
-  { code: '20552', description: 'Injection — Trigger Point',          fee: 300 },
-  { code: 'J3301', description: 'Kenalog Injection · Triamcinolone',  fee: 120 },
-  { code: '98941', description: 'Chiropractic Manipulative Treatment',fee: 180 },
-  { code: '97014', description: 'Electrical Stimulation (unattended)',fee: 65  },
-  { code: '97035', description: 'Ultrasound Therapy per 15 min',      fee: 75  },
-];
-
-const LAB_STUDIES: Record<string, { code: string; name: string; loinc?: string }[]> = {
-  IMAGING: [
-    { code: 'MRI-CX', name: 'MRI Cervical Spine without contrast',     loinc: '36812-3' },
-    { code: 'MRI-LS', name: 'MRI Lumbar Spine without contrast',       loinc: '36814-9' },
-    { code: 'MRI-BR', name: 'MRI Brain without contrast',              loinc: '24725-8' },
-    { code: 'CT-CX',  name: 'CT Cervical Spine without contrast',      loinc: '36807-3' },
-    { code: 'CT-LS',  name: 'CT Lumbar Spine without contrast',        loinc: '36811-5' },
-    { code: 'XR-CX',  name: 'X-Ray Cervical Spine 4 views',           loinc: '36643-2' },
-    { code: 'XR-LS',  name: 'X-Ray Lumbar Spine AP/Lateral',          loinc: '36641-6' },
-    { code: 'XR-SH',  name: 'X-Ray Shoulder AP + Y-view',             loinc: '36616-8' },
-    { code: 'XR-KN',  name: 'X-Ray Knee AP/Lateral/Oblique',          loinc: '36620-0' },
-  ],
-  LABORATORY: [
-    { code: 'BMP',    name: 'Basic Metabolic Panel',                   loinc: '24320-8' },
-    { code: 'CMP',    name: 'Comprehensive Metabolic Panel',           loinc: '24323-2' },
-    { code: 'CBC',    name: 'Complete Blood Count with Differential',  loinc: '58410-2' },
-    { code: 'UA',     name: 'Urinalysis with Reflex Culture',          loinc: '5767-9'  },
-    { code: 'ESR',    name: 'Erythrocyte Sedimentation Rate',          loinc: '4537-7'  },
-    { code: 'CRP',    name: 'C-Reactive Protein',                      loinc: '1988-5'  },
-    { code: 'PT',     name: 'Prothrombin Time / INR',                  loinc: '5902-2'  },
-    { code: 'UDS',    name: 'Urine Drug Screen (10-panel)',            loinc: '19300-0' },
-  ],
-  CARDIOLOGY: [
-    { code: 'EKG',    name: 'ECG 12-lead with interpretation',         loinc: '11524-6' },
-    { code: 'ECHO',   name: 'Echocardiogram transthoracic',            loinc: '42148-7' },
-    { code: 'HOLTER', name: 'Holter Monitor 24-hour',                  loinc: '18843-0' },
-  ],
 };
 
 const URGENCY_LABELS: Record<string, string> = {
@@ -297,24 +199,33 @@ function RxModal({
   const [interactionOverride, setInteractionOverride] = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [result,      setResult]      = useState<{ ok: boolean; controlled: boolean } | null>(null);
+  const [results,      setResults]      = useState<RxDrug[]>([]);
+  const [interactions, setInteractions] = useState<{ drug: string; interactsWith: string; warning: string }[]>([]);
 
-  // Detect interactions when drug is selected
-  const interactions: { with: string; warning: string }[] = selected
-    ? (RX_INTERACTIONS[selected.generic] ?? [])
-    : [];
+  // Fetch drug search results from API
+  useEffect(() => {
+    if (search.trim().length < 2) { setResults([]); return; }
+    const ctrl = new AbortController();
+    fetch(`/api/catalog/drugs?q=${encodeURIComponent(search.trim())}`, { signal: ctrl.signal })
+      .then(r => r.json())
+      .then(d => setResults((d.drugs ?? []).slice(0, 7)))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [search]);
+
+  // Fetch known interactions for selected drug
+  useEffect(() => {
+    if (!selected) { setInteractions([]); return; }
+    fetch(`/api/catalog/drug-interactions?drug=${encodeURIComponent(selected.generic)}`)
+      .then(r => r.json())
+      .then(d => setInteractions(d.interactions ?? []))
+      .catch(() => {});
+  }, [selected?.generic]);
 
   const hasInteraction = interactions.length > 0;
   const isControlled   = !!selected?.schedule;
   const canSubmit = selected && dose && frequency && duration && quantity && indication.trim()
     && (!hasInteraction || interactionOverride);
-
-  // Search results
-  const results = search.trim().length >= 2
-    ? RX_CATALOG.filter(d =>
-        d.name.toLowerCase().includes(search.toLowerCase()) ||
-        d.generic.toLowerCase().includes(search.toLowerCase())
-      ).slice(0, 7)
-    : [];
 
   function handleSelectDrug(d: RxDrug) {
     setSelected(d);
@@ -1246,17 +1157,25 @@ function LabOrderModal({
 
   const [orderType,    setOrderType]    = useState<OrderType>('IMAGING');
   const [search,       setSearch]       = useState('');
-  const [selected,     setSelected]     = useState<{ code: string; name: string; loinc?: string } | null>(null);
+  const [selected,     setSelected]     = useState<LabEntry | null>(null);
   const [indication,   setIndication]   = useState('');
   const [urgency,      setUrgency]      = useState<'ROUTINE' | 'URGENT' | 'STAT'>('ROUTINE');
   const [center,       setCenter]       = useState('');
   const [saving,       setSaving]       = useState(false);
   const [success,      setSuccess]      = useState(false);
+  const [catalog,      setCatalog]      = useState<LabEntry[]>([]);
 
   const icd10Display = diagnoses.slice(0, 5).map(d => d.icd10Code).filter(Boolean).join(', ');
   const icd10Array   = diagnoses.slice(0, 5).map(d => d.icd10Code).filter(Boolean) as string[];
 
-  const catalog = LAB_STUDIES[orderType] ?? [];
+  // Fetch catalog when orderType changes
+  useEffect(() => {
+    fetch(`/api/catalog/labs?category=${orderType}`)
+      .then(r => r.json())
+      .then(d => setCatalog(d.labs ?? []))
+      .catch(() => {});
+  }, [orderType]);
+
   const results = search
     ? catalog.filter(s => s.name.toLowerCase().includes(search.toLowerCase()))
     : catalog;

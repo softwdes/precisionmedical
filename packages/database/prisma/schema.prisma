@@ -2222,3 +2222,40 @@ model LienSignature {
   @@index([signerType])
   @@map("lien_signatures")
 }
+
+// ─── Drug catalog ────────────────────────────────────────────────────────────
+
+model Drug {
+  id       Int     @id @default(autoincrement())
+  name     String
+  generic  String
+  schedule String? // 'II' | 'III' | 'IV' | 'V' | null
+  category String  // 'NSAID' | 'RELAXANT' | 'OPIOID' | 'NEURO' | 'TOPICAL' | 'STEROID' | 'OTHER'
+
+  @@index([category])
+  @@index([generic])
+  @@map("drugs")
+}
+
+model DrugInteraction {
+  id           Int    @id @default(autoincrement())
+  drug         String // generic name
+  interactsWith String
+  warning      String @db.Text
+
+  @@index([drug])
+  @@map("drug_interactions")
+}
+
+// ─── Lab / Imaging catalog ───────────────────────────────────────────────────
+
+model LabCatalog {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique
+  name     String
+  loinc    String?
+  category String  // 'IMAGING' | 'LABORATORY' | 'CARDIOLOGY'
+
+  @@index([category])
+  @@map("lab_catalog")
+}

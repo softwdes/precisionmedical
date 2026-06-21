@@ -94,8 +94,8 @@ export async function POST(
   });
 
   await writeAuditLog(db, {
-    actorType:  'HUMAN_USER',
-    actorId:    'WALKIN_KIOSK',
+    actorType:  'SYSTEM',
+    actorUserId: null,
     action:     'WALKIN_CASE_CREATED',
     entityType: 'cases',
     entityId:   newCase.id,

@@ -99,7 +99,7 @@ export async function POST(
     action:     'WALKIN_CASE_CREATED',
     entityType: 'cases',
     entityId:   newCase.id,
-    meta: { caseCode: newCase.caseCode, clinicId, source: 'WALK_IN' },
+    metadata: { caseCode: newCase.caseCode, clinicId, source: 'WALK_IN' },
   });
 
   return NextResponse.json({ ok: true, token });

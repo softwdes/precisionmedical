@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
   Search as SearchIcon, PhoneOutgoing, Phone, ArrowRight, ArrowLeft,
-  User,
+  User, ClipboardList,
 } from 'lucide-react';
 import { Button, Input, Label } from '@precision/ui';
 import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoenix';
@@ -42,7 +42,7 @@ import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoe
 // │ la integración real.                                                │
 // └─────────────────────────────────────────────────────────────────────┘
 
-export type PreCallMode = 'search' | 'incoming' | 'outgoing';
+export type PreCallMode = 'search' | 'incoming' | 'outgoing' | 'manual';
 
 export interface PreCallResult {
   mode: PreCallMode;
@@ -153,11 +153,20 @@ export function PreCallStep({
         phone: quickPhone.trim(),
       });
     }
+    if (mode === 'manual' && quickFirstName.trim() && quickLastName.trim()) {
+      return onConfirm({
+        mode,
+        firstName: quickFirstName.trim(),
+        lastName: quickLastName.trim(),
+        phone: quickPhone.trim(),
+      });
+    }
   };
 
   const canStart: boolean =
     (mode === 'search' && !!selectedPatient && !!selectedPatient.phone) ||
-    (mode === 'outgoing' && !!quickFirstName.trim() && !!quickPhone.trim());
+    (mode === 'outgoing' && !!quickFirstName.trim() && !!quickPhone.trim()) ||
+    (mode === 'manual' && !!quickFirstName.trim() && !!quickLastName.trim());
 
   // ─── Mode selection (primera vista) ────────────────────────────────────
   if (!mode) {
@@ -184,6 +193,13 @@ export function PreCallStep({
             subtitle="Outbound · marcar número del paciente referido por su bufete"
             tone="cyan"
             onClick={() => setMode('outgoing')}
+          />
+          <ModeCard
+            icon={ClipboardList}
+            title="Agregar referido sin llamada"
+            subtitle="Ingreso manual · bufete envió datos por email, texto o fax"
+            tone="amber"
+            onClick={() => setMode('manual')}
           />
         </div>
 
@@ -310,6 +326,36 @@ export function PreCallStep({
     );
   }
 
+  // ─── Manual mode (ingreso sin llamada) ───────────────────────────────
+  if (mode === 'manual') {
+    return (
+      <div className="px-4 sm:px-6 py-5 space-y-4">
+        <BackButton onClick={() => setMode(null)} label="Agregar referido sin llamada" />
+
+        <InfoCard title="Datos del referido" icon={ClipboardList} tone="amber">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField.Input label="Nombre" required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
+            <FormField.Input label="Apellido" required value={quickLastName} onChange={setQuickLastName} placeholder="López" />
+          </div>
+          <FormField.Input
+            label="Teléfono"
+            value={quickPhone}
+            onChange={setQuickPhone}
+            placeholder="(801) 555-0142"
+            type="tel"
+            hint="Opcional si los datos llegaron por email o fax"
+          />
+        </InfoCard>
+
+        <div className="rounded-md border border-amber/20 bg-amber/5 px-3 py-2 text-[11px] text-amber">
+          Sin timer de llamada · el caso se crea como <code className="font-mono font-semibold">LAW_FIRM_REFERRAL</code>. Podés completar todos los datos en el siguiente paso.
+        </div>
+
+        <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} />
+      </div>
+    );
+  }
+
   // ─── Outgoing mode (form mínimo + tel:link) ───────────────────────────
   return (
     <div className="px-4 sm:px-6 py-5 space-y-4">
@@ -361,13 +407,14 @@ function ModeCard({
   icon: React.ElementType;
   title: string;
   subtitle: string;
-  tone: 'brand' | 'emerald' | 'cyan';
+  tone: 'brand' | 'emerald' | 'cyan' | 'amber';
   onClick: () => void;
 }) {
   const toneClasses: Record<typeof tone, { border: string; bg: string; icon: string }> = {
     brand:   { border: 'border-border hover:border-brand/40',   bg: 'bg-bg-1',  icon: 'text-brand' },
     emerald: { border: 'border-border hover:border-emerald/40', bg: 'bg-bg-1',  icon: 'text-emerald' },
     cyan:    { border: 'border-border hover:border-cyan/40',    bg: 'bg-bg-1',  icon: 'text-cyan' },
+    amber:   { border: 'border-border hover:border-amber/40',   bg: 'bg-bg-1',  icon: 'text-amber' },
   };
   return (
     <button
@@ -411,7 +458,11 @@ function FooterActions({
   canConfirm: boolean;
   mode: PreCallMode;
 }) {
-  const label = mode === 'outgoing' ? 'Marqué · iniciar captura' : 'En llamada · iniciar captura';
+  const label = mode === 'outgoing'
+    ? 'Marqué · iniciar captura'
+    : mode === 'manual'
+      ? 'Continuar · completar datos'
+      : 'En llamada · iniciar captura';
   return (
     <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-border">
       <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">Cancelar</Button>

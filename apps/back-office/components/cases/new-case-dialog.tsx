@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   PhoneCall, User, Car, Scale, ShieldCheck, Check, AlertCircle, Search as SearchIcon,
-  CalendarCheck, Send, Tablet, Pause, ArrowRight, MessageCircle, Phone,
+  CalendarCheck, Send, Tablet, Pause, ArrowRight, MessageCircle, Phone, ClipboardList,
 } from 'lucide-react';
 import {
   Button,
@@ -78,7 +78,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [callMode, setCallMode] = useState<PreCallMode | null>(null);
   const [existingPatientId, setExistingPatientId] = useState<string | null>(null);
 
-  // ─── Call timer · solo arranca en step=capturing ──────────────────────
+  // ─── Call timer · solo arranca en step=capturing y modo NO manual ─────
   const [callElapsed, setCallElapsed] = useState(0);
 
   useEffect(() => {
@@ -89,13 +89,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       setExistingPatientId(null);
       return;
     }
-    // El timer corre solo cuando estamos capturando
-    if (step !== 'capturing') return;
+    // El timer NO corre en modo manual (ingreso sin llamada)
+    if (step !== 'capturing' || callMode === 'manual') return;
     const interval = setInterval(() => {
       setCallElapsed((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, [open, step]);
+  }, [open, step, callMode]);
 
   // ─── Section 1: Patient ───────────────────────────────────────────────
   const [firstName, setFirstName] = useState('');
@@ -186,6 +186,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     if (result.existingPatient) {
       setExistingPatientId(result.existingPatient.id);
       setEmail(result.existingPatient.email ?? '');
+    }
+    if (result.mode === 'manual') {
+      setReferralSource('LAW_FIRM_REFERRAL');
     }
     setCallMode(result.mode);
     setCallElapsed(0);
@@ -312,6 +315,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     }
   };
 
+  const isManual = callMode === 'manual';
+
   // ─── Success state ─────────────────────────────────────────────────────
   if (success) {
     return (
@@ -321,7 +326,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <div className="w-16 h-16 rounded-full bg-emerald/15 border border-emerald/30 flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-emerald" />
             </div>
-            <h2 className="text-xl font-bold text-text-1 mb-2">Caso creado · llamada finalizada</h2>
+            <h2 className="text-xl font-bold text-text-1 mb-2">{isManual ? 'Referido registrado' : 'Caso creado · llamada finalizada'}</h2>
             <p className="text-text-2 text-sm mb-4">
               <code className="text-emerald font-mono font-bold">{success.caseCode}</code>
             </p>
@@ -376,7 +381,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // ─── Step 2: Capturing (timer corriendo) ──────────────────────────────
   const elapsedLabel = formatElapsed(callElapsed);
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Paciente';
-  const callModeLabel = callMode === 'search' ? 'paciente existente' : callMode === 'incoming' ? 'llamada entrante' : 'outbound';
+  const callModeLabel = callMode === 'search' ? 'paciente existente'
+    : callMode === 'incoming' ? 'llamada entrante'
+    : callMode === 'manual' ? 'ingreso manual · sin llamada'
+    : 'outbound';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -387,26 +395,30 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <div className="flex items-start justify-between gap-2 flex-wrap">
               <div className="min-w-0 flex-1">
                 <DialogTitle className="flex items-center gap-2 text-text-1 text-sm sm:text-base">
-                  <PhoneCall className="w-4 h-4 text-emerald shrink-0" />
-                  <span className="truncate">Llamada · {fullName}</span>
+                  {isManual
+                    ? <ClipboardList className="w-4 h-4 text-amber shrink-0" />
+                    : <PhoneCall className="w-4 h-4 text-emerald shrink-0" />}
+                  <span className="truncate">{isManual ? `Nuevo referido · ${fullName}` : `Llamada · ${fullName}`}</span>
                 </DialogTitle>
                 <DialogDescription className="mt-1 text-[11px] sm:text-xs flex items-center gap-1.5 flex-wrap">
                   <span>{callModeLabel}</span>
                   {existingPatientId && <span>· <code className="text-cyan font-mono">paciente conocido</code></span>}
-                  <span className="hidden sm:inline">· captura + agenda · 10–15 min típico</span>
+                  <span className="hidden sm:inline">{isManual ? '· completá los datos y agendá' : '· captura + agenda · 10–15 min típico'}</span>
                 </DialogDescription>
               </div>
-              {/* Pills compactos: en mobile solo el timer · en sm+ ambos */}
+              {/* Pills: en manual mostramos badge amber; en llamada mostramos timer */}
               <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                 <TagPill
                   label={existingPatientId ? 'paciente conocido' : 'NEW_REFERRAL'}
                   colorClass={existingPatientId ? 'bg-cyan/15 text-cyan border-cyan/30 hidden sm:inline-flex' : 'bg-rose/15 text-rose border-rose/30 hidden sm:inline-flex'}
                   mono
                 />
-                <TagPill
-                  label={<><span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block mr-1 animate-pulse" />{elapsedLabel}</>}
-                  colorClass="bg-emerald/15 text-emerald border-emerald/30"
-                />
+                {isManual
+                  ? <TagPill label="sin llamada" colorClass="bg-amber/15 text-amber border-amber/30" mono />
+                  : <TagPill
+                      label={<><span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block mr-1 animate-pulse" />{elapsedLabel}</>}
+                      colorClass="bg-emerald/15 text-emerald border-emerald/30"
+                    />}
               </div>
             </div>
           </DialogHeader>

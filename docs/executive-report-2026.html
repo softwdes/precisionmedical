@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LienMaster V3 — Executive Platform Report · Precision Medical</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --brand:   #6366f1;
+    --cyan:    #06b6d4;
+    --emerald: #10b981;
+    --amber:   #f59e0b;
+    --violet:  #8b5cf6;
+    --rose:    #f43f5e;
+    --gray-50: #f8fafc;
+    --gray-100:#f1f5f9;
+    --gray-200:#e2e8f0;
+    --gray-300:#cbd5e1;
+    --gray-400:#94a3b8;
+    --gray-500:#64748b;
+    --gray-600:#475569;
+    --gray-700:#334155;
+    --gray-800:#1e293b;
+    --gray-900:#0f172a;
+    --text:    #1e293b;
+    --muted:   #64748b;
+  }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    background: #fff;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 80px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%);
+    color: #fff;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -150px; left: -100px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(99,102,241,0.2);
+    border: 1px solid rgba(99,102,241,0.4);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #a5b4fc;
+    margin-bottom: 32px;
+    width: fit-content;
+  }
+  .cover h1 {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .cover h2 {
+    font-size: 22px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 48px;
+    letter-spacing: -0.3px;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 48px;
+    padding-top: 40px;
+    border-top: 1px solid rgba(255,255,255,0.10);
+  }
+  .cover-meta-item label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .cover-meta-item span {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+  }
+  .cover-dots {
+    display: flex;
+    gap: 8px;
+    margin-top: 56px;
+  }
+  .cover-dots span {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+  }
+  .cover-dots span:first-child { background: #6366f1; }
+  .cover-dots span:nth-child(2) { background: #06b6d4; }
+  .cover-dots span:nth-child(3) { background: #10b981; }
+
+  /* ── LAYOUT ── */
+  .page { max-width: 1000px; margin: 0 auto; padding: 60px 60px; }
+
+  /* ── SECTION HEADINGS ── */
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--brand);
+    margin-bottom: 12px;
+  }
+  .section-label::before {
+    content: '';
+    width: 16px; height: 2px;
+    background: var(--brand);
+    border-radius: 2px;
+  }
+  h2.section-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+    color: var(--gray-900);
+  }
+  .section-desc {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 36px;
+    max-width: 640px;
+    line-height: 1.7;
+  }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--gray-100); margin: 56px 0; }
+
+  /* ── STATUS BANNER ── */
+  .status-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(6,182,212,0.06));
+    border: 1px solid rgba(16,185,129,0.25);
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-bottom: 40px;
+  }
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--emerald);
+    box-shadow: 0 0 0 3px rgba(16,185,129,0.25);
+    flex-shrink: 0;
+  }
+  .status-text { font-size: 13px; color: var(--gray-700); }
+  .status-text strong { color: var(--gray-900); }
+
+  /* ── HIPAA BANNER ── */
+  .hipaa-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: rgba(99,102,241,0.05);
+    border: 1px solid rgba(99,102,241,0.20);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 40px;
+  }
+  .hipaa-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: rgba(99,102,241,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    color: var(--brand);
+  }
+
+  /* ── APP CARDS ── */
+  .apps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .app-card {
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 20px;
+    background: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+  .app-card.brand::before  { background: linear-gradient(90deg, #6366f1, #818cf8); }
+  .app-card.cyan::before   { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+  .app-card.emerald::before { background: linear-gradient(90deg, #10b981, #34d399); }
+  .app-card.amber::before  { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .app-card.violet::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+  .app-card.rose::before   { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+
+  .app-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .app-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .app-icon.brand  { background: rgba(99,102,241,0.10); }
+  .app-icon.cyan   { background: rgba(6,182,212,0.10); }
+  .app-icon.emerald { background: rgba(16,185,129,0.10); }
+  .app-icon.amber  { background: rgba(245,158,11,0.10); }
+  .app-icon.violet { background: rgba(139,92,246,0.10); }
+  .app-icon.rose   { background: rgba(244,63,94,0.10); }
+
+  .app-status-pill {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 100px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .pill-live    { background: rgba(16,185,129,0.12); color: #059669; border: 1px solid rgba(16,185,129,0.25); }
+  .pill-dev     { background: rgba(99,102,241,0.10); color: #4f46e5; border: 1px solid rgba(99,102,241,0.20); }
+  .pill-planned { background: rgba(100,116,139,0.10); color: #475569; border: 1px solid rgba(100,116,139,0.20); }
+
+  .app-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 4px;
+  }
+  .app-card .app-url {
+    font-size: 10px;
+    font-family: 'Courier New', monospace;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .app-card p {
+    font-size: 12px;
+    color: var(--gray-600);
+    line-height: 1.55;
+    margin-bottom: 12px;
+  }
+  .feature-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .feature-list li {
+    font-size: 11px;
+    color: var(--gray-600);
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    line-height: 1.4;
+  }
+  .feature-list li::before {
+    content: '·';
+    color: var(--gray-400);
+    flex-shrink: 0;
+    margin-top: 0;
+  }
+
+  /* ── MODULE DETAIL ── */
+  .module-block {
+    border: 1px solid var(--gray-200);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .module-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--gray-100);
+    background: var(--gray-50);
+  }
+  .module-icon-lg {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .module-header-text h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--gray-900);
+  }
+  .module-header-text p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .module-body {
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .module-group h4 {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .module-group ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .module-group ul li {
+    font-size: 12px;
+    color: var(--gray-700);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.4;
+  }
+  .check {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    background: rgba(16,185,129,0.12);
+    border: 1px solid rgba(16,185,129,0.30);
+    color: #059669;
+    font-size: 9px;
+    font-weight: 800;
+    text-align: center;
+    line-height: 14px;
+    flex-shrink: 0;
+  }
+  .check.pending {
+    background: rgba(245,158,11,0.10);
+    border-color: rgba(245,158,11,0.30);
+    color: #d97706;
+  }
+
+  /* ── TECH STACK ── */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .tech-card {
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    background: #fff;
+  }
+  .tech-card .tech-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .tech-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 3px;
+  }
+  .tech-card p {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* ── HIPAA TABLE ── */
+  table.hipaa-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.hipaa-table thead tr {
+    background: var(--gray-50);
+    border-bottom: 2px solid var(--gray-200);
+  }
+  table.hipaa-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  table.hipaa-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-700);
+    vertical-align: top;
+  }
+  table.hipaa-table tr:last-child td { border-bottom: none; }
+  table.hipaa-table .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+  .badge-done    { background: rgba(16,185,129,0.12); color: #059669; border: 1px solid rgba(16,185,129,0.25); }
+  .badge-pending { background: rgba(245,158,11,0.10); color: #d97706; border: 1px solid rgba(245,158,11,0.25); }
+  .badge-gate    { background: rgba(99,102,241,0.10); color: #4f46e5; border: 1px solid rgba(99,102,241,0.20); }
+
+  /* ── ROADMAP ── */
+  .roadmap {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .phase-card {
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 20px;
+    background: #fff;
+  }
+  .phase-card .phase-num {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .phase-card h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin-bottom: 4px;
+  }
+  .phase-card .phase-status {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 100px;
+    margin-bottom: 14px;
+    display: inline-block;
+  }
+  .phase-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .phase-card ul li {
+    font-size: 11px;
+    color: var(--gray-600);
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    line-height: 1.4;
+  }
+  .phase-card ul li::before { content: '→'; color: var(--gray-400); }
+
+  /* ── KPI ROW ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 40px;
+  }
+  .kpi-box {
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 16px 18px;
+    background: var(--gray-50);
+  }
+  .kpi-box .kpi-num {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: var(--gray-900);
+    margin-bottom: 2px;
+  }
+  .kpi-box .kpi-label {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.3;
+  }
+
+  /* ── FOOTER ── */
+  .doc-footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── PRINT ── */
+  @media print {
+    body { font-size: 11px; }
+    .cover { page-break-after: always; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .module-block, .app-card, .phase-card, .kpi-box, .tech-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { padding: 40px 50px; }
+    @page { margin: 0; size: A4; }
+    h2.section-title { page-break-after: avoid; }
+    .module-block { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     COVER
+════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-badge">🔒 Confidential — Executive Report</div>
+  <h1>LienMaster V3</h1>
+  <h2>Clinical Technology Platform — Precision Medical</h2>
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <label>Prepared for</label>
+      <span>Executive Management</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Date</label>
+      <span>June 2026</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Version</label>
+      <span>2.0 — Phase 0 Complete</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Classification</label>
+      <span>Internal / Confidential</span>
+    </div>
+  </div>
+  <div class="cover-dots">
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     EXECUTIVE SUMMARY
+════════════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div class="section-label">Executive Summary</div>
+  <h2 class="section-title">What We Are Building</h2>
+  <p class="section-desc">
+    LienMaster V2 is a fully custom, cloud-native clinical management platform built exclusively for Precision Medical's personal injury (PI) practice model in Utah. It replaces the previous LienMaster legacy system with a modern, HIPAA-aligned, multi-portal architecture — connecting patients, doctors, billing staff, front-office coordinators, attorneys, and administrators in a single integrated ecosystem.
+  </p>
+
+  <div class="status-banner">
+    <div class="status-dot"></div>
+    <div class="status-text">
+      <strong>2 apps are live in production today</strong> — Super Admin (admin.lienmaster.net) and Time Clock (pmtc.lienmaster.net). Back-Office / Clinic portal (clinic.lienmaster.net) is actively deployed and in final validation. Doctor, Patient, and Attorney portals are in structured development under the same monorepo.
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-box">
+      <div class="kpi-num">6</div>
+      <div class="kpi-label">Distinct portals / apps in the platform</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-num">30+</div>
+      <div class="kpi-label">Functional modules built or in progress</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-num">2</div>
+      <div class="kpi-label">Apps live in production since May 2026</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-num">100%</div>
+      <div class="kpi-label">Custom-built — no off-the-shelf EMR licensing</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+
+  <!-- ── PLATFORM OVERVIEW ── -->
+  <div class="section-label">Platform Overview</div>
+  <h2 class="section-title">The Six Portals</h2>
+  <p class="section-desc">
+    Each portal is independently deployed with its own domain and role-based access. All portals share a common database, authentication layer, and design system — ensuring data consistency without code duplication.
+  </p>
+
+  <div class="apps-grid">
+
+    <div class="app-card brand">
+      <div class="app-card-header">
+        <div class="app-icon brand">🏛️</div>
+        <span class="app-status-pill pill-live">Live</span>
+      </div>
+      <h3>Super Admin</h3>
+      <div class="app-url">admin.lienmaster.net</div>
+      <p>Central command for management. Controls every aspect of users, permissions, clinics, employees, payroll, and financial operations.</p>
+      <ul class="feature-list">
+        <li>Full user and role management</li>
+        <li>7-clinic configuration with GPS</li>
+        <li>Payroll and salary tracking</li>
+        <li>Finance and cash box control</li>
+        <li>AI-powered audit agents (CIFO)</li>
+        <li>Real-time employee attendance</li>
+        <li>PWA — installable on any device</li>
+      </ul>
+    </div>
+
+    <div class="app-card cyan">
+      <div class="app-card-header">
+        <div class="app-icon cyan">⏱️</div>
+        <span class="app-status-pill pill-live">Live</span>
+      </div>
+      <h3>Time Clock</h3>
+      <div class="app-url">pmtc.lienmaster.net</div>
+      <p>GPS-verified mobile PWA for all employees to clock in and out of their assigned clinic locations, with full geofencing compliance.</p>
+      <ul class="feature-list">
+        <li>GPS location verification per clock-in</li>
+        <li>Clinic geofencing (opt-in per clinic)</li>
+        <li>Multi-shift support per day</li>
+        <li>Break tracking (start/end)</li>
+        <li>Bilingual — English & Spanish</li>
+        <li>Works offline as installable PWA</li>
+        <li>US/Bolivia/Peru clinic support</li>
+      </ul>
+    </div>
+
+    <div class="app-card amber">
+      <div class="app-card-header">
+        <div class="app-icon amber">🏥</div>
+        <span class="app-status-pill pill-live">Live</span>
+      </div>
+      <h3>Back-Office / Clinic</h3>
+      <div class="app-url">clinic.lienmaster.net</div>
+      <p>The operational hub for front-desk coordinators and billing staff. Manages cases, appointments, insurances, law firms, and billing queues.</p>
+      <ul class="feature-list">
+        <li>Front Office — patient intake & cases</li>
+        <li>Appointment scheduling & calendar</li>
+        <li>Law Firm directory + member profiles</li>
+        <li>Insurance company catalog</li>
+        <li>Billing queue (HCFA / CMS-1500)</li>
+        <li>Diagnoses — ICD-10 + SNOMED CT</li>
+        <li>Settlement & dashboard reporting</li>
+      </ul>
+    </div>
+
+    <div class="app-card violet">
+      <div class="app-card-header">
+        <div class="app-icon violet">🩺</div>
+        <span class="app-status-pill pill-dev">In Development</span>
+      </div>
+      <h3>Doctor / Provider Portal</h3>
+      <div class="app-url">doctors.lienmaster.net</div>
+      <p>iPad-optimized clinical workspace for physicians and medical assistants. Full SOAP note authoring, patient records, and diagnostic workflows.</p>
+      <ul class="feature-list">
+        <li>Clinical note templates (SOAP)</li>
+        <li>ICD-10 + SNOMED diagnosis picker</li>
+        <li>Triage and vital signs recording</li>
+        <li>Patient appointment queue</li>
+        <li>AI clinical assistant (post-BAA)</li>
+        <li>Prescription and plan management</li>
+      </ul>
+    </div>
+
+    <div class="app-card emerald">
+      <div class="app-card-header">
+        <div class="app-icon emerald">👤</div>
+        <span class="app-status-pill pill-dev">In Development</span>
+      </div>
+      <h3>Patient Portal</h3>
+      <div class="app-url">patients.lienmaster.net</div>
+      <p>Mobile-first portal for patients to complete intake forms, sign HIPAA consents, confirm appointments, and view their care status — all paperless.</p>
+      <ul class="feature-list">
+        <li>Digital intake form</li>
+        <li>HIPAA consent signatures</li>
+        <li>Appointment confirmation</li>
+        <li>Magic-link access — no password</li>
+        <li>TV Lobby Display (HIPAA-compliant)</li>
+        <li>Medical lien agreement signing</li>
+      </ul>
+    </div>
+
+    <div class="app-card rose">
+      <div class="app-card-header">
+        <div class="app-icon rose">⚖️</div>
+        <span class="app-status-pill pill-dev">In Development</span>
+      </div>
+      <h3>Attorney Portal</h3>
+      <div class="app-url">attorney.lienmaster.net</div>
+      <p>Secure portal for law firm attorneys and case managers to view case progress, billing status, and medical lien documentation for their PI clients.</p>
+      <ul class="feature-list">
+        <li>Case status tracking</li>
+        <li>Medical lien document access</li>
+        <li>Billing and treatment summary</li>
+        <li>Secure document exchange</li>
+        <li>Role-based access per firm member</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="divider"></div>
+
+
+  <!-- ── DETAILED MODULE BREAKDOWN ── -->
+  <div class="section-label">Module Breakdown</div>
+  <h2 class="section-title">What Each Application Does</h2>
+  <p class="section-desc">
+    A detailed breakdown of every functional module across the platform — built, in progress, or planned — organized by the application that owns it.
+  </p>
+
+  <!-- Super Admin -->
+  <div class="module-block">
+    <div class="module-header">
+      <div class="module-icon-lg" style="background:rgba(99,102,241,0.10);">🏛️</div>
+      <div class="module-header-text">
+        <h3>Super Admin — admin.lienmaster.net</h3>
+        <p>Full management platform for executive staff, HR, and accounting · Role: SUPER_ADMIN, ADMIN, CONTADOR</p>
+      </div>
+      <span class="app-status-pill pill-live" style="margin-left:auto;">Live in Production</span>
+    </div>
+    <div class="module-body">
+      <div class="module-group">
+        <h4>User & Access Management</h4>
+        <ul>
+          <li><span class="check">✓</span> Create and manage users (all 7 system roles)</li>
+          <li><span class="check">✓</span> Role-based permissions matrix per app</li>
+          <li><span class="check">✓</span> Employee linking — connect HR record to user login</li>
+          <li><span class="check">✓</span> Toggle individual app access per employee</li>
+          <li><span class="check">✓</span> Clinic assignment per employee via schedule</li>
+          <li><span class="check">✓</span> Audit log — every action recorded with actor + IP</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>HR & Payroll</h4>
+        <ul>
+          <li><span class="check">✓</span> Employee profiles (full info, employment type)</li>
+          <li><span class="check">✓</span> Work schedules — shifts and assigned clinics</li>
+          <li><span class="check">✓</span> Salary tracker — recurring payroll obligations</li>
+          <li><span class="check">✓</span> Salary alert system (overdue / upcoming)</li>
+          <li><span class="check">✓</span> Real-time attendance dashboard (today's view)</li>
+          <li><span class="check">✓</span> GPS clock-in history per employee with map</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Finance & Accounting</h4>
+        <ul>
+          <li><span class="check">✓</span> Cash box management (create, deposit, expense)</li>
+          <li><span class="check">✓</span> Multi-currency cash boxes (USD, BOB, PEN)</li>
+          <li><span class="check">✓</span> Append-only financial ledger (no deletions)</li>
+          <li><span class="check">✓</span> Low-balance alerts per cash box</li>
+          <li><span class="check">✓</span> Category-based expense tracking</li>
+          <li><span class="check">✓</span> Inactive cash box — fully blocked from transactions</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>AI Agents (CIFO) & Operations</h4>
+        <ul>
+          <li><span class="check">✓</span> CIFO financial audit agent — detects anomalies</li>
+          <li><span class="check">✓</span> 7-clinic geo-configuration with Leaflet map picker</li>
+          <li><span class="check">✓</span> Strict geofencing toggle per clinic</li>
+          <li><span class="check">✓</span> Auto-deploy version banner (polls /api/version)</li>
+          <li><span class="check">✓</span> PWA — installable on desktop and mobile</li>
+          <li><span class="check">✓</span> In-app notifications + salary alert modal</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Time Clock -->
+  <div class="module-block">
+    <div class="module-header">
+      <div class="module-icon-lg" style="background:rgba(6,182,212,0.10);">⏱️</div>
+      <div class="module-header-text">
+        <h3>Time Clock — pmtc.lienmaster.net</h3>
+        <p>GPS-verified attendance PWA for all employees across all locations · Role: EMPLOYEE</p>
+      </div>
+      <span class="app-status-pill pill-live" style="margin-left:auto;">Live in Production</span>
+    </div>
+    <div class="module-body">
+      <div class="module-group">
+        <h4>Clock-In / Clock-Out</h4>
+        <ul>
+          <li><span class="check">✓</span> One-tap clock in and out</li>
+          <li><span class="check">✓</span> Break start/end tracking</li>
+          <li><span class="check">✓</span> Multiple shifts in a single day</li>
+          <li><span class="check">✓</span> Clinic selection (filtered by country)</li>
+          <li><span class="check">✓</span> Notes per shift (optional)</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>GPS & Geofencing</h4>
+        <ul>
+          <li><span class="check">✓</span> Real-time GPS capture on every action</li>
+          <li><span class="check">✓</span> Distance-from-clinic calculation</li>
+          <li><span class="check">✓</span> Strict geofencing — blocks clock-in if out of range</li>
+          <li><span class="check">✓</span> GPS retry logic (3 attempts on mobile)</li>
+          <li><span class="check">✓</span> Low-accuracy chip — informational, not blocking</li>
+          <li><span class="check">✓</span> Bolivia/Peru = city-level zone (no hard block)</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Admin Visibility</h4>
+        <ul>
+          <li><span class="check">✓</span> Real-time attendance feed in Super Admin</li>
+          <li><span class="check">✓</span> Per-shift map view of clock-in location</li>
+          <li><span class="check">✓</span> Multi-shift expansion row in admin table</li>
+          <li><span class="check">✓</span> Edit and correct records from admin</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Platform</h4>
+        <ul>
+          <li><span class="check">✓</span> PWA — installable on iPhone, Android, iPad</li>
+          <li><span class="check">✓</span> Works on any device with a browser</li>
+          <li><span class="check">✓</span> Bilingual — English and Spanish</li>
+          <li><span class="check">✓</span> Utah timezone enforced for all timestamps</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Back Office -->
+  <div class="module-block">
+    <div class="module-header">
+      <div class="module-icon-lg" style="background:rgba(245,158,11,0.10);">🏥</div>
+      <div class="module-header-text">
+        <h3>Back-Office / Clinic — clinic.lienmaster.net</h3>
+        <p>Primary operational system for front-desk, billing, and administrative staff · Role: SUPER_ADMIN, ADMIN, CONTADOR, EMPLOYEE</p>
+      </div>
+      <span class="app-status-pill pill-live" style="margin-left:auto;">Live — Active Deployment</span>
+    </div>
+    <div class="module-body">
+      <div class="module-group">
+        <h4>Front Office (B.1–B.4)</h4>
+        <ul>
+          <li><span class="check">✓</span> Patient queue — live intake view</li>
+          <li><span class="check">✓</span> New case creation in under 90 seconds</li>
+          <li><span class="check">✓</span> Patient portal link sent via SMS</li>
+          <li><span class="check">✓</span> 24h appointment confirmation workflow</li>
+          <li><span class="check">✓</span> Case detail — notes, timeline, documents</li>
+          <li><span class="check">✓</span> Appointment scheduling with provider selection</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Catalog Management</h4>
+        <ul>
+          <li><span class="check">✓</span> Law Firms directory — full CRUD</li>
+          <li><span class="check">✓</span> Law Firm Members — address, role, contact</li>
+          <li><span class="check">✓</span> Insurance companies — catalog with flags</li>
+          <li><span class="check">✓</span> CPT / Procedure code library with favorites</li>
+          <li><span class="check">✓</span> Medical specialties catalog</li>
+          <li><span class="check">✓</span> Diagnoses — ICD-10 + SNOMED CT dual coding</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Billing (B.25–B.27)</h4>
+        <ul>
+          <li><span class="check">✓</span> Billing queue — pending claims view</li>
+          <li><span class="check">✓</span> HCFA / CMS-1500 generation marker</li>
+          <li><span class="check">✓</span> Per-case billing detail with CPT totals</li>
+          <li><span class="check">✓</span> Internal billing notes with tag system</li>
+          <li><span class="check">✓</span> 5 KPI cards (total, pending, HCFAs, etc.)</li>
+          <li><span class="check pending">⏳</span> Ledger, legal, and settlements (Phase 2)</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Dashboard & Search</h4>
+        <ul>
+          <li><span class="check">✓</span> Executive dashboard with KPI aggregates</li>
+          <li><span class="check">✓</span> Settlement tracking (B.28–B.29)</li>
+          <li><span class="check">✓</span> ⌘K global patient search — instant lookup</li>
+          <li><span class="check">✓</span> Bilingual (English/Spanish) with live toggle</li>
+          <li><span class="check">✓</span> Dark/light mode toggle</li>
+          <li><span class="check">✓</span> Mobile-responsive — works on iPad and phone</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Doctor Portal -->
+  <div class="module-block">
+    <div class="module-header">
+      <div class="module-icon-lg" style="background:rgba(139,92,246,0.10);">🩺</div>
+      <div class="module-header-text">
+        <h3>Doctor / Provider Portal — doctors.lienmaster.net</h3>
+        <p>Clinical workspace for physicians and medical assistants · Role: PROVIDER, EMPLOYEE (medical assistant)</p>
+      </div>
+      <span class="app-status-pill pill-dev" style="margin-left:auto;">In Development</span>
+    </div>
+    <div class="module-body">
+      <div class="module-group">
+        <h4>Clinical Notes (B.17–B.18)</h4>
+        <ul>
+          <li><span class="check">✓</span> Full SOAP note system (7 sections)</li>
+          <li><span class="check">✓</span> SOAP templates — save and reuse across patients</li>
+          <li><span class="check">✓</span> Copy previous note as starting point</li>
+          <li><span class="check">✓</span> Note history tab per patient</li>
+          <li><span class="check">✓</span> ICD-10 + SNOMED diagnosis selection</li>
+          <li><span class="check">✓</span> AI clinical assistant (post-HIPAA BAA)</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Patient Care Workflow</h4>
+        <ul>
+          <li><span class="check">✓</span> Triage / Vital signs recording (B.16)</li>
+          <li><span class="check">✓</span> Appointment queue by provider</li>
+          <li><span class="check">✓</span> Patient sidebar — demographics + history</li>
+          <li><span class="check">✓</span> Social history modal</li>
+          <li><span class="check pending">⏳</span> Attendance signature — digital (per requirements)</li>
+          <li><span class="check pending">⏳</span> Patient full-record editing</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Admission (B.14–B.15)</h4>
+        <ul>
+          <li><span class="check">✓</span> Patient admission module (Edson)</li>
+          <li><span class="check">✓</span> Legal/intake intake coordination</li>
+          <li><span class="check">✓</span> Case assignment at admission</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Platform</h4>
+        <ul>
+          <li><span class="check">✓</span> iPad-optimized layout (large touch targets)</li>
+          <li><span class="check">✓</span> Violet identity color per design system</li>
+          <li><span class="check pending">⏳</span> Offline mode for note drafts</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Portal -->
+  <div class="module-block">
+    <div class="module-header">
+      <div class="module-icon-lg" style="background:rgba(16,185,129,0.10);">👤</div>
+      <div class="module-header-text">
+        <h3>Patient Portal + Lobby — patients.lienmaster.net</h3>
+        <p>Mobile-first patient-facing system with no required app download · Access via magic link SMS</p>
+      </div>
+      <span class="app-status-pill pill-dev" style="margin-left:auto;">In Development</span>
+    </div>
+    <div class="module-body">
+      <div class="module-group">
+        <h4>Digital Forms</h4>
+        <ul>
+          <li><span class="check">✓</span> Intake form — complete demographic capture</li>
+          <li><span class="check">✓</span> Emergency contacts, pharmacy, insurance</li>
+          <li><span class="check">✓</span> Guardian information support</li>
+          <li><span class="check pending">⏳</span> Intake PDF print/export</li>
+          <li><span class="check pending">⏳</span> Patient data editing (post-intake)</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Consent & HIPAA Documents</h4>
+        <ul>
+          <li><span class="check pending">⏳</span> General Treatment Consent (signed)</li>
+          <li><span class="check pending">⏳</span> HIPAA Privacy Practices Acknowledgment</li>
+          <li><span class="check pending">⏳</span> Communication Consent</li>
+          <li><span class="check pending">⏳</span> Authorized Persons (up to 4)</li>
+          <li><span class="check pending">⏳</span> Medical Lien Authorization</li>
+          <li><span class="check pending">⏳</span> Medical Lien Agreement — dual signatures</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>TV Lobby Display (B.37)</h4>
+        <ul>
+          <li><span class="check">✓</span> HIPAA-compliant — name initials only</li>
+          <li><span class="check">✓</span> Live queue: Waiting → Triage → Consultation</li>
+          <li><span class="check">✓</span> "Now calling" alert with pulse animation</li>
+          <li><span class="check">✓</span> Auto-refresh every 15 seconds</li>
+          <li><span class="check">✓</span> Denver / Utah timezone enforced</li>
+          <li><span class="check">✓</span> No authentication required — for clinic TV screens</li>
+        </ul>
+      </div>
+      <div class="module-group">
+        <h4>Access Model</h4>
+        <ul>
+          <li><span class="check">✓</span> SMS magic link — no app download, no password</li>
+          <li><span class="check">✓</span> Token-based, time-limited access</li>
+          <li><span class="check">✓</span> Works on any smartphone browser</li>
+          <li><span class="check">✓</span> Appointment confirmation via link</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+
+  <!-- ── HIPAA COMPLIANCE ── -->
+  <div class="section-label">Compliance & Security</div>
+  <h2 class="section-title">HIPAA Compliance Strategy</h2>
+  <p class="section-desc">
+    The platform was architected from day one to be HIPAA-ready. We are currently in Phase 0 (foundation), operating with zero real Protected Health Information (PHI) in the system. PHI is introduced only after all required Business Associate Agreements (BAAs) are in place and a HIPAA consultant review is completed.
+  </p>
+
+  <div class="hipaa-banner">
+    <div class="hipaa-icon">🔒</div>
+    <div>
+      <div style="font-size:13px; font-weight:700; color:var(--gray-900); margin-bottom:4px;">Current status: Zero PHI in production — Phase 0 Foundation</div>
+      <div style="font-size:12px; color:var(--gray-600); line-height:1.5;">The system is structurally HIPAA-ready: audit logs, role-based access, and encrypted storage are all in place. No real patient data is processed until Phase 1 PHI gate is cleared — which requires signed BAAs with Supabase, Vercel, Sentry, and a HIPAA consultant sign-off.</div>
+    </div>
+  </div>
+
+  <table class="hipaa-table">
+    <thead>
+      <tr>
+        <th>Safeguard</th>
+        <th>What We Have</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Audit Logging</strong></td>
+        <td>Every create, update, delete, and delete operation is recorded in an append-only audit log — actor, IP, timestamp, before/after values</td>
+        <td><span class="badge badge-done">Done</span></td>
+      </tr>
+      <tr>
+        <td><strong>Role-Based Access Control</strong></td>
+        <td>7 distinct roles (Super Admin, Admin, Contador, Employee, Provider, Lawyer, AI Auditor) — each sees only what they are permitted to see</td>
+        <td><span class="badge badge-done">Done</span></td>
+      </tr>
+      <tr>
+        <td><strong>Data Encryption at Rest</strong></td>
+        <td>Supabase (PostgreSQL on AWS) encrypts all data at rest. SSL/TLS enforced on all connections</td>
+        <td><span class="badge badge-done">Done</span></td>
+      </tr>
+      <tr>
+        <td><strong>Data Encryption in Transit</strong></td>
+        <td>All traffic over HTTPS. Let's Encrypt SSL certificates. No plain HTTP allowed on any domain</td>
+        <td><span class="badge badge-done">Done</span></td>
+      </tr>
+      <tr>
+        <td><strong>Authentication</strong></td>
+        <td>Supabase Auth — bcrypt hashed passwords, JWT tokens with 1-hour TTL, session invalidation on role change</td>
+        <td><span class="badge badge-done">Done</span></td>
+      </tr>
+      <tr>
+        <td><strong>Minimum Necessary Access</strong></td>
+        <td>Each app and each role only has access to the data it needs. Billing staff cannot see clinical notes. Doctors cannot see financial data</td>
+        <td><span class="badge badge-done">Done</span></td>
+      </tr>
+      <tr>
+        <td><strong>TV Lobby Display (HIPAA)</strong></td>
+        <td>Waiting room screen shows only anonymized initials + 2 digits — never full patient names. Server-side anonymization, no PHI in the browser</td>
+        <td><span class="badge badge-done">Done</span></td>
+      </tr>
+      <tr>
+        <td><strong>BAA with Supabase (database host)</strong></td>
+        <td>Supabase offers a HIPAA BAA for paid plans. Required before processing real PHI</td>
+        <td><span class="badge badge-pending">Required for PHI</span></td>
+      </tr>
+      <tr>
+        <td><strong>BAA with Vercel (hosting)</strong></td>
+        <td>Vercel Pro/Enterprise plans offer HIPAA BAA. Required before processing real PHI</td>
+        <td><span class="badge badge-pending">Required for PHI</span></td>
+      </tr>
+      <tr>
+        <td><strong>BAA with Sentry (error monitoring)</strong></td>
+        <td>Sentry offers a HIPAA BAA. Must be signed before any PHI flows through error logs</td>
+        <td><span class="badge badge-pending">Required for PHI</span></td>
+      </tr>
+      <tr>
+        <td><strong>HIPAA Consultant Review</strong></td>
+        <td>Third-party HIPAA consultant review of the platform before PHI activation. Risk assessment + gap analysis</td>
+        <td><span class="badge badge-gate">Blocking Gate</span></td>
+      </tr>
+      <tr>
+        <td><strong>SMS Communications (Twilio)</strong></td>
+        <td>Twilio offers HIPAA-compliant messaging with self-serve BAA. Recommended to replace current Weave phone system</td>
+        <td><span class="badge badge-pending">Under evaluation</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="divider"></div>
+
+
+  <!-- ── TECHNOLOGY STACK ── -->
+  <div class="section-label">Technology</div>
+  <h2 class="section-title">The Stack We Are Building On</h2>
+  <p class="section-desc">
+    Every technology choice was made for long-term stability, type safety, and team velocity. The entire system is 100% TypeScript — from the database schema to the user interface — which eliminates entire categories of runtime bugs.
+  </p>
+
+  <div class="tech-grid">
+    <div class="tech-card">
+      <span class="tech-icon">🏗️</span>
+      <h4>Turborepo</h4>
+      <p>Monorepo — all 6 apps and shared packages in one repository. Shared auth, UI components, and DB layer.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">⚛️</span>
+      <h4>Next.js 15</h4>
+      <p>App Router — server-side rendering, edge middleware, and file-based routing for all 6 portals.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">🛡️</span>
+      <h4>TypeScript</h4>
+      <p>100% typed codebase — API contracts, DB schemas, and UI all share the same type definitions.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">🗄️</span>
+      <h4>Prisma ORM</h4>
+      <p>Type-safe database access layer. Schema-first: DB structure is the single source of truth.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">☁️</span>
+      <h4>Supabase</h4>
+      <p>PostgreSQL on AWS us-east-2. Auth, real-time subscriptions, Row Level Security (RLS) policies.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">🔗</span>
+      <h4>tRPC</h4>
+      <p>Type-safe API layer — the frontend and backend share the same type contract. Zero API docs needed.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">🎨</span>
+      <h4>shadcn/ui + Tailwind</h4>
+      <p>Custom design system (ui-phoenix) built on shadcn primitives. Consistent look across all portals.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">🚀</span>
+      <h4>Vercel</h4>
+      <p>Each app deploys independently to Vercel. Auto-deploy on git push to main. Global CDN edge network.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">🔁</span>
+      <h4>GitHub CI/CD</h4>
+      <p>GitHub Actions pipeline — lint, typecheck, and build validation on every pull request before deploy.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">🐛</span>
+      <h4>Sentry</h4>
+      <p>Error monitoring and performance tracking for production. Real-time alerts on application errors.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">📩</span>
+      <h4>Resend</h4>
+      <p>Transactional email — password resets, salary alerts, and system notifications sent via Resend API.</p>
+    </div>
+    <div class="tech-card">
+      <span class="tech-icon">📱</span>
+      <h4>PWA Support</h4>
+      <p>Super Admin and Time Clock are installable as apps on any device — phone, tablet, or desktop.</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+
+  <!-- ── ROADMAP ── -->
+  <div class="section-label">Roadmap</div>
+  <h2 class="section-title">Development Phases</h2>
+  <p class="section-desc">
+    The platform is being built in clearly defined phases, each with a hard quality gate before the next phase begins. This prevents technical debt and ensures the platform is stable and secure at every step.
+  </p>
+
+  <div class="roadmap">
+    <div class="phase-card">
+      <div class="phase-num">Phase 0</div>
+      <h3>Foundation & Infrastructure</h3>
+      <span class="phase-status badge-done">✓ Complete</span>
+      <ul>
+        <li>6-app monorepo architecture</li>
+        <li>Shared auth + database packages</li>
+        <li>Super Admin + Time Clock live</li>
+        <li>CI/CD pipeline on GitHub Actions</li>
+        <li>HIPAA audit foundation in place</li>
+        <li>Back-Office portal deployed</li>
+      </ul>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-num">Phase 1 — Gate: BAAs signed + HIPAA consultant</div>
+      <h3>PHI Introduction</h3>
+      <span class="phase-status badge-pending">In Progress</span>
+      <ul>
+        <li>Real patient data intake (PHI)</li>
+        <li>Doctor portal live with notes</li>
+        <li>Patient portal live with forms</li>
+        <li>Consent form collection + signing</li>
+        <li>SMS communications via Twilio</li>
+        <li>Attorney portal initial access</li>
+      </ul>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-num">Phase 2</div>
+      <h3>Advanced Clinical & Billing</h3>
+      <span class="phase-status badge-pending">Planned</span>
+      <ul>
+        <li>ICD-10 + SNOMED diagnosis library</li>
+        <li>Attendance patient signatures</li>
+        <li>Medical Lien Agreement workflow</li>
+        <li>HCFA / CMS-1500 full generation</li>
+        <li>Attorney case document exchange</li>
+        <li>Settlement ledger + commissions</li>
+      </ul>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-num">Phase 3</div>
+      <h3>Intelligence & Automation</h3>
+      <span class="phase-status badge-pending">Planned</span>
+      <ul>
+        <li>AI clinical note assistant (live)</li>
+        <li>IVR phone system via Twilio Studio</li>
+        <li>Automated appointment reminders</li>
+        <li>Background report scheduler</li>
+        <li>Voice interface for clinical notes</li>
+        <li>Predictive settlement analysis</li>
+      </ul>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-num">Phase 4</div>
+      <h3>Analytics & Reporting</h3>
+      <span class="phase-status badge-pending">Planned</span>
+      <ul>
+        <li>Executive analytics dashboard</li>
+        <li>Revenue cycle management reports</li>
+        <li>Case outcome analytics</li>
+        <li>Attorney performance metrics</li>
+        <li>Regulatory compliance reports</li>
+        <li>Custom export to PDF / Excel</li>
+      </ul>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-num">Phase 5</div>
+      <h3>Scale & Integration</h3>
+      <span class="phase-status badge-pending">Planned</span>
+      <ul>
+        <li>Multi-practice expansion (franchise)</li>
+        <li>Insurance EDI integration (clearinghouse)</li>
+        <li>EHR data portability (HL7 / FHIR)</li>
+        <li>Patient mobile app (native)</li>
+        <li>Advanced AI diagnostic support</li>
+        <li>Custom billing integrations</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+
+  <!-- ── FOOTER ── -->
+  <div class="doc-footer">
+    <div>
+      <strong style="color:var(--gray-800);">LienMaster V2 — Precision Medical</strong><br>
+      Built and maintained internally · Confidential
+    </div>
+    <div style="text-align:right;">
+      Executive Report · June 2026<br>
+      Version 2.0 — Phase 0 Complete · HIPAA Foundation Ready
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

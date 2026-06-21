@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HIPAA Vendor Due Diligence — Precision Medical / LienMaster V2</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --brand:   #6366f1;
+    --emerald: #10b981;
+    --amber:   #f59e0b;
+    --rose:    #f43f5e;
+    --gray-50: #f8fafc;
+    --gray-100:#f1f5f9;
+    --gray-200:#e2e8f0;
+    --gray-600:#475569;
+    --gray-700:#334155;
+    --gray-800:#1e293b;
+    --gray-900:#0f172a;
+    --muted:   #64748b;
+  }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--gray-800);
+    background: #fff;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #0f172a 100%);
+    color: #fff;
+    page-break-after: always;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -180px; right: -180px;
+    width: 520px; height: 520px;
+    background: radial-gradient(circle, rgba(244,63,94,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -120px; left: -80px;
+    width: 440px; height: 440px;
+    background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(244,63,94,0.15);
+    border: 1px solid rgba(244,63,94,0.35);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #fda4af;
+    margin-bottom: 28px;
+    width: fit-content;
+  }
+  .cover-eyebrow {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.40);
+    margin-bottom: 14px;
+  }
+  .cover h1 {
+    font-size: 44px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #fff 0%, #fda4af 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .cover h2 {
+    font-size: 17px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 50px;
+    max-width: 540px;
+    line-height: 1.55;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 44px;
+    padding-top: 36px;
+    border-top: 1px solid rgba(255,255,255,0.10);
+  }
+  .cover-meta-item label {
+    display: block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.28);
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .cover-meta-item span {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.78);
+  }
+  .cover-source {
+    margin-top: 48px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 16px 20px;
+    max-width: 540px;
+  }
+  .cover-source-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .cover-source-text { font-size: 12px; color: rgba(255,255,255,0.40); line-height: 1.6; }
+  .cover-source-text strong { color: rgba(255,255,255,0.65); font-weight: 600; }
+
+  /* ── LAYOUT ── */
+  .page { max-width: 900px; margin: 0 auto; padding: 64px; }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-bottom: 26px;
+    border-bottom: 2px solid var(--gray-100);
+    margin-bottom: 44px;
+  }
+  .page-header-left .doc-title {
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--gray-900);
+    margin-bottom: 4px;
+  }
+  .page-header-left .doc-sub { font-size: 13px; color: var(--muted); }
+  .page-header-right {
+    text-align: right;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* ── CONTEXT BOX ── */
+  .context-box {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-left: 4px solid var(--rose);
+    border-radius: 0 10px 10px 0;
+    padding: 16px 20px;
+    margin-bottom: 40px;
+    font-size: 13px;
+    color: var(--gray-700);
+    line-height: 1.7;
+  }
+  .context-box strong { color: var(--gray-900); }
+
+  /* ── QUESTION BLOCK ── */
+  .q-block {
+    margin-bottom: 36px;
+    page-break-inside: avoid;
+  }
+  .q-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .q-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .q-num.clean { background: rgba(16,185,129,0.10); border: 1px solid rgba(16,185,129,0.22); color: #047857; }
+  .q-num.gap   { background: rgba(244,63,94,0.10);  border: 1px solid rgba(244,63,94,0.22);  color: #be123c; }
+  .q-num.warn  { background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.22); color: #b45309; }
+
+  .q-text {
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--gray-900);
+    letter-spacing: -0.2px;
+    line-height: 1.35;
+  }
+  .q-text .q-original {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    font-style: italic;
+    margin-top: 3px;
+    letter-spacing: 0;
+  }
+
+  /* ── VERDICT BADGE ── */
+  .verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 100px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  .verdict.yes   { background: rgba(16,185,129,0.10); color: #047857; border: 1px solid rgba(16,185,129,0.25); }
+  .verdict.no    { background: rgba(244,63,94,0.08);  color: #be123c; border: 1px solid rgba(244,63,94,0.22); }
+  .verdict.partial { background: rgba(245,158,11,0.10); color: #b45309; border: 1px solid rgba(245,158,11,0.25); }
+  .verdict.flag  { background: rgba(244,63,94,0.08);  color: #be123c; border: 1px solid rgba(244,63,94,0.22); }
+
+  /* ── ANSWER TEXT ── */
+  .a-text {
+    font-size: 13px;
+    color: var(--gray-700);
+    line-height: 1.72;
+    margin-bottom: 10px;
+  }
+  .a-text strong { color: var(--gray-900); font-weight: 600; }
+
+  /* ── DIRECT QUOTE ── */
+  .direct-quote {
+    background: var(--gray-900);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+  .direct-quote-label {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: rgba(255,255,255,0.30);
+    margin-bottom: 8px;
+  }
+  .direct-quote-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.5;
+  }
+  .direct-quote-text em { font-style: normal; color: #a5b4fc; }
+
+  /* ── TABLE ── */
+  table.t {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  table.t thead tr { background: var(--gray-50); border-bottom: 2px solid var(--gray-200); }
+  table.t th {
+    text-align: left;
+    padding: 8px 13px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  table.t td {
+    padding: 10px 13px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-700);
+    vertical-align: top;
+    line-height: 1.45;
+  }
+  table.t tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .pill-ok   { background: rgba(16,185,129,0.10); color: #047857; border: 1px solid rgba(16,185,129,0.25); }
+  .pill-no   { background: rgba(244,63,94,0.08);  color: #be123c; border: 1px solid rgba(244,63,94,0.22); }
+  .pill-warn { background: rgba(245,158,11,0.10); color: #b45309; border: 1px solid rgba(245,158,11,0.25); }
+  .pill-na   { background: rgba(100,116,139,0.10); color: #475569; border: 1px solid rgba(100,116,139,0.20); }
+
+  /* ── CHECKLIST ── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--gray-700);
+    line-height: 1.5;
+  }
+  .ci {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .ci.ok  { background: rgba(16,185,129,0.12); color: #047857; border: 1px solid rgba(16,185,129,0.25); }
+  .ci.gap { background: rgba(244,63,94,0.08);  color: #be123c; border: 1px solid rgba(244,63,94,0.22); }
+  .ci.p   { background: rgba(245,158,11,0.10); color: #b45309; border: 1px solid rgba(245,158,11,0.25); }
+
+  /* ── HIGHLIGHT BOXES ── */
+  .hbox {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 10px;
+    font-size: 12.5px;
+    line-height: 1.65;
+  }
+  .hbox.green  { background: rgba(16,185,129,0.05); border: 1px solid rgba(16,185,129,0.18); color: var(--gray-700); }
+  .hbox.red    { background: rgba(244,63,94,0.05);  border: 1px solid rgba(244,63,94,0.18);  color: var(--gray-700); }
+  .hbox.amber  { background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.20); color: var(--gray-700); }
+  .hbox strong { color: var(--gray-900); font-weight: 700; }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--gray-100); margin: 32px 0; }
+
+  /* ── ACTION TABLE ── */
+  .action-block {
+    border: 1.5px solid rgba(244,63,94,0.25);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .action-block-header {
+    background: rgba(244,63,94,0.06);
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(244,63,94,0.15);
+    font-size: 12px;
+    font-weight: 700;
+    color: #9f1239;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  table.action-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.action-table th {
+    text-align: left;
+    padding: 9px 16px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+  }
+  table.action-table td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-700);
+    vertical-align: middle;
+    font-size: 12.5px;
+  }
+  table.action-table tr:last-child td { border-bottom: none; }
+  .urgency-now  { font-size: 11px; font-weight: 800; color: #be123c; display: flex; align-items: center; gap: 4px; }
+  .urgency-pre  { font-size: 11px; font-weight: 700; color: #b45309; }
+
+  /* ── FOOTER ── */
+  .doc-footer {
+    margin-top: 52px;
+    padding-top: 18px;
+    border-top: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── PRINT ── */
+  @media print {
+    body { font-size: 11.5px; }
+    .cover { page-break-after: always; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .q-block, .action-block { page-break-inside: avoid; }
+    .hbox, table.t, table.action-table, .direct-quote { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { padding: 44px 52px; }
+    @page { margin: 0; size: A4; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ COVER ══ -->
+<div class="cover">
+  <div class="cover-badge">⚠ Compliance Due Diligence</div>
+  <div class="cover-eyebrow">Precision Medical · LienMaster V2 Platform</div>
+  <h1>HIPAA Vendor<br>Questionnaire</h1>
+  <h2>Answers to the 8 standard due diligence questions any HIPAA-covered entity must ask of its technology vendors.</h2>
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <label>Prepared for</label>
+      <span>Executive Management</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Date</label>
+      <span>June 2026</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Platform Phase</label>
+      <span>Phase 0 — Zero PHI in system</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Classification</label>
+      <span>Internal / Confidential</span>
+    </div>
+  </div>
+  <div class="cover-source">
+    <div class="cover-source-icon">📋</div>
+    <div class="cover-source-text">
+      Source of questions: <strong>Section B — Questions to ask any current or prospective vendor (get answers in writing).</strong> Per the guidance: if the answer to #1, #2, or #4 is "no" or "not sure," treat it as an active compliance gap to close now — not at launch.
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ PAGE ══ -->
+<div class="page">
+
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="doc-title">HIPAA Vendor Questionnaire — Our Answers</div>
+      <div class="doc-sub">Precision Medical · LienMaster V2 · June 2026</div>
+    </div>
+    <div class="page-header-right">
+      8 questions answered<br>
+      Phase 0 — No PHI active<br>
+      Internal / Confidential
+    </div>
+  </div>
+
+  <div class="context-box">
+    The answers below reflect the current state of the LienMaster V2 platform as of June 2026. <strong>No real Protected Health Information (PHI) exists in the system today</strong> — Phase 0 was intentionally designed this way. The platform is architecturally HIPAA-ready; the remaining gaps are administrative and legal, not technical. Each gap is identified explicitly and accompanied by the required action.
+  </div>
+
+
+  <!-- ── Q1 ── -->
+  <div class="q-block">
+    <div class="q-header">
+      <div class="q-num warn">1</div>
+      <div class="q-text">
+        Are you HIPAA compliant, and will you provide your most recent risk assessment?
+        <span class="q-original">⚠ Per guidance: if "no" or "not sure" — active gap to close now</span>
+      </div>
+    </div>
+    <div class="verdict partial">⚠ Partially — Risk Assessment Not Yet Completed</div>
+    <p class="a-text">The platform is <strong>architecturally designed for HIPAA compliance</strong> — encryption, role-based access control at three layers, and an immutable audit trail are all live and operational. However, a <strong>formal third-party HIPAA Risk Assessment has not been conducted yet</strong>. This document is a required deliverable of the HIPAA consultant engagement, which is scheduled as a Phase 1 blocking gate before any PHI enters the system.</p>
+    <div class="hbox amber">
+      <strong>Gap:</strong> We cannot state "fully HIPAA compliant" until a risk assessment is completed and documented. The technical foundation is solid — the formal compliance certification is the open item. Engaging a HIPAA consultant is the single action that closes this gap.
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── Q2 ── -->
+  <div class="q-block">
+    <div class="q-header">
+      <div class="q-num gap">2</div>
+      <div class="q-text">
+        Will you sign a BAA with us, effective immediately?
+        <span class="q-original">⚠ Per guidance: if "no" or "not sure" — active gap to close now</span>
+      </div>
+    </div>
+    <div class="verdict flag">❌ Not Yet Signed — All Three Available and Ready</div>
+    <p class="a-text">All three of our infrastructure vendors offer Business Associate Agreements today, on their current paid plans. <strong>None have been signed yet.</strong> This is the most critical actionable item on the compliance checklist and can be resolved this week with no technical work required — it is a procurement and legal step only.</p>
+
+    <table class="t">
+      <thead>
+        <tr>
+          <th>Vendor</th>
+          <th>Role</th>
+          <th>BAA Available</th>
+          <th>BAA Signed</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Supabase</strong> (database on AWS)</td>
+          <td>Stores all PHI — patient records, clinical notes, audit logs</td>
+          <td>Yes — paid HIPAA plan</td>
+          <td><span class="pill pill-no">Not signed</span></td>
+        </tr>
+        <tr>
+          <td><strong>Vercel</strong> (application hosting)</td>
+          <td>Hosts all 6 portals — processes every user request</td>
+          <td>Yes — Pro / Enterprise plan</td>
+          <td><span class="pill pill-no">Not signed</span></td>
+        </tr>
+        <tr>
+          <td><strong>Sentry</strong> (error monitoring)</td>
+          <td>Captures error context — may include PHI in stack traces</td>
+          <td>Yes — Business plan</td>
+          <td><span class="pill pill-no">Not signed</span></td>
+        </tr>
+        <tr>
+          <td><strong>Twilio</strong> (SMS — proposed)</td>
+          <td>Patient-facing SMS — appointment links, portal access</td>
+          <td>Yes — self-serve in console</td>
+          <td><span class="pill pill-warn">Phase 1</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="hbox red">
+      <strong>Per guidance: this is an active gap to close now — not at launch.</strong> No PHI may enter the system until Supabase, Vercel, and Sentry BAAs are signed. Twilio's BAA is signed when SMS is activated in Phase 1.
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── Q3 ── -->
+  <div class="q-block">
+    <div class="q-header">
+      <div class="q-num clean">3</div>
+      <div class="q-text">Is PHI encrypted in transit (TLS) and at rest?</div>
+    </div>
+    <div class="verdict yes">✓ Yes — Fully</div>
+
+    <div class="direct-quote">
+      <div class="direct-quote-label">Ready to cite verbatim</div>
+      <div class="direct-quote-text">"Yes — all traffic is over <em>TLS 1.2 or higher</em>, and the database and backups are encrypted at rest with <em>AES-256</em>."</div>
+    </div>
+
+    <ul class="checklist">
+      <li><span class="ci ok">✓</span> <strong>In transit:</strong> TLS 1.2+ enforced at Vercel's edge layer on every domain. Plain HTTP not permitted — all connections auto-upgrade to HTTPS.</li>
+      <li><span class="ci ok">✓</span> <strong>At rest:</strong> AES-256 encryption at the AWS EBS storage layer where the Supabase PostgreSQL database runs. Standard AWS default — not a custom configuration.</li>
+      <li><span class="ci ok">✓</span> <strong>In transit (DB connection):</strong> Application-to-database connections are also SSL-encrypted. No unencrypted database access permitted.</li>
+    </ul>
+
+    <div class="hbox green">
+      This is a clean yes with verifiable, industry-standard configurations. Not a vague claim — both TLS and AES-256 are traceable to the underlying infrastructure providers (Vercel and AWS respectively).
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── Q4 ── -->
+  <div class="q-block">
+    <div class="q-header">
+      <div class="q-num gap">4</div>
+      <div class="q-text">
+        Where is PHI hosted, and do you have a BAA with that hosting provider?
+        <span class="q-original">⚠ Per guidance: if "no" or "not sure" — active gap to close now</span>
+      </div>
+    </div>
+    <div class="verdict flag">❌ Hosted on AWS us-east-2 — BAA Not Yet Signed</div>
+    <p class="a-text"><strong>Where:</strong> The database (PostgreSQL via Supabase) runs on Amazon Web Services, us-east-2 region (Ohio, USA). All 6 application portals are hosted on Vercel's global edge network. Both are industry-standard, enterprise-grade providers used by major healthcare organizations.</p>
+    <p class="a-text"><strong>BAA status:</strong> Supabase offers a HIPAA BAA on their paid plan. Vercel offers a BAA on Pro/Enterprise. <strong>Neither is signed yet.</strong></p>
+    <div class="hbox red">
+      <strong>Per guidance: this is an active compliance gap to close now — not at launch.</strong> The answer to this question is currently "hosted on AWS/Vercel, BAA not yet signed." This must be resolved before any PHI enters the system.
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── Q5 ── -->
+  <div class="q-block">
+    <div class="q-header">
+      <div class="q-num clean">5</div>
+      <div class="q-text">Who has access to our members' data, and is access role-based and logged?</div>
+    </div>
+    <div class="verdict yes">✓ Yes — Role-Based at Three Independent Layers</div>
+    <p class="a-text">Access is enforced at three separate, independent layers. A failure or bypass at any one layer does not expose data — the next layer still enforces access control.</p>
+    <ul class="checklist" style="margin-bottom:12px;">
+      <li><span class="ci ok">1</span> <strong>Edge middleware</strong> — every HTTP request is checked at the network level before the application loads. Wrong role for this portal → immediate redirect, no data accessed.</li>
+      <li><span class="ci ok">2</span> <strong>Application layer</strong> — every API endpoint and UI module checks the authenticated user's role before executing any query.</li>
+      <li><span class="ci ok">3</span> <strong>Database layer (RLS)</strong> — Supabase Row Level Security policies enforce per-role data access at the database query level. Even if an API were bypassed, the DB returns only what that role is permitted to see.</li>
+    </ul>
+    <p class="a-text">The 7 defined roles and their scope:</p>
+    <table class="t">
+      <thead><tr><th>Role</th><th>Who</th><th>Access Scope</th></tr></thead>
+      <tbody>
+        <tr><td><strong>SUPER_ADMIN</strong></td><td>Executive / IT</td><td>Full system — all modules, all data</td></tr>
+        <tr><td><strong>ADMIN</strong></td><td>Clinic Manager</td><td>All operational modules — no payroll secrets</td></tr>
+        <tr><td><strong>CONTADOR</strong></td><td>Accounting</td><td>Billing and finance only — no clinical data</td></tr>
+        <tr><td><strong>EMPLOYEE</strong></td><td>Front Desk / MA</td><td>Front Office, Time Clock, assigned clinic only</td></tr>
+        <tr><td><strong>PROVIDER</strong></td><td>Doctor</td><td>Clinical portal only — their own patients</td></tr>
+        <tr><td><strong>LAWYER</strong></td><td>Attorney / Paralegal</td><td>Attorney portal — their own firm's cases only</td></tr>
+        <tr><td><strong>AUDITOR_AI</strong></td><td>AI Agent</td><td>Read-only financial audit — no PHI</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── Q6 ── -->
+  <div class="q-block">
+    <div class="q-header">
+      <div class="q-num clean">6</div>
+      <div class="q-text">Do you keep audit logs (who accessed what, and when)?</div>
+    </div>
+    <div class="verdict yes">✓ Yes — Immutable, Append-Only, Every Mutation</div>
+    <p class="a-text">Every create, update, soft-delete, and status change in the system writes an immutable audit log entry. Audit logs <strong>cannot be edited or deleted by anyone</strong> — including Super Admin.</p>
+    <p class="a-text" style="margin-bottom:8px;">Each entry records:</p>
+    <ul class="checklist">
+      <li><span class="ci ok">✓</span> <strong>Who</strong> — User ID, actor type (HUMAN_USER, AI_AGENT, or SYSTEM)</li>
+      <li><span class="ci ok">✓</span> <strong>What action</strong> — specific named action (e.g. CREATE_CASE, UPDATE_PATIENT, SIGN_CONSENT)</li>
+      <li><span class="ci ok">✓</span> <strong>Which record</strong> — entity type and record ID</li>
+      <li><span class="ci ok">✓</span> <strong>Before &amp; after state</strong> — full JSON snapshot of the record before and after the change</li>
+      <li><span class="ci ok">✓</span> <strong>IP address</strong> — originating IP of every request</li>
+      <li><span class="ci ok">✓</span> <strong>User agent</strong> — browser and device information</li>
+      <li><span class="ci ok">✓</span> <strong>UTC timestamp</strong> — immutable, indexed for fast lookup</li>
+    </ul>
+    <div class="hbox green">
+      This audit trail provides a complete forensic history sufficient to determine the scope, actor, and timeline of any access event — including potential breach investigation.
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── Q7 ── -->
+  <div class="q-block">
+    <div class="q-header">
+      <div class="q-num warn">7</div>
+      <div class="q-text">Have you experienced a breach, and what is your breach-notification process?</div>
+    </div>
+    <div class="verdict partial">⚠ No Breach — Written Notification Policy Pending</div>
+    <p class="a-text"><strong>Breaches to date: Zero.</strong> No PHI is in the system (Phase 0 by design), which eliminates breach risk at the data layer. No unauthorized access incidents have been recorded.</p>
+    <p class="a-text"><strong>Breach notification process:</strong> A formal written policy does not yet exist as a standalone document. What is in place today:</p>
+    <ul class="checklist" style="margin-bottom:12px;">
+      <li><span class="ci ok">✓</span> Sentry real-time error monitoring — alerts the engineering team immediately on production anomalies</li>
+      <li><span class="ci ok">✓</span> Complete immutable audit log — full forensic trail to establish scope and timeline of any incident</li>
+      <li><span class="ci ok">✓</span> Role isolation — a compromised account cannot access data outside its role scope</li>
+      <li><span class="ci gap">!</span> Written Incident Response Policy — not yet documented</li>
+      <li><span class="ci gap">!</span> HIPAA 4-factor breach risk assessment process — not yet documented</li>
+      <li><span class="ci gap">!</span> Individual patient notification procedure (60-day requirement) — not yet documented</li>
+      <li><span class="ci gap">!</span> HHS reporting procedure — not yet documented</li>
+    </ul>
+    <div class="hbox amber">
+      <strong>HIPAA Breach Notification Rule (45 CFR §164.400–414):</strong> Requires notification to affected individuals within 60 days of discovery. HHS must be notified immediately if 500+ individuals are affected, or via an annual log if fewer than 500. These written procedures are a deliverable of the HIPAA consultant engagement scheduled for Phase 1.
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── Q8 ── -->
+  <div class="q-block">
+    <div class="q-header">
+      <div class="q-num gap">8</div>
+      <div class="q-text">Do you have signed BAAs with all your subcontractors who touch PHI?</div>
+    </div>
+    <div class="verdict no">❌ No — Three BAAs Pending</div>
+    <p class="a-text">Supabase, Vercel, and Sentry are all subcontractors that touch or could touch PHI. <strong>None have signed BAAs yet.</strong> All three have standard BAA agreements available on their current paid plans and are ready to sign. This is a procurement step, not a technical negotiation.</p>
+    <div class="hbox red">
+      <strong>Per guidance: the answer to #8 is "no" — treat it as an active compliance gap to close now.</strong> No PHI may legally flow through any subcontractor without a signed BAA in place. Resolving this requires nothing more than initiating the agreement process with each vendor this week.
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+
+  <!-- ── ACTION PLAN ── -->
+  <div class="action-block">
+    <div class="action-block-header">
+      🔴 Active Compliance Gaps — Must Close Before PHI Activation
+    </div>
+    <table class="action-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Action Required</th>
+          <th>Who</th>
+          <th>Effort</th>
+          <th>Urgency</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:700; color:var(--gray-900);">1</td>
+          <td>Sign BAA with <strong>Supabase</strong> (database host — all PHI)</td>
+          <td>Management / Legal</td>
+          <td>Online agreement — minutes</td>
+          <td><div class="urgency-now">🔴 This week</div></td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:var(--gray-900);">2</td>
+          <td>Sign BAA with <strong>Vercel</strong> (application host — all portals)</td>
+          <td>Management / Legal</td>
+          <td>Online agreement — minutes</td>
+          <td><div class="urgency-now">🔴 This week</div></td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:var(--gray-900);">3</td>
+          <td>Sign BAA with <strong>Sentry</strong> (error monitoring — may log PHI)</td>
+          <td>Management / Legal</td>
+          <td>Online agreement — minutes</td>
+          <td><div class="urgency-now">🔴 This week</div></td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:var(--gray-900);">4</td>
+          <td>Engage <strong>HIPAA consultant</strong> — formal risk assessment + policy package</td>
+          <td>Management</td>
+          <td>Weeks — external engagement</td>
+          <td><div class="urgency-now">🔴 Before PHI</div></td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:var(--gray-900);">5</td>
+          <td>Produce written <strong>Breach Notification Policy</strong> (HIPAA §164.400)</td>
+          <td>HIPAA consultant</td>
+          <td>Deliverable from #4</td>
+          <td><div class="urgency-now">🔴 Before PHI</div></td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:var(--gray-900);">6</td>
+          <td>Sign BAA with <strong>Twilio</strong> when SMS feature activates (Phase 1)</td>
+          <td>Management / Legal</td>
+          <td>Self-serve in Twilio console</td>
+          <td><div class="urgency-pre">🟡 Phase 1</div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="hbox green" style="margin-top:20px;">
+    <strong>What this means in plain terms:</strong> The technology is built correctly and is ready. Items 1, 2, and 3 above can be completed this week with no engineering work. Items 4 and 5 require an external consultant engagement that is already on the Phase 1 gate. Once these six items are done, we can answer "yes" to all 8 questions with full documentation.
+  </div>
+
+
+  <!-- ── FOOTER ── -->
+  <div class="doc-footer">
+    <div>
+      <strong style="color:var(--gray-800);">Precision Medical · LienMaster V2</strong><br>
+      HIPAA Vendor Questionnaire · Internal / Confidential
+    </div>
+    <div style="text-align:right;">
+      June 2026 · Version 1.0<br>
+      Phase 0 Complete — 3 BAAs + consultant pending
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Search as SearchIcon, PhoneOutgoing, Phone, ArrowRight, ArrowLeft,
   User, ClipboardList,
@@ -81,6 +82,7 @@ export function PreCallStep({
   onConfirm: (result: PreCallResult) => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations('phoenix.frontOffice.precall');
   const [mode, setMode] = useState<PreCallMode | null>(null);
 
   // Search state
@@ -173,42 +175,40 @@ export function PreCallStep({
     return (
       <div className="px-4 sm:px-6 py-5 space-y-4">
         <div>
-          <h3 className="text-text-1 font-semibold text-base">¿Cómo empezamos la llamada?</h3>
-          <p className="text-text-muted text-xs mt-1">
-            Elegí el escenario antes de iniciar · el timer de llamada arranca después.
-          </p>
+          <h3 className="text-text-1 font-semibold text-base">{t('title')}</h3>
+          <p className="text-text-muted text-xs mt-1">{t('subtitle')}</p>
         </div>
 
         <div className="space-y-2">
           <ModeCard
             icon={SearchIcon}
-            title="Buscar paciente existente"
-            subtitle="Ya está en el sistema (referido previo, llamada anterior)"
+            title={t('searchTitle')}
+            subtitle={t('searchSubtitle')}
             tone="brand"
             onClick={() => setMode('search')}
           />
           <ModeCard
             icon={PhoneOutgoing}
-            title="Yo voy a llamar"
-            subtitle="Outbound · marcar número del paciente referido por su bufete"
+            title={t('outgoingTitle')}
+            subtitle={t('outgoingSubtitle')}
             tone="cyan"
             onClick={() => setMode('outgoing')}
           />
           <ModeCard
             icon={ClipboardList}
-            title="Agregar referido sin llamada"
-            subtitle="Ingreso manual · bufete envió datos por email, texto o fax"
+            title={t('manualTitle')}
+            subtitle={t('manualSubtitle')}
             tone="amber"
             onClick={() => setMode('manual')}
           />
         </div>
 
         <div className="rounded-md border border-border bg-bg-2/40 px-3 py-2 text-[11px] text-text-muted">
-          <span className="text-text-2 font-semibold">¿Llamada entrante?</span> Las llamadas que entran se detectan automáticamente y aparecen como notificación arriba a la derecha · click "Contestar" desde ahí.
+          <span className="text-text-2 font-semibold">{t('incomingNote')}</span>{' '}{t('incomingNoteText')}
         </div>
 
         <div className="flex justify-end pt-2">
-          <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+          <Button variant="outline" onClick={onCancel}>{t('cancel')}</Button>
         </div>
       </div>
     );
@@ -218,7 +218,7 @@ export function PreCallStep({
   if (mode === 'search') {
     return (
       <div className="px-4 sm:px-6 py-5 space-y-4">
-        <BackButton onClick={() => setMode(null)} label="Buscar paciente existente" />
+        <BackButton onClick={() => setMode(null)} label={t('backSearch')} />
 
         {!selectedPatient ? (
           <>
@@ -227,7 +227,7 @@ export function PreCallStep({
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Nombre, teléfono, email o código PT-..."
+                placeholder={t('searchPlaceholder')}
                 className="pl-9"
                 autoFocus
               />
@@ -236,12 +236,12 @@ export function PreCallStep({
             {query.length >= 2 && (
               <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
                 {searching && results.length === 0 ? (
-                  <div className="px-3 py-4 text-text-muted text-xs text-center">Buscando...</div>
+                  <div className="px-3 py-4 text-text-muted text-xs text-center">{t('searching')}</div>
                 ) : results.length === 0 ? (
                   <div className="px-3 py-6 text-center">
                     <User className="w-8 h-8 text-text-muted mx-auto mb-2 opacity-50" />
-                    <div className="text-text-2 text-sm">No hay pacientes con "{query}"</div>
-                    <div className="text-text-muted text-[11px] mt-1">¿Es un paciente nuevo? Volvé y elegí "Llamada entrante" o "Yo voy a llamar".</div>
+                    <div className="text-text-2 text-sm">{t('noPatientTitle', { query })}</div>
+                    <div className="text-text-muted text-[11px] mt-1">{t('noPatientSubtitle')}</div>
                   </div>
                 ) : (
                   <div className="max-h-[280px] overflow-y-auto scroll-thin divide-y divide-border/40">
@@ -271,13 +271,13 @@ export function PreCallStep({
 
             {query.length < 2 && (
               <div className="text-text-muted text-[11px] text-center py-4">
-                Escribí al menos 2 caracteres para buscar
+                {t('minChars')}
               </div>
             )}
           </>
         ) : (
           // Selected patient → show + actions
-          <InfoCard title="Paciente encontrado" icon={User} tone="brand">
+          <InfoCard title={t('patientFoundTitle')} icon={User} tone="brand">
             <div className="flex items-center gap-3">
               <PersonAvatar firstName={selectedPatient.firstName} lastName={selectedPatient.lastName} size={12} gradientClass="bg-gradient-brand" />
               <div className="flex-1 min-w-0">
@@ -294,7 +294,7 @@ export function PreCallStep({
                 onClick={() => setSelectedPatient(null)}
                 className="text-text-muted hover:text-rose text-xs shrink-0"
               >
-                Cambiar
+                {t('changePatient')}
               </button>
             </div>
 
@@ -307,21 +307,21 @@ export function PreCallStep({
                   <Phone className="w-4 h-4" />
                   <span className="font-mono text-sm">{selectedPatient.phone}</span>
                 </div>
-                <span className="text-[10px] uppercase tracking-wider font-semibold">Tap para marcar</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold">{t('tapToDial')}</span>
               </a>
             ) : (
-              <div className="text-rose text-xs italic">⚠ Este paciente no tiene teléfono guardado. Actualizalo desde su ficha primero.</div>
+              <div className="text-rose text-xs italic">{t('noPhoneWarning')}</div>
             )}
 
             {selectedPatient.lastCaseCode && (
               <div className="text-text-muted text-[11px]">
-                Último caso: <code className="font-mono text-text-2">{selectedPatient.lastCaseCode}</code> · status <code className="text-text-2">{selectedPatient.lastCaseStatus}</code>
+                {t('lastCase')} <code className="font-mono text-text-2">{selectedPatient.lastCaseCode}</code> · {t('lastCaseStatus')} <code className="text-text-2">{selectedPatient.lastCaseStatus}</code>
               </div>
             )}
           </InfoCard>
         )}
 
-        <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} />
+        <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} t={t} />
       </div>
     );
   }
@@ -330,28 +330,28 @@ export function PreCallStep({
   if (mode === 'manual') {
     return (
       <div className="px-4 sm:px-6 py-5 space-y-4">
-        <BackButton onClick={() => setMode(null)} label="Agregar referido sin llamada" />
+        <BackButton onClick={() => setMode(null)} label={t('backManual')} />
 
-        <InfoCard title="Datos del referido" icon={ClipboardList} tone="amber">
+        <InfoCard title={t('manualCardTitle')} icon={ClipboardList} tone="amber">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField.Input label="Nombre" required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
-            <FormField.Input label="Apellido" required value={quickLastName} onChange={setQuickLastName} placeholder="López" />
+            <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
+            <FormField.Input label={t('manualLastName')} required value={quickLastName} onChange={setQuickLastName} placeholder="López" />
           </div>
           <FormField.Input
-            label="Teléfono"
+            label={t('manualPhone')}
             value={quickPhone}
             onChange={setQuickPhone}
             placeholder="(801) 555-0142"
             type="tel"
-            hint="Opcional si los datos llegaron por email o fax"
+            hint={t('manualPhoneHint')}
           />
         </InfoCard>
 
         <div className="rounded-md border border-amber/20 bg-amber/5 px-3 py-2 text-[11px] text-amber">
-          Sin timer de llamada · el caso se crea como <code className="font-mono font-semibold">LAW_FIRM_REFERRAL</code>. Podés completar todos los datos en el siguiente paso.
+          {t('manualNote')}
         </div>
 
-        <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} />
+        <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} t={t} />
       </div>
     );
   }
@@ -359,21 +359,21 @@ export function PreCallStep({
   // ─── Outgoing mode (form mínimo + tel:link) ───────────────────────────
   return (
     <div className="px-4 sm:px-6 py-5 space-y-4">
-      <BackButton onClick={() => setMode(null)} label="Yo voy a llamar (outbound)" />
+      <BackButton onClick={() => setMode(null)} label={t('backOutgoing')} />
 
-      <InfoCard title="Número a marcar" icon={PhoneOutgoing} tone="cyan">
+      <InfoCard title={t('outgoingCardTitle')} icon={PhoneOutgoing} tone="cyan">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FormField.Input label="Nombre" required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
-          <FormField.Input label="Apellido" value={quickLastName} onChange={setQuickLastName} placeholder="López" />
+          <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
+          <FormField.Input label={t('manualLastName')} value={quickLastName} onChange={setQuickLastName} placeholder="López" />
         </div>
         <FormField.Input
-          label="Teléfono"
+          label={t('manualPhone')}
           required
           value={quickPhone}
           onChange={setQuickPhone}
           placeholder="(801) 555-0142"
           type="tel"
-          hint="Vas a marcar este número al confirmar"
+          hint={t('outgoingDialHint')}
         />
 
         {quickPhone.trim() && (
@@ -385,16 +385,16 @@ export function PreCallStep({
               <Phone className="w-4 h-4" />
               <span className="font-mono text-sm">{quickPhone.trim()}</span>
             </div>
-            <span className="text-[10px] uppercase tracking-wider font-semibold">Tap para marcar</span>
+            <span className="text-[10px] uppercase tracking-wider font-semibold">{t('tapToDial')}</span>
           </a>
         )}
       </InfoCard>
 
       <div className="text-text-muted text-[11px] text-center">
-        Al confirmar arranca el timer · vas a poder editar nombre, agregar email, fecha de nacimiento, etc.
+        {t('outgoingDialHint')}
       </div>
 
-      <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} />
+      <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} t={t} />
     </div>
   );
 }
@@ -435,6 +435,7 @@ function ModeCard({
 }
 
 function BackButton({ onClick, label }: { onClick: () => void; label: string }) {
+  const t = useTranslations('phoenix.frontOffice.precall');
   return (
     <div className="flex items-center justify-between gap-3">
       <button
@@ -442,7 +443,7 @@ function BackButton({ onClick, label }: { onClick: () => void; label: string }) 
         onClick={onClick}
         className="inline-flex items-center gap-1.5 text-text-2 hover:text-text-1 text-xs transition-colors"
       >
-        <ArrowLeft className="w-3.5 h-3.5" /> Volver
+        <ArrowLeft className="w-3.5 h-3.5" /> {t('backBtn')}
       </button>
       <h3 className="text-text-1 font-semibold text-sm truncate">{label}</h3>
       <span className="w-12" /> {/* spacer */}
@@ -451,21 +452,22 @@ function BackButton({ onClick, label }: { onClick: () => void; label: string }) 
 }
 
 function FooterActions({
-  onCancel, onConfirm, canConfirm, mode,
+  onCancel, onConfirm, canConfirm, mode, t,
 }: {
   onCancel: () => void;
   onConfirm: () => void;
   canConfirm: boolean;
   mode: PreCallMode;
+  t: ReturnType<typeof useTranslations>;
 }) {
   const label = mode === 'outgoing'
-    ? 'Marqué · iniciar captura'
+    ? t('startOutgoingBtn')
     : mode === 'manual'
-      ? 'Continuar · completar datos'
-      : 'En llamada · iniciar captura';
+      ? t('startManualBtn')
+      : t('startCallBtn');
   return (
     <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-border">
-      <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">Cancelar</Button>
+      <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">{t('cancel')}</Button>
       <Button onClick={onConfirm} disabled={!canConfirm} className="w-full sm:w-auto">
         <Phone className="w-3.5 h-3.5 mr-1" /> {label}
         <ArrowRight className="w-3.5 h-3.5 ml-1" />

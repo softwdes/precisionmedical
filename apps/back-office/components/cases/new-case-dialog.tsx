@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   PhoneCall, User, Car, Scale, ShieldCheck, Check, AlertCircle, Search as SearchIcon,
   CalendarCheck, Send, Tablet, Pause, ArrowRight, MessageCircle, Phone, ClipboardList,
@@ -72,6 +73,7 @@ type FormDelivery = 'SEND_NOW' | 'TABLET_AT_CLINIC';
 
 export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState }: NewCaseDialogProps) {
   const router = useRouter();
+  const t = useTranslations('phoenix.frontOffice.newCase');
 
   // ─── Step state (precall vs capturing) ────────────────────────────────
   const [step, setStep] = useState<'precall' | 'capturing'>('precall');
@@ -247,7 +249,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const handleSubmit = async (action: 'finalize' | 'pause') => {
     setError(null);
     if (action === 'finalize' && !canSubmit) {
-      return setError('Completá los campos obligatorios marcados con *');
+      return setError(t('errorRequired'));
     }
 
     setSaving(true);
@@ -326,24 +328,28 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <div className="w-16 h-16 rounded-full bg-emerald/15 border border-emerald/30 flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-emerald" />
             </div>
-            <h2 className="text-xl font-bold text-text-1 mb-2">{isManual ? 'Referido registrado' : 'Caso creado · llamada finalizada'}</h2>
+            <h2 className="text-xl font-bold text-text-1 mb-2">
+              {isManual ? t('successTitleManual') : t('successTitleCall')}
+            </h2>
             <p className="text-text-2 text-sm mb-4">
               <code className="text-emerald font-mono font-bold">{success.caseCode}</code>
             </p>
             <div className="text-xs text-text-muted mb-6 space-y-1">
               <div><strong className="text-text-2">{firstName} {lastName}</strong></div>
               {success.appointmentScheduled
-                ? <div>Cita confirmada · status <code className="text-emerald">CONFIRMED</code></div>
-                : <div>Sin cita aún · status <code className="text-rose">NEW_REFERRAL</code></div>}
-              {formDelivery === 'SEND_NOW' && <div>Formulario enviado por {email ? 'email' : 'SMS'}</div>}
+                ? <div>{t('successAppointment')}</div>
+                : <div>{t('successNoAppointment')}</div>}
+              {formDelivery === 'SEND_NOW' && (
+                <div>{t('successFormSent', { channel: email ? 'email' : 'SMS' })}</div>
+              )}
             </div>
             <div className="flex gap-2 justify-center">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>{t('btnClose')}</Button>
               <Button onClick={() => {
                 onOpenChange(false);
                 router.push(`/front-office/${success.caseId}`);
               }}>
-                Ver caso <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                {t('btnViewCase')} <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </Button>
             </div>
           </div>
@@ -360,10 +366,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
             <DialogTitle className="flex items-center gap-2 text-text-1 text-sm sm:text-base">
               <PhoneCall className="w-4 h-4 text-emerald" />
-              Nueva llamada · Crear caso
+              {t('dialogTitle')}
             </DialogTitle>
             <DialogDescription className="text-[11px] sm:text-xs mt-1">
-              El timer arranca cuando estés realmente hablando con el paciente
+              {t('dialogDescription')}
             </DialogDescription>
           </DialogHeader>
 
@@ -381,10 +387,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // ─── Step 2: Capturing (timer corriendo) ──────────────────────────────
   const elapsedLabel = formatElapsed(callElapsed);
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Paciente';
-  const callModeLabel = callMode === 'search' ? 'paciente existente'
-    : callMode === 'incoming' ? 'llamada entrante'
-    : callMode === 'manual' ? 'ingreso manual · sin llamada'
-    : 'outbound';
+  const callModeLabel = callMode === 'search' ? t('modeExisting')
+    : callMode === 'incoming' ? t('modeIncoming')
+    : callMode === 'manual' ? t('modeManual')
+    : t('modeOutbound');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -398,23 +404,25 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   {isManual
                     ? <ClipboardList className="w-4 h-4 text-amber shrink-0" />
                     : <PhoneCall className="w-4 h-4 text-emerald shrink-0" />}
-                  <span className="truncate">{isManual ? `Nuevo referido · ${fullName}` : `Llamada · ${fullName}`}</span>
+                  <span className="truncate">
+                    {isManual ? t('titleManual', { name: fullName }) : t('titleCall', { name: fullName })}
+                  </span>
                 </DialogTitle>
                 <DialogDescription className="mt-1 text-[11px] sm:text-xs flex items-center gap-1.5 flex-wrap">
                   <span>{callModeLabel}</span>
-                  {existingPatientId && <span>· <code className="text-cyan font-mono">paciente conocido</code></span>}
-                  <span className="hidden sm:inline">{isManual ? '· completá los datos y agendá' : '· captura + agenda · 10–15 min típico'}</span>
+                  {existingPatientId && <span>· <code className="text-cyan font-mono">{t('modeKnown')}</code></span>}
+                  <span className="hidden sm:inline">{isManual ? t('subtitleManual') : t('subtitleCall')}</span>
                 </DialogDescription>
               </div>
               {/* Pills: en manual mostramos badge amber; en llamada mostramos timer */}
               <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                 <TagPill
-                  label={existingPatientId ? 'paciente conocido' : 'NEW_REFERRAL'}
+                  label={existingPatientId ? t('modeKnown') : 'NEW_REFERRAL'}
                   colorClass={existingPatientId ? 'bg-cyan/15 text-cyan border-cyan/30 hidden sm:inline-flex' : 'bg-rose/15 text-rose border-rose/30 hidden sm:inline-flex'}
                   mono
                 />
                 {isManual
-                  ? <TagPill label="sin llamada" colorClass="bg-amber/15 text-amber border-amber/30" mono />
+                  ? <TagPill label={t('badgeNoCall')} colorClass="bg-amber/15 text-amber border-amber/30" mono />
                   : <TagPill
                       label={<><span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block mr-1 animate-pulse" />{elapsedLabel}</>}
                       colorClass="bg-emerald/15 text-emerald border-emerald/30"
@@ -423,14 +431,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             </div>
           </DialogHeader>
 
-          {/* Patient hero card · sin truncar lawFirm en mobile (stack si hace falta) */}
+          {/* Patient hero card */}
           <div className="mt-3 rounded-lg border border-border bg-bg-1 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-3">
             <PersonAvatar firstName={firstName || '?'} lastName={lastName || ''} size={10} gradientClass="bg-gradient-brand" />
             <div className="flex-1 min-w-0">
               <div className="text-text-1 font-semibold text-sm truncate">{fullName}</div>
               <div className="text-text-muted text-[11px] mt-0.5 flex items-center gap-x-3 gap-y-1 flex-wrap">
                 {phone && <span className="font-mono flex items-center gap-1"><Phone className="w-3 h-3" />{phone}</span>}
-                <span>{language === 'es' ? '🇪🇸 Español' : '🇺🇸 English'}</span>
+                <span>{language === 'es' ? t('langEs') : t('langEn')}</span>
                 {lawFirm && <span className="truncate max-w-full">⚖ {lawFirm.label}</span>}
               </div>
             </div>
@@ -441,107 +449,107 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4 scroll-thin">
           <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold flex items-center gap-1.5">
             <MessageCircle className="w-3 h-3" />
-            Información a capturar en esta llamada
+            {t('captureTitle')}
           </div>
 
           {/* ── Sección 1: Patient ─────────────────────────────────────── */}
-          <InfoCard title="Datos básicos del paciente" icon={User} number={1}>
+          <InfoCard title={t('sectionPatient')} icon={User} number={1}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField.Input label="Nombre" required value={firstName} onChange={setFirstName} placeholder="Sandra" autoFocus />
-              <FormField.Input label="Apellido" required value={lastName} onChange={setLastName} placeholder="López" />
-              <FormField.Input label="Teléfono" required value={phone} onChange={setPhone} placeholder="(801) 555-0142" type="tel" />
-              <FormField.Input label="Email" value={email} onChange={setEmail} placeholder="sandra@email.com" type="email" />
-              <FormField.Input label="Fecha de nacimiento" value={dateOfBirth} onChange={setDateOfBirth} type="date" />
-              <FormField.Select label="Idioma preferido" value={language} onChange={(v) => setLanguage(v as 'es' | 'en')}
-                options={[{ value: 'es', label: '🇪🇸 Español' }, { value: 'en', label: '🇺🇸 English' }]} />
+              <FormField.Input label={t('firstName')} required value={firstName} onChange={setFirstName} placeholder="Sandra" autoFocus />
+              <FormField.Input label={t('lastName')} required value={lastName} onChange={setLastName} placeholder="López" />
+              <FormField.Input label={t('phone')} required value={phone} onChange={setPhone} placeholder="(801) 555-0142" type="tel" />
+              <FormField.Input label={t('email')} value={email} onChange={setEmail} placeholder="sandra@email.com" type="email" />
+              <FormField.Input label={t('dob')} value={dateOfBirth} onChange={setDateOfBirth} type="date" />
+              <FormField.Select label={t('language')} value={language} onChange={(v) => setLanguage(v as 'es' | 'en')}
+                options={[{ value: 'es', label: t('langEs') }, { value: 'en', label: t('langEn') }]} />
             </div>
-            <FormField.Select label="¿Quién lo refirió?" value={referralSource} onChange={(v) => setReferralSource(v as ReferralSource)}
+            <FormField.Select label={t('referralSource')} value={referralSource} onChange={(v) => setReferralSource(v as ReferralSource)}
               options={[
-                { value: 'LAW_FIRM_REFERRAL', label: '⚖ Bufete de abogados' },
-                { value: 'PATIENT_REFERRAL', label: '👥 Paciente existente' },
-                { value: 'PHONE_CALL', label: '📞 Llamada directa' },
-                { value: 'WALK_IN', label: '🚶 Walk-in (sin cita)' },
-                { value: 'WEB_FORM', label: '🌐 Formulario web' },
-                { value: 'OTHER', label: '📌 Otro' },
+                { value: 'LAW_FIRM_REFERRAL', label: t('sourceFirearm') },
+                { value: 'PATIENT_REFERRAL', label: t('sourcePatient') },
+                { value: 'PHONE_CALL', label: t('sourcePhone') },
+                { value: 'WALK_IN', label: t('sourceWalkin') },
+                { value: 'WEB_FORM', label: t('sourceWeb') },
+                { value: 'OTHER', label: t('sourceOther') },
               ]}
-              hint='"¿Me confirma su nombre completo y fecha de nacimiento? ¿Quién la refirió a Precision Medical?"'
+              hint={t('patientHint')}
             />
           </InfoCard>
 
           {/* ── Sección 2: Tipo de caso ──────────────────────────────────── */}
-          <InfoCard title="Tipo de caso" icon={Car} number={2}>
+          <InfoCard title={t('sectionCaseType')} icon={Car} number={2}>
             <div className="grid grid-cols-2 gap-2">
               <SelectableCard
                 selected={caseType === 'MVA'}
                 onClick={() => setCaseType('MVA')}
                 icon="🚗"
-                title="MVA"
-                subtitle="Accidente de auto · PI con lien"
+                title={t('caseMVA')}
+                subtitle={t('caseMVADesc')}
               />
               <SelectableCard
                 selected={caseType === 'GENERAL'}
                 onClick={() => setCaseType('GENERAL')}
                 icon="🩺"
-                title="GM"
-                subtitle="Medicina general · sin lien"
+                title={t('caseGM')}
+                subtitle={t('caseGMDesc')}
               />
             </div>
           </InfoCard>
 
           {/* ── Sección 3: Accidente (solo para MVA) ────────────────────── */}
           {caseType === 'MVA' && (
-            <InfoCard title="Detalles del accidente" icon={Car} number={3}>
+            <InfoCard title={t('sectionAccident')} icon={Car} number={3}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField.Input label="Fecha del accidente (DOL)" value={accidentDate} onChange={setAccidentDate} type="date" />
-                <FormField.Select label="Mecanismo" value={accidentType} onChange={setAccidentType}
+                <FormField.Input label={t('accidentDate')} value={accidentDate} onChange={setAccidentDate} type="date" />
+                <FormField.Select label={t('accidentType')} value={accidentType} onChange={setAccidentType}
                   options={[
-                    { value: 'AUTO', label: '🚗 Auto' },
-                    { value: 'MOTORCYCLE', label: '🏍 Motorcycle' },
-                    { value: 'PEDESTRIAN', label: '🚶 Pedestrian' },
-                    { value: 'WORKPLACE', label: '🏭 Workplace' },
-                    { value: 'OTHER', label: '📌 Other' },
+                    { value: 'AUTO', label: t('accAuto') },
+                    { value: 'MOTORCYCLE', label: t('accMoto') },
+                    { value: 'PEDESTRIAN', label: t('accPed') },
+                    { value: 'WORKPLACE', label: t('accWork') },
+                    { value: 'OTHER', label: t('accOther') },
                   ]} />
               </div>
-              <FormField.Input label="Ubicación" value={accidentLocation} onChange={setAccidentLocation} placeholder="I-15 Exit 285, Provo" />
-              <FormField.Textarea label="Notas breves" value={accidentNotes} onChange={setAccidentNotes}
-                placeholder="Choque trasero · 3 vehículos · paciente reportó dolor cervical"
-                hint='"¿Cuándo ocurrió el accidente? ¿Cómo fue?"' />
+              <FormField.Input label={t('accidentLocation')} value={accidentLocation} onChange={setAccidentLocation} placeholder={t('accidentLocationPlaceholder')} />
+              <FormField.Textarea label={t('accidentNotes')} value={accidentNotes} onChange={setAccidentNotes}
+                placeholder={t('accidentNotesPlaceholder')}
+                hint={t('accidentHint')} />
             </InfoCard>
           )}
 
           {/* ── Sección 4: Abogado · OBLIGATORIO para MVA ─────────────── */}
           {caseType === 'MVA' && (
             <InfoCard
-              title="Abogado representante"
+              title={t('sectionLawyer')}
               icon={Scale}
               number={4}
               tone="rose"
-              rightSlot={<TagPill label="OBLIGATORIO MVA" colorClass="bg-rose/15 text-rose border-rose/30" />}
+              rightSlot={<TagPill label={t('lawyerRequired')} colorClass="bg-rose/15 text-rose border-rose/30" />}
             >
-              <div className="text-text-muted text-[11px] italic">"¿Tiene abogado o bufete que lo represente en este caso?"</div>
+              <div className="text-text-muted text-[11px] italic">{t('lawyerHint')}</div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <SegmentedOption
                   selected={lawyerStatus === 'HAS'} onClick={() => setLawyerStatus('HAS')}
-                  icon="✓" label="Sí, tiene abogado"
+                  icon="✓" label={t('lawyerHas')}
                 />
                 <SegmentedOption
                   selected={lawyerStatus === 'SEEKING'} onClick={() => setLawyerStatus('SEEKING')}
-                  icon="🔍" label="No tiene aún · buscar"
+                  icon="🔍" label={t('lawyerSeeking')}
                 />
                 <SegmentedOption
                   selected={lawyerStatus === 'DECLINED'} onClick={() => setLawyerStatus('DECLINED')}
-                  icon="✗" label="No quiere abogado"
+                  icon="✗" label={t('lawyerDeclined')}
                 />
               </div>
 
               {lawyerStatus === 'HAS' && (
                 <div className="space-y-3">
                   <div>
-                    <Label>Bufete de abogados <span className="text-text-muted text-[10px] ml-1 font-normal">(autocomplete del catálogo)</span></Label>
+                    <Label>{t('lawFirmLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('lawFirmAutocomplete')}</span></Label>
                     <Autocomplete
                       endpoint="/api/admin/lawyers/autocomplete"
-                      placeholder="Buscar bufete (Smith & Johnson, Brown...)"
+                      placeholder={t('lawFirmPlaceholder')}
                       selected={lawFirm}
                       onSelect={(r) => { setLawFirm(r); setAttorney(null); }}
                     />
@@ -549,43 +557,43 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   {lawFirm && (
                     <>
                       <div>
-                        <Label>Attorney específico <span className="text-text-muted text-[10px] ml-1 font-normal">(opcional)</span></Label>
+                        <Label>{t('attorneyLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('attorneyOptional')}</span></Label>
                         <Autocomplete
                           endpoint="/api/admin/lawyers/autocomplete"
                           extraParams={{ firmId: lawFirm.id }}
-                          placeholder="Buscar attorney del bufete..."
+                          placeholder={t('attorneyPlaceholder')}
                           selected={attorney}
                           onSelect={setAttorney}
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormField.Input label="Case manager / paralegal" value={caseManagerName} onChange={setCaseManagerName} placeholder="Bob Jones" />
-                        <FormField.Input label="Email del case manager" value={caseManagerEmail} onChange={setCaseManagerEmail} placeholder="bob@firm.com" type="email" />
+                        <FormField.Input label={t('caseManagerLabel')} value={caseManagerName} onChange={setCaseManagerName} placeholder="Bob Jones" />
+                        <FormField.Input label={t('caseManagerEmail')} value={caseManagerEmail} onChange={setCaseManagerEmail} placeholder="bob@firm.com" type="email" />
                       </div>
-                      <FormField.Input label="Teléfono del bufete" value={firmPhone} onChange={setFirmPhone} placeholder="(801) 555-0987" type="tel" />
+                      <FormField.Input label={t('firmPhone')} value={firmPhone} onChange={setFirmPhone} placeholder="(801) 555-0987" type="tel" />
                     </>
                   )}
-                  <Note tone="emerald">Catálogo central de bufetes · si no aparece, opción "Agregar nuevo bufete" para creación rápida. Edson después verificará la representación con el abogado.</Note>
+                  <Note tone="emerald">{t('lawyerNoteHas')}</Note>
                 </div>
               )}
 
               {lawyerStatus === 'SEEKING' && (
-                <Note tone="amber">El paciente no tiene abogado todavía. Edson revisará y puede sugerir bufetes que aceptan PI cases. El caso queda en pre-intake hasta confirmar representación.</Note>
+                <Note tone="amber">{t('lawyerNoteSeeking')}</Note>
               )}
               {lawyerStatus === 'DECLINED' && (
-                <Note tone="rose">Sin abogado = sin lien. El paciente debe entender que el tratamiento se factura directo (cash o seguro propio). Confirmar antes de continuar.</Note>
+                <Note tone="rose">{t('lawyerNoteDeclined')}</Note>
               )}
             </InfoCard>
           )}
 
           {/* ── Sección 5: Seguro PIP ──────────────────────────────────── */}
           {caseType === 'MVA' && (
-            <InfoCard title="Seguro de auto (PIP)" icon={ShieldCheck} number={5} tone="cyan">
+            <InfoCard title={t('sectionInsurance')} icon={ShieldCheck} number={5} tone="cyan">
               <div>
-                <Label>Aseguradora PIP</Label>
+                <Label>{t('insuranceLabel')}</Label>
                 <Autocomplete
                   endpoint="/api/admin/insurances/autocomplete"
-                  placeholder="Buscar aseguradora (GEICO, State Farm...)"
+                  placeholder={t('insurancePlaceholder')}
                   selected={insurance}
                   onSelect={setInsurance}
                   renderAvatar={(r) => r.color && r.shortCode ? (
@@ -596,15 +604,15 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 />
               </div>
               {insurance && (
-                <FormField.Input label="Número de reclamo PIP" value={policyNumber} onChange={setPolicyNumber} placeholder="PIP-2026-0142"
-                  hint='"¿Ya tiene número de reclamo PIP?"' />
+                <FormField.Input label={t('policyNumber')} value={policyNumber} onChange={setPolicyNumber} placeholder="PIP-2026-0142"
+                  hint={t('policyHint')} />
               )}
             </InfoCard>
           )}
 
           {/* ── Sección 6: Agendar primera cita ────────────────────────── */}
           <InfoCard
-            title="Agendar primera cita"
+            title={t('sectionAppointment')}
             icon={CalendarCheck}
             number={6}
             tone="emerald"
@@ -612,23 +620,23 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={scheduleNow} onChange={(e) => setScheduleNow(e.target.checked)}
                   className="w-3.5 h-3.5 rounded accent-emerald" />
-                <span className="text-text-2 text-[11px]">en esta llamada</span>
+                <span className="text-text-2 text-[11px]">{t('scheduleNow')}</span>
               </label>
             }
           >
             {scheduleNow ? (
               <>
-                <div className="text-text-muted text-[11px] italic">"Voy a buscarle un horario disponible. ¿Le viene mejor mañana o esta semana?"</div>
+                <div className="text-text-muted text-[11px] italic">{t('scheduleHint')}</div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FormField.Select label="Clínica" value={clinicId} onChange={setClinicId}
+                  <FormField.Select label={t('clinic')} value={clinicId} onChange={setClinicId}
                     options={clinics.map((c) => ({ value: c.id, label: c.name }))} />
-                  <FormField.Select label="Especialidad" value={specialtyId} onChange={setSpecialtyId}
+                  <FormField.Select label={t('specialty')} value={specialtyId} onChange={setSpecialtyId}
                     options={specialties.map((s) => ({ value: s.id, label: s.name }))} />
                 </div>
 
                 <div>
-                  <Label>Slots disponibles · próximos 3-5 días hábiles</Label>
+                  <Label>{t('slotsLabel')}</Label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
                     {slotOptions.map((s) => (
                       <button
@@ -648,17 +656,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FormField.Select label="Doctor sugerido" value={providerId} onChange={setProviderId}
+                  <FormField.Select label={t('providerLabel')} value={providerId} onChange={setProviderId}
                     options={displayProviders.map((p) => ({
                       value: p.id, label: `Dr. ${p.firstName} ${p.lastName} — ${p.specialty}`,
                     }))} />
-                  <FormField.Select label="Duración" value={String(duration)} onChange={(v) => setDuration(parseInt(v, 10))}
-                    options={[15, 30, 45, 60, 90].map((m) => ({ value: String(m), label: `${m} min` }))} />
+                  <FormField.Select label={t('duration')} value={String(duration)} onChange={(v) => setDuration(parseInt(v, 10))}
+                    options={[15, 30, 45, 60, 90].map((m) => ({ value: String(m), label: t('durationMin', { m }) }))} />
                 </div>
 
                 {slotIso && providerId && (
                   <Note tone="emerald">
-                    <span className="font-semibold flex items-center gap-1"><Check className="w-3 h-3" /> Cita propuesta</span>
+                    <span className="font-semibold flex items-center gap-1"><Check className="w-3 h-3" /> {t('appointmentPreview')}</span>
                     <div className="text-text-1 mt-1 capitalize text-xs">
                       <strong>{slotOptions.find((s) => s.iso === slotIso)?.label}</strong>
                       {' '}con{' '}
@@ -669,72 +677,72 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                       {' '}en{' '}
                       <strong>{clinics.find((c) => c.id === clinicId)?.name}</strong>
                     </div>
-                    <div className="text-text-muted text-[10px] mt-1 not-italic">"¿Le parece bien? Le confirmamos por SMS."</div>
+                    <div className="text-text-muted text-[10px] mt-1 not-italic">{t('confirmBySMS')}</div>
                   </Note>
                 )}
               </>
             ) : (
-              <Note tone="muted">Sin agendar en esta llamada. El caso queda en <code className="text-rose font-mono">NEW_REFERRAL</code> y necesitará agendarse después (botón "Agendar" en la cola).</Note>
+              <Note tone="muted">{t('noScheduleNote')}</Note>
             )}
           </InfoCard>
 
           {/* ── Form delivery ───────────────────────────────────────────── */}
-          <InfoCard title="Entrega del formulario al paciente" icon={Send} tone="emerald">
-            <div className="text-text-2 text-xs">El encargado puede elegir cuándo enviar el formulario público:</div>
+          <InfoCard title={t('sectionFormDelivery')} icon={Send} tone="emerald">
+            <div className="text-text-2 text-xs">{t('formDeliveryDesc')}</div>
             <div className="grid grid-cols-2 gap-2">
               <SelectableCard
                 selected={formDelivery === 'SEND_NOW'}
                 onClick={() => setFormDelivery('SEND_NOW')}
                 icon="📨"
-                title="Enviar enlace ahora"
-                subtitle="SMS + email · paciente llena desde casa"
+                title={t('sendNowTitle')}
+                subtitle={t('sendNowDesc')}
               />
               <SelectableCard
                 selected={formDelivery === 'TABLET_AT_CLINIC'}
                 onClick={() => setFormDelivery('TABLET_AT_CLINIC')}
                 icon="📱"
-                title="Llenar en tablet en clínica"
-                subtitle="Le entregamos tablet al llegar"
+                title={t('tabletTitle')}
+                subtitle={t('tabletDesc')}
               />
             </div>
           </InfoCard>
 
           {/* ── Checklist final · qué hace el sistema ──────────────────── */}
-          <InfoCard title="Al finalizar la llamada, el sistema hace" icon={Check} tone="cyan">
+          <InfoCard title={t('summaryTitle')} icon={Check} tone="cyan">
             <ul className="space-y-1.5 text-xs text-text-2 list-none m-0 p-0">
               {scheduleNow && slotIso && (
                 <li className="flex items-start gap-2">
                   <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                  <span>Caso pasa a status <code className="text-emerald font-mono">CONFIRMED</code> · cita confirmada</span>
+                  <span>{t('summaryConfirmed')}</span>
                 </li>
               )}
               {scheduleNow && slotIso && (
                 <li className="flex items-start gap-2">
                   <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                  <span>Confirmación de cita enviada al paciente por SMS + email</span>
+                  <span>{t('summaryAppointmentSMS')}</span>
                 </li>
               )}
               {formDelivery === 'SEND_NOW' && (
                 <li className="flex items-start gap-2">
                   <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                  <span>Formulario público enviado con enlace tokenizado (30 días)</span>
+                  <span>{t('summaryForm')}</span>
                 </li>
               )}
               {caseType === 'MVA' && lawFirm && (
                 <li className="flex items-start gap-2">
                   <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                  <span>Edson recibe el caso para verificar con {lawFirm.label}</span>
+                  <span>{t('summaryEdson', { firm: lawFirm.label })}</span>
                 </li>
               )}
               {scheduleNow && slotIso && providerId && (
                 <li className="flex items-start gap-2">
                   <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                  <span>Cita aparece en calendario del doctor · recordatorios 24h y 2h antes</span>
+                  <span>{t('summaryCal')}</span>
                 </li>
               )}
               <li className="flex items-start gap-2">
                 <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                <span>Resumen completo registrado en historial del caso ({formatElapsed(callElapsed)})</span>
+                <span>{t('summaryAudit', { elapsed: formatElapsed(callElapsed) })}</span>
               </li>
             </ul>
           </InfoCard>
@@ -756,18 +764,18 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             className="w-full sm:w-auto"
           >
             <Pause className="w-3.5 h-3.5 mr-1" />
-            <span className="sm:inline">Pausar</span>
-            <span className="hidden sm:inline">&nbsp;· guardar parcial</span>
+            <span className="sm:inline">{t('btnPause')}</span>
+            <span className="hidden sm:inline">&nbsp;· {t('btnPauseSub')}</span>
           </Button>
           <Button
             onClick={() => handleSubmit('finalize')}
             disabled={!canSubmit || saving}
             className="w-full sm:w-auto"
           >
-            {saving ? 'Procesando...' : (
+            {saving ? t('btnFinalizing') : (
               <>
                 <Check className="w-3.5 h-3.5 mr-1" />
-                Finalizar llamada
+                {t('btnFinalize')}
                 <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </>
             )}
@@ -832,8 +840,7 @@ function SegmentedOption({ selected, onClick, icon, label }: {
   );
 }
 
-/** Note — bloque con tono + texto pequeño. Equivalente al "callout" del mockup
- *  pero usando los tokens del sistema (border /30 + bg /10). */
+/** Note — bloque con tono + texto pequeño. */
 function Note({ children, tone = 'default' }: { children: React.ReactNode; tone?: 'default' | 'emerald' | 'amber' | 'rose' | 'muted' }) {
   const toneClasses: Record<string, string> = {
     default: 'bg-bg-2/40 border-border text-text-2',
@@ -861,6 +868,7 @@ function Autocomplete({
   onSelect: (result: AutoResult | null) => void;
   renderAvatar?: (r: AutoResult) => React.ReactNode;
 }) {
+  const t = useTranslations('phoenix.frontOffice.newCase');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<AutoResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -899,7 +907,7 @@ function Autocomplete({
           {selected.subtitle && <div className="text-text-muted text-xs truncate">{selected.subtitle}</div>}
         </div>
         <button type="button" onClick={() => onSelect(null)} className="text-text-muted hover:text-rose text-xs shrink-0">
-          Cambiar
+          {t('autocompleteChange')}
         </button>
       </div>
     );
@@ -920,7 +928,7 @@ function Autocomplete({
       {open && (results.length > 0 || loading) && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
           {loading && results.length === 0 ? (
-            <div className="px-3 py-2 text-text-muted text-xs">Buscando...</div>
+            <div className="px-3 py-2 text-text-muted text-xs">{t('autocompleteSearching')}</div>
           ) : (
             results.map((r) => (
               <button

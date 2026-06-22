@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deploy Status · Precision Medical</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #e2e8f0;
+      padding: 40px 32px;
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 28px;
+    }
+    .wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px; }
+    th {
+      text-align: left;
+      padding: 9px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #e2e8f0;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    }
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .app { font-family: monospace; font-size: 12px; color: #f1f5f9; }
+    .app.offline { color: #f87171; }
+    .domain { font-family: monospace; font-size: 12px; color: #e2e8f0; }
+    .dash { color: rgba(255,255,255,0.25); }
+    .vercel { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .status-ok  { color: #4ade80; }
+    .status-no  { color: rgba(255,255,255,0.45); }
+    .nx { color: #f87171; font-weight: 700; margin-right: 2px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .chip { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
+    .c-blue   { background: rgba(59,130,246,0.15);  color: #60a5fa; }
+    .c-gray   { background: rgba(148,163,184,0.12); color: #94a3b8; }
+    .c-amber  { background: rgba(245,158,11,0.15);  color: #fbbf24; }
+    .c-teal   { background: rgba(20,184,166,0.15);  color: #2dd4bf; }
+    .c-violet { background: rgba(139,92,246,0.15);  color: #a78bfa; }
+    .c-pink   { background: rgba(236,72,153,0.15);  color: #f472b6; }
+    .updated {
+      margin-top: 24px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.20);
+    }
+  </style>
+</head>
+<body>
+  <h1>Deploy Status · Precision Medical</h1>
+  <div class="subtitle">Última actualización: 2026-06-20</div>
+
+  <div class="wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>App</th>
+          <th>Dominio</th>
+          <th>Vercel</th>
+          <th>Status</th>
+          <th>Módulos</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="app">back-office</span></td>
+          <td><span class="domain">clinic.lienmaster.net</span></td>
+          <td>
+            <div class="vercel">
+              <svg width="13" height="11" viewBox="0 0 76 65" fill="#4ade80"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"/></svg>
+              <span class="status-ok">precisionmedical-back-office</span>
+            </div>
+          </td>
+          <td><span class="status-ok">En producción</span></td>
+          <td>
+            <div class="chips">
+              <span class="chip c-blue">Front Desk</span>
+              <span class="chip c-blue">Casos</span>
+              <span class="chip c-blue">Calendario</span>
+              <span class="chip c-blue">Admisión</span>
+              <span class="chip c-blue">Pacientes</span>
+              <span class="chip c-blue">Billing</span>
+              <span class="chip c-blue">HCFA / Ledger</span>
+              <span class="chip c-blue">Settlement</span>
+              <span class="chip c-blue">Abogados</span>
+              <span class="chip c-blue">Seguimiento</span>
+              <span class="chip c-blue">Intake</span>
+              <span class="chip c-blue">Audit Logs</span>
+              <span class="chip c-blue">Ajustes / Seguridad</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="app">web / admin</span></td>
+          <td><span class="domain">admin.lienmaster.net</span></td>
+          <td>
+            <div class="vercel">
+              <svg width="13" height="11" viewBox="0 0 76 65" fill="#4ade80"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"/></svg>
+              <span class="status-ok">precisionmedical-admin</span>
+            </div>
+          </td>
+          <td><span class="status-ok">En producción</span></td>
+          <td>
+            <div class="chips">
+              <span class="chip c-gray">Dashboard</span>
+              <span class="chip c-gray">Usuarios</span>
+              <span class="chip c-gray">Roles / Permisos</span>
+              <span class="chip c-gray">Clínicas</span>
+              <span class="chip c-gray">Doctores / Providers</span>
+              <span class="chip c-gray">Empleados</span>
+              <span class="chip c-gray">Abogados</span>
+              <span class="chip c-gray">Pacientes</span>
+              <span class="chip c-gray">Appointments</span>
+              <span class="chip c-gray">Comisiones</span>
+              <span class="chip c-gray">Pagos / Wallets</span>
+              <span class="chip c-gray">Caja chica</span>
+              <span class="chip c-gray">Asistencia</span>
+              <span class="chip c-gray">Finanzas / FX</span>
+              <span class="chip c-gray">Métricas</span>
+              <span class="chip c-gray">AI Agents</span>
+              <span class="chip c-gray">Tareas</span>
+              <span class="chip c-gray">Audit Logs</span>
+              <span class="chip c-gray">Ajustes</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="app">timeclock</span></td>
+          <td><span class="domain">pmtc.lienmaster.net</span></td>
+          <td>
+            <div class="vercel">
+              <svg width="13" height="11" viewBox="0 0 76 65" fill="#4ade80"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"/></svg>
+              <span class="status-ok">precisionmedical-timeclock</span>
+            </div>
+          </td>
+          <td><span class="status-ok">En producción</span></td>
+          <td>
+            <div class="chips">
+              <span class="chip c-amber">Check-in</span>
+              <span class="chip c-amber">Check-out</span>
+              <span class="chip c-amber">Historial turnos</span>
+              <span class="chip c-amber">Reporte asistencia</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="app">forms</span></td>
+          <td><span class="domain">forms.lienmaster.net</span></td>
+          <td>
+            <div class="vercel">
+              <svg width="13" height="11" viewBox="0 0 76 65" fill="#4ade80"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"/></svg>
+              <span class="status-ok">precisionmedical-forms</span>
+            </div>
+          </td>
+          <td><span class="status-ok">En producción</span></td>
+          <td>
+            <div class="chips">
+              <span class="chip c-teal">Lobby display</span>
+              <span class="chip c-teal">Walk-in kiosk</span>
+              <span class="chip c-teal">Intake form</span>
+              <span class="chip c-teal">Firma electrónica</span>
+              <span class="chip c-teal">Confirmación / Done</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="app offline">clinical</span></td>
+          <td><span class="dash">—</span></td>
+          <td>
+            <div class="vercel">
+              <span class="nx">✕</span>
+              <span class="status-no">No linkeado</span>
+            </div>
+          </td>
+          <td><span class="status-no">Build listo, falta crear proyecto</span></td>
+          <td>
+            <div class="chips">
+              <span class="chip c-violet">Sala de espera</span>
+              <span class="chip c-violet">Check-in MA</span>
+              <span class="chip c-violet">Triage</span>
+              <span class="chip c-violet">Visita médica</span>
+              <span class="chip c-violet">Nota clínica</span>
+              <span class="chip c-violet">Diagnósticos ICD-10</span>
+              <span class="chip c-violet">Prescripción Rx + DAW</span>
+              <span class="chip c-violet">Órdenes de Lab / Imagen</span>
+              <span class="chip c-violet">CPT / Códigos servicio</span>
+              <span class="chip c-violet">Templates de nota</span>
+              <span class="chip c-violet">Impresión PDF checkin</span>
+              <span class="chip c-violet">Impresión PDF visita</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="app offline">attorney</span></td>
+          <td><span class="dash">—</span></td>
+          <td>
+            <div class="vercel">
+              <span class="nx">✕</span>
+              <span class="status-no">No linkeado</span>
+            </div>
+          </td>
+          <td><span class="status-no">Build listo, falta crear proyecto</span></td>
+          <td>
+            <div class="chips">
+              <span class="chip c-pink">Portal bufete</span>
+              <span class="chip c-pink">Ver casos</span>
+              <span class="chip c-pink">Detalle caso</span>
+              <span class="chip c-pink">Documentos clínicos</span>
+              <span class="chip c-pink">Firma digital</span>
+              <span class="chip c-pink">Impresión firma PDF</span>
+              <span class="chip c-pink">Package PDF</span>
+              <span class="chip c-pink">Historial notas</span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="updated">Generado 2026-06-20 · Precision Medical Care</div>
+</body>
+</html>

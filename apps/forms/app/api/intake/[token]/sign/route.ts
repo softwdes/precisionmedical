@@ -51,22 +51,18 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const userAgent = req.headers.get('user-agent') ?? null;
 
   // Insert lien signature (append-only — no UPDATE, no DELETE)
-  await db.$executeRaw`
-    INSERT INTO lien_signatures
-      (id, case_id, signer_type, signer_name, signer_email, signature_svg,
-       ip_address, user_agent, session_token)
-    VALUES (
-      gen_random_uuid()::text,
-      ${rec.id},
-      'PATIENT'::lien_signer_type,
-      ${body.signerName.trim()},
-      ${body.signerEmail ?? null},
-      ${body.signatureSvg ?? null},
-      ${ip},
-      ${userAgent},
-      ${token.slice(0, 32)}
-    )
-  `;
+  await db.lienSignature.create({
+    data: {
+      caseId:       rec.id,
+      signerType:   'PATIENT',
+      signerName:   body.signerName.trim(),
+      signerEmail:  body.signerEmail ?? null,
+      signatureSvg: body.signatureSvg ?? null,
+      ipAddress:    ip,
+      userAgent,
+      sessionToken: token.slice(0, 32),
+    },
+  });
 
   // Mark intake complete + transition status
   const newStatus = rec.status === 'INTAKE_PENDING' || rec.status === 'NEW_REFERRAL'

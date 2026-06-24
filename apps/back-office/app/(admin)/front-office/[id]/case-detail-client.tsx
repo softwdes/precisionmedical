@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, Scale, Shield, AlertCircle,
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
-  PhoneCall, Zap, AlertTriangle, CalendarCheck,
+  PhoneCall, Zap, AlertTriangle, CalendarCheck, Pencil,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui-phoenix';
@@ -203,6 +203,12 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                 <Mail className="w-3.5 h-3.5" /> {caseInfo.patient.email}
               </a>
             )}
+            <Link
+              href={`/patients/${caseInfo.patient.id}`}
+              className="inline-flex items-center gap-1 text-text-muted hover:text-brand text-xs transition-colors"
+            >
+              <Pencil className="w-3 h-3" /> Editar paciente
+            </Link>
           </span>
         }
         action={<ActionButtons status={caseInfo.status} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}

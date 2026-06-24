@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Shield,
+  Users,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
 
@@ -50,6 +51,7 @@ const SECTIONS: NavSection[] = [
   {
     titleKey: 'workspaces',
     items: [
+      { href: '/patients',     icon: Users,          labelKey: 'patients',    mockup: 'B.4'        },
       { href: '/front-office', icon: Building2,    labelKey: 'frontOffice', mockup: 'B.1–B.4'   },
       { href: '/calendar',     icon: CalendarDays, labelKey: 'calendar',    mockup: 'B.10–B.11'  },
       { href: '/edson',        icon: ClipboardList,  labelKey: 'edson',       mockup: 'B.12–B.13/B.23–B.24' },

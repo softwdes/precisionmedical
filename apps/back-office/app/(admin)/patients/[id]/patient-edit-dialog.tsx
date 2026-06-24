@@ -37,6 +37,10 @@ export interface EditablePatient {
 
 interface Props {
   patient: EditablePatient;
+  /** When true, the dialog is controlled externally (open immediately). */
+  externalOpen?: boolean;
+  /** Called when the dialog should close (save success or cancel). */
+  onClose?: () => void;
 }
 
 function toDateInput(d: Date | string | null | undefined): string {
@@ -44,12 +48,12 @@ function toDateInput(d: Date | string | null | undefined): string {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-export function PatientEditDialog({ patient }: Props) {
+export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const t      = useTranslations('phoenix.patients');
   const tc     = useTranslations('common');
   const router = useRouter();
 
-  const [open,   setOpen]   = useState(false);
+  const [open,   setOpen]   = useState(externalOpen ?? false);
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
 
@@ -95,7 +99,7 @@ export function PatientEditDialog({ patient }: Props) {
         return;
       }
       setOpen(false);
-      router.refresh();
+      if (onClose) { onClose(); } else { router.refresh(); }
     } catch {
       setError(t('editError'));
     } finally {
@@ -133,7 +137,7 @@ export function PatientEditDialog({ patient }: Props) {
         {t('actionEdit')}
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v && onClose) onClose(); }}>
         <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0">
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
             <DialogTitle>{t('editDialogTitle')}</DialogTitle>

@@ -570,13 +570,23 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
     actorType: 'HUMAN_USER' | 'AI_AGENT' | 'SYSTEM';
   };
 
+  const SOURCE_LABELS: Record<string, string> = {
+    LAW_FIRM_REFERRAL: t('sourceLabelLawFirm'),
+    PATIENT_REFERRAL:  t('sourceLabelPatient'),
+    PHONE_CALL:        t('sourceLabelPhoneCall'),
+    WALK_IN:           t('sourceLabelWalkIn'),
+    WEB_FORM:          t('sourceLabelWebForm'),
+    AI_AGENT:          t('sourceLabelAiAgent'),
+    OTHER:             t('sourceLabelOther'),
+  };
+
   const events: Event[] = [];
 
   // Always: created
   events.push({
     id: 'created',
     title: t('timelineCaseCreated'),
-    detail: `Source: ${caseInfo.source}`,
+    detail: SOURCE_LABELS[caseInfo.source] ?? caseInfo.source,
     icon: PhoneCall,
     iconColor: 'text-brand',
     at: caseInfo.createdAt,

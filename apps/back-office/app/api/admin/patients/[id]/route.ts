@@ -85,3 +85,42 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true, patient: updated });
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const { id } = await params;
+
+  const existing = await db.patient.findUnique({
+    where: { id },
+    select: { id: true, patientCode: true, _count: { select: { cases: true } } },
+  });
+  if (!existing) return NextResponse.json({ ok: false, error: 'NOT_FOUND' }, { status: 404 });
+
+  // Soft delete — no borrar si tiene casos activos
+  if (existing._count.cases > 0) {
+    return NextResponse.json(
+      { ok: false, error: 'HAS_CASES', message: 'No se puede eliminar un paciente con casos asociados.' },
+      { status: 409 },
+    );
+  }
+
+  await db.patient.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
+
+  const actor = actorFromHeaders(req.headers);
+  await writeAuditLog(db, {
+    actorType:   actor.actorType,
+    actorUserId: actor.actorUserId ?? undefined,
+    action:      'DELETE_PATIENT',
+    entityType:  'patients',
+    entityId:    id,
+    metadata:    { patientCode: existing.patientCode },
+    ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
+  });
+
+  return NextResponse.json({ ok: true });
+}

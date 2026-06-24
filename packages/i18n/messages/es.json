@@ -1476,7 +1476,7 @@
       "actionSendPortal": "Enviar portal",
       "actionConfirm24h": "Acción: llamar 24h antes para confirmar cita",
       "actionConfirm": "Confirmar",
-      "statusNewReferral": "Nuevo referido",
+      "statusNewReferral": "Nuevo paciente",
       "statusIntakePending": "Intake pendiente",
       "statusToConfirm": "Por confirmar (24h)",
       "statusConfirmed": "Confirmado",
@@ -1557,7 +1557,7 @@
         "dialogTitle": "Nueva llamada · Crear caso",
         "dialogDescription": "El temporizador inicia cuando realmente estás hablando con el paciente",
         "titleCall": "Llamada · {name}",
-        "titleManual": "Nuevo referido · {name}",
+        "titleManual": "Nuevo paciente · {name}",
         "modeExisting": "paciente existente",
         "modeIncoming": "llamada entrante",
         "modeManual": "ingreso manual · sin llamada",
@@ -1655,7 +1655,7 @@
         "btnFinalize": "Terminar llamada",
         "btnFinalizing": "Procesando...",
         "successTitleCall": "Caso creado · llamada finalizada",
-        "successTitleManual": "Referido registrado",
+        "successTitleManual": "Paciente registrado",
         "successAppointment": "Cita confirmada · estado CONFIRMED",
         "successNoAppointment": "Sin cita aún · estado NEW_REFERRAL",
         "successFormSent": "Formulario enviado por {channel}",
@@ -1963,7 +1963,7 @@
       "scheduledAppointments": "Citas agendadas",
       "scheduledAppointmentsSub": "Pasaron a ACTIVE",
       "queueByStatus": "Cola por status · click para filtrar",
-      "statusNewReferral": "Nuevo referido",
+      "statusNewReferral": "Nuevo paciente",
       "statusNewReferralAction": "Enviar portal",
       "statusIntakePending": "Intake pendiente",
       "statusIntakePendingAction": "Esperando paciente",
@@ -2031,7 +2031,7 @@
       "emptySubtitle": "Agenda una cita desde el Front Office (B.2)"
     },
     "caseDetail": {
-      "statusNewReferral": "Nuevo referido",
+      "statusNewReferral": "Nuevo paciente",
       "statusIntakePending": "Intake pendiente",
       "statusIntakeCompleted": "Por confirmar (24h)",
       "statusConfirmed": "Confirmado",
@@ -2097,7 +2097,7 @@
         "INACTIVE": "Inactivo"
       },
       "caseStatus": {
-        "NEW_REFERRAL": "Nuevo referido",
+        "NEW_REFERRAL": "Nuevo paciente",
         "INTAKE_PENDING": "Intake pendiente",
         "INTAKE_COMPLETED": "Por confirmar",
         "CONFIRMED": "Confirmado",

@@ -145,6 +145,25 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [error, setError]   = useState<string | null>(null);
   const [success, setSuccess] = useState<{ caseCode: string; caseId: string; appointmentScheduled: boolean } | null>(null);
 
+  // ─── Confirm-exit dialog ──────────────────────────────────────────────
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Hay datos si el usuario llenó al menos nombre o apellido en step=capturing
+  const hasData = step === 'capturing' && (firstName.trim() !== '' || lastName.trim() !== '' || phone.trim() !== '');
+
+  function tryClose() {
+    if (hasData && !success) {
+      setShowExitConfirm(true);
+    } else {
+      onOpenChange(false);
+    }
+  }
+
+  function confirmExit() {
+    setShowExitConfirm(false);
+    onOpenChange(false);
+  }
+
   // Reset on open · si hay initialState, salta PreCall directo a capturing
   useEffect(() => {
     if (!open) return;
@@ -393,8 +412,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     : t('modeOutbound');
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[92vh] overflow-hidden flex flex-col p-0">
+    <>
+    <Dialog open={open} onOpenChange={(val) => { if (!val) tryClose(); }}>
+      <DialogContent
+        className="max-w-5xl max-h-[92vh] overflow-hidden flex flex-col p-0"
+        onPointerDownOutside={(e) => { e.preventDefault(); if (hasData && !success) setShowExitConfirm(true); }}
+        onEscapeKeyDown={(e) => { e.preventDefault(); if (hasData && !success) setShowExitConfirm(true); }}
+      >
         {/* ─── Header · mobile-friendly ─────────────────────────────────── */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
           <DialogHeader>
@@ -785,6 +809,35 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* ─── Confirm exit overlay ──────────────────────────────────────────── */}
+    <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-text-1">¿Salir del formulario?</DialogTitle>
+          <DialogDescription className="text-text-2 text-sm mt-1">
+            Tienes datos ingresados que se perderán si sales ahora.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => setShowExitConfirm(false)}
+          >
+            Quedarme · seguir llenando
+          </Button>
+          <Button
+            variant="destructive"
+            className="w-full sm:w-auto"
+            onClick={confirmExit}
+          >
+            Salir y perder datos
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

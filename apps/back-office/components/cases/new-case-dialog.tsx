@@ -416,11 +416,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               </div>
               {/* Pills: en manual mostramos badge amber; en llamada mostramos timer */}
               <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-                <TagPill
-                  label={existingPatientId ? t('modeKnown') : 'NEW_REFERRAL'}
-                  colorClass={existingPatientId ? 'bg-cyan/15 text-cyan border-cyan/30 hidden sm:inline-flex' : 'bg-rose/15 text-rose border-rose/30 hidden sm:inline-flex'}
-                  mono
-                />
+                {existingPatientId && (
+                  <TagPill
+                    label={t('modeKnown')}
+                    colorClass="bg-cyan/15 text-cyan border-cyan/30 hidden sm:inline-flex"
+                    mono
+                  />
+                )}
                 {isManual
                   ? <TagPill label={t('badgeNoCall')} colorClass="bg-amber/15 text-amber border-amber/30" mono />
                   : <TagPill

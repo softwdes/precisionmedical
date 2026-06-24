@@ -105,9 +105,75 @@ function TextareaField({
   );
 }
 
+// ─── Phone input ─────────────────────────────────────────────────────────────
+// Formats as (XXX) XXX-XXXX while typing. Only allows digits.
+// Validates: 10 digits, area code 2-9, exchange 2-9 (US NANP rules).
+
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 3) return digits.length ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+function isValidPhone(value: string): boolean {
+  const digits = value.replace(/\D/g, '');
+  if (digits.length !== 10) return false;
+  // NANP: area code and exchange must start with 2-9
+  return digits[0] >= '2' && digits[3] >= '2';
+}
+
+function PhoneField({
+  label, required, value, onChange, placeholder = '(801) 555-0100', hint, autoFocus,
+}: Required & {
+  label: React.ReactNode;
+  value: string;
+  onChange: (v: string, isValid: boolean) => void;
+  placeholder?: string;
+  hint?: React.ReactNode;
+  autoFocus?: boolean;
+}) {
+  const [touched, setTouched] = React.useState(false);
+  const digits = value.replace(/\D/g, '');
+  const showError = touched && digits.length > 0 && !isValidPhone(value);
+  const showIncomplete = touched && required && digits.length === 0;
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const formatted = formatPhone(e.target.value);
+    onChange(formatted, isValidPhone(formatted));
+  }
+
+  return (
+    <div>
+      <FieldLabel required={required}>{label}</FieldLabel>
+      <Input
+        type="tel"
+        value={value}
+        onChange={handleChange}
+        onBlur={() => setTouched(true)}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        className={showError || showIncomplete ? 'border-rose focus:border-rose' : ''}
+        maxLength={14}
+        inputMode="numeric"
+      />
+      {showError && (
+        <div className="text-rose text-[10px] mt-1">Número inválido · debe ser 10 dígitos US (ej: (801) 555-0100)</div>
+      )}
+      {showIncomplete && !showError && (
+        <div className="text-rose text-[10px] mt-1">Teléfono requerido</div>
+      )}
+      {!showError && !showIncomplete && hint && (
+        <div className="text-text-muted text-[10px] mt-1">{hint}</div>
+      )}
+    </div>
+  );
+}
+
 export const FormField = {
   Input: InputField,
   Select: SelectField,
   Textarea: TextareaField,
   Label: FieldLabel,
+  Phone: PhoneField,
 };

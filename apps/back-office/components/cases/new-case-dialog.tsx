@@ -459,7 +459,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField.Input label={t('firstName')} required value={firstName} onChange={setFirstName} placeholder="Sandra" autoFocus />
               <FormField.Input label={t('lastName')} required value={lastName} onChange={setLastName} placeholder="López" />
-              <FormField.Input label={t('phone')} required value={phone} onChange={setPhone} placeholder="(801) 555-0142" type="tel" />
+              <FormField.Phone label={t('phone')} required value={phone} onChange={(v) => setPhone(v)} />
               <FormField.Input label={t('email')} value={email} onChange={setEmail} placeholder="sandra@email.com" type="email" />
               <FormField.Input label={t('dob')} value={dateOfBirth} onChange={setDateOfBirth} type="date" />
               <FormField.Select label={t('language')} value={language} onChange={(v) => setLanguage(v as 'es' | 'en')}
@@ -572,7 +572,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                         <FormField.Input label={t('caseManagerLabel')} value={caseManagerName} onChange={setCaseManagerName} placeholder="Bob Jones" />
                         <FormField.Input label={t('caseManagerEmail')} value={caseManagerEmail} onChange={setCaseManagerEmail} placeholder="bob@firm.com" type="email" />
                       </div>
-                      <FormField.Input label={t('firmPhone')} value={firmPhone} onChange={setFirmPhone} placeholder="(801) 555-0987" type="tel" />
+                      <FormField.Phone label={t('firmPhone')} value={firmPhone} onChange={(v) => setFirmPhone(v)} />
                     </>
                   )}
                   <Note tone="emerald">{t('lawyerNoteHas')}</Note>

@@ -337,12 +337,10 @@ export function PreCallStep({
             <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
             <FormField.Input label={t('manualLastName')} required value={quickLastName} onChange={setQuickLastName} placeholder="López" />
           </div>
-          <FormField.Input
+          <FormField.Phone
             label={t('manualPhone')}
             value={quickPhone}
-            onChange={setQuickPhone}
-            placeholder="(801) 555-0142"
-            type="tel"
+            onChange={(v) => setQuickPhone(v)}
             hint={t('manualPhoneHint')}
           />
         </InfoCard>
@@ -366,13 +364,11 @@ export function PreCallStep({
           <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
           <FormField.Input label={t('manualLastName')} value={quickLastName} onChange={setQuickLastName} placeholder="López" />
         </div>
-        <FormField.Input
+        <FormField.Phone
           label={t('manualPhone')}
           required
           value={quickPhone}
-          onChange={setQuickPhone}
-          placeholder="(801) 555-0142"
-          type="tel"
+          onChange={(v) => setQuickPhone(v)}
           hint={t('outgoingDialHint')}
         />
 

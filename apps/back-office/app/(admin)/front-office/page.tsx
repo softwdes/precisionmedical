@@ -100,6 +100,7 @@ export default async function FrontOfficePage({
       primaryInsurance: { select: { name: true, shortCode: true, color: true, responseSpeed: true } },
       specialty: { select: { name: true, color: true } },
       _count: { select: { appointments: true, notes: true } },
+      },
     }),
     db.case.count({ where: caseWhere }),
   ]);

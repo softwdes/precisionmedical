@@ -1424,28 +1424,44 @@ function LabOrderModal({
 // ─── Subcomponents ────────────────────────────────────────────────────────────
 
 /** Sidebar izquierdo: info del paciente y caso */
-function PatientSidebar({ data }: { data: VisitData }) {
+function PatientSidebar({ data, onEditInsurance, onEditLegal }: {
+  data: VisitData;
+  onEditInsurance?: () => void;
+  onEditLegal?: () => void;
+}) {
   const { appointment: appt } = data;
   const [open, setOpen] = useState<Record<string, boolean>>({
     patient: true, case: true, triage: true,
   });
   const toggle = (k: string) => setOpen(p => ({ ...p, [k]: !p[k] }));
 
-  function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  function Section({ id, title, children, onEdit }: { id: string; title: string; children: React.ReactNode; onEdit?: () => void }) {
     return (
       <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <button
-          onClick={() => toggle(id)}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer',
-            color: 'rgba(255,255,255,0.70)', fontSize: 11, fontWeight: 600,
-            textTransform: 'uppercase', letterSpacing: '0.12em',
-          }}
-        >
-          {title}
-          {open[id] ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-        </button>
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          padding: '10px 16px',
+        }}>
+          <button
+            onClick={() => toggle(id)}
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(255,255,255,0.70)', fontSize: 11, fontWeight: 600,
+              textTransform: 'uppercase', letterSpacing: '0.12em', textAlign: 'left',
+            }}
+          >
+            {title}
+            {open[id] ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          </button>
+          {onEdit && (
+            <span
+              onClick={onEdit}
+              title="Editar"
+              style={{ fontSize: 12, color: 'rgba(99,102,241,0.7)', cursor: 'pointer', marginLeft: 8, lineHeight: 1 }}
+            >✏</span>
+          )}
+        </div>
         {open[id] && (
           <div style={{ padding: '0 16px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {children}
@@ -1513,10 +1529,22 @@ function PatientSidebar({ data }: { data: VisitData }) {
           <Row label="Código"         value={appt.case.caseCode} />
           <Row label="Tipo accidente" value={appt.case.accidentType?.replace(/_/g, ' ')} />
           <Row label="Fecha accidente" value={appt.case.accidentDate ? new Date(appt.case.accidentDate).toLocaleDateString('es-US', { timeZone: 'America/Denver' }) : undefined} />
-          <Row label="Seguro"         value={appt.case.primaryInsurance?.name} />
-          <Row label="Póliza"         value={appt.case.primaryPolicyNumber ?? undefined} />
-          <Row label="Bufete"         value={appt.case.lawFirm?.firmName} />
-          <Row label="Abogado"        value={appt.case.attorney ? `${appt.case.attorney.firstName} ${appt.case.attorney.lastName}` : undefined} />
+        </Section>
+      )}
+
+      {/* Seguro */}
+      {appt.case && (
+        <Section id="insurance" title="Seguro" onEdit={onEditInsurance}>
+          <Row label="Aseguradora" value={appt.case.primaryInsurance?.name} />
+          <Row label="Póliza"      value={appt.case.primaryPolicyNumber ?? undefined} />
+        </Section>
+      )}
+
+      {/* Legal */}
+      {appt.case && (
+        <Section id="legal" title="Legal" onEdit={onEditLegal}>
+          <Row label="Bufete"   value={appt.case.lawFirm?.firmName} />
+          <Row label="Abogado"  value={appt.case.attorney ? `${appt.case.attorney.firstName} ${appt.case.attorney.lastName}` : undefined} />
         </Section>
       )}
 
@@ -2138,6 +2166,107 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
   const [signedAt,    setSignedAt]    = useState<string | null>(null);
   const [signedBy,    setSignedBy]    = useState<string | null>(null);
 
+  // ── Insurance modal ──
+  const [insModal,    setInsModal]    = useState(false);
+  const [insQuery,    setInsQuery]    = useState('');
+  const [insResults,  setInsResults]  = useState<{id:string;label:string;subtitle:string}[]>([]);
+  const [insSelected, setInsSelected] = useState<{id:string;name:string;claimsPhone:string|null}|null>(null);
+  const [insPolicy,   setInsPolicy]   = useState('');
+  const [insSaving,   setInsSaving]   = useState(false);
+
+  // ── Legal modal ──
+  const [legalModal,   setLegalModal]   = useState(false);
+  const [firmQuery,    setFirmQuery]    = useState('');
+  const [firmResults,  setFirmResults]  = useState<{id:string;label:string;subtitle:string}[]>([]);
+  const [firmSelected, setFirmSelected] = useState<{id:string;firmName:string}|null>(null);
+  const [attQuery,     setAttQuery]     = useState('');
+  const [attResults,   setAttResults]   = useState<{id:string;label:string;subtitle:string}[]>([]);
+  const [attSelected,  setAttSelected]  = useState<{id:string;firstName:string|null;lastName:string|null}|null>(null);
+  const [legalSaving,  setLegalSaving]  = useState(false);
+
+  useEffect(() => {
+    if (!insModal) return;
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/admin/insurances/autocomplete?q=${encodeURIComponent(insQuery)}`);
+      const d = await res.json().catch(() => ({ results: [] }));
+      setInsResults(d.results ?? []);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [insQuery, insModal]);
+
+  useEffect(() => {
+    if (!legalModal) return;
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/admin/lawyers/autocomplete?q=${encodeURIComponent(firmQuery)}`);
+      const d = await res.json().catch(() => ({ results: [] }));
+      setFirmResults(d.results ?? []);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [firmQuery, legalModal]);
+
+  useEffect(() => {
+    if (!legalModal || !firmSelected) return;
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/admin/lawyers/autocomplete?q=${encodeURIComponent(attQuery)}&firmId=${firmSelected.id}`);
+      const d = await res.json().catch(() => ({ results: [] }));
+      setAttResults(d.results ?? []);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [attQuery, firmSelected, legalModal]);
+
+  function openInsModal() {
+    const c = data?.appointment?.case;
+    setInsSelected(c?.primaryInsurance ? { id: c.primaryInsurance.id, name: c.primaryInsurance.name, claimsPhone: null } : null);
+    setInsPolicy(c?.primaryPolicyNumber ?? '');
+    setInsQuery(''); setInsResults([]);
+    setInsModal(true);
+  }
+
+  function openLegalModal() {
+    const c = data?.appointment?.case;
+    setFirmSelected(c?.lawFirm ? { id: c.lawFirm.id, firmName: c.lawFirm.firmName } : null);
+    setAttSelected(c?.attorney ?? null);
+    setFirmQuery(''); setAttQuery('');
+    setFirmResults([]); setAttResults([]);
+    setLegalModal(true);
+  }
+
+  async function saveInsurance() {
+    const caseId = data?.appointment?.case?.id;
+    if (!caseId) return;
+    setInsSaving(true);
+    await fetch(`/api/cases/${caseId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        primaryInsuranceId:  insSelected?.id ?? null,
+        primaryPolicyNumber: insPolicy.trim() || null,
+      }),
+    });
+    setInsModal(false); setInsSaving(false);
+    const res = await fetch(`/api/visit/${appointmentId}`);
+    const d = await res.json() as { ok: boolean; appointment: VisitData['appointment'] };
+    if (d.ok) setData({ appointment: d.appointment });
+  }
+
+  async function saveLegal() {
+    const caseId = data?.appointment?.case?.id;
+    if (!caseId) return;
+    setLegalSaving(true);
+    await fetch(`/api/cases/${caseId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lawFirmId:  firmSelected?.id ?? null,
+        attorneyId: attSelected?.id ?? null,
+      }),
+    });
+    setLegalModal(false); setLegalSaving(false);
+    const res = await fetch(`/api/visit/${appointmentId}`);
+    const d = await res.json() as { ok: boolean; appointment: VisitData['appointment'] };
+    if (d.ok) setData({ appointment: d.appointment });
+  }
+
   // ── Load data ──
   useEffect(() => {
     void (async () => {
@@ -2438,7 +2567,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
           {/* Left Sidebar */}
-          <PatientSidebar data={data} />
+          <PatientSidebar data={data} onEditInsurance={openInsModal} onEditLegal={openLegalModal} />
 
           {/* Main Editor */}
           <main style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -2744,6 +2873,140 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
           />
         )}
       </div>
+
+      {/* ═══ INSURANCE MODAL ════════════════════════════════════════════════════ */}
+      {insModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }} onClick={() => setInsModal(false)}>
+          <div style={{
+            background: '#0f172a', border: '1px solid rgba(255,255,255,0.10)',
+            borderRadius: 14, padding: 24, width: '100%', maxWidth: 420,
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>Editar seguro primario</div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginBottom: 18 }}>{data?.appointment?.case?.caseCode}</div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>Aseguradora</div>
+              {insSelected ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.30)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#67e8f9' }}>{insSelected.name}</div>
+                  <button onClick={() => { setInsSelected(null); setInsQuery(''); }} style={{ fontSize: 16, color: 'rgba(255,255,255,0.40)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+              ) : (
+                <>
+                  <input autoFocus value={insQuery} onChange={e => setInsQuery(e.target.value)} placeholder="Buscar aseguradora..."
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
+                  {insResults.length > 0 && (
+                    <div style={{ marginTop: 4, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#131c34' }}>
+                      {insResults.map(r => (
+                        <div key={r.id} onClick={() => { setInsSelected({ id: r.id, name: r.label, claimsPhone: null }); setInsQuery(''); setInsResults([]); }}
+                          style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 11, color: 'rgba(255,255,255,0.80)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          <div style={{ fontWeight: 600 }}>{r.label}</div>
+                          {r.subtitle && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)', marginTop: 1 }}>{r.subtitle}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>Número de póliza</div>
+              <input value={insPolicy} onChange={e => setInsPolicy(e.target.value)} placeholder="Ej. PIP-123456"
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#fff', fontSize: 12, outline: 'none', fontFamily: 'monospace' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setInsModal(false)} style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={saveInsurance} disabled={insSaving} style={{ padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: 'rgba(6,182,212,0.20)', border: '1px solid rgba(6,182,212,0.40)', color: '#67e8f9', cursor: insSaving ? 'not-allowed' : 'pointer' }}>
+                {insSaving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ LEGAL MODAL ════════════════════════════════════════════════════════ */}
+      {legalModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }} onClick={() => setLegalModal(false)}>
+          <div style={{
+            background: '#0f172a', border: '1px solid rgba(255,255,255,0.10)',
+            borderRadius: 14, padding: 24, width: '100%', maxWidth: 420,
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>Editar información legal</div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginBottom: 18 }}>{data?.appointment?.case?.caseCode}</div>
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>Bufete</div>
+              {firmSelected ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.30)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc' }}>{firmSelected.firmName}</div>
+                  <button onClick={() => { setFirmSelected(null); setFirmQuery(''); setAttSelected(null); setAttResults([]); }} style={{ fontSize: 16, color: 'rgba(255,255,255,0.40)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+              ) : (
+                <>
+                  <input autoFocus value={firmQuery} onChange={e => setFirmQuery(e.target.value)} placeholder="Buscar bufete..."
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#fff', fontSize: 12, outline: 'none' }} />
+                  {firmResults.length > 0 && (
+                    <div style={{ marginTop: 4, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#131c34' }}>
+                      {firmResults.map(r => (
+                        <div key={r.id} onClick={() => { setFirmSelected({ id: r.id, firmName: r.label }); setFirmQuery(''); setFirmResults([]); setAttSelected(null); setAttQuery(''); }}
+                          style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 11, color: 'rgba(255,255,255,0.80)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          <div style={{ fontWeight: 600 }}>{r.label}</div>
+                          {r.subtitle && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)', marginTop: 1 }}>{r.subtitle}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            {firmSelected && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>Abogado (opcional)</div>
+                {attSelected ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.20)' }}>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)' }}>{`${attSelected.firstName ?? ''} ${attSelected.lastName ?? ''}`.trim()}</div>
+                    <button onClick={() => { setAttSelected(null); setAttQuery(''); }} style={{ fontSize: 16, color: 'rgba(255,255,255,0.40)', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                  </div>
+                ) : (
+                  <>
+                    <input value={attQuery} onChange={e => setAttQuery(e.target.value)} placeholder="Buscar abogado del bufete..."
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#fff', fontSize: 12, outline: 'none' }} />
+                    {attResults.length > 0 && (
+                      <div style={{ marginTop: 4, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#131c34' }}>
+                        {attResults.map(r => (
+                          <div key={r.id} onClick={() => { const [fn, ...rest] = r.label.split(' '); setAttSelected({ id: r.id, firstName: fn ?? null, lastName: rest.join(' ') || null }); setAttQuery(''); setAttResults([]); }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 11, color: 'rgba(255,255,255,0.80)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                            <div style={{ fontWeight: 600 }}>{r.label}</div>
+                            {r.subtitle && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)', marginTop: 1 }}>{r.subtitle}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setLegalModal(false)} style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={saveLegal} disabled={legalSaving} style={{ padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: 'rgba(99,102,241,0.20)', border: '1px solid rgba(99,102,241,0.40)', color: '#a5b4fc', cursor: legalSaving ? 'not-allowed' : 'pointer' }}>
+                {legalSaving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

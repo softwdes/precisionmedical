@@ -139,9 +139,9 @@ function VitalField({
 
 // ─── Sidebar inline section ───────────────────────────────────────────────────
 function SbSection({
-  label, amber = false, children, defaultOpen = false,
+  label, amber = false, children, defaultOpen = false, onEdit,
 }: {
-  label: string; amber?: boolean; children: React.ReactNode; defaultOpen?: boolean;
+  label: string; amber?: boolean; children: React.ReactNode; defaultOpen?: boolean; onEdit?: () => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -154,7 +154,13 @@ function SbSection({
           {label}
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', cursor: 'pointer' }}>✏</span>
+          {onEdit && (
+            <span
+              onClick={onEdit}
+              title="Editar"
+              style={{ fontSize: 11, color: 'rgba(99,102,241,0.7)', cursor: 'pointer', lineHeight: 1 }}
+            >✏</span>
+          )}
           <span
             style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', cursor: 'pointer', userSelect: 'none' }}
             onClick={() => setOpen(o => !o)}
@@ -204,6 +210,113 @@ export function TriageClient({
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
   const autoSaveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ─── Insurance modal state ─────────────────────────────────────────────────
+  const [insModal,       setInsModal]       = useState(false);
+  const [insQuery,       setInsQuery]       = useState('');
+  const [insResults,     setInsResults]     = useState<{id:string;label:string;subtitle:string}[]>([]);
+  const [insSelected,    setInsSelected]    = useState<{id:string;name:string;claimsPhone:string|null}|null>(null);
+  const [insPolicy,      setInsPolicy]      = useState('');
+  const [insSaving,      setInsSaving]      = useState(false);
+
+  // ─── Legal modal state ─────────────────────────────────────────────────────
+  const [legalModal,     setLegalModal]     = useState(false);
+  const [firmQuery,      setFirmQuery]      = useState('');
+  const [firmResults,    setFirmResults]    = useState<{id:string;label:string;subtitle:string}[]>([]);
+  const [firmSelected,   setFirmSelected]   = useState<{id:string;firmName:string}|null>(null);
+  const [attQuery,       setAttQuery]       = useState('');
+  const [attResults,     setAttResults]     = useState<{id:string;label:string;subtitle:string}[]>([]);
+  const [attSelected,    setAttSelected]    = useState<{id:string;firstName:string|null;lastName:string|null}|null>(null);
+  const [legalSaving,    setLegalSaving]    = useState(false);
+
+  // ─── Insurance search ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!insModal) return;
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/admin/insurances/autocomplete?q=${encodeURIComponent(insQuery)}`);
+      const d = await res.json().catch(() => ({ results: [] }));
+      setInsResults(d.results ?? []);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [insQuery, insModal]);
+
+  // ─── Firm search ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!legalModal) return;
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/admin/lawyers/autocomplete?q=${encodeURIComponent(firmQuery)}`);
+      const d = await res.json().catch(() => ({ results: [] }));
+      setFirmResults(d.results ?? []);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [firmQuery, legalModal]);
+
+  // ─── Attorney search (requires firm) ──────────────────────────────────────
+  useEffect(() => {
+    if (!legalModal || !firmSelected) return;
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/admin/lawyers/autocomplete?q=${encodeURIComponent(attQuery)}&firmId=${firmSelected.id}`);
+      const d = await res.json().catch(() => ({ results: [] }));
+      setAttResults(d.results ?? []);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [attQuery, firmSelected, legalModal]);
+
+  function openInsModal() {
+    const c = appt?.case;
+    setInsSelected(c?.primaryInsurance ?? null);
+    setInsPolicy(c?.primaryPolicyNumber ?? '');
+    setInsQuery('');
+    setInsResults([]);
+    setInsModal(true);
+  }
+
+  function openLegalModal() {
+    const c = appt?.case;
+    setFirmSelected(c?.lawFirm ? { id: c.lawFirm.id, firmName: c.lawFirm.firmName ?? '' } : null);
+    setAttSelected(c?.attorney ?? null);
+    setFirmQuery('');
+    setAttQuery('');
+    setFirmResults([]);
+    setAttResults([]);
+    setLegalModal(true);
+  }
+
+  async function saveInsurance() {
+    if (!appt?.case) return;
+    setInsSaving(true);
+    await fetch(`/api/cases/${appt.case.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        primaryInsuranceId:  insSelected?.id ?? null,
+        primaryPolicyNumber: insPolicy.trim() || null,
+      }),
+    });
+    setInsModal(false);
+    setInsSaving(false);
+    const res = await fetch(`/api/triage/${appointmentId}`);
+    const d = await res.json();
+    if (d.ok) setAppt(d.appointment);
+  }
+
+  async function saveLegal() {
+    if (!appt?.case) return;
+    setLegalSaving(true);
+    await fetch(`/api/cases/${appt.case.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lawFirmId:  firmSelected?.id ?? null,
+        attorneyId: attSelected?.id ?? null,
+      }),
+    });
+    setLegalModal(false);
+    setLegalSaving(false);
+    const res = await fetch(`/api/triage/${appointmentId}`);
+    const d = await res.json();
+    if (d.ok) setAppt(d.appointment);
+  }
 
   // ─── Vital Signs State ─────────────────────────────────────────────────────
   const [heightFt,  setHeightFt]  = useState('');
@@ -388,7 +501,7 @@ export function TriageClient({
           </SbSection>
 
           {/* Primary Insurance · PIP */}
-          <SbSection label="Primary Insurance · PIP" defaultOpen>
+          <SbSection label="Primary Insurance · PIP" defaultOpen onEdit={appt.case ? openInsModal : undefined}>
             {c?.primaryInsurance ? (
               <div style={{
                 fontSize: 10.5, lineHeight: 1.65, marginBottom: 12,
@@ -446,18 +559,18 @@ export function TriageClient({
           </SbSection>
 
           {/* Lawyer / Attorney */}
-          {(c?.attorney || c?.lawFirm) && (
-            <SbSection label="Attorney" defaultOpen>
-              <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 12 }}>
-                {c?.lawFirm && <div>{c.lawFirm.firmName}</div>}
-                {c?.attorney && (
-                  <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)' }}>
-                    {`${c.attorney.firstName ?? ''} ${c.attorney.lastName ?? ''}`.trim()}
-                  </div>
-                )}
-              </div>
-            </SbSection>
-          )}
+          <SbSection label="Attorney" defaultOpen={!!(c?.attorney || c?.lawFirm)} onEdit={appt.case ? openLegalModal : undefined}>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 12 }}>
+              {c?.lawFirm
+                ? <div>{c.lawFirm.firmName}</div>
+                : <EmptySlot text="Sin bufete asignado" />}
+              {c?.attorney && (
+                <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
+                  {`${c.attorney.firstName ?? ''} ${c.attorney.lastName ?? ''}`.trim()}
+                </div>
+              )}
+            </div>
+          </SbSection>
 
           {/* Emergency Contact */}
           <SbSection label="Emergency Contact">
@@ -757,6 +870,278 @@ export function TriageClient({
           </button>
         </div>
       </main>
+
+      {/* ═══ INSURANCE MODAL ════════════════════════════════════════════════════ */}
+      {insModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }} onClick={() => setInsModal(false)}>
+          <div style={{
+            background: '#0f172a', border: '1px solid rgba(255,255,255,0.10)',
+            borderRadius: 14, padding: 24, width: '100%', maxWidth: 420,
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+              Editar seguro primario
+            </div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginBottom: 18 }}>
+              {appt?.case?.caseCode}
+            </div>
+
+            {/* Search aseguradora */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>
+                Aseguradora
+              </div>
+              {insSelected ? (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '8px 12px', borderRadius: 8,
+                  background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.30)',
+                }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#67e8f9' }}>{insSelected.name}</div>
+                    {insSelected.claimsPhone && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>{insSelected.claimsPhone}</div>}
+                  </div>
+                  <button onClick={() => { setInsSelected(null); setInsQuery(''); }}
+                    style={{ fontSize: 16, color: 'rgba(255,255,255,0.40)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    autoFocus
+                    value={insQuery}
+                    onChange={e => setInsQuery(e.target.value)}
+                    placeholder="Buscar aseguradora..."
+                    style={{
+                      width: '100%', padding: '8px 12px', borderRadius: 8,
+                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                      color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                  {insResults.length > 0 && (
+                    <div style={{
+                      marginTop: 4, borderRadius: 8, overflow: 'hidden',
+                      border: '1px solid rgba(255,255,255,0.08)', background: '#131c34',
+                    }}>
+                      {insResults.map(r => (
+                        <div key={r.id}
+                          onClick={() => {
+                            setInsSelected({ id: r.id, name: r.label, claimsPhone: null });
+                            setInsQuery(''); setInsResults([]);
+                          }}
+                          style={{
+                            padding: '8px 12px', cursor: 'pointer', fontSize: 11,
+                            color: 'rgba(255,255,255,0.80)',
+                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div style={{ fontWeight: 600 }}>{r.label}</div>
+                          {r.subtitle && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)', marginTop: 1 }}>{r.subtitle}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Policy number */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>
+                Número de póliza
+              </div>
+              <input
+                value={insPolicy}
+                onChange={e => setInsPolicy(e.target.value)}
+                placeholder="Ej. PIP-123456"
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                  color: '#fff', fontSize: 12, outline: 'none', fontFamily: 'monospace',
+                }}
+              />
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setInsModal(false)} style={{
+                padding: '8px 16px', borderRadius: 8, fontSize: 12,
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                color: 'rgba(255,255,255,0.70)', cursor: 'pointer',
+              }}>Cancelar</button>
+              <button onClick={saveInsurance} disabled={insSaving} style={{
+                padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                background: insSaving ? 'rgba(6,182,212,0.15)' : 'rgba(6,182,212,0.20)',
+                border: '1px solid rgba(6,182,212,0.40)',
+                color: '#67e8f9', cursor: insSaving ? 'not-allowed' : 'pointer',
+              }}>
+                {insSaving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ LEGAL MODAL ════════════════════════════════════════════════════════ */}
+      {legalModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }} onClick={() => setLegalModal(false)}>
+          <div style={{
+            background: '#0f172a', border: '1px solid rgba(255,255,255,0.10)',
+            borderRadius: 14, padding: 24, width: '100%', maxWidth: 420,
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+              Editar información legal
+            </div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginBottom: 18 }}>
+              {appt?.case?.caseCode}
+            </div>
+
+            {/* Firm */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>
+                Bufete
+              </div>
+              {firmSelected ? (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '8px 12px', borderRadius: 8,
+                  background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.30)',
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc' }}>{firmSelected.firmName}</div>
+                  <button onClick={() => { setFirmSelected(null); setFirmQuery(''); setAttSelected(null); setAttResults([]); }}
+                    style={{ fontSize: 16, color: 'rgba(255,255,255,0.40)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    autoFocus
+                    value={firmQuery}
+                    onChange={e => setFirmQuery(e.target.value)}
+                    placeholder="Buscar bufete..."
+                    style={{
+                      width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box',
+                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                      color: '#fff', fontSize: 12, outline: 'none',
+                    }}
+                  />
+                  {firmResults.length > 0 && (
+                    <div style={{
+                      marginTop: 4, borderRadius: 8, overflow: 'hidden',
+                      border: '1px solid rgba(255,255,255,0.08)', background: '#131c34',
+                    }}>
+                      {firmResults.map(r => (
+                        <div key={r.id}
+                          onClick={() => {
+                            setFirmSelected({ id: r.id, firmName: r.label });
+                            setFirmQuery(''); setFirmResults([]);
+                            setAttSelected(null); setAttQuery('');
+                          }}
+                          style={{
+                            padding: '8px 12px', cursor: 'pointer', fontSize: 11,
+                            color: 'rgba(255,255,255,0.80)',
+                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div style={{ fontWeight: 600 }}>{r.label}</div>
+                          {r.subtitle && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)', marginTop: 1 }}>{r.subtitle}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Attorney (only if firm selected) */}
+            {firmSelected && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>
+                  Abogado (opcional)
+                </div>
+                {attSelected ? (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 12px', borderRadius: 8,
+                    background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.20)',
+                  }}>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)' }}>
+                      {`${attSelected.firstName ?? ''} ${attSelected.lastName ?? ''}`.trim()}
+                    </div>
+                    <button onClick={() => { setAttSelected(null); setAttQuery(''); }}
+                      style={{ fontSize: 16, color: 'rgba(255,255,255,0.40)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      value={attQuery}
+                      onChange={e => setAttQuery(e.target.value)}
+                      placeholder="Buscar abogado del bufete..."
+                      style={{
+                        width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box',
+                        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                        color: '#fff', fontSize: 12, outline: 'none',
+                      }}
+                    />
+                    {attResults.length > 0 && (
+                      <div style={{
+                        marginTop: 4, borderRadius: 8, overflow: 'hidden',
+                        border: '1px solid rgba(255,255,255,0.08)', background: '#131c34',
+                      }}>
+                        {attResults.map(r => (
+                          <div key={r.id}
+                            onClick={() => {
+                              const [fn, ...rest] = r.label.split(' ');
+                              setAttSelected({ id: r.id, firstName: fn ?? null, lastName: rest.join(' ') || null });
+                              setAttQuery(''); setAttResults([]);
+                            }}
+                            style={{
+                              padding: '8px 12px', cursor: 'pointer', fontSize: 11,
+                              color: 'rgba(255,255,255,0.80)',
+                              borderBottom: '1px solid rgba(255,255,255,0.05)',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            <div style={{ fontWeight: 600 }}>{r.label}</div>
+                            {r.subtitle && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)', marginTop: 1 }}>{r.subtitle}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setLegalModal(false)} style={{
+                padding: '8px 16px', borderRadius: 8, fontSize: 12,
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
+                color: 'rgba(255,255,255,0.70)', cursor: 'pointer',
+              }}>Cancelar</button>
+              <button onClick={saveLegal} disabled={legalSaving} style={{
+                padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                background: legalSaving ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.20)',
+                border: '1px solid rgba(99,102,241,0.40)',
+                color: '#a5b4fc', cursor: legalSaving ? 'not-allowed' : 'pointer',
+              }}>
+                {legalSaving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

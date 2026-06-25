@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -132,6 +132,105 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [markingIntake, setMarkingIntake] = useState(false);
 
+  // Insurance edit modal
+  const [insOpen, setInsOpen]           = useState(false);
+  const [insQuery, setInsQuery]         = useState('');
+  const [insResults, setInsResults]     = useState<Array<{ id: string; name: string; shortCode: string; color: string }>>([]);
+  const [insSelected, setInsSelected]   = useState<{ id: string; name: string } | null>(
+    caseInfo.primaryInsurance ? { id: caseInfo.primaryInsurance.id, name: caseInfo.primaryInsurance.name } : null
+  );
+  const [insPolicy, setInsPolicy]       = useState(caseInfo.primaryPolicyNumber ?? '');
+  const [insSaving, setInsSaving]       = useState(false);
+
+  // Legal edit modal
+  const [legalOpen, setLegalOpen]       = useState(false);
+  const [firmQuery, setFirmQuery]       = useState('');
+  const [firmResults, setFirmResults]   = useState<Array<{ id: string; firmName: string | null }>>([]);
+  const [firmSelected, setFirmSelected] = useState<{ id: string; firmName: string } | null>(
+    caseInfo.lawFirm ? { id: caseInfo.lawFirm.id, firmName: caseInfo.lawFirm.firmName ?? '' } : null
+  );
+  const [attResults, setAttResults]     = useState<Array<{ id: string; firstName: string | null; lastName: string | null }>>([]);
+  const [attSelected, setAttSelected]   = useState<{ id: string; firstName: string; lastName: string } | null>(
+    caseInfo.attorney ? { id: caseInfo.attorney.id, firstName: caseInfo.attorney.firstName ?? '', lastName: caseInfo.attorney.lastName ?? '' } : null
+  );
+  const [legalSaving, setLegalSaving]   = useState(false);
+  const insTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!insOpen) return;
+    if (insTimer.current) clearTimeout(insTimer.current);
+    insTimer.current = setTimeout(async () => {
+      if (insQuery.length < 1) { setInsResults([]); return; }
+      const r = await fetch(`/api/admin/insurances/autocomplete?q=${encodeURIComponent(insQuery)}`);
+      if (r.ok) {
+        const data = await r.json();
+        const raw: Array<{ id: string; label: string; shortCode: string; color: string }> = data.results ?? [];
+        setInsResults(raw.map(x => ({ id: x.id, name: x.label, shortCode: x.shortCode, color: x.color })));
+      }
+    }, 200);
+    return () => { if (insTimer.current) clearTimeout(insTimer.current); };
+  }, [insQuery, insOpen]);
+
+  useEffect(() => {
+    if (!legalOpen) return;
+    if (firmTimer.current) clearTimeout(firmTimer.current);
+    firmTimer.current = setTimeout(async () => {
+      if (firmQuery.length < 1) { setFirmResults([]); return; }
+      const r = await fetch(`/api/admin/lawyers/autocomplete?q=${encodeURIComponent(firmQuery)}`);
+      if (r.ok) {
+        const data = await r.json();
+        const raw: Array<{ id: string; label: string }> = data.results ?? [];
+        setFirmResults(raw.map(x => ({ id: x.id, firmName: x.label })));
+      }
+    }, 200);
+    return () => { if (firmTimer.current) clearTimeout(firmTimer.current); };
+  }, [firmQuery, legalOpen]);
+
+  useEffect(() => {
+    if (!firmSelected) { setAttResults([]); setAttSelected(null); return; }
+    fetch(`/api/admin/lawyers/autocomplete?firmId=${firmSelected.id}&q=`)
+      .then(r => r.ok ? r.json() : { results: [] })
+      .then((data: { results: Array<{ id: string; label: string }> }) => {
+        setAttResults(data.results.map(x => {
+          const parts = x.label.split(' ');
+          return { id: x.id, firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') };
+        }));
+      });
+  }, [firmSelected]);
+
+  async function saveInsurance() {
+    setInsSaving(true);
+    try {
+      await fetch(`/api/admin/cases/${caseInfo.id}/update-legal-insurance`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          primaryInsuranceId:  insSelected?.id ?? null,
+          primaryPolicyNumber: insPolicy.trim() || null,
+        }),
+      });
+      setInsOpen(false);
+      router.refresh();
+    } finally { setInsSaving(false); }
+  }
+
+  async function saveLegal() {
+    setLegalSaving(true);
+    try {
+      await fetch(`/api/admin/cases/${caseInfo.id}/update-legal-insurance`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lawFirmId:  firmSelected?.id ?? null,
+          attorneyId: attSelected?.id ?? null,
+        }),
+      });
+      setLegalOpen(false);
+      router.refresh();
+    } finally { setLegalSaving(false); }
+  }
+
   const STATUS_META: Record<CaseStatus, { label: string; colorClass: string; icon: string }> = {
     NEW_REFERRAL:     { label: t('statusNewReferral'),      colorClass: 'bg-rose/10 text-rose border-rose/30',         icon: '🔴' },
     INTAKE_PENDING:   { label: t('statusIntakePending'),    colorClass: 'bg-amber/10 text-amber border-amber/30',     icon: '🟡' },
@@ -241,7 +340,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
             <InfoRow label={t('fieldWorkflow')} value={<code className="text-text-2 font-mono text-xs">{caseInfo.caseType}</code>} />
           </InfoCard>
 
-          <InfoCard title={t('sectionLegal')} icon={Scale}>
+          <InfoCard title={t('sectionLegal')} icon={Scale} onEdit={() => { setFirmQuery(''); setLegalOpen(true); }}>
             {caseInfo.lawFirm ? (
               <>
                 <div className="flex items-center gap-3 mb-3">
@@ -294,7 +393,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
             )}
           </InfoCard>
 
-          <InfoCard title={t('sectionInsurance')} icon={Shield}>
+          <InfoCard title={t('sectionInsurance')} icon={Shield} onEdit={() => { setInsQuery(''); setInsOpen(true); }}>
             {caseInfo.primaryInsurance ? (
               <div className="space-y-3">
                 <div className="rounded-md border border-cyan/30 bg-cyan/5 p-3">
@@ -422,6 +521,139 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
           specialty: caseInfo.specialty,
         }}
       />
+
+      {/* ── Modal: Editar Seguro ─────────────────────────────────────────────── */}
+      {insOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setInsOpen(false)}>
+          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex items-center gap-2">
+                <Shield className="w-4 h-4 text-cyan" /> Editar Seguro
+              </h2>
+              <button onClick={() => setInsOpen(false)} className="text-text-muted hover:text-text-1 text-lg leading-none">✕</button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Aseguradora primaria</label>
+                {insSelected && (
+                  <div className="flex items-center justify-between rounded-md bg-cyan/10 border border-cyan/30 px-3 py-2 mb-2">
+                    <span className="text-sm text-text-1">{insSelected.name}</span>
+                    <button onClick={() => setInsSelected(null)} className="text-text-muted hover:text-rose text-xs">✕ quitar</button>
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={insQuery}
+                  onChange={e => setInsQuery(e.target.value)}
+                  placeholder="Buscar aseguradora..."
+                  className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
+                />
+                {insResults.length > 0 && (
+                  <div className="mt-1 rounded-md border border-border bg-bg-2 max-h-40 overflow-y-auto">
+                    {insResults.map(ins => (
+                      <button key={ins.id} onClick={() => { setInsSelected({ id: ins.id, name: ins.name }); setInsQuery(''); setInsResults([]); }}
+                        className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-1 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: ins.color }} />
+                        <span>{ins.name}</span>
+                        <span className="text-text-muted text-[10px] font-mono ml-auto">{ins.shortCode}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Número de póliza</label>
+                <input
+                  type="text"
+                  value={insPolicy}
+                  onChange={e => setInsPolicy(e.target.value)}
+                  placeholder="Ej. PIP-123456"
+                  className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setInsOpen(false)} disabled={insSaving} className="flex-1">Cancelar</Button>
+              <Button size="sm" onClick={saveInsurance} disabled={insSaving} className="flex-1">{insSaving ? 'Guardando…' : 'Guardar'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Editar Legal ──────────────────────────────────────────────── */}
+      {legalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setLegalOpen(false)}>
+          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex items-center gap-2">
+                <Scale className="w-4 h-4 text-brand" /> Editar Legal
+              </h2>
+              <button onClick={() => setLegalOpen(false)} className="text-text-muted hover:text-text-1 text-lg leading-none">✕</button>
+            </div>
+
+            <div className="space-y-3">
+              {/* Firma */}
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Bufete</label>
+                {firmSelected && (
+                  <div className="flex items-center justify-between rounded-md bg-brand/10 border border-brand/30 px-3 py-2 mb-2">
+                    <span className="text-sm text-text-1">{firmSelected.firmName}</span>
+                    <button onClick={() => { setFirmSelected(null); setAttSelected(null); }} className="text-text-muted hover:text-rose text-xs">✕ quitar</button>
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={firmQuery}
+                  onChange={e => setFirmQuery(e.target.value)}
+                  placeholder="Buscar bufete..."
+                  className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
+                />
+                {firmResults.length > 0 && (
+                  <div className="mt-1 rounded-md border border-border bg-bg-2 max-h-40 overflow-y-auto">
+                    {firmResults.map(f => (
+                      <button key={f.id} onClick={() => { setFirmSelected({ id: f.id, firmName: f.firmName ?? '' }); setFirmQuery(''); setFirmResults([]); }}
+                        className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-1">
+                        {f.firmName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Abogado */}
+              {firmSelected && (
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Abogado asignado</label>
+                  {attResults.length === 0 ? (
+                    <p className="text-text-muted text-xs italic">Sin abogados en este bufete.</p>
+                  ) : (
+                    <div className="rounded-md border border-border bg-bg-2 max-h-40 overflow-y-auto">
+                      <button onClick={() => setAttSelected(null)}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-1 ${!attSelected ? 'text-text-1 font-semibold' : 'text-text-muted'}`}>
+                        — Sin asignar
+                      </button>
+                      {attResults.map(a => (
+                        <button key={a.id} onClick={() => setAttSelected({ id: a.id, firstName: a.firstName ?? '', lastName: a.lastName ?? '' })}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-1 ${attSelected?.id === a.id ? 'text-brand font-semibold' : 'text-text-1'}`}>
+                          {a.firstName} {a.lastName}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setLegalOpen(false)} disabled={legalSaving} className="flex-1">Cancelar</Button>
+              <Button size="sm" onClick={saveLegal} disabled={legalSaving} className="flex-1">{legalSaving ? 'Guardando…' : 'Guardar'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -532,12 +764,17 @@ function NextActionBanner({ caseInfo }: { caseInfo: CaseInfo }) {
 
 // ─── InfoCard + InfoRow ────────────────────────────────────────────────────────
 
-function InfoCard({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
+function InfoCard({ title, icon: Icon, children, onEdit }: { title: string; icon: React.ElementType; children: React.ReactNode; onEdit?: () => void }) {
   return (
     <div className="rounded-lg border border-border bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-3">
         <Icon className="w-4 h-4 text-brand" />
-        <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{title}</h3>
+        <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex-1">{title}</h3>
+        {onEdit && (
+          <button onClick={onEdit} className="p-1 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title="Editar">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
       <div className="space-y-1.5">{children}</div>
     </div>

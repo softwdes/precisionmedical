@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Eye, Pencil, Trash2, Users } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
-import { PatientEditDialog, type EditablePatient } from '../[id]/patient-edit-dialog';
+import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 
 const STATUS_COLORS: Record<string, string> = {
   NEW:        'bg-brand/15 text-brand border-brand/30',

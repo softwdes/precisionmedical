@@ -420,8 +420,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     <Dialog open={open} onOpenChange={(val) => { if (!val) tryClose(); }}>
       <DialogContent
         className="max-w-5xl max-h-[92vh] overflow-hidden flex flex-col p-0"
-        onPointerDownOutside={(e) => { e.preventDefault(); if (hasData && !success) setShowExitConfirm(true); }}
-        onEscapeKeyDown={(e) => { e.preventDefault(); if (hasData && !success) setShowExitConfirm(true); }}
+        onPointerDownOutside={(e) => { if (hasData && !success) { e.preventDefault(); setShowExitConfirm(true); } }}
+        onEscapeKeyDown={(e) => { if (hasData && !success) { e.preventDefault(); setShowExitConfirm(true); } }}
       >
         {/* ─── Header · mobile-friendly ─────────────────────────────────── */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">

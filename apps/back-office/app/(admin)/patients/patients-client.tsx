@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, Pencil, Trash2, Users } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -59,6 +58,7 @@ export function PatientsClient({ patients, q }: Props) {
 
   // Edit: which patient is open in the edit dialog (drives PatientEditDialog's open state externally)
   const [editTarget, setEditTarget] = useState<PatientRow | null>(null);
+  const [viewTarget, setViewTarget] = useState<PatientRow | null>(null);
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -141,13 +141,13 @@ export function PatientsClient({ patients, q }: Props) {
                 {/* Acciones */}
                 <td className="w-24 px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
-                    <Link
-                      href={`/patients/${p.id}`}
+                    <button
+                      onClick={() => setViewTarget(p)}
                       className="p-1.5 rounded-md text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
                       title="Ver ficha"
                     >
                       <Eye className="w-3.5 h-3.5" />
-                    </Link>
+                    </button>
                     <button
                       onClick={() => setEditTarget(p)}
                       className="p-1.5 rounded-md text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
@@ -169,6 +169,107 @@ export function PatientsClient({ patients, q }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* ─── View modal ─────────────────────────────────────────────────────── */}
+      <Dialog open={!!viewTarget} onOpenChange={(o) => { if (!o) setViewTarget(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-text-1 flex items-center gap-2">
+              {viewTarget && <PersonAvatar firstName={viewTarget.firstName} lastName={viewTarget.lastName} size={8} />}
+              {viewTarget?.firstName} {viewTarget?.lastName}
+            </DialogTitle>
+            <DialogDescription className="text-text-muted text-xs font-mono">
+              {viewTarget?.patientCode}
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewTarget && (
+            <div className="space-y-4 text-sm">
+              {/* Contacto */}
+              <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-2">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Contacto</p>
+                {viewTarget.phone && (
+                  <div className="flex items-center gap-2 text-text-2">
+                    <Phone className="w-3.5 h-3.5 text-text-muted" />
+                    <span className="font-mono">{viewTarget.phone}</span>
+                  </div>
+                )}
+                {viewTarget.email && (
+                  <div className="flex items-center gap-2 text-text-2">
+                    <Mail className="w-3.5 h-3.5 text-text-muted" />
+                    <span>{viewTarget.email}</span>
+                  </div>
+                )}
+                {viewTarget.dateOfBirth && (
+                  <div className="flex items-center gap-2 text-text-2">
+                    <Calendar className="w-3.5 h-3.5 text-text-muted" />
+                    <span>{new Date(viewTarget.dateOfBirth).toLocaleDateString('es-US')}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Accidente */}
+              {(viewTarget.accidentDate || viewTarget.accidentType) && (
+                <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-2">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Accidente</p>
+                  {viewTarget.accidentDate && (
+                    <div className="flex items-center gap-2 text-text-2">
+                      <Car className="w-3.5 h-3.5 text-text-muted" />
+                      <span>{new Date(viewTarget.accidentDate).toLocaleDateString('es-US')}</span>
+                      {viewTarget.accidentType && <span className="text-text-muted">· {viewTarget.accidentType}</span>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Seguro */}
+              {(viewTarget.insuranceCarrier || viewTarget.policyNumber) && (
+                <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-2">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Seguro</p>
+                  <div className="flex items-center gap-2 text-text-2">
+                    <Shield className="w-3.5 h-3.5 text-text-muted" />
+                    <span>{viewTarget.insuranceCarrier ?? '—'}</span>
+                    {viewTarget.policyNumber && <span className="text-text-muted font-mono text-xs">· {viewTarget.policyNumber}</span>}
+                  </div>
+                </div>
+              )}
+
+              {/* Responsable legal */}
+              {viewTarget.guardianName && (
+                <div className="rounded-md bg-amber/10 border border-amber/30 p-3 space-y-2">
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-amber">Responsable legal</p>
+                  <div className="flex items-center gap-2 text-text-2">
+                    <UserCheck className="w-3.5 h-3.5 text-amber" />
+                    <span>{viewTarget.guardianName}</span>
+                    {viewTarget.guardianRelation && <span className="text-text-muted text-xs">· {viewTarget.guardianRelation}</span>}
+                  </div>
+                  {viewTarget.guardianPhone && (
+                    <div className="flex items-center gap-2 text-text-2 pl-5">
+                      <span className="font-mono text-xs">{viewTarget.guardianPhone}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Status + casos */}
+              <div className="flex items-center gap-3 pt-1">
+                <TagPill
+                  label={STATUS_LABEL[viewTarget.status] ?? viewTarget.status}
+                  colorClass={STATUS_COLORS[viewTarget.status] ?? 'bg-bg-2 text-text-2 border-border'}
+                />
+                <span className="text-text-muted text-xs">{viewTarget.caseCount} caso{viewTarget.caseCount !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setViewTarget(null)}>Cerrar</Button>
+            <Button className="w-full sm:w-auto" onClick={() => { setEditTarget(viewTarget); setViewTarget(null); }}>
+              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Edit modal ─────────────────────────────────────────────────────── */}
       {editTarget && (

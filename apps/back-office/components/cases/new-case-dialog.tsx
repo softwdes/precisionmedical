@@ -819,20 +819,20 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             Tienes datos ingresados que se perderán si sales ahora.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => setShowExitConfirm(false)}
-          >
-            Quedarme · seguir llenando
-          </Button>
+        <DialogFooter className="flex-col gap-2 mt-4">
           <Button
             variant="destructive"
-            className="w-full sm:w-auto"
+            className="w-full"
             onClick={confirmExit}
           >
             Salir y perder datos
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowExitConfirm(false)}
+          >
+            Quedarme · seguir llenando
           </Button>
         </DialogFooter>
       </DialogContent>

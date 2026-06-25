@@ -1288,6 +1288,7 @@
       "services": "Services CPT",
       "diagnoses": "Diagnoses",
       "workspaces": "Workspaces",
+      "patients": "Patients",
       "frontOffice": "Front Office",
       "calendar": "Calendar",
       "edson": "Edson Queue",

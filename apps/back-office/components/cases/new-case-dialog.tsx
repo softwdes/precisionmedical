@@ -841,7 +841,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             Tienes datos ingresados que se perderán si sales ahora.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="flex-col gap-2 mt-4">
+        <div className="flex flex-col gap-2 mt-4">
           <Button
             variant="destructive"
             className="w-full"
@@ -856,7 +856,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           >
             Quedarme · seguir llenando
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
     </>

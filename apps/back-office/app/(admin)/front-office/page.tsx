@@ -6,7 +6,15 @@ import { FrontOfficeClient } from './front-office-client';
 // B.1 + B.2 — Recepción primaria · Front Office workspace
 // Vista de Recepción + modal de crear caso.
 
-export default async function FrontOfficePage() {
+const PAGE_SIZE = 25;
+
+export default async function FrontOfficePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>;
+}) {
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? '1', 10) || 1);
   // Nombre del usuario para el saludo personalizado
   let userName = 'Recepción';
   try {
@@ -75,22 +83,26 @@ export default async function FrontOfficePage() {
   ]);
 
   // Casos por estado relevante para Front Office
-  const cases = await db.case.findMany({
-    where: {
-      deletedAt: null,
-      status: { in: ['NEW_REFERRAL', 'INTAKE_PENDING', 'INTAKE_COMPLETED', 'CONFIRMED'] },
-    },
-    orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-    take: 50,
-    include: {
+  const caseWhere = {
+    deletedAt: null,
+    status: { in: ['NEW_REFERRAL', 'INTAKE_PENDING', 'INTAKE_COMPLETED', 'CONFIRMED'] as const },
+  };
+  const [cases, totalCases] = await Promise.all([
+    db.case.findMany({
+      where: caseWhere,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+      include: {
       patient: { select: { firstName: true, lastName: true, phone: true, dateOfBirth: true, email: true } },
       lawFirm: { select: { firmName: true, paymentSpeed: true } },
       attorney: { select: { firstName: true, lastName: true } },
       primaryInsurance: { select: { name: true, shortCode: true, color: true, responseSpeed: true } },
       specialty: { select: { name: true, color: true } },
       _count: { select: { appointments: true, notes: true } },
-    },
-  });
+    }),
+    db.case.count({ where: caseWhere }),
+  ]);
 
   // Stats agrupados por status (todos los valores del enum CaseStatus)
   const byStatus = {
@@ -162,6 +174,7 @@ export default async function FrontOfficePage() {
         createdAt: c.createdAt,
       }))}
       stats={byStatus}
+      pagination={{ page, pageSize: PAGE_SIZE, total: totalCases }}
     />
   );
 }

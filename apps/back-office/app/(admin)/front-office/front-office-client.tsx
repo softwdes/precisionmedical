@@ -82,9 +82,10 @@ interface Props {
     email: string | null;
     casesCount: number;
   }>;
+  pagination: { page: number; pageSize: number; total: number };
 }
 
-export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, clinics, providers, samplePatients }: Props) {
+export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, clinics, providers, samplePatients, pagination }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.frontOffice');
   const [filter, setFilter] = useState<'all' | CaseStatus>('all');
@@ -338,6 +339,40 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
           ))
         )}
       </div>
+
+      {/* Paginación */}
+      {pagination.total > pagination.pageSize && (
+        <div className="flex items-center justify-between text-sm pt-1">
+          <span className="text-text-muted text-xs">
+            {(pagination.page - 1) * pagination.pageSize + 1}–{Math.min(pagination.page * pagination.pageSize, pagination.total)} de {pagination.total} casos
+          </span>
+          <div className="flex gap-2">
+            <a
+              href={`/front-office?page=${pagination.page - 1}`}
+              className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                pagination.page <= 1
+                  ? 'border-border/40 text-text-muted/40 pointer-events-none'
+                  : 'border-border text-text-2 hover:border-border-strong hover:text-text-1'
+              }`}
+            >
+              ← Anterior
+            </a>
+            <span className="px-3 py-1.5 text-xs text-text-muted">
+              Pág. {pagination.page} / {Math.ceil(pagination.total / pagination.pageSize)}
+            </span>
+            <a
+              href={`/front-office?page=${pagination.page + 1}`}
+              className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
+                pagination.page >= Math.ceil(pagination.total / pagination.pageSize)
+                  ? 'border-border/40 text-text-muted/40 pointer-events-none'
+                  : 'border-border text-text-2 hover:border-border-strong hover:text-text-1'
+              }`}
+            >
+              Siguiente →
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Footer help */}
       <div className="text-xs text-text-muted text-center pt-2 border-t border-border/40">

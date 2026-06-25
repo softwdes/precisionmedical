@@ -190,9 +190,9 @@ export function PatientsClient({ patients, q }: Props) {
                 {deleteTarget?.firstName} {deleteTarget?.lastName}
               </span>{' '}
               del sistema. No se puede deshacer.
-              {deleteTarget?.caseCount > 0 && (
+              {(deleteTarget?.caseCount ?? 0) > 0 && (
                 <span className="block mt-2 text-amber text-xs">
-                  ⚠ Este paciente tiene {deleteTarget.caseCount} caso{deleteTarget.caseCount !== 1 ? 's' : ''} asociado{deleteTarget.caseCount !== 1 ? 's' : ''} — no se podrá eliminar.
+                  ⚠ Este paciente tiene {deleteTarget!.caseCount} caso{deleteTarget!.caseCount !== 1 ? 's' : ''} asociado{deleteTarget!.caseCount !== 1 ? 's' : ''} — no se podrá eliminar.
                 </span>
               )}
             </DialogDescription>

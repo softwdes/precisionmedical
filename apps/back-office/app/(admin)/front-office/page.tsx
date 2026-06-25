@@ -85,7 +85,7 @@ export default async function FrontOfficePage({
   // Casos por estado relevante para Front Office
   const caseWhere = {
     deletedAt: null,
-    status: { in: ['NEW_REFERRAL', 'INTAKE_PENDING', 'INTAKE_COMPLETED', 'CONFIRMED'] as const },
+    status: { in: ['NEW_REFERRAL', 'INTAKE_PENDING', 'INTAKE_COMPLETED', 'CONFIRMED'] as ('NEW_REFERRAL' | 'INTAKE_PENDING' | 'INTAKE_COMPLETED' | 'CONFIRMED')[] },
   };
   const [cases, totalCases] = await Promise.all([
     db.case.findMany({

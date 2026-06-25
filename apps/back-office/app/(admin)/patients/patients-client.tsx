@@ -82,15 +82,15 @@ export function PatientsClient({ patients, q }: Props) {
 
   return (
     <>
-      <div className="rounded-lg border border-border overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full text-sm">
           <thead className="bg-bg-2 border-b border-border">
             <tr>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Paciente</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Contacto</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Casos</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Status</th>
-              <th className="text-right px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Acciones</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Casos</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Status</th>
+              <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -126,12 +126,12 @@ export function PatientsClient({ patients, q }: Props) {
                 </td>
 
                 {/* Casos */}
-                <td className="px-4 py-3 hidden md:table-cell">
+                <td className="px-4 py-3 hidden lg:table-cell">
                   <span className="text-text-2">{p.caseCount} caso{p.caseCount !== 1 ? 's' : ''}</span>
                 </td>
 
                 {/* Status */}
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 hidden sm:table-cell">
                   <TagPill
                     label={STATUS_LABEL[p.status] ?? p.status}
                     colorClass={STATUS_COLORS[p.status] ?? 'bg-bg-2 text-text-2 border-border'}
@@ -139,7 +139,7 @@ export function PatientsClient({ patients, q }: Props) {
                 </td>
 
                 {/* Acciones */}
-                <td className="px-4 py-3">
+                <td className="w-24 px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
                     <Link
                       href={`/patients/${p.id}`}

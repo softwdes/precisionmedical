@@ -310,7 +310,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
             </Link>
           </span>
         }
-        action={<ActionButtons status={caseInfo.status} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
+        action={<ActionButtons status={caseInfo.status} caseId={caseInfo.id} onSendPortal={() => setSendPortalOpen(true)} onConfirm={() => setConfirmOpen(true)} onSchedule={() => setScheduleOpen(true)} onAddNote={() => setAddNoteOpen(true)} onSimulateIntake={handleSimulateIntake} isMarkingIntake={markingIntake} />}
       />
 
       {/* Next action banner según status */}
@@ -662,6 +662,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
 
 function ActionButtons({
   status,
+  caseId,
   onSendPortal,
   onConfirm,
   onSchedule,
@@ -670,6 +671,7 @@ function ActionButtons({
   isMarkingIntake,
 }: {
   status: CaseStatus;
+  caseId: string;
   onSendPortal: () => void;
   onConfirm: () => void;
   onSchedule: () => void;
@@ -703,6 +705,12 @@ function ActionButtons({
           </Button>
           <Button onClick={onSendPortal} variant="outline" size="sm">
             <Send className="w-3.5 h-3.5 mr-1" /> {t('btnResendForms')}
+          </Button>
+          <Button
+            variant="outline" size="sm"
+            onClick={() => window.open(`/front-office/${caseId}/intake-print`, '_blank')}
+          >
+            <FileText className="w-3.5 h-3.5 mr-1" /> Ver Intake
           </Button>
         </>
       )}

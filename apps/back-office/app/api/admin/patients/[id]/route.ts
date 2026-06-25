@@ -11,6 +11,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { Prisma } from '@precision-medical/database';
 
 const empty = z.literal('').transform(() => null);
 
@@ -56,7 +57,9 @@ export async function PATCH(
     guardianName, guardianPhone, guardianRelation,
   } = parsed.data;
 
-  const updated = await db.patient.update({
+  let updated;
+  try {
+  updated = await db.patient.update({
     where: { id },
     data: {
       firstName,
@@ -78,6 +81,15 @@ export async function PATCH(
     },
     select: { id: true, patientCode: true, firstName: true, lastName: true },
   });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      return NextResponse.json(
+        { ok: false, error: 'EMAIL_TAKEN', message: 'Este email ya está registrado en otro paciente.' },
+        { status: 409 },
+      );
+    }
+    throw e;
+  }
 
   const actor = actorFromHeaders(req.headers);
   await writeAuditLog(db, {

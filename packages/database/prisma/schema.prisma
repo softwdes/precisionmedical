@@ -688,7 +688,7 @@ model Patient {
   
   firstName          String
   lastName           String
-  email              String?
+  email              String?   @unique
   phone              String?
   dateOfBirth        DateTime?
   

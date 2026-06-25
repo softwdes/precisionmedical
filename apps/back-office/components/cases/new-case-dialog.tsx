@@ -144,6 +144,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
   const [success, setSuccess] = useState<{ caseCode: string; caseId: string; appointmentScheduled: boolean } | null>(null);
+  const [duplicateId, setDuplicateId] = useState<string | null>(null);
 
   // ─── Confirm-exit dialog ──────────────────────────────────────────────
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -320,6 +321,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if ((data.error === 'DUPLICATE_PATIENT' || data.error === 'EMAIL_TAKEN') && data.existingPatientId) {
+          setDuplicateId(data.existingPatientId);
+        }
         throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
       }
       const data = await res.json();
@@ -777,6 +781,24 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <div className="text-rose text-sm bg-rose/10 border border-rose/30 rounded-md px-3 py-2 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {duplicateId && (
+            <div className="text-amber text-sm bg-amber/10 border border-amber/30 rounded-md px-3 py-2 flex flex-col gap-2">
+              <p className="font-medium">¿Deseas crear el caso para el paciente existente en lugar de registrar uno nuevo?</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="self-start border-amber/50 text-amber hover:bg-amber/10"
+                onClick={() => {
+                  setExistingPatientId(duplicateId);
+                  setDuplicateId(null);
+                  setError(null);
+                }}
+              >
+                Usar paciente existente
+              </Button>
             </div>
           )}
         </div>

@@ -17,7 +17,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
 
 const InputSchema = z.object({
   // Patient
@@ -92,6 +92,45 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       { error: 'INVALID_PAYLOAD', details: err instanceof z.ZodError ? err.flatten() : String(err) },
       { status: 400 },
     );
+  }
+
+  // ─── Validaciones de unicidad (solo pacientes nuevos) ───────────────
+  if (!parsed.existingPatientId) {
+    const checks = await Promise.all([
+      // Email único
+      parsed.patient.email
+        ? db.patient.findUnique({ where: { email: parsed.patient.email }, select: { id: true, firstName: true, lastName: true } })
+        : null,
+      // Duplicado: mismo nombre + teléfono
+      db.patient.findFirst({
+        where: {
+          firstName: { equals: parsed.patient.firstName, mode: 'insensitive' },
+          lastName:  { equals: parsed.patient.lastName,  mode: 'insensitive' },
+          phone:     parsed.patient.phone,
+        },
+        select: { id: true, patientCode: true, firstName: true, lastName: true },
+      }),
+    ]);
+
+    const emailOwner    = checks[0];
+    const duplicatePatient = checks[1];
+
+    if (emailOwner) {
+      return NextResponse.json({
+        error: 'EMAIL_TAKEN',
+        message: `Este email ya pertenece a ${emailOwner.firstName} ${emailOwner.lastName}.`,
+        existingPatientId: emailOwner.id,
+      }, { status: 409 });
+    }
+
+    if (duplicatePatient) {
+      return NextResponse.json({
+        error: 'DUPLICATE_PATIENT',
+        message: `Ya existe un paciente con ese nombre y teléfono: ${duplicatePatient.firstName} ${duplicatePatient.lastName} (${duplicatePatient.patientCode}).`,
+        existingPatientId: duplicatePatient.id,
+        existingPatientCode: duplicatePatient.patientCode,
+      }, { status: 409 });
+    }
   }
 
   // ─── Validaciones cruzadas ──────────────────────────────────────────

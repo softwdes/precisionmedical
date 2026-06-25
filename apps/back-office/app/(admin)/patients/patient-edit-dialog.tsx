@@ -103,6 +103,21 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       setError('Nombre y apellido son requeridos.');
       return;
     }
+    if (form.dateOfBirth) {
+      const dobAge = calcAge(form.dateOfBirth);
+      if (dobAge === null) {
+        setError('Fecha de nacimiento inválida.');
+        return;
+      }
+      if (dobAge < 0) {
+        setError('La fecha de nacimiento no puede ser en el futuro.');
+        return;
+      }
+      if (dobAge > 120) {
+        setError('Fecha de nacimiento inválida — verifica el año.');
+        return;
+      }
+    }
     if (isMinor && !form.guardianName.trim()) {
       setError('El paciente es menor de edad — se requiere nombre del responsable legal.');
       return;

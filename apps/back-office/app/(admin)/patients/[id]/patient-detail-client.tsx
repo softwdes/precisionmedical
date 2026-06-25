@@ -115,9 +115,17 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
   const totalNotes = patient.cases.reduce((acc, c) => acc + c._count.notes, 0);
 
   // Edad
-  const age = patient.dateOfBirth
-    ? Math.floor((Date.now() - new Date(patient.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-    : null;
+  const age = (() => {
+    if (!patient.dateOfBirth) return null;
+    const iso = typeof patient.dateOfBirth === 'string' ? patient.dateOfBirth : patient.dateOfBirth.toISOString();
+    const [y, mo, day] = iso.slice(0, 10).split('-').map(Number);
+    const birth = new Date(y, mo - 1, day);
+    const today = new Date();
+    let a = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) a--;
+    return a;
+  })();
 
   const patientStatusColors = PATIENT_STATUS_COLORS[patient.status];
   const PATIENT_STATUS_LABEL_KEYS: Record<PatientStatus, string> = {
@@ -395,9 +403,11 @@ function CaseRow({ case: c, onClick }: { case: PatientCase; onClick: () => void 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(d: Date | string): string {
-  return new Date(d).toLocaleDateString('es-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
+  // Parse as local date to avoid UTC→local timezone shift (e.g. 2000-01-01 UTC → Dec 31)
+  const iso = typeof d === 'string' ? d : d.toISOString();
+  const [y, mo, day] = iso.slice(0, 10).split('-').map(Number);
+  const local = new Date(y, mo - 1, day);
+  return local.toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 type TFn = ReturnType<typeof useTranslations<'phoenix.patients'>>;

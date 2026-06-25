@@ -7,6 +7,13 @@ import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescrip
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 
+function fmtLocalDate(d: Date | string | null | undefined): string {
+  if (!d) return '—';
+  const iso = typeof d === 'string' ? d : (d as Date).toISOString();
+  const [y, mo, day] = iso.slice(0, 10).split('-').map(Number);
+  return new Date(y, mo - 1, day).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 const STATUS_COLORS: Record<string, string> = {
   NEW:        'bg-brand/15 text-brand border-brand/30',
   ACTIVE:     'bg-emerald/15 text-emerald border-emerald/30',
@@ -203,7 +210,7 @@ export function PatientsClient({ patients, q }: Props) {
                 {viewTarget.dateOfBirth && (
                   <div className="flex items-center gap-2 text-text-2">
                     <Calendar className="w-3.5 h-3.5 text-text-muted" />
-                    <span>{new Date(viewTarget.dateOfBirth).toLocaleDateString('es-US')}</span>
+                    <span>{fmtLocalDate(viewTarget.dateOfBirth)}</span>
                   </div>
                 )}
               </div>
@@ -215,7 +222,7 @@ export function PatientsClient({ patients, q }: Props) {
                   {viewTarget.accidentDate && (
                     <div className="flex items-center gap-2 text-text-2">
                       <Car className="w-3.5 h-3.5 text-text-muted" />
-                      <span>{new Date(viewTarget.accidentDate).toLocaleDateString('es-US')}</span>
+                      <span>{fmtLocalDate(viewTarget.accidentDate)}</span>
                       {viewTarget.accidentType && <span className="text-text-muted">· {viewTarget.accidentType}</span>}
                     </div>
                   )}

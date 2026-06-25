@@ -74,6 +74,9 @@ interface PatientData {
   accidentType: AccidentType | null;
   insuranceCarrier: string | null;
   policyNumber: string | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  guardianRelation: string | null;
   lawyerReferrer: { id: string; firmName: string | null } | null;
   providerReferrer: { id: string; firstName: string; lastName: string } | null;
   cases: PatientCase[];

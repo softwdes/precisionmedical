@@ -7,6 +7,7 @@
  */
 
 import { db } from '@precision-medical/database';
+import { CloseWindowButton } from './close-window-button';
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -135,6 +136,9 @@ export default async function DonePage({ params }: Props) {
 
         {/* Actions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Close window */}
+          <CloseWindowButton />
+
           {/* Download PDF — Phase 2 placeholder */}
           <button
             style={{

@@ -455,6 +455,14 @@ function getSavedLabel(d: Date, locale: string): string {
   });
 }
 
+function isValidNANP(raw: string): boolean {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length !== 10) return false;
+  const area = digits[0];
+  const exchange = digits[3];
+  return area >= '2' && exchange >= '2';
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function IntakeWizard({
@@ -510,6 +518,10 @@ export function IntakeWizard({
     insuranceCard: null as File | null,
   });
   const [takeAtClinic, setTakeAtClinic] = useState(false);
+
+  // ── Validation errors ───────────────────────────────────────────────────────
+  const [phoneError, setPhoneError]             = useState('');
+  const [emerPhoneError, setEmerPhoneError]     = useState('');
 
   // Step 7 — Lien signature
   const [showFullLegal, setShowFullLegal] = useState(false);
@@ -613,6 +625,22 @@ export function IntakeWizard({
   };
 
   const goNext = async (fromStep: Step) => {
+    if (fromStep === 2) {
+      let valid = true;
+      if (personal.phone && !isValidNANP(personal.phone)) {
+        setPhoneError(lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.');
+        valid = false;
+      } else {
+        setPhoneError('');
+      }
+      if (personal.emergencyContactPhone && !isValidNANP(personal.emergencyContactPhone)) {
+        setEmerPhoneError(lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.');
+        valid = false;
+      } else {
+        setEmerPhoneError('');
+      }
+      if (!valid) return;
+    }
     if ([2, 3, 4, 5].includes(fromStep)) {
       const ok = await saveStepData(fromStep);
       if (!ok) return;
@@ -709,6 +737,23 @@ export function IntakeWizard({
               cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.06em',
             }}
           >{t.langToggle}</button>
+
+          {/* Exit button */}
+          <button
+            type="button"
+            onClick={() => {
+              const msg = lang === 'es'
+                ? '¿Seguro que quieres salir? Tu progreso no guardado se perderá.'
+                : 'Are you sure you want to exit? Unsaved progress will be lost.';
+              if (window.confirm(msg)) window.close();
+            }}
+            style={{
+              padding: '3px 8px', borderRadius: 6, flexShrink: 0,
+              background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.25)',
+              color: 'rgba(244,63,94,0.80)', fontSize: 10, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.06em',
+            }}
+          >✕ {lang === 'es' ? 'Salir' : 'Exit'}</button>
         </div>
       </div>
 
@@ -831,9 +876,11 @@ export function IntakeWizard({
               </Field>
 
               <Field label={t.phone}>
-                <input type="tel" style={S.input} value={personal.phone}
+                <input type="tel" style={{ ...S.input, ...(phoneError ? { borderColor: '#F43F5E' } : {}) }}
+                  value={personal.phone}
                   placeholder="(801) 555-0100"
-                  onChange={e => setPersonal(p => ({ ...p, phone: e.target.value }))} />
+                  onChange={e => { setPersonal(p => ({ ...p, phone: e.target.value })); setPhoneError(''); }} />
+                {phoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{phoneError}</span>}
               </Field>
 
               <Field label={t.email}>
@@ -871,9 +918,11 @@ export function IntakeWizard({
                     onChange={e => setPersonal(p => ({ ...p, emergencyContactName: e.target.value }))} />
                 </Field>
                 <Field label={t.emergencyPhone}>
-                  <input type="tel" style={S.input} value={personal.emergencyContactPhone}
+                  <input type="tel" style={{ ...S.input, ...(emerPhoneError ? { borderColor: '#F43F5E' } : {}) }}
+                    value={personal.emergencyContactPhone}
                     placeholder={t.emergencyPhonePh}
-                    onChange={e => setPersonal(p => ({ ...p, emergencyContactPhone: e.target.value }))} />
+                    onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: e.target.value })); setEmerPhoneError(''); }} />
+                  {emerPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emerPhoneError}</span>}
                 </Field>
               </div>
             </div>

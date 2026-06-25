@@ -486,7 +486,23 @@ export function IntakeWizard({
     email:                patient.email ?? '',
     emergencyContactName: '',
     emergencyContactPhone: '',
+    guardianName:         '',
+    guardianPhone:        '',
+    guardianRelation:     '',
   });
+
+  // Calcular si es menor de edad (DOB del paciente, parseo local)
+  const isMinorPatient = (() => {
+    const dob = personal.dateOfBirth || patient.dateOfBirth;
+    if (!dob) return false;
+    const [y, mo, d] = dob.slice(0, 10).split('-').map(Number);
+    const birth = new Date(y, mo - 1, d);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age < 18;
+  })();
 
   const [acc, setAcc] = useState({
     date:     isoToInput(accident.date),
@@ -926,6 +942,38 @@ export function IntakeWizard({
                 </Field>
               </div>
             </div>
+
+            {/* Guardian — solo si es menor de edad */}
+            {isMinorPatient && (
+              <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12, border: '1px solid rgba(251,191,36,0.35)', background: 'rgba(251,191,36,0.06)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>⚠️</span>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+                    {lang === 'es' ? 'Responsable legal (paciente menor de edad)' : 'Legal guardian (minor patient)'}
+                  </div>
+                </div>
+                <Field label={lang === 'es' ? 'Nombre del responsable' : 'Guardian full name'}>
+                  <input type="text" style={S.input} value={personal.guardianName}
+                    placeholder={lang === 'es' ? 'Nombre completo del padre/madre/tutor' : 'Full name of parent/guardian'}
+                    onChange={e => setPersonal(p => ({ ...p, guardianName: e.target.value }))} />
+                </Field>
+                <Field label={lang === 'es' ? 'Teléfono del responsable' : 'Guardian phone'}>
+                  <input type="tel" style={S.input} value={personal.guardianPhone}
+                    placeholder="(801) 555-0100"
+                    onChange={e => setPersonal(p => ({ ...p, guardianPhone: e.target.value }))} />
+                </Field>
+                <Field label={lang === 'es' ? 'Relación con el paciente' : 'Relation to patient'}>
+                  <select style={S.input} value={personal.guardianRelation}
+                    onChange={e => setPersonal(p => ({ ...p, guardianRelation: e.target.value }))}>
+                    <option value="">—</option>
+                    <option value="FATHER">{lang === 'es' ? 'Padre' : 'Father'}</option>
+                    <option value="MOTHER">{lang === 'es' ? 'Madre' : 'Mother'}</option>
+                    <option value="LEGAL_GUARDIAN">{lang === 'es' ? 'Tutor legal' : 'Legal guardian'}</option>
+                    <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                  </select>
+                </Field>
+              </div>
+            )}
 
             <SifoHint hint={t.sifoHint2} />
             <SaveError error={saveError} />

@@ -75,14 +75,19 @@ export async function POST(
     ? `Hola ${caseRecord.patient.firstName}, soy de Precision Medical. Para completar tu intake del caso ${caseRecord.caseCode}, click: ${portalUrl}. Expira en 24h. Dudas: (801) 375-2207.`
     : `Hi ${caseRecord.patient.firstName}, this is Precision Medical. To complete intake for case ${caseRecord.caseCode}, click: ${portalUrl}. Expires in 24h. Questions: (801) 375-2207.`;
 
+  // Si el paciente ya completó el form y se re-envía, limpiar intakeFormCompletedAt
+  // para que el portal lo permita llenar de nuevo.
+  const isResend = caseRecord.status === 'INTAKE_COMPLETED';
+
   // Update case — persiste el token en DB para que el portal lo pueda verificar
   const updated = await db.case.update({
     where: { id: caseId },
     data: {
       intakeFormSentAt: new Date(),
       intakeFormSentVia: parsed.via,
-      portalToken: magicToken,           // ← nuevo campo B.5-B.9
-      status: caseRecord.status === 'NEW_REFERRAL' ? 'INTAKE_PENDING' : caseRecord.status,
+      portalToken: magicToken,
+      status: (caseRecord.status === 'NEW_REFERRAL' || isResend) ? 'INTAKE_PENDING' : caseRecord.status,
+      ...(isResend ? { intakeFormCompletedAt: null } : {}),
     },
   });
 

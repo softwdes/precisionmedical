@@ -90,6 +90,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         firstName?: string; lastName?: string; dateOfBirth?: string;
         phone?: string; email?: string; preferredLanguage?: string;
         emergencyContactName?: string; emergencyContactPhone?: string;
+        guardianName?: string; guardianPhone?: string; guardianRelation?: string;
       };
       accident?:  { date?: string; type?: string; location?: string; notes?: string };
       insurance?: { carrier?: string; policyNumber?: string };
@@ -118,6 +119,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
                                   patientData.emergencyContactName  = p.emergencyContactName;
     if (p.emergencyContactPhone !== undefined)
                                   patientData.emergencyContactPhone = p.emergencyContactPhone;
+    if (p.guardianName !== undefined)
+                                  patientData.guardianName          = p.guardianName || null;
+    if (p.guardianPhone !== undefined)
+                                  patientData.guardianPhone         = p.guardianPhone || null;
+    if (p.guardianRelation !== undefined)
+                                  patientData.guardianRelation      = p.guardianRelation || null;
 
     if (Object.keys(patientData).length > 0) {
       await db.patient.update({

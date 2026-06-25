@@ -710,6 +710,11 @@ model Patient {
   emergencyContactName   String?
   emergencyContactPhone  String?
 
+  // Responsable legal (requerido cuando el paciente es menor de edad)
+  guardianName       String?
+  guardianPhone      String?
+  guardianRelation   String?   // "PARENT" | "MOTHER" | "FATHER" | "LEGAL_GUARDIAN" | "OTHER"
+
   appointments       Appointment[]
   commissions        Commission[]
 

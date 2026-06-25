@@ -40,6 +40,9 @@ export interface PatientRow {
   insuranceCarrier: string | null;
   policyNumber: string | null;
   dateOfBirth: Date | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  guardianRelation: string | null;
   caseCount: number;
 }
 

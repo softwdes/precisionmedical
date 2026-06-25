@@ -2167,6 +2167,20 @@
         "PEDESTRIAN": "Peatón",
         "WORKPLACE": "Accidente laboral",
         "OTHER": "Otro"
+      },
+      "yearsOld": "años",
+      "minorLabel": "Menor de edad",
+      "sectionGuardian": "Responsable legal",
+      "guardianRequired": "Obligatorio",
+      "guardianNote": "El paciente es menor de edad. Se requiere un responsable legal que autorice el tratamiento y firme los documentos.",
+      "fieldGuardianName": "Nombre del responsable",
+      "fieldGuardianPhone": "Teléfono del responsable",
+      "fieldGuardianRelation": "Relación con el paciente",
+      "guardianRelation": {
+        "FATHER": "Padre",
+        "MOTHER": "Madre",
+        "LEGAL_GUARDIAN": "Tutor legal",
+        "OTHER": "Otro"
       }
     }
   }

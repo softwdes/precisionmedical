@@ -2167,6 +2167,20 @@
         "PEDESTRIAN": "Pedestrian",
         "WORKPLACE": "Workplace",
         "OTHER": "Other"
+      },
+      "yearsOld": "years old",
+      "minorLabel": "Minor",
+      "sectionGuardian": "Legal guardian",
+      "guardianRequired": "Required",
+      "guardianNote": "This patient is a minor. A legal guardian is required to authorize treatment and sign documents.",
+      "fieldGuardianName": "Guardian full name",
+      "fieldGuardianPhone": "Guardian phone",
+      "fieldGuardianRelation": "Relationship to patient",
+      "guardianRelation": {
+        "FATHER": "Father",
+        "MOTHER": "Mother",
+        "LEGAL_GUARDIAN": "Legal guardian",
+        "OTHER": "Other"
       }
     }
   }

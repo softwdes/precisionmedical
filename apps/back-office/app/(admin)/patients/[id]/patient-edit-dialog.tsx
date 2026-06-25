@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Pencil } from 'lucide-react';
+import { Pencil, ShieldAlert } from 'lucide-react';
 import {
   Button,
   Dialog,
@@ -17,6 +17,7 @@ import { FormField } from '@/components/ui-phoenix';
 
 type PatientStatus = 'NEW' | 'ACTIVE' | 'COMPLETED' | 'DISCHARGED' | 'INACTIVE';
 type AccidentType  = 'AUTO' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WORKPLACE' | 'OTHER';
+type GuardianRelation = 'FATHER' | 'MOTHER' | 'LEGAL_GUARDIAN' | 'OTHER';
 
 export interface EditablePatient {
   id:                    string;
@@ -33,6 +34,9 @@ export interface EditablePatient {
   accidentType:          AccidentType | null;
   insuranceCarrier:      string | null;
   policyNumber:          string | null;
+  guardianName:          string | null;
+  guardianPhone:         string | null;
+  guardianRelation:      string | null;
 }
 
 interface Props {
@@ -46,6 +50,17 @@ interface Props {
 function toDateInput(d: Date | string | null | undefined): string {
   if (!d) return '';
   return new Date(d).toISOString().slice(0, 10);
+}
+
+function calcAge(dob: string): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
 }
 
 export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
@@ -71,7 +86,13 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     accidentType:          patient.accidentType          ?? '',
     insuranceCarrier:      patient.insuranceCarrier      ?? '',
     policyNumber:          patient.policyNumber          ?? '',
+    guardianName:          patient.guardianName          ?? '',
+    guardianPhone:         patient.guardianPhone         ?? '',
+    guardianRelation:      patient.guardianRelation      ?? '',
   });
+
+  const age   = useMemo(() => calcAge(form.dateOfBirth), [form.dateOfBirth]);
+  const isMinor = age !== null && age < 18;
 
   function set(key: keyof typeof form) {
     return (v: string) => setForm(prev => ({ ...prev, [key]: v }));
@@ -82,6 +103,10 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       setError('Nombre y apellido son requeridos.');
       return;
     }
+    if (isMinor && !form.guardianName.trim()) {
+      setError('El paciente es menor de edad — se requiere nombre del responsable legal.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -90,7 +115,8 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           ...form,
-          accidentType: form.accidentType || null,
+          accidentType:    form.accidentType    || null,
+          guardianRelation: form.guardianRelation || null,
         }),
       });
       if (!res.ok) {
@@ -130,6 +156,14 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     { value: 'OTHER',      label: t('accidentType.OTHER') },
   ];
 
+  const GUARDIAN_RELATION_OPTIONS: Array<{ value: string; label: string }> = [
+    { value: '',               label: '—' },
+    { value: 'FATHER',         label: t('guardianRelation.FATHER') },
+    { value: 'MOTHER',         label: t('guardianRelation.MOTHER') },
+    { value: 'LEGAL_GUARDIAN', label: t('guardianRelation.LEGAL_GUARDIAN') },
+    { value: 'OTHER',          label: t('guardianRelation.OTHER') },
+  ];
+
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)} className="shrink-0">
@@ -160,11 +194,56 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                 <FormField.Input label={t('fieldEmail')} value={form.email} onChange={set('email')} placeholder="paciente@email.com" type="email" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label={t('fieldDob')} value={form.dateOfBirth} onChange={set('dateOfBirth')} type="date" />
+                <div className="space-y-1">
+                  <FormField.Input label={t('fieldDob')} value={form.dateOfBirth} onChange={set('dateOfBirth')} type="date" />
+                  {age !== null && (
+                    <p className={`text-[11px] ${isMinor ? 'text-amber font-semibold' : 'text-text-muted'}`}>
+                      {age} {t('yearsOld')}{isMinor ? ` · ${t('minorLabel')}` : ''}
+                    </p>
+                  )}
+                </div>
                 <FormField.Select label={t('fieldPreferredLanguage')} value={form.preferredLanguage} onChange={set('preferredLanguage')} options={LANG_OPTIONS} />
               </div>
               <FormField.Select label={t('fieldStatus')} value={form.status} onChange={set('status')} options={STATUS_OPTIONS} />
             </section>
+
+            {/* Responsable legal — solo si es menor */}
+            {isMinor && (
+              <section className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-amber" />
+                  <h3 className="text-[10px] uppercase tracking-wider font-semibold text-amber">
+                    {t('sectionGuardian')}
+                  </h3>
+                  <span className="text-[10px] text-amber/70 italic">{t('guardianRequired')}</span>
+                </div>
+                <div className="rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-[11px] text-amber">
+                  {t('guardianNote')}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField.Input
+                    label={t('fieldGuardianName')}
+                    required
+                    value={form.guardianName}
+                    onChange={set('guardianName')}
+                    placeholder="Nombre completo"
+                  />
+                  <FormField.Select
+                    label={t('fieldGuardianRelation')}
+                    value={form.guardianRelation}
+                    onChange={set('guardianRelation')}
+                    options={GUARDIAN_RELATION_OPTIONS}
+                  />
+                </div>
+                <FormField.Input
+                  label={t('fieldGuardianPhone')}
+                  value={form.guardianPhone}
+                  onChange={set('guardianPhone')}
+                  placeholder="+1 (801) 555-0100"
+                  type="tel"
+                />
+              </section>
+            )}
 
             {/* Contacto de emergencia */}
             <section className="space-y-4">

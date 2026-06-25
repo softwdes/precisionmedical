@@ -28,6 +28,9 @@ const PatchSchema = z.object({
   accidentType:          z.enum(['AUTO', 'MOTORCYCLE', 'PEDESTRIAN', 'WORKPLACE', 'OTHER']).nullable().optional(),
   insuranceCarrier:      z.string().nullable().optional().or(empty),
   policyNumber:          z.string().nullable().optional().or(empty),
+  guardianName:          z.string().nullable().optional().or(empty),
+  guardianPhone:         z.string().nullable().optional().or(empty),
+  guardianRelation:      z.enum(['FATHER', 'MOTHER', 'LEGAL_GUARDIAN', 'OTHER']).nullable().optional(),
 });
 
 export async function PATCH(
@@ -50,6 +53,7 @@ export async function PATCH(
     dateOfBirth, status, preferredLanguage,
     emergencyContactName, emergencyContactPhone,
     accidentDate, accidentType, insuranceCarrier, policyNumber,
+    guardianName, guardianPhone, guardianRelation,
   } = parsed.data;
 
   const updated = await db.patient.update({
@@ -66,6 +70,9 @@ export async function PATCH(
       ...(insuranceCarrier      !== undefined ? { insuranceCarrier }      : {}),
       ...(policyNumber          !== undefined ? { policyNumber }          : {}),
       ...(accidentType          !== undefined ? { accidentType }          : {}),
+      ...(guardianName          !== undefined ? { guardianName }          : {}),
+      ...(guardianPhone         !== undefined ? { guardianPhone }         : {}),
+      ...(guardianRelation      !== undefined ? { guardianRelation }      : {}),
       ...(dateOfBirth  !== undefined ? { dateOfBirth:  dateOfBirth  ? new Date(dateOfBirth)  : null } : {}),
       ...(accidentDate !== undefined ? { accidentDate: accidentDate ? new Date(accidentDate) : null } : {}),
     },

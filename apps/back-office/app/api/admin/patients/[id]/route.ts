@@ -127,7 +127,7 @@ export async function DELETE(
 
   await db.patient.update({
     where: { id },
-    data: { deletedAt: new Date() },
+    data: { status: 'INACTIVE' },
   });
 
   const actor = actorFromHeaders(req.headers);

@@ -15,8 +15,10 @@ import { fetchDbRole, fetchRoleClinicAccess } from '@precision-medical/auth/v2-a
  *   5. Todo OK → continúa
  */
 
-const ROLE_COOKIE   = 'pm_role';
-const CLINIC_COOKIE = 'pm_clinic';
+const ROLE_COOKIE        = 'pm_role';
+const CLINIC_COOKIE      = 'pm_clinic';
+const LAST_ACTIVE_COOKIE = 'pm_last_active';
+const INACTIVITY_HOURS   = 4;
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
@@ -41,6 +43,36 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     url.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(url);
   }
+
+  // ── Inactivity / browser-close check ────────────────────────────────────────
+  const lastActiveRaw = request.cookies.get(LAST_ACTIVE_COOKIE)?.value;
+
+  if (!lastActiveRaw) {
+    const lastSignIn = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
+    const hoursSince = (Date.now() - lastSignIn) / (1000 * 60 * 60);
+    if (hoursSince > INACTIVITY_HOURS) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/api/auth/logout';
+      url.searchParams.set('reason', 'session_expired');
+      return NextResponse.redirect(url);
+    }
+  } else {
+    const hoursSince = (Date.now() - parseInt(lastActiveRaw, 10)) / (1000 * 60 * 60);
+    if (hoursSince > INACTIVITY_HOURS) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/api/auth/logout';
+      url.searchParams.set('reason', 'session_expired');
+      return NextResponse.redirect(url);
+    }
+  }
+
+  response.cookies.set(LAST_ACTIVE_COOKIE, Date.now().toString(), {
+    httpOnly: true,
+    path:     '/',
+    sameSite: 'lax',
+    secure:   process.env.NODE_ENV === 'production',
+  });
+  // ────────────────────────────────────────────────────────────────────────────
 
   // Obtener rol (cookie rápida primero, DB lento si no hay)
   let dbRole = request.cookies.get(ROLE_COOKIE)?.value;

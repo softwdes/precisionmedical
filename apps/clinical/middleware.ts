@@ -8,7 +8,9 @@ import { canAccessV2App, fetchDbRole } from '@precision-medical/auth/v2-apps';
  * Roles permitidos: SUPER_ADMIN · ADMIN · PROVIDER · EMPLOYEE
  */
 
-const ROLE_COOKIE = 'pm_role';
+const ROLE_COOKIE        = 'pm_role';
+const LAST_ACTIVE_COOKIE = 'pm_last_active';
+const INACTIVITY_HOURS   = 4;
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
@@ -28,6 +30,39 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     url.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(url);
   }
+
+  // ── Inactivity / browser-close check ────────────────────────────────────────
+  const lastActiveRaw = request.cookies.get(LAST_ACTIVE_COOKIE)?.value;
+
+  if (!lastActiveRaw) {
+    // pm_last_active is a session cookie — if missing, browser was closed.
+    // Allow through only if the Supabase sign-in is recent (< INACTIVITY_HOURS).
+    const lastSignIn  = user.last_sign_in_at ? new Date(user.last_sign_in_at).getTime() : 0;
+    const hoursSince  = (Date.now() - lastSignIn) / (1000 * 60 * 60);
+    if (hoursSince > INACTIVITY_HOURS) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/api/auth/logout';
+      url.searchParams.set('reason', 'session_expired');
+      return NextResponse.redirect(url);
+    }
+  } else {
+    const hoursSince = (Date.now() - parseInt(lastActiveRaw, 10)) / (1000 * 60 * 60);
+    if (hoursSince > INACTIVITY_HOURS) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/api/auth/logout';
+      url.searchParams.set('reason', 'session_expired');
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Refresh session cookie on every authenticated request (session cookie = no maxAge)
+  response.cookies.set(LAST_ACTIVE_COOKIE, Date.now().toString(), {
+    httpOnly: true,
+    path:     '/',
+    sameSite: 'lax',
+    secure:   process.env.NODE_ENV === 'production',
+  });
+  // ────────────────────────────────────────────────────────────────────────────
 
   let dbRole = request.cookies.get(ROLE_COOKIE)?.value;
 

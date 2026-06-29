@@ -22,6 +22,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo   = searchParams.get('redirectTo') || '/';
   const callbackErr  = searchParams.get('error');
+  const reason       = searchParams.get('reason');
 
   const [email,       setEmail]       = useState('');
   const [password,    setPassword]    = useState('');
@@ -145,6 +146,12 @@ function LoginForm() {
         }}>
           Portal Clínico · Doctores y MA
         </p>
+
+        {reason === 'session_expired' && (
+          <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'9px 12px',borderRadius:8,background:'rgba(245,158,11,0.10)',border:'1px solid rgba(245,158,11,0.30)',color:'#fbbf24',fontSize:12 }}>
+            🔒 Tu sesión expiró por inactividad. Ingresá nuevamente.
+          </div>
+        )}
 
         {lockedUntil && (
           <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.25)',color:'#fca5a5',fontSize:12 }}>

@@ -63,6 +63,7 @@ export default function LoginPage(): React.ReactElement {
   const searchParams = useSearchParams();
   const redirectTo   = searchParams.get('redirectTo') || '/';
   const callbackErr  = searchParams.get('error');
+  const reason       = searchParams.get('reason');
 
   const [email,        setEmail]        = useState('');
   const [password,     setPassword]     = useState('');
@@ -275,6 +276,14 @@ export default function LoginPage(): React.ReactElement {
           <div style={{position:'relative',zIndex:1,width:420,maxWidth:'90vw'}}>
             <div style={{position:'absolute',top:-1,left:-1,right:-1,bottom:-1,borderRadius:21,background:'linear-gradient(135deg,rgba(245,158,11,0.40),rgba(217,119,6,0.16) 50%,rgba(251,191,36,0.28) 100%)',pointerEvents:'none',zIndex:0}} />
             <div className="lm-fade-150" style={{position:'relative',zIndex:1,background:'rgba(10,14,26,0.93)',borderRadius:20,padding:'2.25rem 2.5rem',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}>
+              {/* Session expired banner */}
+              {reason === 'session_expired' && (
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(245,158,11,0.10)',border:'1px solid rgba(245,158,11,0.30)',color:'#fbbf24',fontSize:12}}>
+                  <span style={{flexShrink:0}}>🔒</span>
+                  <span>Tu sesión expiró por inactividad. Ingresá nuevamente.</span>
+                </div>
+              )}
+
               {/* Lockout banner */}
               {lockedUntil && (
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(244,63,94,0.10)',border:'1px solid rgba(244,63,94,0.28)',color:'#F43F5E',fontSize:12}}>

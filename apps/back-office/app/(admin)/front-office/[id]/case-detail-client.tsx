@@ -53,7 +53,7 @@ interface CaseInfo {
   lawFirm: {
     id: string;
     firmName: string | null;
-    email: string;
+    email: string | null;
     phone: string | null;
     city: string | null;
     state: string | null;
@@ -64,7 +64,7 @@ interface CaseInfo {
     id: string;
     firstName: string | null;
     lastName: string | null;
-    email: string;
+    email: string | null;
     phone: string | null;
     memberRole: string | null;
   } | null;
@@ -359,9 +359,11 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                     <TagPill label={`⚠ ${t('tagSlow')}`} colorClass="bg-amber/15 text-amber border-amber/30" />
                   )}
                 </div>
-                <InfoRow label={t('fieldFirmEmail')} value={
-                  <a href={`mailto:${caseInfo.lawFirm.email}`} className="text-cyan hover:text-text-1">{caseInfo.lawFirm.email}</a>
-                } />
+                {caseInfo.lawFirm.email && (
+                  <InfoRow label={t('fieldFirmEmail')} value={
+                    <a href={`mailto:${caseInfo.lawFirm.email}`} className="text-cyan hover:text-text-1">{caseInfo.lawFirm.email}</a>
+                  } />
+                )}
                 {caseInfo.lawFirm.phone && <InfoRow label={t('fieldPhone')} value={<span className="font-mono">{caseInfo.lawFirm.phone}</span>} />}
                 {caseInfo.lawFirm.caseflowFlags.length > 0 && (
                   <InfoRow label={t('fieldFlags')} value={
@@ -379,7 +381,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                       <PersonAvatar firstName={caseInfo.attorney.firstName ?? '?'} lastName={caseInfo.attorney.lastName ?? ''} size={8} />
                       <div className="min-w-0 flex-1">
                         <div className="text-text-1 text-sm">{caseInfo.attorney.firstName} {caseInfo.attorney.lastName}</div>
-                        <div className="text-text-muted text-[11px]">{caseInfo.attorney.email}</div>
+                        {caseInfo.attorney.email && <div className="text-text-muted text-[11px]">{caseInfo.attorney.email}</div>}
                       </div>
                       {caseInfo.attorney.memberRole && (
                         <TagPill label={caseInfo.attorney.memberRole} colorClass="bg-bg-2 text-text-2 border-border" compact />

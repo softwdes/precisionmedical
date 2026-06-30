@@ -15,7 +15,8 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, Prisma } from '@precision-medical/database';
+import { z } from 'zod';
+import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 
 // ─── Include shape (typed via satisfies para que Prisma infiera GetPayload) ──
 const APPT_INCLUDE = {
@@ -191,4 +192,93 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     console.error('[GET /api/admin/appointments]', err);
     return NextResponse.json({ ok: false, error: 'INTERNAL_ERROR' }, { status: 500 });
   }
+}
+
+// ─── POST — Crear cita (uso general desde calendario) ────────────────────────
+const CreateSchema = z.object({
+  caseId:          z.string(),
+  clinicId:        z.string(),
+  providerId:      z.string(),
+  scheduledFor:    z.string().datetime(),
+  durationMinutes: z.number().int().min(15).max(480).default(30),
+  type:            z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
+  notes:           z.string().max(2000).optional(),
+});
+
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  const actor = actorFromHeaders(req.headers);
+
+  let parsed: z.infer<typeof CreateSchema>;
+  try {
+    parsed = CreateSchema.parse(await req.json());
+  } catch (err) {
+    return NextResponse.json(
+      { error: 'INVALID_PAYLOAD', details: err instanceof z.ZodError ? err.flatten() : String(err) },
+      { status: 400 },
+    );
+  }
+
+  if (new Date(parsed.scheduledFor) <= new Date()) {
+    return NextResponse.json({ error: 'DATE_IN_PAST', message: 'La fecha debe ser futura' }, { status: 400 });
+  }
+
+  const [caseRecord, clinic, provider] = await Promise.all([
+    db.case.findUnique({ where: { id: parsed.caseId }, select: { id: true, patientId: true, status: true } }),
+    db.clinic.findUnique({ where: { id: parsed.clinicId }, select: { id: true } }),
+    db.provider.findUnique({ where: { id: parsed.providerId }, select: { id: true } }),
+  ]);
+
+  if (!caseRecord) return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
+  if (!clinic)     return NextResponse.json({ error: 'CLINIC_NOT_FOUND' }, { status: 404 });
+  if (!provider)   return NextResponse.json({ error: 'PROVIDER_NOT_FOUND' }, { status: 404 });
+
+  const SCHEDULABLE = ['CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED'];
+  if (!SCHEDULABLE.includes(caseRecord.status)) {
+    return NextResponse.json(
+      { error: 'INVALID_CASE_STATUS', message: `El caso está en status ${caseRecord.status} y no permite agendar` },
+      { status: 422 },
+    );
+  }
+
+  const shouldActivate = caseRecord.status === 'CONFIRMED';
+
+  const apptData = {
+    patientId:       caseRecord.patientId,
+    caseId:          parsed.caseId,
+    clinicId:        parsed.clinicId,
+    providerId:      parsed.providerId,
+    scheduledFor:    new Date(parsed.scheduledFor),
+    durationMinutes: parsed.durationMinutes,
+    type:            parsed.type,
+    notes:           parsed.notes ?? null,
+    status:          'SCHEDULED' as const,
+  };
+
+  let appointment;
+  if (shouldActivate) {
+    const [appt] = await db.$transaction([
+      db.appointment.create({ data: apptData, include: { clinic: { select: { name: true } }, provider: { select: { firstName: true, lastName: true } } } }),
+      db.case.update({ where: { id: parsed.caseId }, data: { status: 'ACTIVE' } }),
+    ]);
+    appointment = appt;
+  } else {
+    appointment = await db.appointment.create({
+      data: apptData,
+      include: { clinic: { select: { name: true } }, provider: { select: { firstName: true, lastName: true } } },
+    });
+  }
+
+  await writeAuditLog(db, {
+    actorType:    actor.actorType,
+    actorUserId:  actor.actorUserId,
+    action:       'CREATE_APPOINTMENT',
+    entityType:   'appointments',
+    entityId:     appointment.id,
+    ipAddress:    actor.ipAddress,
+    userAgent:    actor.userAgent,
+    after:        appointment as unknown as Prisma.JsonValue,
+    metadata:     { caseId: parsed.caseId, caseActivated: shouldActivate },
+  });
+
+  return NextResponse.json({ ok: true, appointment }, { status: 201 });
 }

@@ -14,7 +14,7 @@ import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { AddNoteDialog } from '@/components/cases/add-note-dialog';
-import { ScheduleAppointmentDialog } from '@/components/cases/schedule-appointment-dialog';
+import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 
 // Front Office · Detalle del caso
 
@@ -510,7 +510,8 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
         caseCode={caseInfo.caseCode}
       />
 
-      <ScheduleAppointmentDialog
+      <AppointmentDialog
+        mode="case"
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
         caseInfo={{

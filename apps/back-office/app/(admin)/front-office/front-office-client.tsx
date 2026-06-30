@@ -16,7 +16,7 @@ import {
 import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
-import { ScheduleAppointmentDialog } from '@/components/cases/schedule-appointment-dialog';
+import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { IncomingCallSimulator, IncomingCallToast, type IncomingCallData } from '@/components/cases/incoming-call-simulator';
 
 // B.1 — Front Office · Recepción primaria
@@ -428,7 +428,8 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
       />
 
       {/* B.10 — Schedule first appointment modal */}
-      <ScheduleAppointmentDialog
+      <AppointmentDialog
+        mode="case"
         open={scheduleCase !== null}
         onOpenChange={(open) => { if (!open) setScheduleCase(null); }}
         caseInfo={scheduleCase ? {

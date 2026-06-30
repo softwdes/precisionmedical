@@ -15,10 +15,11 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 
 type CalendarView = 'day' | 'week' | 'month';
 
@@ -336,6 +337,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   // El cleanup cancela la petición anterior a nivel de red (AbortController),
   // imposibilitando que una respuesta stale sobreescriba datos frescos.
   const [refreshKey, setRefreshKey] = useState(0);
+  const [newApptOpen, setNewApptOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -505,8 +507,17 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           )}
         </div>
 
-        {/* ml-auto spacer */}
-        <div className="ml-auto" />
+        {/* ml-auto spacer + Nueva cita */}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setNewApptOpen(true)}
+            className="flex items-center gap-1.5 h-7 px-3 rounded border border-cyan/40 bg-cyan/10 text-cyan text-xs font-medium hover:bg-cyan/20 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Nueva cita
+          </button>
+        </div>
 
         {/* View toggle Día / Semana / Mes */}
         <div className="flex items-center shrink-0 rounded overflow-hidden border border-white/[0.10]">
@@ -750,6 +761,14 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           onRefresh={() => setRefreshKey(k => k + 1)}
         />
       )}
+
+      {/* ─── Nueva cita libre (B.10 free mode) ───────────────── */}
+      <AppointmentDialog
+        mode="free"
+        open={newApptOpen}
+        onOpenChange={setNewApptOpen}
+        onSuccess={() => setRefreshKey(k => k + 1)}
+      />
     </div>
   );
 }

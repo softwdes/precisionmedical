@@ -11,23 +11,33 @@
  * Color de identidad: emerald (Regla #5)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, ShieldCheck, Scale, CheckCircle2, Clock,
   DollarSign, FileText, Stethoscope, AlertTriangle,
   ChevronRight, Building2, Phone, RefreshCw,
+  Search, Plus, X, Save,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface PlannedService {
+  id:          string;
+  code:        string;
+  description: string;
+  fee:         number;
+  category:    string;
+}
+
 interface ApptDetail {
   id:              string;
   scheduledFor:    string;
   durationMinutes: number;
+  plannedServiceCodes: PlannedService[];
   type:            string;
   status:          string;
   checkedInAt:     string | null;
@@ -114,13 +124,24 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   // Confirmaciones antes de pasar a sala
   const [confirm1,  setConfirm1]  = useState(false);
   const [confirm2,  setConfirm2]  = useState(false);
+  // CPT pre-selector
+  const [plannedServices, setPlannedServices] = useState<PlannedService[]>([]);
+  const [cptSearch,       setCptSearch]       = useState('');
+  const [cptResults,      setCptResults]      = useState<PlannedService[]>([]);
+  const [cptLoading,      setCptLoading]      = useState(false);
+  const [cptSaving,       setCptSaving]       = useState(false);
+  const [cptDirty,        setCptDirty]        = useState(false);
+  const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res  = await fetch(`/api/admin/admission/${appointmentId}`);
       const data = await res.json();
-      if (data.ok) setDetail(data.appointment);
+      if (data.ok) {
+        setDetail(data.appointment);
+        setPlannedServices(data.appointment.plannedServiceCodes ?? []);
+      }
     } finally {
       setLoading(false);
     }
@@ -135,6 +156,49 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
       await load();
     } finally {
       setAdmitting(false);
+    }
+  }
+
+  function handleCptSearch(q: string) {
+    setCptSearch(q);
+    if (searchRef.current) clearTimeout(searchRef.current);
+    if (!q.trim()) { setCptResults([]); return; }
+    searchRef.current = setTimeout(async () => {
+      setCptLoading(true);
+      try {
+        const res  = await fetch(`/api/admin/service-codes?search=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (data.ok) setCptResults(data.codes);
+      } finally {
+        setCptLoading(false);
+      }
+    }, 300);
+  }
+
+  function addService(svc: PlannedService) {
+    if (plannedServices.some(s => s.id === svc.id)) return;
+    setPlannedServices(prev => [...prev, svc]);
+    setCptSearch('');
+    setCptResults([]);
+    setCptDirty(true);
+  }
+
+  function removeService(id: string) {
+    setPlannedServices(prev => prev.filter(s => s.id !== id));
+    setCptDirty(true);
+  }
+
+  async function savePlannedServices() {
+    setCptSaving(true);
+    try {
+      await fetch(`/api/admin/appointments/${appointmentId}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ plannedServiceCodes: plannedServices }),
+      });
+      setCptDirty(false);
+    } finally {
+      setCptSaving(false);
     }
   }
 
@@ -284,21 +348,90 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
 
             {/* ── Columna izq: Servicio + Cobertura + Lien ── */}
             <div className="space-y-4">
-              {/* Servicio del día */}
+              {/* Servicios planificados — CPT pre-selector */}
               <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Stethoscope className="w-4 h-4 text-emerald" />
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionServiceToday')}</span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Stethoscope className="w-4 h-4 text-emerald" />
+                    <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionServiceToday')}</span>
+                  </div>
+                  {cptDirty && (
+                    <button
+                      type="button"
+                      onClick={savePlannedServices}
+                      disabled={cptSaving}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald text-white text-[11px] font-semibold hover:bg-emerald/90 disabled:opacity-50"
+                    >
+                      {cptSaving ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                      Guardar
+                    </button>
+                  )}
                 </div>
-                <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 text-sm">
-                  <div className="font-semibold text-text-1">{TYPE_LABELS[d.type] ?? d.type}</div>
+
+                {/* Tipo de cita (base) */}
+                <div className="rounded-md bg-bg-2/40 border border-border/40 px-3 py-2 mb-3">
+                  <div className="font-semibold text-text-1 text-sm">{TYPE_LABELS[d.type] ?? d.type}</div>
                   {d.provider && (
                     <div className="text-text-muted text-[11px] mt-0.5">
-                      Dr. {d.provider.firstName} {d.provider.lastName} · {t('estimatedMinutes', { minutes: d.durationMinutes })}
+                      Dr. {d.provider.firstName} {d.provider.lastName} · {d.durationMinutes} min
                     </div>
                   )}
-                  <div className="text-text-muted text-[11px] mt-0.5">{t('cptAssignedAfterVisit')}</div>
                 </div>
+
+                {/* Servicios pre-seleccionados */}
+                {plannedServices.length > 0 && (
+                  <div className="space-y-1.5 mb-3">
+                    {plannedServices.map(svc => (
+                      <div key={svc.id} className="flex items-center gap-2 rounded-md border border-emerald/25 bg-emerald/5 px-2.5 py-1.5">
+                        <div className="flex-1 min-w-0">
+                          <span className="font-mono text-[11px] text-emerald font-semibold">{svc.code}</span>
+                          <span className="text-[11px] text-text-2 ml-2 truncate">{svc.description}</span>
+                        </div>
+                        <span className="text-[10px] text-text-muted shrink-0">${svc.fee.toFixed(2)}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeService(svc.id)}
+                          className="shrink-0 text-text-muted hover:text-rose transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Buscador de CPT */}
+                <div className="relative">
+                  <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-2.5 py-1.5">
+                    <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                    <input
+                      type="text"
+                      value={cptSearch}
+                      onChange={e => handleCptSearch(e.target.value)}
+                      placeholder="Buscar servicio o código CPT..."
+                      className="flex-1 bg-transparent text-[12px] text-text-1 placeholder:text-text-muted outline-none"
+                    />
+                    {cptLoading && <RefreshCw className="w-3 h-3 text-text-muted animate-spin shrink-0" />}
+                  </div>
+                  {cptResults.length > 0 && (
+                    <div className="absolute z-20 top-full mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg max-h-48 overflow-y-auto">
+                      {cptResults.map(svc => (
+                        <button
+                          key={svc.id}
+                          type="button"
+                          onClick={() => addService(svc)}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-emerald/5 text-left transition-colors"
+                        >
+                          <Plus className="w-3 h-3 text-emerald shrink-0" />
+                          <span className="font-mono text-[11px] text-emerald font-semibold w-14 shrink-0">{svc.code}</span>
+                          <span className="text-[11px] text-text-1 flex-1 truncate">{svc.description}</span>
+                          <span className="text-[10px] text-text-muted shrink-0">${svc.fee.toFixed(2)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="text-[10px] text-text-muted mt-2">{t('cptAssignedAfterVisit')}</div>
               </div>
 
               {/* Cobertura PIP */}
@@ -492,6 +625,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   ].map(item => (
                     <label
                       key={item.id}
+                      onClick={item.onChange}
                       className="flex items-center gap-3 rounded-md border border-border/50 px-3 py-2.5 cursor-pointer hover:border-emerald/30 transition-colors group"
                     >
                       <div
@@ -500,7 +634,6 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                             ? 'bg-emerald border-emerald'
                             : 'border border-border bg-bg-2 group-hover:border-emerald/40'
                         }`}
-                        onClick={item.onChange}
                       >
                         {item.checked && <CheckCircle2 className="w-3 h-3 text-white" />}
                       </div>

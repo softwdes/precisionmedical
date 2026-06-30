@@ -781,6 +781,10 @@ model Appointment {
 
   notes           String?
 
+  // B.15 Admisión — servicios planificados seleccionados por recepción antes de pasar al doctor
+  // JSON snapshot: [{code, description, fee}]
+  plannedServiceCodes Json @default("[]")
+
   // B.14 Check-in: timestamp cuando recepción confirma la llegada del paciente
   checkedInAt     DateTime?
 

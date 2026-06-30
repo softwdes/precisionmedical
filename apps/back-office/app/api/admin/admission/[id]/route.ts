@@ -137,6 +137,7 @@ export async function GET(
           secondaryInsurance:    c.secondaryInsurance ?? null,
           secondaryPolicyNumber: c.secondaryPolicyNumber ?? null,
         } : null,
+        plannedServiceCodes: Array.isArray(appt.plannedServiceCodes) ? appt.plannedServiceCodes : [],
         financial,
       },
     });

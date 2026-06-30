@@ -11,10 +11,19 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 
+const PlannedServiceSchema = z.object({
+  id:          z.string(),
+  code:        z.string(),
+  description: z.string(),
+  fee:         z.number(),
+  category:    z.string(),
+});
+
 const PatchSchema = z.object({
-  status:          z.enum(['SCHEDULED','CONFIRMED','CANCELLED','NO_SHOW','COMPLETED']).optional(),
-  notes:           z.string().max(2000).nullable().optional(),
-  durationMinutes: z.number().int().min(5).max(480).optional(),
+  status:               z.enum(['SCHEDULED','CONFIRMED','CANCELLED','NO_SHOW','COMPLETED']).optional(),
+  notes:                z.string().max(2000).nullable().optional(),
+  durationMinutes:      z.number().int().min(5).max(480).optional(),
+  plannedServiceCodes:  z.array(PlannedServiceSchema).optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: 'Al menos un campo requerido' });
 
 export async function PATCH(
@@ -47,9 +56,10 @@ export async function PATCH(
   const updated = await db.appointment.update({
     where: { id },
     data: {
-      ...(parsed.status          !== undefined && { status:          parsed.status }),
-      ...(parsed.notes           !== undefined && { notes:           parsed.notes }),
-      ...(parsed.durationMinutes !== undefined && { durationMinutes: parsed.durationMinutes }),
+      ...(parsed.status               !== undefined && { status:               parsed.status }),
+      ...(parsed.notes                !== undefined && { notes:                parsed.notes }),
+      ...(parsed.durationMinutes      !== undefined && { durationMinutes:      parsed.durationMinutes }),
+      ...(parsed.plannedServiceCodes  !== undefined && { plannedServiceCodes:  parsed.plannedServiceCodes }),
     },
     select: { id: true, status: true, notes: true, durationMinutes: true },
   });

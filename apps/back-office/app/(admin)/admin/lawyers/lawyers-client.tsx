@@ -159,7 +159,7 @@ export function LawyersClient({ firms, stats }: Props) {
                       <div className="text-text-2 text-xs space-y-0.5">
                         <div className="flex items-center gap-1.5">
                           <Mail className="w-3 h-3 text-text-muted shrink-0" />
-                          <span className="truncate max-w-[180px]" title={f.email}>{f.email}</span>
+                          <span className="truncate max-w-[180px]" title={f.email ?? undefined}>{f.email ?? '—'}</span>
                         </div>
                         {f.phone && (
                           <div className="flex items-center gap-1.5 text-text-muted font-mono">

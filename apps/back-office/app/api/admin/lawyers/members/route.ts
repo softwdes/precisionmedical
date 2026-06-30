@@ -61,7 +61,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       parentFirmId: parsed.parentFirmId,
       firstName: parsed.firstName,
       lastName: parsed.lastName,
-      email: parsed.email,
+      email: parsed.email ?? null,
       phone: parsed.phone ?? null,
       address: parsed.address ?? null,
       city: parsed.city ?? firm.city,
@@ -120,7 +120,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     data: {
       firstName: parsed.firstName,
       lastName: parsed.lastName,
-      email: parsed.email,
+      email: parsed.email ?? null,
       phone: parsed.phone ?? null,
       address: parsed.address ?? null,
       city:         parsed.city ?? null,

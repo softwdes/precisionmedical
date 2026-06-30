@@ -13,7 +13,7 @@ import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/
 const FirmInputSchema = z.object({
   id: z.string().optional(),
   firmName: z.string().min(2).max(200),
-  email: z.string().email(),
+  email: z.string().email().nullable().optional(),
   phone: z.string().max(50).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   city: z.string().max(100).nullable().optional(),
@@ -36,12 +36,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const existing = await db.lawyer.findUnique({ where: { email: parsed.email } });
-  if (existing) {
-    return NextResponse.json(
-      { error: 'DUPLICATE_EMAIL', message: `Ya existe un bufete/miembro con email "${parsed.email}"` },
-      { status: 409 },
-    );
+  if (parsed.email) {
+    const existing = await db.lawyer.findUnique({ where: { email: parsed.email } });
+    if (existing) {
+      return NextResponse.json(
+        { error: 'DUPLICATE_EMAIL', message: `Ya existe un bufete/miembro con email "${parsed.email}"` },
+        { status: 409 },
+      );
+    }
   }
 
   const created = await db.lawyer.create({
@@ -90,8 +92,8 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const before = await db.lawyer.findUnique({ where: { id: parsed.id } });
   if (!before) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  // Check duplicate email excluding self
-  if (parsed.email !== before.email) {
+  // Check duplicate email excluding self (skip if email is null)
+  if (parsed.email && parsed.email !== before.email) {
     const dup = await db.lawyer.findUnique({ where: { email: parsed.email } });
     if (dup) {
       return NextResponse.json(

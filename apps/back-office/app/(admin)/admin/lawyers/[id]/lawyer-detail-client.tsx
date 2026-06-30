@@ -21,7 +21,7 @@ import {
 interface Firm {
   id: string;
   firmName: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   address: string | null;
   city: string | null;
@@ -37,7 +37,7 @@ interface Member {
   id:           string;
   firstName:    string | null;
   lastName:     string | null;
-  email:        string;
+  email:        string | null;
   phone:        string | null;
   address:      string | null;
   city:         string | null;
@@ -61,6 +61,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [tab, setTab] = useState<Tab>('summary');
+  const [editFirmOpen, setEditFirmOpen] = useState(false);
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
 
@@ -93,10 +94,12 @@ export function LawyerDetailClient({ firm, members }: Props) {
               <PaymentSpeedPill speed={firm.paymentSpeed} />
             </div>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-2 text-sm text-text-2">
-              <div className="flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-text-muted" />
-                <a href={`mailto:${firm.email}`} className="hover:text-white transition-colors">{firm.email}</a>
-              </div>
+              {firm.email && (
+                <div className="flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-text-muted" />
+                  <a href={`mailto:${firm.email}`} className="hover:text-white transition-colors">{firm.email}</a>
+                </div>
+              )}
               {firm.phone && (
                 <div className="flex items-center gap-1.5 font-mono">
                   <Phone className="w-3.5 h-3.5 text-text-muted" />
@@ -120,11 +123,9 @@ export function LawyerDetailClient({ firm, members }: Props) {
               </div>
             )}
           </div>
-          <Link href={`/admin/lawyers?edit=${firm.id}`}>
-            <Button variant="outline">
-              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
-            </Button>
-          </Link>
+          <Button variant="outline" onClick={() => setEditFirmOpen(true)}>
+            <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+          </Button>
         </div>
       </div>
 
@@ -163,6 +164,14 @@ export function LawyerDetailClient({ firm, members }: Props) {
         </div>
       )}
       {tab === 'notes' && <NotesTab firm={firm} onSaved={refresh} />}
+
+      {/* Firm edit dialog */}
+      <FirmDialog
+        open={editFirmOpen}
+        onOpenChange={setEditFirmOpen}
+        editing={firm}
+        onSaved={() => { setEditFirmOpen(false); refresh(); }}
+      />
 
       {/* Member dialog */}
       <MemberDialog
@@ -227,7 +236,7 @@ function SummaryTab({
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2 space-y-4">
         <Card title="Información de contacto">
-          <InfoRow label="Email principal" value={<a href={`mailto:${firm.email}`} className="text-cyan hover:text-white">{firm.email}</a>} />
+          <InfoRow label="Email principal" value={firm.email ? <a href={`mailto:${firm.email}`} className="text-cyan hover:text-white">{firm.email}</a> : undefined} />
           <InfoRow label="Teléfono"        value={firm.phone ?? <Empty />} mono />
           <InfoRow label="Dirección"       value={firm.address ?? <Empty />} />
           <InfoRow label="Ciudad / Estado" value={[firm.city, firm.state].filter(Boolean).join(', ') || <Empty />} />
@@ -376,10 +385,12 @@ function MemberRow({ member, onEdit, onDeleted }: { member: Member; onEdit: (m: 
       <div className="flex-1 min-w-0">
         <div className="text-white font-semibold text-sm">{fullName}</div>
         <div className="flex items-center gap-x-3 gap-y-0.5 text-xs text-text-2 flex-wrap mt-0.5">
-          <span className="flex items-center gap-1">
-            <Mail className="w-3 h-3 text-text-muted" />
-            <a href={`mailto:${member.email}`} className="hover:text-white truncate max-w-[200px]" title={member.email}>{member.email}</a>
-          </span>
+          {member.email && (
+            <span className="flex items-center gap-1">
+              <Mail className="w-3 h-3 text-text-muted" />
+              <a href={`mailto:${member.email}`} className="hover:text-white truncate max-w-[200px]" title={member.email}>{member.email}</a>
+            </span>
+          )}
           {member.phone && (
             <span className="flex items-center gap-1 font-mono">
               <Phone className="w-3 h-3 text-text-muted" />
@@ -559,6 +570,188 @@ const MEMBER_ROLES = [
   { value: 'OTHER',           label: 'Otro' },
 ];
 
+const PAYMENT_SPEEDS = [
+  { value: 'UNKNOWN', label: '— Desconocida' },
+  { value: 'FAST',    label: '✅ Rápido (< 60 días)' },
+  { value: 'MEDIUM',  label: '⚡ Normal (60–120 días)' },
+  { value: 'SLOW',    label: '⚠ Lento (> 150 días)' },
+];
+
+function FirmDialog({
+  open,
+  onOpenChange,
+  editing,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editing: Firm | null;
+  onSaved: () => void;
+}) {
+  const [firmName, setFirmName] = useState(editing?.firmName ?? '');
+  const [email,    setEmail]    = useState(editing?.email ?? '');
+  const [phone,    setPhone]    = useState(editing?.phone ?? '');
+  const [address,  setAddress]  = useState(editing?.address ?? '');
+  const [city,     setCity]     = useState(editing?.city ?? '');
+  const [state,    setState]    = useState(editing?.state ?? 'UT');
+  const [paymentSpeed, setPaymentSpeed] = useState(editing?.paymentSpeed ?? 'UNKNOWN');
+  const [flagsInput,   setFlagsInput]   = useState(editing?.caseflowFlags.join(', ') ?? '');
+  const [notes,    setNotes]    = useState(editing?.notes ?? '');
+  const [isActive, setIsActive] = useState(editing?.status === 'ACTIVE');
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
+
+  const editingId = editing?.id ?? null;
+  const [lastEditingId, setLastEditingId] = useState<string | null>(null);
+  if (open && editingId !== lastEditingId) {
+    setFirmName(editing?.firmName ?? '');
+    setEmail(editing?.email ?? '');
+    setPhone(editing?.phone ?? '');
+    setAddress(editing?.address ?? '');
+    setCity(editing?.city ?? '');
+    setState(editing?.state ?? 'UT');
+    setPaymentSpeed(editing?.paymentSpeed ?? 'UNKNOWN');
+    setFlagsInput(editing?.caseflowFlags.join(', ') ?? '');
+    setNotes(editing?.notes ?? '');
+    setIsActive(editing?.status === 'ACTIVE');
+    setError(null);
+    setLastEditingId(editingId);
+  }
+
+  const handleSave = async () => {
+    setError(null);
+    if (!firmName.trim()) return setError('El nombre del bufete es obligatorio');
+    setSaving(true);
+    try {
+      const flags = flagsInput.split(',').map((f) => f.trim()).filter(Boolean);
+      const res = await fetch('/api/admin/lawyers', {
+        method: editing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editing?.id,
+          firmName: firmName.trim(),
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          address: address.trim() || null,
+          city: city.trim() || null,
+          state: state.trim() || null,
+          paymentSpeed,
+          caseflowFlags: flags,
+          notes: notes.trim() || null,
+          isActive,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+      }
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{editing ? `Editar — ${editing.firmName}` : 'Nuevo bufete'}</DialogTitle>
+          <DialogDescription>
+            Los datos del bufete son consumidos en B.2 (autocomplete al crear caso) y B.22 (portal del abogado).
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+          <div>
+            <Label htmlFor="fd-firmName">Nombre del bufete <span className="text-rose">*</span></Label>
+            <Input id="fd-firmName" value={firmName} onChange={(e) => setFirmName(e.target.value)} placeholder="Ej: Smith & Johnson LLP" autoFocus />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="fd-email">Email principal</Label>
+              <Input id="fd-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@firm.com" />
+            </div>
+            <div>
+              <Label htmlFor="fd-phone">Teléfono</Label>
+              <Input id="fd-phone" value={phone ?? ''} onChange={(e) => setPhone(e.target.value)} placeholder="+1-801-555-0000" />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="fd-address">Dirección</Label>
+            <Input id="fd-address" value={address ?? ''} onChange={(e) => setAddress(e.target.value)} placeholder="123 Center St, Suite 200" />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <Label htmlFor="fd-city">Ciudad</Label>
+              <Input id="fd-city" value={city ?? ''} onChange={(e) => setCity(e.target.value)} placeholder="Provo" />
+            </div>
+            <div>
+              <Label htmlFor="fd-state">Estado</Label>
+              <Input id="fd-state" value={state ?? ''} onChange={(e) => setState(e.target.value)} placeholder="UT" maxLength={2} />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="fd-paymentSpeed">Velocidad de pago</Label>
+            <select
+              id="fd-paymentSpeed"
+              value={paymentSpeed ?? 'UNKNOWN'}
+              onChange={(e) => setPaymentSpeed(e.target.value)}
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+            >
+              {PAYMENT_SPEEDS.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="fd-flagsInput">
+              Caseflow flags
+              <span className="text-text-muted text-xs ml-1 font-normal">(coma · ej: PIP-COVERED, MED-PAY)</span>
+            </Label>
+            <Input id="fd-flagsInput" value={flagsInput} onChange={(e) => setFlagsInput(e.target.value)} placeholder="PIP-COVERED, MED-PAY" />
+          </div>
+
+          <div>
+            <Label htmlFor="fd-notes">Notas internas (Edson) — privadas</Label>
+            <textarea
+              id="fd-notes"
+              value={notes ?? ''}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              placeholder="Notas privadas: paga lento, prefiere email, etc."
+            />
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 rounded accent-brand" />
+            <span className="text-sm text-text-2">Bufete activo (recibiendo referidos)</span>
+          </label>
+
+          {error && (
+            <div className="text-rose text-sm bg-rose/10 border border-rose/30 rounded-md px-3 py-2">
+              ⚠ {error}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear bufete'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function MemberDialog({
   open,
   onOpenChange,
@@ -607,7 +800,6 @@ function MemberDialog({
   const handleSave = async () => {
     setError(null);
     if (!firstName.trim() || !lastName.trim()) return setError('Nombre y apellido son obligatorios');
-    if (!email.trim()) return setError('Email es obligatorio');
     setSaving(true);
     try {
       const res = await fetch('/api/admin/lawyers/members', {
@@ -618,7 +810,7 @@ function MemberDialog({
           parentFirmId: firmId,
           firstName:    firstName.trim(),
           lastName:     lastName.trim(),
-          email:        email.trim(),
+          email:        email.trim() || null,
           phone:        phone.trim() || null,
           address:      address.trim() || null,
           city:         city.trim() || null,
@@ -665,7 +857,7 @@ function MemberDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="email">Email <span className="text-rose">*</span></Label>
+              <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>

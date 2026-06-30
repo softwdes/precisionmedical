@@ -304,7 +304,6 @@ function FirmDialog({
   const handleSave = async () => {
     setError(null);
     if (!firmName.trim()) return setError('El nombre del bufete es obligatorio');
-    if (!email.trim())    return setError('El email es obligatorio');
     setSaving(true);
     try {
       const flags = flagsInput.split(',').map((f) => f.trim()).filter(Boolean);
@@ -314,7 +313,7 @@ function FirmDialog({
         body: JSON.stringify({
           id: editing?.id,
           firmName: firmName.trim(),
-          email: email.trim(),
+          email: email.trim() || null,
           phone: phone.trim() || null,
           address: address.trim() || null,
           city: city.trim() || null,
@@ -355,7 +354,7 @@ function FirmDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="email">Email principal <span className="text-rose">*</span></Label>
+              <Label htmlFor="email">Email principal</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@firm.com" />
             </div>
             <div>

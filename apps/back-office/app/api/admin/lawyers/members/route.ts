@@ -15,7 +15,7 @@ const MemberInputSchema = z.object({
   parentFirmId: z.string(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
-  email: z.string().email(),
+  email: z.string().email().nullable().optional(),
   phone: z.string().max(50).nullable().optional(),
   address: z.string().max(200).nullable().optional(),
   city: z.string().max(100).nullable().optional(),
@@ -44,13 +44,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'FIRM_NOT_FOUND' }, { status: 404 });
   }
 
-  // Check duplicate email
-  const dup = await db.lawyer.findUnique({ where: { email: parsed.email } });
-  if (dup) {
-    return NextResponse.json(
-      { error: 'DUPLICATE_EMAIL', message: `Ya existe un usuario con email "${parsed.email}"` },
-      { status: 409 },
-    );
+  // Check duplicate email (skip if not provided)
+  if (parsed.email) {
+    const dup = await db.lawyer.findUnique({ where: { email: parsed.email } });
+    if (dup) {
+      return NextResponse.json(
+        { error: 'DUPLICATE_EMAIL', message: `Ya existe un usuario con email "${parsed.email}"` },
+        { status: 409 },
+      );
+    }
   }
 
   const created = await db.lawyer.create({
@@ -103,7 +105,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   const before = await db.lawyer.findUnique({ where: { id: parsed.id } });
   if (!before) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-  if (parsed.email !== before.email) {
+  if (parsed.email && parsed.email !== before.email) {
     const dup = await db.lawyer.findUnique({ where: { email: parsed.email } });
     if (dup) {
       return NextResponse.json(

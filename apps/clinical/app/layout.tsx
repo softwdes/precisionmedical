@@ -1,11 +1,8 @@
 import type { Metadata, Viewport } from 'next';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages } from 'next-intl/server';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
-
-/**
- * Clinical — Layout
- * iPad-first. next-intl NO se usa aquí: el módulo clínico opera solo en español.
- */
 
 const font = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -26,11 +23,16 @@ export const viewport: Viewport = {
   themeColor: '#8B5CF6',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className={font.className} suppressHydrationWarning>
-        {children}
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 const EMERALD = '#10B981';
 const CARD_BG = 'rgba(255,255,255,0.04)';
@@ -25,6 +26,7 @@ type UIStep = 'checkin' | 'signature' | 'done';
 
 export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, alreadySigned }: Props) {
   const router = useRouter();
+  const t = useTranslations('clinical.checkin');
 
   const initialStep: UIStep = alreadySigned ? 'done' : alreadyCheckedIn ? 'signature' : 'checkin';
   const [uiStep,    setUiStep]   = useState<UIStep>(initialStep);
@@ -174,27 +176,27 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
       }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
         <div style={{ fontSize: 18, fontWeight: 800, color: EMERALD, marginBottom: 6 }}>
-          {alreadySigned ? `${patientName} ya firmó` : '¡Registro completo!'}
+          {alreadySigned ? t('alreadySigned', { name: patientName }) : t('completedTitle')}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 16 }}>
-          {patientName} está en sala de espera. Redirigiendo...
+          {t('waitingRoom', { name: patientName })}
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           <a href={`/triage/${appointmentId}`} style={{
             padding: '12px 20px', borderRadius: 10, textAlign: 'center',
             background: 'linear-gradient(135deg, #10B981, #059669)',
             color: '#fff', fontSize: 14, fontWeight: 700, textDecoration: 'none',
-          }}>Ir a triaje →</a>
+          }}>{t('goToTriage')}</a>
           <a href="/" style={{
             padding: '12px 20px', borderRadius: 10,
             background: CARD_BG, border: `1px solid ${CARD_BORDER}`,
             color: 'rgba(255,255,255,0.60)', fontSize: 14, textDecoration: 'none',
-          }}>← Cola</a>
+          }}>{t('backToQueue')}</a>
           <a href={`/checkin/${appointmentId}/print`} target="_blank" rel="noreferrer" style={{
             padding: '12px 20px', borderRadius: 10,
             background: CARD_BG, border: `1px solid ${CARD_BORDER}`,
             color: 'rgba(255,255,255,0.60)', fontSize: 14, textDecoration: 'none',
-          }}>🖨 Imprimir firma</a>
+          }}>{t('printSignature')}</a>
         </div>
       </div>
     );
@@ -215,7 +217,7 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
           <input type="checkbox" checked={verified} onChange={e => setVerified(e.target.checked)}
             style={{ width: 18, height: 18, marginTop: 2, accentColor: EMERALD, cursor: 'pointer', flexShrink: 0 }} />
           <span style={{ fontSize: 14, color: verified ? '#fff' : 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>
-            Verifiqué la identidad de <strong>{patientName}</strong> verbalmente (nombre + fecha de nacimiento)
+            {t('verification', { name: patientName })}
           </span>
         </label>
 
@@ -225,10 +227,10 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
             letterSpacing: '0.10em', textTransform: 'uppercase',
             color: 'rgba(255,255,255,0.35)', marginBottom: 6,
           }}>
-            Nota de recepción (opcional)
+            {t('receptionNote')}
           </label>
           <textarea value={staffNote} onChange={e => setStaffNote(e.target.value)}
-            placeholder="Ej: Paciente llega con acompañante, traerá documentos..."
+            placeholder={t('receptionNotePlaceholder')}
             style={{
               width: '100%', padding: '10px 14px',
               background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)',
@@ -245,7 +247,7 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
             padding: '14px 20px', borderRadius: 12,
             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
             color: 'rgba(255,255,255,0.55)', fontSize: 14, fontWeight: 600, textDecoration: 'none', flexShrink: 0,
-          }}>← Cancelar</a>
+          }}>{t('cancelBtn')}</a>
           <button type="button" onClick={handleCheckin} disabled={!verified || loading} style={{
             flex: 1, padding: '14px',
             background: verified && !loading ? 'linear-gradient(135deg, #10B981, #059669)' : 'rgba(16,185,129,0.20)',
@@ -254,13 +256,13 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
             fontSize: 16, fontWeight: 700, cursor: verified && !loading ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit', transition: 'all 0.2s',
           }}>
-            {loading ? '⏳ Registrando...' : '✓ Confirmar llegada →'}
+            {loading ? t('confirming') : t('confirmArrival')}
           </button>
         </div>
 
         {!verified && (
           <p style={{ textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.25)', marginTop: 0 }}>
-            Confirma la identidad del paciente para habilitar el botón
+            {t('confirmHelper')}
           </p>
         )}
       </div>
@@ -277,7 +279,7 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
         background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)',
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: EMERALD, marginBottom: 4 }}>
-          ✓ Llegada confirmada · Paso 2 de 2
+          {t('step2')}
         </div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
           {patientName} — por favor firma para completar el registro de asistencia
@@ -290,7 +292,7 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
           display: 'block', fontSize: 11, fontWeight: 700,
           letterSpacing: '0.10em', textTransform: 'uppercase',
           color: 'rgba(255,255,255,0.35)', marginBottom: 6,
-        }}>Nombre completo del firmante</label>
+        }}>{t('signerName')}</label>
         <input type="text" value={sigName} onChange={e => setSigName(e.target.value)}
           style={{
             width: '100%', padding: '12px 14px',
@@ -306,7 +308,7 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
           display: 'block', fontSize: 11, fontWeight: 700,
           letterSpacing: '0.10em', textTransform: 'uppercase',
           color: 'rgba(255,255,255,0.35)', marginBottom: 6,
-        }}>Firma del paciente</label>
+        }}>{t('signatureLabel')}</label>
         <div style={{
           position: 'relative',
           border: '1px solid rgba(16,185,129,0.35)', borderRadius: 10,
@@ -320,7 +322,7 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
             <div style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
               pointerEvents: 'none', fontSize: 13, color: 'rgba(255,255,255,0.20)',
-            }}>✍️ Dibuja tu firma aquí</div>
+            }}>{t('signaturePlaceholder')}</div>
           )}
         </div>
         {hasSig && (
@@ -328,13 +330,13 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
             marginTop: 6, padding: '4px 12px', borderRadius: 6,
             background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
             color: 'rgba(255,255,255,0.45)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
-          }}>× Borrar y volver a firmar</button>
+          }}>{t('clearSignature')}</button>
         )}
       </div>
 
       {/* Legal note */}
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)', lineHeight: 1.5 }}>
-        🔒 Esta firma registra tu asistencia a Precision Medical Care y queda vinculada a tu expediente de forma segura.
+        {t('legalNote')}
       </div>
 
       {error && <ErrorBox error={error} />}
@@ -345,7 +347,7 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
           padding: '14px 16px', borderRadius: 12, flexShrink: 0,
           background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)',
           color: 'rgba(255,255,255,0.40)', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-        }}>Omitir →</button>
+        }}>{t('skip')}</button>
         <button type="button" onClick={handleSign} disabled={!hasSig || !sigName.trim() || submitting} style={{
           flex: 1, padding: '14px',
           background: hasSig && sigName.trim() && !submitting
@@ -357,7 +359,7 @@ export function CheckinClient({ appointmentId, patientName, alreadyCheckedIn, al
           cursor: hasSig && sigName.trim() && !submitting ? 'pointer' : 'not-allowed',
           fontFamily: 'inherit', transition: 'all 0.2s',
         }}>
-          {submitting ? '⏳ Guardando...' : '✓ Firmar registro de asistencia'}
+          {submitting ? t('saving') : t('submitSignature')}
         </button>
       </div>
     </div>

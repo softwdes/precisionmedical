@@ -2,8 +2,10 @@
 
 import { createClient } from '@precision-medical/auth/client';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 export default function NoAccessPage() {
+  const t      = useTranslations('clinical.errors');
   const router = useRouter();
 
   async function handleLogout() {
@@ -33,11 +35,10 @@ export default function NoAccessPage() {
       }}>
         <div style={{ fontSize: '40px', marginBottom: '16px' }}>🚫</div>
         <h1 style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>
-          Sin acceso
+          {t('noAccess')}
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: '13px', lineHeight: '1.6', marginBottom: '24px' }}>
-          Tu cuenta no tiene permisos para acceder al portal clínico.
-          Contactá al administrador del sistema.
+          {t('noAccessMessage')}
         </p>
         <button
           onClick={handleLogout}
@@ -52,7 +53,7 @@ export default function NoAccessPage() {
             cursor:       'pointer',
           }}
         >
-          Cerrar sesión
+          {t('logout')}
         </button>
       </div>
     </div>

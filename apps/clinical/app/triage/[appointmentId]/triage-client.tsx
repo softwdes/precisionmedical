@@ -17,6 +17,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   CheckCircle2, Loader2,
 } from 'lucide-react';
@@ -205,6 +206,8 @@ export function TriageClient({
   currentUserName?: string;
 }) {
   const router = useRouter();
+  const t  = useTranslations('clinical.triage');
+  const tc = useTranslations('clinical.common');
   const [appt,    setAppt]    = useState<AppointmentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -232,34 +235,34 @@ export function TriageClient({
   // ─── Insurance search ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!insModal) return;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const res = await fetch(`/api/admin/insurances/autocomplete?q=${encodeURIComponent(insQuery)}`);
       const d = await res.json().catch(() => ({ results: [] }));
       setInsResults(d.results ?? []);
     }, 200);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [insQuery, insModal]);
 
   // ─── Firm search ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!legalModal) return;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const res = await fetch(`/api/admin/lawyers/autocomplete?q=${encodeURIComponent(firmQuery)}`);
       const d = await res.json().catch(() => ({ results: [] }));
       setFirmResults(d.results ?? []);
     }, 200);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [firmQuery, legalModal]);
 
   // ─── Attorney search (requires firm) ──────────────────────────────────────
   useEffect(() => {
     if (!legalModal || !firmSelected) return;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const res = await fetch(`/api/admin/lawyers/autocomplete?q=${encodeURIComponent(attQuery)}&firmId=${firmSelected.id}`);
       const d = await res.json().catch(() => ({ results: [] }));
       setAttResults(d.results ?? []);
     }, 200);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [attQuery, firmSelected, legalModal]);
 
   function openInsModal() {
@@ -346,23 +349,23 @@ export function TriageClient({
     const data = await res.json();
     if (data.ok) {
       setAppt(data.appointment);
-      const t = data.appointment.triageRecord;
-      if (t) {
-        if (t.heightFt  != null) setHeightFt(String(t.heightFt));
-        if (t.heightIn  != null) setHeightIn(String(t.heightIn));
-        if (t.weightLbs != null) setWeightLbs(String(t.weightLbs));
-        if (t.weightOz  != null) setWeightOz(String(t.weightOz));
-        if (t.systolicMmhg  != null) setSystolic(String(t.systolicMmhg));
-        if (t.diastolicMmhg != null) setDiastolic(String(t.diastolicMmhg));
-        if (t.pulseBpm      != null) setPulse(String(t.pulseBpm));
-        if (t.tempFahrenheit != null) setTempF(String(t.tempFahrenheit));
-        if (t.o2Saturation  != null) setO2(String(t.o2Saturation));
-        setOnRoomAir(t.onRoomAir ?? true);
-        if (t.visualAcuityRight != null) setVisRight(t.visualAcuityRight);
-        if (t.visualAcuityLeft  != null) setVisLeft(t.visualAcuityLeft);
-        if (t.visualAcuityBoth  != null) setVisBoth(t.visualAcuityBoth);
-        setCorrected(t.visionCorrected ?? false);
-        if (t.chiefComplaint != null) setComplaint(t.chiefComplaint);
+      const rec = data.appointment.triageRecord;
+      if (rec) {
+        if (rec.heightFt  != null) setHeightFt(String(rec.heightFt));
+        if (rec.heightIn  != null) setHeightIn(String(rec.heightIn));
+        if (rec.weightLbs != null) setWeightLbs(String(rec.weightLbs));
+        if (rec.weightOz  != null) setWeightOz(String(rec.weightOz));
+        if (rec.systolicMmhg  != null) setSystolic(String(rec.systolicMmhg));
+        if (rec.diastolicMmhg != null) setDiastolic(String(rec.diastolicMmhg));
+        if (rec.pulseBpm      != null) setPulse(String(rec.pulseBpm));
+        if (rec.tempFahrenheit != null) setTempF(String(rec.tempFahrenheit));
+        if (rec.o2Saturation  != null) setO2(String(rec.o2Saturation));
+        setOnRoomAir(rec.onRoomAir ?? true);
+        if (rec.visualAcuityRight != null) setVisRight(rec.visualAcuityRight);
+        if (rec.visualAcuityLeft  != null) setVisLeft(rec.visualAcuityLeft);
+        if (rec.visualAcuityBoth  != null) setVisBoth(rec.visualAcuityBoth);
+        setCorrected(rec.visionCorrected ?? false);
+        if (rec.chiefComplaint != null) setComplaint(rec.chiefComplaint);
       }
     }
     setLoading(false);
@@ -483,25 +486,25 @@ export function TriageClient({
         <div style={{ flex: 1, overflow: 'auto', padding: '12px 12px 0 12px' }}>
 
           {/* Personal Info */}
-          <SbSection label="Personal Info" defaultOpen>
+          <SbSection label={t('sidebar.personalInfo')} defaultOpen>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 12 }}>
-              <SbRow label="DOB"      value={p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('en-US', { timeZone: 'UTC' }) : null} />
-              <SbRow label="Sex"      value="—" />
-              <SbRow label="Language" value="Spanish" />
+              <SbRow label={t('sidebar.dob')}      value={p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('en-US', { timeZone: 'UTC' }) : null} />
+              <SbRow label={t('sidebar.sex')}      value="—" />
+              <SbRow label={t('sidebar.language')} value="Spanish" />
             </div>
           </SbSection>
 
           {/* Contact */}
-          <SbSection label="Contact" defaultOpen>
+          <SbSection label={t('sidebar.contact')} defaultOpen>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 12 }}>
               {p.phone && <div>📱 {p.phone}</div>}
               {p.email && <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)' }}>{p.email}</div>}
-              {!p.phone && !p.email && <div style={{ color: 'rgba(255,255,255,0.40)', fontStyle: 'italic' }}>Sin datos</div>}
+              {!p.phone && !p.email && <div style={{ color: 'rgba(255,255,255,0.40)', fontStyle: 'italic' }}>{t('sidebar.noData')}</div>}
             </div>
           </SbSection>
 
           {/* Primary Insurance · PIP */}
-          <SbSection label="Primary Insurance · PIP" defaultOpen onEdit={appt.case ? openInsModal : undefined}>
+          <SbSection label={t('sidebar.primaryInsurance')} defaultOpen onEdit={appt.case ? openInsModal : undefined}>
             {c?.primaryInsurance ? (
               <div style={{
                 fontSize: 10.5, lineHeight: 1.65, marginBottom: 12,
@@ -517,19 +520,19 @@ export function TriageClient({
                 </div>
               </div>
             ) : (
-              <EmptySlot text="Sin seguro registrado" />
+              <EmptySlot text={t('sidebar.noInsurance')} />
             )}
           </SbSection>
 
           {/* Secondary Insurance */}
-          <SbSection label="Secondary Insurance">
+          <SbSection label={t('sidebar.secondaryInsurance')}>
             <div style={{ marginBottom: 12 }}>
-              <EmptySlot text="No secondary insurance registered" />
+              <EmptySlot text={t('sidebar.noSecondaryInsurance')} />
             </div>
           </SbSection>
 
           {/* Allergies */}
-          <SbSection label="⚠ Allergies" amber defaultOpen>
+          <SbSection label={t('sidebar.allergies')} amber defaultOpen>
             <div style={{
               fontSize: 10.5, color: '#fbbf24', lineHeight: 1.65, marginBottom: 12,
               padding: '6px 9px',
@@ -537,33 +540,33 @@ export function TriageClient({
               borderLeft: '2px solid rgba(245,158,11,0.40)',
               borderRadius: 4,
             }}>
-              <div>Revisar con el paciente</div>
+              <div>{t('sidebar.noAllergies')}</div>
               <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
-                Confirmar alergias a medicamentos
+                {t('sidebar.confirmAllergies')}
               </div>
             </div>
           </SbSection>
 
           {/* Problem List */}
-          <SbSection label="♡ Problem List">
+          <SbSection label={t('sidebar.problems')}>
             <div style={{ marginBottom: 12 }}>
-              <EmptySlot text="No active problems" />
+              <EmptySlot text={t('sidebar.noProblems')} />
             </div>
           </SbSection>
 
           {/* Active Medication */}
-          <SbSection label="⛓ Active Medication">
+          <SbSection label={t('sidebar.medications')}>
             <div style={{ marginBottom: 12 }}>
-              <EmptySlot text="No active medications" />
+              <EmptySlot text={t('sidebar.noMedications')} />
             </div>
           </SbSection>
 
           {/* Lawyer / Attorney */}
-          <SbSection label="Attorney" defaultOpen={!!(c?.attorney || c?.lawFirm)} onEdit={appt.case ? openLegalModal : undefined}>
+          <SbSection label={t('sidebar.attorney')} defaultOpen={!!(c?.attorney || c?.lawFirm)} onEdit={appt.case ? openLegalModal : undefined}>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 12 }}>
               {c?.lawFirm
                 ? <div>{c.lawFirm.firmName}</div>
-                : <EmptySlot text="Sin bufete asignado" />}
+                : <EmptySlot text={t('sidebar.noAttorney')} />}
               {c?.attorney && (
                 <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
                   {`${c.attorney.firstName ?? ''} ${c.attorney.lastName ?? ''}`.trim()}
@@ -573,9 +576,9 @@ export function TriageClient({
           </SbSection>
 
           {/* Emergency Contact */}
-          <SbSection label="Emergency Contact">
+          <SbSection label={t('sidebar.emergencyContact')}>
             <div style={{ marginBottom: 12 }}>
-              <EmptySlot text="Not registered" />
+              <EmptySlot text={t('sidebar.noEmergencyContact')} />
             </div>
           </SbSection>
         </div>
@@ -600,9 +603,9 @@ export function TriageClient({
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>📈 Vital signs</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('vitalsTitle')}</div>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
-              Captura rápida · 5 min · sincroniza con la visita del doctor automáticamente
+              {t('vitalsSubtitle')}
             </div>
           </div>
           <span style={{
@@ -610,7 +613,7 @@ export function TriageClient({
             background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)',
             color: '#fbbf24', fontSize: 10, fontWeight: 700,
           }}>
-            ⏱ En triaje
+            {t('statusBadge')}
           </span>
         </div>
 
@@ -618,52 +621,52 @@ export function TriageClient({
         <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
 
           {/* ── Height (full width, 3-col) ── */}
-          <VitalCard emoji="📏" title="Height">
+          <VitalCard emoji="📏" title={t('vitals.height')}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              <VitalField label="Feet"   value={heightFt} onChange={setHeightFt} placeholder="5" />
-              <VitalField label="Inches" value={heightIn} onChange={setHeightIn} placeholder="8" />
-              <VitalField label="Cms ⇄"  value={heightCm != null ? String(heightCm) : ''} readOnly placeholder="—" />
+              <VitalField label={t('vitals.feet')}   value={heightFt} onChange={setHeightFt} placeholder="5" />
+              <VitalField label={t('vitals.inches')} value={heightIn} onChange={setHeightIn} placeholder="8" />
+              <VitalField label={t('vitals.cm')}     value={heightCm != null ? String(heightCm) : ''} readOnly placeholder="—" />
             </div>
           </VitalCard>
 
           {/* ── Weight (full width, 3-col) ── */}
-          <VitalCard emoji="⚖️" title="Weight">
+          <VitalCard emoji="⚖️" title={t('vitals.weight')}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              <VitalField label="Lbs"    value={weightLbs} onChange={setWeightLbs} placeholder="150" />
-              <VitalField label="Oz"     value={weightOz}  onChange={setWeightOz}  placeholder="0"   />
-              <VitalField label="Kgs ⇄"  value={weightKg != null ? String(weightKg) : ''} readOnly placeholder="—" />
+              <VitalField label={t('vitals.lbs')}   value={weightLbs} onChange={setWeightLbs} placeholder="150" />
+              <VitalField label={t('vitals.oz')}    value={weightOz}  onChange={setWeightOz}  placeholder="0"   />
+              <VitalField label={t('vitals.kg')}    value={weightKg != null ? String(weightKg) : ''} readOnly placeholder="—" />
             </div>
           </VitalCard>
 
           {/* ── Blood Pressure + Corazón & Pulmones (2-col) ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <VitalCard emoji="❤️" title="Blood pressure">
+            <VitalCard emoji="❤️" title={t('vitals.bloodPressure')}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                <VitalField label="Systolic mmHg"  value={systolic}  onChange={setSystolic}  placeholder="120" />
-                <VitalField label="Diastolic mmHg" value={diastolic} onChange={setDiastolic} placeholder="80"  />
+                <VitalField label={t('vitals.systolic')}  value={systolic}  onChange={setSystolic}  placeholder="120" />
+                <VitalField label={t('vitals.diastolic')} value={diastolic} onChange={setDiastolic} placeholder="80"  />
               </div>
             </VitalCard>
 
-            <VitalCard emoji="💓" title="Corazón &amp; Pulmones">
-              <VitalField label="Pulse (bpm)" value={pulse} onChange={setPulse} placeholder="72" />
+            <VitalCard emoji="💓" title={t('vitals.heartLungs')}>
+              <VitalField label={t('vitals.pulse')} value={pulse} onChange={setPulse} placeholder="72" />
             </VitalCard>
           </div>
 
           {/* ── Temperature + Oxygen (2-col) ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <VitalCard emoji="🌡️" title="Temperature">
+            <VitalCard emoji="🌡️" title={t('vitals.temperature')}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                <VitalField label="°F"    value={tempF} onChange={setTempF} placeholder="98.6" />
-                <VitalField label="°C ⇄"  value={tempC != null ? String(tempC) : ''} readOnly placeholder="—" />
+                <VitalField label={t('vitals.fahrenheit')} value={tempF} onChange={setTempF} placeholder="98.6" />
+                <VitalField label={t('vitals.celsius')}    value={tempC != null ? String(tempC) : ''} readOnly placeholder="—" />
               </div>
             </VitalCard>
 
-            <VitalCard emoji="💨" title="Oxygen">
+            <VitalCard emoji="💨" title={t('vitals.oxygen')}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
                 <VitalField label="O₂ saturation (%)" value={o2} onChange={setO2} placeholder="98" />
                 <div style={{ paddingBottom: 2 }}>
                   <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.45)', marginBottom: 6, fontWeight: 600, textAlign: 'center' }}>
-                    On room air
+                    {t('vitals.onRoomAir')}
                   </div>
                   <button
                     type="button"
@@ -687,17 +690,17 @@ export function TriageClient({
           </div>
 
           {/* ── Vision (full width) — toggle al FONDO ── */}
-          <VitalCard emoji="👁️" title="Vision">
+          <VitalCard emoji="👁️" title={t('vitals.vision')}>
             {/* 3 eye fields */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
               {[
-                { label: 'Right · 20/', val: visRight, set: setVisRight },
-                { label: 'Left · 20/',  val: visLeft,  set: setVisLeft  },
-                { label: 'Both · 20/',  val: visBoth,  set: setVisBoth  },
+                { labelKey: 'vitals.rightEye', val: visRight, set: setVisRight },
+                { labelKey: 'vitals.leftEye',  val: visLeft,  set: setVisLeft  },
+                { labelKey: 'vitals.bothEyes', val: visBoth,  set: setVisBoth  },
               ].map(eye => (
-                <div key={eye.label}>
+                <div key={eye.labelKey}>
                   <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.45)', marginBottom: 3, fontWeight: 600 }}>
-                    {eye.label}
+                    {t(eye.labelKey as Parameters<typeof t>[0])}
                   </div>
                   <input
                     type="number"
@@ -725,11 +728,11 @@ export function TriageClient({
             }}>
               <div style={{ display: 'flex', gap: 6 }}>
                 {[
-                  { label: 'Uncorrected', val: false },
-                  { label: 'Corrected',   val: true  },
+                  { labelKey: 'vitals.uncorrected', val: false },
+                  { labelKey: 'vitals.corrected',   val: true  },
                 ].map(opt => (
                   <button
-                    key={opt.label}
+                    key={opt.labelKey}
                     type="button"
                     onClick={() => setCorrected(opt.val)}
                     style={{
@@ -739,12 +742,12 @@ export function TriageClient({
                       transition: 'all 0.15s',
                     }}
                   >
-                    {opt.label}
+                    {t(opt.labelKey as Parameters<typeof t>[0])}
                   </button>
                 ))}
               </div>
               <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)' }}>
-                {corrected ? 'Con gafas / lentes' : 'Sin gafas / lentes'}
+                {corrected ? t('vitals.withGlasses') : t('vitals.uncorrected')}
               </span>
             </div>
           </VitalCard>
@@ -767,7 +770,7 @@ export function TriageClient({
                   color: '#a5b4fc', fontWeight: 600,
                 }}
               >
-                📄 Templates
+                {t('templates')}
               </button>
             </div>
 
@@ -778,12 +781,12 @@ export function TriageClient({
               borderBottom: '1px solid rgba(255,255,255,0.05)',
               flexWrap: 'wrap',
             }}>
-              {['H', 'B', 'I'].map(t => (
-                <button key={t} type="button" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 3 }}>{t}</button>
+              {['H', 'B', 'I'].map(btn => (
+                <button key={btn} type="button" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.60)', cursor: 'pointer', fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 3 }}>{btn}</button>
               ))}
               <div style={{ width: 1, background: 'rgba(255,255,255,0.10)', margin: '0 3px' }} />
-              {['☰', '≡', '"', '🔗'].map(t => (
-                <button key={t} type="button" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.60)', cursor: 'pointer', fontSize: 11, padding: '2px 5px', borderRadius: 3 }}>{t}</button>
+              {['☰', '≡', '"', '🔗'].map(btn => (
+                <button key={btn} type="button" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.60)', cursor: 'pointer', fontSize: 11, padding: '2px 5px', borderRadius: 3 }}>{btn}</button>
               ))}
             </div>
 
@@ -807,7 +810,7 @@ export function TriageClient({
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
               <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)' }}>
-                💡 Usa <strong style={{ color: 'rgba(255,255,255,0.70)' }}>Templates</strong> para pre-cargar plantillas comunes (whiplash, lumbar agudo, etc.)
+                {t('templatesHint')}
               </span>
               <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.40)' }}>
                 {complaint.length} / 2000
@@ -817,8 +820,8 @@ export function TriageClient({
 
           {/* Captured by */}
           <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.40)', paddingBottom: 4 }}>
-            📌 Capturado por: <strong style={{ color: 'rgba(255,255,255,0.65)' }}>{currentUserName}</strong> · {fmtTime(now)}
-            <span style={{ marginLeft: 10, fontSize: 9, opacity: 0.6 }}>Auto-guardado cada 30 seg.</span>
+            {t('capturedBy', { name: currentUserName, time: fmtTime(now) })}
+            <span style={{ marginLeft: 10, fontSize: 9, opacity: 0.6 }}>{t('autosave')}</span>
           </div>
         </div>
 
@@ -843,8 +846,8 @@ export function TriageClient({
             }}
           >
             {saved
-              ? <><CheckCircle2 style={{ width: 14, height: 14, color: '#10b981' }} /> Guardado</>
-              : 'Guardar borrador'
+              ? <><CheckCircle2 style={{ width: 14, height: 14, color: '#10b981' }} /> {tc('saved')}</>
+              : t('saveDraft')
             }
           </button>
 
@@ -866,7 +869,7 @@ export function TriageClient({
               ? <Loader2 style={{ width: 15, height: 15, animation: 'spin 1s linear infinite' }} />
               : <CheckCircle2 style={{ width: 15, height: 15 }} />
             }
-            Pasar a {drName} ✓
+            {t('passToDoctor', { doctor: drName })}
           </button>
         </div>
       </main>
@@ -883,7 +886,7 @@ export function TriageClient({
             borderRadius: 14, padding: 24, width: '100%', maxWidth: 420,
           }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-              Editar seguro primario
+              {t('editInsurance')}
             </div>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginBottom: 18 }}>
               {appt?.case?.caseCode}
@@ -892,7 +895,7 @@ export function TriageClient({
             {/* Search aseguradora */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>
-                Aseguradora
+                {t('insurer')}
               </div>
               {insSelected ? (
                 <div style={{
@@ -913,7 +916,7 @@ export function TriageClient({
                     autoFocus
                     value={insQuery}
                     onChange={e => setInsQuery(e.target.value)}
-                    placeholder="Buscar aseguradora..."
+                    placeholder={t('searchInsurer')}
                     style={{
                       width: '100%', padding: '8px 12px', borderRadius: 8,
                       background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
@@ -952,12 +955,12 @@ export function TriageClient({
             {/* Policy number */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>
-                Número de póliza
+                {t('policyNumber')}
               </div>
               <input
                 value={insPolicy}
                 onChange={e => setInsPolicy(e.target.value)}
-                placeholder="Ej. PIP-123456"
+                placeholder={t('policyPlaceholder')}
                 style={{
                   width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box',
                   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
@@ -972,14 +975,14 @@ export function TriageClient({
                 padding: '8px 16px', borderRadius: 8, fontSize: 12,
                 background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
                 color: 'rgba(255,255,255,0.70)', cursor: 'pointer',
-              }}>Cancelar</button>
+              }}>{tc('cancel')}</button>
               <button onClick={saveInsurance} disabled={insSaving} style={{
                 padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
                 background: insSaving ? 'rgba(6,182,212,0.15)' : 'rgba(6,182,212,0.20)',
                 border: '1px solid rgba(6,182,212,0.40)',
                 color: '#67e8f9', cursor: insSaving ? 'not-allowed' : 'pointer',
               }}>
-                {insSaving ? 'Guardando...' : 'Guardar'}
+                {insSaving ? tc('saving') : tc('save')}
               </button>
             </div>
           </div>
@@ -998,7 +1001,7 @@ export function TriageClient({
             borderRadius: 14, padding: 24, width: '100%', maxWidth: 420,
           }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-              Editar información legal
+              {t('editLegal')}
             </div>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginBottom: 18 }}>
               {appt?.case?.caseCode}
@@ -1007,7 +1010,7 @@ export function TriageClient({
             {/* Firm */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>
-                Bufete
+                {t('firm')}
               </div>
               {firmSelected ? (
                 <div style={{
@@ -1025,7 +1028,7 @@ export function TriageClient({
                     autoFocus
                     value={firmQuery}
                     onChange={e => setFirmQuery(e.target.value)}
-                    placeholder="Buscar bufete..."
+                    placeholder={t('searchFirm')}
                     style={{
                       width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box',
                       background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
@@ -1066,7 +1069,7 @@ export function TriageClient({
             {firmSelected && (
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>
-                  Abogado (opcional)
+                  {t('attorney')}
                 </div>
                 {attSelected ? (
                   <div style={{
@@ -1085,7 +1088,7 @@ export function TriageClient({
                     <input
                       value={attQuery}
                       onChange={e => setAttQuery(e.target.value)}
-                      placeholder="Buscar abogado del bufete..."
+                      placeholder={t('searchAttorney')}
                       style={{
                         width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box',
                         background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
@@ -1129,14 +1132,14 @@ export function TriageClient({
                 padding: '8px 16px', borderRadius: 8, fontSize: 12,
                 background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)',
                 color: 'rgba(255,255,255,0.70)', cursor: 'pointer',
-              }}>Cancelar</button>
+              }}>{tc('cancel')}</button>
               <button onClick={saveLegal} disabled={legalSaving} style={{
                 padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700,
                 background: legalSaving ? 'rgba(99,102,241,0.15)' : 'rgba(99,102,241,0.20)',
                 border: '1px solid rgba(99,102,241,0.40)',
                 color: '#a5b4fc', cursor: legalSaving ? 'not-allowed' : 'pointer',
               }}>
-                {legalSaving ? 'Guardando...' : 'Guardar'}
+                {legalSaving ? tc('saving') : tc('save')}
               </button>
             </div>
           </div>

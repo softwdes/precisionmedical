@@ -2184,5 +2184,238 @@
         "OTHER": "Other"
       }
     }
+  },
+  "clinical": {
+    "common": {
+      "saving": "Saving...",
+      "saved": "Saved",
+      "cancel": "Cancel",
+      "save": "Save",
+      "edit": "Edit",
+      "close": "Close",
+      "back": "Back",
+      "noData": "No data"
+    },
+    "auth": {
+      "title": "Precision Medical",
+      "subtitle": "Clinical Portal · Doctors and MAs",
+      "email": "Email address",
+      "emailPlaceholder": "dr.name@precisionmedicalcare.com",
+      "password": "Password",
+      "passwordPlaceholder": "••••••••",
+      "signin": "Sign in →",
+      "signingIn": "Signing in…",
+      "mfaInstruction": "Enter the code from your authenticator app.",
+      "mfaPlaceholder": "000 000",
+      "mfaVerify": "Verify →",
+      "mfaVerifying": "Verifying…",
+      "backBtn": "← Back",
+      "sessionExpired": "🔒 Your session expired due to inactivity. Please sign in again.",
+      "accountLocked": "⚠️ Account locked. Try again in {remaining}.",
+      "footer": "Authorized clinical staff only · Roles: Doctor · MA"
+    },
+    "errors": {
+      "noAccess": "No access",
+      "noAccessMessage": "Your account does not have permission to access the clinical portal. Contact the system administrator.",
+      "logout": "Sign out"
+    },
+    "queue": {
+      "title": "LienMaster · Clinical",
+      "subtitle": "Reception · MA",
+      "noAppointments": "No appointments scheduled for today",
+      "status": {
+        "scheduled": "Scheduled",
+        "confirmed": "Confirmed",
+        "checkedIn": "✓ Waiting",
+        "inProgress": "⚡ In consultation",
+        "completed": "Completed",
+        "noShow": "No show",
+        "cancelled": "Cancelled"
+      },
+      "kpi": {
+        "pending": "Arriving",
+        "waiting": "Waiting",
+        "inConsultation": "In consultation",
+        "completed": "Completed"
+      },
+      "section": {
+        "waitingRoom": "Waiting room",
+        "pendingArrival": "Pending arrival",
+        "inProgress": "In consultation now",
+        "completed": "Completed today"
+      },
+      "action": {
+        "triage": "Triage →",
+        "checkin": "Check-in →",
+        "viewVisit": "View visit →"
+      }
+    },
+    "checkin": {
+      "step2": "✓ Arrival confirmed · Step 2 of 2",
+      "completedTitle": "Registration complete!",
+      "alreadySigned": "{name} already signed",
+      "waitingRoom": "{name} is in the waiting room. Redirecting...",
+      "goToTriage": "Go to triage →",
+      "backToQueue": "← Queue",
+      "printSignature": "🖨 Print signature",
+      "verification": "I verified the identity of {name} verbally (name + date of birth)",
+      "receptionNote": "Reception note (optional)",
+      "receptionNotePlaceholder": "E.g.: Patient arrives with companion, will bring documents...",
+      "cancelBtn": "← Cancel",
+      "confirmArrival": "✓ Confirm arrival →",
+      "confirming": "Registering...",
+      "confirmHelper": "Verify patient identity to enable the button",
+      "signerName": "Full name of signer",
+      "signatureLabel": "Patient signature",
+      "signaturePlaceholder": "✍️ Draw your signature here",
+      "clearSignature": "× Clear and sign again",
+      "legalNote": "🔒 This signature records your attendance at Precision Medical Care and is securely linked to your file.",
+      "skip": "Skip →",
+      "submitSignature": "✓ Sign attendance record",
+      "saving": "Saving..."
+    },
+    "triage": {
+      "vitalsTitle": "📈 Vital signs",
+      "vitalsSubtitle": "Quick capture · 5 min · automatically syncs with the doctor visit",
+      "statusBadge": "⏱ In triage",
+      "capturedBy": "📌 Captured by: {name} · {time}",
+      "autosave": "Auto-saved every 30 sec.",
+      "sidebar": {
+        "personalInfo": "Personal information",
+        "dob": "DOB",
+        "sex": "Sex",
+        "language": "Language",
+        "contact": "Contact",
+        "primaryInsurance": "Primary Insurance · PIP",
+        "secondaryInsurance": "Secondary Insurance",
+        "allergies": "⚠ Allergies",
+        "problems": "♡ Problem List",
+        "medications": "⛓ Active Medications",
+        "attorney": "Attorney",
+        "emergencyContact": "Emergency Contact",
+        "noInsurance": "No insurance registered",
+        "noSecondaryInsurance": "No secondary insurance registered",
+        "noAllergies": "Review with patient",
+        "confirmAllergies": "Confirm medication allergies",
+        "noProblems": "No active problems",
+        "noMedications": "No active medications",
+        "noAttorney": "No firm assigned",
+        "noEmergencyContact": "Not registered",
+        "noData": "No data"
+      },
+      "vitals": {
+        "height": "📏 Height",
+        "weight": "⚖️ Weight",
+        "bloodPressure": "❤️ Blood pressure",
+        "heartLungs": "💓 Heart & Lungs",
+        "temperature": "🌡️ Temperature",
+        "oxygen": "💨 Oxygen",
+        "vision": "👁️ Vision",
+        "feet": "Feet",
+        "inches": "Inches",
+        "cm": "Cms ⇄",
+        "lbs": "Lbs",
+        "oz": "Oz",
+        "kg": "Kgs ⇄",
+        "systolic": "Systolic mmHg",
+        "diastolic": "Diastolic mmHg",
+        "pulse": "Pulse (bpm)",
+        "fahrenheit": "°F",
+        "celsius": "°C ⇄",
+        "onRoomAir": "On room air",
+        "rightEye": "Right · 20/",
+        "leftEye": "Left · 20/",
+        "bothEyes": "Both · 20/",
+        "uncorrected": "Uncorrected",
+        "corrected": "Corrected",
+        "withGlasses": "With glasses / contacts"
+      },
+      "editInsurance": "Edit primary insurance",
+      "insurer": "Insurance carrier",
+      "searchInsurer": "Search insurance carrier...",
+      "policyNumber": "Policy number",
+      "policyPlaceholder": "E.g. PIP-123456",
+      "editLegal": "Edit legal information",
+      "firm": "Law firm",
+      "searchFirm": "Search law firm...",
+      "attorney": "Attorney (optional)",
+      "searchAttorney": "Search attorney from firm...",
+      "templates": "📄 Templates",
+      "templatesHint": "Templates",
+      "saveDraft": "Save draft",
+      "passToDoctor": "Pass to {doctor} ✓",
+      "edit": "Edit"
+    },
+    "visit": {
+      "title": "Visit note",
+      "rx": {
+        "title": "New prescription",
+        "drug": "Medication *",
+        "drugPlaceholder": "Search drug (e.g: oxycodone, ibuprofen...)",
+        "dose": "Dose *",
+        "frequency": "Frequency *",
+        "duration": "Duration *",
+        "quantity": "Total quantity *",
+        "refills": "Refills",
+        "indication": "Clinical indication *",
+        "pharmacy": "Destination pharmacy",
+        "cancelBtn": "Cancel",
+        "sendBtn": "Send prescription →",
+        "authenticateBtn": "🔐 Authenticate and send via DAW →"
+      },
+      "lab": {
+        "title": "New lab order",
+        "orderType": "Order type",
+        "study": "Study *",
+        "indication": "Clinical indication *",
+        "urgency": "Urgency",
+        "preferredCenter": "Preferred center",
+        "createBtn": "✓ Create order →"
+      },
+      "cpt": {
+        "title": "Assign CPT services",
+        "available": "Available CPTs",
+        "searchPlaceholder": "Search code...",
+        "assigned": "Assigned services",
+        "closeVisit": "🏁 Close visit",
+        "signBtn": "✓ Sign and close visit →",
+        "saveDraftBtn": "Save draft",
+        "warningNoCpt": "⚠ Add at least 1 CPT code before signing"
+      }
+    },
+    "doctor": {
+      "title": "LienMaster · Clinical",
+      "subtitle": "Dr. · My Day",
+      "backToQueue": "← MA Queue",
+      "templates": "📋 Templates",
+      "noAppointments": "No pending appointments for today",
+      "status": {
+        "triageReady": "✓ Triage ready",
+        "waitingTriage": "⛔ Waiting for MA triage",
+        "inReception": "⏱ In reception",
+        "labsPending": "🧪 {count} lab(s) pending",
+        "noteSigned": "✓ Note signed",
+        "draft": "Draft",
+        "complete": "Complete"
+      },
+      "kpi": {
+        "pending": "Pending",
+        "completed": "Completed",
+        "unsigned": "Unsigned",
+        "labs": "Labs pend."
+      },
+      "section": {
+        "unsignedNotes": "Notes pending signature ({count})",
+        "nextPatient": "Next patient",
+        "queue": "Up next ({count})",
+        "completed": "Completed ({count})"
+      },
+      "action": {
+        "attend": "Attend now →",
+        "note": "Note →",
+        "waiting": "Waiting for MA",
+        "signNote": "Sign note"
+      }
+    }
   }
 }

@@ -2184,5 +2184,238 @@
         "OTHER": "Otro"
       }
     }
+  },
+  "clinical": {
+    "common": {
+      "saving": "Guardando...",
+      "saved": "Guardado",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "edit": "Editar",
+      "close": "Cerrar",
+      "back": "Volver",
+      "noData": "Sin datos"
+    },
+    "auth": {
+      "title": "Precision Medical",
+      "subtitle": "Portal Clínico · Doctores y MA",
+      "email": "Correo electrónico",
+      "emailPlaceholder": "dr.nombre@precisionmedicalcare.com",
+      "password": "Contraseña",
+      "passwordPlaceholder": "••••••••",
+      "signin": "Ingresar →",
+      "signingIn": "Ingresando…",
+      "mfaInstruction": "Ingresá el código de tu app autenticadora.",
+      "mfaPlaceholder": "000 000",
+      "mfaVerify": "Verificar →",
+      "mfaVerifying": "Verificando…",
+      "backBtn": "← Volver",
+      "sessionExpired": "🔒 Tu sesión expiró por inactividad. Ingresá nuevamente.",
+      "accountLocked": "⚠️ Cuenta bloqueada. Intentá en {remaining}.",
+      "footer": "Solo personal clínico autorizado · Roles: Doctor · MA"
+    },
+    "errors": {
+      "noAccess": "Sin acceso",
+      "noAccessMessage": "Tu cuenta no tiene permisos para acceder al portal clínico. Contactá al administrador del sistema.",
+      "logout": "Cerrar sesión"
+    },
+    "queue": {
+      "title": "LienMaster · Clinical",
+      "subtitle": "Recepción · MA",
+      "noAppointments": "Sin citas programadas para hoy",
+      "status": {
+        "scheduled": "Agendada",
+        "confirmed": "Confirmada",
+        "checkedIn": "✓ En espera",
+        "inProgress": "⚡ En consulta",
+        "completed": "Completada",
+        "noShow": "No se presentó",
+        "cancelled": "Cancelada"
+      },
+      "kpi": {
+        "pending": "Por llegar",
+        "waiting": "En espera",
+        "inConsultation": "En consulta",
+        "completed": "Completadas"
+      },
+      "section": {
+        "waitingRoom": "Sala de espera",
+        "pendingArrival": "Citas pendientes de llegada",
+        "inProgress": "En consulta ahora",
+        "completed": "Completadas hoy"
+      },
+      "action": {
+        "triage": "Triaje →",
+        "checkin": "Check-in →",
+        "viewVisit": "Ver visita →"
+      }
+    },
+    "checkin": {
+      "step2": "✓ Llegada confirmada · Paso 2 de 2",
+      "completedTitle": "¡Registro completo!",
+      "alreadySigned": "{name} ya firmó",
+      "waitingRoom": "{name} está en sala de espera. Redirigiendo...",
+      "goToTriage": "Ir a triaje →",
+      "backToQueue": "← Cola",
+      "printSignature": "🖨 Imprimir firma",
+      "verification": "Verifiqué la identidad de {name} verbalmente (nombre + fecha de nacimiento)",
+      "receptionNote": "Nota de recepción (opcional)",
+      "receptionNotePlaceholder": "Ej: Paciente llega con acompañante, traerá documentos...",
+      "cancelBtn": "← Cancelar",
+      "confirmArrival": "✓ Confirmar llegada →",
+      "confirming": "⏳ Registrando...",
+      "confirmHelper": "Confirma la identidad del paciente para habilitar el botón",
+      "signerName": "Nombre completo del firmante",
+      "signatureLabel": "Firma del paciente",
+      "signaturePlaceholder": "✍️ Dibuja tu firma aquí",
+      "clearSignature": "× Borrar y volver a firmar",
+      "legalNote": "🔒 Esta firma registra tu asistencia a Precision Medical Care y queda vinculada a tu expediente de forma segura.",
+      "skip": "Omitir →",
+      "submitSignature": "✓ Firmar registro de asistencia",
+      "saving": "⏳ Guardando..."
+    },
+    "triage": {
+      "vitalsTitle": "📈 Vital signs",
+      "vitalsSubtitle": "Captura rápida · 5 min · sincroniza con la visita del doctor automáticamente",
+      "statusBadge": "⏱ En triaje",
+      "capturedBy": "📌 Capturado por: {name} · {time}",
+      "autosave": "Auto-guardado cada 30 seg.",
+      "sidebar": {
+        "personalInfo": "Información personal",
+        "dob": "Fecha de nac.",
+        "sex": "Sexo",
+        "language": "Idioma",
+        "contact": "Contacto",
+        "primaryInsurance": "Seguro primario · PIP",
+        "secondaryInsurance": "Seguro secundario",
+        "allergies": "⚠ Alergias",
+        "problems": "♡ Problemas de salud",
+        "medications": "⛓ Medicamentos activos",
+        "attorney": "Abogado",
+        "emergencyContact": "Contacto de emergencia",
+        "noInsurance": "Sin seguro registrado",
+        "noSecondaryInsurance": "Sin seguro secundario",
+        "noAllergies": "Revisar con el paciente",
+        "confirmAllergies": "Confirmar alergias a medicamentos",
+        "noProblems": "Sin problemas activos",
+        "noMedications": "Sin medicamentos activos",
+        "noAttorney": "Sin bufete asignado",
+        "noEmergencyContact": "No registrado",
+        "noData": "Sin datos"
+      },
+      "vitals": {
+        "height": "📏 Altura",
+        "weight": "⚖️ Peso",
+        "bloodPressure": "❤️ Presión arterial",
+        "heartLungs": "💓 Corazón & Pulmones",
+        "temperature": "🌡️ Temperatura",
+        "oxygen": "💨 Oxígeno",
+        "vision": "👁️ Visión",
+        "feet": "Pies",
+        "inches": "Pulgadas",
+        "cm": "Cms ⇄",
+        "lbs": "Lbs",
+        "oz": "Oz",
+        "kg": "Kgs ⇄",
+        "systolic": "Sistólica mmHg",
+        "diastolic": "Diastólica mmHg",
+        "pulse": "Pulso (bpm)",
+        "fahrenheit": "°F",
+        "celsius": "°C ⇄",
+        "onRoomAir": "Con aire ambiente",
+        "rightEye": "Derecho · 20/",
+        "leftEye": "Izquierdo · 20/",
+        "bothEyes": "Ambos · 20/",
+        "uncorrected": "Sin corrección",
+        "corrected": "Con corrección",
+        "withGlasses": "Con gafas / lentes"
+      },
+      "editInsurance": "Editar seguro primario",
+      "insurer": "Aseguradora",
+      "searchInsurer": "Buscar aseguradora...",
+      "policyNumber": "Número de póliza",
+      "policyPlaceholder": "Ej. PIP-123456",
+      "editLegal": "Editar información legal",
+      "firm": "Bufete",
+      "searchFirm": "Buscar bufete...",
+      "attorney": "Abogado (opcional)",
+      "searchAttorney": "Buscar abogado del bufete...",
+      "templates": "📄 Plantillas",
+      "templatesHint": "Plantillas",
+      "saveDraft": "Guardar borrador",
+      "passToDoctor": "Pasar a {doctor} ✓",
+      "edit": "Editar"
+    },
+    "visit": {
+      "title": "Nota de visita",
+      "rx": {
+        "title": "Nueva prescripción",
+        "drug": "Medicamento *",
+        "drugPlaceholder": "Buscar medicamento (ej: oxycodone, ibuprofen...)",
+        "dose": "Dosis *",
+        "frequency": "Frecuencia *",
+        "duration": "Duración *",
+        "quantity": "Cantidad total *",
+        "refills": "Refills",
+        "indication": "Indicación clínica *",
+        "pharmacy": "Farmacia destino",
+        "cancelBtn": "Cancelar",
+        "sendBtn": "✓ Enviar prescripción →",
+        "authenticateBtn": "🔐 Autenticar y enviar vía DAW →"
+      },
+      "lab": {
+        "title": "Nueva orden de laboratorio",
+        "orderType": "Tipo de orden",
+        "study": "Estudio *",
+        "indication": "Indicación clínica *",
+        "urgency": "Urgencia",
+        "preferredCenter": "Centro preferido",
+        "createBtn": "✓ Crear orden →"
+      },
+      "cpt": {
+        "title": "Asignar servicios CPT",
+        "available": "CPTs disponibles",
+        "searchPlaceholder": "Buscar código...",
+        "assigned": "Servicios asignados",
+        "closeVisit": "🏁 Cerrar visita",
+        "signBtn": "✓ Firmar y cerrar visita →",
+        "saveDraftBtn": "Guardar borrador",
+        "warningNoCpt": "⚠ Agrega al menos 1 código CPT antes de firmar"
+      }
+    },
+    "doctor": {
+      "title": "LienMaster · Clinical",
+      "subtitle": "Dr. · Mi Día",
+      "backToQueue": "← Cola MA",
+      "templates": "📋 Plantillas",
+      "noAppointments": "Sin citas pendientes para hoy",
+      "status": {
+        "triageReady": "✓ Triaje listo",
+        "waitingTriage": "⛔ Esperando triaje MA",
+        "inReception": "⏱ En recepción",
+        "labsPending": "🧪 {count} lab(s) pendiente(s)",
+        "noteSigned": "✓ Nota firmada",
+        "draft": "Borrador",
+        "complete": "Completa"
+      },
+      "kpi": {
+        "pending": "Pendientes",
+        "completed": "Completadas",
+        "unsigned": "Sin firmar",
+        "labs": "Labs pend."
+      },
+      "section": {
+        "unsignedNotes": "Notas pendientes de firma ({count})",
+        "nextPatient": "Siguiente paciente",
+        "queue": "A continuación ({count})",
+        "completed": "Completadas ({count})"
+      },
+      "action": {
+        "attend": "Atender ahora →",
+        "note": "Nota →",
+        "waiting": "Esperando MA",
+        "signNote": "Firmar nota"
+      }
+    }
   }
 }

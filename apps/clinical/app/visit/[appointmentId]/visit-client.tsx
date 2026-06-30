@@ -18,6 +18,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   ChevronDown, ChevronRight, Save, CheckCircle2,
   Bot, Search, X, Plus, Loader2, AlertTriangle,
@@ -186,6 +187,9 @@ function RxModal({
   caseCode:      string;
   onClose:       (created?: boolean) => void;
 }) {
+  const tv = useTranslations('clinical.visit.rx');
+  const tc = useTranslations('clinical.common');
+
   const [search,      setSearch]      = useState('');
   const [selected,    setSelected]    = useState<RxDrug | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -326,7 +330,7 @@ function RxModal({
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 16 }}>💊</span>
               <span style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>
-                Nueva prescripción
+                {tv('title')}
               </span>
               {isControlled && (
                 <span style={{
@@ -353,7 +357,7 @@ function RxModal({
           {/* Drug search */}
           <div style={{ position: 'relative' }}>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
-              Medicamento *
+              {tv('drug')}
             </div>
             <div style={{ position: 'relative' }}>
               <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} />
@@ -361,7 +365,7 @@ function RxModal({
                 value={search}
                 onChange={e => { setSearch(e.target.value); setShowResults(true); if (!e.target.value) setSelected(null); }}
                 onFocus={() => setShowResults(true)}
-                placeholder="Buscar medicamento (ej: oxycodone, ibuprofen...)"
+                placeholder={tv('drugPlaceholder')}
                 style={{
                   width: '100%', padding: '9px 12px 9px 30px', fontSize: 12,
                   background: 'rgba(255,255,255,0.05)', border: `1px solid ${selected ? 'rgba(99,102,241,0.45)' : 'rgba(255,255,255,0.10)'}`,
@@ -427,9 +431,9 @@ function RxModal({
           {/* Dose / Frequency / Duration */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             {[
-              { label: 'Dosis *',      val: dose,      set: setDose,      ph: 'ej: 1 tab, 600mg' },
-              { label: 'Frecuencia *', val: frequency, set: setFrequency, ph: 'ej: Cada 8h con alimentos' },
-              { label: 'Duración *',   val: duration,  set: setDuration,  ph: 'ej: 7 días, 2 semanas' },
+              { label: tv('dose'),      val: dose,      set: setDose,      ph: 'ej: 1 tab, 600mg' },
+              { label: tv('frequency'), val: frequency, set: setFrequency, ph: 'ej: Cada 8h con alimentos' },
+              { label: tv('duration'),  val: duration,  set: setDuration,  ph: 'ej: 7 días, 2 semanas' },
             ].map(f => (
               <div key={f.label}>
                 <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
@@ -453,7 +457,7 @@ function RxModal({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
-                Cantidad total *
+                {tv('quantity')}
               </div>
               <input
                 type="number"
@@ -469,7 +473,7 @@ function RxModal({
             </div>
             <div>
               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
-                Refills {selected?.schedule ? `(controladas: 0 máx.)` : ''}
+                {tv('refills')}{selected?.schedule ? ` (controladas: 0 máx.)` : ''}
               </div>
               {selected?.schedule === 'II' ? (
                 <div style={{
@@ -498,7 +502,7 @@ function RxModal({
           {/* Clinical indication */}
           <div>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
-              Indicación clínica *
+              {tv('indication')}
             </div>
             <textarea
               value={indication}
@@ -561,7 +565,7 @@ function RxModal({
           {/* Pharmacy */}
           <div>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 6 }}>
-              Farmacia destino
+              {tv('pharmacy')}
             </div>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
@@ -628,7 +632,7 @@ function RxModal({
               color: 'rgba(255,255,255,0.60)', cursor: 'pointer',
             }}
           >
-            Cancelar
+            {tc('cancel')}
           </button>
           <button
             onClick={() => void handleSubmit()}
@@ -648,10 +652,10 @@ function RxModal({
             }}
           >
             {saving
-              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</>
+              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> {tc('saving')}</>
               : isControlled
-                ? <>🔐 Autenticar y enviar vía DAW →</>
-                : <><CheckCircle2 size={13} /> Enviar prescripción →</>
+                ? <>{tv('authenticateBtn')}</>
+                : <><CheckCircle2 size={13} /> {tv('sendBtn')}</>
             }
           </button>
         </div>
@@ -703,6 +707,9 @@ function CptSignModal({
   onSign:        (mode: 'draft' | 'sign') => Promise<void>;
   onClose:       () => void;
 }) {
+  const tcpt = useTranslations('clinical.visit.cpt');
+  const tc   = useTranslations('clinical.common');
+
   const [assigned,    setAssigned]    = useState<VisitCpt[]>([]);
   const [catalog,     setCatalog]     = useState<CatalogCode[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -826,7 +833,7 @@ function CptSignModal({
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <ClipboardList size={16} color="#a78bfa" />
               <span style={{ fontWeight: 800, fontSize: 15, color: '#fff' }}>
-                Asignar servicios CPT
+                {tcpt('title')}
               </span>
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
@@ -854,14 +861,14 @@ function CptSignModal({
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700 }}>
-                    CPTs disponibles
+                    {tcpt('available')}
                   </div>
                   <div style={{ position: 'relative' }}>
                     <Search size={11} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} />
                     <input
                       value={cptSearch}
                       onChange={e => setCptSearch(e.target.value)}
-                      placeholder="Buscar código..."
+                      placeholder={tcpt('searchPlaceholder')}
                       style={{
                         padding: '5px 8px 5px 24px', fontSize: 11,
                         background: 'rgba(255,255,255,0.05)',
@@ -916,7 +923,7 @@ function CptSignModal({
               {assigned.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#a78bfa', fontWeight: 700, marginBottom: 10 }}>
-                    Servicios asignados · {assigned.length}
+                    {tcpt('assigned')} · {assigned.length}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {assigned.map(cpt => (
@@ -1025,13 +1032,13 @@ function CptSignModal({
                               disabled={mutating}
                               style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', border: 'none', borderRadius: 5, color: '#fff', cursor: 'pointer' }}
                             >
-                              ✓ Guardar
+                              ✓ {tc('save')}
                             </button>
                             <button
                               onClick={() => setEditingId(null)}
                               style={{ padding: '4px 10px', fontSize: 11, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 5, color: 'rgba(255,255,255,0.60)', cursor: 'pointer' }}
                             >
-                              Cancelar
+                              {tc('cancel')}
                             </button>
                           </div>
                         )}
@@ -1081,7 +1088,7 @@ function CptSignModal({
                 borderRadius: 8, padding: '14px 16px',
               }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: 10 }}>
-                  🏁 Cerrar visita
+                  {tcpt('closeVisit')}
                 </div>
                 <ul style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', marginLeft: 16, lineHeight: 1.75, marginBottom: 14 }}>
                   <li>✓ La nota SOAP queda inmutable y firmada con tu credencial</li>
@@ -1102,7 +1109,7 @@ function CptSignModal({
                       borderRadius: 8, color: 'rgba(255,255,255,0.60)', cursor: 'pointer',
                     }}
                   >
-                    Guardar borrador
+                    {tcpt('saveDraftBtn')}
                   </button>
                   <button
                     onClick={() => void handleSign('sign')}
@@ -1120,13 +1127,13 @@ function CptSignModal({
                   >
                     {signing
                       ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Firmando...</>
-                      : <><CheckCircle2 size={13} /> Firmar y cerrar visita →</>
+                      : <>{tcpt('signBtn')}</>
                     }
                   </button>
                 </div>
                 {assigned.length === 0 && (
                   <div style={{ fontSize: 10, color: 'rgba(245,158,11,0.80)', marginTop: 8 }}>
-                    ⚠ Agrega al menos 1 código CPT antes de firmar
+                    {tcpt('warningNoCpt')}
                   </div>
                 )}
               </div>
@@ -1152,6 +1159,9 @@ function LabOrderModal({
   providerName:  string;
   onClose:       (created?: boolean) => void;
 }) {
+  const tlab = useTranslations('clinical.visit.lab');
+  const tc   = useTranslations('clinical.common');
+
   const ORDER_TYPES = ['IMAGING', 'LABORATORY', 'CARDIOLOGY'] as const;
   type OrderType = typeof ORDER_TYPES[number];
 
@@ -1238,7 +1248,7 @@ function LabOrderModal({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <FlaskConical size={16} color="#a78bfa" />
-            <span style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>Nueva orden de laboratorio</span>
+            <span style={{ fontWeight: 800, fontSize: 14, color: '#fff' }}>{tlab('title')}</span>
           </div>
           <button onClick={() => onClose()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.50)', padding: 4 }}>
             <X size={18} />
@@ -1251,7 +1261,7 @@ function LabOrderModal({
           {/* Order type toggle */}
           <div>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
-              Tipo de orden
+              {tlab('orderType')}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {ORDER_TYPES.map(t => (
@@ -1276,7 +1286,7 @@ function LabOrderModal({
           {/* Study search */}
           <div>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
-              Estudio *
+              {tlab('study')}
             </div>
             <div style={{ position: 'relative', marginBottom: 8 }}>
               <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)' }} />
@@ -1317,7 +1327,7 @@ function LabOrderModal({
           {/* Clinical indication */}
           <div>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
-              Indicación clínica *
+              {tlab('indication')}
             </div>
             <textarea
               value={indication}
@@ -1336,7 +1346,7 @@ function LabOrderModal({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
-                Urgencia
+                {tlab('urgency')}
               </div>
               <select
                 value={urgency}
@@ -1354,7 +1364,7 @@ function LabOrderModal({
             </div>
             <div>
               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.40)', fontWeight: 700, marginBottom: 8 }}>
-                Centro preferido
+                {tlab('preferredCenter')}
               </div>
               <input
                 value={center}
@@ -1393,7 +1403,7 @@ function LabOrderModal({
               color: 'rgba(255,255,255,0.60)', cursor: 'pointer',
             }}
           >
-            Cancelar
+            {tc('cancel')}
           </button>
           <button
             onClick={() => void handleCreate()}
@@ -1411,8 +1421,8 @@ function LabOrderModal({
             }}
           >
             {saving
-              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Creando...</>
-              : <><CheckCircle2 size={13} /> Crear orden →</>
+              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> {tc('saving')}</>
+              : <>{tlab('createBtn')}</>
             }
           </button>
         </div>
@@ -2125,7 +2135,9 @@ function TemplatePicker({
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export function VisitClient({ appointmentId }: { appointmentId: string }) {
-  const router = useRouter();
+  const router    = useRouter();
+  const tc        = useTranslations('clinical.common');
+  const tTriage   = useTranslations('clinical.triage');
 
   // ── Data state ──
   const [data,    setData]    = useState<VisitData | null>(null);
@@ -2516,7 +2528,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             {/* Save status */}
             {saveStatus === 'saved' && (
               <span style={{ fontSize: 11, color: '#34d399', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <CheckCircle2 size={12} /> Guardado
+                <CheckCircle2 size={12} /> {tc('saved')}
               </span>
             )}
             {saveStatus === 'error' && (
@@ -2557,7 +2569,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
                 }}
               >
                 {saving ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={12} />}
-                Guardar borrador
+                {tTriage('saveDraft')}
               </button>
             )}
           </div>
@@ -2696,7 +2708,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
             >
-              <Save size={13} /> Guardar borrador
+              <Save size={13} /> {tTriage('saveDraft')}
             </button>
 
             {/* Lab Order */}
@@ -2885,10 +2897,10 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             background: '#0f172a', border: '1px solid rgba(255,255,255,0.10)',
             borderRadius: 14, padding: 24, width: '100%', maxWidth: 420,
           }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>Editar seguro primario</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{tTriage('editInsurance')}</div>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginBottom: 18 }}>{data?.appointment?.case?.caseCode}</div>
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>Aseguradora</div>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>{tTriage('insurer')}</div>
               {insSelected ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.30)' }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#67e8f9' }}>{insSelected.name}</div>
@@ -2896,7 +2908,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
                 </div>
               ) : (
                 <>
-                  <input autoFocus value={insQuery} onChange={e => setInsQuery(e.target.value)} placeholder="Buscar aseguradora..."
+                  <input autoFocus value={insQuery} onChange={e => setInsQuery(e.target.value)} placeholder={tTriage('searchInsurer')}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#fff', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
                   {insResults.length > 0 && (
                     <div style={{ marginTop: 4, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#131c34' }}>
@@ -2915,14 +2927,14 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
               )}
             </div>
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>Número de póliza</div>
-              <input value={insPolicy} onChange={e => setInsPolicy(e.target.value)} placeholder="Ej. PIP-123456"
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>{tTriage('policyNumber')}</div>
+              <input value={insPolicy} onChange={e => setInsPolicy(e.target.value)} placeholder={tTriage('policyPlaceholder')}
                 style={{ width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#fff', fontSize: 12, outline: 'none', fontFamily: 'monospace' }} />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setInsModal(false)} style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => setInsModal(false)} style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', cursor: 'pointer' }}>{tc('cancel')}</button>
               <button onClick={saveInsurance} disabled={insSaving} style={{ padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: 'rgba(6,182,212,0.20)', border: '1px solid rgba(6,182,212,0.40)', color: '#67e8f9', cursor: insSaving ? 'not-allowed' : 'pointer' }}>
-                {insSaving ? 'Guardando...' : 'Guardar'}
+                {insSaving ? tc('saving') : tc('save')}
               </button>
             </div>
           </div>
@@ -2940,10 +2952,10 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             background: '#0f172a', border: '1px solid rgba(255,255,255,0.10)',
             borderRadius: 14, padding: 24, width: '100%', maxWidth: 420,
           }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>Editar información legal</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{tTriage('editLegal')}</div>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginBottom: 18 }}>{data?.appointment?.case?.caseCode}</div>
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>Bufete</div>
+              <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>{tTriage('firm')}</div>
               {firmSelected ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.30)' }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc' }}>{firmSelected.firmName}</div>
@@ -2951,7 +2963,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
                 </div>
               ) : (
                 <>
-                  <input autoFocus value={firmQuery} onChange={e => setFirmQuery(e.target.value)} placeholder="Buscar bufete..."
+                  <input autoFocus value={firmQuery} onChange={e => setFirmQuery(e.target.value)} placeholder={tTriage('searchFirm')}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#fff', fontSize: 12, outline: 'none' }} />
                   {firmResults.length > 0 && (
                     <div style={{ marginTop: 4, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#131c34' }}>
@@ -2971,7 +2983,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
             </div>
             {firmSelected && (
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>Abogado (opcional)</div>
+                <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.40)', fontWeight: 600, marginBottom: 6 }}>{tTriage('attorney')}</div>
                 {attSelected ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.20)' }}>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)' }}>{`${attSelected.firstName ?? ''} ${attSelected.lastName ?? ''}`.trim()}</div>
@@ -2979,7 +2991,7 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
                   </div>
                 ) : (
                   <>
-                    <input value={attQuery} onChange={e => setAttQuery(e.target.value)} placeholder="Buscar abogado del bufete..."
+                    <input value={attQuery} onChange={e => setAttQuery(e.target.value)} placeholder={tTriage('searchAttorney')}
                       style={{ width: '100%', padding: '8px 12px', borderRadius: 8, boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#fff', fontSize: 12, outline: 'none' }} />
                     {attResults.length > 0 && (
                       <div style={{ marginTop: 4, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)', background: '#131c34' }}>
@@ -2999,9 +3011,9 @@ export function VisitClient({ appointmentId }: { appointmentId: string }) {
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setLegalModal(false)} style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => setLegalModal(false)} style={{ padding: '8px 16px', borderRadius: 8, fontSize: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(255,255,255,0.70)', cursor: 'pointer' }}>{tc('cancel')}</button>
               <button onClick={saveLegal} disabled={legalSaving} style={{ padding: '8px 20px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: 'rgba(99,102,241,0.20)', border: '1px solid rgba(99,102,241,0.40)', color: '#a5b4fc', cursor: legalSaving ? 'not-allowed' : 'pointer' }}>
-                {legalSaving ? 'Guardando...' : 'Guardar'}
+                {legalSaving ? tc('saving') : tc('save')}
               </button>
             </div>
           </div>

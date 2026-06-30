@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { createClient } from '@precision-medical/auth/client';
 
 /**
@@ -18,6 +19,7 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
+  const t            = useTranslations('clinical.auth');
   const router       = useRouter();
   const searchParams = useSearchParams();
   const redirectTo   = searchParams.get('redirectTo') || '/';
@@ -136,7 +138,7 @@ function LoginForm() {
           letterSpacing: '-0.3px',
           marginBottom: '4px',
         }}>
-          Precision Medical
+          {t('title')}
         </h1>
         <p style={{
           color:         'rgba(255,255,255,0.38)',
@@ -144,60 +146,60 @@ function LoginForm() {
           textAlign:     'center',
           marginBottom:  '28px',
         }}>
-          Portal Clínico · Doctores y MA
+          {t('subtitle')}
         </p>
 
         {reason === 'session_expired' && (
           <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'9px 12px',borderRadius:8,background:'rgba(245,158,11,0.10)',border:'1px solid rgba(245,158,11,0.30)',color:'#fbbf24',fontSize:12 }}>
-            🔒 Tu sesión expiró por inactividad. Ingresá nuevamente.
+            {t('sessionExpired')}
           </div>
         )}
 
         {lockedUntil && (
           <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:14,padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.25)',color:'#fca5a5',fontSize:12 }}>
-            ⚠️ Cuenta bloqueada. Intentá en <strong style={{marginLeft:4}}>{formatLockRemaining(lockedUntil)}</strong>.
+            {t('accountLocked', { remaining: formatLockRemaining(lockedUntil) })}
           </div>
         )}
 
         {mfaStep ? (
           <form onSubmit={handleMfa} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <p style={{ color:'rgba(255,255,255,0.45)', fontSize:13, textAlign:'center', margin:0 }}>
-              Ingresá el código de tu app autenticadora.
+              {t('mfaInstruction')}
             </p>
             <input
               type="text" inputMode="numeric" pattern="[0-9 ]{6,7}" maxLength={7}
               value={mfaCode} onChange={e => setMfaCode(e.target.value)}
-              placeholder="000 000" required autoFocus autoComplete="one-time-code"
+              placeholder={t('mfaPlaceholder')} required autoFocus autoComplete="one-time-code"
               style={{ width:'100%',padding:'11px 14px',borderRadius:10,border:'1px solid rgba(139,92,246,0.30)',background:'#0d1117',color:'#f1f5f9',fontSize:20,letterSpacing:8,textAlign:'center',outline:'none',boxSizing:'border-box' }}
             />
             {error && <div style={{background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:8,padding:'9px 12px',color:'#fca5a5',fontSize:12}}>{error}</div>}
             <button type="submit" disabled={loading} style={{width:'100%',padding:12,borderRadius:10,background:loading?'rgba(139,92,246,0.50)':'#8b5cf6',color:'#fff',fontSize:13,fontWeight:800,border:'none',cursor:loading?'not-allowed':'pointer'}}>
-              {loading ? 'Verificando…' : 'Verificar →'}
+              {loading ? t('mfaVerifying') : t('mfaVerify')}
             </button>
             <button type="button" onClick={() => { setMfaStep(false); setMfaCode(''); }} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:'rgba(255,255,255,0.35)',textAlign:'center'}}>
-              ← Volver
+              {t('backBtn')}
             </button>
           </form>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
               <label style={{ display:'block',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.08em',color:'rgba(255,255,255,0.40)',marginBottom:'6px',fontWeight:700 }}>
-                Correo electrónico
+                {t('email')}
               </label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="dr.nombre@precisionmedicalcare.com" required autoFocus
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPlaceholder')} required autoFocus
                 style={{ width:'100%',padding:'11px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.10)',background:'#0d1117',color:'#f1f5f9',fontSize:14,outline:'none',boxSizing:'border-box' }} />
             </div>
             <div>
               <label style={{ display:'block',fontSize:'10px',textTransform:'uppercase',letterSpacing:'0.08em',color:'rgba(255,255,255,0.40)',marginBottom:'6px',fontWeight:700 }}>
-                Contraseña
+                {t('password')}
               </label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('passwordPlaceholder')} required
                 style={{ width:'100%',padding:'11px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,0.10)',background:'#0d1117',color:'#f1f5f9',fontSize:14,outline:'none',boxSizing:'border-box' }} />
             </div>
             {error && <div style={{background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:8,padding:'9px 12px',color:'#fca5a5',fontSize:12}}>{error}</div>}
             <button type="submit" disabled={loading || !!lockedUntil}
               style={{ width:'100%',padding:12,borderRadius:10,background:(loading||!!lockedUntil)?'rgba(139,92,246,0.50)':'#8b5cf6',color:'#fff',fontSize:13,fontWeight:800,border:'none',cursor:(loading||!!lockedUntil)?'not-allowed':'pointer',letterSpacing:'0.02em',marginTop:4 }}>
-              {loading ? 'Ingresando…' : 'Ingresar →'}
+              {loading ? t('signingIn') : t('signin')}
             </button>
           </form>
         )}
@@ -218,7 +220,7 @@ function LoginForm() {
             marginRight:   '5px',
             verticalAlign: 'middle',
           }} />
-          Solo personal clínico autorizado · Roles: Doctor · MA
+          {t('footer')}
         </div>
       </div>
     </div>

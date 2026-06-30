@@ -11,6 +11,7 @@
  */
 
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { CheckCircle2, Clock, UserCheck, AlertCircle } from 'lucide-react';
 
@@ -22,17 +23,18 @@ function fmtTime(iso: Date): string {
   });
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg: Record<string, { bg: string; text: string; label: string }> = {
-    SCHEDULED:   { bg: 'rgba(99,102,241,0.12)',  text: '#818cf8', label: 'Agendada'   },
-    CONFIRMED:   { bg: 'rgba(99,102,241,0.16)',  text: '#a5b4fc', label: 'Confirmada' },
-    CHECKED_IN:  { bg: 'rgba(16,185,129,0.16)',  text: '#34d399', label: '✓ En espera' },
-    IN_PROGRESS: { bg: 'rgba(245,158,11,0.14)',  text: '#fbbf24', label: '⚡ En consulta' },
-    COMPLETED:   { bg: 'rgba(255,255,255,0.06)', text: 'rgba(255,255,255,0.40)', label: 'Completada' },
-    NO_SHOW:     { bg: 'rgba(239,68,68,0.12)',   text: '#f87171', label: 'No se presentó' },
-    CANCELLED:   { bg: 'rgba(239,68,68,0.08)',   text: '#fca5a5', label: 'Cancelada' },
+function StatusBadge({ status, labels }: { status: string; labels: Record<string, string> }) {
+  const cfg: Record<string, { bg: string; text: string }> = {
+    SCHEDULED:   { bg: 'rgba(99,102,241,0.12)',  text: '#818cf8' },
+    CONFIRMED:   { bg: 'rgba(99,102,241,0.16)',  text: '#a5b4fc' },
+    CHECKED_IN:  { bg: 'rgba(16,185,129,0.16)',  text: '#34d399' },
+    IN_PROGRESS: { bg: 'rgba(245,158,11,0.14)',  text: '#fbbf24' },
+    COMPLETED:   { bg: 'rgba(255,255,255,0.06)', text: 'rgba(255,255,255,0.40)' },
+    NO_SHOW:     { bg: 'rgba(239,68,68,0.12)',   text: '#f87171' },
+    CANCELLED:   { bg: 'rgba(239,68,68,0.08)',   text: '#fca5a5' },
   };
   const c = cfg[status] ?? cfg['SCHEDULED'];
+  const label = labels[status] ?? status;
   return (
     <span style={{
       padding: '3px 9px', borderRadius: 6,
@@ -40,7 +42,7 @@ function StatusBadge({ status }: { status: string }) {
       fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em',
       whiteSpace: 'nowrap',
     }}>
-      {c.label}
+      {label}
     </span>
   );
 }
@@ -48,6 +50,7 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function ClinicalHomePage() {
+  const t = await getTranslations('clinical.queue');
   const now   = new Date();
   const today = new Date(now); today.setHours(0, 0, 0, 0);
   const eod   = new Date(now); eod.setHours(23, 59, 59, 999);
@@ -73,6 +76,16 @@ export default async function ClinicalHomePage() {
   const inProgress    = appointments.filter(a => a.status === 'IN_PROGRESS');
   const done          = appointments.filter(a => ['COMPLETED', 'NO_SHOW'].includes(a.status));
 
+  const statusLabels: Record<string, string> = {
+    SCHEDULED:   t('status.scheduled'),
+    CONFIRMED:   t('status.confirmed'),
+    CHECKED_IN:  t('status.checkedIn'),
+    IN_PROGRESS: t('status.inProgress'),
+    COMPLETED:   t('status.completed'),
+    NO_SHOW:     t('status.noShow'),
+    CANCELLED:   t('status.cancelled'),
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: '#0a1224', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
 
@@ -91,9 +104,9 @@ export default async function ClinicalHomePage() {
             fontWeight: 900, color: '#fff', fontSize: 12,
           }}>LM</div>
           <div>
-            <div style={{ fontWeight: 800, color: '#fff', fontSize: 14 }}>LienMaster · Clinical</div>
+            <div style={{ fontWeight: 800, color: '#fff', fontSize: 14 }}>{t('title')}</div>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              Recepción · MA
+              {t('subtitle')}
             </div>
           </div>
         </div>
@@ -105,10 +118,10 @@ export default async function ClinicalHomePage() {
       {/* KPI row */}
       <div style={{ padding: '16px 24px 0', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {[
-          { label: 'Por llegar',  value: needsCheckin.length, icon: Clock,        color: '#818cf8', bg: 'rgba(99,102,241,0.08)'   },
-          { label: 'En espera',   value: waitingRoom.length,  icon: UserCheck,    color: '#34d399', bg: 'rgba(16,185,129,0.08)'   },
-          { label: 'En consulta', value: inProgress.length,   icon: AlertCircle,  color: '#fbbf24', bg: 'rgba(245,158,11,0.08)'  },
-          { label: 'Completadas', value: done.length,         icon: CheckCircle2, color: 'rgba(255,255,255,0.35)', bg: 'rgba(255,255,255,0.04)' },
+          { label: t('kpi.pending'),        value: needsCheckin.length, icon: Clock,        color: '#818cf8', bg: 'rgba(99,102,241,0.08)'   },
+          { label: t('kpi.waiting'),        value: waitingRoom.length,  icon: UserCheck,    color: '#34d399', bg: 'rgba(16,185,129,0.08)'   },
+          { label: t('kpi.inConsultation'), value: inProgress.length,   icon: AlertCircle,  color: '#fbbf24', bg: 'rgba(245,158,11,0.08)'  },
+          { label: t('kpi.completed'),      value: done.length,         icon: CheckCircle2, color: 'rgba(255,255,255,0.35)', bg: 'rgba(255,255,255,0.04)' },
         ].map(k => (
           <div key={k.label} style={{
             flex: '1 1 110px', padding: '12px 14px', borderRadius: 10,
@@ -124,15 +137,16 @@ export default async function ClinicalHomePage() {
 
         {/* ── Sala de espera (CHECKED_IN) ── */}
         {waitingRoom.length > 0 && (
-          <Section title="Sala de espera" color="#34d399" count={waitingRoom.length} pulse>
+          <Section title={t('section.waitingRoom')} color="#34d399" count={waitingRoom.length} pulse>
             {waitingRoom.map(appt => (
               <ApptRow
                 key={appt.id}
                 appt={appt}
                 now={now}
+                statusLabels={statusLabels}
                 action={
                   <Link href={`/triage/${appt.id}`} style={btn('emerald')}>
-                    Triaje →
+                    {t('action.triage')}
                   </Link>
                 }
               />
@@ -142,15 +156,16 @@ export default async function ClinicalHomePage() {
 
         {/* ── Por llegar (SCHEDULED / CONFIRMED) ── */}
         {needsCheckin.length > 0 && (
-          <Section title="Citas pendientes de llegada" color="#818cf8" count={needsCheckin.length}>
+          <Section title={t('section.pendingArrival')} color="#818cf8" count={needsCheckin.length}>
             {needsCheckin.map(appt => (
               <ApptRow
                 key={appt.id}
                 appt={appt}
                 now={now}
+                statusLabels={statusLabels}
                 action={
                   <Link href={`/checkin/${appt.id}`} style={btn('indigo')}>
-                    Check-in →
+                    {t('action.checkin')}
                   </Link>
                 }
               />
@@ -160,15 +175,16 @@ export default async function ClinicalHomePage() {
 
         {/* ── En consulta (IN_PROGRESS) ── */}
         {inProgress.length > 0 && (
-          <Section title="En consulta ahora" color="#fbbf24" count={inProgress.length}>
+          <Section title={t('section.inProgress')} color="#fbbf24" count={inProgress.length}>
             {inProgress.map(appt => (
               <ApptRow
                 key={appt.id}
                 appt={appt}
                 now={now}
+                statusLabels={statusLabels}
                 action={
                   <Link href={`/visit/${appt.id}`} style={btn('amber')}>
-                    Ver visita →
+                    {t('action.viewVisit')}
                   </Link>
                 }
               />
@@ -178,16 +194,16 @@ export default async function ClinicalHomePage() {
 
         {/* ── Completadas ── */}
         {done.length > 0 && (
-          <Section title="Completadas hoy" color="rgba(255,255,255,0.25)" count={done.length}>
+          <Section title={t('section.completed')} color="rgba(255,255,255,0.25)" count={done.length}>
             {done.map(appt => (
-              <ApptRow key={appt.id} appt={appt} now={now} dimmed />
+              <ApptRow key={appt.id} appt={appt} now={now} statusLabels={statusLabels} dimmed />
             ))}
           </Section>
         )}
 
         {appointments.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(255,255,255,0.35)', fontSize: 14 }}>
-            Sin citas programadas para hoy
+            {t('noAppointments')}
           </div>
         )}
       </div>
@@ -241,8 +257,8 @@ type ApptData = {
   case: { caseCode: string; intakeFormCompletedAt: Date | null } | null;
 };
 
-function ApptRow({ appt, now, action, dimmed = false }: {
-  appt: ApptData; now: Date; action?: React.ReactNode; dimmed?: boolean;
+function ApptRow({ appt, now, action, dimmed = false, statusLabels }: {
+  appt: ApptData; now: Date; action?: React.ReactNode; dimmed?: boolean; statusLabels: Record<string, string>;
 }) {
   const age = appt.patient.dateOfBirth
     ? Math.floor((now.getTime() - new Date(appt.patient.dateOfBirth).getTime()) / (365.25 * 24 * 3600 * 1000))
@@ -310,7 +326,7 @@ function ApptRow({ appt, now, action, dimmed = false }: {
         </div>
       </div>
 
-      <StatusBadge status={appt.status} />
+      <StatusBadge status={appt.status} labels={statusLabels} />
 
       {action}
     </div>

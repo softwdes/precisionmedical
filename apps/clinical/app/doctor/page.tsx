@@ -8,6 +8,7 @@
  */
 
 import Link  from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import {
   ClipboardList, UserCheck, CheckCircle2,
@@ -51,8 +52,22 @@ function KpiCard({
   );
 }
 
+type ApptRowTranslations = {
+  triageReady: string;
+  waitingTriage: string;
+  inReception: string;
+  labsPending: (count: number) => string;
+  noteSigned: string;
+  draft: string;
+  complete: string;
+  attend: string;
+  note: string;
+  waiting: string;
+  signNote: string;
+};
+
 function ApptRow({
-  appt, isHero = false,
+  appt, isHero = false, t,
 }: {
   appt: {
     id: string;
@@ -67,6 +82,7 @@ function ApptRow({
     labOrders: { id: string; status: string; studyName: string }[];
   };
   isHero?: boolean;
+  t: ApptRowTranslations;
 }) {
   const hasTriage   = !!appt.triageRecord;
   const noteStatus  = appt.visitNote?.status;
@@ -152,7 +168,7 @@ function ApptRow({
           <span style={{ textTransform: 'capitalize' }}>{appt.type.replace(/_/g, ' ').toLowerCase()}</span>
           {/* Triaje badge */}
           {hasTriage && (
-            <span style={{ color: '#34d399', fontWeight: 600 }}>✓ Triaje listo</span>
+            <span style={{ color: '#34d399', fontWeight: 600 }}>{t.triageReady}</span>
           )}
           {triageBlocking && (
             <span style={{
@@ -160,23 +176,23 @@ function ApptRow({
               background: 'rgba(239,68,68,0.10)',
               border: '1px solid rgba(239,68,68,0.25)',
               padding: '1px 6px', borderRadius: 4, fontSize: 10,
-            }}>⛔ Esperando triaje MA</span>
+            }}>{t.waitingTriage}</span>
           )}
           {isCheckedIn && !hasTriage && (
-            <span style={{ color: '#fbbf24', fontSize: 10 }}>⏱ En recepción</span>
+            <span style={{ color: '#fbbf24', fontSize: 10 }}>{t.inReception}</span>
           )}
           {/* Labs badge */}
           {pendingLabs.length > 0 && (
             <span style={{ color: '#38bdf8', fontWeight: 600, fontSize: 10 }}>
-              🧪 {pendingLabs.length} lab{pendingLabs.length > 1 ? 's' : ''} pendiente{pendingLabs.length > 1 ? 's' : ''}
+              {t.labsPending(pendingLabs.length)}
             </span>
           )}
           {/* Nota badge */}
           {noteStatus === 'SIGNED' && (
-            <span style={{ color: '#a78bfa', fontWeight: 600 }}>✓ Nota firmada</span>
+            <span style={{ color: '#a78bfa', fontWeight: 600 }}>{t.noteSigned}</span>
           )}
           {noteStatus === 'DRAFT' && (
-            <span style={{ color: 'rgba(255,255,255,0.40)' }}>Borrador</span>
+            <span style={{ color: 'rgba(255,255,255,0.40)' }}>{t.draft}</span>
           )}
         </div>
       </div>
@@ -207,7 +223,7 @@ function ApptRow({
           }}
         >
           <PenLine size={13} />
-          {isHero ? 'Atender ahora →' : 'Nota →'}
+          {isHero ? t.attend : t.note}
         </Link>
       )}
       {/* Guardrail: triage bloqueante → botón deshabilitado */}
@@ -223,7 +239,7 @@ function ApptRow({
           whiteSpace: 'nowrap', opacity: 0.75, cursor: 'not-allowed',
         }}>
           <AlertTriangle size={13} />
-          Esperando MA
+          {t.waiting}
         </span>
       )}
       {isDone && noteStatus !== 'SIGNED' && (
@@ -240,12 +256,12 @@ function ApptRow({
           }}
         >
           <AlertTriangle size={11} />
-          Firmar nota
+          {t.signNote}
         </Link>
       )}
       {isDone && noteStatus === 'SIGNED' && (
         <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <CheckCircle2 size={13} /> Completa
+          <CheckCircle2 size={13} /> {t.complete}
         </span>
       )}
     </div>
@@ -254,6 +270,7 @@ function ApptRow({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default async function DoctorMiDiaPage() {
+  const t     = await getTranslations('clinical.doctor');
   const now   = new Date();
   const today = new Date(now); today.setHours(0, 0, 0, 0);
   const eod   = new Date(now); eod.setHours(23, 59, 59, 999);
@@ -295,6 +312,20 @@ export default async function DoctorMiDiaPage() {
   // Pendientes de firma
   const unsignedDone = done.filter(a => a.visitNote?.status !== 'SIGNED' && a.status !== 'NO_SHOW');
 
+  const apptT: ApptRowTranslations = {
+    triageReady:   t('status.triageReady'),
+    waitingTriage: t('status.waitingTriage'),
+    inReception:   t('status.inReception'),
+    labsPending:   (count) => t('status.labsPending', { count }),
+    noteSigned:    t('status.noteSigned'),
+    draft:         t('status.draft'),
+    complete:      t('status.complete'),
+    attend:        t('action.attend'),
+    note:          t('action.note'),
+    waiting:       t('action.waiting'),
+    signNote:      t('action.signNote'),
+  };
+
   // Labs pendientes del día (todas las citas)
   const totalPendingLabs = appointments.reduce((acc, a) =>
     acc + a.labOrders.filter(l => l.status === 'ORDERED' || l.status === 'IN_PROGRESS').length, 0,
@@ -316,22 +347,22 @@ export default async function DoctorMiDiaPage() {
             fontWeight: 900, color: '#fff', fontSize: 14,
           }}>LM</div>
           <div>
-            <div style={{ fontWeight: 800, color: '#fff', fontSize: 15 }}>LienMaster · Clinical</div>
+            <div style={{ fontWeight: 800, color: '#fff', fontSize: 15 }}>{t('title')}</div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              Dr. · Mi Día B.17
+              {t('subtitle')} B.17
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link href="/" style={{ fontSize: 11, color: '#a78bfa', textDecoration: 'none' }}>
-            ← Cola MA
+            {t('backToQueue')}
           </Link>
           <Link href="/doctor/templates" style={{
             fontSize: 11, color: '#a78bfa', textDecoration: 'none',
             padding: '4px 10px', borderRadius: 6,
             background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.20)',
           }}>
-            📋 Plantillas
+            {t('templates')}
           </Link>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
             {now.toLocaleDateString('es-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver' })}
@@ -342,10 +373,10 @@ export default async function DoctorMiDiaPage() {
       <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 24 }}>
         {/* KPIs */}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <KpiCard label="Pendientes"  value={upcoming.length}       icon={Clock}         color="#a78bfa" bg="rgba(139,92,246,0.08)"  />
-          <KpiCard label="Completadas" value={done.length}           icon={CheckCircle2}  color="rgba(255,255,255,0.45)" bg="rgba(255,255,255,0.03)" />
-          <KpiCard label="Sin firmar"  value={unsignedDone.length}   icon={AlertTriangle} color="#fbbf24" bg="rgba(245,158,11,0.07)"  />
-          <KpiCard label="Labs pend."  value={totalPendingLabs}      icon={FlaskConical}  color="#38bdf8" bg="rgba(56,189,248,0.07)"  />
+          <KpiCard label={t('kpi.pending')}   value={upcoming.length}       icon={Clock}         color="#a78bfa" bg="rgba(139,92,246,0.08)"  />
+          <KpiCard label={t('kpi.completed')} value={done.length}           icon={CheckCircle2}  color="rgba(255,255,255,0.45)" bg="rgba(255,255,255,0.03)" />
+          <KpiCard label={t('kpi.unsigned')}  value={unsignedDone.length}   icon={AlertTriangle} color="#fbbf24" bg="rgba(245,158,11,0.07)"  />
+          <KpiCard label={t('kpi.labs')}      value={totalPendingLabs}      icon={FlaskConical}  color="#38bdf8" bg="rgba(56,189,248,0.07)"  />
         </div>
 
         {/* Acción requerida: notas sin firmar */}
@@ -355,10 +386,10 @@ export default async function DoctorMiDiaPage() {
               fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em',
               color: '#fbbf24', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <AlertTriangle size={12} /> Notas pendientes de firma ({unsignedDone.length})
+              <AlertTriangle size={12} /> {t('section.unsignedNotes', { count: unsignedDone.length })}
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {unsignedDone.map(a => <ApptRow key={a.id} appt={a} />)}
+              {unsignedDone.map(a => <ApptRow key={a.id} appt={a} t={apptT} />)}
             </div>
           </section>
         )}
@@ -370,9 +401,9 @@ export default async function DoctorMiDiaPage() {
               fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em',
               color: '#a78bfa', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <UserCheck size={12} /> Siguiente paciente
+              <UserCheck size={12} /> {t('section.nextPatient')}
             </h3>
-            <ApptRow appt={nextAppt} isHero />
+            <ApptRow appt={nextAppt} isHero t={apptT} />
           </section>
         ) : (
           <div style={{
@@ -381,7 +412,7 @@ export default async function DoctorMiDiaPage() {
             color: 'rgba(255,255,255,0.35)', fontSize: 14,
           }}>
             <ClipboardList size={32} style={{ marginBottom: 12, opacity: 0.3 }} />
-            <div>Sin citas pendientes para hoy</div>
+            <div>{t('noAppointments')}</div>
           </div>
         )}
 
@@ -392,10 +423,10 @@ export default async function DoctorMiDiaPage() {
               fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em',
               color: 'rgba(255,255,255,0.45)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <ChevronRight size={12} /> A continuación ({queue.length})
+              <ChevronRight size={12} /> {t('section.queue', { count: queue.length })}
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {queue.map(a => <ApptRow key={a.id} appt={a} />)}
+              {queue.map(a => <ApptRow key={a.id} appt={a} t={apptT} />)}
             </div>
           </section>
         )}
@@ -407,10 +438,10 @@ export default async function DoctorMiDiaPage() {
               fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em',
               color: 'rgba(255,255,255,0.30)', marginBottom: 10,
             }}>
-              Completadas ({done.length})
+              {t('section.completed', { count: done.length })}
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {done.map(a => <ApptRow key={a.id} appt={a} />)}
+              {done.map(a => <ApptRow key={a.id} appt={a} t={apptT} />)}
             </div>
           </section>
         )}

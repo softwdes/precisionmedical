@@ -337,7 +337,15 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   // El cleanup cancela la petición anterior a nivel de red (AbortController),
   // imposibilitando que una respuesta stale sobreescriba datos frescos.
   const [refreshKey, setRefreshKey] = useState(0);
-  const [newApptOpen, setNewApptOpen] = useState(false);
+  const [newApptOpen, setNewApptOpen]   = useState(false);
+  const [slotDate,    setSlotDate]      = useState('');
+  const [slotTime,    setSlotTime]      = useState('');
+
+  const openSlot = (date: string, time: string) => {
+    setSlotDate(date);
+    setSlotTime(time);
+    setNewApptOpen(true);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -511,7 +519,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setNewApptOpen(true)}
+            onClick={() => { setSlotDate(''); setSlotTime(''); setNewApptOpen(true); }}
             className="flex items-center gap-1.5 h-7 px-3 rounded border border-cyan/40 bg-cyan/10 text-cyan text-xs font-medium hover:bg-cyan/20 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -583,13 +591,15 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                       const isToday = dayKey === todayStr;
                       const cellAppts = apptMap[dayKey]?.[slot] ?? [];
                       return (
-                        <div key={di} className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-col gap-0.5 ${isToday ? 'bg-cyan/[0.025]' : ''}`}>
+                        <div key={di}
+                          onClick={() => openSlot(dayKey, slot)}
+                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-col gap-0.5 cursor-pointer group ${isToday ? 'bg-cyan/[0.025]' : 'hover:bg-white/[0.015]'}`}>
                           {cellAppts.map(appt => {
                             const s = getEventStyle(appt);
                             const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                             const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
                             return (
-                              <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
+                              <button key={appt.id} type="button" onClick={(e) => { e.stopPropagation(); setSelectedAppt(appt); }}
                                 className="w-full text-left rounded px-1.5 py-[3px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99]"
                                 style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
                                 <div className="text-[11px] font-bold leading-tight truncate" style={{ color: s.text }}>
@@ -646,13 +656,15 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                       <div className="border-r border-white/[0.04] flex items-start justify-end pr-2 pt-1">
                         <span className="text-[9px] text-white/30 font-mono tabular-nums">{slot}</span>
                       </div>
-                      <div className={`p-0.5 flex flex-col gap-0.5 ${isToday ? 'bg-cyan/[0.015]' : ''}`}>
+                      <div
+                        onClick={() => openSlot(dayKey, slot)}
+                        className={`p-0.5 flex flex-col gap-0.5 cursor-pointer ${isToday ? 'bg-cyan/[0.015]' : 'hover:bg-white/[0.015]'}`}>
                         {cellAppts.map(appt => {
                           const s = getEventStyle(appt);
                           const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                           const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
                           return (
-                            <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
+                            <button key={appt.id} type="button" onClick={(e) => { e.stopPropagation(); setSelectedAppt(appt); }}
                               className="w-full text-left rounded px-2 py-1 transition-all hover:brightness-110"
                               style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
                               <div className="text-[12px] font-bold leading-tight truncate" style={{ color: s.text }}>
@@ -768,6 +780,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         open={newApptOpen}
         onOpenChange={setNewApptOpen}
         onSuccess={() => setRefreshKey(k => k + 1)}
+        initialDate={slotDate || undefined}
+        initialTime={slotTime || undefined}
       />
     </div>
   );

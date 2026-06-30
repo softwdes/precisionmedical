@@ -67,6 +67,8 @@ type AppointmentDialogProps = (CaseModeProps | FreeModeProps) & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  initialDate?: string; // YYYY-MM-DD
+  initialTime?: string; // HH:MM
 };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -96,7 +98,7 @@ const SPECIALTY_COLORS: Record<string, string> = {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AppointmentDialog(props: AppointmentDialogProps) {
-  const { open, onOpenChange, onSuccess } = props;
+  const { open, onOpenChange, onSuccess, initialDate, initialTime } = props;
   const router = useRouter();
 
   // Resources
@@ -167,8 +169,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setCaseId(props.mode === 'case' ? (props.caseInfo?.id ?? '') : '');
     setClinicId('');
     setProviderId('');
-    setDate('');
-    setTime('');
+    setDate(initialDate ?? '');
+    setTime(initialTime ?? '');
     setDuration(30);
     setType('AUTO_ACCIDENT');
     setNotes('');

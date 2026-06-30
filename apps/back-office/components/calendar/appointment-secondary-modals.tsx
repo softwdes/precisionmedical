@@ -91,13 +91,14 @@ export function AppointmentSecondaryModals({ type, appointment: appt, onClose }:
 // ─── Shared modal shell ───────────────────────────────────────────────────────
 
 function ModalShell({
-  title, icon, accentColor, children, footer,
+  title, icon, accentColor, children, footer, onClose,
 }: {
   title: string;
   icon: React.ReactNode;
   accentColor: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  onClose?: () => void;
 }) {
   return (
     <div className="rounded-xl border bg-bg-1 shadow-2xl overflow-hidden mx-4"
@@ -106,7 +107,7 @@ function ModalShell({
         style={{ background: `color-mix(in srgb, ${accentColor} 8%, transparent)`, borderColor: accentColor + '40' }}>
         <span style={{ color: accentColor }}>{icon}</span>
         <span className="text-text-1 font-semibold text-sm flex-1">{title}</span>
-        <button type="button" className="text-text-muted hover:text-text-1 transition-colors">
+        <button type="button" onClick={onClose} className="text-text-muted hover:text-text-1 transition-colors">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -163,6 +164,7 @@ function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: 
       title="Datos personales"
       icon={<User className="w-4 h-4" />}
       accentColor="#6366f1"
+      onClose={onClose}
       footer={
         <>
           {p.phone && <ActionBtn href={p.phone} label="Llamar" color="#a5b4fc" tel />}
@@ -196,7 +198,7 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
   const lawyer = appt.case?.attorney;
   if (!lawyer) {
     return (
-      <ModalShell title="Abogado & bufete" icon={<Scale className="w-4 h-4" />} accentColor="#f43f5e">
+      <ModalShell title="Abogado & bufete" icon={<Scale className="w-4 h-4" />} accentColor="#f43f5e" onClose={onClose}>
         <p className="text-text-muted text-sm text-center py-4">
           Sin abogado asignado a este caso.
         </p>
@@ -211,6 +213,7 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
       title="Abogado & bufete"
       icon={<Scale className="w-4 h-4" />}
       accentColor="#f43f5e"
+      onClose={onClose}
       footer={
         <>
           {lawyer.phone && <ActionBtn href={lawyer.phone} label="Llamar" color="#fda4af" tel />}
@@ -246,7 +249,7 @@ function InsuranceModal({ appt, onClose }: { appt: CalendarAppointment; onClose:
   const insurance = appt.case?.primaryInsurance;
   if (!insurance) {
     return (
-      <ModalShell title="Seguro PIP" icon={<Shield className="w-4 h-4" />} accentColor="#10b981">
+      <ModalShell title="Seguro PIP" icon={<Shield className="w-4 h-4" />} accentColor="#10b981" onClose={onClose}>
         <p className="text-text-muted text-sm text-center py-4">
           Sin seguro asignado a este caso.
         </p>
@@ -261,6 +264,7 @@ function InsuranceModal({ appt, onClose }: { appt: CalendarAppointment; onClose:
       title="Seguro PIP (auto)"
       icon={<Shield className="w-4 h-4" />}
       accentColor="#10b981"
+      onClose={onClose}
     >
       <div className="rounded-lg p-3 border border-emerald/20 mb-3"
         style={{ background: 'rgba(16,185,129,0.07)' }}>
@@ -287,6 +291,7 @@ function CallHandlerModal({ appt, onClose }: { appt: CalendarAppointment; onClos
     <ModalShell
       title="Llamada inicial · quién atendió"
       icon={<Headphones className="w-4 h-4" />}
+      onClose={onClose}
       accentColor="#06b6d4"
     >
       <div className="rounded-lg p-3 border border-cyan/20 mb-3 flex items-center gap-3"
@@ -317,7 +322,7 @@ function IntakeModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
   const intakeDone = !!appt.case?.intakeFormCompletedAt;
   if (intakeDone) {
     return (
-      <ModalShell title="Formulario del paciente" icon={<Mail className="w-4 h-4" />} accentColor="#10b981">
+      <ModalShell title="Formulario del paciente" icon={<Mail className="w-4 h-4" />} accentColor="#10b981" onClose={onClose}>
         <div className="text-center py-4 space-y-2">
           <div className="text-3xl">✅</div>
           <div className="text-text-1 font-semibold">Formulario ya completado</div>
@@ -331,6 +336,7 @@ function IntakeModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
   return (
     <ModalShell
       title="Reenviar formulario portal"
+      onClose={onClose}
       icon={<Mail className="w-4 h-4" />}
       accentColor="#06b6d4"
     >

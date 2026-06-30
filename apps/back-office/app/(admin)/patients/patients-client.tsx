@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -116,7 +116,12 @@ export function PatientsClient({ patients, q }: Props) {
                   <div className="flex items-center gap-3">
                     <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} />
                     <div>
-                      <div className="text-text-1 font-medium">{p.firstName} {p.lastName}</div>
+                      <button
+                        onClick={() => router.push(`/patients/${p.id}`)}
+                        className="text-text-1 font-medium hover:text-brand transition-colors text-left"
+                      >
+                        {p.firstName} {p.lastName}
+                      </button>
                       {p.patientCode && (
                         <div className="text-text-muted text-[10px] font-mono">{p.patientCode}</div>
                       )}
@@ -134,7 +139,13 @@ export function PatientsClient({ patients, q }: Props) {
 
                 {/* Casos */}
                 <td className="px-4 py-3 hidden lg:table-cell">
-                  <span className="text-text-2">{p.caseCount} caso{p.caseCount !== 1 ? 's' : ''}</span>
+                  <button
+                    onClick={() => router.push(`/patients/${p.id}`)}
+                    className="text-text-2 hover:text-brand transition-colors"
+                    title="Ver casos del paciente"
+                  >
+                    {p.caseCount} caso{p.caseCount !== 1 ? 's' : ''}
+                  </button>
                 </td>
 
                 {/* Status */}
@@ -146,12 +157,19 @@ export function PatientsClient({ patients, q }: Props) {
                 </td>
 
                 {/* Acciones */}
-                <td className="w-24 px-4 py-3">
+                <td className="w-28 px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => router.push(`/patients/${p.id}`)}
+                      className="p-1.5 rounded-md text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
+                      title="Ver detalle y casos"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => setViewTarget(p)}
                       className="p-1.5 rounded-md text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
-                      title="Ver ficha"
+                      title="Ver ficha rápida"
                     >
                       <Eye className="w-3.5 h-3.5" />
                     </button>

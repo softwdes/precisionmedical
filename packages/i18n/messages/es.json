@@ -1945,7 +1945,7 @@
       "passToRoom": "Pasar a la sala →",
       "passToRoomWithDoctor": "Pasar a la sala con Dr. {lastName} →",
       "typeAutoAccident": "Auto Accident",
-      "typeFamilyPractice": "Family Practice",
+      "typeFamilyPractice": "Medicina general (MG)",
       "typeUrgentCare": "Urgent Care",
       "typeFollowUp": "Follow-up",
       "typeConsultation": "Consulta"
@@ -2013,7 +2013,7 @@
       "filterAllDoctors": "Todos los doctores",
       "filterAllTypes": "MVA + GP",
       "typeAutoAccident": "🚗 MVA (auto)",
-      "typeFamilyPractice": "🩺 Family Practice",
+      "typeFamilyPractice": "🩺 Medicina general (MG)",
       "typeUrgentCare": "⚡ Urgent Care",
       "typeFollowUp": "🔄 Follow-up",
       "visitFirst": "1ra cita",

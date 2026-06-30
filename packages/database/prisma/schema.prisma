@@ -562,7 +562,7 @@ model Lawyer {
   parentFirm       Lawyer?           @relation("FirmMembers", fields: [parentFirmId], references: [id])
   members          Lawyer[]          @relation("FirmMembers")
 
-  email            String            @unique
+  email            String?           @unique
   phone            String?
   address          String?
 

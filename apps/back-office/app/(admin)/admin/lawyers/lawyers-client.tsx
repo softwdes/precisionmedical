@@ -34,7 +34,7 @@ import {
 interface Firm {
   id: string;
   firmName: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   address: string | null;
   city: string | null;

@@ -108,23 +108,23 @@ export const CITIES_BY_STATE: Record<string, string[]> = {
   DC: ['Washington'],
 };
 
-/** ZIP principal por ciudad (Utah completo + ciudades mayores de otros estados) */
+/** ZIP principal por ciudad — cobertura completa de CITIES_BY_STATE */
 export const CITY_ZIP: Record<string, string> = {
-  // ── Utah ──────────────────────────────────────────────────────────────────
+  // ── Utah (completo) ───────────────────────────────────────────────────────
   Alpine: '84004', Alta: '84092', Altamont: '84001', 'American Fork': '84003',
   Aurora: '84620', Beaver: '84713', Blanding: '84511', Bluffdale: '84065',
   Boulder: '84716', Bountiful: '84010', 'Brian Head': '84719', 'Brigham City': '84302',
   'Castle Dale': '84513', 'Cedar City': '84720', 'Cedar Hills': '84062',
   Centerfield: '84622', Centerville: '84014', Circleville: '84723',
   Clarkston: '84305', Clearfield: '84015', Clinton: '84015', Coalville: '84017',
-  Corinne: '84307', Cottonwood: '84121', 'Cottonwood Heights': '84047',
+  Corinne: '84307', 'Cottonwood Heights': '84047',
   Delta: '84624', Draper: '84020', Duchesne: '84021', 'Eagle Mountain': '84005',
   'East Carbon': '84520', 'Elk Ridge': '84651', Elsinore: '84724',
   Emery: '84522', Enoch: '84721', Enterprise: '84725', Ephraim: '84627',
   Escalante: '84726', Eureka: '84628', Fairview: '84629', Farmington: '84025',
   'Farr West': '84404', Ferron: '84523', Fillmore: '84631', Francis: '84036',
   'Fruit Heights': '84037', Garland: '84312', Genola: '84655',
-  Glendale: '84729', Glenwood: '84730', Goshen: '84633', 'Green River': '84525',
+  'Glendale UT': '84729', Glenwood: '84730', Goshen: '84633', 'Green River': '84525',
   Gunnison: '84634', Harrisville: '84404', 'Heber City': '84032',
   Helper: '84526', Herriman: '84096', Highland: '84003', Hildale: '84784',
   Holden: '84636', Holladay: '84117', Honeyville: '84314', Hooper: '84315',
@@ -132,7 +132,7 @@ export const CITY_ZIP: Record<string, string> = {
   'Hyde Park': '84318', Hyrum: '84319', Ivins: '84738', Junction: '84740',
   Kamas: '84036', Kanab: '84741', Kaysville: '84037', Layton: '84041',
   Leamington: '84638', Leeds: '84746', Lehi: '84043', Levan: '84639',
-  Lewiston: '84320', Lindon: '84042', Logan: '84321', Lyman: '84749',
+  'Lewiston UT': '84320', Lindon: '84042', Logan: '84321', Lyman: '84749',
   Magna: '84044', Manti: '84642', Mantua: '84324', Mapleton: '84664',
   Marysvale: '84750', Mayfield: '84643', Meadow: '84644', Mendon: '84325',
   Midvale: '84047', Midway: '84049', Milford: '84751', Millville: '84326',
@@ -145,39 +145,261 @@ export const CITY_ZIP: Record<string, string> = {
   'Park City': '84060', Parowan: '84761', Payson: '84651', Perry: '84302',
   'Plain City': '84404', 'Pleasant Grove': '84062', 'Pleasant View': '84414',
   Price: '84501', Providence: '84332', Provo: '84601', Randolph: '84064',
-  Richfield: '84701', Richmond: '84333', Riverdale: '84405', Riverton: '84065',
-  Roosevelt: '84066', Roy: '84067', Salem: '84653', Salina: '84654',
-  'Salt Lake City': '84101', Sandy: '84070', 'Santa Clara': '84765',
+  Richfield: '84701', 'Richmond UT': '84333', Riverdale: '84405', Riverton: '84065',
+  Roosevelt: '84066', Roy: '84067', 'Salem UT': '84653', Salina: '84654',
+  'Salt Lake City': '84101', Sandy: '84070', 'Santa Clara UT': '84765',
   Santaquin: '84655', 'Saratoga Springs': '84045', Scipio: '84656',
   Smithfield: '84335', 'South Jordan': '84095', 'South Ogden': '84403',
   'South Salt Lake': '84115', 'South Weber': '84405', 'Spanish Fork': '84660',
   Springdale: '84767', Springville: '84663', 'St. George': '84770',
   Sunset: '84015', Syracuse: '84075', Tooele: '84074', Tremonton: '84337',
   Uintah: '84405', Vernal: '84078', Vineyard: '84058', Virgin: '84779',
-  Washington: '84780', 'Washington Terrace': '84405', Wellington: '84542',
+  'Washington UT': '84780', 'Washington Terrace': '84405', Wellington: '84542',
   Wellsville: '84339', Wendover: '84083', 'West Bountiful': '84087',
   'West Haven': '84401', 'West Jordan': '84084', 'West Point': '84015',
   'West Valley City': '84119', Willard: '84340', 'Woodland Hills': '84653',
   'Woods Cross': '84087',
-  // ── Florida ───────────────────────────────────────────────────────────────
-  Miami: '33101', 'Miami Beach': '33139', Hialeah: '33010', Tampa: '33601',
-  Orlando: '32801', Jacksonville: '32099', 'Fort Lauderdale': '33301',
-  'Boca Raton': '33427', 'West Palm Beach': '33401', Gainesville: '32601',
-  Tallahassee: '32301', Pensacola: '32501', Sarasota: '34230',
-  // ── California ────────────────────────────────────────────────────────────
-  'Los Angeles': '90001', 'San Francisco': '94102', 'San Diego': '92101',
-  'San Jose': '95101', Sacramento: '95814', Fresno: '93701', Oakland: '94601',
-  // ── Texas ─────────────────────────────────────────────────────────────────
-  Houston: '77001', Dallas: '75201', Austin: '73301', 'San Antonio': '78201',
-  'Fort Worth': '76101', Plano: '75023', 'El Paso': '79901',
-  // ── New York ──────────────────────────────────────────────────────────────
-  'New York City': '10001', Manhattan: '10001', Brooklyn: '11201',
-  Queens: '11431', Bronx: '10451', Buffalo: '14201', Rochester: '14601',
-  // ── Nevada ────────────────────────────────────────────────────────────────
-  'Las Vegas': '89101', Henderson: '89002', Reno: '89501',
+  // ── Alabama ───────────────────────────────────────────────────────────────
+  Alabaster: '35007', Albertville: '35950', 'Alexander City': '35010',
+  Anniston: '36201', Athens: '35611', Auburn: '36830', Bessemer: '35020',
+  Birmingham: '35203', Cullman: '35055', Daphne: '36526', Decatur: '35601',
+  Dothan: '36301', 'Enterprise AL': '36330', Fairhope: '36532', Florence: '35630',
+  Gadsden: '35901', Homewood: '35209', Hoover: '35226', Huntsville: '35801',
+  Jacksonville: '36265', Jasper: '35501', Madison: '35758', Mobile: '36601',
+  Montgomery: '36101', 'Muscle Shoals': '35661', Northport: '35476',
+  Opelika: '36801', Oxford: '36203', Pelham: '35124', 'Phenix City': '36867',
+  Prattville: '36066', Prichard: '36610', Scottsboro: '35768', Selma: '36701',
+  Talladega: '35160', Troy: '36081', Tuscaloosa: '35401',
+  // ── Alaska ────────────────────────────────────────────────────────────────
+  Anchorage: '99501', Badger: '99705', College: '99701', Fairbanks: '99701',
+  Juneau: '99801', Ketchikan: '99901', Kodiak: '99615', Sitka: '99835',
+  Wasilla: '99654',
   // ── Arizona ───────────────────────────────────────────────────────────────
-  Phoenix: '85001', Tucson: '85701', Mesa: '85201', Scottsdale: '85251',
-  Chandler: '85224', Gilbert: '85296',
+  'Apache Junction': '85120', Avondale: '85323', Buckeye: '85326',
+  'Bullhead City': '86429', 'Casa Grande': '85122', 'Casas Adobes': '85742',
+  'Catalina Foothills': '85718', Chandler: '85224', Flagstaff: '86001',
+  Gilbert: '85296', Glendale: '85301', Goodyear: '85338', Maricopa: '85138',
+  Mesa: '85201', Peoria: '85345', Phoenix: '85001', Prescott: '86301',
+  'Queen Creek': '85142', Scottsdale: '85251', 'Sierra Vista': '85635',
+  Surprise: '85374', Tempe: '85281', Tucson: '85701', Yuma: '85364',
+  // ── Arkansas ──────────────────────────────────────────────────────────────
+  Bentonville: '72712', Conway: '72032', 'El Dorado': '71730',
+  Fayetteville: '72701', 'Fort Smith': '72901', 'Hot Springs': '71901',
+  Jonesboro: '72401', 'Little Rock': '72201', 'North Little Rock': '72114',
+  'Pine Bluff': '71601', Rogers: '72756', Russellville: '72801',
+  Sherwood: '72120', Springdale: '72762', Texarkana: '71854', 'West Memphis': '72301',
+  // ── California ────────────────────────────────────────────────────────────
+  Anaheim: '92801', Antioch: '94509', Bakersfield: '93301', Berkeley: '94701',
+  Burbank: '91501', 'Chula Vista': '91910', Clovis: '93612', Compton: '90220',
+  Corona: '92879', 'Costa Mesa': '92626', 'Daly City': '94014', 'El Monte': '91731',
+  'Elk Grove': '95624', Escondido: '92025', Fontana: '92335', Fremont: '94536',
+  Fresno: '93701', Fullerton: '92831', 'Garden Grove': '92840',
+  'Glendale CA': '91201', Hayward: '94541', 'Huntington Beach': '92646',
+  Inglewood: '90301', Irvine: '92602', Lancaster: '93534', 'Long Beach': '90801',
+  'Los Angeles': '90001', Modesto: '95351', 'Moreno Valley': '92551',
+  Murrieta: '92562', Norwalk: '90650', Oakland: '94601', Oceanside: '92054',
+  Ontario: '91761', Orange: '92856', Oxnard: '93030', Palmdale: '93550',
+  Pasadena: '91101', Pomona: '91766', 'Rancho Cucamonga': '91730',
+  Rialto: '92376', Richmond: '94801', Riverside: '92501', Roseville: '95661',
+  Sacramento: '95814', Salinas: '93901', 'San Bernardino': '92401',
+  'San Diego': '92101', 'San Francisco': '94102', 'San Jose': '95101',
+  'San Mateo': '94401', 'Santa Ana': '92701', 'Santa Clara': '95050',
+  'Santa Clarita': '91350', 'Santa Rosa': '95401', 'Simi Valley': '93065',
+  Stockton: '95201', Sunnyvale: '94085', 'Thousand Oaks': '91360',
+  Torrance: '90501', Vallejo: '94590', Victorville: '92392', Visalia: '93291',
   // ── Colorado ──────────────────────────────────────────────────────────────
-  Denver: '80201', 'Colorado Springs': '80901',
+  Arvada: '80001', 'Aurora CO': '80010', Boulder: '80301', Brighton: '80601',
+  Broomfield: '80021', 'Castle Rock': '80104', 'Colorado Springs': '80901',
+  'Commerce City': '80022', Denver: '80201', 'Fort Collins': '80521',
+  'Grand Junction': '81501', Greeley: '80631', 'Highlands Ranch': '80129',
+  Lakewood: '80226', Longmont: '80501', Loveland: '80537', Parker: '80134',
+  Pueblo: '81001', Thornton: '80229', Westminster: '80021',
+  // ── Connecticut ───────────────────────────────────────────────────────────
+  Bridgeport: '06601', Bristol: '06010', Danbury: '06810', 'East Hartford': '06108',
+  Greenwich: '06830', Hartford: '06101', Manchester: '06040', Meriden: '06450',
+  Milford: '06460', 'New Britain': '06051', 'New Haven': '06501',
+  Norwalk: '06850', Stamford: '06901', Stratford: '06614', Waterbury: '06701',
+  'West Hartford': '06107',
+  // ── Delaware ──────────────────────────────────────────────────────────────
+  Dover: '19901', Newark: '19702', Wilmington: '19801',
+  // ── Florida ───────────────────────────────────────────────────────────────
+  'Boca Raton': '33427', 'Bonita Springs': '34134', 'Cape Coral': '33901',
+  Clearwater: '33755', 'Coral Springs': '33065', Davie: '33314',
+  'Deerfield Beach': '33441', Deltona: '32725', 'Fort Lauderdale': '33301',
+  'Fort Myers': '33901', Gainesville: '32601', Hialeah: '33010',
+  Hollywood: '33019', Homestead: '33030', 'Jacksonville FL': '32099',
+  Jupiter: '33458', Kissimmee: '34741', Lakeland: '33801', Lauderhill: '33311',
+  Miami: '33101', 'Miami Beach': '33139', 'Miami Gardens': '33056',
+  Miramar: '33025', Naples: '34101', 'North Port': '34286', Orlando: '32801',
+  'Palm Bay': '32905', 'Palm Beach Gardens': '33410', 'Pembroke Pines': '33024',
+  Pensacola: '32501', Plantation: '33317', 'Pompano Beach': '33060',
+  'Port St. Lucie': '34952', Sarasota: '34230', 'Spring Hill': '34609',
+  'St. Petersburg': '33701', Sunrise: '33322', Tallahassee: '32301',
+  Tampa: '33601', 'West Palm Beach': '33401',
+  // ── Georgia ───────────────────────────────────────────────────────────────
+  Albany: '31701', Alpharetta: '30004', 'Athens GA': '30601', Atlanta: '30301',
+  Augusta: '30901', Columbus: '31901', 'Gainesville GA': '30501',
+  'Johns Creek': '30097', Macon: '31201', Marietta: '30060',
+  'Peachtree City': '30269', Roswell: '30075', 'Sandy Springs': '30328',
+  Savannah: '31401', Smyrna: '30080', 'South Fulton': '30213',
+  Valdosta: '31601', 'Warner Robins': '31088',
+  // ── Hawaii ────────────────────────────────────────────────────────────────
+  'East Honolulu': '96825', Hilo: '96720', Honolulu: '96801',
+  Kailua: '96734', Kaneohe: '96744', 'Pearl City': '96782', Waipahu: '96797',
+  // ── Idaho ─────────────────────────────────────────────────────────────────
+  Boise: '83701', Caldwell: '83605', "Coeur d'Alene": '83814',
+  'Idaho Falls': '83401', 'Lewiston ID': '83501', Meridian: '83642',
+  Moscow: '83843', Nampa: '83651', Pocatello: '83201', 'Post Falls': '83854',
+  'Twin Falls': '83301',
+  // ── Illinois ──────────────────────────────────────────────────────────────
+  'Aurora IL': '60505', 'Bloomington IL': '61701', Champaign: '61820',
+  Chicago: '60601', Cicero: '60804', Decatur: '62521', Elgin: '60120',
+  Evanston: '60201', Joliet: '60431', Naperville: '60540', Peoria: '61601',
+  Rockford: '61101', 'Springfield IL': '62701', Waukegan: '60085',
+  // ── Indiana ───────────────────────────────────────────────────────────────
+  Anderson: '46011', 'Bloomington IN': '47401', Carmel: '46032',
+  'Columbus IN': '47201', Evansville: '47701', Fishers: '46037',
+  'Fort Wayne': '46801', Gary: '46401', Hammond: '46320', Indianapolis: '46201',
+  Kokomo: '46901', Lafayette: '47901', Lawrence: '46226', Muncie: '47302',
+  Noblesville: '46060', 'South Bend': '46601', 'Terre Haute': '47801',
+  // ── Iowa ──────────────────────────────────────────────────────────────────
+  Ames: '50010', 'Cedar Rapids': '52401', 'Council Bluffs': '51501',
+  Davenport: '52801', 'Des Moines': '50301', Dubuque: '52001',
+  'Iowa City': '52240', 'Sioux City': '51101', Waterloo: '50701',
+  // ── Kansas ────────────────────────────────────────────────────────────────
+  'Kansas City KS': '66101', 'Lawrence KS': '66044', Lenexa: '66215',
+  Olathe: '66061', 'Overland Park': '66204', Salina: '67401',
+  Topeka: '66601', Wichita: '67201',
+  // ── Kentucky ──────────────────────────────────────────────────────────────
+  'Bowling Green': '42101', Covington: '41011', Elizabethtown: '42701',
+  Lexington: '40501', Louisville: '40201', Owensboro: '42301',
+  Paducah: '42001', 'Richmond KY': '40475',
+  // ── Louisiana ─────────────────────────────────────────────────────────────
+  'Baton Rouge': '70801', 'Bossier City': '71111', Kenner: '70062',
+  'Lafayette LA': '70501', 'Lake Charles': '70601', Metairie: '70001',
+  'Monroe LA': '71201', 'New Orleans': '70112', Shreveport: '71101',
+  // ── Maine ─────────────────────────────────────────────────────────────────
+  'Auburn ME': '04210', Augusta: '04330', Bangor: '04401',
+  'Lewiston ME': '04240', Portland: '04101', 'South Portland': '04106',
+  // ── Maryland ──────────────────────────────────────────────────────────────
+  Annapolis: '21401', Baltimore: '21201', Bowie: '20715', Frederick: '21701',
+  Gaithersburg: '20877', Germantown: '20874', Rockville: '20850',
+  'Silver Spring': '20901', Waldorf: '20601',
+  // ── Massachusetts ─────────────────────────────────────────────────────────
+  Boston: '02101', Brockton: '02301', Cambridge: '02139', 'Fall River': '02720',
+  Lowell: '01851', Lynn: '01901', 'New Bedford': '02740', Newton: '02458',
+  Quincy: '02169', 'Springfield MA': '01101', Waltham: '02451', Worcester: '01601',
+  // ── Michigan ──────────────────────────────────────────────────────────────
+  'Ann Arbor': '48101', Clinton: '48035', Dearborn: '48120', Detroit: '48201',
+  Flint: '48501', 'Grand Rapids': '49501', Kalamazoo: '49001', Lansing: '48901',
+  Livonia: '48150', Macomb: '48042', 'Rochester Hills': '48307',
+  Southfield: '48075', 'Sterling Heights': '48310', Warren: '48089',
+  Westland: '48185',
+  // ── Minnesota ─────────────────────────────────────────────────────────────
+  'Bloomington MN': '55420', 'Brooklyn Park': '55443', Burnsville: '55306',
+  'Coon Rapids': '55433', Duluth: '55801', Eagan: '55121', 'Eden Prairie': '55344',
+  Edina: '55435', 'Maple Grove': '55311', Minneapolis: '55401',
+  Plymouth: '55441', Rochester: '55901', 'St. Cloud': '56301',
+  'St. Paul': '55101', Woodbury: '55125',
+  // ── Mississippi ───────────────────────────────────────────────────────────
+  Biloxi: '39530', Gulfport: '39501', Hattiesburg: '39401', Jackson: '39201',
+  Meridian: '39301', Southaven: '38671', Tupelo: '38801',
+  // ── Missouri ──────────────────────────────────────────────────────────────
+  Columbia: '65201', Independence: '64050', 'Jefferson City': '65101',
+  Joplin: '64801', 'Kansas City MO': '64101', "Lee's Summit": '64063',
+  "O'Fallon": '63366', 'Springfield MO': '65801', 'St. Charles': '63301',
+  'St. Joseph': '64501', 'St. Louis': '63101',
+  // ── Montana ───────────────────────────────────────────────────────────────
+  Billings: '59101', Bozeman: '59715', 'Great Falls': '59401',
+  Helena: '59601', Kalispell: '59901', Missoula: '59801',
+  // ── Nebraska ──────────────────────────────────────────────────────────────
+  Bellevue: '68005', 'Grand Island': '68801', Lincoln: '68501', Omaha: '68101',
+  // ── Nevada ────────────────────────────────────────────────────────────────
+  'Carson City': '89701', 'Enterprise NV': '89123', Henderson: '89002',
+  'Las Vegas': '89101', 'North Las Vegas': '89030', Reno: '89501',
+  Sparks: '89431', 'Spring Valley': '89117', 'Sunrise Manor': '89110',
+  // ── New Hampshire ─────────────────────────────────────────────────────────
+  Concord: '03301', 'Manchester NH': '03101', Nashua: '03060',
+  // ── New Jersey ────────────────────────────────────────────────────────────
+  Camden: '08101', Edison: '08817', Elizabeth: '07201', 'Jersey City': '07302',
+  'Newark NJ': '07101', Paterson: '07501', 'Toms River': '08753',
+  Trenton: '08601', Woodbridge: '07095',
+  // ── New Mexico ────────────────────────────────────────────────────────────
+  Albuquerque: '87101', 'Las Cruces': '88001', 'Rio Rancho': '87124',
+  'Roswell NM': '88201', 'Santa Fe': '87501',
+  // ── New York ──────────────────────────────────────────────────────────────
+  'Albany NY': '12201', Bronx: '10451', Brooklyn: '11201', Buffalo: '14201',
+  Cheektowaga: '14225', Hempstead: '11550', Islip: '11751',
+  Manhattan: '10001', 'New York City': '10001', 'Niagara Falls': '14301',
+  Queens: '11431', 'Rochester NY': '14601', Schenectady: '12301',
+  'Staten Island': '10301', Syracuse: '13201', Utica: '13501', Yonkers: '10701',
+  // ── North Carolina ────────────────────────────────────────────────────────
+  Asheville: '28801', Cary: '27511', 'Chapel Hill': '27514', Charlotte: '28201',
+  'Concord NC': '28025', Durham: '27701', 'Fayetteville NC': '28301',
+  Gastonia: '28052', Greensboro: '27401', 'High Point': '27260',
+  'Jacksonville NC': '28540', Raleigh: '27601', Wilmington: '28401',
+  'Winston-Salem': '27101',
+  // ── North Dakota ──────────────────────────────────────────────────────────
+  Bismarck: '58501', Fargo: '58102', 'Grand Forks': '58201', Minot: '58701',
+  // ── Ohio ──────────────────────────────────────────────────────────────────
+  Akron: '44301', Canton: '44701', Cincinnati: '45201', Cleveland: '44101',
+  'Columbus OH': '43201', Dayton: '45401', Elyria: '44035', Hamilton: '45011',
+  Lorain: '44052', Parma: '44129', 'Springfield OH': '45501', Toledo: '43601',
+  Youngstown: '44501',
+  // ── Oklahoma ──────────────────────────────────────────────────────────────
+  'Broken Arrow': '74011', Edmond: '73003', Lawton: '73501', Moore: '73160',
+  Norman: '73069', 'Oklahoma City': '73101', Stillwater: '74074', Tulsa: '74101',
+  // ── Oregon ────────────────────────────────────────────────────────────────
+  Beaverton: '97005', Bend: '97701', Eugene: '97401', Gresham: '97030',
+  Hillsboro: '97123', Medford: '97501', Portland: '97201',
+  'Salem OR': '97301', 'Springfield OR': '97477',
+  // ── Pennsylvania ──────────────────────────────────────────────────────────
+  Allentown: '18101', Bethlehem: '18015', Erie: '16501', Lancaster: '17601',
+  Philadelphia: '19101', Pittsburgh: '15201', Reading: '19601', Scranton: '18501',
+  // ── Rhode Island ──────────────────────────────────────────────────────────
+  Cranston: '02910', Pawtucket: '02860', Providence: '02901',
+  Warwick: '02886', Woonsocket: '02895',
+  // ── South Carolina ────────────────────────────────────────────────────────
+  Charleston: '29401', 'Columbia SC': '29201', 'Florence SC': '29501',
+  Greenville: '29601', 'Mount Pleasant SC': '29464', 'North Charleston': '29405',
+  'Rock Hill': '29730', Spartanburg: '29301',
+  // ── South Dakota ──────────────────────────────────────────────────────────
+  Aberdeen: '57401', 'Rapid City': '57701', 'Sioux Falls': '57101',
+  // ── Tennessee ─────────────────────────────────────────────────────────────
+  Chattanooga: '37401', Clarksville: '37040', 'Jackson TN': '38301',
+  'Johnson City': '37601', Kingsport: '37660', Knoxville: '37901',
+  Memphis: '38101', Murfreesboro: '37129', Nashville: '37201',
+  // ── Texas ─────────────────────────────────────────────────────────────────
+  Abilene: '79601', Allen: '75002', Amarillo: '79101', Arlington: '76010',
+  Austin: '73301', Beaumont: '77701', Brownsville: '78520', Carrollton: '75006',
+  'Corpus Christi': '78401', Dallas: '75201', Denton: '76201', 'El Paso': '79901',
+  'Fort Worth': '76101', Frisco: '75034', Garland: '75040', 'Grand Prairie': '75050',
+  Houston: '77001', Irving: '75061', Killeen: '76541', Laredo: '78040',
+  'League City': '77573', Lewisville: '75029', Lubbock: '79401',
+  McAllen: '78501', McKinney: '75069', Mesquite: '75149', Midland: '79701',
+  'Missouri City': '77459', Odessa: '79761', Pasadena: '77501',
+  Pearland: '77581', Plano: '75023', Richardson: '75080', 'Round Rock': '78664',
+  'San Antonio': '78201', 'Sugar Land': '77478', Tyler: '75701', Waco: '76701',
+  // ── Vermont ───────────────────────────────────────────────────────────────
+  Burlington: '05401', Montpelier: '05601', Rutland: '05701',
+  // ── Virginia ──────────────────────────────────────────────────────────────
+  Alexandria: '22301', 'Arlington VA': '22201', Chesapeake: '23320',
+  Hampton: '23661', Lynchburg: '24501', 'Newport News': '23601',
+  Norfolk: '23501', Portsmouth: '23701', 'Richmond VA': '23218',
+  Roanoke: '24011', Suffolk: '23434', 'Virginia Beach': '23450',
+  // ── Washington ────────────────────────────────────────────────────────────
+  Bellevue: '98004', Bellingham: '98225', 'Federal Way': '98003',
+  Kirkland: '98033', Marysville: '98270', Redmond: '98052', Renton: '98055',
+  Seattle: '98101', Spokane: '99201', Tacoma: '98401',
+  'Vancouver WA': '98660', Yakima: '98901',
+  // ── West Virginia ─────────────────────────────────────────────────────────
+  'Charleston WV': '25301', 'Huntington WV': '25701', Morgantown: '26501',
+  Parkersburg: '26101', Wheeling: '26003',
+  // ── Wisconsin ─────────────────────────────────────────────────────────────
+  Appleton: '54911', 'Green Bay': '54301', Kenosha: '53140', Madison: '53701',
+  Milwaukee: '53201', Oshkosh: '54901', Racine: '53401', Waukesha: '53186',
+  // ── Wyoming ───────────────────────────────────────────────────────────────
+  Casper: '82601', Cheyenne: '82001', Laramie: '82070',
+  // ── Washington D.C. ───────────────────────────────────────────────────────
+  'Washington DC': '20001',
 };

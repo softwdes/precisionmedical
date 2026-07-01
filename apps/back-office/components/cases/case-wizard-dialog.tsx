@@ -670,25 +670,77 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
               </div>
 
               {/* Consents summary */}
-              <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4">
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald" />
-                  <span className="text-sm font-medium text-emerald">{t('reviewConsentsAll')}</span>
-                </div>
-                <p className="text-[11px] text-text-muted mt-1">5 consentimientos firmados · firma digital capturada</p>
-              </div>
+              {(() => {
+                const items: { label: string; signed: boolean }[] = [
+                  { label: t('consents.hipaa.title'),           signed: consents.hipaa },
+                  { label: t('consents.assignedParties.title'), signed: consents.assignedParties },
+                  { label: t('consents.treatment.title'),       signed: consents.treatment },
+                  { label: t('consents.financial.title'),       signed: consents.financial },
+                  { label: t('consents.medicalHistory.title'),  signed: consents.medicalHistory },
+                ];
+                const signedCount = items.filter(i => i.signed).length;
+                const allSigned   = signedCount === items.length;
+                return (
+                  <div className={`rounded-lg border p-4 space-y-3 ${allSigned ? 'border-emerald/30 bg-emerald/5' : 'border-amber/30 bg-amber/5'}`}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-semibold uppercase tracking-wider ${allSigned ? 'text-emerald' : 'text-amber'}`}>
+                        Estado de consentimientos
+                      </span>
+                      <span className={`text-[11px] font-medium ${allSigned ? 'text-emerald' : 'text-amber'}`}>
+                        {signedCount} / {items.length} firmados
+                      </span>
+                    </div>
 
-              {/* Signature preview */}
-              {consents.signatureDataUrl && (
-                <div className="rounded-lg border border-border bg-bg-1 p-3">
-                  <p className="text-[10px] text-text-muted uppercase tracking-wider mb-2">{t('signatureLabel')}</p>
-                  <img
-                    src={consents.signatureDataUrl}
-                    alt="Firma digital"
-                    className="max-h-20 rounded border border-border/40 bg-bg-2/30"
-                  />
-                </div>
-              )}
+                    {/* Items */}
+                    <div className="space-y-1.5">
+                      {items.map(item => (
+                        <div key={item.label} className="flex items-center gap-2.5">
+                          <span className={`flex items-center justify-center w-5 h-5 rounded-full shrink-0 text-[11px] font-bold
+                            ${item.signed ? 'bg-emerald/15 text-emerald' : 'bg-rose/15 text-rose'}`}>
+                            {item.signed ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                          </span>
+                          <span className={`text-[12px] ${item.signed ? 'text-text-1' : 'text-text-muted'}`}>
+                            {item.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Firma digital */}
+                    <div className="flex items-center gap-2.5 pt-1 border-t border-border/30">
+                      <span className={`flex items-center justify-center w-5 h-5 rounded-full shrink-0
+                        ${consents.signatureDataUrl ? 'bg-emerald/15 text-emerald' : 'bg-rose/15 text-rose'}`}>
+                        {consents.signatureDataUrl ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                      </span>
+                      <span className={`text-[12px] ${consents.signatureDataUrl ? 'text-text-1' : 'text-text-muted'}`}>
+                        Firma digital
+                      </span>
+                      {consents.signatureDataUrl && (
+                        <img
+                          src={consents.signatureDataUrl}
+                          alt="Firma"
+                          className="ml-auto h-8 rounded border border-border/30 bg-bg-2/30 px-2"
+                        />
+                      )}
+                    </div>
+
+                    {/* Personas responsables */}
+                    {responsible.length > 0 && (
+                      <div className="pt-1 border-t border-border/30">
+                        <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1.5">
+                          Personas responsables ({responsible.length})
+                        </p>
+                        {responsible.map((p, i) => (
+                          <div key={i} className="text-[12px] text-text-1">
+                            {p.name || '—'}{p.relation ? ` · ${p.relation}` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 

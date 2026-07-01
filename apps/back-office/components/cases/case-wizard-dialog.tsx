@@ -11,16 +11,89 @@
  * HIPAA: consents guardados en Case.consentsData + consentSignaturePng.
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope } from 'lucide-react';
+import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope, ChevronDown } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Button,
 } from '@precision/ui';
 import { FormField } from '@/components/ui-phoenix';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
+
+// ─── Law firm selector ────────────────────────────────────────────────────────
+
+interface LawFirm { id: string; firmName: string | null; }
+
+function LawFirmSelect({
+  value, firmId, onChange, placeholder,
+}: {
+  value: string;
+  firmId: string | null;
+  onChange: (label: string, id: string | null) => void;
+  placeholder: string;
+}) {
+  const [open,    setOpen]    = useState(false);
+  const [firms,   setFirms]   = useState<LawFirm[]>([]);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/admin/lawyers/autocomplete')
+      .then(r => r.json())
+      .then(j => setFirms(j.firms ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <label className="text-xs font-medium text-text-muted block mb-1">Firma de abogados</label>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 rounded-md border border-border bg-bg-2 text-sm text-left transition-colors hover:border-brand/40 focus:outline-none focus:border-brand"
+      >
+        <span className={value ? 'text-text-1' : 'text-text-muted text-[12px]'}>
+          {value || placeholder}
+        </span>
+        <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg max-h-52 overflow-y-auto">
+          <button
+            type="button"
+            className="w-full text-left px-3 py-2 text-[12px] text-text-muted hover:bg-white/[0.04]"
+            onClick={() => { onChange('', null); setOpen(false); }}
+          >
+            — Sin firma
+          </button>
+          {loading && <p className="px-3 py-2 text-[11px] text-text-muted">Cargando...</p>}
+          {firms.map(f => (
+            <button
+              key={f.id}
+              type="button"
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-white/[0.04] transition-colors ${firmId === f.id ? 'text-brand font-medium' : 'text-text-1'}`}
+              onClick={() => { onChange(f.firmName ?? '', f.id); setOpen(false); }}
+            >
+              {f.firmName}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -145,6 +218,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
   const [accidentDate, setAccidentDate] = useState('');
   const [description,  setDescription]  = useState('');
   const [lawFirm,      setLawFirm]      = useState('');
+  const [lawFirmId,    setLawFirmId]    = useState<string | null>(null);
   const [attorney,     setAttorney]     = useState('');
   const [chiropractor, setChiropractor] = useState('');
 
@@ -163,6 +237,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
       setAccidentDate('');
       setDescription('');
       setLawFirm('');
+      setLawFirmId(null);
       setAttorney('');
       setChiropractor('');
       setConsents(EMPTY_CONSENTS);
@@ -220,7 +295,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
           },
           legal: {
             lawyerStatus:    'HAS',
-            lawFirmId:       null,
+            lawFirmId:       lawFirmId ?? null,
             caseManagerName: attorney  || null,
           },
           insurance:   { primaryInsuranceId: null },
@@ -336,10 +411,10 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
               />
 
               {/* Legal */}
-              <FormField.Input
-                label={t('lawFirm')}
+              <LawFirmSelect
                 value={lawFirm}
-                onChange={setLawFirm}
+                firmId={lawFirmId}
+                onChange={(name, id) => { setLawFirm(name); setLawFirmId(id); }}
                 placeholder={t('lawFirmPlaceholder')}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

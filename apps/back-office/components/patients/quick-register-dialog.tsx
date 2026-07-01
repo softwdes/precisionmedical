@@ -13,7 +13,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   UserPlus, Car, Stethoscope, AlertCircle, QrCode, Send, Save,
-  Check, Copy, ExternalLink, RotateCcw, ChevronDown, Search, X,
+  Check, Copy, ExternalLink, RotateCcw,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -52,12 +52,10 @@ const REFERRAL_OPTIONS = [
   { value: 'OTHER',            label: 'Otro' },
 ];
 
-// ─── ReferredBy Combobox — texto libre + sugerencias de firmas ────────────────
+// ─── ReferredBy Select — lista de firmas cargada desde DB ────────────────────
 
-function ReferredByCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [open,    setOpen]    = useState(false);
-  const [firms,   setFirms]   = useState<string[]>([]);
-  const wrapRef  = useRef<HTMLDivElement>(null);
+function ReferredBySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [firms, setFirms] = useState<string[]>([]);
 
   useEffect(() => {
     fetch('/api/admin/lawyers/autocomplete')
@@ -66,63 +64,18 @@ function ReferredByCombobox({ value, onChange }: { value: string; onChange: (v: 
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    function onClose(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onClose);
-    return () => document.removeEventListener('mousedown', onClose);
-  }, [open]);
-
-  const filtered = value.trim()
-    ? firms.filter(f => f.toLowerCase().includes(value.toLowerCase()))
-    : firms;
-
   return (
-    <div ref={wrapRef} className="relative">
-      <div className={`flex items-center gap-1.5 w-full bg-bg-2 border rounded-md px-3 py-2 transition-colors
-        ${open ? 'border-brand ring-1 ring-brand/20' : 'border-border hover:border-brand/40'}`}>
-        <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-        <input
-          className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted/50 outline-none"
-          value={value}
-          onChange={e => { onChange(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          placeholder="Nombre o firma de quien refirió"
-        />
-        {value && (
-          <button type="button" onClick={() => { onChange(''); setOpen(false); }}
-            className="text-text-muted hover:text-rose transition-colors">
-            <X className="w-3 h-3" />
-          </button>
-        )}
-        <button type="button" onClick={() => setOpen(o => !o)}
-          className="text-text-muted hover:text-text-1 transition-colors">
-          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
-      </div>
-
-      {open && filtered.length > 0 && (
-        <div className="rounded-b-md border border-t-0 border-border bg-bg-1 shadow-inner overflow-hidden">
-          <div className="max-h-44 overflow-y-auto overscroll-contain">
-            {filtered.map(f => (
-              <button
-                key={f}
-                type="button"
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => { onChange(f); setOpen(false); }}
-                className={`w-full text-left px-3 py-1.5 text-[13px] hover:bg-white/[0.05] transition-colors
-                  ${value === f ? 'text-brand font-medium bg-brand/[0.05]' : 'text-text-1'}`}
-              >
-                {value === f && <Check className="w-3 h-3 inline mr-1.5 mb-0.5" />}
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    <select
+      className={SELECT}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+    >
+      <option value="">Seleccionar opción</option>
+      {firms.map(f => (
+        <option key={f} value={f}>{f}</option>
+      ))}
+      <option value="__otro__">Otro…</option>
+    </select>
   );
 }
 
@@ -396,7 +349,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="max-w-2xl p-0 max-h-[92vh] flex flex-col">
+      <DialogContent className="max-w-3xl p-0 max-h-[92vh] flex flex-col">
 
         {/* Header */}
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
@@ -477,7 +430,15 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                     </select>
                   </Field>
                   <Field label="¿Quién lo refirió?">
-                    <ReferredByCombobox value={referredBy} onChange={setReferredBy} />
+                    <ReferredBySelect value={referredBy} onChange={setReferredBy} />
+                    {referredBy === '__otro__' && (
+                      <input
+                        className={`${INPUT} mt-1.5`}
+                        placeholder="Escribe el nombre..."
+                        onChange={e => setReferredBy(e.target.value)}
+                        autoFocus
+                      />
+                    )}
                   </Field>
                 </div>
               </div>
@@ -566,44 +527,46 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
 
         {/* Footer — solo visible cuando no está en modo QR success */}
         {!successInfo && (
-          <div className="px-6 py-4 border-t border-border shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="px-4 sm:px-6 py-3 border-t border-border shrink-0 flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               onClick={() => { reset(); onOpenChange(false); }}
               disabled={saving}
-              className="w-full sm:w-auto sm:mr-auto"
+              className="shrink-0"
             >
               Cancelar
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => handleSave('exit')}
-              disabled={saving}
-              className="w-full sm:w-auto flex items-center justify-center gap-1.5"
-            >
-              <Save className="w-3.5 h-3.5" />
-              Guardar y salir
-            </Button>
+            <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
+              <Button
+                variant="outline"
+                onClick={() => handleSave('exit')}
+                disabled={saving}
+                className="flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <Save className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Guardar y </span>salir
+              </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => handleSave('form')}
-              disabled={saving}
-              className="w-full sm:w-auto flex items-center justify-center gap-1.5"
-            >
-              <Send className="w-3.5 h-3.5" />
-              Guardar y enviar formulario
-            </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleSave('form')}
+                disabled={saving}
+                className="flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <Send className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Guardar y enviar </span>formulario
+              </Button>
 
-            <Button
-              onClick={() => handleSave('qr')}
-              disabled={saving}
-              className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-cyan hover:bg-cyan/90 text-white border-cyan"
-            >
-              <QrCode className="w-3.5 h-3.5" />
-              {saving ? 'Guardando...' : 'Guardar y generar QR'}
-            </Button>
+              <Button
+                onClick={() => handleSave('qr')}
+                disabled={saving}
+                className="flex items-center gap-1.5 whitespace-nowrap bg-cyan hover:bg-cyan/90 text-white border-cyan"
+              >
+                <QrCode className="w-3.5 h-3.5 shrink-0" />
+                {saving ? 'Guardando...' : <><span className="hidden sm:inline">Guardar y generar </span>QR</>}
+              </Button>
+            </div>
           </div>
         )}
 

@@ -11,8 +11,7 @@
  * HIPAA: consents guardados en Case.consentsData + consentSignaturePng.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope, ChevronDown, Search, X } from 'lucide-react';
@@ -23,7 +22,7 @@ import {
 import { FormField } from '@/components/ui-phoenix';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 
-// ─── Law firm selector ────────────────────────────────────────────────────────
+// ─── Law firm selector (inline — compatible con focus trap de Radix Dialog) ──
 
 interface LawFirm { id: string; label: string; }
 
@@ -35,147 +34,115 @@ function LawFirmSelect({
   onChange: (label: string, id: string | null) => void;
   placeholder: string;
 }) {
-  const [open,    setOpen]    = useState(false);
-  const [firms,   setFirms]   = useState<LawFirm[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [query,   setQuery]   = useState('');
-  const [rect,    setRect]    = useState<DOMRect | null>(null);
-  const btnRef  = useRef<HTMLButtonElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [open,    setOpen]  = useState(false);
+  const [firms,   setFirms] = useState<LawFirm[]>([]);
+  const [loading, setLoad]  = useState(false);
+  const [query,   setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setLoading(true);
+    setLoad(true);
     fetch('/api/admin/lawyers/autocomplete')
       .then(r => r.json())
       .then(j => setFirms(j.results ?? []))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => setLoad(false));
   }, []);
 
-  const openDropdown = useCallback(() => {
-    if (btnRef.current) setRect(btnRef.current.getBoundingClientRect());
-    setQuery('');
-    setOpen(true);
-  }, []);
-
+  // Focus search input when panel opens
   useEffect(() => {
-    if (!open) return;
-    function onClose(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node) &&
-          btnRef.current  && !btnRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function onScroll() { setOpen(false); }
-    document.addEventListener('mousedown', onClose);
-    document.addEventListener('scroll', onScroll, true);
-    return () => {
-      document.removeEventListener('mousedown', onClose);
-      document.removeEventListener('scroll', onScroll, true);
-    };
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
+    else setQuery('');
   }, [open]);
 
   const filtered = query.trim()
     ? firms.filter(f => f.label.toLowerCase().includes(query.toLowerCase()))
     : firms;
 
-  // Position: prefer below, flip above if not enough space
-  const PANEL_H = 280;
-  const spaceBelow = rect ? window.innerHeight - rect.bottom - 8 : 999;
-  const top = rect
-    ? (spaceBelow >= PANEL_H ? rect.bottom + 4 : rect.top - PANEL_H - 4)
-    : 0;
-  const left  = rect?.left  ?? 0;
-  const width = rect?.width ?? 300;
-
   return (
     <div>
       <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">
         Firma de abogados
       </label>
+
+      {/* Trigger */}
       <button
-        ref={btnRef}
         type="button"
-        onClick={() => open ? setOpen(false) : openDropdown()}
+        onClick={() => setOpen(o => !o)}
         className={`w-full flex items-center justify-between px-3 py-2 rounded-md border bg-bg-2 text-sm text-left transition-colors focus:outline-none
-          ${open ? 'border-brand ring-1 ring-brand/30' : 'border-border hover:border-brand/40'}`}
+          ${open ? 'border-brand ring-1 ring-brand/30 rounded-b-none' : 'border-border hover:border-brand/40'}`}
       >
         <span className={value ? 'text-text-1 truncate pr-2' : 'text-text-muted text-[12px]'}>
           {value || placeholder}
         </span>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {value && (
             <span
               role="button"
               tabIndex={0}
               onKeyDown={e => e.key === 'Enter' && onChange('', null)}
-              onClick={e => { e.stopPropagation(); onChange('', null); }}
+              onClick={e => { e.stopPropagation(); onChange('', null); setOpen(false); }}
               className="text-text-muted hover:text-rose transition-colors cursor-pointer"
             >
               <X className="w-3 h-3" />
             </span>
           )}
-          <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
-      {open && rect && createPortal(
-        <div
-          ref={wrapRef}
-          style={{ position: 'fixed', top, left, width, zIndex: 9999 }}
-          className="rounded-md border border-border bg-bg-1 shadow-xl overflow-hidden"
-        >
+      {/* Inline panel — abre hacia abajo en flujo normal, el modal scrollea */}
+      {open && (
+        <div className="rounded-b-md border border-t-0 border-border bg-bg-1 shadow-inner overflow-hidden">
           {/* Search */}
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-bg-2/40">
             <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
             <input
-              autoFocus
+              ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Buscar firma..."
-              className="flex-1 bg-transparent text-[12px] text-text-1 placeholder:text-text-muted/60 outline-none"
+              className="flex-1 bg-transparent text-[12px] text-text-1 placeholder:text-text-muted/50 outline-none"
             />
             {query && (
-              <button type="button" onClick={() => setQuery('')} className="text-text-muted hover:text-text-1">
+              <button type="button" onClick={() => setQuery('')} className="text-text-muted hover:text-text-1 transition-colors">
                 <X className="w-3 h-3" />
               </button>
             )}
           </div>
 
           {/* List */}
-          <div className="max-h-[220px] overflow-y-auto">
-            {/* Clear option */}
+          <div className="max-h-48 overflow-y-auto overscroll-contain">
             <button
               type="button"
-              className="w-full text-left px-3 py-1.5 text-[11px] text-text-muted/70 italic hover:bg-white/[0.04] transition-colors border-b border-border/30"
+              className="w-full text-left px-3 py-2 text-[11px] text-text-muted/60 italic hover:bg-white/[0.03] transition-colors border-b border-border/20"
               onClick={() => { onChange('', null); setOpen(false); }}
             >
               Sin firma asignada
             </button>
 
-            {loading && (
-              <p className="px-3 py-3 text-[11px] text-text-muted text-center">Cargando...</p>
-            )}
+            {loading && <p className="px-3 py-3 text-[11px] text-text-muted text-center">Cargando...</p>}
 
             {!loading && filtered.length === 0 && (
-              <p className="px-3 py-3 text-[11px] text-text-muted text-center">Sin resultados</p>
+              <p className="px-3 py-3 text-[11px] text-text-muted text-center">Sin resultados para &ldquo;{query}&rdquo;</p>
             )}
 
             {filtered.map(f => (
               <button
                 key={f.id}
                 type="button"
-                className={`w-full text-left px-3 py-1.5 text-[13px] hover:bg-white/[0.05] transition-colors
-                  ${firmId === f.id ? 'text-brand font-medium bg-brand/[0.06]' : 'text-text-1'}`}
+                className={`w-full text-left px-3 py-2 text-[13px] hover:bg-white/[0.04] transition-colors flex items-center gap-2
+                  ${firmId === f.id ? 'text-brand font-medium bg-brand/[0.05]' : 'text-text-1'}`}
                 onClick={() => { onChange(f.label, f.id); setOpen(false); }}
               >
-                {firmId === f.id && <Check className="w-3 h-3 inline mr-1.5 mb-0.5" />}
+                <span className={`w-3 h-3 shrink-0 ${firmId === f.id ? 'opacity-100' : 'opacity-0'}`}>
+                  <Check className="w-3 h-3" />
+                </span>
                 {f.label}
               </button>
             ))}
           </div>
-        </div>,
-        document.body
+        </div>
       )}
     </div>
   );

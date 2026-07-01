@@ -298,7 +298,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
                   label="Estado"
                   value={form.addressState}
                   onChange={(v) => setForm(prev => ({ ...prev, addressState: v, addressCity: '' }))}
-                  options={US_STATES.map(s => s.name)}
+                  options={['Utah', ...US_STATES.filter(s => s.code !== 'UT').map(s => s.name)]}
                   placeholder="Seleccionar estado"
                 />
                 <LocationSelect

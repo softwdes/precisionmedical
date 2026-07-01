@@ -322,22 +322,13 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
   }
 
   function canGoStep3() {
-    const allChecked = consents.hipaa && consents.assignedParties && consents.treatment && consents.financial && consents.medicalHistory;
-    return allChecked && !!consents.signatureDataUrl;
+    return true; // Flexible: se puede avanzar sin completar todos los consentimientos
   }
 
   function handleNext() {
     setError('');
     if (step === 1) { setStep(2); return; }
     if (step === 2) {
-      if (!consents.hipaa || !consents.assignedParties || !consents.treatment || !consents.financial || !consents.medicalHistory) {
-        setError('Debe aceptar todos los consentimientos para continuar.');
-        return;
-      }
-      if (!consents.signatureDataUrl) {
-        setError(t('signatureRequired'));
-        return;
-      }
       setStep(3);
     }
   }

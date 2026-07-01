@@ -68,10 +68,6 @@ interface Props {
   total: number;
 }
 
-// ─── CreateButton: exported as static sub-component for server page ────────────
-function CreateButton() {
-  return <PatientCreateDialog />;
-}
 
 export function PatientsClient({ patients, q, page, totalPages, total }: Props) {
   const router  = useRouter();
@@ -396,5 +392,3 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   );
 }
 
-// Sub-componente estático para usar en el server page
-PatientsClient.CreateButton = CreateButton;

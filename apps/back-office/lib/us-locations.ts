@@ -179,5 +179,5 @@ export const CITY_ZIP: Record<string, string> = {
   Phoenix: '85001', Tucson: '85701', Mesa: '85201', Scottsdale: '85251',
   Chandler: '85224', Gilbert: '85296',
   // ── Colorado ──────────────────────────────────────────────────────────────
-  Denver: '80201', 'Colorado Springs': '80901', Aurora: '80010',
+  Denver: '80201', 'Colorado Springs': '80901',
 };

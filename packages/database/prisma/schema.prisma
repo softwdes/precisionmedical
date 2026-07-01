@@ -1997,12 +1997,29 @@ enum CaseStatus {
 }
 
 enum ReferralSource {
+  // Legacy — mantener para datos existentes
   PHONE_CALL            // Recepción humana en B.1
   WALK_IN               // Paciente camina sin cita
-  LAW_FIRM_REFERRAL     // Bufete refiere directo
-  PATIENT_REFERRAL      // Paciente existente refiere
   WEB_FORM              // Form público
   AI_AGENT              // Phase 3+ Vapi/Retell
+  // Activos en UI
+  LAW_FIRM              // Abogado / Bufete de abogados
+  LAW_FIRM_REFERRAL     // alias legacy → mismo concepto
+  WEB_SEARCH            // Búsqueda web
+  ACCIDENT_CENTER       // Centro de accidentes (ej. Axcess)
+  FACEBOOK
+  FAMILY                // Familiar
+  GOOGLE
+  GOOGLE_MAPS
+  INSTAGRAM
+  WEBSITE               // Página web
+  CLINIC_STAFF          // Personal de la clínica
+  CHIROPRACTOR          // Quiropráctico
+  REFERRAL              // Recomendación general
+  PATIENT_REFERRAL      // Recomendación de paciente existente
+  INSURANCE             // Seguro
+  MEDICAL_INSURANCE     // Seguro médico
+  TIKTOK
   OTHER
 }
 

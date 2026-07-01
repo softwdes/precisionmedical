@@ -916,6 +916,65 @@
       "PEDESTRIAN": "Peatón",
       "WORKPLACE": "Laboral",
       "OTHER": "Otro"
+    },
+    "referralSources": {
+      "LAW_FIRM": "Abogado / Bufete de abogados",
+      "LAW_FIRM_REFERRAL": "Abogado / Bufete de abogados",
+      "WEB_SEARCH": "Búsqueda web",
+      "ACCIDENT_CENTER": "Centro de accidentes Axcess",
+      "FACEBOOK": "Facebook",
+      "FAMILY": "Familia",
+      "GOOGLE": "Google",
+      "GOOGLE_MAPS": "Google Maps",
+      "INSTAGRAM": "Instagram",
+      "WEBSITE": "Página web",
+      "CLINIC_STAFF": "Personal de la clínica (membresía, etc.)",
+      "CHIROPRACTOR": "Quiropráctico (Cascade, Saratoga, etc.)",
+      "REFERRAL": "Recomendación",
+      "PATIENT_REFERRAL": "Recomendación de un paciente de la clínica",
+      "INSURANCE": "Seguro",
+      "MEDICAL_INSURANCE": "Seguro médico",
+      "TIKTOK": "TikTok",
+      "PHONE_CALL": "Llamada telefónica",
+      "WALK_IN": "Entrada directa",
+      "WEB_FORM": "Formulario web",
+      "AI_AGENT": "Agente IA",
+      "OTHER": "Otro"
+    },
+    "fields": {
+      "howDidYouHear": "¿Cómo se enteró de nosotros?",
+      "sex": "Sexo",
+      "maritalStatus": "Estado civil",
+      "phone2": "Celular",
+      "employer": "Empleador",
+      "preferredPharmacy": "Farmacia preferida",
+      "communicationPreference": "¿Cómo prefiere ser contactado?",
+      "addressLine1": "Dirección",
+      "addressState": "Estado",
+      "addressCity": "Ciudad",
+      "addressZip": "Código postal",
+      "emergencyContact2": "Segundo contacto de emergencia"
+    },
+    "sex": {
+      "MALE": "Masculino",
+      "FEMALE": "Femenino",
+      "NON_BINARY": "No binario",
+      "OTHER": "Otro",
+      "PREFER_NOT_TO_SAY": "Prefiero no decir"
+    },
+    "maritalStatus": {
+      "SINGLE": "Soltero/a",
+      "MARRIED": "Casado/a",
+      "DIVORCED": "Divorciado/a",
+      "WIDOWED": "Viudo/a",
+      "SEPARATED": "Separado/a",
+      "OTHER": "Otro"
+    },
+    "communicationPreference": {
+      "PHONE": "Teléfono",
+      "EMAIL": "Email",
+      "TEXT": "Mensaje de texto",
+      "ANY": "Cualquiera"
     }
   },
   "appointments": {

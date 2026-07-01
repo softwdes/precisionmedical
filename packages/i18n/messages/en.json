@@ -916,6 +916,65 @@
       "PEDESTRIAN": "Pedestrian",
       "WORKPLACE": "Workplace",
       "OTHER": "Other"
+    },
+    "referralSources": {
+      "LAW_FIRM": "Attorney / Law firm",
+      "LAW_FIRM_REFERRAL": "Attorney / Law firm",
+      "WEB_SEARCH": "Web search",
+      "ACCIDENT_CENTER": "Accident center (Axcess)",
+      "FACEBOOK": "Facebook",
+      "FAMILY": "Family",
+      "GOOGLE": "Google",
+      "GOOGLE_MAPS": "Google Maps",
+      "INSTAGRAM": "Instagram",
+      "WEBSITE": "Website",
+      "CLINIC_STAFF": "Clinic staff (membership, etc.)",
+      "CHIROPRACTOR": "Chiropractor (Cascade, Saratoga, etc.)",
+      "REFERRAL": "Referral",
+      "PATIENT_REFERRAL": "Referred by a clinic patient",
+      "INSURANCE": "Insurance",
+      "MEDICAL_INSURANCE": "Medical insurance",
+      "TIKTOK": "TikTok",
+      "PHONE_CALL": "Phone call",
+      "WALK_IN": "Walk-in",
+      "WEB_FORM": "Web form",
+      "AI_AGENT": "AI Agent",
+      "OTHER": "Other"
+    },
+    "fields": {
+      "howDidYouHear": "How did you hear about us?",
+      "sex": "Sex",
+      "maritalStatus": "Marital status",
+      "phone2": "Cell phone",
+      "employer": "Employer",
+      "preferredPharmacy": "Preferred pharmacy",
+      "communicationPreference": "Preferred contact method",
+      "addressLine1": "Address",
+      "addressState": "State",
+      "addressCity": "City",
+      "addressZip": "ZIP code",
+      "emergencyContact2": "Second emergency contact"
+    },
+    "sex": {
+      "MALE": "Male",
+      "FEMALE": "Female",
+      "NON_BINARY": "Non-binary",
+      "OTHER": "Other",
+      "PREFER_NOT_TO_SAY": "Prefer not to say"
+    },
+    "maritalStatus": {
+      "SINGLE": "Single",
+      "MARRIED": "Married",
+      "DIVORCED": "Divorced",
+      "WIDOWED": "Widowed",
+      "SEPARATED": "Separated",
+      "OTHER": "Other"
+    },
+    "communicationPreference": {
+      "PHONE": "Phone",
+      "EMAIL": "Email",
+      "TEXT": "Text message",
+      "ANY": "Any"
     }
   },
   "appointments": {

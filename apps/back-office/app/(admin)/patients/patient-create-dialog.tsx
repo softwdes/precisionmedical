@@ -158,12 +158,22 @@ export function PatientCreateDialog({ onCreated }: Props) {
   ];
   const REFERRAL_OPTIONS = [
     { value: '', label: '—' },
-    { value: 'PHONE_CALL', label: 'Llamada telefónica' },
-    { value: 'WALK_IN', label: 'Entrada directa' },
-    { value: 'LAW_FIRM_REFERRAL', label: 'Referido por bufete' },
-    { value: 'PATIENT_REFERRAL', label: 'Referido por paciente' },
-    { value: 'WEB_FORM', label: 'Formulario web' },
-    { value: 'SOCIAL_MEDIA', label: 'Redes sociales' },
+    { value: 'LAW_FIRM', label: 'Abogado / Bufete de abogados' },
+    { value: 'WEB_SEARCH', label: 'Búsqueda web' },
+    { value: 'ACCIDENT_CENTER', label: 'Centro de accidentes Axcess' },
+    { value: 'FACEBOOK', label: 'Facebook' },
+    { value: 'FAMILY', label: 'Familia' },
+    { value: 'GOOGLE', label: 'Google' },
+    { value: 'GOOGLE_MAPS', label: 'Google Maps' },
+    { value: 'INSTAGRAM', label: 'Instagram' },
+    { value: 'WEBSITE', label: 'Página web' },
+    { value: 'CLINIC_STAFF', label: 'Personal de la clínica (membresía, etc.)' },
+    { value: 'CHIROPRACTOR', label: 'Quiropráctico (Cascade, Saratoga, etc.)' },
+    { value: 'REFERRAL', label: 'Recomendación' },
+    { value: 'PATIENT_REFERRAL', label: 'Recomendación de un paciente de la clínica' },
+    { value: 'INSURANCE', label: 'Seguro' },
+    { value: 'MEDICAL_INSURANCE', label: 'Seguro médico' },
+    { value: 'TIKTOK', label: 'TikTok' },
     { value: 'OTHER', label: 'Otro' },
   ];
   const GUARDIAN_OPTIONS = [
@@ -243,7 +253,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField.Select label="¿Cómo prefiere ser contactado?" value={form.communicationPreference} onChange={set('communicationPreference')} options={COMM_OPTIONS} />
-                <FormField.Select label="¿Cómo nos encontró?"            value={form.referralSource}          onChange={set('referralSource')}          options={REFERRAL_OPTIONS} />
+                <FormField.Select label="¿Cómo se enteró de nosotros?"    value={form.referralSource}          onChange={set('referralSource')}          options={REFERRAL_OPTIONS} />
               </div>
             </section>
 

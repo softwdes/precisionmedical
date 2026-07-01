@@ -17,6 +17,13 @@ import {
 } from '@precision/ui';
 import { FormField } from '@/components/ui-phoenix';
 
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 function calcAge(dob: string): number | null {
   if (!dob) return null;
   const birth = new Date(dob);
@@ -62,6 +69,10 @@ export function PatientCreateDialog({ onCreated }: Props) {
 
   function set(key: keyof typeof EMPTY_FORM) {
     return (v: string) => setForm(prev => ({ ...prev, [key]: v }));
+  }
+
+  function setPhone(key: keyof typeof EMPTY_FORM) {
+    return (v: string) => setForm(prev => ({ ...prev, [key]: formatPhone(v) }));
   }
 
   const isDirty = Object.keys(EMPTY_FORM).some(
@@ -277,8 +288,8 @@ export function PatientCreateDialog({ onCreated }: Props) {
 
               {/* Teléfono / Celular */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label="Teléfono" value={form.phone}  onChange={set('phone')}  placeholder="(000) 000-0000" type="tel" />
-                <FormField.Input label="Celular"  value={form.phone2} onChange={set('phone2')} placeholder="(000) 000-0000" type="tel" />
+                <FormField.Input label="Teléfono" value={form.phone}  onChange={setPhone('phone')}  placeholder="(305) 000-0000" type="tel" />
+                <FormField.Input label="Celular"  value={form.phone2} onChange={setPhone('phone2')} placeholder="(305) 000-0000" type="tel" />
               </div>
 
               {/* Estado / Ciudad / ZIP */}
@@ -356,7 +367,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
                   <FormField.Input  label="Nombre del responsable *" value={form.guardianName}     onChange={set('guardianName')}     placeholder="Nombre completo" />
                   <FormField.Select label="Relación"                 value={form.guardianRelation} onChange={set('guardianRelation')} options={GUARDIAN_OPTIONS} />
                 </div>
-                <FormField.Input label="Teléfono del responsable" value={form.guardianPhone} onChange={set('guardianPhone')} placeholder="+1 (801) 555-0100" type="tel" />
+                <FormField.Input label="Teléfono del responsable" value={form.guardianPhone} onChange={setPhone('guardianPhone')} placeholder="(801) 555-0100" type="tel" />
               </div>
             )}
 
@@ -369,15 +380,15 @@ export function PatientCreateDialog({ onCreated }: Props) {
 
               {/* Contacto 1 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label="Nombre"   value={form.emergencyContactName}     onChange={set('emergencyContactName')}     placeholder="Nombre" />
-                <FormField.Input label="Teléfono" value={form.emergencyContactPhone}    onChange={set('emergencyContactPhone')}    placeholder="(000) 000-0000" type="tel" />
-                <FormField.Input label="Relación" value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')} placeholder="Ej. Esposo/a, Madre..." />
+                <FormField.Input label="Nombre"   value={form.emergencyContactName}     onChange={set('emergencyContactName')}         placeholder="Nombre" />
+                <FormField.Input label="Teléfono" value={form.emergencyContactPhone}    onChange={setPhone('emergencyContactPhone')}   placeholder="(305) 000-0000" type="tel" />
+                <FormField.Input label="Relación" value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')}     placeholder="Ej. Esposo/a, Madre..." />
               </div>
 
               {/* Contacto 2 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label="Nombre"   value={form.emergency2Name}     onChange={set('emergency2Name')}     placeholder="Nombre" />
-                <FormField.Input label="Teléfono" value={form.emergency2Phone}    onChange={set('emergency2Phone')}    placeholder="(000) 000-0000" type="tel" />
+                <FormField.Input label="Nombre"   value={form.emergency2Name}     onChange={set('emergency2Name')}             placeholder="Nombre" />
+                <FormField.Input label="Teléfono" value={form.emergency2Phone}    onChange={setPhone('emergency2Phone')}       placeholder="(305) 000-0000" type="tel" />
                 <FormField.Input label="Relación" value={form.emergency2Relation} onChange={set('emergency2Relation')} placeholder="Ej. Hermano/a..." />
               </div>
             </div>

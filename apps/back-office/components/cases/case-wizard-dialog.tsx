@@ -14,7 +14,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope } from 'lucide-react';
+import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope, X } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Button,

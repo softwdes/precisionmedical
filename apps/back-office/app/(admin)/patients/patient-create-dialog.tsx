@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus, ShieldAlert } from 'lucide-react';
+import { UserPlus, ShieldAlert, User, Stethoscope, PhoneCall } from 'lucide-react';
 import { LocationSelect } from '@/components/ui-phoenix/location-select';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { US_STATES, CITIES_BY_STATE } from '@/lib/us-locations';
@@ -232,9 +232,13 @@ export function PatientCreateDialog({ onCreated }: Props) {
       />
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); } }>
-        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0" onInteractOutside={(e) => { e.preventDefault(); handleClose(); }}>
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
-            <DialogTitle className="flex items-center gap-2 text-text-1">
+        <DialogContent
+          className="max-w-3xl max-h-[92vh] overflow-y-auto p-0"
+          onInteractOutside={(e) => { e.preventDefault(); handleClose(); }}
+        >
+          {/* ── Header ── */}
+          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
+            <DialogTitle className="flex items-center gap-2 text-text-1 text-base">
               <UserPlus className="w-4 h-4 text-brand" />
               Nuevo paciente
             </DialogTitle>
@@ -243,17 +247,24 @@ export function PatientCreateDialog({ onCreated }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="px-6 py-5 space-y-7">
+          <div className="px-6 py-5 space-y-5">
 
-            {/* ── Información personal ── */}
-            <section className="space-y-4">
-              <h3 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Información personal</h3>
+            {/* ══ Sección: Información personal ══ */}
+            <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-1 border-b border-border/60">
+                <User className="w-4 h-4 text-brand" />
+                <h3 className="text-sm font-semibold text-text-1">Información personal</h3>
+              </div>
+
+              {/* Nombre / Apellido */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField.Input label="Nombre *"   value={form.firstName} onChange={set('firstName')} placeholder="Nombre" />
                 <FormField.Input label="Apellido *" value={form.lastName}  onChange={set('lastName')}  placeholder="Apellido" />
               </div>
+
+              {/* Email / DOB */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label="Email"   value={form.email} onChange={set('email')} placeholder="paciente@email.com" type="email" />
+                <FormField.Input label="Correo electrónico" value={form.email} onChange={set('email')} placeholder="paciente@email.com" type="email" />
                 <div className="space-y-1">
                   <FormField.Input label="Fecha de nacimiento" value={form.dateOfBirth} onChange={set('dateOfBirth')} type="date" />
                   {age !== null && (
@@ -263,43 +274,19 @@ export function PatientCreateDialog({ onCreated }: Props) {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label="Teléfono"    value={form.phone}  onChange={set('phone')}  placeholder="+1 (305) 000-0000" type="tel" />
-                <FormField.Input label="Celular"     value={form.phone2} onChange={set('phone2')} placeholder="+1 (305) 000-0000" type="tel" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Select label="Raza"      value={form.race}      onChange={set('race')}      options={RACE_OPTIONS} />
-                <FormField.Select label="Etnicidad" value={form.ethnicity} onChange={set('ethnicity')} options={ETHNICITY_OPTIONS} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Select label="Sexo"             value={form.sex}               onChange={set('sex')}               options={SEX_OPTIONS} />
-                <FormField.Select label="Idioma preferido" value={form.preferredLanguage} onChange={set('preferredLanguage')} options={LANG_OPTIONS} />
-                <FormField.Select label="Estado civil"     value={form.maritalStatus}     onChange={set('maritalStatus')}     options={MARITAL_OPTIONS} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input  label="Empleador"           value={form.employer}              onChange={set('employer')}              placeholder="Nombre del empleador" />
-                <FormField.Input  label="Farmacia preferida"  value={form.preferredPharmacy}     onChange={set('preferredPharmacy')}     placeholder="Nombre de farmacia" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input  label="Seguro social"       value={form.socialSecurityNumber}  onChange={set('socialSecurityNumber')}  placeholder="XXX-XX-XXXX" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Select label="¿Cómo prefiere ser contactado?" value={form.communicationPreference} onChange={set('communicationPreference')} options={COMM_OPTIONS} />
-                <FormField.Select label="¿Cómo se enteró de nosotros?"    value={form.referralSource}          onChange={set('referralSource')}          options={REFERRAL_OPTIONS} />
-              </div>
-            </section>
 
-            {/* ── Dirección ── */}
-            <section className="space-y-4">
-              <h3 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Dirección</h3>
-              <FormField.Input label="Dirección" value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St" />
+              {/* Teléfono / Celular */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField.Input label="Teléfono" value={form.phone}  onChange={set('phone')}  placeholder="(000) 000-0000" type="tel" />
+                <FormField.Input label="Celular"  value={form.phone2} onChange={set('phone2')} placeholder="(000) 000-0000" type="tel" />
+              </div>
+
+              {/* Estado / Ciudad / ZIP */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <LocationSelect
                   label="Estado"
                   value={form.addressState}
-                  onChange={(v) => {
-                    setForm(prev => ({ ...prev, addressState: v, addressCity: '' }));
-                  }}
+                  onChange={(v) => setForm(prev => ({ ...prev, addressState: v, addressCity: '' }))}
                   options={US_STATES.map(s => s.name)}
                   placeholder="Seleccionar estado"
                 />
@@ -307,27 +294,62 @@ export function PatientCreateDialog({ onCreated }: Props) {
                   label="Ciudad"
                   value={form.addressCity}
                   onChange={(v) => setForm(prev => ({ ...prev, addressCity: v }))}
-                  options={
-                    form.addressState
-                      ? (CITIES_BY_STATE[US_STATES.find(s => s.name === form.addressState)?.code ?? ''] ?? [])
-                      : []
-                  }
+                  options={form.addressState ? (CITIES_BY_STATE[US_STATES.find(s => s.name === form.addressState)?.code ?? ''] ?? []) : []}
                   placeholder={form.addressState ? 'Seleccionar ciudad' : 'Primero selecciona estado'}
                   disabled={!form.addressState}
                 />
-                <FormField.Input label="Código postal" value={form.addressZip} onChange={set('addressZip')} placeholder="33101" />
+                <FormField.Input label="Código postal" value={form.addressZip} onChange={set('addressZip')} placeholder="ej. 90210" />
               </div>
-            </section>
 
-            {/* ── Responsable legal (menor) ── */}
+              {/* Dirección */}
+              <FormField.Input label="Dirección" value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St, Apt 4B" />
+
+              {/* Cómo se enteró */}
+              <FormField.Select label="¿Cómo se enteró de nosotros?" value={form.referralSource} onChange={set('referralSource')} options={REFERRAL_OPTIONS} />
+            </div>
+
+            {/* ══ Sección: Información clínica ══ */}
+            <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-1 border-b border-border/60">
+                <Stethoscope className="w-4 h-4 text-brand" />
+                <h3 className="text-sm font-semibold text-text-1">Información clínica del paciente</h3>
+              </div>
+
+              {/* Farmacia / Empleador */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField.Input label="Empleador"          value={form.employer}          onChange={set('employer')}          placeholder="ej. Juan Perez" />
+                <FormField.Input label="Farmacia preferida" value={form.preferredPharmacy} onChange={set('preferredPharmacy')} placeholder="Nombre de farmacia" />
+              </div>
+
+              {/* Comunicación / Seguro social */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField.Select label="¿Cómo le gustaría que se comuniquen con usted?" value={form.communicationPreference} onChange={set('communicationPreference')} options={COMM_OPTIONS} />
+                <FormField.Input  label="Seguro social" value={form.socialSecurityNumber} onChange={set('socialSecurityNumber')} placeholder="XXX-XX-XXXX" />
+              </div>
+
+              {/* Raza / Etnicidad */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField.Select label="Raza"      value={form.race}      onChange={set('race')}      options={RACE_OPTIONS} />
+                <FormField.Select label="Etnicidad" value={form.ethnicity} onChange={set('ethnicity')} options={ETHNICITY_OPTIONS} />
+              </div>
+
+              {/* Sexo / Idioma / Estado civil */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <FormField.Select label="Sexo"             value={form.sex}               onChange={set('sex')}               options={SEX_OPTIONS} />
+                <FormField.Select label="Idioma preferido" value={form.preferredLanguage} onChange={set('preferredLanguage')} options={LANG_OPTIONS} />
+                <FormField.Select label="Estado civil"     value={form.maritalStatus}     onChange={set('maritalStatus')}     options={MARITAL_OPTIONS} />
+              </div>
+            </div>
+
+            {/* ══ Responsable legal (solo si menor) ══ */}
             {isMinor && (
-              <section className="space-y-4">
-                <div className="flex items-center gap-2">
+              <div className="rounded-lg border border-amber/30 bg-amber/5 p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-1 border-b border-amber/20">
                   <ShieldAlert className="w-4 h-4 text-amber" />
-                  <h3 className="text-[10px] uppercase tracking-wider font-semibold text-amber">Responsable legal</h3>
+                  <h3 className="text-sm font-semibold text-amber">Responsable legal</h3>
                   <span className="text-[10px] text-amber/70 italic">(requerido para menores)</span>
                 </div>
-                <div className="rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-[11px] text-amber">
+                <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
                   El paciente es menor de edad — se requiere un responsable legal.
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -335,28 +357,30 @@ export function PatientCreateDialog({ onCreated }: Props) {
                   <FormField.Select label="Relación"                 value={form.guardianRelation} onChange={set('guardianRelation')} options={GUARDIAN_OPTIONS} />
                 </div>
                 <FormField.Input label="Teléfono del responsable" value={form.guardianPhone} onChange={set('guardianPhone')} placeholder="+1 (801) 555-0100" type="tel" />
-              </section>
+              </div>
             )}
 
-            {/* ── Contacto de emergencia 1 ── */}
-            <section className="space-y-4">
-              <h3 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Contacto de emergencia</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label="Nombre"    value={form.emergencyContactName}     onChange={set('emergencyContactName')}     placeholder="Nombre" />
-                <FormField.Input label="Teléfono"  value={form.emergencyContactPhone}    onChange={set('emergencyContactPhone')}    placeholder="+1 (305) 000-0000" type="tel" />
-                <FormField.Input label="Relación"  value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')} placeholder="Ej. Esposo/a, Madre..." />
+            {/* ══ Sección: Contactos de emergencia ══ */}
+            <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-1 border-b border-border/60">
+                <PhoneCall className="w-4 h-4 text-brand" />
+                <h3 className="text-sm font-semibold text-text-1">Contactos de emergencia</h3>
               </div>
-            </section>
 
-            {/* ── Contacto de emergencia 2 ── */}
-            <section className="space-y-4">
-              <h3 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Segundo contacto de emergencia</h3>
+              {/* Contacto 1 */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <FormField.Input label="Nombre"   value={form.emergencyContactName}     onChange={set('emergencyContactName')}     placeholder="Nombre" />
+                <FormField.Input label="Teléfono" value={form.emergencyContactPhone}    onChange={set('emergencyContactPhone')}    placeholder="(000) 000-0000" type="tel" />
+                <FormField.Input label="Relación" value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')} placeholder="Ej. Esposo/a, Madre..." />
+              </div>
+
+              {/* Contacto 2 */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField.Input label="Nombre"   value={form.emergency2Name}     onChange={set('emergency2Name')}     placeholder="Nombre" />
-                <FormField.Input label="Teléfono" value={form.emergency2Phone}    onChange={set('emergency2Phone')}    placeholder="+1 (305) 000-0000" type="tel" />
+                <FormField.Input label="Teléfono" value={form.emergency2Phone}    onChange={set('emergency2Phone')}    placeholder="(000) 000-0000" type="tel" />
                 <FormField.Input label="Relación" value={form.emergency2Relation} onChange={set('emergency2Relation')} placeholder="Ej. Hermano/a..." />
               </div>
-            </section>
+            </div>
 
             {error && (
               <p className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">

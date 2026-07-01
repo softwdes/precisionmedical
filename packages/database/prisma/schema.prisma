@@ -2106,6 +2106,11 @@ model Case {
   source            ReferralSource      @default(PHONE_CALL)
   createdByUserId   String?             // FK opcional (Phase 1A user stub)
 
+  // Consentimientos firmados en el wizard de creación de caso
+  consentsSignedAt    DateTime?
+  consentsData        Json?             // { hipaa, assignedParties, assignedPartiesOpts, treatment, financial, medicalHistory }
+  consentSignaturePng String?           @db.Text  // base64 PNG de la firma digital
+
   // Appointments, notas y firmas del lien
   appointments      Appointment[]       @relation("CaseAppointments")
   notes             CaseNote[]

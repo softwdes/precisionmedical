@@ -2499,5 +2499,73 @@
         "signNote": "Firmar nota"
       }
     }
+  },
+  "caseWizard": {
+    "title": "Nuevo caso médico",
+    "subtitle": "Complete toda la información requerida para el nuevo caso médico.",
+    "step1Title": "Información básica",
+    "step1Sub": "Paso 1 de 3",
+    "step2Title": "Consentimientos",
+    "step2Sub": "Paso 2 de 3",
+    "step3Title": "Revisión",
+    "step3Sub": "Paso 3 de 3",
+    "caseType": "Tipo de caso",
+    "accidentDate": "Fecha del accidente",
+    "accidentDescription": "Descripción del accidente",
+    "accidentDescriptionPlaceholder": "Describe brevemente los síntomas y el accidente.",
+    "lawFirm": "Firma de abogados",
+    "lawFirmPlaceholder": "Nombre de la firma de abogados que refirió el caso médico...",
+    "attorney": "Abogado representante",
+    "attorneyPlaceholder": "Nombre del abogado",
+    "chiropractor": "Quiropráctico tratante",
+    "chiropractorPlaceholder": "Nombre del quiropráctico",
+    "back": "Anterior",
+    "next": "Siguiente",
+    "creating": "Creando caso...",
+    "createCase": "Crear caso",
+    "cancel": "Cancelar",
+    "acceptAll": "Acepto todos los términos de este consentimiento.",
+    "signatureLabel": "Firma digital",
+    "signatureRequired": "La firma digital es requerida para continuar.",
+    "signHere": "Firme en el área de arriba.",
+    "clear": "Limpiar",
+    "addResponsible": "+ Agregar persona responsable",
+    "reviewPatient": "Paciente",
+    "reviewCaseType": "Tipo de caso",
+    "reviewAccidentDate": "Fecha del accidente",
+    "reviewLawFirm": "Firma de abogados",
+    "reviewAttorney": "Abogado",
+    "reviewChiropractor": "Quiropráctico",
+    "reviewConsents": "Consentimientos firmados",
+    "reviewConsentsAll": "Todos firmados ✓",
+    "reviewNoDate": "No especificada",
+    "reviewNone": "No especificado",
+    "caseTypeMVA": "MVA (Accidente de vehículo a motor)",
+    "caseTypeGM": "GM (Medicina general)",
+    "consents": {
+      "hipaa": {
+        "title": "DIVULGACIÓN DE INFORMACIÓN MÉDICA",
+        "body": "Reconozco que se me ha proporcionado una copia del AVISO DE PRÁCTICAS DE PRIVACIDAD de Precision Medical Urgent Care & Family Practice (PMUCFP). Entiendo que PMUCFP puede divulgar la totalidad o parte de mi historial médico, o el de mis dependientes, a mí, así como a las personas o entidades responsables de pagar los cargos por los servicios prestados. Esto puede incluir a mis compañías de seguros (por ejemplo, de salud, automóvil, compensación laboral, discapacidad) y a los abogados que trabajan en mi caso. Además, reconozco que PMUCFP puede divulgar información del paciente a los proveedores de atención médica que me derivan o me tratan, y para fines de pago y operaciones de atención médica. Por la presente, autorizo a PMUCFP a obtener información médica de otras entidades y proveedores de atención médica, incluyendo, entre otros: resultados de laboratorio, informes de pruebas diagnósticas, imágenes y otra información clínica que los médicos o representantes de PMUCFP consideren necesaria. Entiendo que puedo inspeccionar mi información médica protegida, o la de mis dependientes, solicitar información adicional y Revoco esta autorización de acuerdo con las regulaciones federales de privacidad y la política de privacidad de PMUCFP. Entiendo que esta revocación debe hacerse por escrito, excepto en la medida en que PMUCFP ya haya usado o divulgado mi información médica protegida con base en mi solicitud original."
+      },
+      "assignedParties": {
+        "title": "DIVULGACIÓN DE INFORMACIÓN MÉDICA A PARTES CESIONADAS",
+        "body": "Bajo la Ley de Portabilidad y Responsabilidad del Seguro Médico (HIPAA), tengo ciertos derechos sobre mi información médica protegida. Por la presente autorizo específicamente la divulgación de mi información médica para los siguientes propósitos: En mi ausencia, autorizo a Precision Medical Urgent Care & Family Practice a divulgar total o parcialmente mi información médica protegida o la de mis dependientes a las personas o entidades que se indican a continuación. Esta autorización permanecerá vigente hasta que la revoque por escrito.",
+        "check1": "AUTORIZO LA DIVULGACIÓN DE LA TOTALIDAD O PARTE DE MIS REGISTROS MÉDICOS A MIS PADRES (mayores de 18 años).",
+        "check2": "AUTORIZO QUE LOS RESULTADOS DE PRUEBAS Y LOS RECORDATORIOS DE CITAS SE DEJEN EN MI BUZÓN DE VOZ.",
+        "check3": "AUTORIZO QUE SE ENVÍEN NOTIFICACIONES Y RECORDATORIOS DE CITAS POR CORREO ELECTRÓNICO O MENSAJE DE TEXTO."
+      },
+      "treatment": {
+        "title": "CONSENTIMIENTO PARA TRATAMIENTO",
+        "body": "Por la presente, autorizo la atención y doy mi consentimiento para el tratamiento médico, incluyendo pruebas y procedimientos, realizados por el/los médico(s) u otros profesionales de la salud para mi tratamiento o el de mis dependientes. Mi intención es que esta autorización se aplique a esta consulta y a cualquier atención futura que yo o mis dependientes podamos solicitar."
+      },
+      "financial": {
+        "title": "POLÍTICA Y ACUERDO DE CARGOS DE CRÉDITO Y FINANCIAMIENTO",
+        "body": "Acepto ser financieramente responsable de cualquier costo en el que incurra yo o mis dependientes. Entiendo que los cargos por los servicios prestados deben pagarse al momento del servicio, incluyendo cualquier copago o deducible según mi acuerdo con mi aseguradora. Entiendo que PMUCFP presentará las reclamaciones en mi nombre y que soy financieramente responsable de cualquier saldo, copago, coaseguro, deducible o servicio no cubierto por mi compañía de seguros. Autorizo cualquier beneficio adeudado a mí para que se pague directamente a Precision Medical Urgent Care & Family Practice (cesión de beneficios)."
+      },
+      "medicalHistory": {
+        "title": "AUTORIDAD DE HISTORIAL MÉDICO",
+        "body": "Autorización del Sistema de Historias Clínicas Electrónicas (HCE): PMUCFP ha implementado un nuevo sistema de Historias Clínicas Electrónicas (HCE) que importa el historial de recetas de terceros (p. ej., farmacias). Para transferir mi historial de recetas actual y anterior a este nuevo sistema, doy mi consentimiento. Al firmar a continuación, autorizo a PMUCFP a transferir mi historial de recetas."
+      }
+    }
   }
 }

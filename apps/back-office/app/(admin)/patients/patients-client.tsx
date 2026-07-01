@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { PatientCreateDialog } from './patient-create-dialog';
+import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 
 function fmtLocalDate(d: Date | string | null | undefined): string {
   if (!d) return '—';
@@ -89,6 +90,24 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   const [deleting,     setDeleting]     = useState(false);
   const [editTarget,   setEditTarget]   = useState<PatientRow | null>(null);
   const [viewTarget,   setViewTarget]   = useState<PatientRow | null>(null);
+  const [expandedId,    setExpandedId]    = useState<string | null>(null);
+  const [wizardPatient, setWizardPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
+  const [expandedCases, setExpandedCases] = useState<Record<string, { id: string; caseCode: string; status: string; accidentType: string | null }[]>>({});
+  const [loadingCases,  setLoadingCases]  = useState<Record<string, boolean>>({});
+
+  const toggleExpand = useCallback(async (patientId: string) => {
+    if (expandedId === patientId) { setExpandedId(null); return; }
+    setExpandedId(patientId);
+    if (expandedCases[patientId]) return;
+    setLoadingCases(prev => ({ ...prev, [patientId]: true }));
+    try {
+      const res  = await fetch(`/api/admin/patients/${patientId}/cases`);
+      const json = await res.json().catch(() => ({ cases: [] }));
+      setExpandedCases(prev => ({ ...prev, [patientId]: json.cases ?? [] }));
+    } finally {
+      setLoadingCases(prev => ({ ...prev, [patientId]: false }));
+    }
+  }, [expandedId, expandedCases]);
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -142,10 +161,20 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
               </tr>
             )}
             {patients.map((p) => (
+              <>
               <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
-                {/* Paciente */}
+                {/* Chevron expand */}
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleExpand(p.id)}
+                      className="p-1 rounded text-text-muted hover:text-brand transition-colors shrink-0"
+                      title={expandedId === p.id ? 'Colapsar' : 'Ver casos'}
+                    >
+                      {expandedId === p.id
+                        ? <ChevronUp className="w-3.5 h-3.5" />
+                        : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
                     <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} />
                     <div>
                       <button
@@ -234,6 +263,61 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                   </div>
                 </td>
               </tr>
+
+              {/* ── Fila expandida: casos del paciente ── */}
+              {expandedId === p.id && (
+                <tr key={`${p.id}-cases`} className="bg-bg-2/30">
+                  <td colSpan={6} className="px-6 py-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
+                          <Briefcase className="w-3 h-3" /> Casos del paciente
+                        </span>
+                        <button
+                          onClick={() => setWizardPatient({ id: p.id, firstName: p.firstName, lastName: p.lastName })}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-[11px] font-medium hover:bg-brand/90 transition-colors"
+                        >
+                          <Plus className="w-3 h-3" /> Agregar caso
+                        </button>
+                      </div>
+
+                      {loadingCases[p.id] && (
+                        <p className="text-[11px] text-text-muted py-2">Cargando casos...</p>
+                      )}
+
+                      {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length === 0 && (
+                        <p className="text-[11px] text-text-muted py-2">No hay casos registrados.</p>
+                      )}
+
+                      {!loadingCases[p.id] && (expandedCases[p.id] ?? []).map(c => (
+                        <div key={c.id} className="flex items-center justify-between gap-4 rounded-md border border-border/60 bg-bg-1 px-3 py-2">
+                          <div className="flex items-center gap-3">
+                            <Car className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                            <span className="text-[12px] font-mono text-text-1">{c.caseCode}</span>
+                            {c.accidentType && (
+                              <span className="text-[10px] text-text-muted">{c.accidentType}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <TagPill
+                              label={c.status}
+                              colorClass="bg-brand/10 text-brand border-brand/20"
+                            />
+                            <button
+                              onClick={() => router.push(`/front-office/${c.id}`)}
+                              className="p-1 rounded text-text-muted hover:text-brand transition-colors"
+                              title="Ver caso"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </>
             ))}
           </tbody>
         </table>
@@ -365,6 +449,19 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
           patient={editTarget as EditablePatient}
           externalOpen
           onClose={() => { setEditTarget(null); router.refresh(); }}
+        />
+      )}
+
+      {/* ─── Case Wizard ─────────────────────────────────────────────────────── */}
+      {wizardPatient && (
+        <CaseWizardDialog
+          open={!!wizardPatient}
+          onOpenChange={(v) => { if (!v) setWizardPatient(null); }}
+          patient={wizardPatient}
+          onCreated={() => {
+            setExpandedCases(prev => { const n = { ...prev }; delete n[wizardPatient.id]; return n; });
+            toggleExpand(wizardPatient.id);
+          }}
         />
       )}
 

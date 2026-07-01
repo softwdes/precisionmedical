@@ -2499,5 +2499,73 @@
         "signNote": "Sign note"
       }
     }
+  },
+  "caseWizard": {
+    "title": "New Medical Case",
+    "subtitle": "Complete all required information for the new medical case.",
+    "step1Title": "Basic Information",
+    "step1Sub": "Step 1 of 3",
+    "step2Title": "Consents",
+    "step2Sub": "Step 2 of 3",
+    "step3Title": "Review",
+    "step3Sub": "Step 3 of 3",
+    "caseType": "Case type",
+    "accidentDate": "Accident date",
+    "accidentDescription": "Accident description",
+    "accidentDescriptionPlaceholder": "Briefly describe the symptoms and the accident.",
+    "lawFirm": "Law firm",
+    "lawFirmPlaceholder": "Name of the law firm that referred this medical case...",
+    "attorney": "Representing attorney",
+    "attorneyPlaceholder": "Attorney name",
+    "chiropractor": "Treating chiropractor",
+    "chiropractorPlaceholder": "Chiropractor name",
+    "back": "Back",
+    "next": "Next",
+    "creating": "Creating case...",
+    "createCase": "Create case",
+    "cancel": "Cancel",
+    "acceptAll": "I accept all the terms of this consent.",
+    "signatureLabel": "Digital signature",
+    "signatureRequired": "Digital signature is required to continue.",
+    "signHere": "Sign in the area above.",
+    "clear": "Clear",
+    "addResponsible": "+ Add responsible person",
+    "reviewPatient": "Patient",
+    "reviewCaseType": "Case type",
+    "reviewAccidentDate": "Accident date",
+    "reviewLawFirm": "Law firm",
+    "reviewAttorney": "Attorney",
+    "reviewChiropractor": "Chiropractor",
+    "reviewConsents": "Signed consents",
+    "reviewConsentsAll": "All signed ✓",
+    "reviewNoDate": "Not specified",
+    "reviewNone": "Not specified",
+    "caseTypeMVA": "MVA (Motor vehicle accident)",
+    "caseTypeGM": "GM (General medicine)",
+    "consents": {
+      "hipaa": {
+        "title": "MEDICAL INFORMATION DISCLOSURE",
+        "body": "I acknowledge that I have been provided with a copy of the NOTICE OF PRIVACY PRACTICES of Precision Medical Urgent Care & Family Practice (PMUCFP). I understand that PMUCFP may release all or portions of my medical records, or those of my dependents, to me, as well as to individuals or entities responsible for paying the charges for services rendered. This may include my insurance carriers (e.g., health, auto, worker's compensation, disability) and attorneys working on my case. Furthermore, I acknowledge that PMUCFP may disclose patient information to referring or treating healthcare providers, and for purposes of payment and healthcare operations. I hereby authorize PMUCFP to obtain medical information from other healthcare entities and providers, including but not limited to: lab results, diagnostic test reports, images, and other clinical information deemed necessary by PMUCFP's physicians or representatives. I understand that I may inspect my protected health information, or that of my dependents, request additional information, and revoke this authorization in accordance with federal privacy regulations and PMUCFP's privacy policy. I understand that this revocation must be made in writing, except to the extent that PMUCFP has already used or disclosed my protected health information based on my original request."
+      },
+      "assignedParties": {
+        "title": "MEDICAL INFORMATION RELEASE TO ASSIGNED PARTIES",
+        "body": "Under the Health Insurance Portability and Accountability Act (HIPAA), I have certain rights regarding my protected health information. I hereby specifically authorize the disclosure of my health information for the following purposes: In my absence, I authorize Precision Medical Urgent Care & Family Practice to release all or portions of my, or my dependents', protected health information to the individuals or entities indicated below. This authorization remains in effect until I revoke it in writing.",
+        "check1": "I AUTHORIZE THE DISCLOSURE OF ALL OR PART OF MY MEDICAL RECORDS TO MY PARENTS (over 18 years old).",
+        "check2": "I AUTHORIZE THAT TEST RESULTS AND APPOINTMENT REMINDERS BE LEFT ON MY VOICEMAIL.",
+        "check3": "I AUTHORIZE THAT NOTIFICATIONS AND APPOINTMENT REMINDERS BE SENT VIA EMAIL OR TEXT MESSAGE."
+      },
+      "treatment": {
+        "title": "CONSENT FOR TREATMENT",
+        "body": "I hereby authorize care and consent to medical treatment, including tests and procedures, performed by the physician(s) or other healthcare providers for my treatment or the treatment of my dependents. I intend this authorization to apply to this visit and any future care that I or my dependents may seek."
+      },
+      "financial": {
+        "title": "CREDIT AND FINANCE CHARGE POLICY AND AGREEMENT",
+        "body": "I agree to be financially responsible for any costs incurred for myself or my dependents. I understand that charges for services provided must be paid at the time of service, including any copayments or deductibles as per my agreement with my health insurance carrier. I understand that PMUCFP will submit claims on my behalf and that I am financially responsible for any balance, copayments, coinsurance, deductibles, or services not covered by my insurance company. I authorize any benefits due to me to be paid directly to Precision Medical Urgent Care & Family Practice (assignment of benefits)."
+      },
+      "medicalHistory": {
+        "title": "MEDICAL HISTORY AUTHORITY",
+        "body": "Electronic Health Records (EHR) System Authorization: PMUCFP has implemented a new Electronic Health Records (EHR) system that imports prescription history from third-party sources (e.g., pharmacies). In order to transfer my current and past prescription history to this new system, I hereby provide my consent. By signing below, I authorize PMUCFP to transfer my prescription history."
+      }
+    }
   }
 }

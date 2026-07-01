@@ -72,6 +72,23 @@ const InputSchema = z.object({
 
   // ─── Métrica de la llamada ──────────────────────────────────────────
   callDurationSeconds: z.number().int().min(0).max(7200).optional(),
+
+  // ─── Consentimientos (wizard desde paciente) ─────────────────────────
+  consents: z.object({
+    hipaa:           z.boolean(),
+    assignedParties: z.boolean(),
+    assignedPartiesOpts: z.object({
+      check1: z.boolean(),
+      check2: z.boolean(),
+      check3: z.boolean(),
+    }).optional(),
+    treatment:        z.boolean(),
+    financial:        z.boolean(),
+    medicalHistory:   z.boolean(),
+    signatureDataUrl: z.string().nullable().optional(),
+    lawFirm:          z.string().nullable().optional(),
+    chiropractor:     z.string().nullable().optional(),
+  }).optional(),
 });
 
 async function generateNextCode(prefix: string): Promise<string> {
@@ -211,6 +228,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         accidentNotes: parsed.accident.notes ?? null,
         status: initialStatus,
         source: parsed.source,
+        // Consentimientos del wizard
+        ...(parsed.consents ? {
+          consentsSignedAt:    new Date(),
+          consentsData:        parsed.consents,
+          consentSignaturePng: parsed.consents.signatureDataUrl ?? null,
+        } : {}),
         // Si en la llamada se agenda cita Y se manda formulario, marca timestamps
         intakeFormSentAt: parsed.formDelivery === 'SEND_NOW' ? now : null,
         intakeFormSentVia: parsed.formDelivery === 'SEND_NOW'

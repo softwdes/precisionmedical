@@ -725,19 +725,25 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
                       )}
                     </div>
 
-                    {/* Personas responsables */}
-                    {responsible.length > 0 && (
-                      <div className="pt-1 border-t border-border/30">
-                        <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1.5">
-                          Personas responsables ({responsible.length})
-                        </p>
-                        {responsible.map((p, i) => (
-                          <div key={i} className="text-[12px] text-text-1">
-                            {p.name || '—'}{p.relation ? ` · ${p.relation}` : ''}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {/* Personas responsables — siempre visible */}
+                    <div className="pt-1 border-t border-border/30">
+                      <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1.5">
+                        Personas responsables autorizadas
+                      </p>
+                      {responsible.length === 0 ? (
+                        <p className="text-[12px] text-text-muted/60 italic">0 persona(s) responsable(s) registrada(s)</p>
+                      ) : (
+                        <div className="space-y-1">
+                          {responsible.map((p, i) => (
+                            <div key={i} className="flex items-center gap-2 text-[12px] text-text-1">
+                              <Check className="w-3 h-3 text-emerald shrink-0" />
+                              <span>{p.name || '—'}</span>
+                              {p.relation && <span className="text-text-muted">· {p.relation}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })()}

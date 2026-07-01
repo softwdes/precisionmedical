@@ -56,7 +56,7 @@ export function LocationSelect({ label, value, onChange, options, placeholder = 
   }
 
   return (
-    <div className="space-y-1" ref={containerRef}>
+    <div className="space-y-1 relative" ref={containerRef}>
       <label className="block text-[11px] font-medium text-text-2">{label}</label>
 
       {/* Trigger */}
@@ -89,7 +89,7 @@ export function LocationSelect({ label, value, onChange, options, placeholder = 
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 mt-0.5 w-56 rounded-md border border-border bg-bg-1 shadow-xl">
+        <div className="absolute z-50 mt-0.5 w-full min-w-[180px] rounded-md border border-border bg-bg-1 shadow-xl">
           {/* Search */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />

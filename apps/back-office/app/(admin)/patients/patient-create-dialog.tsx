@@ -231,7 +231,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
             <section className="space-y-4">
               <h3 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Dirección</h3>
               <FormField.Input label="Dirección" value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St" />
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <LocationSelect
                   label="Estado"
                   value={form.addressState}

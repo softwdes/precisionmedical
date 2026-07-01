@@ -697,7 +697,7 @@ function EditPaymentDialog({
 
   const [form, setForm] = useState({
     baseSalary:    baseSalaryInit,
-    scheduledDate: payment?.scheduledDate ? new Date(payment.scheduledDate as string).toISOString().slice(0, 10) : '',
+    scheduledDate: payment?.scheduledDate ? (() => { const d = new Date(payment.scheduledDate as string); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })() : '',
     notes:         payment?.notes ?? '',
   });
   const f = (k: keyof typeof form, v: string): void => setForm(p => ({ ...p, [k]: v }));
@@ -889,7 +889,7 @@ function CreatePaymentDialog({
 
   const [form, setForm] = useState({
     employeeId:   '',
-    period:       new Date().toISOString().slice(0, 7),
+    period:       new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' }).slice(0, 7),
     scheduledDate: '',
     baseSalary:   '',
     currencyLocal: 'USD' as 'USD' | 'BOB' | 'PEN',

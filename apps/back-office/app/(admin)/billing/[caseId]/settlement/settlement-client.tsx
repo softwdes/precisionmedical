@@ -76,10 +76,7 @@ interface FormState {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function todayISO(): string {
-  const now = new Date();
-  // MDT (UTC-6): subtract 6h
-  const mdt = new Date(now.getTime() - 6 * 3600 * 1000);
-  return mdt.toISOString().slice(0, 10);
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
 }
 
 function fmtMoney(n: number): string {

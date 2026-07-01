@@ -94,7 +94,7 @@ export function WalletsClient({ initialWallets }: { initialWallets: WalletItem[]
     .filter(w => w.currency === 'USD')
     .reduce((s, w) => s + (breakdowns[w.id]?.balance ?? Number(w.balance)), 0);
 
-  const timeStr = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+  const timeStr = new Date().toLocaleTimeString('es-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' });
 
   return (
     <div className="p-4 sm:p-6 space-y-4">

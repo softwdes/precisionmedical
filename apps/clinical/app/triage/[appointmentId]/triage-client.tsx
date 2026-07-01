@@ -488,7 +488,7 @@ export function TriageClient({
           {/* Personal Info */}
           <SbSection label={t('sidebar.personalInfo')} defaultOpen>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 12 }}>
-              <SbRow label={t('sidebar.dob')}      value={p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('en-US', { timeZone: 'UTC' }) : null} />
+              <SbRow label={t('sidebar.dob')}      value={p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('en-US', { timeZone: 'America/Denver' }) : null} />
               <SbRow label={t('sidebar.sex')}      value="—" />
               <SbRow label={t('sidebar.language')} value="Spanish" />
             </div>

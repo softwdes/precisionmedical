@@ -13,6 +13,12 @@ import { db, writeAuditLog } from '@precision-medical/database';
 
 type Ctx = { params: Promise<{ token: string }> };
 
+// Parsea "YYYY-MM-DD" como fecha local (noon) para evitar el off-by-one de UTC midnight
+function parseDateLocal(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date((y ?? 1970), (m ?? 1) - 1, (d ?? 1), 12, 0, 0, 0);
+}
+
 // ─── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
@@ -113,7 +119,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (p.lastName)               patientData.lastName              = p.lastName;
     if (p.phone)                  patientData.phone                 = p.phone;
     if (p.email !== undefined)    patientData.email                 = p.email;
-    if (p.dateOfBirth)            patientData.dateOfBirth           = new Date(p.dateOfBirth);
+    if (p.dateOfBirth)            patientData.dateOfBirth           = parseDateLocal(p.dateOfBirth);
     if (p.preferredLanguage)      patientData.preferredLanguage     = p.preferredLanguage;
     if (p.emergencyContactName !== undefined)
                                   patientData.emergencyContactName  = p.emergencyContactName;
@@ -137,7 +143,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   if (step === 3 && data.accident) {
     const a = data.accident;
     const caseData: Record<string, unknown> = {};
-    if (a.date)     caseData.accidentDate     = new Date(a.date);
+    if (a.date)     caseData.accidentDate     = parseDateLocal(a.date);
     if (a.type)     caseData.accidentType     = a.type;
     if (a.location) caseData.accidentLocation = a.location;
     if (a.notes)    caseData.accidentNotes    = a.notes;

@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope, ChevronDown, Search, X } from 'lucide-react';
@@ -118,7 +119,7 @@ function LawFirmSelect({
         </div>
       </button>
 
-      {open && rect && (
+      {open && rect && createPortal(
         <div
           ref={wrapRef}
           style={{ position: 'fixed', top, left, width, zIndex: 9999 }}
@@ -173,7 +174,8 @@ function LawFirmSelect({
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

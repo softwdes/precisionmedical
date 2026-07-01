@@ -9,8 +9,9 @@
  * QR: muestra panel de éxito con código del caso y link del portal inline (sin cerrar).
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import QRCode from 'qrcode';
 import {
   UserPlus, Car, Stethoscope, AlertCircle, QrCode, Send, Save,
   Check, Copy, ExternalLink, RotateCcw,
@@ -87,6 +88,7 @@ interface SuccessInfo {
   patientName: string;
   caseId:      string;
   patientId:   string;
+  portalUrl:   string;
 }
 
 function QrSuccessPanel({ info, onNewPatient, onClose }: {
@@ -94,68 +96,34 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
   onNewPatient: () => void;
   onClose: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
-  const portalUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/portal?case=${info.caseId}`
-    : `/portal?case=${info.caseId}`;
-
-  // Canvas QR — simple inline rendering using a data grid
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [copied,    setCopied]    = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   useEffect(() => {
-    // Minimal QR placeholder — draws a branded grid pattern
-    // In production, replace with qrcode library
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const size = canvas.width;
-    ctx.fillStyle = '#1a1d2e';
-    ctx.fillRect(0, 0, size, size);
-    ctx.fillStyle = '#e2e8f0';
-    // Simulate QR pattern with deterministic pseudorandom using caseId chars
-    const seed = info.caseId.replace(/-/g, '');
-    const cells = 21;
-    const cell  = size / cells;
-    for (let r = 0; r < cells; r++) {
-      for (let c = 0; c < cells; c++) {
-        const idx = (r * cells + c) % seed.length;
-        const val = seed.charCodeAt(idx);
-        // Position detection squares
-        const inFinder = (r < 7 && c < 7) || (r < 7 && c > cells - 8) || (r > cells - 8 && c < 7);
-        if (inFinder) {
-          const inner = (r >= 2 && r <= 4 && c >= 2 && c <= 4) ||
-                        (r >= 2 && r <= 4 && c >= cells - 6 && c <= cells - 4) ||
-                        (r >= cells - 6 && r <= cells - 4 && c >= 2 && c <= 4);
-          const ring  = (r === 0 || r === 6) || (c === 0 || c === 6) ||
-                        (r === 0 || r === 6) ||
-                        (r < 7 && c < 7 && (r === 0 || r === 6 || c === 0 || c === 6)) ||
-                        (r < 7 && c > cells-8 && (r === 0 || r === 6 || c === cells-7 || c === cells-1)) ||
-                        (r > cells-8 && c < 7 && (r === cells-7 || r === cells-1 || c === 0 || c === 6));
-          ctx.fillStyle = (inner || ring) ? '#6366f1' : '#1a1d2e';
-        } else {
-          ctx.fillStyle = val % 2 === 0 ? '#e2e8f0' : '#1a1d2e';
-        }
-        ctx.fillRect(c * cell, r * cell, cell - 0.5, cell - 0.5);
-      }
-    }
-    // Center logo placeholder
-    ctx.fillStyle = '#6366f1';
-    const logoSize = cell * 3;
-    const logoX = (size - logoSize) / 2;
-    const logoY = (size - logoSize) / 2;
-    ctx.fillRect(logoX, logoY, logoSize, logoSize);
-  }, [info.caseId]);
+    QRCode.toDataURL(info.portalUrl, {
+      width: 220,
+      margin: 2,
+      color: { dark: '#e2e8f0', light: '#12141f' },
+    }).then(setQrDataUrl).catch(() => {});
+  }, [info.portalUrl]);
 
   function copyLink() {
-    navigator.clipboard.writeText(portalUrl).then(() => {
+    navigator.clipboard.writeText(info.portalUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   }
 
+  function downloadQr() {
+    if (!qrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    a.download = `qr-caso-${info.caseCode}.png`;
+    a.click();
+  }
+
   return (
-    <div className="flex flex-col items-center gap-6 py-6 px-4">
+    <div className="flex flex-col items-center gap-5 py-6 px-4">
       {/* Success badge */}
       <div className="flex items-center gap-2 rounded-full border border-emerald/30 bg-emerald/10 px-4 py-1.5">
         <Check className="w-3.5 h-3.5 text-emerald" />
@@ -176,19 +144,19 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
         </div>
       </div>
 
-      {/* QR canvas */}
-      <div className="rounded-xl border border-border p-3 bg-bg-2/30">
-        <canvas ref={canvasRef} width={168} height={168} className="rounded-lg" />
-        <p className="text-[10px] text-text-muted text-center mt-2">
-          Escanea para completar el formulario
-        </p>
+      {/* QR real */}
+      <div className="rounded-xl border border-border p-3 bg-[#12141f] flex flex-col items-center gap-2">
+        {qrDataUrl
+          ? <img src={qrDataUrl} alt="QR del portal" width={188} height={188} className="rounded-lg" />
+          : <div className="w-[188px] h-[188px] rounded-lg bg-bg-2 animate-pulse" />
+        }
+        <p className="text-[10px] text-text-muted text-center">Escanea para completar el formulario</p>
       </div>
 
-      {/* Portal link */}
+      {/* Portal link + copiar */}
       <div className="w-full max-w-sm space-y-2">
-        <p className="text-[10px] uppercase tracking-wider text-text-muted text-center">Link del portal</p>
         <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2 px-3 py-2">
-          <span className="flex-1 text-[11px] text-text-muted truncate font-mono">{portalUrl}</span>
+          <span className="flex-1 text-[11px] text-text-muted truncate font-mono">{info.portalUrl}</span>
           <button
             type="button"
             onClick={copyLink}
@@ -198,6 +166,15 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
             {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
         </div>
+        <button
+          type="button"
+          onClick={downloadQr}
+          disabled={!qrDataUrl}
+          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-border bg-bg-2 px-3 py-2 text-[12px] text-text-2 hover:border-border-strong transition-colors disabled:opacity-40"
+        >
+          <QrCode className="w-3.5 h-3.5" />
+          Descargar QR
+        </button>
       </div>
 
       {/* Actions */}
@@ -326,13 +303,21 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
       }
 
       if (mode === 'qr') {
-        // Muestra panel de éxito dentro del modal sin cerrar ni hacer refresh
+        // Generar token del portal y construir URL real
+        const caseId = json.case?.id ?? '';
+        let portalUrl = `/portal?case=${caseId}`;
+        if (caseId) {
+          const tokenRes = await fetch(`/api/admin/cases/${caseId}/generate-portal-token`, { method: 'POST' });
+          const tokenJson = await tokenRes.json().catch(() => ({}));
+          if (tokenJson.portalUrl) portalUrl = tokenJson.portalUrl;
+        }
         setSuccessInfo({
           caseCode:    json.case?.caseCode       ?? '—',
           patientCode: json.patient?.patientCode ?? '—',
           patientName: `${firstName.trim()} ${lastName.trim()}`,
-          caseId:      json.case?.id             ?? '',
+          caseId,
           patientId:   json.patient?.id          ?? '',
+          portalUrl,
         });
       } else {
         // Refresh + cierre solo para guardar y salir / enviar formulario

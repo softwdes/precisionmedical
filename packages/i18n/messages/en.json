@@ -975,6 +975,29 @@
       "EMAIL": "Email",
       "TEXT": "Text message",
       "ANY": "Any"
+    },
+    "race": {
+      "AFRICAN_AMERICAN": "African American",
+      "AMERICAN_INDIAN_ALASKA_NATIVE": "American Indian / Alaska Native",
+      "ASIAN": "Asian",
+      "NATIVE_HAWAIIAN": "Native Hawaiian or other",
+      "PACIFIC_ISLANDER": "Pacific Islander",
+      "WHITE": "White",
+      "OTHER": "Other",
+      "PREFER_NOT_TO_SAY": "Prefer not to answer"
+    },
+    "ethnicity": {
+      "HISPANIC_LATINO": "Hispanic/Latino",
+      "NOT_HISPANIC_LATINO": "Not Hispanic/Latino",
+      "PREFER_NOT_TO_SAY": "Prefer not to answer"
+    },
+    "languages": {
+      "es": "Spanish",
+      "en": "English",
+      "fr": "French",
+      "it": "Italian",
+      "pt": "Portuguese",
+      "other": "Other"
     }
   },
   "appointments": {

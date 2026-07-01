@@ -35,6 +35,8 @@ const EMPTY_FORM = {
   preferredPharmacy: '', communicationPreference: '', referralSource: '',
   // Address
   addressLine1: '', addressCity: '', addressState: '', addressZip: '',
+  // Demographics
+  race: '', ethnicity: '', socialSecurityNumber: '',
   // Emergency 1
   emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '',
   // Emergency 2
@@ -109,6 +111,8 @@ export function PatientCreateDialog({ onCreated }: Props) {
           maritalStatus:           form.maritalStatus           || null,
           communicationPreference: form.communicationPreference || null,
           referralSource:          form.referralSource          || null,
+          race:                    form.race                    || null,
+          ethnicity:               form.ethnicity               || null,
           guardianRelation:        form.guardianRelation        || null,
         }),
       });
@@ -130,7 +134,28 @@ export function PatientCreateDialog({ onCreated }: Props) {
   const LANG_OPTIONS = [
     { value: '', label: '—' },
     { value: 'es', label: 'Español' },
-    { value: 'en', label: 'English' },
+    { value: 'en', label: 'Inglés' },
+    { value: 'fr', label: 'Francés' },
+    { value: 'it', label: 'Italiano' },
+    { value: 'pt', label: 'Portugués' },
+    { value: 'other', label: 'Otro' },
+  ];
+  const RACE_OPTIONS = [
+    { value: '', label: '—' },
+    { value: 'AFRICAN_AMERICAN', label: 'Afroamericano' },
+    { value: 'AMERICAN_INDIAN_ALASKA_NATIVE', label: 'Indio americano/Nativo de Alaska' },
+    { value: 'ASIAN', label: 'Asiático' },
+    { value: 'NATIVE_HAWAIIAN', label: 'Nativo hawaiano u otro' },
+    { value: 'PACIFIC_ISLANDER', label: 'Isleño del Pacífico' },
+    { value: 'WHITE', label: 'Blanco' },
+    { value: 'OTHER', label: 'Otro' },
+    { value: 'PREFER_NOT_TO_SAY', label: 'Prefiero no responder' },
+  ];
+  const ETHNICITY_OPTIONS = [
+    { value: '', label: '—' },
+    { value: 'HISPANIC_LATINO', label: 'Hispano/Latino' },
+    { value: 'NOT_HISPANIC_LATINO', label: 'No hispano/Latino' },
+    { value: 'PREFER_NOT_TO_SAY', label: 'Prefiero no responder' },
   ];
   const SEX_OPTIONS = [
     { value: '', label: '—' },
@@ -242,14 +267,21 @@ export function PatientCreateDialog({ onCreated }: Props) {
                 <FormField.Input label="Teléfono"    value={form.phone}  onChange={set('phone')}  placeholder="+1 (305) 000-0000" type="tel" />
                 <FormField.Input label="Celular"     value={form.phone2} onChange={set('phone2')} placeholder="+1 (305) 000-0000" type="tel" />
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField.Select label="Raza"      value={form.race}      onChange={set('race')}      options={RACE_OPTIONS} />
+                <FormField.Select label="Etnicidad" value={form.ethnicity} onChange={set('ethnicity')} options={ETHNICITY_OPTIONS} />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Select label="Sexo"           value={form.sex}           onChange={set('sex')}           options={SEX_OPTIONS} />
-                <FormField.Select label="Estado civil"   value={form.maritalStatus} onChange={set('maritalStatus')} options={MARITAL_OPTIONS} />
+                <FormField.Select label="Sexo"             value={form.sex}               onChange={set('sex')}               options={SEX_OPTIONS} />
                 <FormField.Select label="Idioma preferido" value={form.preferredLanguage} onChange={set('preferredLanguage')} options={LANG_OPTIONS} />
+                <FormField.Select label="Estado civil"     value={form.maritalStatus}     onChange={set('maritalStatus')}     options={MARITAL_OPTIONS} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input  label="Empleador"           value={form.employer}          onChange={set('employer')}          placeholder="Nombre del empleador" />
-                <FormField.Input  label="Farmacia preferida"  value={form.preferredPharmacy} onChange={set('preferredPharmacy')} placeholder="Nombre de farmacia" />
+                <FormField.Input  label="Empleador"           value={form.employer}              onChange={set('employer')}              placeholder="Nombre del empleador" />
+                <FormField.Input  label="Farmacia preferida"  value={form.preferredPharmacy}     onChange={set('preferredPharmacy')}     placeholder="Nombre de farmacia" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField.Input  label="Seguro social"       value={form.socialSecurityNumber}  onChange={set('socialSecurityNumber')}  placeholder="XXX-XX-XXXX" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField.Select label="¿Cómo prefiere ser contactado?" value={form.communicationPreference} onChange={set('communicationPreference')} options={COMM_OPTIONS} />

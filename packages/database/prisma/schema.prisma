@@ -716,7 +716,10 @@ model Patient {
   employer               String?
   preferredPharmacy      String?
   communicationPreference CommunicationPreference?
-  referralSource         ReferralSource?           // usa enum existente: PHONE_CALL | WALK_IN | LAW_FIRM_REFERRAL | etc.
+  referralSource         ReferralSource?
+  race                   PatientRace?
+  ethnicity              PatientEthnicity?
+  socialSecurityNumber   String?
 
   // ─── Intake preferences (capturadas en B.6 portal) ───────────────────────
   preferredLanguage      String?
@@ -762,6 +765,23 @@ enum PatientSex {
   FEMALE
   NON_BINARY
   OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum PatientRace {
+  AFRICAN_AMERICAN
+  AMERICAN_INDIAN_ALASKA_NATIVE
+  ASIAN
+  NATIVE_HAWAIIAN
+  PACIFIC_ISLANDER
+  WHITE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum PatientEthnicity {
+  HISPANIC_LATINO
+  NOT_HISPANIC_LATINO
   PREFER_NOT_TO_SAY
 }
 

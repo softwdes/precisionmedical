@@ -11,10 +11,10 @@
  * HIPAA: consents guardados en Case.consentsData + consentSignaturePng.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope, ChevronDown } from 'lucide-react';
+import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope, ChevronDown, Search, X } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Button,
@@ -37,7 +37,10 @@ function LawFirmSelect({
   const [open,    setOpen]    = useState(false);
   const [firms,   setFirms]   = useState<LawFirm[]>([]);
   const [loading, setLoading] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [query,   setQuery]   = useState('');
+  const [rect,    setRect]    = useState<DOMRect | null>(null);
+  const btnRef  = useRef<HTMLButtonElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -48,47 +51,128 @@ function LawFirmSelect({
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+  const openDropdown = useCallback(() => {
+    if (btnRef.current) setRect(btnRef.current.getBoundingClientRect());
+    setQuery('');
+    setOpen(true);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    function onClose(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node) &&
+          btnRef.current  && !btnRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onScroll() { setOpen(false); }
+    document.addEventListener('mousedown', onClose);
+    document.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', onClose);
+      document.removeEventListener('scroll', onScroll, true);
+    };
+  }, [open]);
+
+  const filtered = query.trim()
+    ? firms.filter(f => f.label.toLowerCase().includes(query.toLowerCase()))
+    : firms;
+
+  // Position: prefer below, flip above if not enough space
+  const PANEL_H = 280;
+  const spaceBelow = rect ? window.innerHeight - rect.bottom - 8 : 999;
+  const top = rect
+    ? (spaceBelow >= PANEL_H ? rect.bottom + 4 : rect.top - PANEL_H - 4)
+    : 0;
+  const left  = rect?.left  ?? 0;
+  const width = rect?.width ?? 300;
+
   return (
-    <div ref={ref} className="relative">
-      <label className="text-xs font-medium text-text-muted block mb-1">Firma de abogados</label>
+    <div>
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">
+        Firma de abogados
+      </label>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 rounded-md border border-border bg-bg-2 text-sm text-left transition-colors hover:border-brand/40 focus:outline-none focus:border-brand"
+        onClick={() => open ? setOpen(false) : openDropdown()}
+        className={`w-full flex items-center justify-between px-3 py-2 rounded-md border bg-bg-2 text-sm text-left transition-colors focus:outline-none
+          ${open ? 'border-brand ring-1 ring-brand/30' : 'border-border hover:border-brand/40'}`}
       >
-        <span className={value ? 'text-text-1' : 'text-text-muted text-[12px]'}>
+        <span className={value ? 'text-text-1 truncate pr-2' : 'text-text-muted text-[12px]'}>
           {value || placeholder}
         </span>
-        <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
-      </button>
-      {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg max-h-52 overflow-y-auto">
-          <button
-            type="button"
-            className="w-full text-left px-3 py-2 text-[12px] text-text-muted hover:bg-white/[0.04]"
-            onClick={() => { onChange('', null); setOpen(false); }}
-          >
-            — Sin firma
-          </button>
-          {loading && <p className="px-3 py-2 text-[11px] text-text-muted">Cargando...</p>}
-          {firms.map(f => (
-            <button
-              key={f.id}
-              type="button"
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-white/[0.04] transition-colors ${firmId === f.id ? 'text-brand font-medium' : 'text-text-1'}`}
-              onClick={() => { onChange(f.label, f.id); setOpen(false); }}
+        <div className="flex items-center gap-1 shrink-0">
+          {value && (
+            <span
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && onChange('', null)}
+              onClick={e => { e.stopPropagation(); onChange('', null); }}
+              className="text-text-muted hover:text-rose transition-colors cursor-pointer"
             >
-              {f.label}
+              <X className="w-3 h-3" />
+            </span>
+          )}
+          <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+
+      {open && rect && (
+        <div
+          ref={wrapRef}
+          style={{ position: 'fixed', top, left, width, zIndex: 9999 }}
+          className="rounded-md border border-border bg-bg-1 shadow-xl overflow-hidden"
+        >
+          {/* Search */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
+            <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Buscar firma..."
+              className="flex-1 bg-transparent text-[12px] text-text-1 placeholder:text-text-muted/60 outline-none"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery('')} className="text-text-muted hover:text-text-1">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* List */}
+          <div className="max-h-[220px] overflow-y-auto">
+            {/* Clear option */}
+            <button
+              type="button"
+              className="w-full text-left px-3 py-1.5 text-[11px] text-text-muted/70 italic hover:bg-white/[0.04] transition-colors border-b border-border/30"
+              onClick={() => { onChange('', null); setOpen(false); }}
+            >
+              Sin firma asignada
             </button>
-          ))}
+
+            {loading && (
+              <p className="px-3 py-3 text-[11px] text-text-muted text-center">Cargando...</p>
+            )}
+
+            {!loading && filtered.length === 0 && (
+              <p className="px-3 py-3 text-[11px] text-text-muted text-center">Sin resultados</p>
+            )}
+
+            {filtered.map(f => (
+              <button
+                key={f.id}
+                type="button"
+                className={`w-full text-left px-3 py-1.5 text-[13px] hover:bg-white/[0.05] transition-colors
+                  ${firmId === f.id ? 'text-brand font-medium bg-brand/[0.06]' : 'text-text-1'}`}
+                onClick={() => { onChange(f.label, f.id); setOpen(false); }}
+              >
+                {firmId === f.id && <Check className="w-3 h-3 inline mr-1.5 mb-0.5" />}
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

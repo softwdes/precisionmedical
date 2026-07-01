@@ -207,6 +207,24 @@ interface Props {
 
 type SaveMode = 'exit' | 'form' | 'qr';
 
+// Date helpers: YYYY-MM-DD ↔ MM/DD/YYYY display
+function isoToDisp(iso: string): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return (m && d && y) ? `${m}/${d}/${y}` : '';
+}
+function fmtDate(raw: string): string {
+  const digs = raw.replace(/\D/g, '').slice(0, 8);
+  if (digs.length <= 2) return digs;
+  if (digs.length <= 4) return `${digs.slice(0, 2)}/${digs.slice(2)}`;
+  return `${digs.slice(0, 2)}/${digs.slice(2, 4)}/${digs.slice(4)}`;
+}
+function dateToIso(disp: string): string {
+  const digs = disp.replace(/\D/g, '');
+  if (digs.length < 8) return '';
+  return `${digs.slice(4, 8)}-${digs.slice(0, 2)}-${digs.slice(2, 4)}`;
+}
+
 export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   const router = useRouter();
 
@@ -214,6 +232,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   const [firstName,  setFirstName]  = useState('');
   const [lastName,   setLastName]   = useState('');
   const [dob,        setDob]        = useState('');
+  const [dobDisplay, setDobDisplay] = useState('');
   const [phone,      setPhone]      = useState('');
   const [email,      setEmail]      = useState('');
   const [language,   setLanguage]   = useState('es');
@@ -223,6 +242,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   // Case info
   const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
   const [accidentDate, setAccidentDate] = useState('');
+  const [accDisplay,   setAccDisplay]   = useState('');
   const [lawFirm,      setLawFirm]      = useState('');
   const [attorney,     setAttorney]     = useState('');
   const [chiropractor, setChiropractor] = useState('');
@@ -236,9 +256,9 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   const isMVA = caseType === 'MVA';
 
   function reset() {
-    setFirstName(''); setLastName(''); setDob(''); setPhone('');
+    setFirstName(''); setLastName(''); setDob(''); setDobDisplay(''); setPhone('');
     setEmail(''); setLanguage('es'); setHowFound(''); setReferredBy('');
-    setCaseType('MVA'); setAccidentDate(''); setLawFirm('');
+    setCaseType('MVA'); setAccidentDate(''); setAccDisplay(''); setLawFirm('');
     setAttorney(''); setChiropractor(''); setDescription('');
     setError(''); setSuccessInfo(null);
   }
@@ -392,7 +412,9 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                     <input className={INPUT} value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido del paciente" />
                   </Field>
                   <Field label="Fecha de nacimiento" required>
-                    <input type="date" lang="en-US" className={INPUT} value={dob} onChange={e => setDob(e.target.value)} />
+                    <input type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10}
+                      className={INPUT} value={dobDisplay} onChange={e => { const f = fmtDate(e.target.value); setDobDisplay(f); const iso = dateToIso(f); if (iso || f === '') setDob(iso); }}
+                      onBlur={() => { const iso = dateToIso(dobDisplay); if (iso) { setDob(iso); setDobDisplay(isoToDisp(iso)); } else if (!dobDisplay.replace(/\D/g,'').length) { setDob(''); setDobDisplay(''); } }} />
                   </Field>
                   <Field label="Teléfono">
                     <input className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="(000) 000-0000" />
@@ -474,7 +496,9 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 {isMVA && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label="Fecha de accidente">
-                      <input type="date" lang="en-US" className={INPUT} value={accidentDate} onChange={e => setAccidentDate(e.target.value)} />
+                      <input type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10}
+                        className={INPUT} value={accDisplay} onChange={e => { const f = fmtDate(e.target.value); setAccDisplay(f); const iso = dateToIso(f); if (iso || f === '') setAccidentDate(iso); }}
+                        onBlur={() => { const iso = dateToIso(accDisplay); if (iso) { setAccidentDate(iso); setAccDisplay(isoToDisp(iso)); } else if (!accDisplay.replace(/\D/g,'').length) { setAccidentDate(''); setAccDisplay(''); } }} />
                     </Field>
                     <Field label="Bufete / fuente de referido">
                       <input className={INPUT} value={lawFirm} onChange={e => setLawFirm(e.target.value)} placeholder="Nombre del bufete" />

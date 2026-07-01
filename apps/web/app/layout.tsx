@@ -68,7 +68,7 @@ export default async function RootLayout({
 
   return (
     <html
-      lang={locale}
+      lang="en"
       suppressHydrationWarning
       data-theme={theme}
       className={`${fontSans.variable} ${fontMono.variable}`}

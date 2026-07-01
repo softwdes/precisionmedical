@@ -199,6 +199,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
 
   // Step 1 form
   const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
+  const isMVA = caseType === 'MVA';
   const [accidentDate, setAccidentDate] = useState('');
   const [description,  setDescription]  = useState('');
   const [lawFirm,      setLawFirm]      = useState('');
@@ -373,41 +374,43 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
                 </div>
               </div>
 
-              {/* Fecha + descripción */}
-              <FormField.Input
-                label={t('accidentDate')}
-                value={accidentDate}
-                onChange={setAccidentDate}
-                type="date"
-              />
-              <FormField.Textarea
-                label={t('accidentDescription')}
-                value={description}
-                onChange={setDescription}
-                placeholder={t('accidentDescriptionPlaceholder')}
-                rows={3}
-              />
-
-              {/* Legal */}
-              <LawFirmSelect
-                firmId={lawFirmId}
-                onChange={(name, id) => { setLawFirm(name); setLawFirmId(id); }}
-                placeholder={t('lawFirmPlaceholder')}
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input
-                  label={t('attorney')}
-                  value={attorney}
-                  onChange={setAttorney}
-                  placeholder={t('attorneyPlaceholder')}
-                />
-                <FormField.Input
-                  label={t('chiropractor')}
-                  value={chiropractor}
-                  onChange={setChiropractor}
-                  placeholder={t('chiropractorPlaceholder')}
-                />
-              </div>
+              {/* Campos solo para MVA */}
+              {isMVA && (
+                <>
+                  <FormField.Input
+                    label={t('accidentDate')}
+                    value={accidentDate}
+                    onChange={setAccidentDate}
+                    type="date"
+                  />
+                  <FormField.Textarea
+                    label={t('accidentDescription')}
+                    value={description}
+                    onChange={setDescription}
+                    placeholder={t('accidentDescriptionPlaceholder')}
+                    rows={3}
+                  />
+                  <LawFirmSelect
+                    firmId={lawFirmId}
+                    onChange={(name, id) => { setLawFirm(name); setLawFirmId(id); }}
+                    placeholder={t('lawFirmPlaceholder')}
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField.Input
+                      label={t('attorney')}
+                      value={attorney}
+                      onChange={setAttorney}
+                      placeholder={t('attorneyPlaceholder')}
+                    />
+                    <FormField.Input
+                      label={t('chiropractor')}
+                      value={chiropractor}
+                      onChange={setChiropractor}
+                      placeholder={t('chiropractorPlaceholder')}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -572,10 +575,12 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
                 {([
                   [t('reviewPatient'),      `${patient.firstName} ${patient.lastName}`],
                   [t('reviewCaseType'),     caseType === 'MVA' ? t('caseTypeMVA') : t('caseTypeGM')],
-                  [t('reviewAccidentDate'), accidentDate || t('reviewNoDate')],
-                  [t('reviewLawFirm'),      lawFirm      || t('reviewNone')],
-                  [t('reviewAttorney'),     attorney     || t('reviewNone')],
-                  [t('reviewChiropractor'), chiropractor || t('reviewNone')],
+                  ...(isMVA ? [
+                    [t('reviewAccidentDate'), accidentDate || t('reviewNoDate')],
+                    [t('reviewLawFirm'),      lawFirm      || t('reviewNone')],
+                    [t('reviewAttorney'),     attorney     || t('reviewNone')],
+                    [t('reviewChiropractor'), chiropractor || t('reviewNone')],
+                  ] : []),
                 ] as [string, string][]).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4 text-sm">
                     <span className="text-text-muted text-[11px] uppercase tracking-wider shrink-0">{label}</span>

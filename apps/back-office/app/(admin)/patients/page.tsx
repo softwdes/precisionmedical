@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { db } from '@precision-medical/database';
 import { PageHeader } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
-import { PatientCreateDialog } from './patient-create-dialog';
 
 const PAGE_SIZE = 25;
 
@@ -97,7 +96,6 @@ export default async function PatientsPage({
           )}
         </form>
 
-        <PatientCreateDialog />
       </div>
 
       <PatientsClient patients={rows} q={q} page={page} totalPages={totalPages} total={total} />

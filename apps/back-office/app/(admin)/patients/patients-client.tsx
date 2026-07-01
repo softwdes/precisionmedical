@@ -8,6 +8,7 @@ import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { PatientCreateDialog } from './patient-create-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
+import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 
 function fmtLocalDate(d: Date | string | null | undefined): string {
   if (!d) return '—';
@@ -90,6 +91,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   const [deleting,     setDeleting]     = useState(false);
   const [editTarget,   setEditTarget]   = useState<PatientRow | null>(null);
   const [viewTarget,   setViewTarget]   = useState<PatientRow | null>(null);
+  const [quickRegister, setQuickRegister] = useState(false);
   const [expandedId,    setExpandedId]    = useState<string | null>(null);
   const [wizardPatient, setWizardPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
   const [expandedCases, setExpandedCases] = useState<Record<string, { id: string; caseCode: string; status: string; accidentType: string | null }[]>>({});
@@ -139,6 +141,19 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
 
   return (
     <>
+      {/* Barra de acciones — Registro rápido + Agregar paciente */}
+      <div className="flex flex-wrap items-center justify-end gap-2 -mt-2 mb-1">
+        <button
+          type="button"
+          onClick={() => setQuickRegister(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Registro rápido
+        </button>
+        <PatientCreateDialog />
+      </div>
+
       <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-bg-2 border-b border-border">
@@ -464,6 +479,9 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
           }}
         />
       )}
+
+      {/* ─── Quick Register ──────────────────────────────────────────────────── */}
+      <QuickRegisterDialog open={quickRegister} onOpenChange={setQuickRegister} />
 
       {/* ─── Delete confirm ──────────────────────────────────────────────────── */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>

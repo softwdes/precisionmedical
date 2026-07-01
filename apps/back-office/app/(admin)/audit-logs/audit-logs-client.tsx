@@ -239,6 +239,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
           {/* From */}
           <input
             type="date"
+            lang="en-US"
             value={from}
             onChange={e => setFrom(e.target.value)}
             className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
@@ -247,6 +248,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
           {/* To */}
           <input
             type="date"
+            lang="en-US"
             value={to}
             onChange={e => setTo(e.target.value)}
             className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"

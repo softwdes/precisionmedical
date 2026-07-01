@@ -488,6 +488,7 @@ export function SettlementClient() {
                     </label>
                     <input
                       type="date"
+                      lang="en-US"
                       value={form.receivedDate}
                       onChange={e => setForm(f => ({ ...f, receivedDate: e.target.value }))}
                       className="w-full rounded-lg border border-border bg-bg-2 px-3 py-2 text-[12px] text-text-1 focus:border-emerald/50 focus:outline-none"

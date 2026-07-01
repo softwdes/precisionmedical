@@ -489,6 +489,7 @@ export function IntakeClient({ token, data }: { token: string; data: IntakeData 
               <Field label={t.dob}>
                 <input
                   type="date"
+                  lang="en-US"
                   style={S.input}
                   value={personal.dateOfBirth}
                   onChange={(e) => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))}

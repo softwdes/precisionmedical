@@ -49,6 +49,7 @@ function InputField({
         type={type}
         autoFocus={autoFocus}
         maxLength={maxLength}
+        lang={type === 'date' ? 'en-US' : undefined}
         className={error ? 'border-rose focus-visible:ring-rose/30' : undefined}
       />
       {error && <p className="text-[10px] text-rose mt-1">{error}</p>}

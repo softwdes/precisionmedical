@@ -534,6 +534,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               <input
                 id="appt-date"
                 type="date"
+                lang="en-US"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"

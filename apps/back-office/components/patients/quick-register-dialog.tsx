@@ -392,7 +392,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                     <input className={INPUT} value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido del paciente" />
                   </Field>
                   <Field label="Fecha de nacimiento" required>
-                    <input type="date" className={INPUT} value={dob} onChange={e => setDob(e.target.value)} />
+                    <input type="date" lang="en-US" className={INPUT} value={dob} onChange={e => setDob(e.target.value)} />
                   </Field>
                   <Field label="Teléfono">
                     <input className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="(000) 000-0000" />
@@ -474,7 +474,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 {isMVA && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label="Fecha de accidente">
-                      <input type="date" className={INPUT} value={accidentDate} onChange={e => setAccidentDate(e.target.value)} />
+                      <input type="date" lang="en-US" className={INPUT} value={accidentDate} onChange={e => setAccidentDate(e.target.value)} />
                     </Field>
                     <Field label="Bufete / fuente de referido">
                       <input className={INPUT} value={lawFirm} onChange={e => setLawFirm(e.target.value)} placeholder="Nombre del bufete" />

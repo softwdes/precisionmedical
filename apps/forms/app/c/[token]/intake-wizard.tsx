@@ -887,7 +887,7 @@ export function IntakeWizard({
               </div>
 
               <Field label={t.dob}>
-                <input type="date" style={S.input} value={personal.dateOfBirth}
+                <input type="date" lang="en-US" style={S.input} value={personal.dateOfBirth}
                   onChange={e => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))} />
               </Field>
 
@@ -988,7 +988,7 @@ export function IntakeWizard({
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Field label={t.accidentDate}>
-                <input type="date" style={S.input} value={acc.date}
+                <input type="date" lang="en-US" style={S.input} value={acc.date}
                   onChange={e => setAcc(a => ({ ...a, date: e.target.value }))} />
               </Field>
 

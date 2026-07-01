@@ -208,7 +208,7 @@ export const CITY_ZIP: Record<string, string> = {
   Stockton: '95201', Sunnyvale: '94085', 'Thousand Oaks': '91360',
   Torrance: '90501', Vallejo: '94590', Victorville: '92392', Visalia: '93291',
   // ── Colorado ──────────────────────────────────────────────────────────────
-  Arvada: '80001', 'Aurora CO': '80010', Boulder: '80301', Brighton: '80601',
+  Arvada: '80001', 'Aurora CO': '80010', 'Boulder CO': '80301', Brighton: '80601',
   Broomfield: '80021', 'Castle Rock': '80104', 'Colorado Springs': '80901',
   'Commerce City': '80022', Denver: '80201', 'Fort Collins': '80521',
   'Grand Junction': '81501', Greeley: '80631', 'Highlands Ranch': '80129',
@@ -253,7 +253,7 @@ export const CITY_ZIP: Record<string, string> = {
   'Twin Falls': '83301',
   // ── Illinois ──────────────────────────────────────────────────────────────
   'Aurora IL': '60505', 'Bloomington IL': '61701', Champaign: '61820',
-  Chicago: '60601', Cicero: '60804', Decatur: '62521', Elgin: '60120',
+  Chicago: '60601', Cicero: '60804', 'Decatur IL': '62521', Elgin: '60120',
   Evanston: '60201', Joliet: '60431', Naperville: '60540', Peoria: '61601',
   Rockford: '61101', 'Springfield IL': '62701', Waukegan: '60085',
   // ── Indiana ───────────────────────────────────────────────────────────────
@@ -279,8 +279,8 @@ export const CITY_ZIP: Record<string, string> = {
   'Lafayette LA': '70501', 'Lake Charles': '70601', Metairie: '70001',
   'Monroe LA': '71201', 'New Orleans': '70112', Shreveport: '71101',
   // ── Maine ─────────────────────────────────────────────────────────────────
-  'Auburn ME': '04210', Augusta: '04330', Bangor: '04401',
-  'Lewiston ME': '04240', Portland: '04101', 'South Portland': '04106',
+  'Auburn ME': '04210', 'Augusta ME': '04330', Bangor: '04401',
+  'Lewiston ME': '04240', 'Portland ME': '04101', 'South Portland': '04106',
   // ── Maryland ──────────────────────────────────────────────────────────────
   Annapolis: '21401', Baltimore: '21201', Bowie: '20715', Frederick: '21701',
   Gaithersburg: '20877', Germantown: '20874', Rockville: '20850',
@@ -290,7 +290,7 @@ export const CITY_ZIP: Record<string, string> = {
   Lowell: '01851', Lynn: '01901', 'New Bedford': '02740', Newton: '02458',
   Quincy: '02169', 'Springfield MA': '01101', Waltham: '02451', Worcester: '01601',
   // ── Michigan ──────────────────────────────────────────────────────────────
-  'Ann Arbor': '48101', Clinton: '48035', Dearborn: '48120', Detroit: '48201',
+  'Ann Arbor': '48101', 'Clinton MI': '48035', Dearborn: '48120', Detroit: '48201',
   Flint: '48501', 'Grand Rapids': '49501', Kalamazoo: '49001', Lansing: '48901',
   Livonia: '48150', Macomb: '48042', 'Rochester Hills': '48307',
   Southfield: '48075', 'Sterling Heights': '48310', Warren: '48089',
@@ -313,7 +313,7 @@ export const CITY_ZIP: Record<string, string> = {
   Billings: '59101', Bozeman: '59715', 'Great Falls': '59401',
   Helena: '59601', Kalispell: '59901', Missoula: '59801',
   // ── Nebraska ──────────────────────────────────────────────────────────────
-  Bellevue: '68005', 'Grand Island': '68801', Lincoln: '68501', Omaha: '68101',
+  'Bellevue NE': '68005', 'Grand Island': '68801', Lincoln: '68501', Omaha: '68101',
   // ── Nevada ────────────────────────────────────────────────────────────────
   'Carson City': '89701', 'Enterprise NV': '89123', Henderson: '89002',
   'Las Vegas': '89101', 'North Las Vegas': '89030', Reno: '89501',
@@ -351,13 +351,13 @@ export const CITY_ZIP: Record<string, string> = {
   Norman: '73069', 'Oklahoma City': '73101', Stillwater: '74074', Tulsa: '74101',
   // ── Oregon ────────────────────────────────────────────────────────────────
   Beaverton: '97005', Bend: '97701', Eugene: '97401', Gresham: '97030',
-  Hillsboro: '97123', Medford: '97501', Portland: '97201',
+  Hillsboro: '97123', Medford: '97501', 'Portland OR': '97201',
   'Salem OR': '97301', 'Springfield OR': '97477',
   // ── Pennsylvania ──────────────────────────────────────────────────────────
   Allentown: '18101', Bethlehem: '18015', Erie: '16501', Lancaster: '17601',
   Philadelphia: '19101', Pittsburgh: '15201', Reading: '19601', Scranton: '18501',
   // ── Rhode Island ──────────────────────────────────────────────────────────
-  Cranston: '02910', Pawtucket: '02860', Providence: '02901',
+  Cranston: '02910', Pawtucket: '02860', 'Providence RI': '02901',
   Warwick: '02886', Woonsocket: '02895',
   // ── South Carolina ────────────────────────────────────────────────────────
   Charleston: '29401', 'Columbia SC': '29201', 'Florence SC': '29501',
@@ -396,7 +396,7 @@ export const CITY_ZIP: Record<string, string> = {
   'Charleston WV': '25301', 'Huntington WV': '25701', Morgantown: '26501',
   Parkersburg: '26101', Wheeling: '26003',
   // ── Wisconsin ─────────────────────────────────────────────────────────────
-  Appleton: '54911', 'Green Bay': '54301', Kenosha: '53140', Madison: '53701',
+  Appleton: '54911', 'Green Bay': '54301', Kenosha: '53140', 'Madison WI': '53701',
   Milwaukee: '53201', Oshkosh: '54901', Racine: '53401', Waukesha: '53186',
   // ── Wyoming ───────────────────────────────────────────────────────────────
   Casper: '82601', Cheyenne: '82001', Laramie: '82070',

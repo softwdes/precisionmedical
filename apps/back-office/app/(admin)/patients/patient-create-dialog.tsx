@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { UserPlus, ShieldAlert, User, Stethoscope, PhoneCall } from 'lucide-react';
 import { LocationSelect } from '@/components/ui-phoenix/location-select';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
-import { US_STATES, CITIES_BY_STATE } from '@/lib/us-locations';
+import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 import {
   Button,
   Dialog,
@@ -304,7 +304,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
                 <LocationSelect
                   label="Ciudad"
                   value={form.addressCity}
-                  onChange={(v) => setForm(prev => ({ ...prev, addressCity: v }))}
+                  onChange={(v) => setForm(prev => ({ ...prev, addressCity: v, addressZip: CITY_ZIP[v] ?? prev.addressZip }))}
                   options={form.addressState ? (CITIES_BY_STATE[US_STATES.find(s => s.name === form.addressState)?.code ?? ''] ?? []) : []}
                   placeholder={form.addressState ? 'Seleccionar ciudad' : 'Primero selecciona estado'}
                   disabled={!form.addressState}

@@ -163,6 +163,21 @@ interface Props {
   onCreated?:  (caseId: string) => void;
 }
 
+interface ResponsiblePerson {
+  id:       string;
+  name:     string;
+  relation: string;
+}
+
+const RELATION_OPTIONS = [
+  'Cónyuge',
+  'Padre/Madre',
+  'Hijo/Hija',
+  'Hermano/a',
+  'Persona responsable legal',
+  'Otro',
+];
+
 interface ConsentState {
   hipaa:                 boolean;
   assignedParties:       boolean;
@@ -276,7 +291,8 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
   const [chiropractor, setChiropractor] = useState('');
 
   // Step 2 consents
-  const [consents, setConsents] = useState<ConsentState>(EMPTY_CONSENTS);
+  const [consents,     setConsents]     = useState<ConsentState>(EMPTY_CONSENTS);
+  const [responsible,  setResponsible]  = useState<ResponsiblePerson[]>([]);
 
   function setConsent<K extends keyof ConsentState>(key: K, value: ConsentState[K]) {
     setConsents(prev => ({ ...prev, [key]: value }));
@@ -294,6 +310,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
       setAttorney('');
       setChiropractor('');
       setConsents(EMPTY_CONSENTS);
+      setResponsible([]);
       setError('');
     }
   }, [open]);
@@ -368,6 +385,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
             signatureDataUrl: consents.signatureDataUrl,
             lawFirm,
             chiropractor,
+            responsiblePersons: responsible,
           },
         }),
       });
@@ -508,8 +526,59 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
                 checked={consents.assignedParties}
                 onCheck={(v) => setConsent('assignedParties', v)}
               >
-                {/* Checkboxes específicos */}
+                {/* Personas responsables */}
                 <div className="space-y-2 pt-1">
+                  {responsible.map((p, i) => (
+                    <div key={p.id} className="flex items-start gap-2 rounded-md border border-border/50 bg-bg-2/30 p-2.5">
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-text-muted block mb-1">Nombre completo</label>
+                          <input
+                            type="text"
+                            value={p.name}
+                            placeholder="Nombre del responsable"
+                            onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-text-muted block mb-1">Relación</label>
+                          <select
+                            value={p.relation}
+                            onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, relation: e.target.value } : x))}
+                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 outline-none focus:border-brand transition-colors appearance-none"
+                          >
+                            <option value="" disabled>Seleccione la relación</option>
+                            {RELATION_OPTIONS.map(r => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setResponsible(prev => prev.filter((_, j) => j !== i))}
+                        className="mt-5 p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors shrink-0"
+                        title="Eliminar"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Botón agregar */}
+                  <button
+                    type="button"
+                    onClick={() => setResponsible(prev => [...prev, { id: `r-${Date.now()}-${prev.length}`, name: '', relation: '' }])}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-dashed border-border/60 text-[12px] text-text-muted hover:border-brand/50 hover:text-brand transition-colors"
+                  >
+                    <span className="text-base leading-none">+</span>
+                    {t('addResponsible')}
+                  </button>
+                </div>
+
+                {/* Checkboxes específicos */}
+                <div className="space-y-2 pt-2 border-t border-border/30">
                   {([
                     ['assignedPartiesCheck1', t('consents.assignedParties.check1')],
                     ['assignedPartiesCheck2', t('consents.assignedParties.check2')],
@@ -526,12 +595,6 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
                     </label>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  className="text-[11px] text-brand hover:underline"
-                >
-                  {t('addResponsible')}
-                </button>
               </ConsentBlock>
 
               {/* 3. Consentimiento para tratamiento */}

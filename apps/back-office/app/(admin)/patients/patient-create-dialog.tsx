@@ -3,6 +3,8 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus, ShieldAlert } from 'lucide-react';
+import { LocationSelect } from '@/components/ui-phoenix/location-select';
+import { US_STATES, CITIES_BY_STATE } from '@/lib/us-locations';
 import {
   Button,
   Dialog,
@@ -229,10 +231,29 @@ export function PatientCreateDialog({ onCreated }: Props) {
             <section className="space-y-4">
               <h3 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Dirección</h3>
               <FormField.Input label="Dirección" value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St" />
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label="Ciudad"        value={form.addressCity}  onChange={set('addressCity')}  placeholder="Miami" />
-                <FormField.Input label="Estado"        value={form.addressState} onChange={set('addressState')} placeholder="FL" />
-                <FormField.Input label="Código postal" value={form.addressZip}   onChange={set('addressZip')}   placeholder="33101" />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative">
+                <LocationSelect
+                  label="Estado"
+                  value={form.addressState}
+                  onChange={(v) => {
+                    setForm(prev => ({ ...prev, addressState: v, addressCity: '' }));
+                  }}
+                  options={US_STATES.map(s => s.name)}
+                  placeholder="Seleccionar estado"
+                />
+                <LocationSelect
+                  label="Ciudad"
+                  value={form.addressCity}
+                  onChange={(v) => setForm(prev => ({ ...prev, addressCity: v }))}
+                  options={
+                    form.addressState
+                      ? (CITIES_BY_STATE[US_STATES.find(s => s.name === form.addressState)?.code ?? ''] ?? [])
+                      : []
+                  }
+                  placeholder={form.addressState ? 'Seleccionar ciudad' : 'Primero selecciona estado'}
+                  disabled={!form.addressState}
+                />
+                <FormField.Input label="Código postal" value={form.addressZip} onChange={set('addressZip')} placeholder="33101" />
               </div>
             </section>
 

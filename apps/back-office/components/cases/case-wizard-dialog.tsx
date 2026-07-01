@@ -11,10 +11,10 @@
  * HIPAA: consents guardados en Case.consentsData + consentSignaturePng.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope, ChevronDown, Search, X } from 'lucide-react';
+import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
   Button,
@@ -22,128 +22,44 @@ import {
 import { FormField } from '@/components/ui-phoenix';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 
-// ─── Law firm selector (inline — compatible con focus trap de Radix Dialog) ──
+// ─── Law firm select nativo ───────────────────────────────────────────────────
 
-interface LawFirm { id: string; label: string; }
+interface LawFirmOption { id: string; label: string; }
 
 function LawFirmSelect({
-  value, firmId, onChange, placeholder,
+  firmId, onChange, placeholder,
 }: {
-  value: string;
   firmId: string | null;
   onChange: (label: string, id: string | null) => void;
   placeholder: string;
 }) {
-  const [open,    setOpen]  = useState(false);
-  const [firms,   setFirms] = useState<LawFirm[]>([]);
-  const [loading, setLoad]  = useState(false);
-  const [query,   setQuery] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [firms, setFirms] = useState<LawFirmOption[]>([]);
 
   useEffect(() => {
-    setLoad(true);
     fetch('/api/admin/lawyers/autocomplete')
       .then(r => r.json())
       .then(j => setFirms(j.results ?? []))
-      .catch(() => {})
-      .finally(() => setLoad(false));
+      .catch(() => {});
   }, []);
-
-  // Focus search input when panel opens
-  useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 50);
-    else setQuery('');
-  }, [open]);
-
-  const filtered = query.trim()
-    ? firms.filter(f => f.label.toLowerCase().includes(query.toLowerCase()))
-    : firms;
 
   return (
     <div>
       <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">
         Firma de abogados
       </label>
-
-      {/* Trigger */}
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-md border bg-bg-2 text-sm text-left transition-colors focus:outline-none
-          ${open ? 'border-brand ring-1 ring-brand/30 rounded-b-none' : 'border-border hover:border-brand/40'}`}
+      <select
+        value={firmId ?? ''}
+        onChange={e => {
+          const selected = firms.find(f => f.id === e.target.value);
+          onChange(selected?.label ?? '', selected?.id ?? null);
+        }}
+        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand transition-colors appearance-none"
       >
-        <span className={value ? 'text-text-1 truncate pr-2' : 'text-text-muted text-[12px]'}>
-          {value || placeholder}
-        </span>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {value && (
-            <span
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && onChange('', null)}
-              onClick={e => { e.stopPropagation(); onChange('', null); setOpen(false); }}
-              className="text-text-muted hover:text-rose transition-colors cursor-pointer"
-            >
-              <X className="w-3 h-3" />
-            </span>
-          )}
-          <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
-        </div>
-      </button>
-
-      {/* Inline panel — abre hacia abajo en flujo normal, el modal scrollea */}
-      {open && (
-        <div className="rounded-b-md border border-t-0 border-border bg-bg-1 shadow-inner overflow-hidden">
-          {/* Search */}
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 bg-bg-2/40">
-            <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar firma..."
-              className="flex-1 bg-transparent text-[12px] text-text-1 placeholder:text-text-muted/50 outline-none"
-            />
-            {query && (
-              <button type="button" onClick={() => setQuery('')} className="text-text-muted hover:text-text-1 transition-colors">
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-
-          {/* List */}
-          <div className="max-h-48 overflow-y-auto overscroll-contain">
-            <button
-              type="button"
-              className="w-full text-left px-3 py-2 text-[11px] text-text-muted/60 italic hover:bg-white/[0.03] transition-colors border-b border-border/20"
-              onClick={() => { onChange('', null); setOpen(false); }}
-            >
-              Sin firma asignada
-            </button>
-
-            {loading && <p className="px-3 py-3 text-[11px] text-text-muted text-center">Cargando...</p>}
-
-            {!loading && filtered.length === 0 && (
-              <p className="px-3 py-3 text-[11px] text-text-muted text-center">Sin resultados para &ldquo;{query}&rdquo;</p>
-            )}
-
-            {filtered.map(f => (
-              <button
-                key={f.id}
-                type="button"
-                className={`w-full text-left px-3 py-2 text-[13px] hover:bg-white/[0.04] transition-colors flex items-center gap-2
-                  ${firmId === f.id ? 'text-brand font-medium bg-brand/[0.05]' : 'text-text-1'}`}
-                onClick={() => { onChange(f.label, f.id); setOpen(false); }}
-              >
-                <span className={`w-3 h-3 shrink-0 ${firmId === f.id ? 'opacity-100' : 'opacity-0'}`}>
-                  <Check className="w-3 h-3" />
-                </span>
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        <option value="">{placeholder}</option>
+        {firms.map(f => (
+          <option key={f.id} value={f.id}>{f.label}</option>
+        ))}
+      </select>
     </div>
   );
 }
@@ -474,7 +390,6 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
 
               {/* Legal */}
               <LawFirmSelect
-                value={lawFirm}
                 firmId={lawFirmId}
                 onChange={(name, id) => { setLawFirm(name); setLawFirmId(id); }}
                 placeholder={t('lawFirmPlaceholder')}

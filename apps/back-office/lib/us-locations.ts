@@ -164,8 +164,8 @@ export const CITY_ZIP: Record<string, string> = {
   Anniston: '36201', Athens: '35611', Auburn: '36830', Bessemer: '35020',
   Birmingham: '35203', Cullman: '35055', Daphne: '36526', Decatur: '35601',
   Dothan: '36301', 'Enterprise AL': '36330', Fairhope: '36532', Florence: '35630',
-  Gadsden: '35901', Homewood: '35209', Hoover: '35226', Huntsville: '35801',
-  Jacksonville: '36265', Jasper: '35501', Madison: '35758', Mobile: '36601',
+  Gadsden: '35901', Homewood: '35209', Hoover: '35226', 'Huntsville AL': '35801',
+  'Jacksonville AL': '36265', Jasper: '35501', 'Madison AL': '35758', Mobile: '36601',
   Montgomery: '36101', 'Muscle Shoals': '35661', Northport: '35476',
   Opelika: '36801', Oxford: '36203', Pelham: '35124', 'Phenix City': '36867',
   Prattville: '36066', Prichard: '36610', Scottsboro: '35768', Selma: '36701',
@@ -179,7 +179,7 @@ export const CITY_ZIP: Record<string, string> = {
   'Bullhead City': '86429', 'Casa Grande': '85122', 'Casas Adobes': '85742',
   'Catalina Foothills': '85718', Chandler: '85224', Flagstaff: '86001',
   Gilbert: '85296', Glendale: '85301', Goodyear: '85338', Maricopa: '85138',
-  Mesa: '85201', Peoria: '85345', Phoenix: '85001', Prescott: '86301',
+  Mesa: '85201', 'Peoria AZ': '85345', Phoenix: '85001', Prescott: '86301',
   'Queen Creek': '85142', Scottsdale: '85251', 'Sierra Vista': '85635',
   Surprise: '85374', Tempe: '85281', Tucson: '85701', Yuma: '85364',
   // ── Arkansas ──────────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ export const CITY_ZIP: Record<string, string> = {
   Fayetteville: '72701', 'Fort Smith': '72901', 'Hot Springs': '71901',
   Jonesboro: '72401', 'Little Rock': '72201', 'North Little Rock': '72114',
   'Pine Bluff': '71601', Rogers: '72756', Russellville: '72801',
-  Sherwood: '72120', Springdale: '72762', Texarkana: '71854', 'West Memphis': '72301',
+  Sherwood: '72120', 'Springdale AR': '72762', Texarkana: '71854', 'West Memphis': '72301',
   // ── California ────────────────────────────────────────────────────────────
   Anaheim: '92801', Antioch: '94509', Bakersfield: '93301', Berkeley: '94701',
   Burbank: '91501', 'Chula Vista': '91910', Clovis: '93612', Compton: '90220',
@@ -195,11 +195,11 @@ export const CITY_ZIP: Record<string, string> = {
   'Elk Grove': '95624', Escondido: '92025', Fontana: '92335', Fremont: '94536',
   Fresno: '93701', Fullerton: '92831', 'Garden Grove': '92840',
   'Glendale CA': '91201', Hayward: '94541', 'Huntington Beach': '92646',
-  Inglewood: '90301', Irvine: '92602', Lancaster: '93534', 'Long Beach': '90801',
+  Inglewood: '90301', Irvine: '92602', 'Lancaster CA': '93534', 'Long Beach': '90801',
   'Los Angeles': '90001', Modesto: '95351', 'Moreno Valley': '92551',
-  Murrieta: '92562', Norwalk: '90650', Oakland: '94601', Oceanside: '92054',
+  Murrieta: '92562', 'Norwalk CA': '90650', Oakland: '94601', Oceanside: '92054',
   Ontario: '91761', Orange: '92856', Oxnard: '93030', Palmdale: '93550',
-  Pasadena: '91101', Pomona: '91766', 'Rancho Cucamonga': '91730',
+  'Pasadena CA': '91101', Pomona: '91766', 'Rancho Cucamonga': '91730',
   Rialto: '92376', Richmond: '94801', Riverside: '92501', Roseville: '95661',
   Sacramento: '95814', Salinas: '93901', 'San Bernardino': '92401',
   'San Diego': '92101', 'San Francisco': '94102', 'San Jose': '95101',
@@ -217,11 +217,11 @@ export const CITY_ZIP: Record<string, string> = {
   // ── Connecticut ───────────────────────────────────────────────────────────
   Bridgeport: '06601', Bristol: '06010', Danbury: '06810', 'East Hartford': '06108',
   Greenwich: '06830', Hartford: '06101', Manchester: '06040', Meriden: '06450',
-  Milford: '06460', 'New Britain': '06051', 'New Haven': '06501',
-  Norwalk: '06850', Stamford: '06901', Stratford: '06614', Waterbury: '06701',
+  'Milford CT': '06460', 'New Britain': '06051', 'New Haven': '06501',
+  'Norwalk CT': '06850', Stamford: '06901', Stratford: '06614', Waterbury: '06701',
   'West Hartford': '06107',
   // ── Delaware ──────────────────────────────────────────────────────────────
-  Dover: '19901', Newark: '19702', Wilmington: '19801',
+  Dover: '19901', 'Newark DE': '19702', 'Wilmington DE': '19801',
   // ── Florida ───────────────────────────────────────────────────────────────
   'Boca Raton': '33427', 'Bonita Springs': '34134', 'Cape Coral': '33901',
   Clearwater: '33755', 'Coral Springs': '33065', Davie: '33314',
@@ -230,7 +230,7 @@ export const CITY_ZIP: Record<string, string> = {
   Hollywood: '33019', Homestead: '33030', 'Jacksonville FL': '32099',
   Jupiter: '33458', Kissimmee: '34741', Lakeland: '33801', Lauderhill: '33311',
   Miami: '33101', 'Miami Beach': '33139', 'Miami Gardens': '33056',
-  Miramar: '33025', Naples: '34101', 'North Port': '34286', Orlando: '32801',
+  Miramar: '33025', 'Naples FL': '34101', 'North Port': '34286', Orlando: '32801',
   'Palm Bay': '32905', 'Palm Beach Gardens': '33410', 'Pembroke Pines': '33024',
   Pensacola: '32501', Plantation: '33317', 'Pompano Beach': '33060',
   'Port St. Lucie': '34952', Sarasota: '34230', 'Spring Hill': '34609',
@@ -248,13 +248,13 @@ export const CITY_ZIP: Record<string, string> = {
   Kailua: '96734', Kaneohe: '96744', 'Pearl City': '96782', Waipahu: '96797',
   // ── Idaho ─────────────────────────────────────────────────────────────────
   Boise: '83701', Caldwell: '83605', "Coeur d'Alene": '83814',
-  'Idaho Falls': '83401', 'Lewiston ID': '83501', Meridian: '83642',
+  'Idaho Falls': '83401', 'Lewiston ID': '83501', 'Meridian ID': '83642',
   Moscow: '83843', Nampa: '83651', Pocatello: '83201', 'Post Falls': '83854',
   'Twin Falls': '83301',
   // ── Illinois ──────────────────────────────────────────────────────────────
   'Aurora IL': '60505', 'Bloomington IL': '61701', Champaign: '61820',
   Chicago: '60601', Cicero: '60804', 'Decatur IL': '62521', Elgin: '60120',
-  Evanston: '60201', Joliet: '60431', Naperville: '60540', Peoria: '61601',
+  Evanston: '60201', Joliet: '60431', Naperville: '60540', 'Peoria IL': '61601',
   Rockford: '61101', 'Springfield IL': '62701', Waukegan: '60085',
   // ── Indiana ───────────────────────────────────────────────────────────────
   Anderson: '46011', 'Bloomington IN': '47401', Carmel: '46032',
@@ -268,7 +268,7 @@ export const CITY_ZIP: Record<string, string> = {
   'Iowa City': '52240', 'Sioux City': '51101', Waterloo: '50701',
   // ── Kansas ────────────────────────────────────────────────────────────────
   'Kansas City KS': '66101', 'Lawrence KS': '66044', Lenexa: '66215',
-  Olathe: '66061', 'Overland Park': '66204', Salina: '67401',
+  Olathe: '66061', 'Overland Park': '66204', 'Salina KS': '67401',
   Topeka: '66601', Wichita: '67201',
   // ── Kentucky ──────────────────────────────────────────────────────────────
   'Bowling Green': '42101', Covington: '41011', Elizabethtown: '42701',
@@ -287,7 +287,7 @@ export const CITY_ZIP: Record<string, string> = {
   'Silver Spring': '20901', Waldorf: '20601',
   // ── Massachusetts ─────────────────────────────────────────────────────────
   Boston: '02101', Brockton: '02301', Cambridge: '02139', 'Fall River': '02720',
-  Lowell: '01851', Lynn: '01901', 'New Bedford': '02740', Newton: '02458',
+  Lowell: '01851', Lynn: '01901', 'New Bedford': '02740', 'Newton MA': '02458',
   Quincy: '02169', 'Springfield MA': '01101', Waltham: '02451', Worcester: '01601',
   // ── Michigan ──────────────────────────────────────────────────────────────
   'Ann Arbor': '48101', 'Clinton MI': '48035', Dearborn: '48120', Detroit: '48201',
@@ -303,7 +303,7 @@ export const CITY_ZIP: Record<string, string> = {
   'St. Paul': '55101', Woodbury: '55125',
   // ── Mississippi ───────────────────────────────────────────────────────────
   Biloxi: '39530', Gulfport: '39501', Hattiesburg: '39401', Jackson: '39201',
-  Meridian: '39301', Southaven: '38671', Tupelo: '38801',
+  'Meridian MS': '39301', Southaven: '38671', Tupelo: '38801',
   // ── Missouri ──────────────────────────────────────────────────────────────
   Columbia: '65201', Independence: '64050', 'Jefferson City': '65101',
   Joplin: '64801', 'Kansas City MO': '64101', "Lee's Summit": '64063',
@@ -332,12 +332,12 @@ export const CITY_ZIP: Record<string, string> = {
   Cheektowaga: '14225', Hempstead: '11550', Islip: '11751',
   Manhattan: '10001', 'New York City': '10001', 'Niagara Falls': '14301',
   Queens: '11431', 'Rochester NY': '14601', Schenectady: '12301',
-  'Staten Island': '10301', Syracuse: '13201', Utica: '13501', Yonkers: '10701',
+  'Staten Island': '10301', 'Syracuse NY': '13201', Utica: '13501', Yonkers: '10701',
   // ── North Carolina ────────────────────────────────────────────────────────
   Asheville: '28801', Cary: '27511', 'Chapel Hill': '27514', Charlotte: '28201',
   'Concord NC': '28025', Durham: '27701', 'Fayetteville NC': '28301',
   Gastonia: '28052', Greensboro: '27401', 'High Point': '27260',
-  'Jacksonville NC': '28540', Raleigh: '27601', Wilmington: '28401',
+  'Jacksonville NC': '28540', Raleigh: '27601', 'Wilmington NC': '28401',
   'Winston-Salem': '27101',
   // ── North Dakota ──────────────────────────────────────────────────────────
   Bismarck: '58501', Fargo: '58102', 'Grand Forks': '58201', Minot: '58701',
@@ -354,7 +354,7 @@ export const CITY_ZIP: Record<string, string> = {
   Hillsboro: '97123', Medford: '97501', 'Portland OR': '97201',
   'Salem OR': '97301', 'Springfield OR': '97477',
   // ── Pennsylvania ──────────────────────────────────────────────────────────
-  Allentown: '18101', Bethlehem: '18015', Erie: '16501', Lancaster: '17601',
+  Allentown: '18101', Bethlehem: '18015', Erie: '16501', 'Lancaster PA': '17601',
   Philadelphia: '19101', Pittsburgh: '15201', Reading: '19601', Scranton: '18501',
   // ── Rhode Island ──────────────────────────────────────────────────────────
   Cranston: '02910', Pawtucket: '02860', 'Providence RI': '02901',
@@ -373,11 +373,11 @@ export const CITY_ZIP: Record<string, string> = {
   Abilene: '79601', Allen: '75002', Amarillo: '79101', Arlington: '76010',
   Austin: '73301', Beaumont: '77701', Brownsville: '78520', Carrollton: '75006',
   'Corpus Christi': '78401', Dallas: '75201', Denton: '76201', 'El Paso': '79901',
-  'Fort Worth': '76101', Frisco: '75034', Garland: '75040', 'Grand Prairie': '75050',
+  'Fort Worth': '76101', Frisco: '75034', 'Garland TX': '75040', 'Grand Prairie': '75050',
   Houston: '77001', Irving: '75061', Killeen: '76541', Laredo: '78040',
   'League City': '77573', Lewisville: '75029', Lubbock: '79401',
   McAllen: '78501', McKinney: '75069', Mesquite: '75149', Midland: '79701',
-  'Missouri City': '77459', Odessa: '79761', Pasadena: '77501',
+  'Missouri City': '77459', Odessa: '79761', 'Pasadena TX': '77501',
   Pearland: '77581', Plano: '75023', Richardson: '75080', 'Round Rock': '78664',
   'San Antonio': '78201', 'Sugar Land': '77478', Tyler: '75701', Waco: '76701',
   // ── Vermont ───────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus, ShieldAlert } from 'lucide-react';
 import { LocationSelect } from '@/components/ui-phoenix/location-select';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { US_STATES, CITIES_BY_STATE } from '@/lib/us-locations';
 import {
   Button,
@@ -48,10 +49,11 @@ interface Props {
 
 export function PatientCreateDialog({ onCreated }: Props) {
   const router = useRouter();
-  const [open,   setOpen]   = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error,  setError]  = useState('');
-  const [form,   setForm]   = useState(EMPTY_FORM);
+  const [open,        setOpen]        = useState(false);
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState('');
+  const [form,        setForm]        = useState(EMPTY_FORM);
+  const [confirmExit, setConfirmExit] = useState(false);
 
   const age     = useMemo(() => calcAge(form.dateOfBirth), [form.dateOfBirth]);
   const isMinor = age !== null && age < 18;
@@ -66,9 +68,16 @@ export function PatientCreateDialog({ onCreated }: Props) {
 
   function handleClose(force = false) {
     if (!force && isDirty) {
-      const ok = window.confirm('¿Seguro que quieres cerrar? Los datos ingresados se perderán.');
-      if (!ok) return;
+      setConfirmExit(true);
+      return;
     }
+    setOpen(false);
+    setForm(EMPTY_FORM);
+    setError('');
+  }
+
+  function handleConfirmExit() {
+    setConfirmExit(false);
     setOpen(false);
     setForm(EMPTY_FORM);
     setError('');
@@ -175,6 +184,17 @@ export function PatientCreateDialog({ onCreated }: Props) {
         <UserPlus className="w-4 h-4" />
         Nuevo paciente
       </button>
+
+      <ConfirmDialog
+        open={confirmExit}
+        variant="warning"
+        title="¿Cerrar sin guardar?"
+        description="Tienes datos ingresados que se perderán si cierras ahora. ¿Deseas continuar?"
+        confirmLabel="Sí, cerrar"
+        cancelLabel="Seguir editando"
+        onConfirm={handleConfirmExit}
+        onCancel={() => setConfirmExit(false)}
+      />
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); } }>
         <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0" onInteractOutside={(e) => { e.preventDefault(); handleClose(); }}>

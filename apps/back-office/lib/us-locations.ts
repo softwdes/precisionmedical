@@ -111,9 +111,9 @@ export const CITIES_BY_STATE: Record<string, string[]> = {
 /** ZIP principal por ciudad (Utah completo + ciudades mayores de otros estados) */
 export const CITY_ZIP: Record<string, string> = {
   // ── Utah ──────────────────────────────────────────────────────────────────
-  Alpine: '84004', Alta: '84092', Altamont: '84001', American Fork: '84003',
+  Alpine: '84004', Alta: '84092', Altamont: '84001', 'American Fork': '84003',
   Aurora: '84620', Beaver: '84713', Blanding: '84511', Bluffdale: '84065',
-  Boulder: '84716', Bountiful: '84010', Brian Head: '84719', 'Brigham City': '84302',
+  Boulder: '84716', Bountiful: '84010', 'Brian Head': '84719', 'Brigham City': '84302',
   'Castle Dale': '84513', 'Cedar City': '84720', 'Cedar Hills': '84062',
   Centerfield: '84622', Centerville: '84014', Circleville: '84723',
   Clarkston: '84305', Clearfield: '84015', Clinton: '84015', Coalville: '84017',

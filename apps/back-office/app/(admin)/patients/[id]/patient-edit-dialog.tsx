@@ -93,6 +93,14 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const [saving,       setSaving]       = useState(false);
   const [error,        setError]        = useState('');
   const [confirmExit,  setConfirmExit]  = useState(false);
+  const [emailError,   setEmailError]   = useState('');
+
+  function validateEmail(v: string) {
+    if (!v) { setEmailError(''); return true; }
+    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    setEmailError(ok ? '' : 'Correo electrónico inválido');
+    return ok;
+  }
 
   const initialForm = {
     firstName:                 patient.firstName,
@@ -161,6 +169,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       setError('Nombre y apellido son requeridos.');
       return;
     }
+    if (form.email && !validateEmail(form.email)) return;
     if (form.dateOfBirth) {
       const a = calcAge(form.dateOfBirth);
       if (a === null || a < 0) { setError('Fecha de nacimiento inválida.'); return; }
@@ -342,7 +351,15 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label="Correo electrónico" value={form.email} onChange={set('email')} placeholder="paciente@email.com" type="email" />
+                <FormField.Input
+                  label="Correo electrónico"
+                  value={form.email}
+                  onChange={(v) => { set('email')(v); if (emailError) validateEmail(v); }}
+                  onBlur={() => validateEmail(form.email)}
+                  placeholder="paciente@email.com"
+                  type="email"
+                  error={emailError}
+                />
                 <div className="space-y-1">
                   <FormField.Input label="Fecha de nacimiento" value={form.dateOfBirth} onChange={set('dateOfBirth')} type="date" />
                   {age !== null && (

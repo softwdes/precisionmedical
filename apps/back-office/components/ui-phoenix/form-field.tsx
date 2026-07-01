@@ -25,16 +25,18 @@ function FieldLabel({ children, required }: { children: React.ReactNode } & Requ
 }
 
 function InputField({
-  label, required, value, onChange, placeholder, type = 'text', autoFocus, hint, maxLength,
+  label, required, value, onChange, onBlur, placeholder, type = 'text', autoFocus, hint, maxLength, error,
 }: Required & {
   label: React.ReactNode;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   type?: string;
   autoFocus?: boolean;
   hint?: React.ReactNode;
   maxLength?: number;
+  error?: string;
 }) {
   return (
     <div>
@@ -42,12 +44,15 @@ function InputField({
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
         type={type}
         autoFocus={autoFocus}
         maxLength={maxLength}
+        className={error ? 'border-rose focus-visible:ring-rose/30' : undefined}
       />
-      {hint && <div className="text-text-muted text-[10px] mt-1">{hint}</div>}
+      {error && <p className="text-[10px] text-rose mt-1">{error}</p>}
+      {!error && hint && <div className="text-text-muted text-[10px] mt-1">{hint}</div>}
     </div>
   );
 }

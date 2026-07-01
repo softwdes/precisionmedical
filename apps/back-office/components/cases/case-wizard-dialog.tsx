@@ -24,7 +24,7 @@ import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 
 // ─── Law firm selector ────────────────────────────────────────────────────────
 
-interface LawFirm { id: string; firmName: string | null; }
+interface LawFirm { id: string; label: string; }
 
 function LawFirmSelect({
   value, firmId, onChange, placeholder,
@@ -43,7 +43,7 @@ function LawFirmSelect({
     setLoading(true);
     fetch('/api/admin/lawyers/autocomplete')
       .then(r => r.json())
-      .then(j => setFirms(j.firms ?? []))
+      .then(j => setFirms(j.results ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -84,9 +84,9 @@ function LawFirmSelect({
               key={f.id}
               type="button"
               className={`w-full text-left px-3 py-2 text-sm hover:bg-white/[0.04] transition-colors ${firmId === f.id ? 'text-brand font-medium' : 'text-text-1'}`}
-              onClick={() => { onChange(f.firmName ?? '', f.id); setOpen(false); }}
+              onClick={() => { onChange(f.label, f.id); setOpen(false); }}
             >
-              {f.firmName}
+              {f.label}
             </button>
           ))}
         </div>

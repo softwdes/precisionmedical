@@ -58,7 +58,15 @@ export function PatientCreateDialog({ onCreated }: Props) {
     return (v: string) => setForm(prev => ({ ...prev, [key]: v }));
   }
 
-  function handleClose() {
+  const isDirty = Object.keys(EMPTY_FORM).some(
+    k => form[k as keyof typeof EMPTY_FORM] !== EMPTY_FORM[k as keyof typeof EMPTY_FORM]
+  );
+
+  function handleClose(force = false) {
+    if (!force && isDirty) {
+      const ok = window.confirm('¿Seguro que quieres cerrar? Los datos ingresados se perderán.');
+      if (!ok) return;
+    }
     setOpen(false);
     setForm(EMPTY_FORM);
     setError('');
@@ -98,7 +106,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
         setError(json.message ?? json.error ?? 'Error al crear paciente.');
         return;
       }
-      handleClose();
+      handleClose(true);
       if (onCreated) { onCreated(json.patient.id); }
       router.refresh();
     } catch {
@@ -166,8 +174,8 @@ export function PatientCreateDialog({ onCreated }: Props) {
         Nuevo paciente
       </button>
 
-      <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0">
+      <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); } }>
+        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0" onInteractOutside={(e) => { e.preventDefault(); handleClose(); }}>
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
             <DialogTitle className="flex items-center gap-2 text-text-1">
               <UserPlus className="w-4 h-4 text-brand" />
@@ -275,7 +283,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
           </div>
 
           <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 sticky bottom-0 bg-bg-1">
-            <Button variant="outline" onClick={handleClose} disabled={saving} className="w-full sm:w-auto">
+            <Button variant="outline" onClick={() => handleClose()} disabled={saving} className="w-full sm:w-auto">
               Cancelar
             </Button>
             <Button onClick={handleCreate} disabled={saving} className="w-full sm:w-auto">

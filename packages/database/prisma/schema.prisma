@@ -705,15 +705,34 @@ model Patient {
   
   status             PatientStatus   @default(NEW)
 
-  // Intake preferences (capturadas en B.6 portal)
+  // ─── Demografía ──────────────────────────────────────────────────────────
+  phone2                 String?   // celular / segundo teléfono
+  addressLine1           String?
+  addressCity            String?
+  addressState           String?
+  addressZip             String?
+  sex                    PatientSex?
+  maritalStatus          MaritalStatus?
+  employer               String?
+  preferredPharmacy      String?
+  communicationPreference CommunicationPreference?
+  referralSource         ReferralSource?           // usa enum existente: PHONE_CALL | WALK_IN | LAW_FIRM_REFERRAL | etc.
+
+  // ─── Intake preferences (capturadas en B.6 portal) ───────────────────────
   preferredLanguage      String?
   emergencyContactName   String?
   emergencyContactPhone  String?
+  emergencyContactRelation String?
 
-  // Responsable legal (requerido cuando el paciente es menor de edad)
+  // ─── Segundo contacto de emergencia ──────────────────────────────────────
+  emergency2Name         String?
+  emergency2Phone        String?
+  emergency2Relation     String?
+
+  // ─── Responsable legal (requerido si es menor de edad) ───────────────────
   guardianName       String?
   guardianPhone      String?
-  guardianRelation   String?   // "PARENT" | "MOTHER" | "FATHER" | "LEGAL_GUARDIAN" | "OTHER"
+  guardianRelation   String?
 
   appointments       Appointment[]
   commissions        Commission[]
@@ -736,6 +755,30 @@ enum PatientStatus {
   COMPLETED
   DISCHARGED
   INACTIVE
+}
+
+enum PatientSex {
+  MALE
+  FEMALE
+  NON_BINARY
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  SEPARATED
+  OTHER
+}
+
+enum CommunicationPreference {
+  PHONE
+  EMAIL
+  TEXT
+  ANY
 }
 
 enum AccidentType {

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -53,15 +53,42 @@ const APPT_STATUS_COLOR: Record<string, string> = {
   NO_SHOW:    'bg-amber/10 text-amber border-amber/20',
 };
 
+// ── Law firm select (same as CaseWizardDialog) ────────────────────────────
+interface LawFirmOption { id: string; label: string; }
+
+function LawFirmSelectInline({ firmId, onChange }: {
+  firmId: string | null;
+  onChange: (label: string, id: string | null) => void;
+}) {
+  const [firms, setFirms] = useState<LawFirmOption[]>([]);
+  useEffect(() => {
+    fetch('/api/admin/lawyers/autocomplete').then(r => r.json()).then(j => setFirms(j.results ?? [])).catch(() => {});
+  }, []);
+  return (
+    <div>
+      <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Firma de abogados</label>
+      <select value={firmId ?? ''} onChange={e => {
+        const sel = firms.find(f => f.id === e.target.value);
+        onChange(sel?.label ?? '', sel?.id ?? null);
+      }} className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand appearance-none">
+        <option value="">Nombre de la firma de abogados que refirió el caso médico...</option>
+        {firms.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
 // ── Case View Dialog ───────────────────────────────────────────────────────
 interface CaseDetail {
   id: string; caseCode: string; caseType: string; status: string;
   accidentType: string | null; accidentDate: string | null;
   accidentLocation: string | null; accidentNotes: string | null;
+  consentsData: Record<string, unknown> | null;
   createdAt: string;
   patient: { id: string; firstName: string; lastName: string };
   lawFirm: { id: string; firmName: string } | null;
   attorney: { id: string; firstName: string; lastName: string } | null;
+  primaryInsurance: { id: string; name: string } | null;
   specialty: { id: string; name: string } | null;
 }
 
@@ -106,9 +133,13 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
       .finally(() => setLoading(false));
   }, [open, caseId]);
 
+  const cd = detail?.consentsData as Record<string, string> | null;
+  const lawFirmName    = detail?.lawFirm?.firmName ?? (cd?.lawFirm as string | undefined) ?? null;
+  const chiropractor   = (cd?.chiropractor as string | undefined) ?? null;
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-text-1 flex items-center gap-2">
             <Briefcase className="w-4 h-4 text-brand" />
@@ -121,51 +152,62 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
 
         {loading && (
           <div className="space-y-3 py-2">
-            {[1,2,3].map(i => <div key={i} className="h-10 rounded-md bg-bg-2 animate-pulse" />)}
+            {[1,2,3,4].map(i => <div key={i} className="h-12 rounded-md bg-bg-2 animate-pulse" />)}
           </div>
         )}
 
         {!loading && detail && (
-          <div className="space-y-3 text-sm">
+          <div className="space-y-4">
+            {/* Status + type */}
             <div className="flex items-center gap-2 flex-wrap">
               <TagPill label={CASE_STATUS_LABEL[detail.status] ?? detail.status} colorClass={CASE_STATUS_COLOR[detail.status] ?? 'bg-bg-2 text-text-2 border-border'} />
-              <span className="text-[10px] text-text-muted uppercase tracking-wider">{detail.caseType}</span>
-              {detail.specialty && <span className="text-[10px] text-text-muted">{detail.specialty.name}</span>}
+              <span className="text-[11px] text-text-muted border border-border rounded px-1.5 py-0.5">{detail.caseType}</span>
+              {detail.specialty && <span className="text-[11px] text-text-muted">{detail.specialty.name}</span>}
             </div>
 
-            <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-2">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Accidente</p>
-              <div className="grid grid-cols-2 gap-2 text-[12px]">
-                <div>
-                  <span className="text-text-muted">Fecha · </span>
-                  <span className="text-text-1">{fmtIsoDate(detail.accidentDate)}</span>
-                </div>
-                <div>
-                  <span className="text-text-muted">Tipo · </span>
-                  <span className="text-text-1">{detail.accidentType ?? '—'}</span>
-                </div>
+            {/* Información del caso */}
+            <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Información del caso</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-[12.5px]">
+                <div className="flex justify-between"><span className="text-text-muted">Tipo de caso</span><span className="text-text-1 font-medium">{detail.caseType}</span></div>
+                <div className="flex justify-between"><span className="text-text-muted">Estado</span><span className="text-text-1">{CASE_STATUS_LABEL[detail.status] ?? detail.status}</span></div>
+                <div className="flex justify-between"><span className="text-text-muted">Fecha de creación</span><span className="text-text-1">{fmtIsoDate(detail.createdAt)}</span></div>
+                <div className="flex justify-between"><span className="text-text-muted">Fecha del accidente</span><span className="text-text-1">{fmtIsoDate(detail.accidentDate)}</span></div>
+                <div className="flex justify-between"><span className="text-text-muted">Abogado representante</span><span className="text-text-1">{detail.attorney ? `${detail.attorney.firstName} ${detail.attorney.lastName}` : 'No especificado'}</span></div>
+                <div className="flex justify-between"><span className="text-text-muted">Quiropráctico tratante</span><span className="text-text-1">{chiropractor ?? 'No especificado'}</span></div>
               </div>
-              {detail.accidentLocation && (
-                <div className="text-[12px]">
-                  <span className="text-text-muted">Lugar · </span>
-                  <span className="text-text-1">{detail.accidentLocation}</span>
-                </div>
-              )}
               {detail.accidentNotes && (
-                <p className="text-[11px] text-text-muted italic">{detail.accidentNotes}</p>
+                <div className="pt-1 border-t border-border/40">
+                  <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Descripción del caso</p>
+                  <p className="text-[12.5px] text-text-2">{detail.accidentNotes}</p>
+                </div>
               )}
             </div>
 
-            {(detail.lawFirm || detail.attorney) && (
-              <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-1">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Legal</p>
-                {detail.lawFirm && <div className="text-[12px] text-text-1">{detail.lawFirm.firmName}</div>}
-                {detail.attorney && <div className="text-[12px] text-text-muted">{detail.attorney.firstName} {detail.attorney.lastName}</div>}
+            {/* Firma de abogados */}
+            <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Firma de abogados</p>
               </div>
-            )}
+              {lawFirmName ? (
+                <div className="rounded-md border border-border/60 bg-bg-2/40 px-3 py-2.5">
+                  <p className="text-[12.5px] text-text-1 font-medium">{lawFirmName}</p>
+                </div>
+              ) : (
+                <p className="text-[12px] text-text-muted italic">No hay firma de abogados</p>
+              )}
+            </div>
 
-            <div className="text-[10px] text-text-muted">
-              Creado: {fmtIsoDate(detail.createdAt)}
+            {/* Información de seguros */}
+            <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-2">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Información de seguros</p>
+              {detail.primaryInsurance ? (
+                <div className="rounded-md border border-border/60 bg-bg-2/40 px-3 py-2.5">
+                  <p className="text-[12.5px] text-text-1 font-medium">{detail.primaryInsurance.name}</p>
+                </div>
+              ) : (
+                <p className="text-[12px] text-text-muted italic">No hay seguros activos · Agrega un seguro para comenzar</p>
+              )}
             </div>
           </div>
         )}
@@ -173,7 +215,7 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
         <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
           <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cerrar</Button>
           <Button className="w-full sm:w-auto" onClick={() => { onClose(); onEdit(); }}>
-            <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+            <Pencil className="w-3.5 h-3.5 mr-1" /> Editar caso
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -181,7 +223,7 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
   );
 }
 
-// ── Case Edit Dialog ───────────────────────────────────────────────────────
+// ── Case Edit Dialog — replica wizard step 1 ──────────────────────────────
 function isoToDisp(iso: string | null): string {
   if (!iso) return '';
   const [y, m, d] = iso.slice(0, 10).split('-');
@@ -202,16 +244,20 @@ function fmtDateInput(raw: string): string {
 function CaseEditDialog({ caseId, open, onClose, onSaved }: {
   caseId: string; open: boolean; onClose: () => void; onSaved: () => void;
 }) {
-  const [detail, setDetail]   = useState<CaseDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState('');
+  const [detail, setDetail]     = useState<CaseDetail | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
 
-  const [status, setStatus]           = useState('');
-  const [accidentType, setAccidentType] = useState('');
+  const [caseType, setCaseType]       = useState<'MVA' | 'GENERAL'>('MVA');
   const [accDateDisp, setAccDateDisp] = useState('');
-  const [location, setLocation]       = useState('');
-  const [notes, setNotes]             = useState('');
+  const [description, setDescription] = useState('');
+  const [lawFirmId, setLawFirmId]     = useState<string | null>(null);
+  const [lawFirmLabel, setLawFirmLabel] = useState('');
+  const [attorney, setAttorney]       = useState('');
+  const [chiropractor, setChiropractor] = useState('');
+
+  const isMVA = caseType === 'MVA';
 
   useEffect(() => {
     if (!open) return;
@@ -222,11 +268,14 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
         const c: CaseDetail = j.case;
         if (!c) return;
         setDetail(c);
-        setStatus(c.status);
-        setAccidentType(c.accidentType ?? '');
+        setCaseType((c.caseType === 'MVA' ? 'MVA' : 'GENERAL') as 'MVA' | 'GENERAL');
         setAccDateDisp(isoToDisp(c.accidentDate));
-        setLocation(c.accidentLocation ?? '');
-        setNotes(c.accidentNotes ?? '');
+        setDescription(c.accidentNotes ?? '');
+        setLawFirmId(c.lawFirm?.id ?? null);
+        setLawFirmLabel(c.lawFirm?.firmName ?? '');
+        const cd = (c.consentsData ?? {}) as Record<string, string>;
+        setAttorney((cd.attorney as string | undefined) ?? '');
+        setChiropractor((cd.chiropractor as string | undefined) ?? '');
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -241,11 +290,12 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: status || undefined,
-          accidentType: accidentType || null,
+          caseType,
           accidentDate,
-          accidentLocation: location || null,
-          accidentNotes: notes || null,
+          accidentNotes: description || null,
+          lawFirmId: lawFirmId || null,
+          lawFirmLabel: lawFirmLabel || null,
+          chiropractor: chiropractor || null,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -261,7 +311,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-text-1 flex items-center gap-2">
             <Pencil className="w-4 h-4 text-brand" />
@@ -274,66 +324,77 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
 
         {loading && (
           <div className="space-y-3 py-2">
-            {[1,2,3,4].map(i => <div key={i} className="h-10 rounded-md bg-bg-2 animate-pulse" />)}
+            {[1,2,3,4].map(i => <div key={i} className="h-11 rounded-md bg-bg-2 animate-pulse" />)}
           </div>
         )}
 
         {!loading && (
-          <div className="space-y-4">
-            {/* Status */}
-            <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Estado</label>
-              <select value={status} onChange={e => setStatus(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
-                {Object.entries(CASE_STATUS_LABEL).map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
+          <div className="space-y-5 py-1">
+            {/* Tipo de caso — same cards as wizard */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-text-muted uppercase tracking-wider">Tipo de caso</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {([['MVA', 'MVA (Accidente de vehículo a motor)', Car], ['GENERAL', 'GM (Medicina general)', Stethoscope]] as const).map(([val, label, Icon]) => (
+                  <button key={val} type="button" onClick={() => setCaseType(val)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-sm text-left transition-all ${
+                      caseType === val ? 'border-brand bg-brand/10 text-brand font-medium' : 'border-border bg-bg-2/40 text-text-muted hover:border-brand/40'
+                    }`}>
+                    <Icon className="w-4 h-4 shrink-0" />
+                    {label}
+                    {caseType === val && <Check className="w-3.5 h-3.5 ml-auto text-brand" />}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
-            {/* Accident type */}
-            <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Tipo de accidente</label>
-              <select value={accidentType} onChange={e => setAccidentType(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
-                <option value="">— Sin especificar —</option>
-                <option value="AUTO">AUTO</option>
-                <option value="MOTORCYCLE">MOTORCYCLE</option>
-                <option value="PEDESTRIAN">PEDESTRIAN</option>
-                <option value="WORKPLACE">WORKPLACE</option>
-                <option value="OTHER">OTHER</option>
-              </select>
-            </div>
+            {/* MVA-only fields */}
+            {isMVA && (
+              <>
+                {/* Fecha del accidente */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Fecha del accidente</label>
+                  <input type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10}
+                    value={accDateDisp}
+                    onChange={e => setAccDateDisp(fmtDateInput(e.target.value))}
+                    onBlur={() => { const iso = dispToIso(accDateDisp); if (iso) setAccDateDisp(isoToDisp(iso)); }}
+                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
+                  />
+                </div>
 
-            {/* Accident date */}
-            <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Fecha de accidente</label>
-              <input
-                type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10}
-                value={accDateDisp}
-                onChange={e => setAccDateDisp(fmtDateInput(e.target.value))}
-                onBlur={() => { const iso = dispToIso(accDateDisp); if (iso) setAccDateDisp(isoToDisp(iso)); }}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
-              />
-            </div>
+                {/* Descripción */}
+                <div>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Descripción del accidente</label>
+                  <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
+                    placeholder="Describe brevemente los síntomas y el accidente."
+                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand resize-none"
+                  />
+                </div>
 
-            {/* Location */}
-            <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Lugar del accidente</label>
-              <input type="text" value={location} onChange={e => setLocation(e.target.value)}
-                placeholder="Dirección o intersección..."
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
-              />
-            </div>
+                {/* Firma de abogados */}
+                <LawFirmSelectInline
+                  firmId={lawFirmId}
+                  onChange={(label, id) => { setLawFirmLabel(label); setLawFirmId(id); }}
+                />
 
-            {/* Notes */}
-            <div>
-              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Notas</label>
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
-                placeholder="Notas adicionales del caso..."
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
-              />
-            </div>
+                {/* Abogado + Quiropráctico */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Abogado representante</label>
+                    <input type="text" value={attorney} onChange={e => setAttorney(e.target.value)}
+                      placeholder="Nombre del abogado"
+                      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Quiropráctico tratante</label>
+                    <input type="text" value={chiropractor} onChange={e => setChiropractor(e.target.value)}
+                      placeholder="Nombre del quiropráctico"
+                      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             {error && (
               <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose">{error}</div>

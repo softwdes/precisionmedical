@@ -236,25 +236,32 @@ const STRINGS = {
     consentsCounter: (n: number) => `${n} de 5 documentos aceptados`,
     c1Title: 'DIVULGACIÓN MÉDICA',
     c1Body: 'Autorizo a Precision Medical Care a divulgar mi información médica a mi abogado representante y a las aseguradoras involucradas en mi caso, únicamente para efectos del procesamiento de mi reclamación por lesiones personales.',
+    c1FullBody: 'DIVULGACIÓN DE INFORMACIÓN MÉDICA\n\nReconozco que se me ha proporcionado una copia del AVISO DE PRÁCTICAS DE PRIVACIDAD de Precision Medical Urgent Care & Family Practice (PMUCFP). Entiendo que PMUCFP puede divulgar la totalidad o parte de mi historial médico, o el de mis dependientes, a mí, así como a las personas o entidades responsables de pagar los cargos por los servicios prestados. Esto puede incluir a mis compañías de seguros (por ejemplo, de salud, automóvil, compensación laboral, discapacidad) y a los abogados que trabajan en mi caso.\n\nAdemás, reconozco que PMUCFP puede divulgar información del paciente a los proveedores de atención médica que me derivan o me tratan, y para fines de pago y operaciones de atención médica.\n\nPor la presente, autorizo a PMUCFP a obtener información médica de otras entidades y proveedores de atención médica, incluyendo, entre otros: resultados de laboratorio, informes de pruebas diagnósticas, imágenes y otra información clínica que los médicos o representantes de PMUCFP consideren necesaria.\n\nEntiendo que puedo inspeccionar mi información médica protegida, o la de mis dependientes, solicitar información adicional y revocar esta autorización de acuerdo con las regulaciones federales de privacidad y la política de privacidad de PMUCFP. Entiendo que esta revocación debe hacerse por escrito, excepto en la medida en que PMUCFP ya haya usado o divulgado mi información médica protegida con base en mi solicitud original.',
     c1Check: 'Acepto la Divulgación Médica',
     c2Title: 'PARTES CESIONADAS',
     c2Body: 'Autorizo a las partes cesionadas (abogado, quiropráctico u otros proveedores) a actuar en mi nombre para gestionar los pagos y acuerdos relacionados con mi caso.',
+    c2FullBody: 'DIVULGACIÓN DE INFORMACIÓN MÉDICA A PARTES CESIONADAS\n\nBajo la Ley de Portabilidad y Responsabilidad del Seguro Médico (HIPAA), tengo ciertos derechos sobre mi información médica protegida. Por la presente autorizo específicamente la divulgación de mi información médica para los siguientes propósitos:\n\nEn mi ausencia, autorizo a Precision Medical Urgent Care & Family Practice a divulgar total o parcialmente mi información médica protegida o la de mis dependientes a las personas o entidades que se indican a continuación.\n\nEsta autorización permanecerá vigente hasta que la revoque por escrito.',
     c2Check: 'Acepto las Partes Cesionadas',
     authPersonsLabel: 'Personas responsables autorizadas',
     authPersonPh: 'Nombre completo de la persona...',
     addPersonBtn: '+ Agregar persona',
     c3Title: 'AUTORIZACIÓN DE TRATAMIENTO',
     c3Body: 'Consiento voluntariamente recibir diagnóstico y tratamiento médico en Precision Medical Care. Entiendo los riesgos y beneficios del tratamiento propuesto y puedo retirar este consentimiento en cualquier momento.',
+    c3FullBody: 'CONSENTIMIENTO PARA TRATAMIENTO\n\nPor la presente, autorizo la atención y doy mi consentimiento para el tratamiento médico, incluyendo pruebas y procedimientos, realizados por el/los médico(s) u otros profesionales de la salud para mi tratamiento o el de mis dependientes.\n\nMi intención es que esta autorización se aplique a esta consulta y a cualquier atención futura que yo o mis dependientes podamos solicitar.',
     c3Check: 'Acepto la Autorización de Tratamiento',
     c4Title: 'POLÍTICA FINANCIERA',
     c4Body: 'Entiendo la política financiera de Precision Medical Care. Acepto que los cargos no cubiertos por mi seguro o acuerdo legal son mi responsabilidad personal. Al firmar reconozco haber recibido y comprendido esta política.',
+    c4FullBody: 'POLÍTICA Y ACUERDO DE CARGOS DE CRÉDITO Y FINANCIAMIENTO\n\nAcepto ser financieramente responsable de cualquier costo en el que incurra yo o mis dependientes. Entiendo que los cargos por los servicios prestados deben pagarse al momento del servicio, incluyendo cualquier copago o deducible según mi acuerdo con mi aseguradora. Entiendo que PMUCFP presentará las reclamaciones en mi nombre y que soy financieramente responsable de cualquier saldo, copago, coaseguro, deducible o servicio no cubierto por mi compañía de seguros. Autorizo cualquier beneficio adeudado a mí para que se pague directamente a Precision Medical Urgent Care & Family Practice (cesión de beneficios).\n\nRESPONSABILIDAD FINANCIERA\n\n• PMUCFP se reserva el derecho de cobrar una tarifa de $50 a $100 por citas canceladas o perdidas sin al menos 24 horas de aviso.\n\n• Se añadirá un cargo financiero del 1.5% mensual (APR 18%) a mi cuenta si no se recibe el pago dentro de los 30 días posteriores a la fecha del estado de cuenta.\n\n• Acepto pagar una tarifa de servicio de $25.00 por cualquier cheque devuelto u otro método de pago devuelto por mi institución financiera.\n\n• Si algún monto se remite a una agencia de cobro de deudas de terceros, acepto que, además de cualquier otro monto permitido por la ley (incluidos intereses, costas judiciales y honorarios de abogados), también seré responsable de una tarifa de cobro de hasta el 40% del monto principal adeudado, según lo permitido por la sección 12-1-11 del Código Anotado de Utah. Estos términos se aplican a todos los montos en los que incurra yo o cualquier persona por quien tenga responsabilidad legal, ya sean incurridos antes o después de la fecha de este acuerdo.\n\nEn consideración a los servicios médicos prestados, acuso recibo de la Política Financiera de PMUCFP y acepto pagar los servicios médicos según sus términos.',
     c4Check: 'Acepto la Política Financiera',
     c4SignLabel: 'Firma de acuse — Política financiera',
     c4SignPh: '✍️ Dibuja tu firma aquí',
     c4ClearBtn: '× Borrar y volver a firmar',
     c5Title: 'HISTORIAL MÉDICO',
     c5Body: 'Autorizo a Precision Medical Care a solicitar y recibir mi historial médico de proveedores de salud anteriores, con el único fin de brindar el mejor cuidado posible durante mi tratamiento.',
+    c5FullBody: 'AUTORIDAD DE HISTORIAL MÉDICO\n\nAutorización del Sistema de Historias Clínicas Electrónicas (HCE): PMUCFP ha implementado un nuevo sistema de Historias Clínicas Electrónicas (HCE) que importa el historial de recetas de terceros (p. ej., farmacias).\n\nPara transferir mi historial de recetas actual y anterior a este nuevo sistema, doy mi consentimiento. Al firmar a continuación, autorizo a PMUCFP a transferir mi historial de recetas.',
     c5Check: 'Acepto la Autorización de Historial Médico',
+    viewFullDoc: 'Ver documento completo →',
+    closeDoc: 'Cerrar documento',
     consentsValidation: 'Por favor acepta los 5 documentos y firma la Política Financiera para continuar.',
     sifoHint7: 'Estos consentimientos son documentos legales requeridos. Léelos con cuidado — están diseñados para protegerte.',
     // Step 8 — Lien
@@ -439,25 +446,32 @@ const STRINGS = {
     consentsCounter: (n: number) => `${n} of 5 documents accepted`,
     c1Title: 'MEDICAL DISCLOSURE',
     c1Body: 'I authorize Precision Medical Care to disclose my medical information to my attorney and the insurance companies involved in my case, solely for the purpose of processing my personal injury claim.',
+    c1FullBody: 'MEDICAL INFORMATION RELEASE\n\nI acknowledge that I have been provided with a copy of the NOTICE OF PRIVACY PRACTICES of Precision Medical Urgent Care & Family Practice (PMUCFP). I understand that PMUCFP may release all or portions of my medical records, or those of my dependents, to me, as well as to individuals or entities responsible for paying the charges for services rendered. This may include my insurance carriers (e.g., health, auto, worker\'s compensation, disability) and attorneys working on my case.\n\nFurthermore, I acknowledge that PMUCFP may disclose patient information to referring or treating healthcare providers, and for purposes of payment and healthcare operations.\n\nI hereby authorize PMUCFP to obtain medical information from other healthcare entities and providers, including but not limited to: lab results, diagnostic test reports, images, and other clinical information deemed necessary by PMUCFP\'s physicians or representatives.\n\nI understand that I may inspect my protected health information, or that of my dependents, request additional information, and revoke this authorization in accordance with federal privacy regulations and PMUCFP\'s privacy policy. I understand that this revocation must be made in writing, except to the extent that PMUCFP has already used or disclosed my protected health information based on my original request.',
     c1Check: 'I accept the Medical Disclosure',
     c2Title: 'ASSIGNED PARTIES',
     c2Body: 'I authorize assigned parties (attorney, chiropractor, or other providers) to act on my behalf to manage payments and agreements related to my case.',
+    c2FullBody: 'MEDICAL INFORMATION RELEASE TO ASSIGNED PARTIES\n\nUnder the Health Insurance Portability and Accountability Act (HIPAA), I have certain rights regarding my protected health information. I hereby specifically authorize the disclosure of my health information for the following purposes:\n\nIn my absence, I authorize Precision Medical Urgent Care & Family Practice to release all or portions of my, or my dependents\', protected health information to the individuals or entities indicated below.\n\nThis authorization remains in effect until I revoke it in writing.',
     c2Check: 'I accept the Assigned Parties authorization',
     authPersonsLabel: 'Authorized responsible persons',
     authPersonPh: "Person's full name...",
     addPersonBtn: '+ Add person',
     c3Title: 'TREATMENT AUTHORIZATION',
     c3Body: 'I voluntarily consent to receive medical diagnosis and treatment at Precision Medical Care. I understand the risks and benefits of the proposed treatment and may withdraw this consent at any time.',
+    c3FullBody: 'CONSENT FOR TREATMENT\n\nI hereby authorize care and consent to medical treatment, including tests and procedures, performed by the physician(s) or other healthcare providers for my treatment or the treatment of my dependents.\n\nI intend this authorization to apply to this visit and any future care that I or my dependents may seek.',
     c3Check: 'I accept the Treatment Authorization',
     c4Title: 'FINANCIAL POLICY',
     c4Body: 'I understand the financial policy of Precision Medical Care. I agree that charges not covered by my insurance or legal settlement are my personal responsibility. By signing, I acknowledge receipt and understanding of this policy.',
+    c4FullBody: 'CREDIT AND FINANCE CHARGE POLICY AND AGREEMENT\n\nI agree to be financially responsible for any costs incurred for myself or my dependents. I understand that charges for services provided must be paid at the time of service, including any copayments or deductibles as per my agreement with my health insurance carrier. I understand that PMUCFP will submit claims on my behalf and that I am financially responsible for any balance, copayments, coinsurance, deductibles, or services not covered by my insurance company. I authorize any benefits due to me to be paid directly to Precision Medical Urgent Care & Family Practice (assignment of benefits).\n\nFINANCIAL RESPONSIBILITY\n\n• PMUCFP reserves the right to charge a fee of $50 to $100 for appointments canceled or missed without at least 24 hours\' notice.\n\n• A finance charge of 1.5% per month (APR 18%) will be added to my account if payment is not received within 30 days of the statement date.\n\n• I agree to pay a service fee of $25.00 for any returned check or other payment method returned by my financial institution.\n\n• If any amounts are referred to a third-party debt collection agency, I agree that, in addition to any other amounts allowed by law (including interest, court costs, and attorney fees), I will also be responsible for a collection fee of up to 40% of the principal amount owed, as permitted by Utah Code Annotated section 12-1-11. These terms apply to all the amounts incurred by me or any individual for whom I have legal responsibility, whether incurred before or after the date of this agreement.\n\nIn consideration for the medical services rendered, I acknowledge receipt of PMUCFP\'s Financial Policy and agree to pay for medical services according to its terms.',
     c4Check: 'I accept the Financial Policy',
     c4SignLabel: 'Acknowledgment signature — Financial policy',
     c4SignPh: '✍️ Draw your signature here',
     c4ClearBtn: '× Clear and re-sign',
     c5Title: 'MEDICAL HISTORY',
     c5Body: 'I authorize Precision Medical Care to request and receive my medical history from previous healthcare providers, with the sole purpose of providing the best possible care during my treatment.',
+    c5FullBody: 'MEDICAL HISTORY AUTHORITY\n\nElectronic Health Records (EHR) System Authorization: PMUCFP has implemented a new Electronic Health Records (EHR) system that imports prescription history from third-party sources (e.g., pharmacies).\n\nIn order to transfer my current and past prescription history to this new system, I hereby provide my consent. By signing below, I authorize PMUCFP to transfer my prescription history.',
     c5Check: 'I accept the Medical History Authorization',
+    viewFullDoc: 'View full document →',
+    closeDoc: 'Close document',
     consentsValidation: 'Please accept all 5 documents and sign the Financial Policy to continue.',
     sifoHint7: 'These consents are required legal documents. Read them carefully — they are designed to protect you.',
     // Step 8 — Lien
@@ -677,6 +691,7 @@ export function IntakeWizard({
   const isDrawingConsent  = useRef(false);
   const [hasConsentSig, setHasConsentSig] = useState(false);
   const [consentsError, setConsentsError] = useState('');
+  const [consentModalDoc, setConsentModalDoc] = useState<null | 'c1' | 'c2' | 'c3' | 'c4' | 'c5'>(null);
 
   // Step 8 — Lien signature
   const [showFullLegal, setShowFullLegal] = useState(false);
@@ -919,7 +934,7 @@ export function IntakeWizard({
 
   // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
-    <div style={S.screen}>
+    <><div style={S.screen}>
 
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
       <div style={S.topBar}>
@@ -1599,9 +1614,10 @@ export function IntakeWizard({
         {/* ══════ STEP 7 · Consentimientos médicos (B.8) ══════════════════════ */}
         {step === 7 && (() => {
           const checkedCount = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
-          const ConsentCard = ({ active, onToggle, title, body, checkLabel, children }: {
+          const ConsentCard = ({ active, onToggle, title, body, checkLabel, docKey, children }: {
             active: boolean; onToggle: () => void;
             title: string; body: string; checkLabel: string;
+            docKey: 'c1' | 'c2' | 'c3' | 'c4' | 'c5';
             children?: React.ReactNode;
           }) => (
             <div style={{
@@ -1613,9 +1629,16 @@ export function IntakeWizard({
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: CYAN, marginBottom: 6, textTransform: 'uppercase' }}>
                 {title}
               </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.60)', lineHeight: 1.65, marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.60)', lineHeight: 1.65, marginBottom: 8 }}>
                 {body}
               </div>
+              <button type="button" onClick={() => setConsentModalDoc(docKey)} style={{
+                background: 'none', border: 'none', padding: '4px 0', marginBottom: 10,
+                color: CYAN, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3,
+              }}>
+                {t.viewFullDoc}
+              </button>
               {children}
               <label style={{
                 display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer',
@@ -1660,6 +1683,7 @@ export function IntakeWizard({
                   title={t.c1Title}
                   body={t.c1Body}
                   checkLabel={t.c1Check}
+                  docKey="c1"
                 />
 
                 {/* Doc 2 — Partes cesionadas */}
@@ -1669,6 +1693,7 @@ export function IntakeWizard({
                   title={t.c2Title}
                   body={t.c2Body}
                   checkLabel={t.c2Check}
+                  docKey="c2"
                 >
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -1724,6 +1749,7 @@ export function IntakeWizard({
                   title={t.c3Title}
                   body={t.c3Body}
                   checkLabel={t.c3Check}
+                  docKey="c3"
                 />
 
                 {/* Doc 4 — Financiero + Firma */}
@@ -1733,6 +1759,7 @@ export function IntakeWizard({
                   title={t.c4Title}
                   body={t.c4Body}
                   checkLabel={t.c4Check}
+                  docKey="c4"
                 >
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -1771,6 +1798,7 @@ export function IntakeWizard({
                   title={t.c5Title}
                   body={t.c5Body}
                   checkLabel={t.c5Check}
+                  docKey="c5"
                 />
 
               </div>
@@ -1919,6 +1947,88 @@ export function IntakeWizard({
 
       </div>
     </div>
+
+    {/* ── Consent full-text modal overlay ─────────────────────────────────── */}
+    {consentModalDoc && (() => {
+      const docMap: Record<string, { title: string; body: string }> = {
+        c1: { title: t.c1Title, body: t.c1FullBody },
+        c2: { title: t.c2Title, body: t.c2FullBody },
+        c3: { title: t.c3Title, body: t.c3FullBody },
+        c4: { title: t.c4Title, body: t.c4FullBody },
+        c5: { title: t.c5Title, body: t.c5FullBody },
+      };
+      const doc = docMap[consentModalDoc]!;
+      return (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(10,18,36,0.97)',
+          display: 'flex', flexDirection: 'column',
+          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: '14px 16px', flexShrink: 0,
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <div style={{
+              flex: 1, fontSize: 11, fontWeight: 800, letterSpacing: '0.12em',
+              textTransform: 'uppercase', color: CYAN,
+            }}>
+              {doc.title}
+            </div>
+            <button type="button" onClick={() => setConsentModalDoc(null)} style={{
+              background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.25)',
+              borderRadius: 6, color: 'rgba(244,63,94,0.80)', fontSize: 11, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit', padding: '4px 10px', flexShrink: 0,
+            }}>✕</button>
+          </div>
+
+          {/* Scrollable body */}
+          <div style={{
+            flex: 1, overflowY: 'auto', padding: '20px 16px',
+            WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+          }}>
+            {doc.body.split('\n').map((line, i) => {
+              if (!line.trim()) return <div key={i} style={{ height: 12 }} />;
+              const isHeading = line === line.toUpperCase() && line.length > 3 && !line.startsWith('•');
+              const isBullet  = line.startsWith('•');
+              return (
+                <p key={i} style={{
+                  margin: 0, marginBottom: 8,
+                  fontSize: isHeading ? 11 : 14,
+                  fontWeight: isHeading ? 800 : isBullet ? 400 : 400,
+                  letterSpacing: isHeading ? '0.10em' : undefined,
+                  textTransform: isHeading ? 'uppercase' : undefined,
+                  color: isHeading ? CYAN : 'rgba(255,255,255,0.75)',
+                  lineHeight: 1.75,
+                  paddingLeft: isBullet ? 8 : 0,
+                }}>
+                  {line}
+                </p>
+              );
+            })}
+            <div style={{ height: 20 }} />
+          </div>
+
+          {/* Footer */}
+          <div style={{
+            padding: '14px 16px', flexShrink: 0,
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <button type="button" onClick={() => setConsentModalDoc(null)} style={{
+              width: '100%', padding: '13px',
+              background: `linear-gradient(135deg, ${INDIGO}, #8B5CF6)`, border: 'none',
+              borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              {t.closeDoc}
+            </button>
+          </div>
+        </div>
+      );
+    })()}
+    </>
   );
 }
 

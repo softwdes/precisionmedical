@@ -53,6 +53,305 @@ const APPT_STATUS_COLOR: Record<string, string> = {
   NO_SHOW:    'bg-amber/10 text-amber border-amber/20',
 };
 
+// ── Case View Dialog ───────────────────────────────────────────────────────
+interface CaseDetail {
+  id: string; caseCode: string; caseType: string; status: string;
+  accidentType: string | null; accidentDate: string | null;
+  accidentLocation: string | null; accidentNotes: string | null;
+  createdAt: string;
+  patient: { id: string; firstName: string; lastName: string };
+  lawFirm: { id: string; firmName: string } | null;
+  attorney: { id: string; firstName: string; lastName: string } | null;
+  specialty: { id: string; name: string } | null;
+}
+
+const CASE_STATUS_LABEL: Record<string, string> = {
+  NEW_REFERRAL:     'Nuevo referido', INTAKE_PENDING: 'Intake pendiente',
+  INTAKE_COMPLETED: 'Intake completo', CONFIRMED: 'Confirmado',
+  ACTIVE: 'Activo', MMI: 'MMI', CLOSED: 'Cerrado',
+  SETTLED: 'Liquidado', ARCHIVED: 'Archivado', CANCELLED: 'Cancelado',
+};
+const CASE_STATUS_COLOR: Record<string, string> = {
+  NEW_REFERRAL:     'bg-brand/10 text-brand border-brand/20',
+  INTAKE_PENDING:   'bg-amber/10 text-amber border-amber/20',
+  INTAKE_COMPLETED: 'bg-cyan/10 text-cyan border-cyan/20',
+  CONFIRMED:        'bg-cyan/10 text-cyan border-cyan/20',
+  ACTIVE:           'bg-emerald/10 text-emerald border-emerald/20',
+  MMI:              'bg-violet/10 text-violet border-violet/20',
+  CLOSED:           'bg-text-muted/10 text-text-muted border-text-muted/20',
+  SETTLED:          'bg-emerald/10 text-emerald border-emerald/20',
+  ARCHIVED:         'bg-text-muted/10 text-text-muted border-text-muted/20',
+  CANCELLED:        'bg-rose/10 text-rose border-rose/20',
+};
+
+function fmtIsoDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function CaseViewDialog({ caseId, open, onClose, onEdit }: {
+  caseId: string; open: boolean; onClose: () => void; onEdit: () => void;
+}) {
+  const [detail, setDetail] = useState<CaseDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    fetch(`/api/admin/cases/${caseId}`)
+      .then(r => r.json())
+      .then(j => setDetail(j.case ?? null))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [open, caseId]);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-text-1 flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-brand" />
+            {detail?.caseCode ?? 'Caso'}
+          </DialogTitle>
+          <DialogDescription className="text-text-muted text-xs">
+            {detail?.patient ? `${detail.patient.firstName} ${detail.patient.lastName}` : ''}
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading && (
+          <div className="space-y-3 py-2">
+            {[1,2,3].map(i => <div key={i} className="h-10 rounded-md bg-bg-2 animate-pulse" />)}
+          </div>
+        )}
+
+        {!loading && detail && (
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2 flex-wrap">
+              <TagPill label={CASE_STATUS_LABEL[detail.status] ?? detail.status} colorClass={CASE_STATUS_COLOR[detail.status] ?? 'bg-bg-2 text-text-2 border-border'} />
+              <span className="text-[10px] text-text-muted uppercase tracking-wider">{detail.caseType}</span>
+              {detail.specialty && <span className="text-[10px] text-text-muted">{detail.specialty.name}</span>}
+            </div>
+
+            <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-2">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Accidente</p>
+              <div className="grid grid-cols-2 gap-2 text-[12px]">
+                <div>
+                  <span className="text-text-muted">Fecha · </span>
+                  <span className="text-text-1">{fmtIsoDate(detail.accidentDate)}</span>
+                </div>
+                <div>
+                  <span className="text-text-muted">Tipo · </span>
+                  <span className="text-text-1">{detail.accidentType ?? '—'}</span>
+                </div>
+              </div>
+              {detail.accidentLocation && (
+                <div className="text-[12px]">
+                  <span className="text-text-muted">Lugar · </span>
+                  <span className="text-text-1">{detail.accidentLocation}</span>
+                </div>
+              )}
+              {detail.accidentNotes && (
+                <p className="text-[11px] text-text-muted italic">{detail.accidentNotes}</p>
+              )}
+            </div>
+
+            {(detail.lawFirm || detail.attorney) && (
+              <div className="rounded-md bg-bg-2/40 border border-border/40 p-3 space-y-1">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Legal</p>
+                {detail.lawFirm && <div className="text-[12px] text-text-1">{detail.lawFirm.firmName}</div>}
+                {detail.attorney && <div className="text-[12px] text-text-muted">{detail.attorney.firstName} {detail.attorney.lastName}</div>}
+              </div>
+            )}
+
+            <div className="text-[10px] text-text-muted">
+              Creado: {fmtIsoDate(detail.createdAt)}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cerrar</Button>
+          <Button className="w-full sm:w-auto" onClick={() => { onClose(); onEdit(); }}>
+            <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Case Edit Dialog ───────────────────────────────────────────────────────
+function isoToDisp(iso: string | null): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${m}/${d}/${y}`;
+}
+function dispToIso(disp: string): string {
+  const c = disp.replace(/\D/g, '');
+  if (c.length < 8) return '';
+  return `${c.slice(4, 8)}-${c.slice(0, 2)}-${c.slice(2, 4)}`;
+}
+function fmtDateInput(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0,2)}/${d.slice(2)}`;
+  return `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4)}`;
+}
+
+function CaseEditDialog({ caseId, open, onClose, onSaved }: {
+  caseId: string; open: boolean; onClose: () => void; onSaved: () => void;
+}) {
+  const [detail, setDetail]   = useState<CaseDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState('');
+
+  const [status, setStatus]           = useState('');
+  const [accidentType, setAccidentType] = useState('');
+  const [accDateDisp, setAccDateDisp] = useState('');
+  const [location, setLocation]       = useState('');
+  const [notes, setNotes]             = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    fetch(`/api/admin/cases/${caseId}`)
+      .then(r => r.json())
+      .then(j => {
+        const c: CaseDetail = j.case;
+        if (!c) return;
+        setDetail(c);
+        setStatus(c.status);
+        setAccidentType(c.accidentType ?? '');
+        setAccDateDisp(isoToDisp(c.accidentDate));
+        setLocation(c.accidentLocation ?? '');
+        setNotes(c.accidentNotes ?? '');
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [open, caseId]);
+
+  async function handleSave() {
+    setSaving(true);
+    setError('');
+    const accidentDate = dispToIso(accDateDisp) || null;
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: status || undefined,
+          accidentType: accidentType || null,
+          accidentDate,
+          accidentLocation: location || null,
+          accidentNotes: notes || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(json.message ?? 'Error al guardar.'); return; }
+      onSaved();
+      onClose();
+    } catch {
+      setError('Error de red. Intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-text-1 flex items-center gap-2">
+            <Pencil className="w-4 h-4 text-brand" />
+            Editar caso {detail?.caseCode ?? ''}
+          </DialogTitle>
+          <DialogDescription className="text-text-muted text-xs">
+            {detail?.patient ? `${detail.patient.firstName} ${detail.patient.lastName}` : ''}
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading && (
+          <div className="space-y-3 py-2">
+            {[1,2,3,4].map(i => <div key={i} className="h-10 rounded-md bg-bg-2 animate-pulse" />)}
+          </div>
+        )}
+
+        {!loading && (
+          <div className="space-y-4">
+            {/* Status */}
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Estado</label>
+              <select value={status} onChange={e => setStatus(e.target.value)}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
+                {Object.entries(CASE_STATUS_LABEL).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Accident type */}
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Tipo de accidente</label>
+              <select value={accidentType} onChange={e => setAccidentType(e.target.value)}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
+                <option value="">— Sin especificar —</option>
+                <option value="AUTO">AUTO</option>
+                <option value="MOTORCYCLE">MOTORCYCLE</option>
+                <option value="PEDESTRIAN">PEDESTRIAN</option>
+                <option value="WORKPLACE">WORKPLACE</option>
+                <option value="OTHER">OTHER</option>
+              </select>
+            </div>
+
+            {/* Accident date */}
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Fecha de accidente</label>
+              <input
+                type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10}
+                value={accDateDisp}
+                onChange={e => setAccDateDisp(fmtDateInput(e.target.value))}
+                onBlur={() => { const iso = dispToIso(accDateDisp); if (iso) setAccDateDisp(isoToDisp(iso)); }}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              />
+            </div>
+
+            {/* Location */}
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Lugar del accidente</label>
+              <input type="text" value={location} onChange={e => setLocation(e.target.value)}
+                placeholder="Dirección o intersección..."
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              />
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Notas</label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+                placeholder="Notas adicionales del caso..."
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose">{error}</div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button className="w-full sm:w-auto" onClick={handleSave} disabled={saving || loading}>
+            {saving ? 'Guardando...' : 'Guardar cambios'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── QR Dialog ──────────────────────────────────────────────────────────────
 function CaseQrDialog({ caseId, caseCode, open, onClose }: {
   caseId: string; caseCode: string; open: boolean; onClose: () => void;
@@ -317,10 +616,12 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   const [wizardPatient, setWizardPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
   const [expandedCases, setExpandedCases] = useState<Record<string, CaseRow[]>>({});
   const [loadingCases,  setLoadingCases]  = useState<Record<string, boolean>>({});
-  const [caseQrTarget,  setCaseQrTarget]  = useState<CaseRow | null>(null);
+  const [caseQrTarget,   setCaseQrTarget]   = useState<CaseRow | null>(null);
   const [caseApptTarget, setCaseApptTarget] = useState<CaseRow | null>(null);
+  const [caseViewTarget, setCaseViewTarget] = useState<CaseRow | null>(null);
+  const [caseEditTarget, setCaseEditTarget] = useState<CaseRow | null>(null);
   const [deleteCaseTarget, setDeleteCaseTarget] = useState<CaseRow | null>(null);
-  const [deletingCase, setDeletingCase]   = useState(false);
+  const [deletingCase, setDeletingCase]    = useState(false);
   const [deleteCaseError, setDeleteCaseError] = useState('');
 
   const toggleExpand = useCallback(async (patientId: string) => {
@@ -573,14 +874,14 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                           </div>
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => router.push(`/front-office/${c.id}`)}
+                              onClick={() => setCaseViewTarget(c)}
                               className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
                               title="Ver caso"
                             >
                               <Eye className="w-3 h-3" />
                             </button>
                             <button
-                              onClick={() => router.push(`/front-office/${c.id}`)}
+                              onClick={() => setCaseEditTarget(c)}
                               className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
                               title="Editar caso"
                             >
@@ -797,11 +1098,9 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
       <Dialog open={!!deleteCaseTarget} onOpenChange={(o) => { if (!o) setDeleteCaseTarget(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-text-1">¿Cancelar caso?</DialogTitle>
+            <DialogTitle className="text-text-1">¿Estás seguro de eliminar este registro?</DialogTitle>
             <DialogDescription className="text-text-2 text-sm mt-1">
-              El caso{' '}
-              <span className="font-semibold text-text-1 font-mono">{deleteCaseTarget?.caseCode}</span>{' '}
-              se marcará como <span className="text-rose">CANCELADO</span>. Esta acción puede deshacerse editando el caso.
+              Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
           {deleteCaseError && (
@@ -810,15 +1109,38 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
             </div>
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDeleteCase} disabled={deletingCase}>
+              {deletingCase ? 'Eliminando...' : 'Eliminar'}
+            </Button>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteCaseTarget(null)} disabled={deletingCase}>
               Cancelar
-            </Button>
-            <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDeleteCase} disabled={deletingCase}>
-              {deletingCase ? 'Cancelando...' : 'Sí, cancelar caso'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Case View dialog ────────────────────────────────────────────────── */}
+      {caseViewTarget && (
+        <CaseViewDialog
+          caseId={caseViewTarget.id}
+          open={!!caseViewTarget}
+          onClose={() => setCaseViewTarget(null)}
+          onEdit={() => setCaseEditTarget(caseViewTarget)}
+        />
+      )}
+
+      {/* ─── Case Edit dialog ────────────────────────────────────────────────── */}
+      {caseEditTarget && (
+        <CaseEditDialog
+          caseId={caseEditTarget.id}
+          open={!!caseEditTarget}
+          onClose={() => setCaseEditTarget(null)}
+          onSaved={() => {
+            // Refresh expanded cases to show updated status
+            setExpandedCases(prev => { const n = { ...prev }; delete n[Object.keys(n).find(pid => (n[pid] ?? []).some(c => c.id === caseEditTarget.id)) ?? '']; return n; });
+          }}
+        />
+      )}
 
       {/* ─── Delete confirm ──────────────────────────────────────────────────── */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>

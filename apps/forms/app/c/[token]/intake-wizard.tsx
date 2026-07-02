@@ -700,8 +700,6 @@ export function IntakeWizard({
     financial:         false,
     medicalHistory:    false,
     authorizedPersons: [] as { name: string; relation: string }[],
-    newPersonName:     '',
-    newPersonRelation: '',
   });
   const consentCanvasRef  = useRef<HTMLCanvasElement>(null);
   const isDrawingConsent  = useRef(false);
@@ -859,7 +857,7 @@ export function IntakeWizard({
             authRecords:        consents.authRecords,
             authVoicemail:      consents.authVoicemail,
             authNotifications:  consents.authNotifications,
-            authorizedPersons:  consents.authorizedPersons,
+            authorizedPersons:  consents.authorizedPersons.filter(p => p.name.trim()),
             treatment:         consents.treatment,
             financial:         consents.financial,
             financialSignatureSvg: consentSvg,
@@ -1750,64 +1748,70 @@ export function IntakeWizard({
                       </div>
                     </div>
 
-                    {/* Lista de personas agregadas */}
+                    {/* Filas editables inline */}
                     {consents.authorizedPersons.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, margin: '10px 0 8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
                         {consents.authorizedPersons.map((p, i) => (
-                          <div key={i} style={{
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            padding: '7px 10px', borderRadius: 7,
-                            background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.18)',
-                          }}>
-                            <div>
-                              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)', fontWeight: 600 }}>{p.name}</span>
-                              {p.relation && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginLeft: 8 }}>{p.relation}</span>}
+                          <div key={i}>
+                            <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.30)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                {t.authPersonNamePh}
+                              </span>
+                              <span style={{ flex: 1 }} />
+                              <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.30)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                {t.authPersonRelPh === 'Seleccione la relación' ? 'Relación' : 'Relationship'}
+                              </span>
                             </div>
-                            <button type="button"
-                              onClick={() => setConsents(c => ({ ...c, authorizedPersons: c.authorizedPersons.filter((_, j) => j !== i) }))}
-                              style={{ background: 'none', border: 'none', color: 'rgba(244,63,94,0.65)', fontSize: 14, cursor: 'pointer', padding: '2px 6px' }}>×</button>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <input type="text"
+                                style={{ ...S.input, fontSize: 12, padding: '8px 10px', flex: '2 1 120px', minWidth: 0 }}
+                                placeholder={t.authPersonNamePh}
+                                value={p.name}
+                                onChange={e => setConsents(c => ({
+                                  ...c,
+                                  authorizedPersons: c.authorizedPersons.map((x, j) => j === i ? { ...x, name: e.target.value } : x),
+                                }))}
+                              />
+                              <select
+                                style={{
+                                  ...S.input, fontSize: 12, padding: '8px 10px', flex: '1 1 100px', minWidth: 0,
+                                  appearance: 'none', WebkitAppearance: 'none',
+                                }}
+                                value={p.relation}
+                                onChange={e => setConsents(c => ({
+                                  ...c,
+                                  authorizedPersons: c.authorizedPersons.map((x, j) => j === i ? { ...x, relation: e.target.value } : x),
+                                }))}
+                              >
+                                <option value="">{t.authPersonRelPh}</option>
+                                {t.authPersonRelations.map((r: string) => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                              <button type="button"
+                                onClick={() => setConsents(c => ({ ...c, authorizedPersons: c.authorizedPersons.filter((_, j) => j !== i) }))}
+                                style={{
+                                  background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.20)',
+                                  borderRadius: 7, color: 'rgba(244,63,94,0.70)', fontSize: 14,
+                                  cursor: 'pointer', padding: '7px 10px', flexShrink: 0, lineHeight: 1,
+                                }}>🗑</button>
+                            </div>
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {/* Fila nombre + relación */}
-                    <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                      <input type="text"
-                        style={{ ...S.input, fontSize: 12, padding: '8px 10px', flex: '1 1 140px', minWidth: 0 }}
-                        placeholder={t.authPersonNamePh}
-                        value={consents.newPersonName}
-                        onChange={e => setConsents(c => ({ ...c, newPersonName: e.target.value }))}
-                      />
-                      <select
-                        style={{
-                          ...S.input, fontSize: 12, padding: '8px 10px', flex: '1 1 140px', minWidth: 0,
-                          appearance: 'none', WebkitAppearance: 'none',
-                        }}
-                        value={consents.newPersonRelation}
-                        onChange={e => setConsents(c => ({ ...c, newPersonRelation: e.target.value }))}
-                      >
-                        <option value="">{t.authPersonRelPh}</option>
-                        {t.authPersonRelations.map((r: string) => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                      <button type="button"
-                        onClick={() => {
-                          if (consents.newPersonName.trim()) {
-                            setConsents(c => ({
-                              ...c,
-                              authorizedPersons: [...c.authorizedPersons, { name: c.newPersonName.trim(), relation: c.newPersonRelation }],
-                              newPersonName: '', newPersonRelation: '',
-                            }));
-                          }
-                        }}
-                        style={{
-                          padding: '8px 14px', borderRadius: 8, background: 'rgba(6,182,212,0.10)',
-                          border: '1px solid rgba(6,182,212,0.25)', color: CYAN,
-                          fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
-                        }}>
-                        {t.addPersonBtn}
-                      </button>
-                    </div>
+                    {/* Botón agregar fila */}
+                    <button type="button"
+                      onClick={() => setConsents(c => ({ ...c, authorizedPersons: [...c.authorizedPersons, { name: '', relation: '' }] }))}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        width: '100%', marginTop: consents.authorizedPersons.length > 0 ? 10 : 12,
+                        padding: '10px', borderRadius: 8,
+                        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.10)',
+                        color: 'rgba(255,255,255,0.50)', fontSize: 13, fontWeight: 600,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                      }}>
+                      {t.addPersonBtn}
+                    </button>
                   </div>
 
                   {/* 3 checkboxes específicos de autorización */}

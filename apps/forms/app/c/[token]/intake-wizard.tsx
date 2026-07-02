@@ -1613,11 +1613,14 @@ export function IntakeWizard({
         {/* ══════ STEP 7 · Consentimientos médicos (B.8) ══════════════════════ */}
         {step === 7 && (() => {
           const checkedCount = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
-          const card = ({ active, onToggle, title, fullBody, checkLabel, children }: {
+          const card = ({ active, onToggle, fullBody, checkLabel, children }: {
             active: boolean; onToggle: () => void;
-            title: string; fullBody: string; checkLabel: string;
+            fullBody: string; checkLabel: string;
             children?: React.ReactNode;
           }) => {
+            const firstBreak = fullBody.indexOf('\n\n');
+            const docTitle = firstBreak !== -1 ? fullBody.slice(0, firstBreak) : fullBody;
+            const docBody  = firstBreak !== -1 ? fullBody.slice(firstBreak + 2) : '';
             return (
             <div style={{
               ...S.card, padding: 14,
@@ -1626,7 +1629,7 @@ export function IntakeWizard({
               transition: 'all 0.2s',
             }}>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: CYAN, marginBottom: 8, textTransform: 'uppercase' }}>
-                {title}
+                {docTitle}
               </div>
 
               {/* Full text always visible with scroll */}
@@ -1636,7 +1639,7 @@ export function IntakeWizard({
                 background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
                 WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
               }}>
-                {fullBody.split('\n').map((line, i) => {
+                {docBody.split('\n').map((line, i) => {
                   if (!line.trim()) return <div key={i} style={{ height: 8 }} />;
                   const isHeading = line === line.toUpperCase() && line.length > 3 && !line.startsWith('•');
                   const isBullet  = line.startsWith('•');
@@ -1699,7 +1702,7 @@ export function IntakeWizard({
                 {card({
                   active: consents.hipaa,
                   onToggle: () => setConsents(c => ({ ...c, hipaa: !c.hipaa })),
-                  title: t.c1Title, fullBody: t.c1FullBody,
+                  fullBody: t.c1FullBody,
                   checkLabel: t.c1Check,
                 })}
 
@@ -1707,7 +1710,7 @@ export function IntakeWizard({
                 {card({
                   active: consents.assignedParties,
                   onToggle: () => setConsents(c => ({ ...c, assignedParties: !c.assignedParties })),
-                  title: t.c2Title, fullBody: t.c2FullBody,
+                  fullBody: t.c2FullBody,
                   checkLabel: t.c2Check,
                   children: (<>
                   <div style={{ marginBottom: 10 }}>
@@ -1762,7 +1765,7 @@ export function IntakeWizard({
                 {card({
                   active: consents.treatment,
                   onToggle: () => setConsents(c => ({ ...c, treatment: !c.treatment })),
-                  title: t.c3Title, fullBody: t.c3FullBody,
+                  fullBody: t.c3FullBody,
                   checkLabel: t.c3Check,
                 })}
 
@@ -1770,7 +1773,7 @@ export function IntakeWizard({
                 {card({
                   active: consents.financial,
                   onToggle: () => setConsents(c => ({ ...c, financial: !c.financial })),
-                  title: t.c4Title, fullBody: t.c4FullBody,
+                  fullBody: t.c4FullBody,
                   checkLabel: t.c4Check,
                   children: (<>
                   <div style={{ marginBottom: 10 }}>
@@ -1808,7 +1811,7 @@ export function IntakeWizard({
                 {card({
                   active: consents.medicalHistory,
                   onToggle: () => setConsents(c => ({ ...c, medicalHistory: !c.medicalHistory })),
-                  title: t.c5Title, fullBody: t.c5FullBody,
+                  fullBody: t.c5FullBody,
                   checkLabel: t.c5Check,
                 })}
 

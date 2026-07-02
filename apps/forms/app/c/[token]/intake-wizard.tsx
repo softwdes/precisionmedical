@@ -57,7 +57,7 @@ interface Props {
   nextAppointment: NextAppointment | null;
 }
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 type AccidentType = 'AUTO' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WORKPLACE' | 'OTHER';
 type HealthStatus = 'excellent' | 'good' | 'fair' | 'poor';
 type Lang = 'es' | 'en';
@@ -81,6 +81,7 @@ const STRINGS = {
       { icon: '🏥', label: 'Información de tu seguro' },
       { icon: '💊', label: 'Historial médico' },
       { icon: '📸', label: 'Foto de identificación' },
+      { icon: '📋', label: 'Consentimientos médicos' },
       { icon: '✍️', label: 'Firma del acuerdo de lien' },
     ],
     startBtn: 'Comenzar →',
@@ -102,6 +103,25 @@ const STRINGS = {
     emergencyPhone: 'Teléfono de emergencia',
     emergencyNamePh: 'Ej: María García',
     emergencyPhonePh: '(801) 555-0200',
+    emergencyRelation: 'Relación con el paciente',
+    emergencyRelationPh: 'Ej: Esposa, Madre, Amigo...',
+    emergency2Section: '2° Contacto de emergencia',
+    emergency2Name: 'Nombre',
+    emergency2NamePh: 'Ej: Juan García',
+    emergency2Phone: 'Teléfono',
+    emergency2PhonePh: '(801) 555-0300',
+    emergency2Relation: 'Relación',
+    emergency2RelationPh: 'Ej: Hermano, Vecino...',
+    cellPhone: 'Celular',
+    cellPhonePh: '(801) 555-0100',
+    addressLine1: 'Dirección',
+    addressLine1Ph: 'Ej: 123 Main St, Apt 4',
+    addressCity: 'Ciudad',
+    addressCityPh: 'Ej: Provo',
+    addressState: 'Estado',
+    addressStatePh: 'UT',
+    addressZip: 'Código postal',
+    addressZipPh: '84601',
     sifoHint2: 'Verifica que tus datos coincidan con tu ID. Los usaremos en tus documentos médicos.',
     // Step 3
     accidentTitle: 'Tu accidente',
@@ -114,6 +134,13 @@ const STRINGS = {
     accidentDesc: 'Describe brevemente cómo ocurrió',
     accidentDescPh: 'Ej: Me impactaron por detrás mientras esperaba en semáforo...',
     sifoHint3: 'La fecha exacta del accidente es clave para procesar tu caso correctamente.',
+    legalRepsSection: 'Representación legal',
+    lawFirm: 'Firma de abogados',
+    lawFirmPh: 'Nombre de la firma de abogados que refirió el caso...',
+    attorneyRep: 'Abogado representante',
+    attorneyRepPh: 'Nombre del abogado',
+    chiropractorLabel: 'Quiropráctico tratante',
+    chiropractorPh: 'Nombre del quiropráctico',
     // Step 4
     insuranceTitle: 'Tu seguro',
     insuranceSub: 'Información de tu seguro Personal Injury Protection (PIP).',
@@ -158,7 +185,7 @@ const STRINGS = {
     cantPhotoTitle: '¿No puedes tomar las fotos ahora?',
     takeAtClinicBtn: '📋 Lo tomo en la clínica el día de mi cita',
     clinicSelectedMsg: '✓ Llevarás tu ID a la clínica. El equipo te ayudará con las fotos.',
-    continueToSign: 'Continuar a firma →',
+    continueToSign: 'Continuar →',
     sifoHint6: 'Necesitamos tu ID para verificar tu identidad. Tus fotos están seguras 🔒',
     // Step 6 — Photo capture guidance
     selfieInstructions: ['Buena iluminación frontal', 'Centra tu rostro en el óvalo', 'Sin lentes ni gorras'],
@@ -203,7 +230,35 @@ const STRINGS = {
     sigMetaLabel: 'REGISTRO DE FIRMA',
     sigTimeLabel: 'Fecha y hora',
     sigDeviceLabel: 'Dispositivo',
-    sifoHint7: 'Esta firma autoriza a Precision Medical a tratar tu lesión bajo lien. Es legal y vinculante.',
+    // Step 7 — Consentimientos
+    consentsTitle: 'Consentimientos médicos',
+    consentsSub: 'Lee y acepta cada documento. Todos son requeridos para continuar.',
+    consentsCounter: (n: number) => `${n} de 5 documentos aceptados`,
+    c1Title: 'DIVULGACIÓN MÉDICA',
+    c1Body: 'Autorizo a Precision Medical Care a divulgar mi información médica a mi abogado representante y a las aseguradoras involucradas en mi caso, únicamente para efectos del procesamiento de mi reclamación por lesiones personales.',
+    c1Check: 'Acepto la Divulgación Médica',
+    c2Title: 'PARTES CESIONADAS',
+    c2Body: 'Autorizo a las partes cesionadas (abogado, quiropráctico u otros proveedores) a actuar en mi nombre para gestionar los pagos y acuerdos relacionados con mi caso.',
+    c2Check: 'Acepto las Partes Cesionadas',
+    authPersonsLabel: 'Personas responsables autorizadas',
+    authPersonPh: 'Nombre completo de la persona...',
+    addPersonBtn: '+ Agregar persona',
+    c3Title: 'AUTORIZACIÓN DE TRATAMIENTO',
+    c3Body: 'Consiento voluntariamente recibir diagnóstico y tratamiento médico en Precision Medical Care. Entiendo los riesgos y beneficios del tratamiento propuesto y puedo retirar este consentimiento en cualquier momento.',
+    c3Check: 'Acepto la Autorización de Tratamiento',
+    c4Title: 'POLÍTICA FINANCIERA',
+    c4Body: 'Entiendo la política financiera de Precision Medical Care. Acepto que los cargos no cubiertos por mi seguro o acuerdo legal son mi responsabilidad personal. Al firmar reconozco haber recibido y comprendido esta política.',
+    c4Check: 'Acepto la Política Financiera',
+    c4SignLabel: 'Firma de acuse — Política financiera',
+    c4SignPh: '✍️ Dibuja tu firma aquí',
+    c4ClearBtn: '× Borrar y volver a firmar',
+    c5Title: 'HISTORIAL MÉDICO',
+    c5Body: 'Autorizo a Precision Medical Care a solicitar y recibir mi historial médico de proveedores de salud anteriores, con el único fin de brindar el mejor cuidado posible durante mi tratamiento.',
+    c5Check: 'Acepto la Autorización de Historial Médico',
+    consentsValidation: 'Por favor acepta los 5 documentos y firma la Política Financiera para continuar.',
+    sifoHint7: 'Estos consentimientos son documentos legales requeridos. Léelos con cuidado — están diseñados para protegerte.',
+    // Step 8 — Lien
+    sifoHint8: 'Esta firma autoriza a Precision Medical a tratar tu lesión bajo lien. Es legal y vinculante.',
     // Common
     back: '← Atrás',
     continue: 'Continuar →',
@@ -229,6 +284,7 @@ const STRINGS = {
       { icon: '🏥', label: 'Insurance information' },
       { icon: '💊', label: 'Medical history' },
       { icon: '📸', label: 'Photo ID' },
+      { icon: '📋', label: 'Medical consents' },
       { icon: '✍️', label: 'Medical lien agreement' },
     ],
     startBtn: 'Get started →',
@@ -250,6 +306,25 @@ const STRINGS = {
     emergencyPhone: 'Emergency phone',
     emergencyNamePh: 'E.g., Maria Garcia',
     emergencyPhonePh: '(801) 555-0200',
+    emergencyRelation: 'Relationship to patient',
+    emergencyRelationPh: 'E.g., Spouse, Mother, Friend...',
+    emergency2Section: '2nd Emergency contact',
+    emergency2Name: 'Name',
+    emergency2NamePh: 'E.g., John Garcia',
+    emergency2Phone: 'Phone',
+    emergency2PhonePh: '(801) 555-0300',
+    emergency2Relation: 'Relationship',
+    emergency2RelationPh: 'E.g., Brother, Neighbor...',
+    cellPhone: 'Cell phone',
+    cellPhonePh: '(801) 555-0100',
+    addressLine1: 'Address',
+    addressLine1Ph: 'E.g., 123 Main St, Apt 4',
+    addressCity: 'City',
+    addressCityPh: 'E.g., Provo',
+    addressState: 'State',
+    addressStatePh: 'UT',
+    addressZip: 'ZIP code',
+    addressZipPh: '84601',
     sifoHint2: 'Make sure your info matches your ID. We use it in your medical documents.',
     // Step 3
     accidentTitle: 'Your accident',
@@ -262,6 +337,13 @@ const STRINGS = {
     accidentDesc: 'Briefly describe what happened',
     accidentDescPh: 'E.g., I was rear-ended while waiting at a red light...',
     sifoHint3: 'The exact accident date is key to processing your case correctly.',
+    legalRepsSection: 'Legal representation',
+    lawFirm: 'Law firm',
+    lawFirmPh: 'Name of the law firm that referred the case...',
+    attorneyRep: 'Attorney',
+    attorneyRepPh: 'Attorney name',
+    chiropractorLabel: 'Treating chiropractor',
+    chiropractorPh: 'Chiropractor name',
     // Step 4
     insuranceTitle: 'Your insurance',
     insuranceSub: 'Information about your Personal Injury Protection (PIP) insurance.',
@@ -306,7 +388,7 @@ const STRINGS = {
     cantPhotoTitle: "Can't take photos right now?",
     takeAtClinicBtn: '📋 I will take them at the clinic on my appointment day',
     clinicSelectedMsg: '✓ You will bring your ID to the clinic. Staff will help with photos.',
-    continueToSign: 'Continue to signature →',
+    continueToSign: 'Continue →',
     sifoHint6: 'We need your ID to verify your identity. Your photos are secure 🔒',
     // Step 6 — Photo capture guidance
     selfieInstructions: ['Good front lighting', 'Center your face in the oval', 'No glasses or hats'],
@@ -351,7 +433,35 @@ const STRINGS = {
     sigMetaLabel: 'SIGNATURE RECORD',
     sigTimeLabel: 'Date and time',
     sigDeviceLabel: 'Device',
-    sifoHint7: 'This signature authorizes Precision Medical to treat your injury under a lien. It is legal and binding.',
+    // Step 7 — Consents
+    consentsTitle: 'Medical consents',
+    consentsSub: 'Read and accept each document. All are required to continue.',
+    consentsCounter: (n: number) => `${n} of 5 documents accepted`,
+    c1Title: 'MEDICAL DISCLOSURE',
+    c1Body: 'I authorize Precision Medical Care to disclose my medical information to my attorney and the insurance companies involved in my case, solely for the purpose of processing my personal injury claim.',
+    c1Check: 'I accept the Medical Disclosure',
+    c2Title: 'ASSIGNED PARTIES',
+    c2Body: 'I authorize assigned parties (attorney, chiropractor, or other providers) to act on my behalf to manage payments and agreements related to my case.',
+    c2Check: 'I accept the Assigned Parties authorization',
+    authPersonsLabel: 'Authorized responsible persons',
+    authPersonPh: "Person's full name...",
+    addPersonBtn: '+ Add person',
+    c3Title: 'TREATMENT AUTHORIZATION',
+    c3Body: 'I voluntarily consent to receive medical diagnosis and treatment at Precision Medical Care. I understand the risks and benefits of the proposed treatment and may withdraw this consent at any time.',
+    c3Check: 'I accept the Treatment Authorization',
+    c4Title: 'FINANCIAL POLICY',
+    c4Body: 'I understand the financial policy of Precision Medical Care. I agree that charges not covered by my insurance or legal settlement are my personal responsibility. By signing, I acknowledge receipt and understanding of this policy.',
+    c4Check: 'I accept the Financial Policy',
+    c4SignLabel: 'Acknowledgment signature — Financial policy',
+    c4SignPh: '✍️ Draw your signature here',
+    c4ClearBtn: '× Clear and re-sign',
+    c5Title: 'MEDICAL HISTORY',
+    c5Body: 'I authorize Precision Medical Care to request and receive my medical history from previous healthcare providers, with the sole purpose of providing the best possible care during my treatment.',
+    c5Check: 'I accept the Medical History Authorization',
+    consentsValidation: 'Please accept all 5 documents and sign the Financial Policy to continue.',
+    sifoHint7: 'These consents are required legal documents. Read them carefully — they are designed to protect you.',
+    // Step 8 — Lien
+    sifoHint8: 'This signature authorizes Precision Medical to treat your injury under a lien. It is legal and binding.',
     // Common
     back: '← Back',
     continue: 'Continue →',
@@ -483,9 +593,18 @@ export function IntakeWizard({
     lastName:             patient.lastName,
     dateOfBirth:          isoToInput(patient.dateOfBirth),
     phone:                patient.phone ?? '',
+    cellPhone:            '',
     email:                patient.email ?? '',
+    addressLine1:         '',
+    addressCity:          '',
+    addressState:         '',
+    addressZip:           '',
     emergencyContactName: '',
     emergencyContactPhone: '',
+    emergencyContactRelation: '',
+    emergency2Name:       '',
+    emergency2Phone:      '',
+    emergency2Relation:   '',
     guardianName:         '',
     guardianPhone:        '',
     guardianRelation:     '',
@@ -505,10 +624,13 @@ export function IntakeWizard({
   })();
 
   const [acc, setAcc] = useState({
-    date:     isoToInput(accident.date),
-    type:     (accident.type ?? 'AUTO') as AccidentType,
-    location: accident.location ?? '',
-    notes:    accident.notes ?? '',
+    date:         isoToInput(accident.date),
+    type:         (accident.type ?? 'AUTO') as AccidentType,
+    location:     accident.location ?? '',
+    notes:        accident.notes ?? '',
+    lawFirm:      '',
+    attorney:     '',
+    chiropractor: '',
   });
 
   const [insurance, setInsurance] = useState({
@@ -537,9 +659,26 @@ export function IntakeWizard({
 
   // ── Validation errors ───────────────────────────────────────────────────────
   const [phoneError, setPhoneError]             = useState('');
+  const [cellPhoneError, setCellPhoneError]     = useState('');
   const [emerPhoneError, setEmerPhoneError]     = useState('');
+  const [emer2PhoneError, setEmer2PhoneError]   = useState('');
 
-  // Step 7 — Lien signature
+  // Step 7 — Consentimientos
+  const [consents, setConsents] = useState({
+    hipaa:             false,
+    assignedParties:   false,
+    treatment:         false,
+    financial:         false,
+    medicalHistory:    false,
+    authorizedPersons: [] as string[],
+    newPersonInput:    '',
+  });
+  const consentCanvasRef  = useRef<HTMLCanvasElement>(null);
+  const isDrawingConsent  = useRef(false);
+  const [hasConsentSig, setHasConsentSig] = useState(false);
+  const [consentsError, setConsentsError] = useState('');
+
+  // Step 8 — Lien signature
   const [showFullLegal, setShowFullLegal] = useState(false);
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const isDrawing     = useRef(false);
@@ -599,6 +738,64 @@ export function IntakeWizard({
     setSigTimestamp(null);
   }, []);
 
+  // ── Consent canvas (Step 7 · financial policy signature) ───────────────────
+  const startConsentDraw = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const canvas = consentCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    isDrawingConsent.current = true;
+    const rect = canvas.getBoundingClientRect();
+    const x = 'touches' in e ? e.touches[0]!.clientX - rect.left : e.clientX - rect.left;
+    const y = 'touches' in e ? e.touches[0]!.clientY - rect.top  : e.clientY - rect.top;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }, []);
+
+  const drawConsent = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    if (!isDrawingConsent.current) return;
+    const canvas = consentCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = 'touches' in e ? e.touches[0]!.clientX - rect.left : e.clientX - rect.left;
+    const y = 'touches' in e ? e.touches[0]!.clientY - rect.top  : e.clientY - rect.top;
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = CYAN;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    setHasConsentSig(true);
+  }, []);
+
+  const endConsentDraw = useCallback(() => { isDrawingConsent.current = false; }, []);
+
+  const clearConsentCanvas = useCallback(() => {
+    const canvas = consentCanvasRef.current;
+    if (!canvas) return;
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+    setHasConsentSig(false);
+  }, []);
+
+  useEffect(() => {
+    const canvas = consentCanvasRef.current;
+    if (!canvas) return;
+    const resize = () => {
+      const parent = canvas.parentElement;
+      if (!parent) return;
+      canvas.width  = parent.clientWidth;
+      canvas.height = 120;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+
+  // ── Lien canvas (Step 8) ────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -620,9 +817,23 @@ export function IntakeWizard({
     try {
       let body: Record<string, unknown> = {};
       if (stepNum === 2) body = { personal: { ...personal, preferredLanguage: lang } };
-      if (stepNum === 3) body = { accident: acc };
+      if (stepNum === 3) body = { accident: { date: acc.date, type: acc.type, location: acc.location, notes: acc.notes, lawFirm: acc.lawFirm, attorney: acc.attorney, chiropractor: acc.chiropractor } };
       if (stepNum === 4) body = { insurance };
       if (stepNum === 5) body = { health };
+      if (stepNum === 7) {
+        const consentSvg = consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '';
+        body = {
+          consents: {
+            hipaa:             consents.hipaa,
+            assignedParties:   consents.assignedParties,
+            authorizedPersons: consents.authorizedPersons,
+            treatment:         consents.treatment,
+            financial:         consents.financial,
+            financialSignatureSvg: consentSvg,
+            medicalHistory:    consents.medicalHistory,
+          },
+        };
+      }
 
       const res = await fetch(`/api/intake/${token}`, {
         method: 'PATCH',
@@ -643,21 +854,22 @@ export function IntakeWizard({
   const goNext = async (fromStep: Step) => {
     if (fromStep === 2) {
       let valid = true;
-      if (personal.phone && !isValidNANP(personal.phone)) {
-        setPhoneError(lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.');
-        valid = false;
-      } else {
-        setPhoneError('');
-      }
-      if (personal.emergencyContactPhone && !isValidNANP(personal.emergencyContactPhone)) {
-        setEmerPhoneError(lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.');
-        valid = false;
-      } else {
-        setEmerPhoneError('');
-      }
+      const phoneMsg = lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.';
+      if (personal.phone && !isValidNANP(personal.phone)) { setPhoneError(phoneMsg); valid = false; } else { setPhoneError(''); }
+      if (personal.cellPhone && !isValidNANP(personal.cellPhone)) { setCellPhoneError(phoneMsg); valid = false; } else { setCellPhoneError(''); }
+      if (personal.emergencyContactPhone && !isValidNANP(personal.emergencyContactPhone)) { setEmerPhoneError(phoneMsg); valid = false; } else { setEmerPhoneError(''); }
+      if (personal.emergency2Phone && !isValidNANP(personal.emergency2Phone)) { setEmer2PhoneError(phoneMsg); valid = false; } else { setEmer2PhoneError(''); }
       if (!valid) return;
     }
-    if ([2, 3, 4, 5].includes(fromStep)) {
+    if (fromStep === 7) {
+      const checked = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
+      if (checked < 5 || !hasConsentSig) {
+        setConsentsError(t.consentsValidation);
+        return;
+      }
+      setConsentsError('');
+    }
+    if ([2, 3, 4, 5, 7].includes(fromStep)) {
       const ok = await saveStepData(fromStep);
       if (!ok) return;
     }
@@ -698,7 +910,7 @@ export function IntakeWizard({
 
   // ── Derived values ──────────────────────────────────────────────────────────
   const t             = STRINGS[lang];
-  const totalSteps    = 7;
+  const totalSteps    = 8;
   const progressSteps = Math.min(step, totalSteps);
   const savedLabel    = lastSaved ? t.savedAt(getSavedLabel(lastSaved, lang)) : null;
   const deviceInfo    = typeof window !== 'undefined'
@@ -891,19 +1103,51 @@ export function IntakeWizard({
                   onChange={e => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))} />
               </Field>
 
-              <Field label={t.phone}>
-                <input type="tel" style={{ ...S.input, ...(phoneError ? { borderColor: '#F43F5E' } : {}) }}
-                  value={personal.phone}
-                  placeholder="(801) 555-0100"
-                  onChange={e => { setPersonal(p => ({ ...p, phone: e.target.value })); setPhoneError(''); }} />
-                {phoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{phoneError}</span>}
-              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <Field label={t.phone}>
+                  <input type="tel" style={{ ...S.input, ...(phoneError ? { borderColor: '#F43F5E' } : {}) }}
+                    value={personal.phone}
+                    placeholder="(801) 555-0100"
+                    onChange={e => { setPersonal(p => ({ ...p, phone: e.target.value })); setPhoneError(''); }} />
+                  {phoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{phoneError}</span>}
+                </Field>
+                <Field label={t.cellPhone}>
+                  <input type="tel" style={{ ...S.input, ...(cellPhoneError ? { borderColor: '#F43F5E' } : {}) }}
+                    value={personal.cellPhone}
+                    placeholder={t.cellPhonePh}
+                    onChange={e => { setPersonal(p => ({ ...p, cellPhone: e.target.value })); setCellPhoneError(''); }} />
+                  {cellPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{cellPhoneError}</span>}
+                </Field>
+              </div>
 
               <Field label={t.email}>
                 <input type="email" style={S.input} value={personal.email}
                   placeholder="correo@ejemplo.com"
                   onChange={e => setPersonal(p => ({ ...p, email: e.target.value }))} />
               </Field>
+
+              <Field label={t.addressLine1}>
+                <input type="text" style={S.input} value={personal.addressLine1}
+                  placeholder={t.addressLine1Ph}
+                  onChange={e => setPersonal(p => ({ ...p, addressLine1: e.target.value }))} />
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px', gap: 10 }}>
+                <Field label={t.addressCity}>
+                  <input type="text" style={S.input} value={personal.addressCity}
+                    placeholder={t.addressCityPh}
+                    onChange={e => setPersonal(p => ({ ...p, addressCity: e.target.value }))} />
+                </Field>
+                <Field label={t.addressState}>
+                  <input type="text" style={S.input} value={personal.addressState}
+                    placeholder={t.addressStatePh} maxLength={2}
+                    onChange={e => setPersonal(p => ({ ...p, addressState: e.target.value.toUpperCase() }))} />
+                </Field>
+                <Field label={t.addressZip}>
+                  <input type="text" style={S.input} value={personal.addressZip}
+                    placeholder={t.addressZipPh} maxLength={10}
+                    onChange={e => setPersonal(p => ({ ...p, addressZip: e.target.value }))} />
+                </Field>
+              </div>
 
               {/* Preferred language */}
               <Field label={t.preferredLangLabel}>
@@ -923,7 +1167,7 @@ export function IntakeWizard({
                 </div>
               </Field>
 
-              {/* Emergency contact */}
+              {/* Emergency contact 1 */}
               <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.40)', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
                   {t.emergencySection}
@@ -933,13 +1177,46 @@ export function IntakeWizard({
                     placeholder={t.emergencyNamePh}
                     onChange={e => setPersonal(p => ({ ...p, emergencyContactName: e.target.value }))} />
                 </Field>
-                <Field label={t.emergencyPhone}>
-                  <input type="tel" style={{ ...S.input, ...(emerPhoneError ? { borderColor: '#F43F5E' } : {}) }}
-                    value={personal.emergencyContactPhone}
-                    placeholder={t.emergencyPhonePh}
-                    onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: e.target.value })); setEmerPhoneError(''); }} />
-                  {emerPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emerPhoneError}</span>}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.emergencyPhone}>
+                    <input type="tel" style={{ ...S.input, ...(emerPhoneError ? { borderColor: '#F43F5E' } : {}) }}
+                      value={personal.emergencyContactPhone}
+                      placeholder={t.emergencyPhonePh}
+                      onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: e.target.value })); setEmerPhoneError(''); }} />
+                    {emerPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emerPhoneError}</span>}
+                  </Field>
+                  <Field label={t.emergencyRelation}>
+                    <input type="text" style={S.input} value={personal.emergencyContactRelation}
+                      placeholder={t.emergencyRelationPh}
+                      onChange={e => setPersonal(p => ({ ...p, emergencyContactRelation: e.target.value }))} />
+                  </Field>
+                </div>
+              </div>
+
+              {/* Emergency contact 2 */}
+              <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.40)', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+                  {t.emergency2Section}
+                </div>
+                <Field label={t.emergency2Name}>
+                  <input type="text" style={S.input} value={personal.emergency2Name}
+                    placeholder={t.emergency2NamePh}
+                    onChange={e => setPersonal(p => ({ ...p, emergency2Name: e.target.value }))} />
                 </Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.emergency2Phone}>
+                    <input type="tel" style={{ ...S.input, ...(emer2PhoneError ? { borderColor: '#F43F5E' } : {}) }}
+                      value={personal.emergency2Phone}
+                      placeholder={t.emergency2PhonePh}
+                      onChange={e => { setPersonal(p => ({ ...p, emergency2Phone: e.target.value })); setEmer2PhoneError(''); }} />
+                    {emer2PhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emer2PhoneError}</span>}
+                  </Field>
+                  <Field label={t.emergency2Relation}>
+                    <input type="text" style={S.input} value={personal.emergency2Relation}
+                      placeholder={t.emergency2RelationPh}
+                      onChange={e => setPersonal(p => ({ ...p, emergency2Relation: e.target.value }))} />
+                  </Field>
+                </div>
               </div>
             </div>
 
@@ -1020,6 +1297,30 @@ export function IntakeWizard({
                   placeholder={t.accidentDescPh}
                   onChange={e => setAcc(a => ({ ...a, notes: e.target.value }))} />
               </Field>
+
+              {/* Legal representation */}
+              <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.40)', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+                  {t.legalRepsSection}
+                </div>
+                <Field label={t.lawFirm}>
+                  <input type="text" style={S.input} value={acc.lawFirm}
+                    placeholder={t.lawFirmPh}
+                    onChange={e => setAcc(a => ({ ...a, lawFirm: e.target.value }))} />
+                </Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.attorneyRep}>
+                    <input type="text" style={S.input} value={acc.attorney}
+                      placeholder={t.attorneyRepPh}
+                      onChange={e => setAcc(a => ({ ...a, attorney: e.target.value }))} />
+                  </Field>
+                  <Field label={t.chiropractorLabel}>
+                    <input type="text" style={S.input} value={acc.chiropractor}
+                      placeholder={t.chiropractorPh}
+                      onChange={e => setAcc(a => ({ ...a, chiropractor: e.target.value }))} />
+                  </Field>
+                </div>
+              </div>
             </div>
 
             <SifoHint hint={t.sifoHint3} />
@@ -1295,8 +1596,194 @@ export function IntakeWizard({
           </div>
         )}
 
-        {/* ══════ STEP 7 · Firma del Lien (B.8) ════════════════════════════════ */}
-        {step === 7 && (
+        {/* ══════ STEP 7 · Consentimientos médicos (B.8) ══════════════════════ */}
+        {step === 7 && (() => {
+          const checkedCount = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
+          const ConsentCard = ({ active, onToggle, title, body, checkLabel, children }: {
+            active: boolean; onToggle: () => void;
+            title: string; body: string; checkLabel: string;
+            children?: React.ReactNode;
+          }) => (
+            <div style={{
+              ...S.card, padding: 14,
+              background: active ? 'rgba(6,182,212,0.06)' : CARD_BG,
+              border: active ? '1px solid rgba(6,182,212,0.30)' : `1px solid ${CARD_BORDER}`,
+              transition: 'all 0.2s',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: CYAN, marginBottom: 6, textTransform: 'uppercase' }}>
+                {title}
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.60)', lineHeight: 1.65, marginBottom: 12 }}>
+                {body}
+              </div>
+              {children}
+              <label style={{
+                display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer',
+                padding: '10px 12px', borderRadius: 8, marginTop: 4,
+                background: active ? 'rgba(6,182,212,0.08)' : 'rgba(255,255,255,0.03)',
+                border: active ? '1px solid rgba(6,182,212,0.25)' : '1px solid rgba(255,255,255,0.06)',
+              }}>
+                <input type="checkbox" checked={active} onChange={onToggle}
+                  style={{ width: 16, height: 16, marginTop: 1, accentColor: CYAN, cursor: 'pointer', flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: active ? CYAN : 'rgba(255,255,255,0.60)', fontWeight: active ? 700 : 400 }}>
+                  {checkLabel}
+                </span>
+              </label>
+            </div>
+          );
+          return (
+            <div style={{ paddingTop: 28 }}>
+              <StepHeader icon="📋" title={t.consentsTitle} sub={t.consentsSub} />
+
+              {/* Counter badge */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 20, gap: 8,
+              }}>
+                <div style={{
+                  padding: '6px 16px', borderRadius: 20,
+                  background: checkedCount === 5 ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.05)',
+                  border: checkedCount === 5 ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(255,255,255,0.10)',
+                  fontSize: 13, fontWeight: 700,
+                  color: checkedCount === 5 ? EMERALD : 'rgba(255,255,255,0.50)',
+                }}>
+                  {checkedCount === 5 ? '✓ ' : ''}{t.consentsCounter(checkedCount)}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+                {/* Doc 1 — Divulgación médica */}
+                <ConsentCard
+                  active={consents.hipaa}
+                  onToggle={() => setConsents(c => ({ ...c, hipaa: !c.hipaa }))}
+                  title={t.c1Title}
+                  body={t.c1Body}
+                  checkLabel={t.c1Check}
+                />
+
+                {/* Doc 2 — Partes cesionadas */}
+                <ConsentCard
+                  active={consents.assignedParties}
+                  onToggle={() => setConsents(c => ({ ...c, assignedParties: !c.assignedParties }))}
+                  title={t.c2Title}
+                  body={t.c2Body}
+                  checkLabel={t.c2Check}
+                >
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
+                      {t.authPersonsLabel}
+                    </div>
+                    {consents.authorizedPersons.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                        {consents.authorizedPersons.map((p, i) => (
+                          <div key={i} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '6px 10px', borderRadius: 6,
+                            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                          }}>
+                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>{p}</span>
+                            <button type="button" onClick={() => setConsents(c => ({ ...c, authorizedPersons: c.authorizedPersons.filter((_, j) => j !== i) }))}
+                              style={{ background: 'none', border: 'none', color: 'rgba(244,63,94,0.70)', fontSize: 12, cursor: 'pointer', padding: '2px 4px' }}>×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input type="text" style={{ ...S.input, fontSize: 12, padding: '8px 10px', flex: 1 }}
+                        placeholder={t.authPersonPh}
+                        value={consents.newPersonInput}
+                        onChange={e => setConsents(c => ({ ...c, newPersonInput: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && consents.newPersonInput.trim()) {
+                            setConsents(c => ({ ...c, authorizedPersons: [...c.authorizedPersons, c.newPersonInput.trim()], newPersonInput: '' }));
+                          }
+                        }}
+                      />
+                      <button type="button"
+                        onClick={() => {
+                          if (consents.newPersonInput.trim()) {
+                            setConsents(c => ({ ...c, authorizedPersons: [...c.authorizedPersons, c.newPersonInput.trim()], newPersonInput: '' }));
+                          }
+                        }}
+                        style={{
+                          padding: '8px 12px', borderRadius: 8, background: 'rgba(6,182,212,0.10)',
+                          border: '1px solid rgba(6,182,212,0.25)', color: CYAN,
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                        }}>
+                        {t.addPersonBtn}
+                      </button>
+                    </div>
+                  </div>
+                </ConsentCard>
+
+                {/* Doc 3 — Tratamiento */}
+                <ConsentCard
+                  active={consents.treatment}
+                  onToggle={() => setConsents(c => ({ ...c, treatment: !c.treatment }))}
+                  title={t.c3Title}
+                  body={t.c3Body}
+                  checkLabel={t.c3Check}
+                />
+
+                {/* Doc 4 — Financiero + Firma */}
+                <ConsentCard
+                  active={consents.financial}
+                  onToggle={() => setConsents(c => ({ ...c, financial: !c.financial }))}
+                  title={t.c4Title}
+                  body={t.c4Body}
+                  checkLabel={t.c4Check}
+                >
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
+                      {t.c4SignLabel}
+                    </div>
+                    <div style={{
+                      position: 'relative', borderRadius: 8, overflow: 'hidden', touchAction: 'none',
+                      border: hasConsentSig ? '1px solid rgba(6,182,212,0.40)' : '1px solid rgba(255,255,255,0.10)',
+                      background: hasConsentSig ? 'rgba(6,182,212,0.04)' : 'rgba(255,255,255,0.02)',
+                    }}>
+                      <canvas ref={consentCanvasRef} style={{ display: 'block', cursor: 'crosshair' }}
+                        onMouseDown={startConsentDraw} onMouseMove={drawConsent} onMouseUp={endConsentDraw} onMouseLeave={endConsentDraw}
+                        onTouchStart={startConsentDraw} onTouchMove={drawConsent} onTouchEnd={endConsentDraw}
+                      />
+                      {!hasConsentSig && (
+                        <div style={{
+                          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          pointerEvents: 'none', fontSize: 13, color: 'rgba(255,255,255,0.20)',
+                        }}>{t.c4SignPh}</div>
+                      )}
+                    </div>
+                    {hasConsentSig && (
+                      <button type="button" onClick={clearConsentCanvas} style={{
+                        marginTop: 6, padding: '4px 12px', borderRadius: 6,
+                        background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
+                        color: 'rgba(255,255,255,0.45)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+                      }}>{t.c4ClearBtn}</button>
+                    )}
+                  </div>
+                </ConsentCard>
+
+                {/* Doc 5 — Historial médico */}
+                <ConsentCard
+                  active={consents.medicalHistory}
+                  onToggle={() => setConsents(c => ({ ...c, medicalHistory: !c.medicalHistory }))}
+                  title={t.c5Title}
+                  body={t.c5Body}
+                  checkLabel={t.c5Check}
+                />
+
+              </div>
+
+              {consentsError && <SaveError error={consentsError} />}
+              <SifoHint hint={t.sifoHint7} />
+              <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(7 as Step)} t={t} />
+            </div>
+          );
+        })()}
+
+        {/* ══════ STEP 8 · Firma del Lien (B.8) ════════════════════════════════ */}
+        {step === 8 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="✍️" title={t.lienTitle} sub={t.lienSub} />
 
@@ -1410,7 +1897,7 @@ export function IntakeWizard({
             </label>
 
             {saveError && <SaveError error={saveError} />}
-            <SifoHint hint={t.sifoHint7} />
+            <SifoHint hint={t.sifoHint8} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
               <button type="button" onClick={submitSignature}

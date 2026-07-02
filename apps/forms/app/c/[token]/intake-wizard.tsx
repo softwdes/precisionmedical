@@ -260,8 +260,8 @@ const STRINGS = {
     c5Body: 'Autorizo a Precision Medical Care a solicitar y recibir mi historial médico de proveedores de salud anteriores, con el único fin de brindar el mejor cuidado posible durante mi tratamiento.',
     c5FullBody: 'AUTORIDAD DE HISTORIAL MÉDICO\n\nAutorización del Sistema de Historias Clínicas Electrónicas (HCE): PMUCFP ha implementado un nuevo sistema de Historias Clínicas Electrónicas (HCE) que importa el historial de recetas de terceros (p. ej., farmacias).\n\nPara transferir mi historial de recetas actual y anterior a este nuevo sistema, doy mi consentimiento. Al firmar a continuación, autorizo a PMUCFP a transferir mi historial de recetas.',
     c5Check: 'Acepto la Autorización de Historial Médico',
-    viewFullDoc: 'Ver documento completo →',
-    closeDoc: 'Cerrar documento',
+    showDoc: 'Ver documento completo ›',
+    hideDoc: '‹ Ocultar documento',
     consentsValidation: 'Por favor acepta los 5 documentos y firma la Política Financiera para continuar.',
     sifoHint7: 'Estos consentimientos son documentos legales requeridos. Léelos con cuidado — están diseñados para protegerte.',
     // Step 8 — Lien
@@ -470,8 +470,8 @@ const STRINGS = {
     c5Body: 'I authorize Precision Medical Care to request and receive my medical history from previous healthcare providers, with the sole purpose of providing the best possible care during my treatment.',
     c5FullBody: 'MEDICAL HISTORY AUTHORITY\n\nElectronic Health Records (EHR) System Authorization: PMUCFP has implemented a new Electronic Health Records (EHR) system that imports prescription history from third-party sources (e.g., pharmacies).\n\nIn order to transfer my current and past prescription history to this new system, I hereby provide my consent. By signing below, I authorize PMUCFP to transfer my prescription history.',
     c5Check: 'I accept the Medical History Authorization',
-    viewFullDoc: 'View full document →',
-    closeDoc: 'Close document',
+    showDoc: 'View full document ›',
+    hideDoc: '‹ Hide document',
     consentsValidation: 'Please accept all 5 documents and sign the Financial Policy to continue.',
     sifoHint7: 'These consents are required legal documents. Read them carefully — they are designed to protect you.',
     // Step 8 — Lien
@@ -691,7 +691,7 @@ export function IntakeWizard({
   const isDrawingConsent  = useRef(false);
   const [hasConsentSig, setHasConsentSig] = useState(false);
   const [consentsError, setConsentsError] = useState('');
-  const [consentModalDoc, setConsentModalDoc] = useState<null | 'c1' | 'c2' | 'c3' | 'c4' | 'c5'>(null);
+  const [expandedDoc, setExpandedDoc] = useState<Record<string, boolean>>({});
 
   // Step 8 — Lien signature
   const [showFullLegal, setShowFullLegal] = useState(false);
@@ -934,7 +934,7 @@ export function IntakeWizard({
 
   // ── JSX ─────────────────────────────────────────────────────────────────────
   return (
-    <><div style={S.screen}>
+    <div style={S.screen}>
 
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
       <div style={S.topBar}>
@@ -1614,12 +1614,14 @@ export function IntakeWizard({
         {/* ══════ STEP 7 · Consentimientos médicos (B.8) ══════════════════════ */}
         {step === 7 && (() => {
           const checkedCount = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
-          const ConsentCard = ({ active, onToggle, title, body, checkLabel, docKey, children }: {
+          const ConsentCard = ({ active, onToggle, title, body, fullBody, checkLabel, docKey, children }: {
             active: boolean; onToggle: () => void;
-            title: string; body: string; checkLabel: string;
-            docKey: 'c1' | 'c2' | 'c3' | 'c4' | 'c5';
+            title: string; body: string; fullBody: string; checkLabel: string;
+            docKey: string;
             children?: React.ReactNode;
-          }) => (
+          }) => {
+            const expanded = !!expandedDoc[docKey];
+            return (
             <div style={{
               ...S.card, padding: 14,
               background: active ? 'rgba(6,182,212,0.06)' : CARD_BG,
@@ -1629,16 +1631,51 @@ export function IntakeWizard({
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: CYAN, marginBottom: 6, textTransform: 'uppercase' }}>
                 {title}
               </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.60)', lineHeight: 1.65, marginBottom: 8 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.60)', lineHeight: 1.65, marginBottom: 6 }}>
                 {body}
               </div>
-              <button type="button" onClick={() => setConsentModalDoc(docKey)} style={{
-                background: 'none', border: 'none', padding: '4px 0', marginBottom: 10,
-                color: CYAN, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3,
-              }}>
-                {t.viewFullDoc}
+
+              {/* Toggle */}
+              <button type="button"
+                onClick={() => setExpandedDoc(e => ({ ...e, [docKey]: !e[docKey] }))}
+                style={{
+                  background: 'none', border: 'none', padding: '2px 0', marginBottom: expanded ? 0 : 10,
+                  color: CYAN, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}>
+                {expanded ? t.hideDoc : t.showDoc}
               </button>
+
+              {/* Inline scrollable full text */}
+              {expanded && (
+                <div style={{
+                  maxHeight: 220, overflowY: 'auto', margin: '8px 0 10px',
+                  padding: '12px 14px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                  WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+                }}>
+                  {fullBody.split('\n').map((line, i) => {
+                    if (!line.trim()) return <div key={i} style={{ height: 8 }} />;
+                    const isHeading = line === line.toUpperCase() && line.length > 3 && !line.startsWith('•');
+                    const isBullet  = line.startsWith('•');
+                    return (
+                      <p key={i} style={{
+                        margin: 0, marginBottom: 6,
+                        fontSize: isHeading ? 10 : 12,
+                        fontWeight: isHeading ? 800 : 400,
+                        letterSpacing: isHeading ? '0.10em' : undefined,
+                        textTransform: isHeading ? 'uppercase' : undefined,
+                        color: isHeading ? CYAN : 'rgba(255,255,255,0.70)',
+                        lineHeight: 1.70,
+                        paddingLeft: isBullet ? 6 : 0,
+                      }}>
+                        {line}
+                      </p>
+                    );
+                  })}
+                </div>
+              )}
+
               {children}
               <label style={{
                 display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer',
@@ -1653,7 +1690,8 @@ export function IntakeWizard({
                 </span>
               </label>
             </div>
-          );
+            );
+          };
           return (
             <div style={{ paddingTop: 28 }}>
               <StepHeader icon="📋" title={t.consentsTitle} sub={t.consentsSub} />
@@ -1680,20 +1718,16 @@ export function IntakeWizard({
                 <ConsentCard
                   active={consents.hipaa}
                   onToggle={() => setConsents(c => ({ ...c, hipaa: !c.hipaa }))}
-                  title={t.c1Title}
-                  body={t.c1Body}
-                  checkLabel={t.c1Check}
-                  docKey="c1"
+                  title={t.c1Title} body={t.c1Body} fullBody={t.c1FullBody}
+                  checkLabel={t.c1Check} docKey="c1"
                 />
 
                 {/* Doc 2 — Partes cesionadas */}
                 <ConsentCard
                   active={consents.assignedParties}
                   onToggle={() => setConsents(c => ({ ...c, assignedParties: !c.assignedParties }))}
-                  title={t.c2Title}
-                  body={t.c2Body}
-                  checkLabel={t.c2Check}
-                  docKey="c2"
+                  title={t.c2Title} body={t.c2Body} fullBody={t.c2FullBody}
+                  checkLabel={t.c2Check} docKey="c2"
                 >
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -1746,20 +1780,16 @@ export function IntakeWizard({
                 <ConsentCard
                   active={consents.treatment}
                   onToggle={() => setConsents(c => ({ ...c, treatment: !c.treatment }))}
-                  title={t.c3Title}
-                  body={t.c3Body}
-                  checkLabel={t.c3Check}
-                  docKey="c3"
+                  title={t.c3Title} body={t.c3Body} fullBody={t.c3FullBody}
+                  checkLabel={t.c3Check} docKey="c3"
                 />
 
                 {/* Doc 4 — Financiero + Firma */}
                 <ConsentCard
                   active={consents.financial}
                   onToggle={() => setConsents(c => ({ ...c, financial: !c.financial }))}
-                  title={t.c4Title}
-                  body={t.c4Body}
-                  checkLabel={t.c4Check}
-                  docKey="c4"
+                  title={t.c4Title} body={t.c4Body} fullBody={t.c4FullBody}
+                  checkLabel={t.c4Check} docKey="c4"
                 >
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -1795,10 +1825,8 @@ export function IntakeWizard({
                 <ConsentCard
                   active={consents.medicalHistory}
                   onToggle={() => setConsents(c => ({ ...c, medicalHistory: !c.medicalHistory }))}
-                  title={t.c5Title}
-                  body={t.c5Body}
-                  checkLabel={t.c5Check}
-                  docKey="c5"
+                  title={t.c5Title} body={t.c5Body} fullBody={t.c5FullBody}
+                  checkLabel={t.c5Check} docKey="c5"
                 />
 
               </div>
@@ -1948,87 +1976,6 @@ export function IntakeWizard({
       </div>
     </div>
 
-    {/* ── Consent full-text modal overlay ─────────────────────────────────── */}
-    {consentModalDoc && (() => {
-      const docMap: Record<string, { title: string; body: string }> = {
-        c1: { title: t.c1Title, body: t.c1FullBody },
-        c2: { title: t.c2Title, body: t.c2FullBody },
-        c3: { title: t.c3Title, body: t.c3FullBody },
-        c4: { title: t.c4Title, body: t.c4FullBody },
-        c5: { title: t.c5Title, body: t.c5FullBody },
-      };
-      const doc = docMap[consentModalDoc]!;
-      return (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 200,
-          background: 'rgba(10,18,36,0.97)',
-          display: 'flex', flexDirection: 'column',
-          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-        }}>
-          {/* Header */}
-          <div style={{
-            padding: '14px 16px', flexShrink: 0,
-            borderBottom: '1px solid rgba(255,255,255,0.08)',
-            display: 'flex', alignItems: 'center', gap: 10,
-          }}>
-            <div style={{
-              flex: 1, fontSize: 11, fontWeight: 800, letterSpacing: '0.12em',
-              textTransform: 'uppercase', color: CYAN,
-            }}>
-              {doc.title}
-            </div>
-            <button type="button" onClick={() => setConsentModalDoc(null)} style={{
-              background: 'rgba(244,63,94,0.10)', border: '1px solid rgba(244,63,94,0.25)',
-              borderRadius: 6, color: 'rgba(244,63,94,0.80)', fontSize: 11, fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'inherit', padding: '4px 10px', flexShrink: 0,
-            }}>✕</button>
-          </div>
-
-          {/* Scrollable body */}
-          <div style={{
-            flex: 1, overflowY: 'auto', padding: '20px 16px',
-            WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
-          }}>
-            {doc.body.split('\n').map((line, i) => {
-              if (!line.trim()) return <div key={i} style={{ height: 12 }} />;
-              const isHeading = line === line.toUpperCase() && line.length > 3 && !line.startsWith('•');
-              const isBullet  = line.startsWith('•');
-              return (
-                <p key={i} style={{
-                  margin: 0, marginBottom: 8,
-                  fontSize: isHeading ? 11 : 14,
-                  fontWeight: isHeading ? 800 : isBullet ? 400 : 400,
-                  letterSpacing: isHeading ? '0.10em' : undefined,
-                  textTransform: isHeading ? 'uppercase' : undefined,
-                  color: isHeading ? CYAN : 'rgba(255,255,255,0.75)',
-                  lineHeight: 1.75,
-                  paddingLeft: isBullet ? 8 : 0,
-                }}>
-                  {line}
-                </p>
-              );
-            })}
-            <div style={{ height: 20 }} />
-          </div>
-
-          {/* Footer */}
-          <div style={{
-            padding: '14px 16px', flexShrink: 0,
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-          }}>
-            <button type="button" onClick={() => setConsentModalDoc(null)} style={{
-              width: '100%', padding: '13px',
-              background: `linear-gradient(135deg, ${INDIGO}, #8B5CF6)`, border: 'none',
-              borderRadius: 12, color: '#fff', fontSize: 15, fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'inherit',
-            }}>
-              {t.closeDoc}
-            </button>
-          </div>
-        </div>
-      );
-    })()}
-    </>
   );
 }
 

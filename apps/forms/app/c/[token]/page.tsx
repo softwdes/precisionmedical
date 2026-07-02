@@ -9,10 +9,11 @@
 import { db } from '@precision-medical/database';
 import { IntakeWizard } from './intake-wizard';
 
-type Props = { params: Promise<{ token: string }> };
+type Props = { params: Promise<{ token: string }>; searchParams: Promise<{ reopen?: string }> };
 
-export default async function PatientPortalPage({ params }: Props) {
+export default async function PatientPortalPage({ params, searchParams }: Props) {
   const { token } = await params;
+  const { reopen } = await searchParams;
 
   const rec = await db.case.findUnique({
     where: { portalToken: token },
@@ -53,11 +54,12 @@ export default async function PatientPortalPage({ params }: Props) {
 
   if (!rec) return <InvalidToken />;
 
-  if (rec.intakeFormCompletedAt) {
+  if (rec.intakeFormCompletedAt && reopen !== '1') {
     return (
       <AlreadyCompleted
         firstName={rec.patient.firstName}
         caseCode={rec.caseCode}
+        token={token}
       />
     );
   }
@@ -133,7 +135,7 @@ function InvalidToken() {
   );
 }
 
-function AlreadyCompleted({ firstName, caseCode }: { firstName: string; caseCode: string }) {
+function AlreadyCompleted({ firstName, caseCode, token }: { firstName: string; caseCode: string; token: string }) {
   return (
     <div style={{
       minHeight: '100vh', background: '#0a1224', color: '#fff',
@@ -151,11 +153,22 @@ function AlreadyCompleted({ firstName, caseCode }: { firstName: string; caseCode
         <h1 style={{ fontSize: 24, fontWeight: 800, color: '#10B981', marginBottom: 12 }}>
           ¡Ya registrado, {firstName}!
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.65, marginBottom: 16 }}>
+        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 14, lineHeight: 1.65, marginBottom: 24 }}>
           Tu formulario para el caso{' '}
           <strong style={{ color: '#A5B4FC', fontFamily: 'monospace' }}>{caseCode}</strong>{' '}
           ya fue completado. El equipo de Precision Medical se comunicará contigo pronto.
         </p>
+        <a
+          href={`/c/${token}?reopen=1`}
+          style={{
+            display: 'block', width: '100%', padding: '13px',
+            background: 'rgba(6,182,212,0.10)', border: '1px solid rgba(6,182,212,0.30)',
+            borderRadius: 12, color: '#06B6D4', fontSize: 15, fontWeight: 700,
+            textDecoration: 'none', marginBottom: 12, boxSizing: 'border-box',
+          }}
+        >
+          📋 Ver / actualizar mi información
+        </a>
         <p style={{ color: 'rgba(255,255,255,0.30)', fontSize: 12 }}>
           ¿Preguntas? (801) 375-2207
         </p>

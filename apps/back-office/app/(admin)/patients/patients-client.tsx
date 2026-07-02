@@ -518,11 +518,22 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
 }
 
 // ── Appointments Dialog ────────────────────────────────────────────────────
+function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Denver' });
+}
+function addMinutes(iso: string, mins: number): string {
+  return new Date(new Date(iso).getTime() + mins * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Denver' });
+}
+function fmtApptDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', timeZone: 'America/Denver' });
+}
+
 function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
   caseId: string; caseCode: string; open: boolean; onClose: () => void;
 }) {
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [loading, setLoading]           = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (!open) return;
@@ -536,63 +547,121 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
           <DialogTitle className="text-text-1 flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-brand" />
             Citas programadas
           </DialogTitle>
-          <DialogDescription className="text-text-muted text-xs font-mono">
-            Caso #{caseCode}
+          <DialogDescription className="text-text-muted text-xs">
+            Puedes revisar los detalles acerca de tus citas programadas.
           </DialogDescription>
         </DialogHeader>
 
-        {loading && (
-          <div className="space-y-2 py-2">
-            {[1, 2].map(i => (
-              <div key={i} className="h-14 rounded-md bg-bg-2 animate-pulse" />
-            ))}
-          </div>
-        )}
+        <div className="flex-1 overflow-auto">
+          {loading && (
+            <div className="space-y-2 p-4">
+              {[1,2,3].map(i => <div key={i} className="h-10 rounded bg-bg-2 animate-pulse" />)}
+            </div>
+          )}
 
-        {!loading && appointments.length === 0 && (
-          <div className="text-center py-8 text-text-muted">
-            <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p className="text-[11px]">No se encontraron resultados</p>
-          </div>
-        )}
+          {!loading && appointments.length === 0 && (
+            <div className="text-center py-12 text-text-muted">
+              <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-20" />
+              <p className="text-sm">No se encontraron resultados</p>
+            </div>
+          )}
 
-        {!loading && appointments.length > 0 && (
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-            {appointments.map(a => (
-              <div key={a.id} className="rounded-md border border-border/60 bg-bg-1 px-3 py-2.5 space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                    <span className="text-[12px] text-text-1 font-medium">{fmtDateTime(a.scheduledFor)}</span>
-                  </div>
-                  <TagPill
-                    label={a.status}
-                    colorClass={APPT_STATUS_COLOR[a.status] ?? 'bg-bg-2 text-text-2 border-border'}
-                  />
-                </div>
-                <div className="flex items-center gap-4 pl-5 text-[11px] text-text-muted">
-                  {a.clinic && <span>{a.clinic.name}</span>}
-                  {a.provider && <span>{a.provider.firstName} {a.provider.lastName}</span>}
-                  <span>{a.durationMinutes} min</span>
-                </div>
-                <div className="flex gap-3 pl-5 text-[10px]">
-                  {a.checkedInAt && <span className="text-emerald">✓ Check-in</span>}
-                  {a.attendanceSignedAt && <span className="text-emerald">✓ Firma</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+          {!loading && appointments.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-bg-2 border-b border-border">
+                  <tr>
+                    {['Fecha','Hora de inicio','Hora de conclusión','Estado','Firmado por el paciente','Registro','Salida','Doctor','Especialidad','Acciones'].map(h => (
+                      <th key={h} className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {appointments.map(a => (
+                    <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{fmtApptDate(a.scheduledFor)}</td>
+                      <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{fmtTime(a.scheduledFor)}</td>
+                      <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{addMinutes(a.scheduledFor, a.durationMinutes)}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <TagPill label={a.status === 'SCHEDULED' ? 'Pendiente' : a.status} colorClass={APPT_STATUS_COLOR[a.status] ?? 'bg-bg-2 text-text-2 border-border'} />
+                      </td>
+                      <td className="px-3 py-2.5 text-[12px] text-text-muted whitespace-nowrap">
+                        {a.attendanceSignedAt ? <span className="text-emerald">✓ Firmado</span> : '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-[12px] whitespace-nowrap">
+                        {a.checkedInAt ? <span className="text-emerald text-[10px]">✓</span> : <span className="text-text-muted">—</span>}
+                      </td>
+                      <td className="px-3 py-2.5 text-[12px] text-text-muted whitespace-nowrap">—</td>
+                      <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">
+                        {a.provider ? `${a.provider.firstName} ${a.provider.lastName}` : '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-[12px] text-text-muted whitespace-nowrap">
+                        {a.provider?.specialty ?? '—'}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => { onClose(); router.push(`/triage/${a.id}`); }}
+                            className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
+                            title="Ver detalle"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { onClose(); router.push(`/triage/${a.id}`); }}
+                            className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                            title="Editar / Triaje"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
+                            title="Formularios"
+                          >
+                            <CalendarDays className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
+                            title="Descargar"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
-        <DialogFooter className="pt-2">
-          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cerrar</Button>
-        </DialogFooter>
+        {/* Pagination footer */}
+        <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-bg-1">
+          <div className="flex items-center gap-2 text-[11px] text-text-muted">
+            <span>Filas por página</span>
+            <select className="bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none">
+              <option>10</option>
+              <option>25</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-1 text-[11px] text-text-muted">
+            <span>Página 1 de 1</span>
+            <div className="flex gap-1 ml-2">
+              {['«','‹','›','»'].map(s => (
+                <button key={s} disabled className="w-7 h-7 rounded border border-border text-text-muted disabled:opacity-30 hover:border-brand hover:text-brand transition-colors text-xs">
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

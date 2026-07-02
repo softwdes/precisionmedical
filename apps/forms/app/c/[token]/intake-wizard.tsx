@@ -1614,7 +1614,7 @@ export function IntakeWizard({
         {/* ══════ STEP 7 · Consentimientos médicos (B.8) ══════════════════════ */}
         {step === 7 && (() => {
           const checkedCount = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
-          const ConsentCard = ({ active, onToggle, title, body, fullBody, checkLabel, docKey, children }: {
+          const card = ({ active, onToggle, title, body, fullBody, checkLabel, docKey, children }: {
             active: boolean; onToggle: () => void;
             title: string; body: string; fullBody: string; checkLabel: string;
             docKey: string;
@@ -1715,20 +1715,20 @@ export function IntakeWizard({
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 
                 {/* Doc 1 — Divulgación médica */}
-                <ConsentCard
-                  active={consents.hipaa}
-                  onToggle={() => setConsents(c => ({ ...c, hipaa: !c.hipaa }))}
-                  title={t.c1Title} body={t.c1Body} fullBody={t.c1FullBody}
-                  checkLabel={t.c1Check} docKey="c1"
-                />
+                {card({
+                  active: consents.hipaa,
+                  onToggle: () => setConsents(c => ({ ...c, hipaa: !c.hipaa })),
+                  title: t.c1Title, body: t.c1Body, fullBody: t.c1FullBody,
+                  checkLabel: t.c1Check, docKey: 'c1',
+                })}
 
                 {/* Doc 2 — Partes cesionadas */}
-                <ConsentCard
-                  active={consents.assignedParties}
-                  onToggle={() => setConsents(c => ({ ...c, assignedParties: !c.assignedParties }))}
-                  title={t.c2Title} body={t.c2Body} fullBody={t.c2FullBody}
-                  checkLabel={t.c2Check} docKey="c2"
-                >
+                {card({
+                  active: consents.assignedParties,
+                  onToggle: () => setConsents(c => ({ ...c, assignedParties: !c.assignedParties })),
+                  title: t.c2Title, body: t.c2Body, fullBody: t.c2FullBody,
+                  checkLabel: t.c2Check, docKey: 'c2',
+                  children: (<>
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
                       {t.authPersonsLabel}
@@ -1774,23 +1774,24 @@ export function IntakeWizard({
                       </button>
                     </div>
                   </div>
-                </ConsentCard>
+                  </>),
+                })}
 
                 {/* Doc 3 — Tratamiento */}
-                <ConsentCard
-                  active={consents.treatment}
-                  onToggle={() => setConsents(c => ({ ...c, treatment: !c.treatment }))}
-                  title={t.c3Title} body={t.c3Body} fullBody={t.c3FullBody}
-                  checkLabel={t.c3Check} docKey="c3"
-                />
+                {card({
+                  active: consents.treatment,
+                  onToggle: () => setConsents(c => ({ ...c, treatment: !c.treatment })),
+                  title: t.c3Title, body: t.c3Body, fullBody: t.c3FullBody,
+                  checkLabel: t.c3Check, docKey: 'c3',
+                })}
 
                 {/* Doc 4 — Financiero + Firma */}
-                <ConsentCard
-                  active={consents.financial}
-                  onToggle={() => setConsents(c => ({ ...c, financial: !c.financial }))}
-                  title={t.c4Title} body={t.c4Body} fullBody={t.c4FullBody}
-                  checkLabel={t.c4Check} docKey="c4"
-                >
+                {card({
+                  active: consents.financial,
+                  onToggle: () => setConsents(c => ({ ...c, financial: !c.financial })),
+                  title: t.c4Title, body: t.c4Body, fullBody: t.c4FullBody,
+                  checkLabel: t.c4Check, docKey: 'c4',
+                  children: (<>
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
                       {t.c4SignLabel}
@@ -1819,15 +1820,16 @@ export function IntakeWizard({
                       }}>{t.c4ClearBtn}</button>
                     )}
                   </div>
-                </ConsentCard>
+                  </>),
+                })}
 
                 {/* Doc 5 — Historial médico */}
-                <ConsentCard
-                  active={consents.medicalHistory}
-                  onToggle={() => setConsents(c => ({ ...c, medicalHistory: !c.medicalHistory }))}
-                  title={t.c5Title} body={t.c5Body} fullBody={t.c5FullBody}
-                  checkLabel={t.c5Check} docKey="c5"
-                />
+                {card({
+                  active: consents.medicalHistory,
+                  onToggle: () => setConsents(c => ({ ...c, medicalHistory: !c.medicalHistory })),
+                  title: t.c5Title, body: t.c5Body, fullBody: t.c5FullBody,
+                  checkLabel: t.c5Check, docKey: 'c5',
+                })}
 
               </div>
 

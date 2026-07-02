@@ -727,15 +727,19 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
       const res = await fetch(`/api/admin/cases/${deleteCaseTarget.id}`, { method: 'DELETE' });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { setDeleteCaseError(json.message ?? 'Error al cancelar.'); return; }
+      const pid = Object.keys(expandedCases).find(k => (expandedCases[k] ?? []).some(c => c.id === deleteCaseTarget.id));
       setDeleteCaseTarget(null);
-      // Refresh expanded cases for affected patient
-      setExpandedCases(prev => {
-        const n: Record<string, CaseRow[]> = {};
-        for (const [pid, cases] of Object.entries(prev)) {
-          n[pid] = cases.map(c => c.id === deleteCaseTarget.id ? { ...c, status: 'CANCELLED' } : c);
+      if (pid) {
+        setExpandedCases(prev => { const n = { ...prev }; delete n[pid]; return n; });
+        setLoadingCases(prev => ({ ...prev, [pid]: true }));
+        try {
+          const r2 = await fetch(`/api/admin/patients/${pid}/cases`);
+          const j2 = await r2.json().catch(() => ({ cases: [] }));
+          setExpandedCases(prev => ({ ...prev, [pid]: j2.cases ?? [] }));
+        } finally {
+          setLoadingCases(prev => ({ ...prev, [pid]: false }));
         }
-        return n;
-      });
+      }
     } catch {
       setDeleteCaseError('Error de red. Intenta de nuevo.');
     } finally {
@@ -1197,10 +1201,21 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
           onOpenChange={(v) => { if (!v) setCaseEditTarget(null); }}
           patient={{ id: '', firstName: '', lastName: '' }}
           editCaseId={caseEditTarget.id}
-          onSaved={() => {
+          onSaved={async () => {
             const pid = Object.keys(expandedCases).find(k => (expandedCases[k] ?? []).some(c => c.id === caseEditTarget.id));
-            if (pid) setExpandedCases(prev => { const n = { ...prev }; delete n[pid]; return n; });
             setCaseEditTarget(null);
+            if (pid) {
+              // Clear cache and re-fetch so the updated case shows up
+              setExpandedCases(prev => { const n = { ...prev }; delete n[pid]; return n; });
+              setLoadingCases(prev => ({ ...prev, [pid]: true }));
+              try {
+                const res = await fetch(`/api/admin/patients/${pid}/cases`);
+                const json = await res.json().catch(() => ({ cases: [] }));
+                setExpandedCases(prev => ({ ...prev, [pid]: json.cases ?? [] }));
+              } finally {
+                setLoadingCases(prev => ({ ...prev, [pid]: false }));
+              }
+            }
           }}
         />
       )}

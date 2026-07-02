@@ -50,6 +50,8 @@ const PatchSchema = z.object({
   // text fields stored in consentsData JSON
   chiropractor:     z.string().nullable().optional(),
   lawFirmLabel:     z.string().nullable().optional(),
+  // full consents object (from edit wizard step 2)
+  consents:         z.record(z.unknown()).optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResponse> {
@@ -58,18 +60,19 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
   const parsed = PatchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 422 });
 
-  const { accidentDate, chiropractor, lawFirmLabel, ...rest } = parsed.data;
+  const { accidentDate, chiropractor, lawFirmLabel, consents, ...rest } = parsed.data;
   const data: Record<string, unknown> = { ...rest };
   if (accidentDate !== undefined) {
     data.accidentDate = accidentDate ? new Date(accidentDate + 'T12:00:00') : null;
   }
 
-  // Merge consentsData JSON with text fields
-  if (chiropractor !== undefined || lawFirmLabel !== undefined) {
+  // Merge consentsData JSON with text fields and/or full consents object
+  if (chiropractor !== undefined || lawFirmLabel !== undefined || consents !== undefined) {
     const existing = await db.case.findUnique({ where: { id }, select: { consentsData: true } });
     const prev = (existing?.consentsData ?? {}) as Record<string, unknown>;
     data.consentsData = {
       ...prev,
+      ...(consents ?? {}),
       ...(chiropractor !== undefined ? { chiropractor } : {}),
       ...(lawFirmLabel !== undefined ? { lawFirm: lawFirmLabel } : {}),
     };

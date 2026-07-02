@@ -73,10 +73,13 @@ interface Patient {
 }
 
 interface Props {
-  open:        boolean;
+  open:         boolean;
   onOpenChange: (v: boolean) => void;
-  patient:     Patient;
-  onCreated?:  (caseId: string) => void;
+  patient:      Patient;
+  onCreated?:   (caseId: string) => void;
+  // Edit mode — pass caseId to edit instead of create
+  editCaseId?:  string;
+  onSaved?:     () => void;
 }
 
 interface ResponsiblePerson {
@@ -189,9 +192,11 @@ function ConsentBlock({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Props) {
+export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editCaseId, onSaved }: Props) {
   const t      = useTranslations('caseWizard');
   const router = useRouter();
+
+  const isEdit = !!editCaseId;
 
   const [step,    setStep]    = useState<1 | 2 | 3>(1);
   const [saving,  setSaving]  = useState(false);
@@ -215,7 +220,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
     setConsents(prev => ({ ...prev, [key]: value }));
   }
 
-  // Signature reset when dialog closes
+  // Reset / pre-populate when dialog opens
   useEffect(() => {
     if (!open) {
       setStep(1);
@@ -229,8 +234,41 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
       setConsents(EMPTY_CONSENTS);
       setResponsible([]);
       setError('');
+      return;
     }
-  }, [open]);
+    // In edit mode, fetch existing data to pre-populate
+    if (isEdit && editCaseId) {
+      fetch(`/api/admin/cases/${editCaseId}`)
+        .then(r => r.json())
+        .then(j => {
+          const c = j.case;
+          if (!c) return;
+          setCaseType(c.caseType === 'MVA' ? 'MVA' : 'GENERAL');
+          // Convert ISO date to YYYY-MM-DD for the date input
+          if (c.accidentDate) {
+            setAccidentDate(c.accidentDate.slice(0, 10));
+          }
+          setDescription(c.accidentNotes ?? '');
+          if (c.lawFirm) { setLawFirm(c.lawFirm.firmName); setLawFirmId(c.lawFirm.id); }
+          const cd = (c.consentsData ?? {}) as Record<string, unknown>;
+          setAttorney((cd.attorney as string | undefined) ?? '');
+          setChiropractor((cd.chiropractor as string | undefined) ?? '');
+          // Pre-populate consents if already signed
+          setConsents({
+            hipaa:                 !!(cd.hipaa),
+            assignedParties:       !!(cd.assignedParties),
+            assignedPartiesCheck1: !!(cd.assignedPartiesOpts && (cd.assignedPartiesOpts as Record<string,boolean>).check1),
+            assignedPartiesCheck2: !!(cd.assignedPartiesOpts && (cd.assignedPartiesOpts as Record<string,boolean>).check2),
+            assignedPartiesCheck3: !!(cd.assignedPartiesOpts && (cd.assignedPartiesOpts as Record<string,boolean>).check3),
+            treatment:             !!(cd.treatment),
+            financial:             !!(cd.financial),
+            medicalHistory:        !!(cd.medicalHistory),
+            signatureDataUrl:      (cd.signatureDataUrl as string | null) ?? null,
+          });
+        })
+        .catch(() => {});
+    }
+  }, [open, isEdit, editCaseId]);
 
   // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -312,6 +350,49 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
     }
   }
 
+  // ── Save (edit mode) ────────────────────────────────────────────────────────
+
+  async function handleSave() {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/admin/cases/${editCaseId}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caseType:    caseType === 'MVA' ? 'MVA' : 'GENERAL',
+          accidentDate: accidentDate || null,
+          accidentNotes: description || null,
+          lawFirmId:   lawFirmId ?? null,
+          lawFirmLabel: lawFirm || null,
+          chiropractor: chiropractor || null,
+          consents: {
+            hipaa:               consents.hipaa,
+            assignedParties:     consents.assignedParties,
+            assignedPartiesOpts: {
+              check1: consents.assignedPartiesCheck1,
+              check2: consents.assignedPartiesCheck2,
+              check3: consents.assignedPartiesCheck3,
+            },
+            treatment:        consents.treatment,
+            financial:        consents.financial,
+            medicalHistory:   consents.medicalHistory,
+            signatureDataUrl: consents.signatureDataUrl,
+            attorney,
+          },
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(json.message ?? json.error ?? 'Error al guardar.'); return; }
+      onOpenChange(false);
+      if (onSaved) onSaved();
+    } catch {
+      setError('Error de red. Intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // ── Step labels ─────────────────────────────────────────────────────────────
 
   const stepLabels: Record<1 | 2 | 3, { title: string; sub: string }> = {
@@ -332,9 +413,11 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
           <DialogTitle className="flex items-center gap-2 text-text-1 text-base">
             <FileText className="w-4 h-4 text-brand" />
-            {t('title')}
+            {isEdit ? 'Formulario de caso médico' : t('title')}
           </DialogTitle>
-          <DialogDescription className="text-text-muted text-xs">{t('subtitle')}</DialogDescription>
+          <DialogDescription className="text-text-muted text-xs">
+            {isEdit ? 'Complete toda la información requerida para el nuevo caso médico.' : t('subtitle')}
+          </DialogDescription>
           <div className="pt-3">
             <StepIndicator current={step} />
             <div className="text-center mt-2">
@@ -720,11 +803,13 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated }: Pro
                 {t('cancel')}
               </Button>
               <Button
-                onClick={handleCreate}
+                onClick={isEdit ? handleSave : handleCreate}
                 disabled={saving}
                 className="w-full sm:w-auto"
               >
-                {saving ? t('creating') : t('createCase')}
+                {saving
+                  ? (isEdit ? 'Guardando...' : t('creating'))
+                  : (isEdit ? 'Guardar cambios' : t('createCase'))}
               </Button>
             </>
           )}

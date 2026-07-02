@@ -1190,15 +1190,17 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
         />
       )}
 
-      {/* ─── Case Edit dialog ────────────────────────────────────────────────── */}
+      {/* ─── Case Edit (full wizard in edit mode) ──────────────────────────── */}
       {caseEditTarget && (
-        <CaseEditDialog
-          caseId={caseEditTarget.id}
+        <CaseWizardDialog
           open={!!caseEditTarget}
-          onClose={() => setCaseEditTarget(null)}
+          onOpenChange={(v) => { if (!v) setCaseEditTarget(null); }}
+          patient={{ id: '', firstName: '', lastName: '' }}
+          editCaseId={caseEditTarget.id}
           onSaved={() => {
-            // Refresh expanded cases to show updated status
-            setExpandedCases(prev => { const n = { ...prev }; delete n[Object.keys(n).find(pid => (n[pid] ?? []).some(c => c.id === caseEditTarget.id)) ?? '']; return n; });
+            const pid = Object.keys(expandedCases).find(k => (expandedCases[k] ?? []).some(c => c.id === caseEditTarget.id));
+            if (pid) setExpandedCases(prev => { const n = { ...prev }; delete n[pid]; return n; });
+            setCaseEditTarget(null);
           }}
         />
       )}

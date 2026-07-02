@@ -1,20 +1,241 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { PatientCreateDialog } from './patient-create-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
+import QRCode from 'qrcode';
 
 function fmtLocalDate(d: Date | string | null | undefined): string {
   if (!d) return '—';
   const iso = typeof d === 'string' ? d : (d as Date).toISOString();
   const [y, mo, day] = iso.slice(0, 10).split('-').map(Number);
   return new Date(y, mo - 1, day).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// ── Case action types ──────────────────────────────────────────────────────
+interface CaseRow {
+  id: string;
+  caseCode: string;
+  status: string;
+  accidentType: string | null;
+}
+
+interface AppointmentItem {
+  id: string;
+  scheduledFor: string;
+  durationMinutes: number;
+  type: string;
+  status: string;
+  notes: string | null;
+  checkedInAt: string | null;
+  attendanceSignedAt: string | null;
+  clinic: { id: string; name: string };
+  provider: { id: string; firstName: string; lastName: string; specialty: string | null } | null;
+}
+
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' });
+}
+
+const APPT_STATUS_COLOR: Record<string, string> = {
+  SCHEDULED:  'bg-brand/10 text-brand border-brand/20',
+  CONFIRMED:  'bg-cyan/10 text-cyan border-cyan/20',
+  CHECKED_IN: 'bg-emerald/10 text-emerald border-emerald/20',
+  COMPLETED:  'bg-emerald/10 text-emerald border-emerald/20',
+  CANCELLED:  'bg-rose/10 text-rose border-rose/20',
+  NO_SHOW:    'bg-amber/10 text-amber border-amber/20',
+};
+
+// ── QR Dialog ──────────────────────────────────────────────────────────────
+function CaseQrDialog({ caseId, caseCode, open, onClose }: {
+  caseId: string; caseCode: string; open: boolean; onClose: () => void;
+}) {
+  const [portalUrl, setPortalUrl]   = useState('');
+  const [qrDataUrl, setQrDataUrl]   = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [copied, setCopied]         = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    fetch(`/api/admin/cases/${caseId}/generate-portal-token`, { method: 'POST' })
+      .then(r => r.json())
+      .then(async (j) => {
+        if (j.portalUrl) {
+          setPortalUrl(j.portalUrl);
+          const url = await QRCode.toDataURL(j.portalUrl, {
+            width: 220, margin: 2,
+            color: { dark: '#e2e8f0', light: '#12141f' },
+          });
+          setQrDataUrl(url);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [open, caseId]);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(portalUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function handleDownload() {
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    a.download = `qr-caso-${caseCode}.png`;
+    a.click();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-text-1 flex items-center gap-2">
+            <QrCode className="w-4 h-4 text-brand" />
+            Acceso de paciente
+          </DialogTitle>
+          <DialogDescription className="text-text-muted text-xs font-mono">
+            Caso #{caseCode}
+          </DialogDescription>
+        </DialogHeader>
+
+        <p className="text-[11px] text-text-muted leading-relaxed -mt-1">
+          Comparte este código QR o enlace con el paciente para que pueda completar
+          o actualizar su información de registro de manera segura.
+        </p>
+
+        {loading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="w-[220px] h-[220px] rounded-lg bg-bg-2 animate-pulse" />
+          </div>
+        )}
+
+        {!loading && portalUrl && (
+          <>
+            <div className="flex items-center gap-2 rounded-md bg-bg-2 border border-border px-3 py-2">
+              <span className="text-[11px] text-text-2 truncate flex-1 font-mono">{portalUrl}</span>
+              <button
+                onClick={handleCopy}
+                className="p-1 rounded text-text-muted hover:text-brand transition-colors shrink-0"
+                title="Copiar enlace"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            {qrDataUrl && (
+              <div className="flex justify-center">
+                <img src={qrDataUrl} alt="QR Code" className="rounded-lg w-[220px] h-[220px]" />
+              </div>
+            )}
+          </>
+        )}
+
+        {!loading && !portalUrl && (
+          <div className="text-[11px] text-rose text-center py-4">No se pudo generar el enlace.</div>
+        )}
+
+        <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cerrar</Button>
+          {qrDataUrl && (
+            <Button className="w-full sm:w-auto" onClick={handleDownload}>
+              <Download className="w-3.5 h-3.5 mr-1" /> Descargar QR
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Appointments Dialog ────────────────────────────────────────────────────
+function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
+  caseId: string; caseCode: string; open: boolean; onClose: () => void;
+}) {
+  const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
+  const [loading, setLoading]           = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    fetch(`/api/admin/cases/${caseId}/appointments`)
+      .then(r => r.json())
+      .then(j => setAppointments(j.appointments ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [open, caseId]);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-text-1 flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-brand" />
+            Citas programadas
+          </DialogTitle>
+          <DialogDescription className="text-text-muted text-xs font-mono">
+            Caso #{caseCode}
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading && (
+          <div className="space-y-2 py-2">
+            {[1, 2].map(i => (
+              <div key={i} className="h-14 rounded-md bg-bg-2 animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {!loading && appointments.length === 0 && (
+          <div className="text-center py-8 text-text-muted">
+            <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-30" />
+            <p className="text-[11px]">No se encontraron resultados</p>
+          </div>
+        )}
+
+        {!loading && appointments.length > 0 && (
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {appointments.map(a => (
+              <div key={a.id} className="rounded-md border border-border/60 bg-bg-1 px-3 py-2.5 space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                    <span className="text-[12px] text-text-1 font-medium">{fmtDateTime(a.scheduledFor)}</span>
+                  </div>
+                  <TagPill
+                    label={a.status}
+                    colorClass={APPT_STATUS_COLOR[a.status] ?? 'bg-bg-2 text-text-2 border-border'}
+                  />
+                </div>
+                <div className="flex items-center gap-4 pl-5 text-[11px] text-text-muted">
+                  {a.clinic && <span>{a.clinic.name}</span>}
+                  {a.provider && <span>{a.provider.firstName} {a.provider.lastName}</span>}
+                  <span>{a.durationMinutes} min</span>
+                </div>
+                <div className="flex gap-3 pl-5 text-[10px]">
+                  {a.checkedInAt && <span className="text-emerald">✓ Check-in</span>}
+                  {a.attendanceSignedAt && <span className="text-emerald">✓ Firma</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <DialogFooter className="pt-2">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -94,8 +315,13 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   const [quickRegister, setQuickRegister] = useState(false);
   const [expandedId,    setExpandedId]    = useState<string | null>(null);
   const [wizardPatient, setWizardPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
-  const [expandedCases, setExpandedCases] = useState<Record<string, { id: string; caseCode: string; status: string; accidentType: string | null }[]>>({});
+  const [expandedCases, setExpandedCases] = useState<Record<string, CaseRow[]>>({});
   const [loadingCases,  setLoadingCases]  = useState<Record<string, boolean>>({});
+  const [caseQrTarget,  setCaseQrTarget]  = useState<CaseRow | null>(null);
+  const [caseApptTarget, setCaseApptTarget] = useState<CaseRow | null>(null);
+  const [deleteCaseTarget, setDeleteCaseTarget] = useState<CaseRow | null>(null);
+  const [deletingCase, setDeletingCase]   = useState(false);
+  const [deleteCaseError, setDeleteCaseError] = useState('');
 
   const toggleExpand = useCallback(async (patientId: string) => {
     if (expandedId === patientId) { setExpandedId(null); return; }
@@ -128,6 +354,30 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
       setDeleteError('Error de red. Intenta de nuevo.');
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleDeleteCase() {
+    if (!deleteCaseTarget) return;
+    setDeletingCase(true);
+    setDeleteCaseError('');
+    try {
+      const res = await fetch(`/api/admin/cases/${deleteCaseTarget.id}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setDeleteCaseError(json.message ?? 'Error al cancelar.'); return; }
+      setDeleteCaseTarget(null);
+      // Refresh expanded cases for affected patient
+      setExpandedCases(prev => {
+        const n: Record<string, CaseRow[]> = {};
+        for (const [pid, cases] of Object.entries(prev)) {
+          n[pid] = cases.map(c => c.id === deleteCaseTarget.id ? { ...c, status: 'CANCELLED' } : c);
+        }
+        return n;
+      });
+    } catch {
+      setDeleteCaseError('Error de red. Intenta de nuevo.');
+    } finally {
+      setDeletingCase(false);
     }
   }
 
@@ -305,25 +555,65 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                       )}
 
                       {!loadingCases[p.id] && (expandedCases[p.id] ?? []).map(c => (
-                        <div key={c.id} className="flex items-center justify-between gap-4 rounded-md border border-border/60 bg-bg-1 px-3 py-2">
+                        <div key={c.id} className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-bg-1 px-3 py-2 flex-wrap">
                           <div className="flex items-center gap-3">
                             <Car className="w-3.5 h-3.5 text-text-muted shrink-0" />
                             <span className="text-[12px] font-mono text-text-1">{c.caseCode}</span>
                             {c.accidentType && (
                               <span className="text-[10px] text-text-muted">{c.accidentType}</span>
                             )}
-                          </div>
-                          <div className="flex items-center gap-2">
                             <TagPill
                               label={c.status}
-                              colorClass="bg-brand/10 text-brand border-brand/20"
+                              colorClass={
+                                c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
+                                : c.status === 'ACTIVE'  ? 'bg-emerald/10 text-emerald border-emerald/20'
+                                : 'bg-brand/10 text-brand border-brand/20'
+                              }
                             />
+                          </div>
+                          <div className="flex items-center gap-1">
                             <button
                               onClick={() => router.push(`/front-office/${c.id}`)}
-                              className="p-1 rounded text-text-muted hover:text-brand transition-colors"
+                              className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
                               title="Ver caso"
                             >
-                              <ExternalLink className="w-3 h-3" />
+                              <Eye className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => router.push(`/front-office/${c.id}`)}
+                              className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                              title="Editar caso"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
+                              className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
+                              title="Cancelar caso"
+                              disabled={c.status === 'CANCELLED'}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => window.open(`/api/admin/cases/${c.id}/pdf`, '_blank')}
+                              className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
+                              title="Descargar PDF"
+                            >
+                              <Download className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => setCaseApptTarget(c)}
+                              className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
+                              title="Ver citas programadas"
+                            >
+                              <CalendarDays className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => setCaseQrTarget(c)}
+                              className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                              title="Acceso paciente / QR"
+                            >
+                              <QrCode className="w-3 h-3" />
                             </button>
                           </div>
                         </div>
@@ -482,6 +772,53 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
 
       {/* ─── Quick Register ──────────────────────────────────────────────────── */}
       <QuickRegisterDialog open={quickRegister} onOpenChange={setQuickRegister} />
+
+      {/* ─── Case QR dialog ─────────────────────────────────────────────────── */}
+      {caseQrTarget && (
+        <CaseQrDialog
+          caseId={caseQrTarget.id}
+          caseCode={caseQrTarget.caseCode}
+          open={!!caseQrTarget}
+          onClose={() => setCaseQrTarget(null)}
+        />
+      )}
+
+      {/* ─── Case Appointments dialog ────────────────────────────────────────── */}
+      {caseApptTarget && (
+        <CaseAppointmentsDialog
+          caseId={caseApptTarget.id}
+          caseCode={caseApptTarget.caseCode}
+          open={!!caseApptTarget}
+          onClose={() => setCaseApptTarget(null)}
+        />
+      )}
+
+      {/* ─── Delete Case confirm ─────────────────────────────────────────────── */}
+      <Dialog open={!!deleteCaseTarget} onOpenChange={(o) => { if (!o) setDeleteCaseTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-text-1">¿Cancelar caso?</DialogTitle>
+            <DialogDescription className="text-text-2 text-sm mt-1">
+              El caso{' '}
+              <span className="font-semibold text-text-1 font-mono">{deleteCaseTarget?.caseCode}</span>{' '}
+              se marcará como <span className="text-rose">CANCELADO</span>. Esta acción puede deshacerse editando el caso.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteCaseError && (
+            <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose mt-2">
+              {deleteCaseError}
+            </div>
+          )}
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteCaseTarget(null)} disabled={deletingCase}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDeleteCase} disabled={deletingCase}>
+              {deletingCase ? 'Cancelando...' : 'Sí, cancelar caso'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Delete confirm ──────────────────────────────────────────────────── */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>

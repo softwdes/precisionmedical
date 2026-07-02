@@ -113,7 +113,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         preferredLanguage?: string;
       };
       consents?: {
-        hipaa?: boolean; assignedParties?: boolean; authorizedPersons?: string[];
+        hipaa?: boolean;
+        assignedParties?: boolean;
+        authRecords?: boolean; authVoicemail?: boolean; authNotifications?: boolean;
+        authorizedPersons?: { name: string; relation: string }[];
         treatment?: boolean; financial?: boolean; financialSignatureSvg?: string;
         medicalHistory?: boolean;
       };
@@ -241,6 +244,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
           ...prev,
           ...(c.hipaa                !== undefined ? { hipaa: c.hipaa }                               : {}),
           ...(c.assignedParties      !== undefined ? { assignedParties: c.assignedParties }           : {}),
+          ...(c.authRecords          !== undefined ? { authRecords: c.authRecords }                   : {}),
+          ...(c.authVoicemail        !== undefined ? { authVoicemail: c.authVoicemail }               : {}),
+          ...(c.authNotifications    !== undefined ? { authNotifications: c.authNotifications }       : {}),
           ...(c.authorizedPersons    !== undefined ? { authorizedPersons: c.authorizedPersons }       : {}),
           ...(c.treatment            !== undefined ? { treatment: c.treatment }                       : {}),
           ...(c.financial            !== undefined ? { financial: c.financial }                       : {}),

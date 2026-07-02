@@ -243,8 +243,14 @@ const STRINGS = {
     c2FullBody: 'DIVULGACIÓN DE INFORMACIÓN MÉDICA A PARTES CESIONADAS\n\nBajo la Ley de Portabilidad y Responsabilidad del Seguro Médico (HIPAA), tengo ciertos derechos sobre mi información médica protegida. Por la presente autorizo específicamente la divulgación de mi información médica para los siguientes propósitos:\n\nEn mi ausencia, autorizo a Precision Medical Urgent Care & Family Practice a divulgar total o parcialmente mi información médica protegida o la de mis dependientes a las personas o entidades que se indican a continuación.\n\nEsta autorización permanecerá vigente hasta que la revoque por escrito.',
     c2Check: 'Acepto las Partes Cesionadas',
     authPersonsLabel: 'Personas responsables autorizadas',
-    authPersonPh: 'Nombre completo de la persona...',
-    addPersonBtn: '+ Agregar persona',
+    authPersonsDesc: 'Agrega solo a las personas que podrán recibir o gestionar información médica en tu nombre.',
+    authPersonNamePh: 'Nombre del responsable',
+    authPersonRelPh: 'Seleccione la relación',
+    authPersonRelations: ['Cónyuge', 'Padre/Madre', 'Hijo/Hija', 'Hermano/a', 'Persona responsable legal', 'Otro'],
+    addPersonBtn: '+ Agregar persona responsable',
+    authRecordsCheck: 'Autorizo la divulgación de la totalidad o parte de mis registros médicos a mis padres (mayores de 18 años).',
+    authVoicemailCheck: 'Autorizo que los resultados de pruebas y los recordatorios de citas se dejen en mi buzón de voz.',
+    authNotificationsCheck: 'Autorizo que se envíen notificaciones y recordatorios de citas por correo electrónico o mensaje de texto.',
     c3Title: 'AUTORIZACIÓN DE TRATAMIENTO',
     c3Body: 'Consiento voluntariamente recibir diagnóstico y tratamiento médico en Precision Medical Care. Entiendo los riesgos y beneficios del tratamiento propuesto y puedo retirar este consentimiento en cualquier momento.',
     c3FullBody: 'CONSENTIMIENTO PARA TRATAMIENTO\n\nPor la presente, autorizo la atención y doy mi consentimiento para el tratamiento médico, incluyendo pruebas y procedimientos, realizados por el/los médico(s) u otros profesionales de la salud para mi tratamiento o el de mis dependientes.\n\nMi intención es que esta autorización se aplique a esta consulta y a cualquier atención futura que yo o mis dependientes podamos solicitar.',
@@ -453,8 +459,14 @@ const STRINGS = {
     c2FullBody: 'MEDICAL INFORMATION RELEASE TO ASSIGNED PARTIES\n\nUnder the Health Insurance Portability and Accountability Act (HIPAA), I have certain rights regarding my protected health information. I hereby specifically authorize the disclosure of my health information for the following purposes:\n\nIn my absence, I authorize Precision Medical Urgent Care & Family Practice to release all or portions of my, or my dependents\', protected health information to the individuals or entities indicated below.\n\nThis authorization remains in effect until I revoke it in writing.',
     c2Check: 'I accept the Assigned Parties authorization',
     authPersonsLabel: 'Authorized responsible persons',
-    authPersonPh: "Person's full name...",
-    addPersonBtn: '+ Add person',
+    authPersonsDesc: 'Add only the persons who will be able to receive or manage medical information on your behalf.',
+    authPersonNamePh: "Responsible person's name",
+    authPersonRelPh: 'Select relationship',
+    authPersonRelations: ['Spouse', 'Parent', 'Child', 'Sibling', 'Legal guardian', 'Other'],
+    addPersonBtn: '+ Add responsible person',
+    authRecordsCheck: 'I authorize disclosure of all or part of my medical records to my parents (over 18 years old).',
+    authVoicemailCheck: 'I authorize test results and appointment reminders to be left on my voicemail.',
+    authNotificationsCheck: 'I authorize appointment notifications and reminders to be sent by email or text message.',
     c3Title: 'TREATMENT AUTHORIZATION',
     c3Body: 'I voluntarily consent to receive medical diagnosis and treatment at Precision Medical Care. I understand the risks and benefits of the proposed treatment and may withdraw this consent at any time.',
     c3FullBody: 'CONSENT FOR TREATMENT\n\nI hereby authorize care and consent to medical treatment, including tests and procedures, performed by the physician(s) or other healthcare providers for my treatment or the treatment of my dependents.\n\nI intend this authorization to apply to this visit and any future care that I or my dependents may seek.',
@@ -681,11 +693,15 @@ export function IntakeWizard({
   const [consents, setConsents] = useState({
     hipaa:             false,
     assignedParties:   false,
+    authRecords:       false,
+    authVoicemail:     false,
+    authNotifications: false,
     treatment:         false,
     financial:         false,
     medicalHistory:    false,
-    authorizedPersons: [] as string[],
-    newPersonInput:    '',
+    authorizedPersons: [] as { name: string; relation: string }[],
+    newPersonName:     '',
+    newPersonRelation: '',
   });
   const consentCanvasRef  = useRef<HTMLCanvasElement>(null);
   const isDrawingConsent  = useRef(false);
@@ -838,9 +854,12 @@ export function IntakeWizard({
         const consentSvg = consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '';
         body = {
           consents: {
-            hipaa:             consents.hipaa,
-            assignedParties:   consents.assignedParties,
-            authorizedPersons: consents.authorizedPersons,
+            hipaa:              consents.hipaa,
+            assignedParties:    consents.assignedParties,
+            authRecords:        consents.authRecords,
+            authVoicemail:      consents.authVoicemail,
+            authNotifications:  consents.authNotifications,
+            authorizedPersons:  consents.authorizedPersons,
             treatment:         consents.treatment,
             financial:         consents.financial,
             financialSignatureSvg: consentSvg,
@@ -1713,51 +1732,103 @@ export function IntakeWizard({
                   fullBody: t.c2FullBody,
                   checkLabel: t.c2Check,
                   children: (<>
-                  <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
-                      {t.authPersonsLabel}
+                  {/* Personas responsables autorizadas */}
+                  <div style={{
+                    marginBottom: 12, borderRadius: 10,
+                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                    padding: '12px 14px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                        background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.30)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
+                      }}>👤</div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.80)' }}>{t.authPersonsLabel}</div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', lineHeight: 1.4 }}>{t.authPersonsDesc}</div>
+                      </div>
                     </div>
+
+                    {/* Lista de personas agregadas */}
                     {consents.authorizedPersons.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, margin: '10px 0 8px' }}>
                         {consents.authorizedPersons.map((p, i) => (
                           <div key={i} style={{
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            padding: '6px 10px', borderRadius: 6,
-                            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                            padding: '7px 10px', borderRadius: 7,
+                            background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.18)',
                           }}>
-                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>{p}</span>
-                            <button type="button" onClick={() => setConsents(c => ({ ...c, authorizedPersons: c.authorizedPersons.filter((_, j) => j !== i) }))}
-                              style={{ background: 'none', border: 'none', color: 'rgba(244,63,94,0.70)', fontSize: 12, cursor: 'pointer', padding: '2px 4px' }}>×</button>
+                            <div>
+                              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)', fontWeight: 600 }}>{p.name}</span>
+                              {p.relation && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginLeft: 8 }}>{p.relation}</span>}
+                            </div>
+                            <button type="button"
+                              onClick={() => setConsents(c => ({ ...c, authorizedPersons: c.authorizedPersons.filter((_, j) => j !== i) }))}
+                              style={{ background: 'none', border: 'none', color: 'rgba(244,63,94,0.65)', fontSize: 14, cursor: 'pointer', padding: '2px 6px' }}>×</button>
                           </div>
                         ))}
                       </div>
                     )}
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input type="text" style={{ ...S.input, fontSize: 12, padding: '8px 10px', flex: 1 }}
-                        placeholder={t.authPersonPh}
-                        value={consents.newPersonInput}
-                        onChange={e => setConsents(c => ({ ...c, newPersonInput: e.target.value }))}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && consents.newPersonInput.trim()) {
-                            setConsents(c => ({ ...c, authorizedPersons: [...c.authorizedPersons, c.newPersonInput.trim()], newPersonInput: '' }));
-                          }
-                        }}
+
+                    {/* Fila nombre + relación */}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                      <input type="text"
+                        style={{ ...S.input, fontSize: 12, padding: '8px 10px', flex: '1 1 140px', minWidth: 0 }}
+                        placeholder={t.authPersonNamePh}
+                        value={consents.newPersonName}
+                        onChange={e => setConsents(c => ({ ...c, newPersonName: e.target.value }))}
                       />
+                      <select
+                        style={{
+                          ...S.input, fontSize: 12, padding: '8px 10px', flex: '1 1 140px', minWidth: 0,
+                          appearance: 'none', WebkitAppearance: 'none',
+                        }}
+                        value={consents.newPersonRelation}
+                        onChange={e => setConsents(c => ({ ...c, newPersonRelation: e.target.value }))}
+                      >
+                        <option value="">{t.authPersonRelPh}</option>
+                        {t.authPersonRelations.map((r: string) => <option key={r} value={r}>{r}</option>)}
+                      </select>
                       <button type="button"
                         onClick={() => {
-                          if (consents.newPersonInput.trim()) {
-                            setConsents(c => ({ ...c, authorizedPersons: [...c.authorizedPersons, c.newPersonInput.trim()], newPersonInput: '' }));
+                          if (consents.newPersonName.trim()) {
+                            setConsents(c => ({
+                              ...c,
+                              authorizedPersons: [...c.authorizedPersons, { name: c.newPersonName.trim(), relation: c.newPersonRelation }],
+                              newPersonName: '', newPersonRelation: '',
+                            }));
                           }
                         }}
                         style={{
-                          padding: '8px 12px', borderRadius: 8, background: 'rgba(6,182,212,0.10)',
+                          padding: '8px 14px', borderRadius: 8, background: 'rgba(6,182,212,0.10)',
                           border: '1px solid rgba(6,182,212,0.25)', color: CYAN,
-                          fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
                         }}>
                         {t.addPersonBtn}
                       </button>
                     </div>
                   </div>
+
+                  {/* 3 checkboxes específicos de autorización */}
+                  {([
+                    { key: 'authRecords',       label: t.authRecordsCheck,       val: consents.authRecords,       set: (v: boolean) => setConsents(c => ({ ...c, authRecords: v })) },
+                    { key: 'authVoicemail',     label: t.authVoicemailCheck,     val: consents.authVoicemail,     set: (v: boolean) => setConsents(c => ({ ...c, authVoicemail: v })) },
+                    { key: 'authNotifications', label: t.authNotificationsCheck, val: consents.authNotifications, set: (v: boolean) => setConsents(c => ({ ...c, authNotifications: v })) },
+                  ] as { key: string; label: string; val: boolean; set: (v: boolean) => void }[]).map(item => (
+                    <label key={item.key} style={{
+                      display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer',
+                      padding: '9px 12px', borderRadius: 8, marginBottom: 6,
+                      background: item.val ? 'rgba(6,182,212,0.07)' : 'rgba(255,255,255,0.02)',
+                      border: item.val ? '1px solid rgba(6,182,212,0.22)' : '1px solid rgba(255,255,255,0.06)',
+                    }}>
+                      <input type="checkbox" checked={item.val} onChange={e => item.set(e.target.checked)}
+                        style={{ width: 15, height: 15, marginTop: 1, accentColor: CYAN, cursor: 'pointer', flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: item.val ? CYAN : 'rgba(255,255,255,0.55)', lineHeight: 1.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {item.label}
+                      </span>
+                    </label>
+                  ))}
                   </>),
                 })}
 

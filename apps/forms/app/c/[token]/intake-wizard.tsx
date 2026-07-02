@@ -691,7 +691,6 @@ export function IntakeWizard({
   const isDrawingConsent  = useRef(false);
   const [hasConsentSig, setHasConsentSig] = useState(false);
   const [consentsError, setConsentsError] = useState('');
-  const [expandedDoc, setExpandedDoc] = useState<Record<string, boolean>>({});
 
   // Step 8 — Lien signature
   const [showFullLegal, setShowFullLegal] = useState(false);
@@ -1614,13 +1613,11 @@ export function IntakeWizard({
         {/* ══════ STEP 7 · Consentimientos médicos (B.8) ══════════════════════ */}
         {step === 7 && (() => {
           const checkedCount = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
-          const card = ({ active, onToggle, title, body, fullBody, checkLabel, docKey, children }: {
+          const card = ({ active, onToggle, title, fullBody, checkLabel, children }: {
             active: boolean; onToggle: () => void;
-            title: string; body: string; fullBody: string; checkLabel: string;
-            docKey: string;
+            title: string; fullBody: string; checkLabel: string;
             children?: React.ReactNode;
           }) => {
-            const expanded = !!expandedDoc[docKey];
             return (
             <div style={{
               ...S.card, padding: 14,
@@ -1628,53 +1625,37 @@ export function IntakeWizard({
               border: active ? '1px solid rgba(6,182,212,0.30)' : `1px solid ${CARD_BORDER}`,
               transition: 'all 0.2s',
             }}>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: CYAN, marginBottom: 6, textTransform: 'uppercase' }}>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: CYAN, marginBottom: 8, textTransform: 'uppercase' }}>
                 {title}
               </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.60)', lineHeight: 1.65, marginBottom: 6 }}>
-                {body}
+
+              {/* Full text always visible with scroll */}
+              <div style={{
+                maxHeight: 200, overflowY: 'auto', margin: '0 0 10px',
+                padding: '12px 14px', borderRadius: 8,
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
+              }}>
+                {fullBody.split('\n').map((line, i) => {
+                  if (!line.trim()) return <div key={i} style={{ height: 8 }} />;
+                  const isHeading = line === line.toUpperCase() && line.length > 3 && !line.startsWith('•');
+                  const isBullet  = line.startsWith('•');
+                  return (
+                    <p key={i} style={{
+                      margin: 0, marginBottom: 6,
+                      fontSize: isHeading ? 10 : 12,
+                      fontWeight: isHeading ? 800 : 400,
+                      letterSpacing: isHeading ? '0.10em' : undefined,
+                      textTransform: isHeading ? 'uppercase' : undefined,
+                      color: isHeading ? CYAN : 'rgba(255,255,255,0.70)',
+                      lineHeight: 1.70,
+                      paddingLeft: isBullet ? 6 : 0,
+                    }}>
+                      {line}
+                    </p>
+                  );
+                })}
               </div>
-
-              {/* Toggle */}
-              <button type="button"
-                onClick={() => setExpandedDoc(e => ({ ...e, [docKey]: !e[docKey] }))}
-                style={{
-                  background: 'none', border: 'none', padding: '2px 0', marginBottom: expanded ? 0 : 10,
-                  color: CYAN, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}>
-                {expanded ? t.hideDoc : t.showDoc}
-              </button>
-
-              {/* Inline scrollable full text */}
-              {expanded && (
-                <div style={{
-                  maxHeight: 220, overflowY: 'auto', margin: '8px 0 10px',
-                  padding: '12px 14px', borderRadius: 8,
-                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
-                  WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
-                }}>
-                  {fullBody.split('\n').map((line, i) => {
-                    if (!line.trim()) return <div key={i} style={{ height: 8 }} />;
-                    const isHeading = line === line.toUpperCase() && line.length > 3 && !line.startsWith('•');
-                    const isBullet  = line.startsWith('•');
-                    return (
-                      <p key={i} style={{
-                        margin: 0, marginBottom: 6,
-                        fontSize: isHeading ? 10 : 12,
-                        fontWeight: isHeading ? 800 : 400,
-                        letterSpacing: isHeading ? '0.10em' : undefined,
-                        textTransform: isHeading ? 'uppercase' : undefined,
-                        color: isHeading ? CYAN : 'rgba(255,255,255,0.70)',
-                        lineHeight: 1.70,
-                        paddingLeft: isBullet ? 6 : 0,
-                      }}>
-                        {line}
-                      </p>
-                    );
-                  })}
-                </div>
-              )}
 
               {children}
               <label style={{
@@ -1718,16 +1699,16 @@ export function IntakeWizard({
                 {card({
                   active: consents.hipaa,
                   onToggle: () => setConsents(c => ({ ...c, hipaa: !c.hipaa })),
-                  title: t.c1Title, body: t.c1Body, fullBody: t.c1FullBody,
-                  checkLabel: t.c1Check, docKey: 'c1',
+                  title: t.c1Title, fullBody: t.c1FullBody,
+                  checkLabel: t.c1Check,
                 })}
 
                 {/* Doc 2 — Partes cesionadas */}
                 {card({
                   active: consents.assignedParties,
                   onToggle: () => setConsents(c => ({ ...c, assignedParties: !c.assignedParties })),
-                  title: t.c2Title, body: t.c2Body, fullBody: t.c2FullBody,
-                  checkLabel: t.c2Check, docKey: 'c2',
+                  title: t.c2Title, fullBody: t.c2FullBody,
+                  checkLabel: t.c2Check,
                   children: (<>
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -1781,16 +1762,16 @@ export function IntakeWizard({
                 {card({
                   active: consents.treatment,
                   onToggle: () => setConsents(c => ({ ...c, treatment: !c.treatment })),
-                  title: t.c3Title, body: t.c3Body, fullBody: t.c3FullBody,
-                  checkLabel: t.c3Check, docKey: 'c3',
+                  title: t.c3Title, fullBody: t.c3FullBody,
+                  checkLabel: t.c3Check,
                 })}
 
                 {/* Doc 4 — Financiero + Firma */}
                 {card({
                   active: consents.financial,
                   onToggle: () => setConsents(c => ({ ...c, financial: !c.financial })),
-                  title: t.c4Title, body: t.c4Body, fullBody: t.c4FullBody,
-                  checkLabel: t.c4Check, docKey: 'c4',
+                  title: t.c4Title, fullBody: t.c4FullBody,
+                  checkLabel: t.c4Check,
                   children: (<>
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -1827,8 +1808,8 @@ export function IntakeWizard({
                 {card({
                   active: consents.medicalHistory,
                   onToggle: () => setConsents(c => ({ ...c, medicalHistory: !c.medicalHistory })),
-                  title: t.c5Title, body: t.c5Body, fullBody: t.c5FullBody,
-                  checkLabel: t.c5Check, docKey: 'c5',
+                  title: t.c5Title, fullBody: t.c5FullBody,
+                  checkLabel: t.c5Check,
                 })}
 
               </div>

@@ -1776,6 +1776,7 @@ export function IntakeWizard({
                                 style={{
                                   ...S.input, fontSize: 12, padding: '8px 10px', flex: '1 1 100px', minWidth: 0,
                                   appearance: 'none', WebkitAppearance: 'none',
+                                  backgroundColor: '#1a2236', color: '#fff',
                                 }}
                                 value={p.relation}
                                 onChange={e => setConsents(c => ({

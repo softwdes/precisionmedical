@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,8 +102,10 @@ const STRINGS = {
     // Información clínica
     clinicalSection: 'Información clínica del paciente',
     clinicalSub: 'Estos datos nos ayudan a brindarle un servicio más personalizado.',
-    referredBy: 'Referido por',
-    referredByPh: 'Nombre de quien lo refirió',
+    howHeard: '¿Cómo se enteró de nosotros?',
+    howHeardPh: 'Seleccionar',
+    commPref: '¿Cómo le gustaría que se comuniquen?',
+    commPrefPh: 'Seleccionar opción',
     preferredPharmacy: 'Farmacia preferida',
     preferredPharmacyPh: 'Nombre de su farmacia',
     employer: 'Empleador',
@@ -327,8 +330,10 @@ const STRINGS = {
     // Clinical info
     clinicalSection: 'Clinical patient information',
     clinicalSub: 'This data helps us provide a more personalized service.',
-    referredBy: 'Referred by',
-    referredByPh: 'Name of who referred you',
+    howHeard: 'How did you hear about us?',
+    howHeardPh: 'Select',
+    commPref: 'How would you like to be contacted?',
+    commPrefPh: 'Select option',
     preferredPharmacy: 'Preferred pharmacy',
     preferredPharmacyPh: 'Name of your pharmacy',
     employer: 'Employer',
@@ -520,6 +525,34 @@ const STRINGS = {
 
 // ─── Style constants ──────────────────────────────────────────────────────────
 
+const REFERRAL_OPTIONS = [
+  { value: '', label: '—' },
+  { value: 'LAW_FIRM', label: 'Abogado / Bufete de abogados' },
+  { value: 'WEB_SEARCH', label: 'Búsqueda web' },
+  { value: 'ACCIDENT_CENTER', label: 'Centro de accidentes Axcess' },
+  { value: 'FACEBOOK', label: 'Facebook' },
+  { value: 'FAMILY', label: 'Familia' },
+  { value: 'GOOGLE', label: 'Google' },
+  { value: 'GOOGLE_MAPS', label: 'Google Maps' },
+  { value: 'INSTAGRAM', label: 'Instagram' },
+  { value: 'WEBSITE', label: 'Página web' },
+  { value: 'CLINIC_STAFF', label: 'Personal de la clínica' },
+  { value: 'CHIROPRACTOR', label: 'Quiropráctico' },
+  { value: 'REFERRAL', label: 'Recomendación' },
+  { value: 'PATIENT_REFERRAL', label: 'Recomendación de paciente' },
+  { value: 'INSURANCE', label: 'Seguro' },
+  { value: 'TIKTOK', label: 'TikTok' },
+  { value: 'OTHER', label: 'Otro' },
+];
+
+const COMM_OPTIONS = [
+  { value: '', label: '—' },
+  { value: 'PHONE', label: 'Teléfono' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'TEXT', label: 'Mensaje de texto' },
+  { value: 'ANY', label: 'Cualquiera' },
+];
+
 const BG           = '#0a1224';
 const CYAN         = '#06B6D4';
 const INDIGO       = '#6366F1';
@@ -646,7 +679,8 @@ export function IntakeWizard({
     addressState:         '',
     addressZip:           '',
     // Información clínica
-    referredBy:           '',
+    referralSource:         '',
+    communicationPreference: '',
     preferredPharmacy:    '',
     employer:             '',
     emergencyContactName: '',
@@ -1195,25 +1229,6 @@ export function IntakeWizard({
                     onChange={e => setPersonal(p => ({ ...p, addressLine1: e.target.value }))} />
                 </Field>
 
-                {/* Ciudad + Estado + C.P. */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr', gap: 10 }}>
-                  <Field label={t.addressCity}>
-                    <input type="text" style={S.input} value={personal.addressCity}
-                      placeholder={t.addressCityPh}
-                      onChange={e => setPersonal(p => ({ ...p, addressCity: e.target.value }))} />
-                  </Field>
-                  <Field label={t.addressState}>
-                    <input type="text" style={S.input} value={personal.addressState}
-                      placeholder={t.addressStatePh} maxLength={2}
-                      onChange={e => setPersonal(p => ({ ...p, addressState: e.target.value.toUpperCase() }))} />
-                  </Field>
-                  <Field label={lang === 'es' ? 'C.P.' : 'ZIP'}>
-                    <input type="text" style={S.input} value={personal.addressZip}
-                      placeholder={t.addressZipPh} maxLength={10}
-                      onChange={e => setPersonal(p => ({ ...p, addressZip: e.target.value }))} />
-                  </Field>
-                </div>
-
                 <Field label={t.preferredLangLabel}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {(['es', 'en'] as Lang[]).map(l => (
@@ -1234,23 +1249,81 @@ export function IntakeWizard({
 
               {/* ── Sección 2: Información clínica ── */}
               <FormSection title={t.clinicalSection} sub={t.clinicalSub}>
+                {/* Estado + Ciudad + C.P. */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.referredBy}>
-                    <input type="text" style={S.input} value={personal.referredBy}
-                      placeholder={t.referredByPh}
-                      onChange={e => setPersonal(p => ({ ...p, referredBy: e.target.value }))} />
+                  <Field label={t.addressState}>
+                    <select
+                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.addressState ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.addressState}
+                      onChange={e => setPersonal(p => ({ ...p, addressState: e.target.value, addressCity: '', addressZip: '' }))}
+                    >
+                      <option value="">{lang === 'es' ? 'Seleccionar estado' : 'Select state'}</option>
+                      <option value="Utah">Utah</option>
+                      {US_STATES.filter(s => s.name !== 'Utah').map(s => (
+                        <option key={s.code} value={s.name}>{s.name}</option>
+                      ))}
+                    </select>
                   </Field>
+                  <Field label={t.addressCity}>
+                    <select
+                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.addressCity ? '#fff' : 'rgba(255,255,255,0.35)', opacity: personal.addressState ? 1 : 0.5 }}
+                      value={personal.addressCity}
+                      disabled={!personal.addressState}
+                      onChange={e => {
+                        const city = e.target.value;
+                        const zip = CITY_ZIP[city] ?? '';
+                        setPersonal(p => ({ ...p, addressCity: city, addressZip: zip }));
+                      }}
+                    >
+                      <option value="">{personal.addressState ? (lang === 'es' ? 'Seleccionar ciudad' : 'Select city') : (lang === 'es' ? 'Primero selecciona estado' : 'Select state first')}</option>
+                      {(personal.addressState
+                        ? (CITIES_BY_STATE[US_STATES.find(s => s.name === personal.addressState)?.code ?? ''] ?? [])
+                        : []
+                      ).map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <Field label={lang === 'es' ? 'Código postal' : 'ZIP code'}>
+                  <input type="text" style={S.input} value={personal.addressZip}
+                    placeholder="84601" maxLength={10}
+                    onChange={e => setPersonal(p => ({ ...p, addressZip: e.target.value }))} />
+                </Field>
+
+                {/* ¿Cómo se enteró? + ¿Cómo prefiere comunicación? */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.commPref}>
+                    <select
+                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.communicationPreference ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.communicationPreference}
+                      onChange={e => setPersonal(p => ({ ...p, communicationPreference: e.target.value }))}
+                    >
+                      {COMM_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </Field>
+                  <Field label={t.howHeard}>
+                    <select
+                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.referralSource ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.referralSource}
+                      onChange={e => setPersonal(p => ({ ...p, referralSource: e.target.value }))}
+                    >
+                      {REFERRAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </Field>
+                </div>
+
+                {/* Farmacia + Empleador */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.preferredPharmacy}>
                     <input type="text" style={S.input} value={personal.preferredPharmacy}
                       placeholder={t.preferredPharmacyPh}
                       onChange={e => setPersonal(p => ({ ...p, preferredPharmacy: e.target.value }))} />
                   </Field>
+                  <Field label={t.employer}>
+                    <input type="text" style={S.input} value={personal.employer}
+                      placeholder={t.employerPh}
+                      onChange={e => setPersonal(p => ({ ...p, employer: e.target.value }))} />
+                  </Field>
                 </div>
-                <Field label={t.employer}>
-                  <input type="text" style={S.input} value={personal.employer}
-                    placeholder={t.employerPh}
-                    onChange={e => setPersonal(p => ({ ...p, employer: e.target.value }))} />
-                </Field>
               </FormSection>
 
               {/* ── Sección 3: Contactos de emergencia (ambos en una sola sección) ── */}

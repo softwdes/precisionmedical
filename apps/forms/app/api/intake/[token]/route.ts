@@ -99,6 +99,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         emergencyContactName?: string; emergencyContactPhone?: string; emergencyContactRelation?: string;
         emergency2Name?: string; emergency2Phone?: string; emergency2Relation?: string;
         guardianName?: string; guardianPhone?: string; guardianRelation?: string;
+        referredBy?: string; preferredPharmacy?: string; employer?: string;
       };
       accident?:  {
         date?: string; type?: string; location?: string; notes?: string;
@@ -157,11 +158,24 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
                                   patientData.guardianPhone              = p.guardianPhone || null;
     if (p.guardianRelation !== undefined)
                                   patientData.guardianRelation           = p.guardianRelation || null;
+    if (p.preferredPharmacy !== undefined)
+                                  patientData.preferredPharmacy          = p.preferredPharmacy || null;
+    if (p.employer !== undefined) patientData.employer                   = p.employer || null;
 
     if (Object.keys(patientData).length > 0) {
       await db.patient.update({
         where: { id: rec.patient.id },
         data:  patientData,
+      });
+    }
+
+    // referredBy has no dedicated Patient column — store in consentsData as a note
+    if (p.referredBy !== undefined) {
+      const existing = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
+      const prev = (existing?.consentsData ?? {}) as Record<string, unknown>;
+      await db.case.update({
+        where: { id: rec.id },
+        data: { consentsData: { ...prev, referredBy: p.referredBy || null } },
       });
     }
   }

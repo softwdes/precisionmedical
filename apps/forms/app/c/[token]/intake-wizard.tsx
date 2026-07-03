@@ -98,14 +98,24 @@ const STRINGS = {
     preferredLangLabel: 'Idioma preferido',
     langOptionEs: '🇪🇸 Español',
     langOptionEn: '🇺🇸 English',
-    emergencySection: 'Contacto de emergencia',
-    emergencyName: 'Nombre del contacto',
-    emergencyPhone: 'Teléfono de emergencia',
+    // Información clínica
+    clinicalSection: 'Información clínica del paciente',
+    clinicalSub: 'Estos datos nos ayudan a brindarle un servicio más personalizado.',
+    referredBy: 'Referido por',
+    referredByPh: 'Nombre de quien lo refirió',
+    preferredPharmacy: 'Farmacia preferida',
+    preferredPharmacyPh: 'Nombre de su farmacia',
+    employer: 'Empleador',
+    employerPh: 'Nombre de su empresa o lugar de trabajo',
+    // Contactos de emergencia
+    emergencySection: 'Contactos de emergencia',
+    emergencyAllOptional: 'Todos los campos son opcionales, pero proporcionarlos nos ayudará a brindar la mejor atención posible.',
+    emergencyName: 'Nombre',
+    emergencyPhone: 'Teléfono',
     emergencyNamePh: 'Ej: María García',
     emergencyPhonePh: '(801) 555-0200',
-    emergencyRelation: 'Relación con el paciente',
-    emergencyRelationPh: 'Ej: Esposa, Madre, Amigo...',
-    emergency2Section: '2° Contacto de emergencia',
+    emergencyRelation: 'Relación',
+    emergencyRelationPh: 'Ej: Esposa, Madre...',
     emergency2Name: 'Nombre',
     emergency2NamePh: 'Ej: Juan García',
     emergency2Phone: 'Teléfono',
@@ -314,14 +324,24 @@ const STRINGS = {
     preferredLangLabel: 'Preferred language',
     langOptionEs: '🇪🇸 Spanish',
     langOptionEn: '🇺🇸 English',
-    emergencySection: 'Emergency contact',
-    emergencyName: 'Contact name',
-    emergencyPhone: 'Emergency phone',
+    // Clinical info
+    clinicalSection: 'Clinical patient information',
+    clinicalSub: 'This data helps us provide a more personalized service.',
+    referredBy: 'Referred by',
+    referredByPh: 'Name of who referred you',
+    preferredPharmacy: 'Preferred pharmacy',
+    preferredPharmacyPh: 'Name of your pharmacy',
+    employer: 'Employer',
+    employerPh: 'Name of your company or workplace',
+    // Emergency contacts
+    emergencySection: 'Emergency contacts',
+    emergencyAllOptional: 'All fields are optional, but providing them will help us give you the best care possible.',
+    emergencyName: 'Name',
+    emergencyPhone: 'Phone',
     emergencyNamePh: 'E.g., Maria Garcia',
     emergencyPhonePh: '(801) 555-0200',
-    emergencyRelation: 'Relationship to patient',
-    emergencyRelationPh: 'E.g., Spouse, Mother, Friend...',
-    emergency2Section: '2nd Emergency contact',
+    emergencyRelation: 'Relationship',
+    emergencyRelationPh: 'E.g., Spouse, Mother...',
     emergency2Name: 'Name',
     emergency2NamePh: 'E.g., John Garcia',
     emergency2Phone: 'Phone',
@@ -625,6 +645,10 @@ export function IntakeWizard({
     addressCity:          '',
     addressState:         '',
     addressZip:           '',
+    // Información clínica
+    referredBy:           '',
+    preferredPharmacy:    '',
+    employer:             '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     emergencyContactRelation: '',
@@ -1208,19 +1232,41 @@ export function IntakeWizard({
                 </Field>
               </FormSection>
 
-              {/* ── Sección 2: Contacto de emergencia 1 ── */}
+              {/* ── Sección 2: Información clínica ── */}
+              <FormSection title={t.clinicalSection} sub={t.clinicalSub}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.referredBy}>
+                    <input type="text" style={S.input} value={personal.referredBy}
+                      placeholder={t.referredByPh}
+                      onChange={e => setPersonal(p => ({ ...p, referredBy: e.target.value }))} />
+                  </Field>
+                  <Field label={t.preferredPharmacy}>
+                    <input type="text" style={S.input} value={personal.preferredPharmacy}
+                      placeholder={t.preferredPharmacyPh}
+                      onChange={e => setPersonal(p => ({ ...p, preferredPharmacy: e.target.value }))} />
+                  </Field>
+                </div>
+                <Field label={t.employer}>
+                  <input type="text" style={S.input} value={personal.employer}
+                    placeholder={t.employerPh}
+                    onChange={e => setPersonal(p => ({ ...p, employer: e.target.value }))} />
+                </Field>
+              </FormSection>
+
+              {/* ── Sección 3: Contactos de emergencia (ambos en una sola sección) ── */}
               <FormSection
                 title={t.emergencySection}
-                sub={lang === 'es' ? 'Persona a contactar en caso de emergencia médica.' : 'Person to contact in case of a medical emergency.'}
-                accent="rgba(99,102,241,0.15)"
-                accentBorder="rgba(99,102,241,0.25)"
+                sub={t.emergencyAllOptional}
+                accent="rgba(99,102,241,0.08)"
+                accentBorder="rgba(99,102,241,0.20)"
               >
-                <Field label={t.emergencyName}>
-                  <input type="text" style={S.input} value={personal.emergencyContactName}
-                    placeholder={t.emergencyNamePh}
-                    onChange={e => setPersonal(p => ({ ...p, emergencyContactName: e.target.value }))} />
-                </Field>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {/* Contacto 1 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  <Field label={t.emergencyName}>
+                    <input type="text" style={S.input} value={personal.emergencyContactName}
+                      placeholder={t.emergencyNamePh}
+                      onChange={e => setPersonal(p => ({ ...p, emergencyContactName: e.target.value }))} />
+                  </Field>
                   <Field label={t.emergencyPhone}>
                     <input type="tel" style={{ ...S.input, ...(emerPhoneError ? { borderColor: '#F43F5E' } : {}) }}
                       value={personal.emergencyContactPhone} placeholder={t.emergencyPhonePh}
@@ -1233,21 +1279,17 @@ export function IntakeWizard({
                       onChange={e => setPersonal(p => ({ ...p, emergencyContactRelation: e.target.value }))} />
                   </Field>
                 </div>
-              </FormSection>
 
-              {/* ── Sección 3: Contacto de emergencia 2 ── */}
-              <FormSection
-                title={t.emergency2Section}
-                sub={lang === 'es' ? 'Contacto alternativo (opcional).' : 'Alternative contact (optional).'}
-                accent="rgba(99,102,241,0.08)"
-                accentBorder="rgba(99,102,241,0.15)"
-              >
-                <Field label={t.emergency2Name}>
-                  <input type="text" style={S.input} value={personal.emergency2Name}
-                    placeholder={t.emergency2NamePh}
-                    onChange={e => setPersonal(p => ({ ...p, emergency2Name: e.target.value }))} />
-                </Field>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {/* Divider */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '2px 0' }} />
+
+                {/* Contacto 2 */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  <Field label={t.emergency2Name}>
+                    <input type="text" style={S.input} value={personal.emergency2Name}
+                      placeholder={t.emergency2NamePh}
+                      onChange={e => setPersonal(p => ({ ...p, emergency2Name: e.target.value }))} />
+                  </Field>
                   <Field label={t.emergency2Phone}>
                     <input type="tel" style={{ ...S.input, ...(emer2PhoneError ? { borderColor: '#F43F5E' } : {}) }}
                       value={personal.emergency2Phone} placeholder={t.emergency2PhonePh}

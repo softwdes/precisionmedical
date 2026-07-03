@@ -96,10 +96,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         firstName?: string; lastName?: string; dateOfBirth?: string;
         phone?: string; cellPhone?: string; email?: string; preferredLanguage?: string;
         addressLine1?: string; addressCity?: string; addressState?: string; addressZip?: string;
+        referralSource?: string; communicationPreference?: string; preferredPharmacy?: string; employer?: string;
+      };
+      additional?: {
         emergencyContactName?: string; emergencyContactPhone?: string; emergencyContactRelation?: string;
         emergency2Name?: string; emergency2Phone?: string; emergency2Relation?: string;
         guardianName?: string; guardianPhone?: string; guardianRelation?: string;
-        referralSource?: string; communicationPreference?: string; preferredPharmacy?: string; employer?: string;
+        race?: string; ethnicity?: string; sex?: string; maritalStatus?: string;
       };
       accident?:  {
         date?: string; type?: string; location?: string; notes?: string;
@@ -140,24 +143,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (p.addressCity !== undefined)  patientData.addressCity            = p.addressCity || null;
     if (p.addressState !== undefined) patientData.addressState           = p.addressState || null;
     if (p.addressZip !== undefined)   patientData.addressZip             = p.addressZip || null;
-    if (p.emergencyContactName !== undefined)
-                                  patientData.emergencyContactName       = p.emergencyContactName;
-    if (p.emergencyContactPhone !== undefined)
-                                  patientData.emergencyContactPhone      = p.emergencyContactPhone;
-    if (p.emergencyContactRelation !== undefined)
-                                  patientData.emergencyContactRelation   = p.emergencyContactRelation || null;
-    if (p.emergency2Name !== undefined)
-                                  patientData.emergency2Name             = p.emergency2Name || null;
-    if (p.emergency2Phone !== undefined)
-                                  patientData.emergency2Phone            = p.emergency2Phone || null;
-    if (p.emergency2Relation !== undefined)
-                                  patientData.emergency2Relation         = p.emergency2Relation || null;
-    if (p.guardianName !== undefined)
-                                  patientData.guardianName               = p.guardianName || null;
-    if (p.guardianPhone !== undefined)
-                                  patientData.guardianPhone              = p.guardianPhone || null;
-    if (p.guardianRelation !== undefined)
-                                  patientData.guardianRelation           = p.guardianRelation || null;
     if (p.preferredPharmacy !== undefined)
                                   patientData.preferredPharmacy          = p.preferredPharmacy || null;
     if (p.employer !== undefined) patientData.employer                   = p.employer || null;
@@ -172,7 +157,28 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }
   }
 
-  if (step === 3 && data.accident) {
+  if (step === 3 && data.additional) {
+    const a = data.additional;
+    const patientData: Record<string, unknown> = {};
+    if (a.emergencyContactName !== undefined) patientData.emergencyContactName = a.emergencyContactName || null;
+    if (a.emergencyContactPhone !== undefined) patientData.emergencyContactPhone = a.emergencyContactPhone || null;
+    if (a.emergencyContactRelation !== undefined) patientData.emergencyContactRelation = a.emergencyContactRelation || null;
+    if (a.emergency2Name !== undefined) patientData.emergency2Name = a.emergency2Name || null;
+    if (a.emergency2Phone !== undefined) patientData.emergency2Phone = a.emergency2Phone || null;
+    if (a.emergency2Relation !== undefined) patientData.emergency2Relation = a.emergency2Relation || null;
+    if (a.guardianName !== undefined) patientData.guardianName = a.guardianName || null;
+    if (a.guardianPhone !== undefined) patientData.guardianPhone = a.guardianPhone || null;
+    if (a.guardianRelation !== undefined) patientData.guardianRelation = a.guardianRelation || null;
+    if (a.race) patientData.race = a.race;
+    if (a.ethnicity) patientData.ethnicity = a.ethnicity;
+    if (a.sex) patientData.sex = a.sex;
+    if (a.maritalStatus) patientData.maritalStatus = a.maritalStatus;
+    if (Object.keys(patientData).length > 0) {
+      await db.patient.update({ where: { id: rec.patient.id }, data: patientData });
+    }
+  }
+
+  if (step === 4 && data.accident) {
     const a = data.accident;
     const caseData: Record<string, unknown> = {};
     if (a.date)     caseData.accidentDate     = parseDateLocal(a.date);
@@ -196,7 +202,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }
   }
 
-  if (step === 4 && data.insurance) {
+  if (step === 5 && data.insurance) {
     const ins = data.insurance;
     const caseData: Record<string, unknown> = {};
     if (ins.policyNumber) caseData.primaryPolicyNumber = ins.policyNumber;
@@ -211,7 +217,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }
   }
 
-  if (step === 5 && data.health) {
+  if (step === 6 && data.health) {
     const h = data.health;
     await db.intakeSubmission.upsert({
       where:  { caseId: rec.id },
@@ -239,7 +245,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     });
   }
 
-  if (step === 7 && data.consents) {
+  if (step === 8 && data.consents) {
     const c = data.consents;
     const existing = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
     const prev = (existing?.consentsData ?? {}) as Record<string, unknown>;

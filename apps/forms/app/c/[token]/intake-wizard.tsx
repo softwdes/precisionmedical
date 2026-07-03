@@ -58,7 +58,7 @@ interface Props {
   nextAppointment: NextAppointment | null;
 }
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 type AccidentType = 'AUTO' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WORKPLACE' | 'OTHER';
 type HealthStatus = 'excellent' | 'good' | 'fair' | 'poor';
 type Lang = 'es' | 'en';
@@ -78,6 +78,7 @@ const STRINGS = {
     todayStepsLabel: 'Lo que completarás hoy',
     todaySteps: [
       { icon: '👤', label: 'Datos personales' },
+      { icon: '📋', label: 'Información adicional' },
       { icon: '🚗', label: 'Detalles del accidente' },
       { icon: '🏥', label: 'Información de tu seguro' },
       { icon: '💊', label: 'Historial médico' },
@@ -136,7 +137,17 @@ const STRINGS = {
     addressZip: 'Código postal',
     addressZipPh: '84601',
     sifoHint2: 'Verifica que tus datos coincidan con tu ID. Los usaremos en tus documentos médicos.',
-    // Step 3
+    // Step 3 — Información adicional
+    additionalTitle: 'Información adicional',
+    additionalSub: 'Todos los campos son opcionales, pero nos ayudan a brindar la mejor atención.',
+    demographicSection: 'Información demográfica',
+    demographicSub: 'Esta información es opcional y se usa solo con fines estadísticos de salud.',
+    raceLabel: 'Raza',
+    ethnicityLabel: 'Etnicidad',
+    sexLabel: 'Sexo',
+    maritalStatusLabel: 'Estado civil',
+    sifoHint3: 'Esta información nos ayuda a preparar tu expediente médico completo.',
+    // Step 4
     accidentTitle: 'Tu accidente',
     accidentSub: 'Necesitamos los detalles del accidente para procesar tu caso.',
     accidentDate: 'Fecha del accidente',
@@ -146,7 +157,7 @@ const STRINGS = {
     accidentLocationPh: 'Ej: I-15 y 500 S, Provo, UT',
     accidentDesc: 'Describe brevemente cómo ocurrió',
     accidentDescPh: 'Ej: Me impactaron por detrás mientras esperaba en semáforo...',
-    sifoHint3: 'La fecha exacta del accidente es clave para procesar tu caso correctamente.',
+    sifoHint4: 'La fecha exacta del accidente es clave para procesar tu caso correctamente.',
     legalRepsSection: 'Representación legal',
     lawFirm: 'Firma de abogados',
     lawFirmPh: 'Nombre de la firma de abogados que refirió el caso...',
@@ -154,7 +165,7 @@ const STRINGS = {
     attorneyRepPh: 'Nombre del abogado',
     chiropractorLabel: 'Quiropráctico tratante',
     chiropractorPh: 'Nombre del quiropráctico',
-    // Step 4
+    // Step 5
     insuranceTitle: 'Tu seguro',
     insuranceSub: 'Información de tu seguro Personal Injury Protection (PIP).',
     pipTitle: '¿Qué es el PIP?',
@@ -163,8 +174,8 @@ const STRINGS = {
     carrierPh: 'Ej: State Farm, Progressive, GEICO...',
     policyNum: 'Número de póliza',
     policyNumPh: 'Ej: POL-123456789',
-    sifoHint4: 'Tu seguro PIP (Personal Injury Protection) cubre los tratamientos del accidente.',
-    // Step 5 — Historial médico
+    sifoHint5: 'Tu seguro PIP (Personal Injury Protection) cubre los tratamientos del accidente.',
+    // Step 6 — Historial médico
     healthTitle: 'Historial médico',
     healthSub: 'Tu información es confidencial. Nos ayuda a darte el mejor cuidado.',
     healthStatusLabel: 'Estado general de salud',
@@ -183,8 +194,8 @@ const STRINGS = {
     prevInjuriesDetailPh: 'Ej: Cirugía de rodilla en 2019...',
     yes: 'Sí',
     no: 'No',
-    sifoHint5: 'Tu historial médico nos ayuda a diseñar el mejor plan de tratamiento para ti.',
-    // Step 6
+    sifoHint6: 'Tu historial médico nos ayuda a diseñar el mejor plan de tratamiento para ti.',
+    // Step 7
     idTitle: 'Tu identificación',
     idSub: 'Necesitamos tu ID para verificar tu identidad. Fase 1A: fotos se revisan en tu primera visita.',
     selfieLabel: 'Selfie tipo ID',
@@ -199,8 +210,8 @@ const STRINGS = {
     takeAtClinicBtn: '📋 Lo tomo en la clínica el día de mi cita',
     clinicSelectedMsg: '✓ Llevarás tu ID a la clínica. El equipo te ayudará con las fotos.',
     continueToSign: 'Continuar →',
-    sifoHint6: 'Necesitamos tu ID para verificar tu identidad. Tus fotos están seguras 🔒',
-    // Step 6 — Photo capture guidance
+    sifoHint7: 'Necesitamos tu ID para verificar tu identidad. Tus fotos están seguras 🔒',
+    // Step 7 — Photo capture guidance
     selfieInstructions: ['Buena iluminación frontal', 'Centra tu rostro en el óvalo', 'Sin lentes ni gorras'],
     dlFrontInstructions: ['Superficie plana, sin reflejos', 'Toda la licencia visible', 'Texto legible y nítido'],
     dlBackInstructions: ['Reverso completo visible', 'Sin reflejos ni sombras', 'Código de barras sin cortar'],
@@ -282,9 +293,9 @@ const STRINGS = {
     showDoc: 'Ver documento completo ›',
     hideDoc: '‹ Ocultar documento',
     consentsValidation: 'Por favor acepta los 5 documentos y firma la Política Financiera para continuar.',
-    sifoHint7: 'Estos consentimientos son documentos legales requeridos. Léelos con cuidado — están diseñados para protegerte.',
-    // Step 8 — Lien
-    sifoHint8: 'Esta firma autoriza a Precision Medical a tratar tu lesión bajo lien. Es legal y vinculante.',
+    sifoHint8: 'Estos consentimientos son documentos legales requeridos. Léelos con cuidado — están diseñados para protegerte.',
+    // Step 9 — Lien
+    sifoHint9: 'Esta firma autoriza a Precision Medical a tratar tu lesión bajo lien. Es legal y vinculante.',
     // Common
     back: '← Atrás',
     continue: 'Continuar →',
@@ -306,6 +317,7 @@ const STRINGS = {
     todayStepsLabel: 'What you will complete today',
     todaySteps: [
       { icon: '👤', label: 'Personal information' },
+      { icon: '📋', label: 'Additional information' },
       { icon: '🚗', label: 'Accident details' },
       { icon: '🏥', label: 'Insurance information' },
       { icon: '💊', label: 'Medical history' },
@@ -364,7 +376,17 @@ const STRINGS = {
     addressZip: 'ZIP code',
     addressZipPh: '84601',
     sifoHint2: 'Make sure your info matches your ID. We use it in your medical documents.',
-    // Step 3
+    // Step 3 — Additional information
+    additionalTitle: 'Additional information',
+    additionalSub: 'All fields are optional but help us provide the best care.',
+    demographicSection: 'Demographic information',
+    demographicSub: 'This information is optional and used only for health statistics.',
+    raceLabel: 'Race',
+    ethnicityLabel: 'Ethnicity',
+    sexLabel: 'Sex',
+    maritalStatusLabel: 'Marital status',
+    sifoHint3: 'This information helps us prepare your complete medical record.',
+    // Step 4
     accidentTitle: 'Your accident',
     accidentSub: 'We need the accident details to process your case.',
     accidentDate: 'Accident date',
@@ -374,7 +396,7 @@ const STRINGS = {
     accidentLocationPh: 'E.g., I-15 & 500 S, Provo, UT',
     accidentDesc: 'Briefly describe what happened',
     accidentDescPh: 'E.g., I was rear-ended while waiting at a red light...',
-    sifoHint3: 'The exact accident date is key to processing your case correctly.',
+    sifoHint4: 'The exact accident date is key to processing your case correctly.',
     legalRepsSection: 'Legal representation',
     lawFirm: 'Law firm',
     lawFirmPh: 'Name of the law firm that referred the case...',
@@ -382,7 +404,7 @@ const STRINGS = {
     attorneyRepPh: 'Attorney name',
     chiropractorLabel: 'Treating chiropractor',
     chiropractorPh: 'Chiropractor name',
-    // Step 4
+    // Step 5
     insuranceTitle: 'Your insurance',
     insuranceSub: 'Information about your Personal Injury Protection (PIP) insurance.',
     pipTitle: 'What is PIP?',
@@ -391,8 +413,8 @@ const STRINGS = {
     carrierPh: 'E.g., State Farm, Progressive, GEICO...',
     policyNum: 'Policy number',
     policyNumPh: 'E.g., POL-123456789',
-    sifoHint4: 'Your PIP (Personal Injury Protection) insurance covers accident-related treatments.',
-    // Step 5
+    sifoHint5: 'Your PIP (Personal Injury Protection) insurance covers accident-related treatments.',
+    // Step 6
     healthTitle: 'Medical history',
     healthSub: 'Your information is confidential. It helps us provide the best care.',
     healthStatusLabel: 'General health status',
@@ -411,8 +433,8 @@ const STRINGS = {
     prevInjuriesDetailPh: 'E.g., Knee surgery in 2019...',
     yes: 'Yes',
     no: 'No',
-    sifoHint5: 'Your medical history helps us design the best treatment plan for you.',
-    // Step 6
+    sifoHint6: 'Your medical history helps us design the best treatment plan for you.',
+    // Step 7
     idTitle: 'Your identification',
     idSub: 'We need your ID to verify your identity. Phase 1A: photos are reviewed at your first visit.',
     selfieLabel: 'ID-style selfie',
@@ -427,8 +449,8 @@ const STRINGS = {
     takeAtClinicBtn: '📋 I will take them at the clinic on my appointment day',
     clinicSelectedMsg: '✓ You will bring your ID to the clinic. Staff will help with photos.',
     continueToSign: 'Continue →',
-    sifoHint6: 'We need your ID to verify your identity. Your photos are secure 🔒',
-    // Step 6 — Photo capture guidance
+    sifoHint7: 'We need your ID to verify your identity. Your photos are secure 🔒',
+    // Step 7 — Photo capture guidance
     selfieInstructions: ['Good front lighting', 'Center your face in the oval', 'No glasses or hats'],
     dlFrontInstructions: ['Flat surface, no glare', 'Full license visible', 'Text readable and in focus'],
     dlBackInstructions: ['Full back side visible', 'No glare or shadows', 'Barcode not cut off'],
@@ -510,9 +532,9 @@ const STRINGS = {
     showDoc: 'View full document ›',
     hideDoc: '‹ Hide document',
     consentsValidation: 'Please accept all 5 documents and sign the Financial Policy to continue.',
-    sifoHint7: 'These consents are required legal documents. Read them carefully — they are designed to protect you.',
-    // Step 8 — Lien
-    sifoHint8: 'This signature authorizes Precision Medical to treat your injury under a lien. It is legal and binding.',
+    sifoHint8: 'These consents are required legal documents. Read them carefully — they are designed to protect you.',
+    // Step 9 — Lien
+    sifoHint9: 'This signature authorizes Precision Medical to treat your injury under a lien. It is legal and binding.',
     // Common
     back: '← Back',
     continue: 'Continue →',
@@ -683,6 +705,10 @@ export function IntakeWizard({
     communicationPreference: '',
     preferredPharmacy:    '',
     employer:             '',
+    race:                 '',
+    ethnicity:            '',
+    sex:                  '',
+    maritalStatus:        '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     emergencyContactRelation: '',
@@ -903,10 +929,25 @@ export function IntakeWizard({
     try {
       let body: Record<string, unknown> = {};
       if (stepNum === 2) body = { personal: { ...personal, preferredLanguage: lang } };
-      if (stepNum === 3) body = { accident: { date: acc.date, type: acc.type, location: acc.location, notes: acc.notes, lawFirm: acc.lawFirm, attorney: acc.attorney, chiropractor: acc.chiropractor } };
-      if (stepNum === 4) body = { insurance };
-      if (stepNum === 5) body = { health };
-      if (stepNum === 7) {
+      if (stepNum === 3) body = { additional: {
+        emergencyContactName:     personal.emergencyContactName,
+        emergencyContactPhone:    personal.emergencyContactPhone,
+        emergencyContactRelation: personal.emergencyContactRelation,
+        emergency2Name:           personal.emergency2Name,
+        emergency2Phone:          personal.emergency2Phone,
+        emergency2Relation:       personal.emergency2Relation,
+        guardianName:             personal.guardianName,
+        guardianPhone:            personal.guardianPhone,
+        guardianRelation:         personal.guardianRelation,
+        race:                     personal.race,
+        ethnicity:                personal.ethnicity,
+        sex:                      personal.sex,
+        maritalStatus:            personal.maritalStatus,
+      }};
+      if (stepNum === 4) body = { accident: { date: acc.date, type: acc.type, location: acc.location, notes: acc.notes, lawFirm: acc.lawFirm, attorney: acc.attorney, chiropractor: acc.chiropractor } };
+      if (stepNum === 5) body = { insurance };
+      if (stepNum === 6) body = { health };
+      if (stepNum === 8) {
         const consentSvg = consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '';
         body = {
           consents: {
@@ -946,11 +987,16 @@ export function IntakeWizard({
       const phoneMsg = lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.';
       if (personal.phone && !isValidNANP(personal.phone)) { setPhoneError(phoneMsg); valid = false; } else { setPhoneError(''); }
       if (personal.cellPhone && !isValidNANP(personal.cellPhone)) { setCellPhoneError(phoneMsg); valid = false; } else { setCellPhoneError(''); }
+      if (!valid) return;
+    }
+    if (fromStep === 3) {
+      let valid = true;
+      const phoneMsg = lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.';
       if (personal.emergencyContactPhone && !isValidNANP(personal.emergencyContactPhone)) { setEmerPhoneError(phoneMsg); valid = false; } else { setEmerPhoneError(''); }
       if (personal.emergency2Phone && !isValidNANP(personal.emergency2Phone)) { setEmer2PhoneError(phoneMsg); valid = false; } else { setEmer2PhoneError(''); }
       if (!valid) return;
     }
-    if (fromStep === 7) {
+    if (fromStep === 8) {
       const checked = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
       if (checked < 5 || !hasConsentSig) {
         setConsentsError(t.consentsValidation);
@@ -958,7 +1004,7 @@ export function IntakeWizard({
       }
       setConsentsError('');
     }
-    if ([2, 3, 4, 5, 7].includes(fromStep)) {
+    if ([2, 3, 4, 5, 6, 8].includes(fromStep)) {
       const ok = await saveStepData(fromStep);
       if (!ok) return;
     }
@@ -999,7 +1045,7 @@ export function IntakeWizard({
 
   // ── Derived values ──────────────────────────────────────────────────────────
   const t             = STRINGS[lang];
-  const totalSteps    = 8;
+  const totalSteps    = 9;
   const progressSteps = Math.min(step, totalSteps);
   const savedLabel    = lastSaved ? t.savedAt(getSavedLabel(lastSaved, lang)) : null;
   const deviceInfo    = typeof window !== 'undefined'
@@ -1326,7 +1372,22 @@ export function IntakeWizard({
                 </div>
               </FormSection>
 
-              {/* ── Sección 3: Contactos de emergencia (ambos en una sola sección) ── */}
+
+            </div>
+
+            <SifoHint hint={t.sifoHint2} />
+            <SaveError error={saveError} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(2 as Step)} t={t} />
+          </div>
+        )}
+
+        {/* ══════ STEP 3 · Información adicional ══════════════════════════════════ */}
+        {step === 3 && (
+          <div style={{ paddingTop: 28 }}>
+            <StepHeader icon="📋" title={t.additionalTitle} sub={t.additionalSub} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+              {/* Contactos de emergencia */}
               <FormSection
                 title={t.emergencySection}
                 sub={t.emergencyAllOptional}
@@ -1352,10 +1413,7 @@ export function IntakeWizard({
                       onChange={e => setPersonal(p => ({ ...p, emergencyContactRelation: e.target.value }))} />
                   </Field>
                 </div>
-
-                {/* Divider */}
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '2px 0' }} />
-
                 {/* Contacto 2 */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                   <Field label={t.emergency2Name}>
@@ -1377,7 +1435,7 @@ export function IntakeWizard({
                 </div>
               </FormSection>
 
-              {/* ── Guardian — solo si es menor de edad ── */}
+              {/* Guardian — solo si menor */}
               {isMinorPatient && (
                 <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12, border: '1px solid rgba(251,191,36,0.35)', background: 'rgba(251,191,36,0.06)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1409,16 +1467,69 @@ export function IntakeWizard({
                 </div>
               )}
 
-            </div>
+              {/* Información demográfica */}
+              <FormSection title={t.demographicSection} sub={t.demographicSub}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.raceLabel}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.race ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.race} onChange={e => setPersonal(p => ({ ...p, race: e.target.value }))}>
+                      <option value="">—</option>
+                      <option value="WHITE">{lang === 'es' ? 'Blanco / Caucásico' : 'White / Caucasian'}</option>
+                      <option value="AFRICAN_AMERICAN">{lang === 'es' ? 'Negro / Afroamericano' : 'Black / African American'}</option>
+                      <option value="ASIAN">{lang === 'es' ? 'Asiático' : 'Asian'}</option>
+                      <option value="AMERICAN_INDIAN_ALASKA_NATIVE">{lang === 'es' ? 'Indígena americano / Alaska' : 'American Indian / Alaska Native'}</option>
+                      <option value="NATIVE_HAWAIIAN">{lang === 'es' ? 'Nativo hawaiano' : 'Native Hawaiian'}</option>
+                      <option value="PACIFIC_ISLANDER">{lang === 'es' ? 'Isleño del Pacífico' : 'Pacific Islander'}</option>
+                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                      <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
+                    </select>
+                  </Field>
+                  <Field label={t.ethnicityLabel}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.ethnicity ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.ethnicity} onChange={e => setPersonal(p => ({ ...p, ethnicity: e.target.value }))}>
+                      <option value="">—</option>
+                      <option value="HISPANIC_LATINO">{lang === 'es' ? 'Hispano / Latino' : 'Hispanic / Latino'}</option>
+                      <option value="NOT_HISPANIC_LATINO">{lang === 'es' ? 'No hispano / Latino' : 'Not Hispanic / Latino'}</option>
+                      <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
+                    </select>
+                  </Field>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.sexLabel}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.sex ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.sex} onChange={e => setPersonal(p => ({ ...p, sex: e.target.value }))}>
+                      <option value="">—</option>
+                      <option value="MALE">{lang === 'es' ? 'Masculino' : 'Male'}</option>
+                      <option value="FEMALE">{lang === 'es' ? 'Femenino' : 'Female'}</option>
+                      <option value="NON_BINARY">{lang === 'es' ? 'No binario' : 'Non-binary'}</option>
+                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                      <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
+                    </select>
+                  </Field>
+                  <Field label={t.maritalStatusLabel}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.maritalStatus ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.maritalStatus} onChange={e => setPersonal(p => ({ ...p, maritalStatus: e.target.value }))}>
+                      <option value="">—</option>
+                      <option value="SINGLE">{lang === 'es' ? 'Soltero/a' : 'Single'}</option>
+                      <option value="MARRIED">{lang === 'es' ? 'Casado/a' : 'Married'}</option>
+                      <option value="DIVORCED">{lang === 'es' ? 'Divorciado/a' : 'Divorced'}</option>
+                      <option value="WIDOWED">{lang === 'es' ? 'Viudo/a' : 'Widowed'}</option>
+                      <option value="SEPARATED">{lang === 'es' ? 'Separado/a' : 'Separated'}</option>
+                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                    </select>
+                  </Field>
+                </div>
+              </FormSection>
 
-            <SifoHint hint={t.sifoHint2} />
+            </div>
+            <SifoHint hint={t.sifoHint3} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(2 as Step)} t={t} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(3 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════ STEP 3 · Tu accidente (B.6) ══════════════════════════════════ */}
-        {step === 3 && (
+        {/* ══════ STEP 4 · Tu accidente (B.6) ══════════════════════════════════ */}
+        {step === 4 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="🚗" title={t.accidentTitle} sub={t.accidentSub} />
 
@@ -1490,14 +1601,14 @@ export function IntakeWizard({
 
             </div>
 
-            <SifoHint hint={t.sifoHint3} />
+            <SifoHint hint={t.sifoHint4} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(3 as Step)} t={t} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(4 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════ STEP 4 · Tu seguro (B.6) ══════════════════════════════════════ */}
-        {step === 4 && (
+        {/* ══════ STEP 5 · Tu seguro (B.6) ══════════════════════════════════════ */}
+        {step === 5 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="🏥" title={t.insuranceTitle} sub={t.insuranceSub} />
 
@@ -1532,14 +1643,14 @@ export function IntakeWizard({
               </FormSection>
             </div>
 
-            <SifoHint hint={t.sifoHint4} />
+            <SifoHint hint={t.sifoHint5} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(4 as Step)} t={t} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(5 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════ STEP 5 · Historial médico (B.7) ═════════════════════════════ */}
-        {step === 5 && (
+        {/* ══════ STEP 6 · Historial médico (B.7) ═════════════════════════════ */}
+        {step === 6 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="💊" title={t.healthTitle} sub={t.healthSub} />
 
@@ -1646,14 +1757,14 @@ export function IntakeWizard({
 
             </div>
 
-            <SifoHint hint={t.sifoHint5} />
+            <SifoHint hint={t.sifoHint6} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(5 as Step)} t={t} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(6 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════ STEP 6 · Tu identificación (B.7) ════════════════════════════ */}
-        {step === 6 && (
+        {/* ══════ STEP 7 · Tu identificación (B.7) ════════════════════════════ */}
+        {step === 7 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="📸" title={t.idTitle} sub={t.idSub} />
 
@@ -1769,21 +1880,21 @@ export function IntakeWizard({
               </div>
             )}
 
-            <SifoHint hint={t.sifoHint6} />
+            <SifoHint hint={t.sifoHint7} />
             <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
               <button type="button" style={{ ...S.btnOutline, flex: '0 0 auto' }} onClick={goBack}>
                 {t.back}
               </button>
               <button type="button" style={{ ...S.btnPrimary, flex: 1 }}
-                onClick={() => { setStep(7); window.scrollTo(0, 0); }}>
+                onClick={() => { setStep(8); window.scrollTo(0, 0); }}>
                 {t.continueToSign}
               </button>
             </div>
           </div>
         )}
 
-        {/* ══════ STEP 7 · Consentimientos médicos (B.8) ══════════════════════ */}
-        {step === 7 && (() => {
+        {/* ══════ STEP 8 · Consentimientos médicos (B.8) ══════════════════════ */}
+        {step === 8 && (() => {
           const checkedCount = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
           const card = ({ active, onToggle, fullBody, checkLabel, children }: {
             active: boolean; onToggle: () => void;
@@ -2049,14 +2160,14 @@ export function IntakeWizard({
               </div>
 
               {consentsError && <SaveError error={consentsError} />}
-              <SifoHint hint={t.sifoHint7} />
-              <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(7 as Step)} t={t} />
+              <SifoHint hint={t.sifoHint8} />
+              <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(8 as Step)} t={t} />
             </div>
           );
         })()}
 
-        {/* ══════ STEP 8 · Firma del Lien (B.8) ════════════════════════════════ */}
-        {step === 8 && (
+        {/* ══════ STEP 9 · Firma del Lien (B.8) ════════════════════════════════ */}
+        {step === 9 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="✍️" title={t.lienTitle} sub={t.lienSub} />
 
@@ -2170,7 +2281,7 @@ export function IntakeWizard({
             </label>
 
             {saveError && <SaveError error={saveError} />}
-            <SifoHint hint={t.sifoHint8} />
+            <SifoHint hint={t.sifoHint9} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
               <button type="button" onClick={submitSignature}

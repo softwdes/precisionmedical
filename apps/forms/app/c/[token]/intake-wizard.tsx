@@ -185,8 +185,40 @@ const STRINGS = {
     chiropractorLabel: 'Quiropráctico tratante',
     chiropractorPh: 'Nombre del quiropráctico',
     // Step 5
-    insuranceTitle: 'Tu seguro',
-    insuranceSub: 'Información de tu seguro Personal Injury Protection (PIP).',
+    insuranceTitle: 'Información de seguros',
+    insuranceSub: 'Agregue sus seguros médicos para facilitar la facturación.',
+    insMultiHint: 'Puede agregar múltiples seguros si los tiene.',
+    insActiveTitle: 'Seguros activos',
+    insActiveSub: 'Consulta y agrega seguros de paciente',
+    insAddBtn: '+ Agregar seguro',
+    insEmpty: 'No hay seguros activos',
+    insEmptySub: 'Agrega un seguro para comenzar',
+    insModalTitle: 'Nuevo seguro',
+    insTypeMedical: 'Seguro médico',
+    insTypeAuto: 'Seguro de auto',
+    insCarrier: 'Compañía de seguro',
+    insPolicyId: 'N° de Id/N° de póliza',
+    insPolicyNum: 'N° de póliza',
+    insHolderName: 'Nombre del titular',
+    insGroupNum: 'N° de grupo',
+    insHolderDOB: 'Nacimiento del asegurado',
+    insHolderRelation: 'Relación con el asegurado',
+    insEffectiveDate: 'Fecha efectiva',
+    insCopay: 'Copago',
+    insDeductible: 'Deducible',
+    insLossDate: 'Fecha de pérdida',
+    insPip: 'PIP está disponible?',
+    insClaimNum: 'N° de reclamo',
+    insAdjusterName: 'Nombre de ajustador',
+    insAdjusterPhone: 'Teléfono de ajustador',
+    insAdjusterFax: 'Fax de ajustador',
+    insAdjusterPhone2: 'Otro teléfono de ajustador',
+    insAdjusterEmail: 'Correo de ajustador',
+    insComments: 'Comentarios',
+    insFullLien: 'Caso tratado bajo Full Lien autorizado por el abogado',
+    insLienComments: 'Si el caso se tratará mediante un Lien (gravamen), por favor explique brevemente el motivo en este cuadro de comentarios.',
+    insCreate: 'Crear seguro',
+    insCancel: 'Cancelar',
     pipTitle: '¿Qué es el PIP?',
     pipDesc: 'Personal Injury Protection (PIP) es la cobertura de tu seguro de auto que paga los tratamientos médicos causados por el accidente, sin importar quién tuvo la culpa.',
     carrier: 'Compañía aseguradora (PIP)',
@@ -443,8 +475,40 @@ const STRINGS = {
     chiropractorLabel: 'Treating chiropractor',
     chiropractorPh: 'Chiropractor name',
     // Step 5
-    insuranceTitle: 'Your insurance',
-    insuranceSub: 'Information about your Personal Injury Protection (PIP) insurance.',
+    insuranceTitle: 'Insurance information',
+    insuranceSub: 'Add your medical insurance to facilitate billing.',
+    insMultiHint: 'You can add multiple insurances if you have them.',
+    insActiveTitle: 'Active insurances',
+    insActiveSub: 'View and add patient insurances',
+    insAddBtn: '+ Add insurance',
+    insEmpty: 'No active insurances',
+    insEmptySub: 'Add an insurance to get started',
+    insModalTitle: 'New insurance',
+    insTypeMedical: 'Medical insurance',
+    insTypeAuto: 'Auto insurance',
+    insCarrier: 'Insurance company',
+    insPolicyId: 'ID N°/Policy N°',
+    insPolicyNum: 'Policy N°',
+    insHolderName: 'Holder name',
+    insGroupNum: 'Group N°',
+    insHolderDOB: 'Insured date of birth',
+    insHolderRelation: 'Relation to insured',
+    insEffectiveDate: 'Effective date',
+    insCopay: 'Copay',
+    insDeductible: 'Deductible',
+    insLossDate: 'Date of loss',
+    insPip: 'PIP available?',
+    insClaimNum: 'Claim N°',
+    insAdjusterName: 'Adjuster name',
+    insAdjusterPhone: 'Adjuster phone',
+    insAdjusterFax: 'Adjuster fax',
+    insAdjusterPhone2: 'Other adjuster phone',
+    insAdjusterEmail: 'Adjuster email',
+    insComments: 'Comments',
+    insFullLien: 'Case treated under Full Lien authorized by attorney',
+    insLienComments: 'If the case will be treated under a Lien (lien), please briefly explain the reason in this comments box.',
+    insCreate: 'Create insurance',
+    insCancel: 'Cancel',
     pipTitle: 'What is PIP?',
     pipDesc: 'Personal Injury Protection (PIP) is your auto insurance coverage that pays for medical treatments caused by the accident, regardless of who was at fault.',
     carrier: 'Insurance company (PIP)',
@@ -787,10 +851,37 @@ export function IntakeWizard({
     chiropractor: '',
   });
 
-  const [insurance, setInsurance] = useState({
-    carrier:      patient.insuranceCarrier ?? '',
-    policyNumber: casePolicyNumber ?? patient.policyNumber ?? '',
+  // Step 6 — multiple insurances
+  type InsuranceType = 'MEDICAL' | 'AUTO';
+  type InsuranceEntry = {
+    id: string; insType: InsuranceType;
+    // Medical
+    carrier: string; policyId: string; holderName: string; groupNum: string;
+    holderDOB: string; holderRelation: string; effectiveDate: string;
+    copay: string; deductible: string;
+    // Auto
+    lossDate: string; pipAvailable: string; claimNum: string;
+    adjusterName: string; adjusterPhone: string; adjusterFax: string;
+    adjusterPhone2: string; adjusterEmail: string; comments: string;
+    fullLien: boolean; lienComments: string;
+  };
+  const blankInsurance = (insType: InsuranceType): InsuranceEntry => ({
+    id: Math.random().toString(36).slice(2),
+    insType,
+    carrier: '', policyId: '', holderName: '', groupNum: '',
+    holderDOB: '', holderRelation: '', effectiveDate: '',
+    copay: '', deductible: '',
+    lossDate: '', pipAvailable: 'N/A', claimNum: '',
+    adjusterName: '', adjusterPhone: '', adjusterFax: '',
+    adjusterPhone2: '', adjusterEmail: '', comments: '',
+    fullLien: false, lienComments: '',
   });
+  const [insurances, setInsurances] = useState<InsuranceEntry[]>([]);
+  const [showInsModal, setShowInsModal] = useState(false);
+  const [insModalEntry, setInsModalEntry] = useState<InsuranceEntry>(blankInsurance('AUTO'));
+  const openInsModal = (insType: InsuranceType) => { setInsModalEntry(blankInsurance(insType)); setShowInsModal(true); };
+  const saveInsEntry = () => { setInsurances(prev => [...prev, insModalEntry]); setShowInsModal(false); };
+  const removeIns = (id: string) => setInsurances(prev => prev.filter(i => i.id !== id));
 
   const [health, setHealth] = useState({
     healthStatus:        'good' as HealthStatus,
@@ -999,7 +1090,7 @@ export function IntakeWizard({
         guardianRelation:  personal.guardianRelation,
       }};
       if (stepNum === 5) body = { accident: { date: acc.date, type: acc.type, notes: acc.notes, lawFirm: acc.lawFirm, attorney: acc.attorney, chiropractor: acc.chiropractor } };
-      if (stepNum === 6) body = { insurance };
+      if (stepNum === 6) body = { insurances };
       if (stepNum === 7) body = { health };
       if (stepNum === 9) {
         const consentSvg = consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '';
@@ -1747,45 +1838,267 @@ export function IntakeWizard({
           </div>
         )}
 
-        {/* ══════ STEP 6 · Tu seguro (B.6) ══════════════════════════════════════ */}
+        {/* ══════ STEP 6 · Información de seguros ══════════════════════════════ */}
         {step === 6 && (
           <div style={{ paddingTop: 28 }}>
-            <StepHeader icon="🏥" title={t.insuranceTitle} sub={t.insuranceSub} />
+            <StepHeader icon="🛡️" title={t.insuranceTitle} sub={t.insuranceSub} />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Banner informativo PIP */}
-              <div style={{
-                display: 'flex', gap: 12, alignItems: 'flex-start',
-                padding: '14px 16px', borderRadius: 12,
-                background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.22)',
-              }}>
-                <span style={{ fontSize: 22, flexShrink: 0 }}>ℹ️</span>
+            {/* Hint */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '5px 12px', borderRadius: 20, marginBottom: 16,
+              background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.20)',
+              fontSize: 11, color: 'rgba(6,182,212,0.80)',
+            }}>
+              ℹ {t.insMultiHint}
+            </div>
+
+            {/* Lista de seguros */}
+            <div style={{ ...S.card, marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 12, color: CYAN, fontWeight: 700, marginBottom: 3 }}>{t.pipTitle}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>{t.pipDesc}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{t.insActiveTitle}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 2 }}>{t.insActiveSub}</div>
                 </div>
+                <button type="button"
+                  onClick={() => openInsModal('AUTO')}
+                  style={{
+                    padding: '8px 14px', borderRadius: 8, cursor: 'pointer',
+                    background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.45)',
+                    color: CYAN, fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                  }}>
+                  {t.insAddBtn}
+                </button>
               </div>
 
-              <FormSection
-                title={lang === 'es' ? 'Tu póliza de seguro PIP' : 'Your PIP insurance policy'}
-                sub={lang === 'es' ? 'Necesitamos los datos de tu seguro de automóvil para procesar tu reclamación.' : 'We need your auto insurance details to process your claim.'}
-              >
-                <Field label={t.carrier}>
-                  <input type="text" style={S.input} value={insurance.carrier}
-                    placeholder={t.carrierPh}
-                    onChange={e => setInsurance(i => ({ ...i, carrier: e.target.value }))} />
-                </Field>
-                <Field label={t.policyNum}>
-                  <input type="text" style={S.input} value={insurance.policyNumber}
-                    placeholder={t.policyNumPh}
-                    onChange={e => setInsurance(i => ({ ...i, policyNumber: e.target.value }))} />
-                </Field>
-              </FormSection>
+              {insurances.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '28px 0' }}>
+                  <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>🛡</div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>{t.insEmpty}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.22)', marginTop: 4 }}>{t.insEmptySub}</div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {insurances.map(ins => (
+                    <div key={ins.id} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 12px', borderRadius: 8,
+                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: ins.insType === 'AUTO' ? CYAN : '#A5B4FC' }}>
+                          {ins.insType === 'AUTO' ? t.insTypeAuto : t.insTypeMedical}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
+                          {ins.carrier || '—'}{ins.policyId ? ` · ${ins.policyId}` : ''}
+                        </div>
+                        {ins.insType === 'AUTO' && ins.fullLien && (
+                          <div style={{ fontSize: 10, color: '#F59E0B', marginTop: 2, fontWeight: 700 }}>⚖ Full Lien</div>
+                        )}
+                      </div>
+                      <button type="button" onClick={() => removeIns(ins.id)}
+                        style={{
+                          background: 'none', border: 'none', color: 'rgba(244,63,94,0.6)',
+                          cursor: 'pointer', fontSize: 16, padding: '2px 6px',
+                        }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <SifoHint hint={t.sifoHint6} />
             <SaveError error={saveError} />
             <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(6 as Step)} t={t} />
+          </div>
+        )}
+
+        {/* ── Insurance modal ─────────────────────────────────────────────────── */}
+        {showInsModal && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 999,
+            background: 'rgba(0,0,0,0.75)', display: 'flex',
+            alignItems: 'flex-start', justifyContent: 'center',
+            overflowY: 'auto', padding: '24px 16px',
+          }}>
+            <div style={{
+              width: '100%', maxWidth: 480, borderRadius: 16,
+              background: '#0f1827', border: '1px solid rgba(255,255,255,0.10)',
+              padding: '20px 20px 24px', position: 'relative',
+            }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>{t.insModalTitle}</div>
+                <button type="button" onClick={() => setShowInsModal(false)}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 20, cursor: 'pointer', padding: '0 4px' }}>✕</button>
+              </div>
+
+              {/* Tabs: tipo */}
+              <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+                {(['MEDICAL', 'AUTO'] as InsuranceType[]).map(tp => (
+                  <button key={tp} type="button"
+                    onClick={() => setInsModalEntry(e => ({ ...blankInsurance(tp), id: e.id }))}
+                    style={{
+                      padding: '6px 14px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                      background: insModalEntry.insType === tp ? 'rgba(6,182,212,0.18)' : 'rgba(255,255,255,0.05)',
+                      border: insModalEntry.insType === tp ? '1px solid rgba(6,182,212,0.55)' : '1px solid rgba(255,255,255,0.10)',
+                      color: insModalEntry.insType === tp ? CYAN : 'rgba(255,255,255,0.50)',
+                    }}>
+                    {tp === 'MEDICAL' ? t.insTypeMedical : t.insTypeAuto}
+                  </button>
+                ))}
+              </div>
+
+              {/* Fields — Seguro médico */}
+              {insModalEntry.insType === 'MEDICAL' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.insCarrier}>
+                      <input type="text" style={S.input} value={insModalEntry.carrier}
+                        onChange={e => setInsModalEntry(v => ({ ...v, carrier: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insPolicyId}>
+                      <input type="text" style={S.input} value={insModalEntry.policyId}
+                        onChange={e => setInsModalEntry(v => ({ ...v, policyId: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.insHolderName}>
+                      <input type="text" style={S.input} value={insModalEntry.holderName}
+                        onChange={e => setInsModalEntry(v => ({ ...v, holderName: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insGroupNum}>
+                      <input type="text" style={S.input} value={insModalEntry.groupNum}
+                        onChange={e => setInsModalEntry(v => ({ ...v, groupNum: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    <Field label={t.insHolderDOB}>
+                      <input type="date" lang="en-US" style={S.input} value={insModalEntry.holderDOB}
+                        onChange={e => setInsModalEntry(v => ({ ...v, holderDOB: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insHolderRelation}>
+                      <input type="text" style={S.input} value={insModalEntry.holderRelation}
+                        onChange={e => setInsModalEntry(v => ({ ...v, holderRelation: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insEffectiveDate}>
+                      <input type="date" lang="en-US" style={S.input} value={insModalEntry.effectiveDate}
+                        onChange={e => setInsModalEntry(v => ({ ...v, effectiveDate: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.insCopay}>
+                      <input type="text" style={S.input} value={insModalEntry.copay} placeholder="$0.00"
+                        onChange={e => setInsModalEntry(v => ({ ...v, copay: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insDeductible}>
+                      <input type="text" style={S.input} value={insModalEntry.deductible} placeholder="$0.00"
+                        onChange={e => setInsModalEntry(v => ({ ...v, deductible: e.target.value }))} />
+                    </Field>
+                  </div>
+                </div>
+              )}
+
+              {/* Fields — Seguro de auto */}
+              {insModalEntry.insType === 'AUTO' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.insCarrier}>
+                      <input type="text" style={S.input} value={insModalEntry.carrier}
+                        onChange={e => setInsModalEntry(v => ({ ...v, carrier: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insPolicyNum}>
+                      <input type="text" style={S.input} value={insModalEntry.policyId}
+                        onChange={e => setInsModalEntry(v => ({ ...v, policyId: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.insLossDate}>
+                      <input type="date" lang="en-US" style={S.input} value={insModalEntry.lossDate}
+                        onChange={e => setInsModalEntry(v => ({ ...v, lossDate: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insPip}>
+                      <select style={{ ...S.input, backgroundColor: '#1a2236', color: '#fff' }}
+                        value={insModalEntry.pipAvailable}
+                        onChange={e => setInsModalEntry(v => ({ ...v, pipAvailable: e.target.value }))}>
+                        <option value="N/A">N/A</option>
+                        <option value="SI">{lang === 'es' ? 'Sí' : 'Yes'}</option>
+                        <option value="NO">No</option>
+                      </select>
+                    </Field>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.insClaimNum}>
+                      <input type="text" style={S.input} value={insModalEntry.claimNum}
+                        onChange={e => setInsModalEntry(v => ({ ...v, claimNum: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insAdjusterName}>
+                      <input type="text" style={S.input} value={insModalEntry.adjusterName}
+                        onChange={e => setInsModalEntry(v => ({ ...v, adjusterName: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.insAdjusterPhone}>
+                      <input type="tel" style={S.input} placeholder="(000) 000-0000" value={insModalEntry.adjusterPhone}
+                        onChange={e => setInsModalEntry(v => ({ ...v, adjusterPhone: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insAdjusterFax}>
+                      <input type="tel" style={S.input} placeholder="(000) 000-0000" value={insModalEntry.adjusterFax}
+                        onChange={e => setInsModalEntry(v => ({ ...v, adjusterFax: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.insAdjusterPhone2}>
+                      <input type="tel" style={S.input} placeholder="(000) 000-0000" value={insModalEntry.adjusterPhone2}
+                        onChange={e => setInsModalEntry(v => ({ ...v, adjusterPhone2: e.target.value }))} />
+                    </Field>
+                    <Field label={t.insAdjusterEmail}>
+                      <input type="email" style={S.input} value={insModalEntry.adjusterEmail}
+                        onChange={e => setInsModalEntry(v => ({ ...v, adjusterEmail: e.target.value }))} />
+                    </Field>
+                  </div>
+                  <Field label={t.insComments}>
+                    <textarea style={S.textarea} value={insModalEntry.comments}
+                      onChange={e => setInsModalEntry(v => ({ ...v, comments: e.target.value }))} />
+                  </Field>
+                  {/* Full Lien */}
+                  <label style={{
+                    display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer',
+                    padding: '10px 12px', borderRadius: 8,
+                    background: insModalEntry.fullLien ? 'rgba(245,158,11,0.07)' : 'rgba(255,255,255,0.03)',
+                    border: insModalEntry.fullLien ? '1px solid rgba(245,158,11,0.30)' : '1px solid rgba(255,255,255,0.08)',
+                  }}>
+                    <input type="checkbox" checked={insModalEntry.fullLien}
+                      onChange={e => setInsModalEntry(v => ({ ...v, fullLien: e.target.checked }))}
+                      style={{ width: 16, height: 16, marginTop: 2, accentColor: '#F59E0B', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: insModalEntry.fullLien ? '#F59E0B' : 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
+                      {t.insFullLien}
+                    </span>
+                  </label>
+                  {insModalEntry.fullLien && (
+                    <div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 6, lineHeight: 1.5 }}>
+                        {t.insLienComments}
+                      </div>
+                      <textarea style={S.textarea} value={insModalEntry.lienComments}
+                        onChange={e => setInsModalEntry(v => ({ ...v, lienComments: e.target.value }))} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                <button type="button" onClick={() => setShowInsModal(false)}
+                  style={{
+                    flex: '0 0 auto', padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'rgba(255,255,255,0.50)', fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
+                  }}>{t.insCancel}</button>
+                <button type="button" onClick={saveInsEntry}
+                  style={{ ...S.btnPrimary, flex: 1 }}>{t.insCreate}</button>
+              </div>
+            </div>
           </div>
         )}
 

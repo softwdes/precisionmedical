@@ -1861,7 +1861,7 @@ export function IntakeWizard({
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 2 }}>{t.insActiveSub}</div>
                 </div>
                 <button type="button"
-                  onClick={() => openInsModal('AUTO')}
+                  onClick={() => openInsModal('MEDICAL')}
                   style={{
                     padding: '8px 14px', borderRadius: 8, cursor: 'pointer',
                     background: 'rgba(6,182,212,0.15)', border: '1px solid rgba(6,182,212,0.45)',
@@ -1972,7 +1972,7 @@ export function IntakeWizard({
                         onChange={e => setInsModalEntry(v => ({ ...v, groupNum: e.target.value }))} />
                     </Field>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <Field label={t.insHolderDOB}>
                       <input type="date" lang="en-US" style={S.input} value={insModalEntry.holderDOB}
                         onChange={e => setInsModalEntry(v => ({ ...v, holderDOB: e.target.value }))} />
@@ -1981,21 +1981,21 @@ export function IntakeWizard({
                       <input type="text" style={S.input} value={insModalEntry.holderRelation}
                         onChange={e => setInsModalEntry(v => ({ ...v, holderRelation: e.target.value }))} />
                     </Field>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <Field label={t.insEffectiveDate}>
                       <input type="date" lang="en-US" style={S.input} value={insModalEntry.effectiveDate}
                         onChange={e => setInsModalEntry(v => ({ ...v, effectiveDate: e.target.value }))} />
                     </Field>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <Field label={t.insCopay}>
                       <input type="text" style={S.input} value={insModalEntry.copay} placeholder="$0.00"
                         onChange={e => setInsModalEntry(v => ({ ...v, copay: e.target.value }))} />
                     </Field>
-                    <Field label={t.insDeductible}>
-                      <input type="text" style={S.input} value={insModalEntry.deductible} placeholder="$0.00"
-                        onChange={e => setInsModalEntry(v => ({ ...v, deductible: e.target.value }))} />
-                    </Field>
                   </div>
+                  <Field label={t.insDeductible}>
+                    <input type="text" style={S.input} value={insModalEntry.deductible} placeholder="$0.00"
+                      onChange={e => setInsModalEntry(v => ({ ...v, deductible: e.target.value }))} />
+                  </Field>
                 </div>
               )}
 

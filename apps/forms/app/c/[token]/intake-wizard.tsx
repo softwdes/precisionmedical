@@ -1693,47 +1693,51 @@ export function IntakeWizard({
                 </Field>
               </FormSection>
 
-              {/* Detalles */}
-              <FormSection
-                title={lang === 'es' ? 'Fecha del accidente' : 'Accident date'}
-                sub={lang === 'es' ? 'Describa correctamente la razón de su visita a la clínica.' : 'Describe correctly the reason for your visit to the clinic.'}
-              >
-                <Field label={t.accidentDate}>
-                  <input type="date" lang="en-US" style={S.input} value={acc.date}
-                    onChange={e => setAcc(a => ({ ...a, date: e.target.value }))} />
-                </Field>
+              {/* Detalles — solo MVA */}
+              {acc.type === 'MVA' && (
+                <>
+                  <FormSection
+                    title={lang === 'es' ? 'Fecha del accidente' : 'Accident date'}
+                    sub={lang === 'es' ? 'Describa correctamente la razón de su visita a la clínica.' : 'Describe correctly the reason for your visit to the clinic.'}
+                  >
+                    <Field label={t.accidentDate}>
+                      <input type="date" lang="en-US" style={S.input} value={acc.date}
+                        onChange={e => setAcc(a => ({ ...a, date: e.target.value }))} />
+                    </Field>
 
-                <Field label={t.accidentDesc}>
-                  <textarea style={S.textarea} value={acc.notes}
-                    placeholder={t.accidentDescPh}
-                    onChange={e => setAcc(a => ({ ...a, notes: e.target.value }))} />
-                </Field>
-              </FormSection>
+                    <Field label={t.accidentDesc}>
+                      <textarea style={S.textarea} value={acc.notes}
+                        placeholder={t.accidentDescPh}
+                        onChange={e => setAcc(a => ({ ...a, notes: e.target.value }))} />
+                    </Field>
+                  </FormSection>
 
-              <FormSection
-                title={t.legalRepsSection}
-                sub={lang === 'es' ? 'Si tienes representación legal o quiropráctico asignado, agrégalos aquí (opcional).' : 'If you have legal representation or an assigned chiropractor, add them here (optional).'}
-                accent="rgba(99,102,241,0.08)"
-                accentBorder="rgba(99,102,241,0.20)"
-              >
-                <Field label={t.lawFirm}>
-                  <input type="text" style={S.input} value={acc.lawFirm}
-                    placeholder={t.lawFirmPh}
-                    onChange={e => setAcc(a => ({ ...a, lawFirm: e.target.value }))} />
-                </Field>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.attorneyRep}>
-                    <input type="text" style={S.input} value={acc.attorney}
-                      placeholder={t.attorneyRepPh}
-                      onChange={e => setAcc(a => ({ ...a, attorney: e.target.value }))} />
-                  </Field>
-                  <Field label={t.chiropractorLabel}>
-                    <input type="text" style={S.input} value={acc.chiropractor}
-                      placeholder={t.chiropractorPh}
-                      onChange={e => setAcc(a => ({ ...a, chiropractor: e.target.value }))} />
-                  </Field>
-                </div>
-              </FormSection>
+                  <FormSection
+                    title={t.legalRepsSection}
+                    sub={lang === 'es' ? 'Si tienes representación legal o quiropráctico asignado, agrégalos aquí (opcional).' : 'If you have legal representation or an assigned chiropractor, add them here (optional).'}
+                    accent="rgba(99,102,241,0.08)"
+                    accentBorder="rgba(99,102,241,0.20)"
+                  >
+                    <Field label={t.lawFirm}>
+                      <input type="text" style={S.input} value={acc.lawFirm}
+                        placeholder={t.lawFirmPh}
+                        onChange={e => setAcc(a => ({ ...a, lawFirm: e.target.value }))} />
+                    </Field>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <Field label={t.attorneyRep}>
+                        <input type="text" style={S.input} value={acc.attorney}
+                          placeholder={t.attorneyRepPh}
+                          onChange={e => setAcc(a => ({ ...a, attorney: e.target.value }))} />
+                      </Field>
+                      <Field label={t.chiropractorLabel}>
+                        <input type="text" style={S.input} value={acc.chiropractor}
+                          placeholder={t.chiropractorPh}
+                          onChange={e => setAcc(a => ({ ...a, chiropractor: e.target.value }))} />
+                      </Field>
+                    </div>
+                  </FormSection>
+                </>
+              )}
 
             </div>
 

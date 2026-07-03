@@ -780,7 +780,7 @@ export function IntakeWizard({
 
   const [acc, setAcc] = useState({
     date:         isoToInput(accident.date),
-    type:         (accident.type ?? 'MVA') as CaseType,
+    type:         (['MVA', 'GM'].includes(accident.type ?? '') ? accident.type as CaseType : 'MVA'),
     notes:        accident.notes ?? '',
     lawFirm:      '',
     attorney:     '',

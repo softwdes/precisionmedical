@@ -114,7 +114,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         date?: string; type?: string; notes?: string;
         lawFirm?: string; attorney?: string; chiropractor?: string;
       };
-      insurances?: unknown[];
+      insurances?: object[];
       health?: {
         healthStatus?: string;
         hasMedications?: boolean; medications?: string;
@@ -236,7 +236,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   if (step === 6 && data.insurances !== undefined) {
     const existingCase = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
     const prev = (existingCase?.consentsData ?? {}) as Record<string, unknown>;
-    await db.case.update({ where: { id: rec.id }, data: { consentsData: { ...prev, insurances: data.insurances } } });
+    await db.case.update({ where: { id: rec.id }, data: { consentsData: { ...prev, insurances: data.insurances as object[] } } });
   }
 
   if (step === 7 && data.health) {

@@ -1123,6 +1123,7 @@ export function IntakeWizard({
                 title={lang === 'es' ? 'Información personal' : 'Personal information'}
                 sub={lang === 'es' ? 'Necesitamos su información básica para identificarlo en nuestro sistema.' : 'We need your basic information to identify you in our system.'}
               >
+                {/* Nombre + Apellido */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.firstName}>
                     <input type="text" style={S.input} value={personal.firstName}
@@ -1134,39 +1135,44 @@ export function IntakeWizard({
                   </Field>
                 </div>
 
-                <Field label={t.dob}>
-                  <input type="date" lang="en-US" style={S.input} value={personal.dateOfBirth}
-                    onChange={e => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))} />
-                </Field>
-
+                {/* DOB + Teléfono */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.dob}>
+                    <input type="date" lang="en-US" style={S.input} value={personal.dateOfBirth}
+                      onChange={e => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))} />
+                  </Field>
                   <Field label={t.phone}>
                     <input type="tel" style={{ ...S.input, ...(phoneError ? { borderColor: '#F43F5E' } : {}) }}
                       value={personal.phone} placeholder="(801) 555-0100"
                       onChange={e => { setPersonal(p => ({ ...p, phone: e.target.value })); setPhoneError(''); }} />
                     {phoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{phoneError}</span>}
                   </Field>
+                </div>
+
+                {/* Celular + Email */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.cellPhone}>
                     <input type="tel" style={{ ...S.input, ...(cellPhoneError ? { borderColor: '#F43F5E' } : {}) }}
                       value={personal.cellPhone} placeholder={t.cellPhonePh}
                       onChange={e => { setPersonal(p => ({ ...p, cellPhone: e.target.value })); setCellPhoneError(''); }} />
                     {cellPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{cellPhoneError}</span>}
                   </Field>
+                  <Field label={t.email}>
+                    <input type="email" style={S.input} value={personal.email}
+                      placeholder="correo@ejemplo.com"
+                      onChange={e => setPersonal(p => ({ ...p, email: e.target.value }))} />
+                  </Field>
                 </div>
 
-                <Field label={t.email}>
-                  <input type="email" style={S.input} value={personal.email}
-                    placeholder="correo@ejemplo.com"
-                    onChange={e => setPersonal(p => ({ ...p, email: e.target.value }))} />
-                </Field>
-
+                {/* Dirección */}
                 <Field label={t.addressLine1}>
                   <input type="text" style={S.input} value={personal.addressLine1}
                     placeholder={t.addressLine1Ph}
                     onChange={e => setPersonal(p => ({ ...p, addressLine1: e.target.value }))} />
                 </Field>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 88px', gap: 10 }}>
+                {/* Ciudad + Estado + C.P. */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.2fr', gap: 10 }}>
                   <Field label={t.addressCity}>
                     <input type="text" style={S.input} value={personal.addressCity}
                       placeholder={t.addressCityPh}
@@ -1177,7 +1183,7 @@ export function IntakeWizard({
                       placeholder={t.addressStatePh} maxLength={2}
                       onChange={e => setPersonal(p => ({ ...p, addressState: e.target.value.toUpperCase() }))} />
                   </Field>
-                  <Field label={t.addressZip}>
+                  <Field label={lang === 'es' ? 'C.P.' : 'ZIP'}>
                     <input type="text" style={S.input} value={personal.addressZip}
                       placeholder={t.addressZipPh} maxLength={10}
                       onChange={e => setPersonal(p => ({ ...p, addressZip: e.target.value }))} />

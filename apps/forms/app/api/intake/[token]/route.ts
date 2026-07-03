@@ -96,12 +96,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         firstName?: string; lastName?: string; dateOfBirth?: string;
         phone?: string; cellPhone?: string; email?: string; preferredLanguage?: string;
         addressLine1?: string; addressCity?: string; addressState?: string; addressZip?: string;
-        referralSource?: string; communicationPreference?: string; preferredPharmacy?: string; employer?: string;
+        referralSource?: string; communicationPreference?: string;
       };
       additional?: {
         emergencyContactName?: string; emergencyContactPhone?: string; emergencyContactRelation?: string;
         emergency2Name?: string; emergency2Phone?: string; emergency2Relation?: string;
         guardianName?: string; guardianPhone?: string; guardianRelation?: string;
+        referredBy?: string; preferredPharmacy?: string; employer?: string;
         race?: string; ethnicity?: string; sex?: string; maritalStatus?: string;
       };
       accident?:  {
@@ -143,9 +144,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (p.addressCity !== undefined)  patientData.addressCity            = p.addressCity || null;
     if (p.addressState !== undefined) patientData.addressState           = p.addressState || null;
     if (p.addressZip !== undefined)   patientData.addressZip             = p.addressZip || null;
-    if (p.preferredPharmacy !== undefined)
-                                  patientData.preferredPharmacy          = p.preferredPharmacy || null;
-    if (p.employer !== undefined) patientData.employer                   = p.employer || null;
     if (p.referralSource)         patientData.referralSource             = p.referralSource;
     if (p.communicationPreference) patientData.communicationPreference   = p.communicationPreference;
 
@@ -169,6 +167,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (a.guardianName !== undefined) patientData.guardianName = a.guardianName || null;
     if (a.guardianPhone !== undefined) patientData.guardianPhone = a.guardianPhone || null;
     if (a.guardianRelation !== undefined) patientData.guardianRelation = a.guardianRelation || null;
+    if (a.referredBy !== undefined) patientData.referredBy = a.referredBy || null;
+    if (a.preferredPharmacy !== undefined) patientData.preferredPharmacy = a.preferredPharmacy || null;
+    if (a.employer !== undefined) patientData.employer = a.employer || null;
     if (a.race) patientData.race = a.race;
     if (a.ethnicity) patientData.ethnicity = a.ethnicity;
     if (a.sex) patientData.sex = a.sex;

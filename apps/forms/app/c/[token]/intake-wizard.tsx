@@ -100,13 +100,16 @@ const STRINGS = {
     preferredLangLabel: 'Idioma preferido',
     langOptionEs: '🇪🇸 Español',
     langOptionEn: '🇺🇸 English',
-    // Información clínica
+    // Información clínica (Step 2)
     clinicalSection: 'Información clínica del paciente',
     clinicalSub: 'Estos datos nos ayudan a brindarle un servicio más personalizado.',
     howHeard: '¿Cómo se enteró de nosotros?',
     howHeardPh: 'Seleccionar',
     commPref: '¿Cómo le gustaría que se comuniquen?',
     commPrefPh: 'Seleccionar opción',
+    // Información clínica (Step 3)
+    referredBy: 'Referido por',
+    referredByPh: 'Nombre de quien lo refirió',
     preferredPharmacy: 'Farmacia preferida',
     preferredPharmacyPh: 'Nombre de su farmacia',
     employer: 'Empleador',
@@ -339,13 +342,16 @@ const STRINGS = {
     preferredLangLabel: 'Preferred language',
     langOptionEs: '🇪🇸 Spanish',
     langOptionEn: '🇺🇸 English',
-    // Clinical info
+    // Clinical info (Step 2)
     clinicalSection: 'Clinical patient information',
     clinicalSub: 'This data helps us provide a more personalized service.',
     howHeard: 'How did you hear about us?',
     howHeardPh: 'Select',
     commPref: 'How would you like to be contacted?',
     commPrefPh: 'Select option',
+    // Clinical info (Step 3)
+    referredBy: 'Referred by',
+    referredByPh: 'Name of who referred you',
     preferredPharmacy: 'Preferred pharmacy',
     preferredPharmacyPh: 'Name of your pharmacy',
     employer: 'Employer',
@@ -700,9 +706,11 @@ export function IntakeWizard({
     addressCity:          '',
     addressState:         '',
     addressZip:           '',
-    // Información clínica
+    // Información clínica Step 2
     referralSource:         '',
     communicationPreference: '',
+    // Información clínica Step 3
+    referredBy:           '',
     preferredPharmacy:    '',
     employer:             '',
     race:                 '',
@@ -1357,19 +1365,6 @@ export function IntakeWizard({
                   </Field>
                 </div>
 
-                {/* Farmacia + Empleador */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.preferredPharmacy}>
-                    <input type="text" style={S.input} value={personal.preferredPharmacy}
-                      placeholder={t.preferredPharmacyPh}
-                      onChange={e => setPersonal(p => ({ ...p, preferredPharmacy: e.target.value }))} />
-                  </Field>
-                  <Field label={t.employer}>
-                    <input type="text" style={S.input} value={personal.employer}
-                      placeholder={t.employerPh}
-                      onChange={e => setPersonal(p => ({ ...p, employer: e.target.value }))} />
-                  </Field>
-                </div>
               </FormSection>
 
 
@@ -1387,7 +1382,92 @@ export function IntakeWizard({
             <StepHeader icon="📋" title={t.additionalTitle} sub={t.additionalSub} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* Contactos de emergencia */}
+              {/* ── Sección 1: Información clínica ── */}
+              <FormSection title={t.clinicalSection} sub={t.clinicalSub}>
+                {/* Referido por + Farmacia */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.referredBy}>
+                    <input type="text" style={S.input} value={personal.referredBy}
+                      placeholder={t.referredByPh}
+                      onChange={e => setPersonal(p => ({ ...p, referredBy: e.target.value }))} />
+                  </Field>
+                  <Field label={t.preferredPharmacy}>
+                    <input type="text" style={S.input} value={personal.preferredPharmacy}
+                      placeholder={t.preferredPharmacyPh}
+                      onChange={e => setPersonal(p => ({ ...p, preferredPharmacy: e.target.value }))} />
+                  </Field>
+                </div>
+
+                {/* Empleador */}
+                <Field label={t.employer}>
+                  <input type="text" style={S.input} value={personal.employer}
+                    placeholder={t.employerPh}
+                    onChange={e => setPersonal(p => ({ ...p, employer: e.target.value }))} />
+                </Field>
+
+                {/* Raza + Etnicidad */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.raceLabel}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.race ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.race} onChange={e => setPersonal(p => ({ ...p, race: e.target.value }))}>
+                      <option value="">—</option>
+                      <option value="WHITE">{lang === 'es' ? 'Blanco / Caucásico' : 'White / Caucasian'}</option>
+                      <option value="AFRICAN_AMERICAN">{lang === 'es' ? 'Negro / Afroamericano' : 'Black / African American'}</option>
+                      <option value="ASIAN">{lang === 'es' ? 'Asiático' : 'Asian'}</option>
+                      <option value="AMERICAN_INDIAN_ALASKA_NATIVE">{lang === 'es' ? 'Indígena americano / Alaska' : 'American Indian / Alaska Native'}</option>
+                      <option value="NATIVE_HAWAIIAN">{lang === 'es' ? 'Nativo hawaiano' : 'Native Hawaiian'}</option>
+                      <option value="PACIFIC_ISLANDER">{lang === 'es' ? 'Isleño del Pacífico' : 'Pacific Islander'}</option>
+                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                      <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
+                    </select>
+                  </Field>
+                  <Field label={t.ethnicityLabel}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.ethnicity ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.ethnicity} onChange={e => setPersonal(p => ({ ...p, ethnicity: e.target.value }))}>
+                      <option value="">—</option>
+                      <option value="HISPANIC_LATINO">{lang === 'es' ? 'Hispano / Latino' : 'Hispanic / Latino'}</option>
+                      <option value="NOT_HISPANIC_LATINO">{lang === 'es' ? 'No hispano / Latino' : 'Not Hispanic / Latino'}</option>
+                      <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
+                    </select>
+                  </Field>
+                </div>
+
+                {/* Sexo + Idioma preferido + Estado civil */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  <Field label={t.sexLabel}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.sex ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.sex} onChange={e => setPersonal(p => ({ ...p, sex: e.target.value }))}>
+                      <option value="">—</option>
+                      <option value="MALE">{lang === 'es' ? 'Masculino' : 'Male'}</option>
+                      <option value="FEMALE">{lang === 'es' ? 'Femenino' : 'Female'}</option>
+                      <option value="NON_BINARY">{lang === 'es' ? 'No binario' : 'Non-binary'}</option>
+                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                      <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
+                    </select>
+                  </Field>
+                  <Field label={t.preferredLangLabel}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236' }}
+                      value={lang} onChange={e => setLang(e.target.value as Lang)}>
+                      <option value="es">Español</option>
+                      <option value="en">English</option>
+                    </select>
+                  </Field>
+                  <Field label={t.maritalStatusLabel}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.maritalStatus ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.maritalStatus} onChange={e => setPersonal(p => ({ ...p, maritalStatus: e.target.value }))}>
+                      <option value="">—</option>
+                      <option value="SINGLE">{lang === 'es' ? 'Soltero/a' : 'Single'}</option>
+                      <option value="MARRIED">{lang === 'es' ? 'Casado/a' : 'Married'}</option>
+                      <option value="DIVORCED">{lang === 'es' ? 'Divorciado/a' : 'Divorced'}</option>
+                      <option value="WIDOWED">{lang === 'es' ? 'Viudo/a' : 'Widowed'}</option>
+                      <option value="SEPARATED">{lang === 'es' ? 'Separado/a' : 'Separated'}</option>
+                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                    </select>
+                  </Field>
+                </div>
+              </FormSection>
+
+              {/* ── Sección 2: Contactos de emergencia ── */}
               <FormSection
                 title={t.emergencySection}
                 sub={t.emergencyAllOptional}
@@ -1466,60 +1546,6 @@ export function IntakeWizard({
                   </Field>
                 </div>
               )}
-
-              {/* Información demográfica */}
-              <FormSection title={t.demographicSection} sub={t.demographicSub}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.raceLabel}>
-                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.race ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.race} onChange={e => setPersonal(p => ({ ...p, race: e.target.value }))}>
-                      <option value="">—</option>
-                      <option value="WHITE">{lang === 'es' ? 'Blanco / Caucásico' : 'White / Caucasian'}</option>
-                      <option value="AFRICAN_AMERICAN">{lang === 'es' ? 'Negro / Afroamericano' : 'Black / African American'}</option>
-                      <option value="ASIAN">{lang === 'es' ? 'Asiático' : 'Asian'}</option>
-                      <option value="AMERICAN_INDIAN_ALASKA_NATIVE">{lang === 'es' ? 'Indígena americano / Alaska' : 'American Indian / Alaska Native'}</option>
-                      <option value="NATIVE_HAWAIIAN">{lang === 'es' ? 'Nativo hawaiano' : 'Native Hawaiian'}</option>
-                      <option value="PACIFIC_ISLANDER">{lang === 'es' ? 'Isleño del Pacífico' : 'Pacific Islander'}</option>
-                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
-                      <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
-                    </select>
-                  </Field>
-                  <Field label={t.ethnicityLabel}>
-                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.ethnicity ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.ethnicity} onChange={e => setPersonal(p => ({ ...p, ethnicity: e.target.value }))}>
-                      <option value="">—</option>
-                      <option value="HISPANIC_LATINO">{lang === 'es' ? 'Hispano / Latino' : 'Hispanic / Latino'}</option>
-                      <option value="NOT_HISPANIC_LATINO">{lang === 'es' ? 'No hispano / Latino' : 'Not Hispanic / Latino'}</option>
-                      <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
-                    </select>
-                  </Field>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.sexLabel}>
-                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.sex ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.sex} onChange={e => setPersonal(p => ({ ...p, sex: e.target.value }))}>
-                      <option value="">—</option>
-                      <option value="MALE">{lang === 'es' ? 'Masculino' : 'Male'}</option>
-                      <option value="FEMALE">{lang === 'es' ? 'Femenino' : 'Female'}</option>
-                      <option value="NON_BINARY">{lang === 'es' ? 'No binario' : 'Non-binary'}</option>
-                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
-                      <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
-                    </select>
-                  </Field>
-                  <Field label={t.maritalStatusLabel}>
-                    <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.maritalStatus ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.maritalStatus} onChange={e => setPersonal(p => ({ ...p, maritalStatus: e.target.value }))}>
-                      <option value="">—</option>
-                      <option value="SINGLE">{lang === 'es' ? 'Soltero/a' : 'Single'}</option>
-                      <option value="MARRIED">{lang === 'es' ? 'Casado/a' : 'Married'}</option>
-                      <option value="DIVORCED">{lang === 'es' ? 'Divorciado/a' : 'Divorced'}</option>
-                      <option value="WIDOWED">{lang === 'es' ? 'Viudo/a' : 'Widowed'}</option>
-                      <option value="SEPARATED">{lang === 'es' ? 'Separado/a' : 'Separated'}</option>
-                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
-                    </select>
-                  </Field>
-                </div>
-              </FormSection>
 
             </div>
             <SifoHint hint={t.sifoHint3} />

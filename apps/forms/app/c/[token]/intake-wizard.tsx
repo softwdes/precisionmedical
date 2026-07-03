@@ -58,7 +58,7 @@ interface Props {
   nextAppointment: NextAppointment | null;
 }
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type AccidentType = 'AUTO' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WORKPLACE' | 'OTHER';
 type HealthStatus = 'excellent' | 'good' | 'fair' | 'poor';
 type Lang = 'es' | 'en';
@@ -79,6 +79,7 @@ const STRINGS = {
     todaySteps: [
       { icon: '👤', label: 'Datos personales' },
       { icon: '📋', label: 'Información adicional' },
+      { icon: '👤', label: 'Persona responsable' },
       { icon: '🚗', label: 'Detalles del accidente' },
       { icon: '🏥', label: 'Información de tu seguro' },
       { icon: '💊', label: 'Historial médico' },
@@ -160,7 +161,21 @@ const STRINGS = {
     accidentLocationPh: 'Ej: I-15 y 500 S, Provo, UT',
     accidentDesc: 'Describe brevemente cómo ocurrió',
     accidentDescPh: 'Ej: Me impactaron por detrás mientras esperaba en semáforo...',
-    sifoHint4: 'La fecha exacta del accidente es clave para procesar tu caso correctamente.',
+    guardianStepTitle: 'Información de la persona responsable',
+    guardianStepSub: 'Si es menor de edad, necesitamos los datos de la persona responsable legal.',
+    guardianStepNote: 'Persona a cargo del paciente registrado',
+    guardianSkip: 'Omitir',
+    guardianSection: 'Información de la persona responsable',
+    guardianSectionSub: 'Complete la información de la persona responsable del menor.',
+    guardianFirstName: 'Nombre',
+    guardianLastName: 'Apellido',
+    guardianEmail: 'Email',
+    guardianDOB: 'Fecha de nacimiento',
+    guardianPhone: 'Teléfono',
+    guardianCellPhone: 'Celular',
+    guardianAddress: 'Dirección',
+    sifoHint4: 'El responsable legal debe ser mayor de edad. Esta información queda registrada en el expediente.',
+    sifoHint5: 'La fecha exacta del accidente es clave para procesar tu caso correctamente.',
     legalRepsSection: 'Representación legal',
     lawFirm: 'Firma de abogados',
     lawFirmPh: 'Nombre de la firma de abogados que refirió el caso...',
@@ -177,7 +192,7 @@ const STRINGS = {
     carrierPh: 'Ej: State Farm, Progressive, GEICO...',
     policyNum: 'Número de póliza',
     policyNumPh: 'Ej: POL-123456789',
-    sifoHint5: 'Tu seguro PIP (Personal Injury Protection) cubre los tratamientos del accidente.',
+    sifoHint6: 'Tu seguro PIP (Personal Injury Protection) cubre los tratamientos del accidente.',
     // Step 6 — Historial médico
     healthTitle: 'Historial médico',
     healthSub: 'Tu información es confidencial. Nos ayuda a darte el mejor cuidado.',
@@ -197,7 +212,7 @@ const STRINGS = {
     prevInjuriesDetailPh: 'Ej: Cirugía de rodilla en 2019...',
     yes: 'Sí',
     no: 'No',
-    sifoHint6: 'Tu historial médico nos ayuda a diseñar el mejor plan de tratamiento para ti.',
+    sifoHint7: 'Tu historial médico nos ayuda a diseñar el mejor plan de tratamiento para ti.',
     // Step 7
     idTitle: 'Tu identificación',
     idSub: 'Necesitamos tu ID para verificar tu identidad. Fase 1A: fotos se revisan en tu primera visita.',
@@ -213,7 +228,7 @@ const STRINGS = {
     takeAtClinicBtn: '📋 Lo tomo en la clínica el día de mi cita',
     clinicSelectedMsg: '✓ Llevarás tu ID a la clínica. El equipo te ayudará con las fotos.',
     continueToSign: 'Continuar →',
-    sifoHint7: 'Necesitamos tu ID para verificar tu identidad. Tus fotos están seguras 🔒',
+    sifoHint8: 'Necesitamos tu ID para verificar tu identidad. Tus fotos están seguras 🔒',
     // Step 7 — Photo capture guidance
     selfieInstructions: ['Buena iluminación frontal', 'Centra tu rostro en el óvalo', 'Sin lentes ni gorras'],
     dlFrontInstructions: ['Superficie plana, sin reflejos', 'Toda la licencia visible', 'Texto legible y nítido'],
@@ -296,9 +311,9 @@ const STRINGS = {
     showDoc: 'Ver documento completo ›',
     hideDoc: '‹ Ocultar documento',
     consentsValidation: 'Por favor acepta los 5 documentos y firma la Política Financiera para continuar.',
-    sifoHint8: 'Estos consentimientos son documentos legales requeridos. Léelos con cuidado — están diseñados para protegerte.',
-    // Step 9 — Lien
-    sifoHint9: 'Esta firma autoriza a Precision Medical a tratar tu lesión bajo lien. Es legal y vinculante.',
+    sifoHint9: 'Estos consentimientos son documentos legales requeridos. Léelos con cuidado — están diseñados para protegerte.',
+    // Step 10 — Lien
+    sifoHint10: 'Esta firma autoriza a Precision Medical a tratar tu lesión bajo lien. Es legal y vinculante.',
     // Common
     back: '← Atrás',
     continue: 'Continuar →',
@@ -321,6 +336,7 @@ const STRINGS = {
     todaySteps: [
       { icon: '👤', label: 'Personal information' },
       { icon: '📋', label: 'Additional information' },
+      { icon: '👤', label: 'Responsible person' },
       { icon: '🚗', label: 'Accident details' },
       { icon: '🏥', label: 'Insurance information' },
       { icon: '💊', label: 'Medical history' },
@@ -402,7 +418,21 @@ const STRINGS = {
     accidentLocationPh: 'E.g., I-15 & 500 S, Provo, UT',
     accidentDesc: 'Briefly describe what happened',
     accidentDescPh: 'E.g., I was rear-ended while waiting at a red light...',
-    sifoHint4: 'The exact accident date is key to processing your case correctly.',
+    guardianStepTitle: 'Responsible person information',
+    guardianStepSub: 'If the patient is a minor, we need the legal guardian\'s information.',
+    guardianStepNote: 'Person in charge of the registered patient',
+    guardianSkip: 'Skip',
+    guardianSection: 'Responsible person information',
+    guardianSectionSub: 'Complete the information for the person responsible for the minor.',
+    guardianFirstName: 'First name',
+    guardianLastName: 'Last name',
+    guardianEmail: 'Email',
+    guardianDOB: 'Date of birth',
+    guardianPhone: 'Phone',
+    guardianCellPhone: 'Cell phone',
+    guardianAddress: 'Address',
+    sifoHint4: 'The legal guardian must be an adult. This information is recorded in the medical file.',
+    sifoHint5: 'The exact accident date is key to processing your case correctly.',
     legalRepsSection: 'Legal representation',
     lawFirm: 'Law firm',
     lawFirmPh: 'Name of the law firm that referred the case...',
@@ -419,7 +449,7 @@ const STRINGS = {
     carrierPh: 'E.g., State Farm, Progressive, GEICO...',
     policyNum: 'Policy number',
     policyNumPh: 'E.g., POL-123456789',
-    sifoHint5: 'Your PIP (Personal Injury Protection) insurance covers accident-related treatments.',
+    sifoHint6: 'Your PIP (Personal Injury Protection) insurance covers accident-related treatments.',
     // Step 6
     healthTitle: 'Medical history',
     healthSub: 'Your information is confidential. It helps us provide the best care.',
@@ -439,7 +469,7 @@ const STRINGS = {
     prevInjuriesDetailPh: 'E.g., Knee surgery in 2019...',
     yes: 'Yes',
     no: 'No',
-    sifoHint6: 'Your medical history helps us design the best treatment plan for you.',
+    sifoHint7: 'Your medical history helps us design the best treatment plan for you.',
     // Step 7
     idTitle: 'Your identification',
     idSub: 'We need your ID to verify your identity. Phase 1A: photos are reviewed at your first visit.',
@@ -455,7 +485,7 @@ const STRINGS = {
     takeAtClinicBtn: '📋 I will take them at the clinic on my appointment day',
     clinicSelectedMsg: '✓ You will bring your ID to the clinic. Staff will help with photos.',
     continueToSign: 'Continue →',
-    sifoHint7: 'We need your ID to verify your identity. Your photos are secure 🔒',
+    sifoHint8: 'We need your ID to verify your identity. Your photos are secure 🔒',
     // Step 7 — Photo capture guidance
     selfieInstructions: ['Good front lighting', 'Center your face in the oval', 'No glasses or hats'],
     dlFrontInstructions: ['Flat surface, no glare', 'Full license visible', 'Text readable and in focus'],
@@ -538,9 +568,9 @@ const STRINGS = {
     showDoc: 'View full document ›',
     hideDoc: '‹ Hide document',
     consentsValidation: 'Please accept all 5 documents and sign the Financial Policy to continue.',
-    sifoHint8: 'These consents are required legal documents. Read them carefully — they are designed to protect you.',
-    // Step 9 — Lien
-    sifoHint9: 'This signature authorizes Precision Medical to treat your injury under a lien. It is legal and binding.',
+    sifoHint9: 'These consents are required legal documents. Read them carefully — they are designed to protect you.',
+    // Step 10 — Lien
+    sifoHint10: 'This signature authorizes Precision Medical to treat your injury under a lien. It is legal and binding.',
     // Common
     back: '← Back',
     continue: 'Continue →',
@@ -724,7 +754,12 @@ export function IntakeWizard({
     emergency2Phone:      '',
     emergency2Relation:   '',
     guardianName:         '',
+    guardianLastName:     '',
+    guardianEmail:        '',
+    guardianDOB:          '',
     guardianPhone:        '',
+    guardianCellPhone:    '',
+    guardianAddress:      '',
     guardianRelation:     '',
   });
 
@@ -944,18 +979,28 @@ export function IntakeWizard({
         emergency2Name:           personal.emergency2Name,
         emergency2Phone:          personal.emergency2Phone,
         emergency2Relation:       personal.emergency2Relation,
-        guardianName:             personal.guardianName,
-        guardianPhone:            personal.guardianPhone,
-        guardianRelation:         personal.guardianRelation,
+        referredBy:               personal.referredBy,
+        preferredPharmacy:        personal.preferredPharmacy,
+        employer:                 personal.employer,
         race:                     personal.race,
         ethnicity:                personal.ethnicity,
         sex:                      personal.sex,
         maritalStatus:            personal.maritalStatus,
       }};
-      if (stepNum === 4) body = { accident: { date: acc.date, type: acc.type, location: acc.location, notes: acc.notes, lawFirm: acc.lawFirm, attorney: acc.attorney, chiropractor: acc.chiropractor } };
-      if (stepNum === 5) body = { insurance };
-      if (stepNum === 6) body = { health };
-      if (stepNum === 8) {
+      if (stepNum === 4) body = { guardian: {
+        guardianName:      personal.guardianName,
+        guardianLastName:  personal.guardianLastName,
+        guardianEmail:     personal.guardianEmail,
+        guardianDOB:       personal.guardianDOB,
+        guardianPhone:     personal.guardianPhone,
+        guardianCellPhone: personal.guardianCellPhone,
+        guardianAddress:   personal.guardianAddress,
+        guardianRelation:  personal.guardianRelation,
+      }};
+      if (stepNum === 5) body = { accident: { date: acc.date, type: acc.type, location: acc.location, notes: acc.notes, lawFirm: acc.lawFirm, attorney: acc.attorney, chiropractor: acc.chiropractor } };
+      if (stepNum === 6) body = { insurance };
+      if (stepNum === 7) body = { health };
+      if (stepNum === 9) {
         const consentSvg = consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '';
         body = {
           consents: {
@@ -1004,7 +1049,7 @@ export function IntakeWizard({
       if (personal.emergency2Phone && !isValidNANP(personal.emergency2Phone)) { setEmer2PhoneError(phoneMsg); valid = false; } else { setEmer2PhoneError(''); }
       if (!valid) return;
     }
-    if (fromStep === 8) {
+    if (fromStep === 9) {
       const checked = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
       if (checked < 5 || !hasConsentSig) {
         setConsentsError(t.consentsValidation);
@@ -1012,7 +1057,7 @@ export function IntakeWizard({
       }
       setConsentsError('');
     }
-    if ([2, 3, 4, 5, 6, 8].includes(fromStep)) {
+    if ([2, 3, 4, 5, 6, 7, 9].includes(fromStep)) {
       const ok = await saveStepData(fromStep);
       if (!ok) return;
     }
@@ -1053,7 +1098,7 @@ export function IntakeWizard({
 
   // ── Derived values ──────────────────────────────────────────────────────────
   const t             = STRINGS[lang];
-  const totalSteps    = 9;
+  const totalSteps    = 10;
   const progressSteps = Math.min(step, totalSteps);
   const savedLabel    = lastSaved ? t.savedAt(getSavedLabel(lastSaved, lang)) : null;
   const deviceInfo    = typeof window !== 'undefined'
@@ -1515,37 +1560,6 @@ export function IntakeWizard({
                 </div>
               </FormSection>
 
-              {/* Guardian — solo si menor */}
-              {isMinorPatient && (
-                <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12, border: '1px solid rgba(251,191,36,0.35)', background: 'rgba(251,191,36,0.06)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 16 }}>⚠️</span>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
-                      {lang === 'es' ? 'Responsable legal (paciente menor de edad)' : 'Legal guardian (minor patient)'}
-                    </div>
-                  </div>
-                  <Field label={lang === 'es' ? 'Nombre del responsable' : 'Guardian full name'}>
-                    <input type="text" style={S.input} value={personal.guardianName}
-                      placeholder={lang === 'es' ? 'Nombre completo del padre/madre/tutor' : 'Full name of parent/guardian'}
-                      onChange={e => setPersonal(p => ({ ...p, guardianName: e.target.value }))} />
-                  </Field>
-                  <Field label={lang === 'es' ? 'Teléfono del responsable' : 'Guardian phone'}>
-                    <input type="tel" style={S.input} value={personal.guardianPhone}
-                      placeholder="(801) 555-0100"
-                      onChange={e => setPersonal(p => ({ ...p, guardianPhone: e.target.value }))} />
-                  </Field>
-                  <Field label={lang === 'es' ? 'Relación con el paciente' : 'Relation to patient'}>
-                    <select style={{ ...S.input, backgroundColor: '#1a2236' }} value={personal.guardianRelation}
-                      onChange={e => setPersonal(p => ({ ...p, guardianRelation: e.target.value }))}>
-                      <option value="">—</option>
-                      <option value="FATHER">{lang === 'es' ? 'Padre' : 'Father'}</option>
-                      <option value="MOTHER">{lang === 'es' ? 'Madre' : 'Mother'}</option>
-                      <option value="LEGAL_GUARDIAN">{lang === 'es' ? 'Tutor legal' : 'Legal guardian'}</option>
-                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
-                    </select>
-                  </Field>
-                </div>
-              )}
 
             </div>
             <SifoHint hint={t.sifoHint3} />
@@ -1554,8 +1568,96 @@ export function IntakeWizard({
           </div>
         )}
 
-        {/* ══════ STEP 4 · Tu accidente (B.6) ══════════════════════════════════ */}
+        {/* ══════ STEP 4 · Persona responsable ══════════════════════════════════ */}
         {step === 4 && (
+          <div style={{ paddingTop: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+              <StepHeader icon="👤" title={t.guardianStepTitle} sub={t.guardianStepSub} />
+              <button
+                type="button"
+                onClick={() => { setStep(5); window.scrollTo(0, 0); }}
+                style={{
+                  flexShrink: 0, marginTop: 4,
+                  padding: '6px 14px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+                  color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5,
+                }}
+              >
+                ⊘ {t.guardianSkip}
+              </button>
+            </div>
+
+            {/* Info chip */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '5px 12px', borderRadius: 20, marginBottom: 16,
+              background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.20)',
+              fontSize: 11, color: 'rgba(6,182,212,0.80)',
+            }}>
+              ℹ {t.guardianStepNote}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <FormSection title={t.guardianSection} sub={t.guardianSectionSub}>
+                {/* Nombre + Apellido */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.guardianFirstName}>
+                    <input type="text" style={S.input} value={personal.guardianName}
+                      placeholder={lang === 'es' ? 'Nombre del responsable' : 'Guardian first name'}
+                      onChange={e => setPersonal(p => ({ ...p, guardianName: e.target.value }))} />
+                  </Field>
+                  <Field label={t.guardianLastName}>
+                    <input type="text" style={S.input} value={personal.guardianLastName}
+                      placeholder={lang === 'es' ? 'Apellido del responsable' : 'Guardian last name'}
+                      onChange={e => setPersonal(p => ({ ...p, guardianLastName: e.target.value }))} />
+                  </Field>
+                </div>
+
+                {/* Email */}
+                <Field label={t.guardianEmail}>
+                  <input type="email" style={S.input} value={personal.guardianEmail}
+                    placeholder="correo@ejemplo.com"
+                    onChange={e => setPersonal(p => ({ ...p, guardianEmail: e.target.value }))} />
+                </Field>
+
+                {/* DOB + Teléfono */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.guardianDOB}>
+                    <input type="date" lang="en-US" style={S.input} value={personal.guardianDOB}
+                      onChange={e => setPersonal(p => ({ ...p, guardianDOB: e.target.value }))} />
+                  </Field>
+                  <Field label={t.guardianPhone}>
+                    <input type="tel" style={S.input} value={personal.guardianPhone}
+                      placeholder="(801) 555-0100"
+                      onChange={e => setPersonal(p => ({ ...p, guardianPhone: e.target.value }))} />
+                  </Field>
+                </div>
+
+                {/* Celular */}
+                <Field label={t.guardianCellPhone}>
+                  <input type="tel" style={S.input} value={personal.guardianCellPhone}
+                    placeholder="(801) 555-0100"
+                    onChange={e => setPersonal(p => ({ ...p, guardianCellPhone: e.target.value }))} />
+                </Field>
+
+                {/* Dirección */}
+                <Field label={t.guardianAddress}>
+                  <input type="text" style={S.input} value={personal.guardianAddress}
+                    placeholder={lang === 'es' ? 'Ej: 123 Main St, Provo, UT' : 'E.g.: 123 Main St, Provo, UT'}
+                    onChange={e => setPersonal(p => ({ ...p, guardianAddress: e.target.value }))} />
+                </Field>
+              </FormSection>
+            </div>
+
+            <SifoHint hint={t.sifoHint4} />
+            <SaveError error={saveError} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(4 as Step)} t={t} />
+          </div>
+        )}
+
+        {/* ══════ STEP 5 · Tu accidente (B.6) ══════════════════════════════════ */}
+        {step === 5 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="🚗" title={t.accidentTitle} sub={t.accidentSub} />
 
@@ -1627,14 +1729,14 @@ export function IntakeWizard({
 
             </div>
 
-            <SifoHint hint={t.sifoHint4} />
+            <SifoHint hint={t.sifoHint5} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(4 as Step)} t={t} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(5 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════ STEP 5 · Tu seguro (B.6) ══════════════════════════════════════ */}
-        {step === 5 && (
+        {/* ══════ STEP 6 · Tu seguro (B.6) ══════════════════════════════════════ */}
+        {step === 6 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="🏥" title={t.insuranceTitle} sub={t.insuranceSub} />
 
@@ -1669,14 +1771,14 @@ export function IntakeWizard({
               </FormSection>
             </div>
 
-            <SifoHint hint={t.sifoHint5} />
+            <SifoHint hint={t.sifoHint6} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(5 as Step)} t={t} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(6 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════ STEP 6 · Historial médico (B.7) ═════════════════════════════ */}
-        {step === 6 && (
+        {/* ══════ STEP 7 · Historial médico (B.7) ═════════════════════════════ */}
+        {step === 7 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="💊" title={t.healthTitle} sub={t.healthSub} />
 
@@ -1783,14 +1885,14 @@ export function IntakeWizard({
 
             </div>
 
-            <SifoHint hint={t.sifoHint6} />
+            <SifoHint hint={t.sifoHint7} />
             <SaveError error={saveError} />
-            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(6 as Step)} t={t} />
+            <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(7 as Step)} t={t} />
           </div>
         )}
 
-        {/* ══════ STEP 7 · Tu identificación (B.7) ════════════════════════════ */}
-        {step === 7 && (
+        {/* ══════ STEP 8 · Tu identificación (B.7) ════════════════════════════ */}
+        {step === 8 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="📸" title={t.idTitle} sub={t.idSub} />
 
@@ -1906,21 +2008,21 @@ export function IntakeWizard({
               </div>
             )}
 
-            <SifoHint hint={t.sifoHint7} />
+            <SifoHint hint={t.sifoHint8} />
             <div style={{ display: 'flex', gap: 10, marginTop: 28 }}>
               <button type="button" style={{ ...S.btnOutline, flex: '0 0 auto' }} onClick={goBack}>
                 {t.back}
               </button>
               <button type="button" style={{ ...S.btnPrimary, flex: 1 }}
-                onClick={() => { setStep(8); window.scrollTo(0, 0); }}>
+                onClick={() => { setStep(9); window.scrollTo(0, 0); }}>
                 {t.continueToSign}
               </button>
             </div>
           </div>
         )}
 
-        {/* ══════ STEP 8 · Consentimientos médicos (B.8) ══════════════════════ */}
-        {step === 8 && (() => {
+        {/* ══════ STEP 9 · Consentimientos médicos (B.8) ══════════════════════ */}
+        {step === 9 && (() => {
           const checkedCount = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
           const card = ({ active, onToggle, fullBody, checkLabel, children }: {
             active: boolean; onToggle: () => void;
@@ -2186,14 +2288,14 @@ export function IntakeWizard({
               </div>
 
               {consentsError && <SaveError error={consentsError} />}
-              <SifoHint hint={t.sifoHint8} />
-              <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(8 as Step)} t={t} />
+              <SifoHint hint={t.sifoHint9} />
+              <NavButtons saving={saving} onBack={goBack} onNext={() => goNext(9 as Step)} t={t} />
             </div>
           );
         })()}
 
-        {/* ══════ STEP 9 · Firma del Lien (B.8) ════════════════════════════════ */}
-        {step === 9 && (
+        {/* ══════ STEP 10 · Firma del Lien (B.8) ═══════════════════════════════ */}
+        {step === 10 && (
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="✍️" title={t.lienTitle} sub={t.lienSub} />
 
@@ -2307,7 +2409,7 @@ export function IntakeWizard({
             </label>
 
             {saveError && <SaveError error={saveError} />}
-            <SifoHint hint={t.sifoHint9} />
+            <SifoHint hint={t.sifoHint10} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
               <button type="button" onClick={submitSignature}

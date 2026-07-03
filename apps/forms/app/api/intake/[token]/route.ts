@@ -105,6 +105,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         referredBy?: string; preferredPharmacy?: string; employer?: string;
         race?: string; ethnicity?: string; sex?: string; maritalStatus?: string;
       };
+      guardian?: {
+        guardianName?: string; guardianLastName?: string; guardianEmail?: string;
+        guardianDOB?: string; guardianPhone?: string; guardianCellPhone?: string;
+        guardianAddress?: string; guardianRelation?: string;
+      };
       accident?:  {
         date?: string; type?: string; location?: string; notes?: string;
         lawFirm?: string; attorney?: string; chiropractor?: string;
@@ -164,9 +169,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (a.emergency2Name !== undefined) patientData.emergency2Name = a.emergency2Name || null;
     if (a.emergency2Phone !== undefined) patientData.emergency2Phone = a.emergency2Phone || null;
     if (a.emergency2Relation !== undefined) patientData.emergency2Relation = a.emergency2Relation || null;
-    if (a.guardianName !== undefined) patientData.guardianName = a.guardianName || null;
-    if (a.guardianPhone !== undefined) patientData.guardianPhone = a.guardianPhone || null;
-    if (a.guardianRelation !== undefined) patientData.guardianRelation = a.guardianRelation || null;
     if (a.referredBy !== undefined) patientData.referredBy = a.referredBy || null;
     if (a.preferredPharmacy !== undefined) patientData.preferredPharmacy = a.preferredPharmacy || null;
     if (a.employer !== undefined) patientData.employer = a.employer || null;
@@ -179,7 +181,31 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }
   }
 
-  if (step === 4 && data.accident) {
+  if (step === 4 && data.guardian) {
+    const g = data.guardian;
+    const patientData: Record<string, unknown> = {};
+    if (g.guardianName !== undefined) patientData.guardianName = g.guardianName || null;
+    if (g.guardianPhone !== undefined) patientData.guardianPhone = g.guardianPhone || null;
+    if (g.guardianRelation !== undefined) patientData.guardianRelation = g.guardianRelation || null;
+    if (Object.keys(patientData).length > 0) {
+      await db.patient.update({ where: { id: rec.patient.id }, data: patientData });
+    }
+    // Extra fields (lastName, email, dob, cellPhone, address) → consentsData JSON
+    const extraFields = {
+      ...(g.guardianLastName !== undefined ? { guardianLastName: g.guardianLastName || null } : {}),
+      ...(g.guardianEmail !== undefined ? { guardianEmail: g.guardianEmail || null } : {}),
+      ...(g.guardianDOB !== undefined ? { guardianDOB: g.guardianDOB || null } : {}),
+      ...(g.guardianCellPhone !== undefined ? { guardianCellPhone: g.guardianCellPhone || null } : {}),
+      ...(g.guardianAddress !== undefined ? { guardianAddress: g.guardianAddress || null } : {}),
+    };
+    if (Object.keys(extraFields).length > 0) {
+      const existing = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
+      const prev = (existing?.consentsData ?? {}) as Record<string, unknown>;
+      await db.case.update({ where: { id: rec.id }, data: { consentsData: { ...prev, ...extraFields } } });
+    }
+  }
+
+  if (step === 5 && data.accident) {
     const a = data.accident;
     const caseData: Record<string, unknown> = {};
     if (a.date)     caseData.accidentDate     = parseDateLocal(a.date);
@@ -203,7 +229,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }
   }
 
-  if (step === 5 && data.insurance) {
+  if (step === 6 && data.insurance) {
     const ins = data.insurance;
     const caseData: Record<string, unknown> = {};
     if (ins.policyNumber) caseData.primaryPolicyNumber = ins.policyNumber;
@@ -218,7 +244,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     }
   }
 
-  if (step === 6 && data.health) {
+  if (step === 7 && data.health) {
     const h = data.health;
     await db.intakeSubmission.upsert({
       where:  { caseId: rec.id },
@@ -246,7 +272,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     });
   }
 
-  if (step === 8 && data.consents) {
+  if (step === 9 && data.consents) {
     const c = data.consents;
     const existing = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
     const prev = (existing?.consentsData ?? {}) as Record<string, unknown>;

@@ -225,7 +225,7 @@ const STRINGS = {
     carrierPh: 'Ej: State Farm, Progressive, GEICO...',
     policyNum: 'Número de póliza',
     policyNumPh: 'Ej: POL-123456789',
-    sifoHint6: 'Tu seguro PIP (Personal Injury Protection) cubre los tratamientos del accidente.',
+    sifoHint6: 'Agrega todos los seguros activos. Si no tienes seguro activo, puedes continuar.',
     // Step 6 — Historial médico
     healthTitle: 'Historial médico',
     healthSub: 'Tu información es confidencial. Nos ayuda a darte el mejor cuidado.',
@@ -515,7 +515,7 @@ const STRINGS = {
     carrierPh: 'E.g., State Farm, Progressive, GEICO...',
     policyNum: 'Policy number',
     policyNumPh: 'E.g., POL-123456789',
-    sifoHint6: 'Your PIP (Personal Injury Protection) insurance covers accident-related treatments.',
+    sifoHint6: 'Add all active insurance policies. You can continue without adding insurance.',
     // Step 6
     healthTitle: 'Medical history',
     healthSub: 'Your information is confidential. It helps us provide the best care.',

@@ -169,7 +169,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (a.emergency2Name !== undefined) patientData.emergency2Name = a.emergency2Name || null;
     if (a.emergency2Phone !== undefined) patientData.emergency2Phone = a.emergency2Phone || null;
     if (a.emergency2Relation !== undefined) patientData.emergency2Relation = a.emergency2Relation || null;
-    if (a.referredBy !== undefined) patientData.referredBy = a.referredBy || null;
     if (a.preferredPharmacy !== undefined) patientData.preferredPharmacy = a.preferredPharmacy || null;
     if (a.employer !== undefined) patientData.employer = a.employer || null;
     if (a.race) patientData.race = a.race;
@@ -178,6 +177,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (a.maritalStatus) patientData.maritalStatus = a.maritalStatus;
     if (Object.keys(patientData).length > 0) {
       await db.patient.update({ where: { id: rec.patient.id }, data: patientData });
+    }
+    if (a.referredBy !== undefined) {
+      const existingCase = await db.case.findUnique({ where: { id: rec.id }, select: { consentsData: true } });
+      const prev = (existingCase?.consentsData ?? {}) as Record<string, unknown>;
+      await db.case.update({ where: { id: rec.id }, data: { consentsData: { ...prev, referredBy: a.referredBy || null } } });
     }
   }
 

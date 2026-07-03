@@ -1116,93 +1116,99 @@ export function IntakeWizard({
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="👤" title={t.personalTitle} sub={t.personalSub} />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Name row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <Field label={t.firstName}>
-                  <input type="text" style={S.input} value={personal.firstName}
-                    onChange={e => setPersonal(p => ({ ...p, firstName: e.target.value }))} />
-                </Field>
-                <Field label={t.lastName}>
-                  <input type="text" style={S.input} value={personal.lastName}
-                    onChange={e => setPersonal(p => ({ ...p, lastName: e.target.value }))} />
-                </Field>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              <Field label={t.dob}>
-                <input type="date" lang="en-US" style={S.input} value={personal.dateOfBirth}
-                  onChange={e => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))} />
-              </Field>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <Field label={t.phone}>
-                  <input type="tel" style={{ ...S.input, ...(phoneError ? { borderColor: '#F43F5E' } : {}) }}
-                    value={personal.phone}
-                    placeholder="(801) 555-0100"
-                    onChange={e => { setPersonal(p => ({ ...p, phone: e.target.value })); setPhoneError(''); }} />
-                  {phoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{phoneError}</span>}
-                </Field>
-                <Field label={t.cellPhone}>
-                  <input type="tel" style={{ ...S.input, ...(cellPhoneError ? { borderColor: '#F43F5E' } : {}) }}
-                    value={personal.cellPhone}
-                    placeholder={t.cellPhonePh}
-                    onChange={e => { setPersonal(p => ({ ...p, cellPhone: e.target.value })); setCellPhoneError(''); }} />
-                  {cellPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{cellPhoneError}</span>}
-                </Field>
-              </div>
-
-              <Field label={t.email}>
-                <input type="email" style={S.input} value={personal.email}
-                  placeholder="correo@ejemplo.com"
-                  onChange={e => setPersonal(p => ({ ...p, email: e.target.value }))} />
-              </Field>
-
-              <Field label={t.addressLine1}>
-                <input type="text" style={S.input} value={personal.addressLine1}
-                  placeholder={t.addressLine1Ph}
-                  onChange={e => setPersonal(p => ({ ...p, addressLine1: e.target.value }))} />
-              </Field>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px', gap: 10 }}>
-                <Field label={t.addressCity}>
-                  <input type="text" style={S.input} value={personal.addressCity}
-                    placeholder={t.addressCityPh}
-                    onChange={e => setPersonal(p => ({ ...p, addressCity: e.target.value }))} />
-                </Field>
-                <Field label={t.addressState}>
-                  <input type="text" style={S.input} value={personal.addressState}
-                    placeholder={t.addressStatePh} maxLength={2}
-                    onChange={e => setPersonal(p => ({ ...p, addressState: e.target.value.toUpperCase() }))} />
-                </Field>
-                <Field label={t.addressZip}>
-                  <input type="text" style={S.input} value={personal.addressZip}
-                    placeholder={t.addressZipPh} maxLength={10}
-                    onChange={e => setPersonal(p => ({ ...p, addressZip: e.target.value }))} />
-                </Field>
-              </div>
-
-              {/* Preferred language */}
-              <Field label={t.preferredLangLabel}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {(['es', 'en'] as Lang[]).map(l => (
-                    <button key={l} type="button" onClick={() => setLang(l)} style={{
-                      padding: '11px 8px', borderRadius: 10,
-                      border: lang === l ? '1px solid rgba(6,182,212,0.55)' : '1px solid rgba(255,255,255,0.10)',
-                      background: lang === l ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.03)',
-                      color: lang === l ? CYAN : 'rgba(255,255,255,0.55)',
-                      fontSize: 13, fontWeight: lang === l ? 700 : 400,
-                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all 0.2s',
-                    }}>
-                      {l === 'es' ? t.langOptionEs : t.langOptionEn}
-                    </button>
-                  ))}
+              {/* ── Sección 1: Información personal ── */}
+              <FormSection
+                title={lang === 'es' ? 'Información personal' : 'Personal information'}
+                sub={lang === 'es' ? 'Necesitamos su información básica para identificarlo en nuestro sistema.' : 'We need your basic information to identify you in our system.'}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.firstName}>
+                    <input type="text" style={S.input} value={personal.firstName}
+                      onChange={e => setPersonal(p => ({ ...p, firstName: e.target.value }))} />
+                  </Field>
+                  <Field label={t.lastName}>
+                    <input type="text" style={S.input} value={personal.lastName}
+                      onChange={e => setPersonal(p => ({ ...p, lastName: e.target.value }))} />
+                  </Field>
                 </div>
-              </Field>
 
-              {/* Emergency contact 1 */}
-              <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.40)', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
-                  {t.emergencySection}
+                <Field label={t.dob}>
+                  <input type="date" lang="en-US" style={S.input} value={personal.dateOfBirth}
+                    onChange={e => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))} />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <Field label={t.phone}>
+                    <input type="tel" style={{ ...S.input, ...(phoneError ? { borderColor: '#F43F5E' } : {}) }}
+                      value={personal.phone} placeholder="(801) 555-0100"
+                      onChange={e => { setPersonal(p => ({ ...p, phone: e.target.value })); setPhoneError(''); }} />
+                    {phoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{phoneError}</span>}
+                  </Field>
+                  <Field label={t.cellPhone}>
+                    <input type="tel" style={{ ...S.input, ...(cellPhoneError ? { borderColor: '#F43F5E' } : {}) }}
+                      value={personal.cellPhone} placeholder={t.cellPhonePh}
+                      onChange={e => { setPersonal(p => ({ ...p, cellPhone: e.target.value })); setCellPhoneError(''); }} />
+                    {cellPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{cellPhoneError}</span>}
+                  </Field>
                 </div>
+
+                <Field label={t.email}>
+                  <input type="email" style={S.input} value={personal.email}
+                    placeholder="correo@ejemplo.com"
+                    onChange={e => setPersonal(p => ({ ...p, email: e.target.value }))} />
+                </Field>
+
+                <Field label={t.addressLine1}>
+                  <input type="text" style={S.input} value={personal.addressLine1}
+                    placeholder={t.addressLine1Ph}
+                    onChange={e => setPersonal(p => ({ ...p, addressLine1: e.target.value }))} />
+                </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px 88px', gap: 10 }}>
+                  <Field label={t.addressCity}>
+                    <input type="text" style={S.input} value={personal.addressCity}
+                      placeholder={t.addressCityPh}
+                      onChange={e => setPersonal(p => ({ ...p, addressCity: e.target.value }))} />
+                  </Field>
+                  <Field label={t.addressState}>
+                    <input type="text" style={S.input} value={personal.addressState}
+                      placeholder={t.addressStatePh} maxLength={2}
+                      onChange={e => setPersonal(p => ({ ...p, addressState: e.target.value.toUpperCase() }))} />
+                  </Field>
+                  <Field label={t.addressZip}>
+                    <input type="text" style={S.input} value={personal.addressZip}
+                      placeholder={t.addressZipPh} maxLength={10}
+                      onChange={e => setPersonal(p => ({ ...p, addressZip: e.target.value }))} />
+                  </Field>
+                </div>
+
+                <Field label={t.preferredLangLabel}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {(['es', 'en'] as Lang[]).map(l => (
+                      <button key={l} type="button" onClick={() => setLang(l)} style={{
+                        padding: '11px 8px', borderRadius: 10,
+                        border: lang === l ? '1px solid rgba(6,182,212,0.55)' : '1px solid rgba(255,255,255,0.10)',
+                        background: lang === l ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.03)',
+                        color: lang === l ? CYAN : 'rgba(255,255,255,0.55)',
+                        fontSize: 13, fontWeight: lang === l ? 700 : 400,
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all 0.2s',
+                      }}>
+                        {l === 'es' ? t.langOptionEs : t.langOptionEn}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+              </FormSection>
+
+              {/* ── Sección 2: Contacto de emergencia 1 ── */}
+              <FormSection
+                title={t.emergencySection}
+                sub={lang === 'es' ? 'Persona a contactar en caso de emergencia médica.' : 'Person to contact in case of a medical emergency.'}
+                accent="rgba(99,102,241,0.15)"
+                accentBorder="rgba(99,102,241,0.25)"
+              >
                 <Field label={t.emergencyName}>
                   <input type="text" style={S.input} value={personal.emergencyContactName}
                     placeholder={t.emergencyNamePh}
@@ -1211,8 +1217,7 @@ export function IntakeWizard({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.emergencyPhone}>
                     <input type="tel" style={{ ...S.input, ...(emerPhoneError ? { borderColor: '#F43F5E' } : {}) }}
-                      value={personal.emergencyContactPhone}
-                      placeholder={t.emergencyPhonePh}
+                      value={personal.emergencyContactPhone} placeholder={t.emergencyPhonePh}
                       onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: e.target.value })); setEmerPhoneError(''); }} />
                     {emerPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emerPhoneError}</span>}
                   </Field>
@@ -1222,13 +1227,15 @@ export function IntakeWizard({
                       onChange={e => setPersonal(p => ({ ...p, emergencyContactRelation: e.target.value }))} />
                   </Field>
                 </div>
-              </div>
+              </FormSection>
 
-              {/* Emergency contact 2 */}
-              <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.40)', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
-                  {t.emergency2Section}
-                </div>
+              {/* ── Sección 3: Contacto de emergencia 2 ── */}
+              <FormSection
+                title={t.emergency2Section}
+                sub={lang === 'es' ? 'Contacto alternativo (opcional).' : 'Alternative contact (optional).'}
+                accent="rgba(99,102,241,0.08)"
+                accentBorder="rgba(99,102,241,0.15)"
+              >
                 <Field label={t.emergency2Name}>
                   <input type="text" style={S.input} value={personal.emergency2Name}
                     placeholder={t.emergency2NamePh}
@@ -1237,8 +1244,7 @@ export function IntakeWizard({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.emergency2Phone}>
                     <input type="tel" style={{ ...S.input, ...(emer2PhoneError ? { borderColor: '#F43F5E' } : {}) }}
-                      value={personal.emergency2Phone}
-                      placeholder={t.emergency2PhonePh}
+                      value={personal.emergency2Phone} placeholder={t.emergency2PhonePh}
                       onChange={e => { setPersonal(p => ({ ...p, emergency2Phone: e.target.value })); setEmer2PhoneError(''); }} />
                     {emer2PhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emer2PhoneError}</span>}
                   </Field>
@@ -1248,40 +1254,41 @@ export function IntakeWizard({
                       onChange={e => setPersonal(p => ({ ...p, emergency2Relation: e.target.value }))} />
                   </Field>
                 </div>
-              </div>
-            </div>
+              </FormSection>
 
-            {/* Guardian — solo si es menor de edad */}
-            {isMinorPatient && (
-              <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12, border: '1px solid rgba(251,191,36,0.35)', background: 'rgba(251,191,36,0.06)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>⚠️</span>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
-                    {lang === 'es' ? 'Responsable legal (paciente menor de edad)' : 'Legal guardian (minor patient)'}
+              {/* ── Guardian — solo si es menor de edad ── */}
+              {isMinorPatient && (
+                <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12, border: '1px solid rgba(251,191,36,0.35)', background: 'rgba(251,191,36,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>⚠️</span>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#F59E0B', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+                      {lang === 'es' ? 'Responsable legal (paciente menor de edad)' : 'Legal guardian (minor patient)'}
+                    </div>
                   </div>
+                  <Field label={lang === 'es' ? 'Nombre del responsable' : 'Guardian full name'}>
+                    <input type="text" style={S.input} value={personal.guardianName}
+                      placeholder={lang === 'es' ? 'Nombre completo del padre/madre/tutor' : 'Full name of parent/guardian'}
+                      onChange={e => setPersonal(p => ({ ...p, guardianName: e.target.value }))} />
+                  </Field>
+                  <Field label={lang === 'es' ? 'Teléfono del responsable' : 'Guardian phone'}>
+                    <input type="tel" style={S.input} value={personal.guardianPhone}
+                      placeholder="(801) 555-0100"
+                      onChange={e => setPersonal(p => ({ ...p, guardianPhone: e.target.value }))} />
+                  </Field>
+                  <Field label={lang === 'es' ? 'Relación con el paciente' : 'Relation to patient'}>
+                    <select style={{ ...S.input, backgroundColor: '#1a2236' }} value={personal.guardianRelation}
+                      onChange={e => setPersonal(p => ({ ...p, guardianRelation: e.target.value }))}>
+                      <option value="">—</option>
+                      <option value="FATHER">{lang === 'es' ? 'Padre' : 'Father'}</option>
+                      <option value="MOTHER">{lang === 'es' ? 'Madre' : 'Mother'}</option>
+                      <option value="LEGAL_GUARDIAN">{lang === 'es' ? 'Tutor legal' : 'Legal guardian'}</option>
+                      <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
+                    </select>
+                  </Field>
                 </div>
-                <Field label={lang === 'es' ? 'Nombre del responsable' : 'Guardian full name'}>
-                  <input type="text" style={S.input} value={personal.guardianName}
-                    placeholder={lang === 'es' ? 'Nombre completo del padre/madre/tutor' : 'Full name of parent/guardian'}
-                    onChange={e => setPersonal(p => ({ ...p, guardianName: e.target.value }))} />
-                </Field>
-                <Field label={lang === 'es' ? 'Teléfono del responsable' : 'Guardian phone'}>
-                  <input type="tel" style={S.input} value={personal.guardianPhone}
-                    placeholder="(801) 555-0100"
-                    onChange={e => setPersonal(p => ({ ...p, guardianPhone: e.target.value }))} />
-                </Field>
-                <Field label={lang === 'es' ? 'Relación con el paciente' : 'Relation to patient'}>
-                  <select style={S.input} value={personal.guardianRelation}
-                    onChange={e => setPersonal(p => ({ ...p, guardianRelation: e.target.value }))}>
-                    <option value="">—</option>
-                    <option value="FATHER">{lang === 'es' ? 'Padre' : 'Father'}</option>
-                    <option value="MOTHER">{lang === 'es' ? 'Madre' : 'Mother'}</option>
-                    <option value="LEGAL_GUARDIAN">{lang === 'es' ? 'Tutor legal' : 'Legal guardian'}</option>
-                    <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
-                  </select>
-                </Field>
-              </div>
-            )}
+              )}
+
+            </div>
 
             <SifoHint hint={t.sifoHint2} />
             <SaveError error={saveError} />
@@ -2042,6 +2049,29 @@ export function IntakeWizard({
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function FormSection({ title, sub, accent, accentBorder, children }: {
+  title: string; sub?: string;
+  accent?: string; accentBorder?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{
+      borderRadius: 14,
+      background: accent ?? 'rgba(255,255,255,0.03)',
+      border: `1px solid ${accentBorder ?? 'rgba(255,255,255,0.08)'}`,
+      padding: '18px 16px',
+    }}>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.80)', marginBottom: 2 }}>{title}</div>
+        {sub && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>{sub}</div>}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function StepHeader({ icon, title, sub }: { icon: string; title: string; sub: string }) {
   return (

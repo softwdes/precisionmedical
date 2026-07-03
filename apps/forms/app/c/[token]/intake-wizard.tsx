@@ -1301,46 +1301,53 @@ export function IntakeWizard({
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="🚗" title={t.accidentTitle} sub={t.accidentSub} />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Field label={t.accidentDate}>
-                <input type="date" lang="en-US" style={S.input} value={acc.date}
-                  onChange={e => setAcc(a => ({ ...a, date: e.target.value }))} />
-              </Field>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              <Field label={t.accidentTypeLabel}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-                  {(Object.keys(t.accidentTypesMap) as AccidentType[]).map(key => (
-                    <button key={key} type="button" onClick={() => setAcc(a => ({ ...a, type: key }))} style={{
-                      padding: '10px 6px', borderRadius: 8,
-                      border: acc.type === key ? '1px solid rgba(6,182,212,0.60)' : '1px solid rgba(255,255,255,0.10)',
-                      background: acc.type === key ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.03)',
-                      color: acc.type === key ? CYAN : 'rgba(255,255,255,0.60)',
-                      fontSize: 12, fontWeight: acc.type === key ? 700 : 400,
-                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
-                    }}>
-                      {t.accidentTypesMap[key]}
-                    </button>
-                  ))}
-                </div>
-              </Field>
+              <FormSection
+                title={lang === 'es' ? 'Detalles del accidente' : 'Accident details'}
+                sub={lang === 'es' ? 'Cuéntanos qué ocurrió para poder documentarlo correctamente.' : 'Tell us what happened so we can document it correctly.'}
+              >
+                <Field label={t.accidentDate}>
+                  <input type="date" lang="en-US" style={S.input} value={acc.date}
+                    onChange={e => setAcc(a => ({ ...a, date: e.target.value }))} />
+                </Field>
 
-              <Field label={t.accidentLocation}>
-                <input type="text" style={S.input} value={acc.location}
-                  placeholder={t.accidentLocationPh}
-                  onChange={e => setAcc(a => ({ ...a, location: e.target.value }))} />
-              </Field>
+                <Field label={t.accidentTypeLabel}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                    {(Object.keys(t.accidentTypesMap) as AccidentType[]).map(key => (
+                      <button key={key} type="button" onClick={() => setAcc(a => ({ ...a, type: key }))} style={{
+                        padding: '10px 6px', borderRadius: 8,
+                        border: acc.type === key ? '1px solid rgba(6,182,212,0.60)' : '1px solid rgba(255,255,255,0.10)',
+                        background: acc.type === key ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.03)',
+                        color: acc.type === key ? CYAN : 'rgba(255,255,255,0.60)',
+                        fontSize: 12, fontWeight: acc.type === key ? 700 : 400,
+                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                      }}>
+                        {t.accidentTypesMap[key]}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
 
-              <Field label={t.accidentDesc}>
-                <textarea style={S.textarea} value={acc.notes}
-                  placeholder={t.accidentDescPh}
-                  onChange={e => setAcc(a => ({ ...a, notes: e.target.value }))} />
-              </Field>
+                <Field label={t.accidentLocation}>
+                  <input type="text" style={S.input} value={acc.location}
+                    placeholder={t.accidentLocationPh}
+                    onChange={e => setAcc(a => ({ ...a, location: e.target.value }))} />
+                </Field>
 
-              {/* Legal representation */}
-              <div style={{ ...S.card, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.40)', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
-                  {t.legalRepsSection}
-                </div>
+                <Field label={t.accidentDesc}>
+                  <textarea style={S.textarea} value={acc.notes}
+                    placeholder={t.accidentDescPh}
+                    onChange={e => setAcc(a => ({ ...a, notes: e.target.value }))} />
+                </Field>
+              </FormSection>
+
+              <FormSection
+                title={t.legalRepsSection}
+                sub={lang === 'es' ? 'Si tienes representación legal o quiropráctico asignado, agrégalos aquí (opcional).' : 'If you have legal representation or an assigned chiropractor, add them here (optional).'}
+                accent="rgba(99,102,241,0.08)"
+                accentBorder="rgba(99,102,241,0.20)"
+              >
                 <Field label={t.lawFirm}>
                   <input type="text" style={S.input} value={acc.lawFirm}
                     placeholder={t.lawFirmPh}
@@ -1358,7 +1365,8 @@ export function IntakeWizard({
                       onChange={e => setAcc(a => ({ ...a, chiropractor: e.target.value }))} />
                   </Field>
                 </div>
-              </div>
+              </FormSection>
+
             </div>
 
             <SifoHint hint={t.sifoHint3} />
@@ -1372,25 +1380,35 @@ export function IntakeWizard({
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="🏥" title={t.insuranceTitle} sub={t.insuranceSub} />
 
-            <div style={{
-              ...S.card, marginBottom: 16,
-              background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.20)',
-            }}>
-              <div style={{ fontSize: 12, color: CYAN, fontWeight: 700, marginBottom: 4 }}>{t.pipTitle}</div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.60)', lineHeight: 1.55 }}>{t.pipDesc}</div>
-            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Banner informativo PIP */}
+              <div style={{
+                display: 'flex', gap: 12, alignItems: 'flex-start',
+                padding: '14px 16px', borderRadius: 12,
+                background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.22)',
+              }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>ℹ️</span>
+                <div>
+                  <div style={{ fontSize: 12, color: CYAN, fontWeight: 700, marginBottom: 3 }}>{t.pipTitle}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>{t.pipDesc}</div>
+                </div>
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Field label={t.carrier}>
-                <input type="text" style={S.input} value={insurance.carrier}
-                  placeholder={t.carrierPh}
-                  onChange={e => setInsurance(i => ({ ...i, carrier: e.target.value }))} />
-              </Field>
-              <Field label={t.policyNum}>
-                <input type="text" style={S.input} value={insurance.policyNumber}
-                  placeholder={t.policyNumPh}
-                  onChange={e => setInsurance(i => ({ ...i, policyNumber: e.target.value }))} />
-              </Field>
+              <FormSection
+                title={lang === 'es' ? 'Tu póliza de seguro PIP' : 'Your PIP insurance policy'}
+                sub={lang === 'es' ? 'Necesitamos los datos de tu seguro de automóvil para procesar tu reclamación.' : 'We need your auto insurance details to process your claim.'}
+              >
+                <Field label={t.carrier}>
+                  <input type="text" style={S.input} value={insurance.carrier}
+                    placeholder={t.carrierPh}
+                    onChange={e => setInsurance(i => ({ ...i, carrier: e.target.value }))} />
+                </Field>
+                <Field label={t.policyNum}>
+                  <input type="text" style={S.input} value={insurance.policyNumber}
+                    placeholder={t.policyNumPh}
+                    onChange={e => setInsurance(i => ({ ...i, policyNumber: e.target.value }))} />
+                </Field>
+              </FormSection>
             </div>
 
             <SifoHint hint={t.sifoHint4} />
@@ -1404,81 +1422,107 @@ export function IntakeWizard({
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="💊" title={t.healthTitle} sub={t.healthSub} />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* Estado general de salud */}
-              <Field label={t.healthStatusLabel}>
-                <div style={{ display: 'flex', gap: 8 }}>
+              <FormSection
+                title={lang === 'es' ? 'Estado general de salud' : 'General health status'}
+                sub={lang === 'es' ? 'Selecciona cómo describes tu estado de salud general.' : 'Select how you would describe your general health status.'}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
                   {(['excellent', 'good', 'fair', 'poor'] as HealthStatus[]).map(v => {
                     const labels: Record<HealthStatus, string> = {
-                      excellent: t.healthExcellent,
-                      good:      t.healthGood,
-                      fair:      t.healthFair,
-                      poor:      t.healthPoor,
+                      excellent: t.healthExcellent, good: t.healthGood,
+                      fair: t.healthFair, poor: t.healthPoor,
+                    };
+                    const colors: Record<HealthStatus, string> = {
+                      excellent: 'rgba(16,185,129,', good: 'rgba(6,182,212,',
+                      fair: 'rgba(245,158,11,', poor: 'rgba(244,63,94,',
                     };
                     const active = health.healthStatus === v;
                     return (
                       <button key={v} type="button"
                         onClick={() => setHealth(h => ({ ...h, healthStatus: v }))}
                         style={{
-                          flex: 1, padding: '10px 4px', borderRadius: 8,
-                          border: active ? '1px solid rgba(6,182,212,0.50)' : '1px solid rgba(255,255,255,0.10)',
-                          background: active ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.03)',
-                          color: active ? CYAN : 'rgba(255,255,255,0.55)',
+                          padding: '10px 4px', borderRadius: 10,
+                          border: active ? `1px solid ${colors[v]}0.55)` : '1px solid rgba(255,255,255,0.10)',
+                          background: active ? `${colors[v]}0.12)` : 'rgba(255,255,255,0.03)',
+                          color: active ? `${colors[v]}1)` : 'rgba(255,255,255,0.55)',
                           fontSize: 12, fontWeight: active ? 700 : 400,
-                          cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                          cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center', transition: 'all 0.15s',
                         }}>
                         {labels[v]}
                       </button>
                     );
                   })}
                 </div>
-              </Field>
+              </FormSection>
 
               {/* Medicamentos */}
-              <YesNoField
-                label={t.hasMeds}
-                value={health.hasMedications}
-                onChange={v => setHealth(h => ({ ...h, hasMedications: v }))}
-                yesLabel={t.yes} noLabel={t.no}
-              />
-              {health.hasMedications && (
-                <Field label={t.medsDetailLabel}>
-                  <textarea style={S.textarea} value={health.medications}
-                    placeholder={t.medsDetailPh}
-                    onChange={e => setHealth(h => ({ ...h, medications: e.target.value }))} />
-                </Field>
-              )}
+              <FormSection
+                title={lang === 'es' ? 'Medicamentos' : 'Medications'}
+                sub={lang === 'es' ? '¿Actualmente tomas algún medicamento recetado o de venta libre?' : 'Are you currently taking any prescription or over-the-counter medications?'}
+                accent={health.hasMedications ? 'rgba(6,182,212,0.05)' : undefined}
+                accentBorder={health.hasMedications ? 'rgba(6,182,212,0.18)' : undefined}
+              >
+                <YesNoField
+                  label={t.hasMeds}
+                  value={health.hasMedications}
+                  onChange={v => setHealth(h => ({ ...h, hasMedications: v }))}
+                  yesLabel={t.yes} noLabel={t.no}
+                />
+                {health.hasMedications && (
+                  <Field label={t.medsDetailLabel}>
+                    <textarea style={S.textarea} value={health.medications}
+                      placeholder={t.medsDetailPh}
+                      onChange={e => setHealth(h => ({ ...h, medications: e.target.value }))} />
+                  </Field>
+                )}
+              </FormSection>
 
               {/* Alergias */}
-              <YesNoField
-                label={t.hasAllergies}
-                value={health.hasAllergies}
-                onChange={v => setHealth(h => ({ ...h, hasAllergies: v }))}
-                yesLabel={t.yes} noLabel={t.no}
-              />
-              {health.hasAllergies && (
-                <Field label={t.allergiesDetailLabel}>
-                  <textarea style={S.textarea} value={health.allergies}
-                    placeholder={t.allergiesDetailPh}
-                    onChange={e => setHealth(h => ({ ...h, allergies: e.target.value }))} />
-                </Field>
-              )}
+              <FormSection
+                title={lang === 'es' ? 'Alergias' : 'Allergies'}
+                sub={lang === 'es' ? '¿Tienes alguna alergia conocida a medicamentos, alimentos u otras sustancias?' : 'Do you have any known allergies to medications, foods, or other substances?'}
+                accent={health.hasAllergies ? 'rgba(245,158,11,0.05)' : undefined}
+                accentBorder={health.hasAllergies ? 'rgba(245,158,11,0.18)' : undefined}
+              >
+                <YesNoField
+                  label={t.hasAllergies}
+                  value={health.hasAllergies}
+                  onChange={v => setHealth(h => ({ ...h, hasAllergies: v }))}
+                  yesLabel={t.yes} noLabel={t.no}
+                />
+                {health.hasAllergies && (
+                  <Field label={t.allergiesDetailLabel}>
+                    <textarea style={S.textarea} value={health.allergies}
+                      placeholder={t.allergiesDetailPh}
+                      onChange={e => setHealth(h => ({ ...h, allergies: e.target.value }))} />
+                  </Field>
+                )}
+              </FormSection>
 
               {/* Lesiones / cirugías previas */}
-              <YesNoField
-                label={t.hasPrevInjuries}
-                value={health.hasPreviousInjuries}
-                onChange={v => setHealth(h => ({ ...h, hasPreviousInjuries: v }))}
-                yesLabel={t.yes} noLabel={t.no}
-              />
-              {health.hasPreviousInjuries && (
-                <Field label={t.prevInjuriesDetailLabel}>
-                  <textarea style={S.textarea} value={health.previousInjuries}
-                    placeholder={t.prevInjuriesDetailPh}
-                    onChange={e => setHealth(h => ({ ...h, previousInjuries: e.target.value }))} />
-                </Field>
-              )}
+              <FormSection
+                title={lang === 'es' ? 'Lesiones o cirugías previas' : 'Previous injuries or surgeries'}
+                sub={lang === 'es' ? '¿Has tenido lesiones, cirugías o condiciones médicas previas relevantes?' : 'Have you had any relevant previous injuries, surgeries, or medical conditions?'}
+                accent={health.hasPreviousInjuries ? 'rgba(244,63,94,0.05)' : undefined}
+                accentBorder={health.hasPreviousInjuries ? 'rgba(244,63,94,0.18)' : undefined}
+              >
+                <YesNoField
+                  label={t.hasPrevInjuries}
+                  value={health.hasPreviousInjuries}
+                  onChange={v => setHealth(h => ({ ...h, hasPreviousInjuries: v }))}
+                  yesLabel={t.yes} noLabel={t.no}
+                />
+                {health.hasPreviousInjuries && (
+                  <Field label={t.prevInjuriesDetailLabel}>
+                    <textarea style={S.textarea} value={health.previousInjuries}
+                      placeholder={t.prevInjuriesDetailPh}
+                      onChange={e => setHealth(h => ({ ...h, previousInjuries: e.target.value }))} />
+                  </Field>
+                )}
+              </FormSection>
+
             </div>
 
             <SifoHint hint={t.sifoHint5} />
@@ -1494,109 +1538,92 @@ export function IntakeWizard({
 
             {!takeAtClinic ? (
               <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
                   {/* Selfie */}
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.10em' }}>
-                      {t.selfieLabel}
-                    </div>
+                  <FormSection
+                    title={t.selfieLabel}
+                    sub={lang === 'es' ? 'Necesitamos verificar tu identidad con una foto reciente.' : 'We need to verify your identity with a recent photo.'}
+                    accent={idPhotos.selfie ? 'rgba(6,182,212,0.06)' : undefined}
+                    accentBorder={idPhotos.selfie ? 'rgba(6,182,212,0.20)' : undefined}
+                  >
                     <PhotoCaptureCard
-                      guideType="face"
-                      title={t.selfieLabel}
-                      instructions={t.selfieInstructions}
-                      captureLabel={t.selfieCaptureLabel}
-                      reviewQuestion={t.reviewQuestion}
-                      usePhotoLabel={t.usePhotoBtn}
-                      retakeLabel={t.retakeBtn}
-                      changeLabel={t.changePhotoBtn}
+                      guideType="face" title={t.selfieLabel}
+                      instructions={t.selfieInstructions} captureLabel={t.selfieCaptureLabel}
+                      reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
+                      retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
                       confirmed={idPhotos.selfie}
                       onConfirm={file => setIdPhotos(p => ({ ...p, selfie: file }))}
-                      capture="user"
-                      color={CYAN}
-                      lang={lang}
+                      capture="user" color={CYAN} lang={lang}
                     />
-                  </div>
+                  </FormSection>
 
                   {/* Licencia */}
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.10em' }}>
-                      {t.dlLabel}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <PhotoCaptureCard
-                        guideType="document"
-                        title={t.dlFront}
-                        instructions={t.dlFrontInstructions}
-                        captureLabel={t.dlFrontCaptureLabel}
-                        reviewQuestion={t.reviewQuestion}
-                        usePhotoLabel={t.usePhotoBtn}
-                        retakeLabel={t.retakeBtn}
-                        changeLabel={t.changePhotoBtn}
-                        confirmed={idPhotos.dlFront}
-                        onConfirm={file => setIdPhotos(p => ({ ...p, dlFront: file }))}
-                        capture="environment"
-                        color={INDIGO}
-                        lang={lang}
-                      />
-                      <PhotoCaptureCard
-                        guideType="document"
-                        title={t.dlBack}
-                        instructions={t.dlBackInstructions}
-                        captureLabel={t.dlBackCaptureLabel}
-                        reviewQuestion={t.reviewQuestion}
-                        usePhotoLabel={t.usePhotoBtn}
-                        retakeLabel={t.retakeBtn}
-                        changeLabel={t.changePhotoBtn}
-                        confirmed={idPhotos.dlBack}
-                        onConfirm={file => setIdPhotos(p => ({ ...p, dlBack: file }))}
-                        capture="environment"
-                        color={INDIGO}
-                        lang={lang}
-                      />
-                    </div>
-                  </div>
+                  <FormSection
+                    title={t.dlLabel}
+                    sub={lang === 'es' ? 'Fotografía el frente y reverso de tu licencia de conducir o ID estatal.' : 'Photograph the front and back of your driver\'s license or state ID.'}
+                    accent={idPhotos.dlFront && idPhotos.dlBack ? 'rgba(99,102,241,0.06)' : undefined}
+                    accentBorder={idPhotos.dlFront && idPhotos.dlBack ? 'rgba(99,102,241,0.20)' : undefined}
+                  >
+                    <PhotoCaptureCard
+                      guideType="document" title={t.dlFront}
+                      instructions={t.dlFrontInstructions} captureLabel={t.dlFrontCaptureLabel}
+                      reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
+                      retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
+                      confirmed={idPhotos.dlFront}
+                      onConfirm={file => setIdPhotos(p => ({ ...p, dlFront: file }))}
+                      capture="environment" color={INDIGO} lang={lang}
+                    />
+                    <PhotoCaptureCard
+                      guideType="document" title={t.dlBack}
+                      instructions={t.dlBackInstructions} captureLabel={t.dlBackCaptureLabel}
+                      reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
+                      retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
+                      confirmed={idPhotos.dlBack}
+                      onConfirm={file => setIdPhotos(p => ({ ...p, dlBack: file }))}
+                      capture="environment" color={INDIGO} lang={lang}
+                    />
+                  </FormSection>
 
                   {/* Tarjeta seguro */}
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.10em' }}>
-                      {t.insCardLabel}
-                    </div>
+                  <FormSection
+                    title={t.insCardLabel}
+                    sub={lang === 'es' ? 'Fotografía tu tarjeta de seguro de automóvil (frente).' : 'Photograph your auto insurance card (front).'}
+                    accent={idPhotos.insuranceCard ? 'rgba(16,185,129,0.06)' : undefined}
+                    accentBorder={idPhotos.insuranceCard ? 'rgba(16,185,129,0.20)' : undefined}
+                  >
                     <PhotoCaptureCard
-                      guideType="document"
-                      title={t.insCardLabel}
-                      instructions={t.insCardInstructions}
-                      captureLabel={t.insCardCaptureLabel}
-                      reviewQuestion={t.reviewQuestion}
-                      usePhotoLabel={t.usePhotoBtn}
-                      retakeLabel={t.retakeBtn}
-                      changeLabel={t.changePhotoBtn}
+                      guideType="document" title={t.insCardLabel}
+                      instructions={t.insCardInstructions} captureLabel={t.insCardCaptureLabel}
+                      reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
+                      retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
                       confirmed={idPhotos.insuranceCard}
                       onConfirm={file => setIdPhotos(p => ({ ...p, insuranceCard: file }))}
-                      capture="environment"
-                      color={EMERALD}
-                      lang={lang}
+                      capture="environment" color={EMERALD} lang={lang}
                     />
-                  </div>
+                  </FormSection>
 
                   <div style={{
-                    padding: '10px 14px', borderRadius: 8,
+                    display: 'flex', gap: 10, alignItems: 'flex-start',
+                    padding: '12px 14px', borderRadius: 10,
                     background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.20)',
-                    fontSize: 12, color: 'rgba(245,158,11,0.80)',
-                  }}>{t.phase1Note}</div>
+                  }}>
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+                    <span style={{ fontSize: 12, color: 'rgba(245,158,11,0.85)', lineHeight: 1.55 }}>{t.phase1Note}</span>
+                  </div>
                 </div>
 
                 {/* "Lo tomo en la clínica" fallback */}
                 <div style={{
-                  marginTop: 20, padding: '14px 16px', borderRadius: 12,
-                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                  marginTop: 16, padding: '14px 16px', borderRadius: 12,
+                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
                 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginBottom: 10, fontWeight: 600 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', marginBottom: 10, fontWeight: 600 }}>
                     {t.cantPhotoTitle}
                   </div>
                   <button type="button" onClick={() => setTakeAtClinic(true)} style={{
                     width: '100%', padding: '12px 16px', borderRadius: 10,
-                    background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.30)',
+                    background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.28)',
                     color: '#A5B4FC', fontSize: 13, fontWeight: 600,
                     cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
                   }}>{t.takeAtClinicBtn}</button>

@@ -169,23 +169,21 @@ export default async function DonePage({ params }: Props) {
           </a>
         </div>
 
-        {/* Sifo farewell */}
+        {/* Cifo farewell */}
         <div style={{
-          display: 'flex', gap: 10, alignItems: 'flex-start',
+          display: 'flex', gap: 12, alignItems: 'center',
           marginTop: 24,
-          padding: '12px 14px', borderRadius: 10,
-          background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.18)',
+          padding: '12px 14px', borderRadius: 12,
+          background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.20)',
         }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-            background: 'linear-gradient(135deg,#6366F1,#8B5CF6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
-          }}>✨</div>
+          <img src="/cifo-1.gif" alt="Cifo" style={{
+            width: 56, height: 56, flexShrink: 0, objectFit: 'contain', borderRadius: 8,
+          }} />
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#A5B4FC', marginBottom: 2, letterSpacing: '0.08em' }}>
-              SIFO
+            <div style={{ fontSize: 10, fontWeight: 800, color: '#A5B4FC', marginBottom: 3, letterSpacing: '0.10em' }}>
+              CIFO
             </div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.70)', lineHeight: 1.55 }}>
               ¡Excelente trabajo, {firstName}! Estás en buenas manos. Si tienes dudas antes de tu primera visita, no dudes en llamarnos. 💙
             </div>
           </div>

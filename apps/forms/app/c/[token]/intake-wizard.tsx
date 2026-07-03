@@ -86,7 +86,7 @@ const STRINGS = {
     ],
     startBtn: 'Comenzar →',
     secureNote: '🔒 Tu información es confidencial y segura',
-    sifoHint1: '¡Hola! Soy Sifo ✨ Te guío en cada paso. Solo toma ~5 minutos.',
+    sifoHint1: '¡Hola! Soy Cifo ✨ Te guío en cada paso. Solo toma ~5 minutos.',
     // Step 2
     personalTitle: 'Datos personales',
     personalSub: 'Verifica que tu información esté correcta.',
@@ -302,7 +302,7 @@ const STRINGS = {
     ],
     startBtn: 'Get started →',
     secureNote: '🔒 Your information is confidential and secure',
-    sifoHint1: "Hi! I'm Sifo ✨ I'll guide you through each step. It only takes ~5 minutes.",
+    sifoHint1: "Hi! I'm Cifo ✨ I'll guide you through each step. It only takes ~5 minutes.",
     // Step 2
     personalTitle: 'Personal information',
     personalSub: 'Please verify that your information is correct.',
@@ -2156,23 +2156,24 @@ function YesNoField({
   );
 }
 
+let _cifoHintIndex = 0;
 function SifoHint({ hint }: { hint: string }) {
+  const gif = (++_cifoHintIndex % 2 === 0) ? '/cifo-2.gif' : '/cifo-1.gif';
   return (
     <div style={{
-      display: 'flex', gap: 10, alignItems: 'flex-start',
-      marginTop: 20, marginBottom: 4, padding: '10px 14px', borderRadius: 10,
-      background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.18)',
+      display: 'flex', gap: 12, alignItems: 'center',
+      marginTop: 20, marginBottom: 4, padding: '10px 14px', borderRadius: 12,
+      background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.20)',
     }}>
-      <div style={{
-        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-        background: 'linear-gradient(135deg,#6366F1,#8B5CF6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
-      }}>✨</div>
+      <img src={gif} alt="Cifo" style={{
+        width: 52, height: 52, flexShrink: 0, objectFit: 'contain',
+        borderRadius: 8,
+      }} />
       <div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#A5B4FC', marginBottom: 2, letterSpacing: '0.08em' }}>
-          SIFO
+        <div style={{ fontSize: 10, fontWeight: 800, color: '#A5B4FC', marginBottom: 3, letterSpacing: '0.10em' }}>
+          CIFO
         </div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}>{hint}</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.70)', lineHeight: 1.55 }}>{hint}</div>
       </div>
     </div>
   );

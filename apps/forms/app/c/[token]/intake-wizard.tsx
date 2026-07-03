@@ -59,7 +59,7 @@ interface Props {
 }
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
-type AccidentType = 'AUTO' | 'MOTORCYCLE' | 'PEDESTRIAN' | 'WORKPLACE' | 'OTHER';
+type CaseType = 'MVA' | 'GM';
 type HealthStatus = 'excellent' | 'good' | 'fair' | 'poor';
 type Lang = 'es' | 'en';
 
@@ -152,11 +152,12 @@ const STRINGS = {
     maritalStatusLabel: 'Estado civil',
     sifoHint3: 'Esta información nos ayuda a preparar tu expediente médico completo.',
     // Step 4
-    accidentTitle: 'Tu accidente',
-    accidentSub: 'Necesitamos los detalles del accidente para procesar tu caso.',
+    accidentTitle: 'Motivo de consulta',
+    accidentSub: 'Cuéntenos detalladamente por qué nos visita hoy.',
     accidentDate: 'Fecha del accidente',
-    accidentTypeLabel: 'Tipo de accidente',
-    accidentTypesMap: { AUTO: '🚗 Auto', MOTORCYCLE: '🏍️ Moto', PEDESTRIAN: '🚶 Peatón', WORKPLACE: '🏭 Trabajo', OTHER: '❓ Otro' } as Record<AccidentType, string>,
+    accidentTypeLabel: 'Tipo de caso',
+    caseTypesMap: { MVA: 'MVA (Accidente de vehículo a motor)', GM: 'GM (Medicina general)' } as Record<CaseType, string>,
+    caseTypesSub: { MVA: 'Motor vehicle accident', GM: 'General medical visit' } as Record<CaseType, string>,
     accidentLocation: 'Ubicación del accidente',
     accidentLocationPh: 'Ej: I-15 y 500 S, Provo, UT',
     accidentDesc: 'Describe brevemente cómo ocurrió',
@@ -409,11 +410,12 @@ const STRINGS = {
     maritalStatusLabel: 'Marital status',
     sifoHint3: 'This information helps us prepare your complete medical record.',
     // Step 4
-    accidentTitle: 'Your accident',
-    accidentSub: 'We need the accident details to process your case.',
+    accidentTitle: 'Reason for visit',
+    accidentSub: 'Tell us in detail why you are visiting us today.',
     accidentDate: 'Accident date',
-    accidentTypeLabel: 'Accident type',
-    accidentTypesMap: { AUTO: '🚗 Auto', MOTORCYCLE: '🏍️ Motorcycle', PEDESTRIAN: '🚶 Pedestrian', WORKPLACE: '🏭 Workplace', OTHER: '❓ Other' } as Record<AccidentType, string>,
+    accidentTypeLabel: 'Case type',
+    caseTypesMap: { MVA: 'MVA (Motor vehicle accident)', GM: 'GM (General medical visit)' } as Record<CaseType, string>,
+    caseTypesSub: { MVA: 'Motor vehicle accident', GM: 'General medical visit' } as Record<CaseType, string>,
     accidentLocation: 'Accident location',
     accidentLocationPh: 'E.g., I-15 & 500 S, Provo, UT',
     accidentDesc: 'Briefly describe what happened',
@@ -778,8 +780,7 @@ export function IntakeWizard({
 
   const [acc, setAcc] = useState({
     date:         isoToInput(accident.date),
-    type:         (accident.type ?? 'AUTO') as AccidentType,
-    location:     accident.location ?? '',
+    type:         (accident.type ?? 'MVA') as CaseType,
     notes:        accident.notes ?? '',
     lawFirm:      '',
     attorney:     '',
@@ -997,7 +998,7 @@ export function IntakeWizard({
         guardianAddress:   personal.guardianAddress,
         guardianRelation:  personal.guardianRelation,
       }};
-      if (stepNum === 5) body = { accident: { date: acc.date, type: acc.type, location: acc.location, notes: acc.notes, lawFirm: acc.lawFirm, attorney: acc.attorney, chiropractor: acc.chiropractor } };
+      if (stepNum === 5) body = { accident: { date: acc.date, type: acc.type, notes: acc.notes, lawFirm: acc.lawFirm, attorney: acc.attorney, chiropractor: acc.chiropractor } };
       if (stepNum === 6) body = { insurance };
       if (stepNum === 7) body = { health };
       if (stepNum === 9) {
@@ -1656,43 +1657,50 @@ export function IntakeWizard({
           </div>
         )}
 
-        {/* ══════ STEP 5 · Tu accidente (B.6) ══════════════════════════════════ */}
+        {/* ══════ STEP 5 · Motivo de consulta (B.6) ════════════════════════════ */}
         {step === 5 && (
           <div style={{ paddingTop: 28 }}>
-            <StepHeader icon="🚗" title={t.accidentTitle} sub={t.accidentSub} />
+            <StepHeader icon="📋" title={t.accidentTitle} sub={t.accidentSub} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+              {/* Tipo de caso — MVA vs GM */}
+              <FormSection title={t.accidentTypeLabel} sub={lang === 'es' ? 'Cuéntenos detalladamente por qué nos visita hoy.' : 'Tell us in detail why you are visiting us today.'}>
+                <Field label={t.accidentTypeLabel}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {(['MVA', 'GM'] as CaseType[]).map(key => (
+                      <label key={key} onClick={() => setAcc(a => ({ ...a, type: key }))} style={{
+                        display: 'flex', flexDirection: 'column', gap: 4,
+                        padding: '14px 16px', borderRadius: 10, cursor: 'pointer',
+                        border: acc.type === key ? '1px solid rgba(6,182,212,0.60)' : '1px solid rgba(255,255,255,0.10)',
+                        background: acc.type === key ? 'rgba(6,182,212,0.08)' : 'rgba(255,255,255,0.03)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{
+                            width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                            border: acc.type === key ? '5px solid rgba(6,182,212,0.90)' : '2px solid rgba(255,255,255,0.25)',
+                          }} />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: acc.type === key ? CYAN : 'rgba(255,255,255,0.80)' }}>
+                            {t.caseTypesMap[key]}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 24 }}>
+                          {t.caseTypesSub[key]}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </Field>
+              </FormSection>
+
+              {/* Detalles */}
               <FormSection
-                title={lang === 'es' ? 'Detalles del accidente' : 'Accident details'}
-                sub={lang === 'es' ? 'Cuéntanos qué ocurrió para poder documentarlo correctamente.' : 'Tell us what happened so we can document it correctly.'}
+                title={lang === 'es' ? 'Fecha del accidente' : 'Accident date'}
+                sub={lang === 'es' ? 'Describa correctamente la razón de su visita a la clínica.' : 'Describe correctly the reason for your visit to the clinic.'}
               >
                 <Field label={t.accidentDate}>
                   <input type="date" lang="en-US" style={S.input} value={acc.date}
                     onChange={e => setAcc(a => ({ ...a, date: e.target.value }))} />
-                </Field>
-
-                <Field label={t.accidentTypeLabel}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-                    {(Object.keys(t.accidentTypesMap) as AccidentType[]).map(key => (
-                      <button key={key} type="button" onClick={() => setAcc(a => ({ ...a, type: key }))} style={{
-                        padding: '10px 6px', borderRadius: 8,
-                        border: acc.type === key ? '1px solid rgba(6,182,212,0.60)' : '1px solid rgba(255,255,255,0.10)',
-                        background: acc.type === key ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.03)',
-                        color: acc.type === key ? CYAN : 'rgba(255,255,255,0.60)',
-                        fontSize: 12, fontWeight: acc.type === key ? 700 : 400,
-                        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
-                      }}>
-                        {t.accidentTypesMap[key]}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-
-                <Field label={t.accidentLocation}>
-                  <input type="text" style={S.input} value={acc.location}
-                    placeholder={t.accidentLocationPh}
-                    onChange={e => setAcc(a => ({ ...a, location: e.target.value }))} />
                 </Field>
 
                 <Field label={t.accidentDesc}>

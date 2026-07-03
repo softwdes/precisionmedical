@@ -111,7 +111,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         guardianAddress?: string; guardianRelation?: string;
       };
       accident?:  {
-        date?: string; type?: string; location?: string; notes?: string;
+        date?: string; type?: string; notes?: string;
         lawFirm?: string; attorney?: string; chiropractor?: string;
       };
       insurance?: { carrier?: string; policyNumber?: string };
@@ -213,8 +213,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     const a = data.accident;
     const caseData: Record<string, unknown> = {};
     if (a.date)     caseData.accidentDate     = parseDateLocal(a.date);
-    if (a.type)     caseData.accidentType     = a.type;
-    if (a.location) caseData.accidentLocation = a.location;
+    if (a.type)     caseData.accidentType     = a.type;   // 'MVA' | 'GM'
     if (a.notes)    caseData.accidentNotes    = a.notes;
 
     if (a.lawFirm !== undefined || a.attorney !== undefined || a.chiropractor !== undefined) {

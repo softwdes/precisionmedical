@@ -1112,6 +1112,13 @@ export function IntakeWizard({
     if (canvas) setConsentSigDataUrl(canvas.toDataURL('image/png'));
   }, []);
 
+  // Termina el trazo aunque el mouse salga del canvas de consentimiento
+  useEffect(() => {
+    const up = () => { isDrawingConsent.current = false; };
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, []);
+
   const clearConsentCanvas = useCallback(() => {
     const canvas = consentCanvasRef.current;
     if (!canvas) return;
@@ -1254,8 +1261,16 @@ export function IntakeWizard({
     }
     if (fromStep === 9) {
       const checked = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
-      if (checked < 5 || !hasConsentSig) {
+      if (checked < 5 && !hasConsentSig) {
         setConsentsError(t.consentsValidation);
+        return;
+      }
+      if (checked < 5) {
+        setConsentsError(lang === 'es' ? 'Por favor acepta los 5 documentos para continuar.' : 'Please accept all 5 documents to continue.');
+        return;
+      }
+      if (!hasConsentSig) {
+        setConsentsError(lang === 'es' ? 'Por favor dibuja tu firma en la sección "Política Financiera" para continuar.' : 'Please draw your signature in the Financial Policy section to continue.');
         return;
       }
       setConsentsError('');
@@ -2697,7 +2712,7 @@ export function IntakeWizard({
                         background: hasConsentSig ? 'rgba(6,182,212,0.04)' : 'rgba(255,255,255,0.02)',
                       }}>
                         <canvas ref={consentCanvasRef} style={{ display: 'block', cursor: 'crosshair' }}
-                          onMouseDown={startConsentDraw} onMouseMove={drawConsent} onMouseUp={endConsentDraw} onMouseLeave={endConsentDraw}
+                          onMouseDown={startConsentDraw} onMouseMove={drawConsent} onMouseUp={endConsentDraw}
                           onTouchStart={startConsentDraw} onTouchMove={drawConsent} onTouchEnd={endConsentDraw}
                         />
                         {!hasConsentSig && (
@@ -2717,7 +2732,7 @@ export function IntakeWizard({
                         )}
                         {!hasConsentSig && (
                           <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>
-                            {t.c4SignPh}
+                            {lang === 'es' ? '← Dibuja arriba para firmar' : '← Draw above to sign'}
                           </span>
                         )}
                       </div>

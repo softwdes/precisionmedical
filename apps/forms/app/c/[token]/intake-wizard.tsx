@@ -3293,7 +3293,7 @@ function PhotoCaptureCard({
             {lang === 'es' ? 'Foto guardada ✓' : 'Photo saved ✓'}
           </div>
         </div>
-        <button type="button" onClick={openCamera} style={{
+        <button type="button" onClick={() => setStage('guide')} style={{
           padding: '6px 10px', borderRadius: 8, flexShrink: 0,
           background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
           color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 600,

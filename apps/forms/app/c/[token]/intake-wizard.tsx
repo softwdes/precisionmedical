@@ -1130,11 +1130,14 @@ export function IntakeWizard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ step: stepNum, data: body }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({})) as { detail?: string };
+        throw new Error(errJson.detail ? `${res.status}: ${errJson.detail}` : `HTTP ${res.status}`);
+      }
       setLastSaved(new Date());
       return true;
-    } catch {
-      setSaveError(STRINGS[lang].saveError);
+    } catch (err) {
+      setSaveError(`${STRINGS[lang].saveError} (${err instanceof Error ? err.message : 'unknown'})`);
       return false;
     } finally {
       setSaving(false);

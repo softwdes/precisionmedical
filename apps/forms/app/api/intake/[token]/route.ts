@@ -135,6 +135,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const { step, data } = body;
 
+  try {
+
   if (step === 2 && data.personal) {
     const p = data.personal;
     const patientData: Record<string, unknown> = {};
@@ -302,4 +304,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   }).catch(() => undefined);
 
   return NextResponse.json({ ok: true });
+
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[intake PATCH] step=${step} error:`, msg);
+    return NextResponse.json({ error: 'SAVE_FAILED', detail: msg }, { status: 500 });
+  }
 }

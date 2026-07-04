@@ -1206,7 +1206,10 @@ export function IntakeWizard({
   }, [step]);
 
   // ── Photo upload ─────────────────────────────────────────────────────────────
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+
   const handlePhotoConfirm = (type: keyof typeof photoUrls) => async (file: File) => {
+    setPhotoUploadError(null);
     // Optimistic preview: show blob URL immediately
     const blobUrl = URL.createObjectURL(file);
     setPhotoUrls(p => ({ ...p, [type]: blobUrl }));
@@ -1219,13 +1222,18 @@ export function IntakeWizard({
       if (res.ok) {
         const { url } = await res.json() as { url: string };
         setPhotoUrls(p => {
-          // Only replace if still showing our blob (user didn't re-upload)
           if (p[type] === blobUrl) URL.revokeObjectURL(blobUrl);
           return p[type] === blobUrl ? { ...p, [type]: url } : p;
         });
+      } else {
+        setPhotoUploadError(lang === 'es'
+          ? '⚠️ No se pudo guardar la foto. Se mostrará en esta sesión pero no se guardará al reabrir.'
+          : '⚠️ Could not save photo. It will show this session but not persist on reopen.');
       }
     } catch {
-      // Keep blob URL for this session — won't persist on reload but photo shows
+      setPhotoUploadError(lang === 'es'
+        ? '⚠️ Error de conexión al subir la foto. Solo visible en esta sesión.'
+        : '⚠️ Connection error uploading photo. Only visible this session.');
     }
   };
 
@@ -2482,6 +2490,16 @@ export function IntakeWizard({
                       capture="environment" color={INDIGO} lang={lang}
                     />
                   </FormSection>
+
+                  {photoUploadError && (
+                    <div style={{
+                      display: 'flex', gap: 10, alignItems: 'flex-start',
+                      padding: '12px 14px', borderRadius: 10,
+                      background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.25)',
+                    }}>
+                      <span style={{ fontSize: 12, color: 'rgba(239,68,68,0.90)', lineHeight: 1.55 }}>{photoUploadError}</span>
+                    </div>
+                  )}
 
                   <div style={{
                     display: 'flex', gap: 10, alignItems: 'flex-start',

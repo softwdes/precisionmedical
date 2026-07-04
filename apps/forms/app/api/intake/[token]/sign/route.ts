@@ -32,11 +32,6 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     return NextResponse.json({ error: 'TOKEN_NOT_FOUND' }, { status: 404 });
   }
 
-  // Idempotent — if already completed, return success
-  if (rec.intakeFormCompletedAt) {
-    return NextResponse.json({ ok: true, alreadyCompleted: true, caseCode: rec.caseCode });
-  }
-
   const body = await req.json() as {
     signerName:   string;
     signerEmail?: string | null;

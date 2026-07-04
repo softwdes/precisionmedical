@@ -940,6 +940,7 @@ export function IntakeWizard({
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const isDrawing     = useRef(false);
   const [hasSig, setHasSig]             = useState(false);
+  const [lienSigDataUrl, setLienSigDataUrl] = useState('');
   const [sigTimestamp, setSigTimestamp] = useState<Date | null>(null);
   const [signerName, setSignerName]     = useState(`${patient.firstName} ${patient.lastName}`);
   const [signerEmail, setSignerEmail]   = useState(patient.email ?? '');
@@ -985,13 +986,25 @@ export function IntakeWizard({
     setHasSig(true);
   }, []);
 
-  const endDraw = useCallback(() => { isDrawing.current = false; }, []);
+  const endDraw = useCallback(() => {
+    isDrawing.current = false;
+    const canvas = canvasRef.current;
+    if (canvas) setLienSigDataUrl(canvas.toDataURL('image/png'));
+  }, []);
+
+  // Termina el trazo aunque el mouse salga del canvas
+  useEffect(() => {
+    const up = () => { isDrawing.current = false; };
+    window.addEventListener('mouseup', up);
+    return () => window.removeEventListener('mouseup', up);
+  }, []);
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
     setHasSig(false);
+    setLienSigDataUrl('');
     setSigTimestamp(null);
   }, []);
 
@@ -1068,16 +1081,25 @@ export function IntakeWizard({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const restore = (c: HTMLCanvasElement) => {
+      if (lienSigDataUrl) {
+        const img = new Image();
+        img.onload = () => c.getContext('2d')?.drawImage(img, 0, 0);
+        img.src = lienSigDataUrl;
+      }
+    };
     const resize = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
       canvas.width  = parent.clientWidth;
       canvas.height = 160;
+      restore(canvas);
     };
     resize();
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   // ── API helpers ─────────────────────────────────────────────────────────────
   const saveStepData = async (stepNum: number): Promise<boolean> => {
@@ -1194,7 +1216,7 @@ export function IntakeWizard({
     setSaveError('');
     try {
       const canvas  = canvasRef.current;
-      const svgData = canvas ? canvas.toDataURL('image/png') : '';
+      const svgData = lienSigDataUrl || (canvas ? canvas.toDataURL('image/png') : '');
       const res = await fetch(`/api/intake/${token}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2702,7 +2724,7 @@ export function IntakeWizard({
                 background: 'rgba(16,185,129,0.04)', overflow: 'hidden', touchAction: 'none',
               }}>
                 <canvas ref={canvasRef} style={{ display: 'block', cursor: 'crosshair' }}
-                  onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
+                  onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw}
                   onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw}
                 />
                 {!hasSig && (

@@ -115,9 +115,10 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     insurances:   Array.isArray(cd.insurances) ? cd.insurances : [],
     health:       rec.intakeSubmission ?? null,
     consents: {
-      hipaa:             cd.hipaa ?? null,
-      assignedParties:   cd.assignedParties ?? null,
-      authRecords:       cd.authRecords ?? null,
+      hipaa:                  cd.hipaa ?? null,
+      assignedParties:        cd.assignedParties ?? null,
+      authRecords:            cd.authRecords ?? null,
+      financialSignatureSvg:  (cd.financialSignatureSvg as string) ?? null,
       authVoicemail:     cd.authVoicemail ?? null,
       authNotifications: cd.authNotifications ?? null,
       treatment:         cd.treatment ?? null,

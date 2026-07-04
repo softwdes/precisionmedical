@@ -146,15 +146,16 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
       savedInsurances={(Array.isArray(cd.insurances) ? cd.insurances : []) as object[]}
       savedHealth={rec.intakeSubmission ?? null}
       savedConsents={{
-        hipaa:             (cd.hipaa as boolean) ?? null,
-        assignedParties:   (cd.assignedParties as boolean) ?? null,
-        authRecords:       (cd.authRecords as boolean) ?? null,
-        authVoicemail:     (cd.authVoicemail as boolean) ?? null,
-        authNotifications: (cd.authNotifications as boolean) ?? null,
-        treatment:         (cd.treatment as boolean) ?? null,
-        financial:         (cd.financial as boolean) ?? null,
-        medicalHistory:    (cd.medicalHistory as boolean) ?? null,
-        authorizedPersons: (Array.isArray(cd.authorizedPersons) ? cd.authorizedPersons : []) as { name: string; relation: string }[],
+        hipaa:                 (cd.hipaa as boolean) ?? null,
+        assignedParties:       (cd.assignedParties as boolean) ?? null,
+        authRecords:           (cd.authRecords as boolean) ?? null,
+        authVoicemail:         (cd.authVoicemail as boolean) ?? null,
+        authNotifications:     (cd.authNotifications as boolean) ?? null,
+        treatment:             (cd.treatment as boolean) ?? null,
+        financial:             (cd.financial as boolean) ?? null,
+        medicalHistory:        (cd.medicalHistory as boolean) ?? null,
+        financialSignatureSvg: (cd.financialSignatureSvg as string) ?? null,
+        authorizedPersons:     (Array.isArray(cd.authorizedPersons) ? cd.authorizedPersons : []) as { name: string; relation: string }[],
       }}
       savedExtra={{
         referredBy:        (cd.referredBy as string) ?? null,

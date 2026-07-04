@@ -92,6 +92,7 @@ interface SavedConsents {
   treatment: boolean | null;
   financial: boolean | null;
   medicalHistory: boolean | null;
+  financialSignatureSvg: string | null;
   authorizedPersons: { name: string; relation: string }[];
 }
 
@@ -1007,8 +1008,8 @@ export function IntakeWizard({
   });
   const consentCanvasRef  = useRef<HTMLCanvasElement>(null);
   const isDrawingConsent  = useRef(false);
-  const [hasConsentSig, setHasConsentSig] = useState(false);
-  const [consentSigDataUrl, setConsentSigDataUrl] = useState('');
+  const [consentSigDataUrl, setConsentSigDataUrl] = useState(savedConsents.financialSignatureSvg ?? '');
+  const [hasConsentSig, setHasConsentSig] = useState(!!(savedConsents.financialSignatureSvg));
   const [consentsError, setConsentsError] = useState('');
 
   // Step 8 — Lien signature

@@ -778,6 +778,13 @@ function isValidNANP(raw: string): boolean {
   return area >= '2' && exchange >= '2';
 }
 
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 3) return digits.length ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function IntakeWizard({
@@ -1411,7 +1418,7 @@ export function IntakeWizard({
                   <Field label={t.phone}>
                     <input type="tel" style={{ ...S.input, ...(phoneError ? { borderColor: '#F43F5E' } : {}) }}
                       value={personal.phone} placeholder="(801) 555-0100"
-                      onChange={e => { setPersonal(p => ({ ...p, phone: e.target.value })); setPhoneError(''); }} />
+                      onChange={e => { setPersonal(p => ({ ...p, phone: formatPhone(e.target.value) })); setPhoneError(''); }} />
                     {phoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{phoneError}</span>}
                   </Field>
                 </div>
@@ -1421,7 +1428,7 @@ export function IntakeWizard({
                   <Field label={t.cellPhone}>
                     <input type="tel" style={{ ...S.input, ...(cellPhoneError ? { borderColor: '#F43F5E' } : {}) }}
                       value={personal.cellPhone} placeholder={t.cellPhonePh}
-                      onChange={e => { setPersonal(p => ({ ...p, cellPhone: e.target.value })); setCellPhoneError(''); }} />
+                      onChange={e => { setPersonal(p => ({ ...p, cellPhone: formatPhone(e.target.value) })); setCellPhoneError(''); }} />
                     {cellPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{cellPhoneError}</span>}
                   </Field>
                   <Field label={t.email}>
@@ -1639,7 +1646,7 @@ export function IntakeWizard({
                   <Field label={t.emergencyPhone}>
                     <input type="tel" style={{ ...S.input, ...(emerPhoneError ? { borderColor: '#F43F5E' } : {}) }}
                       value={personal.emergencyContactPhone} placeholder={t.emergencyPhonePh}
-                      onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: e.target.value })); setEmerPhoneError(''); }} />
+                      onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: formatPhone(e.target.value) })); setEmerPhoneError(''); }} />
                     {emerPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emerPhoneError}</span>}
                   </Field>
                   <Field label={t.emergencyRelation}>
@@ -1659,7 +1666,7 @@ export function IntakeWizard({
                   <Field label={t.emergency2Phone}>
                     <input type="tel" style={{ ...S.input, ...(emer2PhoneError ? { borderColor: '#F43F5E' } : {}) }}
                       value={personal.emergency2Phone} placeholder={t.emergency2PhonePh}
-                      onChange={e => { setPersonal(p => ({ ...p, emergency2Phone: e.target.value })); setEmer2PhoneError(''); }} />
+                      onChange={e => { setPersonal(p => ({ ...p, emergency2Phone: formatPhone(e.target.value) })); setEmer2PhoneError(''); }} />
                     {emer2PhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emer2PhoneError}</span>}
                   </Field>
                   <Field label={t.emergency2Relation}>
@@ -1740,7 +1747,7 @@ export function IntakeWizard({
                   <Field label={t.guardianPhone}>
                     <input type="tel" style={S.input} value={personal.guardianPhone}
                       placeholder="(801) 555-0100"
-                      onChange={e => setPersonal(p => ({ ...p, guardianPhone: e.target.value }))} />
+                      onChange={e => setPersonal(p => ({ ...p, guardianPhone: formatPhone(e.target.value) }))} />
                   </Field>
                 </div>
 
@@ -1748,7 +1755,7 @@ export function IntakeWizard({
                 <Field label={t.guardianCellPhone}>
                   <input type="tel" style={S.input} value={personal.guardianCellPhone}
                     placeholder="(801) 555-0100"
-                    onChange={e => setPersonal(p => ({ ...p, guardianCellPhone: e.target.value }))} />
+                    onChange={e => setPersonal(p => ({ ...p, guardianCellPhone: formatPhone(e.target.value) }))} />
                 </Field>
 
                 {/* Dirección */}

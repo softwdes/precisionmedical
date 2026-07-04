@@ -145,7 +145,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     where: { portalToken: token },
     select: {
       id: true, caseCode: true,
-      patient: { select: { id: true } },
+      patient: { select: { id: true, email: true } },
     },
   });
 
@@ -208,7 +208,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (p.lastName)               patientData.lastName                   = p.lastName;
     if (p.phone)                  patientData.phone                      = p.phone;
     if (p.cellPhone !== undefined) patientData.phone2                    = p.cellPhone || null;
-    if (p.email !== undefined)    patientData.email                      = p.email;
+    // Solo actualiza email si realmente cambió (evita conflicto unique en mismo paciente)
+    if (p.email !== undefined && p.email !== rec.patient.email) patientData.email = p.email || null;
     if (p.dateOfBirth)            patientData.dateOfBirth                = parseDateLocal(p.dateOfBirth);
     if (p.preferredLanguage)      patientData.preferredLanguage          = p.preferredLanguage;
     if (p.addressLine1 !== undefined) patientData.addressLine1           = p.addressLine1 || null;
@@ -372,6 +373,14 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[intake PATCH] step=${step} error:`, msg);
+    // Unique constraint (P2002) — email/phone duplicado
+    if (msg.includes('P2002') || msg.includes('Unique constraint')) {
+      const field = msg.includes('email') ? 'correo electrónico' : msg.includes('phone') ? 'teléfono' : 'campo';
+      return NextResponse.json(
+        { error: 'DUPLICATE_FIELD', detail: `El ${field} ingresado ya está registrado en otro paciente. Por favor usa uno diferente.` },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: 'SAVE_FAILED', detail: msg }, { status: 500 });
   }
 }

@@ -332,6 +332,8 @@ const STRINGS = {
     usePhotoBtn: '✅ Usar esta foto',
     retakeBtn: '🔄 Retomar',
     changePhotoBtn: 'Cambiar',
+    cameraBtn: 'Cámara',
+    fileBtn: 'Archivo',
     selfieCaptureLabel: '📷 Abrir cámara — selfie',
     dlFrontCaptureLabel: '📷 Abrir cámara',
     insCardCaptureLabel: '📷 Abrir cámara',
@@ -623,6 +625,8 @@ const STRINGS = {
     usePhotoBtn: '✅ Use this photo',
     retakeBtn: '🔄 Retake',
     changePhotoBtn: 'Change',
+    cameraBtn: 'Camera',
+    fileBtn: 'File',
     selfieCaptureLabel: '📷 Open camera — selfie',
     dlFrontCaptureLabel: '📷 Open camera',
     insCardCaptureLabel: '📷 Open camera',
@@ -2377,6 +2381,7 @@ export function IntakeWizard({
                     <PhotoCaptureCard
                       guideType="face" title={t.selfieLabel}
                       instructions={t.selfieInstructions} captureLabel={t.selfieCaptureLabel}
+                      cameraLabel={t.cameraBtn} fileLabel={t.fileBtn}
                       reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
                       retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
                       confirmed={idPhotos.selfie}
@@ -2395,6 +2400,7 @@ export function IntakeWizard({
                     <PhotoCaptureCard
                       guideType="document" title={t.insCardFront}
                       instructions={t.insCardInstructions} captureLabel={t.insCardCaptureLabel}
+                      cameraLabel={t.cameraBtn} fileLabel={t.fileBtn}
                       reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
                       retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
                       confirmed={idPhotos.insuranceCardFront}
@@ -2404,6 +2410,7 @@ export function IntakeWizard({
                     <PhotoCaptureCard
                       guideType="document" title={t.insCardBack}
                       instructions={t.insCardBackInstructions} captureLabel={t.insCardBackCaptureLabel}
+                      cameraLabel={t.cameraBtn} fileLabel={t.fileBtn}
                       reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
                       retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
                       confirmed={idPhotos.insuranceCardBack}
@@ -2422,6 +2429,7 @@ export function IntakeWizard({
                     <PhotoCaptureCard
                       guideType="document" title={t.dlFront}
                       instructions={t.dlFrontInstructions} captureLabel={t.dlFrontCaptureLabel}
+                      cameraLabel={t.cameraBtn} fileLabel={t.fileBtn}
                       reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
                       retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
                       confirmed={idPhotos.dlFront}
@@ -3061,13 +3069,15 @@ function NavButtons({
  */
 function PhotoCaptureCard({
   guideType, title, instructions,
-  captureLabel, reviewQuestion, usePhotoLabel, retakeLabel, changeLabel,
+  captureLabel, cameraLabel, fileLabel, reviewQuestion, usePhotoLabel, retakeLabel, changeLabel,
   confirmed, onConfirm, capture, color, lang,
 }: {
   guideType: 'face' | 'document';
   title: string;
   instructions: string[];
   captureLabel: string;
+  cameraLabel: string;
+  fileLabel: string;
   reviewQuestion: string;
   usePhotoLabel: string;
   retakeLabel: string;
@@ -3079,6 +3089,7 @@ function PhotoCaptureCard({
   lang: Lang;
 }) {
   const fallbackId = useId();
+  const filePickerId = useId();
   const [stage, setStage]                   = useState<'guide' | 'camera' | 'review' | 'confirmed'>('guide');
   const [pending, setPending]               = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
@@ -3148,6 +3159,15 @@ function PhotoCaptureCard({
     />
   );
 
+  // File picker input — no capture attribute, opens gallery/files
+  const filePickerInput = (
+    <input
+      id={filePickerId} type="file" accept="image/*"
+      style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden', zIndex: -1 }}
+      onChange={handleFallbackFile}
+    />
+  );
+
   // ── STAGE: In-app camera ───────────────────────────────────────────────────
   if (stage === 'camera') {
     return (
@@ -3178,6 +3198,7 @@ function PhotoCaptureCard({
         borderRadius: 12, padding: 16,
       }}>
         {fallbackInput}
+        {filePickerInput}
         <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', textAlign: 'center', marginBottom: 12 }}>
           {reviewQuestion}
         </div>
@@ -3219,6 +3240,7 @@ function PhotoCaptureCard({
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
         {fallbackInput}
+        {filePickerInput}
         <img src={confirmedUrl} alt="" style={{
           width: 56, height: 56,
           borderRadius: guideType === 'face' ? '50%' : 8,
@@ -3298,18 +3320,32 @@ function PhotoCaptureCard({
         </div>
       )}
 
-      {/* Capture trigger — opens in-app camera (or fallback to file picker) */}
-      <button type="button" onClick={openCamera} style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        width: '100%', padding: '13px 16px', borderRadius: 10,
-        background: `rgba(${colorRgb},0.10)`,
-        border: `1px solid rgba(${colorRgb},0.38)`,
-        color: color, fontSize: 14, fontWeight: 700,
-        cursor: 'pointer', fontFamily: 'inherit',
-        boxSizing: 'border-box',
-      }}>
-        {captureLabel}
-      </button>
+      {/* Capture buttons row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {/* Cámara */}
+        <button type="button" onClick={openCamera} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          padding: '12px 10px', borderRadius: 10,
+          background: `rgba(${colorRgb},0.10)`,
+          border: `1px solid rgba(${colorRgb},0.38)`,
+          color: color, fontSize: 13, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+          📷 {cameraLabel}
+        </button>
+        {/* Archivo */}
+        <label htmlFor={filePickerId} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          padding: '12px 10px', borderRadius: 10,
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          color: 'rgba(255,255,255,0.70)', fontSize: 13, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+          📁 {fileLabel}
+        </label>
+      </div>
+      {filePickerInput}
     </div>
   );
 }

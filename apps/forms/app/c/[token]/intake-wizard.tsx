@@ -111,6 +111,13 @@ interface SavedLienSignature {
   signerEmail: string | null;
 }
 
+interface SavedPhotos {
+  selfie?: string;
+  insuranceCardFront?: string;
+  insuranceCardBack?: string;
+  dlFront?: string;
+}
+
 interface Props {
   token: string;
   caseId: string;
@@ -122,6 +129,7 @@ interface Props {
   savedConsents: SavedConsents;
   savedExtra: SavedExtra;
   savedLienSignature: SavedLienSignature | null;
+  savedPhotos: SavedPhotos | null;
   casePolicyNumber: string | null;
   nextAppointment: NextAppointment | null;
 }
@@ -862,7 +870,7 @@ function formatPhone(raw: string): string {
 export function IntakeWizard({
   token, caseId: _caseId, caseCode, patient, accident,
   savedInsurances, savedHealth, savedConsents, savedExtra, savedLienSignature,
-  casePolicyNumber, nextAppointment,
+  savedPhotos, casePolicyNumber, nextAppointment,
 }: Props) {
   const router = useRouter();
 
@@ -978,12 +986,17 @@ export function IntakeWizard({
     previousInjuries:    savedHealth?.previousInjuries ?? '',
   });
 
-  // Step 6 — ID photos (Phase 1A: collected, not uploaded pre-HIPAA BAA)
-  const [idPhotos, setIdPhotos] = useState({
-    selfie:             null as File | null,
-    insuranceCardFront: null as File | null,
-    insuranceCardBack:  null as File | null,
-    dlFront:            null as File | null,
+  // Step 6 — ID photos: URLs in Supabase Storage (persists across sessions)
+  const [photoUrls, setPhotoUrls] = useState<{
+    selfie:             string | null;
+    insuranceCardFront: string | null;
+    insuranceCardBack:  string | null;
+    dlFront:            string | null;
+  }>({
+    selfie:             savedPhotos?.selfie             ?? null,
+    insuranceCardFront: savedPhotos?.insuranceCardFront ?? null,
+    insuranceCardBack:  savedPhotos?.insuranceCardBack  ?? null,
+    dlFront:            savedPhotos?.dlFront            ?? null,
   });
   const [takeAtClinic, setTakeAtClinic] = useState(false);
 
@@ -1191,6 +1204,30 @@ export function IntakeWizard({
     return () => window.removeEventListener('resize', resize);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
+
+  // ── Photo upload ─────────────────────────────────────────────────────────────
+  const handlePhotoConfirm = (type: keyof typeof photoUrls) => async (file: File) => {
+    // Optimistic preview: show blob URL immediately
+    const blobUrl = URL.createObjectURL(file);
+    setPhotoUrls(p => ({ ...p, [type]: blobUrl }));
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('photoType', type);
+    try {
+      const res = await fetch(`/api/intake/${token}/upload-photo`, { method: 'POST', body: fd });
+      if (res.ok) {
+        const { url } = await res.json() as { url: string };
+        setPhotoUrls(p => {
+          // Only replace if still showing our blob (user didn't re-upload)
+          if (p[type] === blobUrl) URL.revokeObjectURL(blobUrl);
+          return p[type] === blobUrl ? { ...p, [type]: url } : p;
+        });
+      }
+    } catch {
+      // Keep blob URL for this session — won't persist on reload but photo shows
+    }
+  };
 
   // ── API helpers ─────────────────────────────────────────────────────────────
   const saveStepData = async (stepNum: number): Promise<boolean> => {
@@ -2383,8 +2420,8 @@ export function IntakeWizard({
                   <FormSection
                     title={t.selfieLabel}
                     sub={lang === 'es' ? 'Necesitamos verificar tu identidad con una foto reciente.' : 'We need to verify your identity with a recent photo.'}
-                    accent={idPhotos.selfie ? 'rgba(6,182,212,0.06)' : undefined}
-                    accentBorder={idPhotos.selfie ? 'rgba(6,182,212,0.20)' : undefined}
+                    accent={photoUrls.selfie ? 'rgba(6,182,212,0.06)' : undefined}
+                    accentBorder={photoUrls.selfie ? 'rgba(6,182,212,0.20)' : undefined}
                   >
                     <PhotoCaptureCard
                       guideType="face" title={t.selfieLabel}
@@ -2392,8 +2429,8 @@ export function IntakeWizard({
                       cameraLabel={t.cameraBtn} fileLabel={t.fileBtn}
                       reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
                       retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
-                      confirmed={idPhotos.selfie}
-                      onConfirm={file => setIdPhotos(p => ({ ...p, selfie: file }))}
+                      confirmedSrc={photoUrls.selfie}
+                      onConfirm={handlePhotoConfirm('selfie')}
                       capture="user" color={CYAN} lang={lang}
                     />
                   </FormSection>
@@ -2402,8 +2439,8 @@ export function IntakeWizard({
                   <FormSection
                     title={t.insCardLabel}
                     sub={lang === 'es' ? 'Fotografía el frente y reverso de tu tarjeta de seguro.' : 'Photograph the front and back of your insurance card.'}
-                    accent={idPhotos.insuranceCardFront && idPhotos.insuranceCardBack ? 'rgba(16,185,129,0.06)' : undefined}
-                    accentBorder={idPhotos.insuranceCardFront && idPhotos.insuranceCardBack ? 'rgba(16,185,129,0.20)' : undefined}
+                    accent={photoUrls.insuranceCardFront && photoUrls.insuranceCardBack ? 'rgba(16,185,129,0.06)' : undefined}
+                    accentBorder={photoUrls.insuranceCardFront && photoUrls.insuranceCardBack ? 'rgba(16,185,129,0.20)' : undefined}
                   >
                     <PhotoCaptureCard
                       guideType="document" title={t.insCardFront}
@@ -2411,8 +2448,8 @@ export function IntakeWizard({
                       cameraLabel={t.cameraBtn} fileLabel={t.fileBtn}
                       reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
                       retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
-                      confirmed={idPhotos.insuranceCardFront}
-                      onConfirm={file => setIdPhotos(p => ({ ...p, insuranceCardFront: file }))}
+                      confirmedSrc={photoUrls.insuranceCardFront}
+                      onConfirm={handlePhotoConfirm('insuranceCardFront')}
                       capture="environment" color={EMERALD} lang={lang}
                     />
                     <PhotoCaptureCard
@@ -2421,8 +2458,8 @@ export function IntakeWizard({
                       cameraLabel={t.cameraBtn} fileLabel={t.fileBtn}
                       reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
                       retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
-                      confirmed={idPhotos.insuranceCardBack}
-                      onConfirm={file => setIdPhotos(p => ({ ...p, insuranceCardBack: file }))}
+                      confirmedSrc={photoUrls.insuranceCardBack}
+                      onConfirm={handlePhotoConfirm('insuranceCardBack')}
                       capture="environment" color={EMERALD} lang={lang}
                     />
                   </FormSection>
@@ -2431,8 +2468,8 @@ export function IntakeWizard({
                   <FormSection
                     title={t.dlLabel}
                     sub={lang === 'es' ? 'Fotografía el frente de tu licencia de conducir o ID estatal.' : 'Photograph the front of your driver\'s license or state ID.'}
-                    accent={idPhotos.dlFront ? 'rgba(99,102,241,0.06)' : undefined}
-                    accentBorder={idPhotos.dlFront ? 'rgba(99,102,241,0.20)' : undefined}
+                    accent={photoUrls.dlFront ? 'rgba(99,102,241,0.06)' : undefined}
+                    accentBorder={photoUrls.dlFront ? 'rgba(99,102,241,0.20)' : undefined}
                   >
                     <PhotoCaptureCard
                       guideType="document" title={t.dlFront}
@@ -2440,8 +2477,8 @@ export function IntakeWizard({
                       cameraLabel={t.cameraBtn} fileLabel={t.fileBtn}
                       reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
                       retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
-                      confirmed={idPhotos.dlFront}
-                      onConfirm={file => setIdPhotos(p => ({ ...p, dlFront: file }))}
+                      confirmedSrc={photoUrls.dlFront}
+                      onConfirm={handlePhotoConfirm('dlFront')}
                       capture="environment" color={INDIGO} lang={lang}
                     />
                   </FormSection>
@@ -3078,7 +3115,7 @@ function NavButtons({
 function PhotoCaptureCard({
   guideType, title, instructions,
   captureLabel, cameraLabel, fileLabel, reviewQuestion, usePhotoLabel, retakeLabel, changeLabel,
-  confirmed, onConfirm, capture, color, lang,
+  confirmedSrc, onConfirm, capture, color, lang,
 }: {
   guideType: 'face' | 'document';
   title: string;
@@ -3090,7 +3127,7 @@ function PhotoCaptureCard({
   usePhotoLabel: string;
   retakeLabel: string;
   changeLabel: string;
-  confirmed: File | null;
+  confirmedSrc: string | null;
   onConfirm: (f: File) => void;
   capture: 'user' | 'environment';
   color: string;
@@ -3098,17 +3135,12 @@ function PhotoCaptureCard({
 }) {
   const fallbackId = useId();
   const filePickerId = useId();
-  const [stage, setStage]                   = useState<'guide' | 'camera' | 'review' | 'confirmed'>('guide');
+  // Start confirmed if a saved URL is provided (reopen with existing photo)
+  const [stage, setStage]                   = useState<'guide' | 'camera' | 'review' | 'confirmed'>(
+    () => confirmedSrc ? 'confirmed' : 'guide'
+  );
   const [pending, setPending]               = useState<File | null>(null);
   const [pendingPreview, setPendingPreview] = useState<string | null>(null);
-  const [confirmedUrl, setConfirmedUrl]     = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!confirmed) { setConfirmedUrl(null); return; }
-    const url = URL.createObjectURL(confirmed);
-    setConfirmedUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [confirmed]);
 
   // Called from InAppCamera (getUserMedia snapshot) or fallback file input
   const receiveFile = (file: File) => {
@@ -3239,7 +3271,7 @@ function PhotoCaptureCard({
   }
 
   // ── STATE 3: Confirmed photo ───────────────────────────────────────────────
-  if ((stage === 'confirmed' || confirmed) && confirmedUrl && confirmed) {
+  if (stage === 'confirmed' && confirmedSrc) {
     return (
       <div style={{
         position: 'relative',
@@ -3249,7 +3281,7 @@ function PhotoCaptureCard({
       }}>
         {fallbackInput}
         {filePickerInput}
-        <img src={confirmedUrl} alt="" style={{
+        <img src={confirmedSrc} alt="" style={{
           width: 56, height: 56,
           borderRadius: guideType === 'face' ? '50%' : 8,
           objectFit: 'cover', flexShrink: 0,
@@ -3257,10 +3289,9 @@ function PhotoCaptureCard({
         }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: EMERALD }}>✓ {title}</div>
-          <div style={{
-            fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>{confirmed.name}</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+            {lang === 'es' ? 'Foto guardada ✓' : 'Photo saved ✓'}
+          </div>
         </div>
         <button type="button" onClick={openCamera} style={{
           padding: '6px 10px', borderRadius: 8, flexShrink: 0,

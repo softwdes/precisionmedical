@@ -171,6 +171,10 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
         guardianCellPhone: (cd.guardianCellPhone as string) ?? null,
         guardianAddress:   (cd.guardianAddress as string) ?? null,
       }}
+      savedPhotos={(cd.photos ?? null) as {
+        selfie?: string; insuranceCardFront?: string;
+        insuranceCardBack?: string; dlFront?: string;
+      } | null}
       savedLienSignature={rec.lienSignatures[0] ? {
         signatureSvg: rec.lienSignatures[0].signatureSvg ?? null,
         signerName:   rec.lienSignatures[0].signerName,

@@ -146,6 +146,10 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       signerName:   lienSig.signerName,
       signerEmail:  lienSig.signerEmail ?? null,
     } : null,
+    photos: (cd.photos ?? null) as {
+      selfie?: string; insuranceCardFront?: string;
+      insuranceCardBack?: string; dlFront?: string;
+    } | null,
   });
 }
 

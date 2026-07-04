@@ -105,6 +105,12 @@ interface SavedExtra {
   guardianAddress: string | null;
 }
 
+interface SavedLienSignature {
+  signatureSvg: string | null;
+  signerName: string;
+  signerEmail: string | null;
+}
+
 interface Props {
   token: string;
   caseId: string;
@@ -115,6 +121,7 @@ interface Props {
   savedHealth: SavedHealth | null;
   savedConsents: SavedConsents;
   savedExtra: SavedExtra;
+  savedLienSignature: SavedLienSignature | null;
   casePolicyNumber: string | null;
   nextAppointment: NextAppointment | null;
 }
@@ -854,7 +861,7 @@ function formatPhone(raw: string): string {
 
 export function IntakeWizard({
   token, caseId: _caseId, caseCode, patient, accident,
-  savedInsurances, savedHealth, savedConsents, savedExtra,
+  savedInsurances, savedHealth, savedConsents, savedExtra, savedLienSignature,
   casePolicyNumber, nextAppointment,
 }: Props) {
   const router = useRouter();
@@ -1016,12 +1023,12 @@ export function IntakeWizard({
   const [showFullLegal, setShowFullLegal] = useState(false);
   const canvasRef     = useRef<HTMLCanvasElement>(null);
   const isDrawing     = useRef(false);
-  const [hasSig, setHasSig]             = useState(false);
-  const [lienSigDataUrl, setLienSigDataUrl] = useState('');
+  const [lienSigDataUrl, setLienSigDataUrl] = useState(savedLienSignature?.signatureSvg ?? '');
+  const [hasSig, setHasSig]             = useState(!!(savedLienSignature?.signatureSvg));
   const [sigTimestamp, setSigTimestamp] = useState<Date | null>(null);
-  const [signerName, setSignerName]     = useState(`${patient.firstName} ${patient.lastName}`);
-  const [signerEmail, setSignerEmail]   = useState(patient.email ?? '');
-  const [agreed, setAgreed]             = useState(false);
+  const [signerName, setSignerName]     = useState(savedLienSignature?.signerName ?? `${patient.firstName} ${patient.lastName}`);
+  const [signerEmail, setSignerEmail]   = useState(savedLienSignature?.signerEmail ?? patient.email ?? '');
+  const [agreed, setAgreed]             = useState(!!(savedLienSignature?.signatureSvg));
   const [submitting, setSubmitting]     = useState(false);
 
   // ── Canvas drawing ──────────────────────────────────────────────────────────

@@ -55,6 +55,12 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
           hasPreviousInjuries: true, previousInjuries: true,
         },
       },
+      lienSignatures: {
+        where: { signerType: 'PATIENT' },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { signatureSvg: true, signerName: true, signerEmail: true },
+      },
     },
   });
 
@@ -63,6 +69,7 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   }
 
   const cd = (rec.consentsData ?? {}) as Record<string, unknown>;
+  const lienSig = rec.lienSignatures[0] ?? null;
 
   return NextResponse.json({
     caseId:    rec.id,
@@ -134,6 +141,11 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       guardianCellPhone: (cd.guardianCellPhone as string) ?? null,
       guardianAddress:   (cd.guardianAddress as string) ?? null,
     },
+    lienSignature: lienSig ? {
+      signatureSvg: lienSig.signatureSvg ?? null,
+      signerName:   lienSig.signerName,
+      signerEmail:  lienSig.signerEmail ?? null,
+    } : null,
   });
 }
 

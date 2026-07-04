@@ -79,6 +79,12 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
           hasPreviousInjuries: true, previousInjuries: true,
         },
       },
+      lienSignatures: {
+        where: { signerType: 'PATIENT' },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { signatureSvg: true, signerName: true, signerEmail: true },
+      },
     },
   });
 
@@ -165,6 +171,11 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
         guardianCellPhone: (cd.guardianCellPhone as string) ?? null,
         guardianAddress:   (cd.guardianAddress as string) ?? null,
       }}
+      savedLienSignature={rec.lienSignatures[0] ? {
+        signatureSvg: rec.lienSignatures[0].signatureSvg ?? null,
+        signerName:   rec.lienSignatures[0].signerName,
+        signerEmail:  rec.lienSignatures[0].signerEmail ?? null,
+      } : null}
       casePolicyNumber={rec.primaryPolicyNumber ?? null}
       nextAppointment={
         appt

@@ -31,7 +31,29 @@ interface PatientData {
   lastName: string;
   dateOfBirth: string | null;
   phone: string | null;
+  cellPhone: string | null;
   email: string | null;
+  addressLine1: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+  addressZip: string | null;
+  referralSource: string | null;
+  communicationPreference: string | null;
+  preferredPharmacy: string | null;
+  employer: string | null;
+  race: string | null;
+  ethnicity: string | null;
+  sex: string | null;
+  maritalStatus: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  emergencyContactRelation: string | null;
+  emergency2Name: string | null;
+  emergency2Phone: string | null;
+  emergency2Relation: string | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  guardianRelation: string | null;
   insuranceCarrier: string | null;
   policyNumber: string | null;
 }
@@ -41,11 +63,45 @@ interface AccidentData {
   type: string | null;
   notes: string | null;
   location: string | null;
+  lawFirm: string | null;
+  attorney: string | null;
+  chiropractor: string | null;
 }
 
 interface NextAppointment {
   scheduledFor: string;
   providerName: string | null;
+}
+
+interface SavedHealth {
+  healthStatus: string | null;
+  hasMedications: boolean;
+  medications: string | null;
+  hasAllergies: boolean;
+  allergies: string | null;
+  hasPreviousInjuries: boolean;
+  previousInjuries: string | null;
+}
+
+interface SavedConsents {
+  hipaa: boolean | null;
+  assignedParties: boolean | null;
+  authRecords: boolean | null;
+  authVoicemail: boolean | null;
+  authNotifications: boolean | null;
+  treatment: boolean | null;
+  financial: boolean | null;
+  medicalHistory: boolean | null;
+  authorizedPersons: { name: string; relation: string }[];
+}
+
+interface SavedExtra {
+  referredBy: string | null;
+  guardianLastName: string | null;
+  guardianEmail: string | null;
+  guardianDOB: string | null;
+  guardianCellPhone: string | null;
+  guardianAddress: string | null;
 }
 
 interface Props {
@@ -54,6 +110,10 @@ interface Props {
   caseCode: string;
   patient: PatientData;
   accident: AccidentData;
+  savedInsurances: object[];
+  savedHealth: SavedHealth | null;
+  savedConsents: SavedConsents;
+  savedExtra: SavedExtra;
   casePolicyNumber: string | null;
   nextAppointment: NextAppointment | null;
 }
@@ -788,7 +848,9 @@ function formatPhone(raw: string): string {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function IntakeWizard({
-  token, caseId: _caseId, caseCode, patient, accident, casePolicyNumber, nextAppointment,
+  token, caseId: _caseId, caseCode, patient, accident,
+  savedInsurances, savedHealth, savedConsents, savedExtra,
+  casePolicyNumber, nextAppointment,
 }: Props) {
   const router = useRouter();
 
@@ -801,41 +863,41 @@ export function IntakeWizard({
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [personal, setPersonal] = useState({
-    firstName:            patient.firstName,
-    lastName:             patient.lastName,
-    dateOfBirth:          isoToInput(patient.dateOfBirth),
-    phone:                patient.phone ?? '',
-    cellPhone:            '',
-    email:                patient.email ?? '',
-    addressLine1:         '',
-    addressCity:          '',
-    addressState:         '',
-    addressZip:           '',
+    firstName:                patient.firstName,
+    lastName:                 patient.lastName,
+    dateOfBirth:              isoToInput(patient.dateOfBirth),
+    phone:                    patient.phone ?? '',
+    cellPhone:                patient.cellPhone ?? '',
+    email:                    patient.email ?? '',
+    addressLine1:             patient.addressLine1 ?? '',
+    addressCity:              patient.addressCity ?? '',
+    addressState:             patient.addressState ?? '',
+    addressZip:               patient.addressZip ?? '',
     // Información clínica Step 2
-    referralSource:         '',
-    communicationPreference: '',
+    referralSource:           patient.referralSource ?? '',
+    communicationPreference:  patient.communicationPreference ?? '',
     // Información clínica Step 3
-    referredBy:           '',
-    preferredPharmacy:    '',
-    employer:             '',
-    race:                 '',
-    ethnicity:            '',
-    sex:                  '',
-    maritalStatus:        '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    emergencyContactRelation: '',
-    emergency2Name:       '',
-    emergency2Phone:      '',
-    emergency2Relation:   '',
-    guardianName:         '',
-    guardianLastName:     '',
-    guardianEmail:        '',
-    guardianDOB:          '',
-    guardianPhone:        '',
-    guardianCellPhone:    '',
-    guardianAddress:      '',
-    guardianRelation:     '',
+    referredBy:               savedExtra.referredBy ?? '',
+    preferredPharmacy:        patient.preferredPharmacy ?? '',
+    employer:                 patient.employer ?? '',
+    race:                     patient.race ?? '',
+    ethnicity:                patient.ethnicity ?? '',
+    sex:                      patient.sex ?? '',
+    maritalStatus:            patient.maritalStatus ?? '',
+    emergencyContactName:     patient.emergencyContactName ?? '',
+    emergencyContactPhone:    patient.emergencyContactPhone ?? '',
+    emergencyContactRelation: patient.emergencyContactRelation ?? '',
+    emergency2Name:           patient.emergency2Name ?? '',
+    emergency2Phone:          patient.emergency2Phone ?? '',
+    emergency2Relation:       patient.emergency2Relation ?? '',
+    guardianName:             patient.guardianName ?? '',
+    guardianLastName:         savedExtra.guardianLastName ?? '',
+    guardianEmail:            savedExtra.guardianEmail ?? '',
+    guardianDOB:              savedExtra.guardianDOB ?? '',
+    guardianPhone:            patient.guardianPhone ?? '',
+    guardianCellPhone:        savedExtra.guardianCellPhone ?? '',
+    guardianAddress:          savedExtra.guardianAddress ?? '',
+    guardianRelation:         patient.guardianRelation ?? '',
   });
 
   // Calcular si es menor de edad (DOB del paciente, parseo local)
@@ -855,9 +917,9 @@ export function IntakeWizard({
     date:         isoToInput(accident.date),
     type:         (['MVA', 'GM'].includes(accident.type ?? '') ? accident.type as CaseType : 'MVA'),
     notes:        accident.notes ?? '',
-    lawFirm:      '',
-    attorney:     '',
-    chiropractor: '',
+    lawFirm:      accident.lawFirm ?? '',
+    attorney:     accident.attorney ?? '',
+    chiropractor: accident.chiropractor ?? '',
   });
 
   // Step 6 — multiple insurances
@@ -885,7 +947,9 @@ export function IntakeWizard({
     adjusterPhone2: '', adjusterEmail: '', comments: '',
     fullLien: false, lienComments: '',
   });
-  const [insurances, setInsurances] = useState<InsuranceEntry[]>([]);
+  const [insurances, setInsurances] = useState<InsuranceEntry[]>(
+    (savedInsurances as InsuranceEntry[]).map(i => ({ ...blankInsurance(i.insType ?? 'MEDICAL'), ...i }))
+  );
   const [showInsModal, setShowInsModal] = useState(false);
   const [insModalEntry, setInsModalEntry] = useState<InsuranceEntry>(blankInsurance('AUTO'));
   const openInsModal = (insType: InsuranceType) => { setInsModalEntry(blankInsurance(insType)); setShowInsModal(true); };
@@ -893,13 +957,13 @@ export function IntakeWizard({
   const removeIns = (id: string) => setInsurances(prev => prev.filter(i => i.id !== id));
 
   const [health, setHealth] = useState({
-    healthStatus:        'good' as HealthStatus,
-    hasMedications:      false,
-    medications:         '',
-    hasAllergies:        false,
-    allergies:           '',
-    hasPreviousInjuries: false,
-    previousInjuries:    '',
+    healthStatus:        (savedHealth?.healthStatus ?? 'good') as HealthStatus,
+    hasMedications:      savedHealth?.hasMedications ?? false,
+    medications:         savedHealth?.medications ?? '',
+    hasAllergies:        savedHealth?.hasAllergies ?? false,
+    allergies:           savedHealth?.allergies ?? '',
+    hasPreviousInjuries: savedHealth?.hasPreviousInjuries ?? false,
+    previousInjuries:    savedHealth?.previousInjuries ?? '',
   });
 
   // Step 6 — ID photos (Phase 1A: collected, not uploaded pre-HIPAA BAA)
@@ -919,15 +983,15 @@ export function IntakeWizard({
 
   // Step 7 — Consentimientos
   const [consents, setConsents] = useState({
-    hipaa:             false,
-    assignedParties:   false,
-    authRecords:       false,
-    authVoicemail:     false,
-    authNotifications: false,
-    treatment:         false,
-    financial:         false,
-    medicalHistory:    false,
-    authorizedPersons: [] as { name: string; relation: string }[],
+    hipaa:             savedConsents.hipaa ?? false,
+    assignedParties:   savedConsents.assignedParties ?? false,
+    authRecords:       savedConsents.authRecords ?? false,
+    authVoicemail:     savedConsents.authVoicemail ?? false,
+    authNotifications: savedConsents.authNotifications ?? false,
+    treatment:         savedConsents.treatment ?? false,
+    financial:         savedConsents.financial ?? false,
+    medicalHistory:    savedConsents.medicalHistory ?? false,
+    authorizedPersons: savedConsents.authorizedPersons,
   });
   const consentCanvasRef  = useRef<HTMLCanvasElement>(null);
   const isDrawingConsent  = useRef(false);

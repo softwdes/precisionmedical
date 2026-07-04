@@ -27,6 +27,7 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
       accidentLocation: true,
       primaryPolicyNumber: true,
       intakeFormCompletedAt: true,
+      consentsData: true,
       // Próxima cita para mostrar en el landing (B.5)
       appointments: {
         where: { scheduledFor: { gte: new Date() } },
@@ -44,9 +45,38 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
           lastName: true,
           dateOfBirth: true,
           phone: true,
+          phone2: true,
           email: true,
+          addressLine1: true,
+          addressCity: true,
+          addressState: true,
+          addressZip: true,
+          referralSource: true,
+          communicationPreference: true,
+          preferredPharmacy: true,
+          employer: true,
+          race: true,
+          ethnicity: true,
+          sex: true,
+          maritalStatus: true,
+          emergencyContactName: true,
+          emergencyContactPhone: true,
+          emergencyContactRelation: true,
+          emergency2Name: true,
+          emergency2Phone: true,
+          emergency2Relation: true,
+          guardianName: true,
+          guardianPhone: true,
+          guardianRelation: true,
           insuranceCarrier: true,
           policyNumber: true,
+        },
+      },
+      intakeSubmission: {
+        select: {
+          healthStatus: true, hasMedications: true, medications: true,
+          hasAllergies: true, allergies: true,
+          hasPreviousInjuries: true, previousInjuries: true,
         },
       },
     },
@@ -65,6 +95,7 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
   }
 
   const appt = rec.appointments[0] ?? null;
+  const cd = (rec.consentsData ?? {}) as Record<string, unknown>;
 
   return (
     <IntakeWizard
@@ -72,20 +103,66 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
       caseId={rec.id}
       caseCode={rec.caseCode}
       patient={{
-        id:             rec.patient.id,
-        firstName:      rec.patient.firstName,
-        lastName:       rec.patient.lastName,
-        dateOfBirth:    rec.patient.dateOfBirth?.toISOString() ?? null,
-        phone:          rec.patient.phone ?? null,
-        email:          rec.patient.email ?? null,
-        insuranceCarrier: rec.patient.insuranceCarrier ?? null,
-        policyNumber:   rec.patient.policyNumber ?? null,
+        id:                       rec.patient.id,
+        firstName:                rec.patient.firstName,
+        lastName:                 rec.patient.lastName,
+        dateOfBirth:              rec.patient.dateOfBirth?.toISOString() ?? null,
+        phone:                    rec.patient.phone ?? null,
+        cellPhone:                rec.patient.phone2 ?? null,
+        email:                    rec.patient.email ?? null,
+        addressLine1:             rec.patient.addressLine1 ?? null,
+        addressCity:              rec.patient.addressCity ?? null,
+        addressState:             rec.patient.addressState ?? null,
+        addressZip:               rec.patient.addressZip ?? null,
+        referralSource:           rec.patient.referralSource ?? null,
+        communicationPreference:  rec.patient.communicationPreference ?? null,
+        preferredPharmacy:        rec.patient.preferredPharmacy ?? null,
+        employer:                 rec.patient.employer ?? null,
+        race:                     rec.patient.race ?? null,
+        ethnicity:                rec.patient.ethnicity ?? null,
+        sex:                      rec.patient.sex ?? null,
+        maritalStatus:            rec.patient.maritalStatus ?? null,
+        emergencyContactName:     rec.patient.emergencyContactName ?? null,
+        emergencyContactPhone:    rec.patient.emergencyContactPhone ?? null,
+        emergencyContactRelation: rec.patient.emergencyContactRelation ?? null,
+        emergency2Name:           rec.patient.emergency2Name ?? null,
+        emergency2Phone:          rec.patient.emergency2Phone ?? null,
+        emergency2Relation:       rec.patient.emergency2Relation ?? null,
+        guardianName:             rec.patient.guardianName ?? null,
+        guardianPhone:            rec.patient.guardianPhone ?? null,
+        guardianRelation:         rec.patient.guardianRelation ?? null,
+        insuranceCarrier:         rec.patient.insuranceCarrier ?? null,
+        policyNumber:             rec.patient.policyNumber ?? null,
       }}
       accident={{
-        date:     rec.accidentDate?.toISOString() ?? null,
-        type:     rec.accidentType as string | null,
-        notes:    rec.accidentNotes ?? null,
-        location: rec.accidentLocation ?? null,
+        date:         rec.accidentDate?.toISOString() ?? null,
+        type:         rec.accidentType as string | null,
+        notes:        rec.accidentNotes ?? null,
+        location:     rec.accidentLocation ?? null,
+        lawFirm:      (cd.lawFirm as string) ?? null,
+        attorney:     (cd.attorney as string) ?? null,
+        chiropractor: (cd.chiropractor as string) ?? null,
+      }}
+      savedInsurances={(Array.isArray(cd.insurances) ? cd.insurances : []) as object[]}
+      savedHealth={rec.intakeSubmission ?? null}
+      savedConsents={{
+        hipaa:             (cd.hipaa as boolean) ?? null,
+        assignedParties:   (cd.assignedParties as boolean) ?? null,
+        authRecords:       (cd.authRecords as boolean) ?? null,
+        authVoicemail:     (cd.authVoicemail as boolean) ?? null,
+        authNotifications: (cd.authNotifications as boolean) ?? null,
+        treatment:         (cd.treatment as boolean) ?? null,
+        financial:         (cd.financial as boolean) ?? null,
+        medicalHistory:    (cd.medicalHistory as boolean) ?? null,
+        authorizedPersons: (Array.isArray(cd.authorizedPersons) ? cd.authorizedPersons : []) as { name: string; relation: string }[],
+      }}
+      savedExtra={{
+        referredBy:        (cd.referredBy as string) ?? null,
+        guardianLastName:  (cd.guardianLastName as string) ?? null,
+        guardianEmail:     (cd.guardianEmail as string) ?? null,
+        guardianDOB:       (cd.guardianDOB as string) ?? null,
+        guardianCellPhone: (cd.guardianCellPhone as string) ?? null,
+        guardianAddress:   (cd.guardianAddress as string) ?? null,
       }}
       casePolicyNumber={rec.primaryPolicyNumber ?? null}
       nextAppointment={

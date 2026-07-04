@@ -975,6 +975,14 @@ export function IntakeWizard({
   });
   const [takeAtClinic, setTakeAtClinic] = useState(false);
 
+  // ── Law firms (Step 4) ──────────────────────────────────────────────────────
+  const [lawFirms, setLawFirms] = useState<{ id: string; firmName: string }[]>([]);
+  useEffect(() => {
+    fetch('/api/law-firms').then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setLawFirms(data);
+    }).catch(() => undefined);
+  }, []);
+
   // ── Validation errors ───────────────────────────────────────────────────────
   const [phoneError, setPhoneError]             = useState('');
   const [cellPhoneError, setCellPhoneError]     = useState('');
@@ -1936,9 +1944,17 @@ export function IntakeWizard({
                     accentBorder="rgba(99,102,241,0.20)"
                   >
                     <Field label={t.lawFirm}>
-                      <input type="text" style={S.input} value={acc.lawFirm}
-                        placeholder={t.lawFirmPh}
-                        onChange={e => setAcc(a => ({ ...a, lawFirm: e.target.value }))} />
+                      <select
+                        style={{ ...S.input, appearance: 'none', WebkitAppearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath d=\'M1 1l5 5 5-5\' stroke=\'%2306B6D4\' stroke-width=\'1.5\' fill=\'none\' stroke-linecap=\'round\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 32 }}
+                        value={acc.lawFirm}
+                        onChange={e => setAcc(a => ({ ...a, lawFirm: e.target.value }))}
+                      >
+                        <option value="">{t.lawFirmPh}</option>
+                        {lawFirms.map(f => (
+                          <option key={f.id} value={f.firmName ?? ''}>{f.firmName}</option>
+                        ))}
+                        <option value="__other__">{lang === 'es' ? 'Otra / No está en la lista' : 'Other / Not in list'}</option>
+                      </select>
                     </Field>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                       <Field label={t.attorneyRep}>

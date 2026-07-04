@@ -2566,42 +2566,12 @@ export function IntakeWizard({
                   checkLabel: t.c3Check,
                 })}
 
-                {/* Doc 4 — Financiero + Firma */}
+                {/* Doc 4 — Financiero */}
                 {card({
                   active: consents.financial,
                   onToggle: () => setConsents(c => ({ ...c, financial: !c.financial })),
                   fullBody: t.c4FullBody,
                   checkLabel: t.c4Check,
-                  children: (<>
-                  <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 8 }}>
-                      {t.c4SignLabel}
-                    </div>
-                    <div style={{
-                      position: 'relative', borderRadius: 8, overflow: 'hidden', touchAction: 'none',
-                      border: hasConsentSig ? '1px solid rgba(6,182,212,0.40)' : '1px solid rgba(255,255,255,0.10)',
-                      background: hasConsentSig ? 'rgba(6,182,212,0.04)' : 'rgba(255,255,255,0.02)',
-                    }}>
-                      <canvas ref={consentCanvasRef} style={{ display: 'block', cursor: 'crosshair' }}
-                        onMouseDown={startConsentDraw} onMouseMove={drawConsent} onMouseUp={endConsentDraw} onMouseLeave={endConsentDraw}
-                        onTouchStart={startConsentDraw} onTouchMove={drawConsent} onTouchEnd={endConsentDraw}
-                      />
-                      {!hasConsentSig && (
-                        <div style={{
-                          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          pointerEvents: 'none', fontSize: 13, color: 'rgba(255,255,255,0.20)',
-                        }}>{t.c4SignPh}</div>
-                      )}
-                    </div>
-                    {hasConsentSig && (
-                      <button type="button" onClick={clearConsentCanvas} style={{
-                        marginTop: 6, padding: '4px 12px', borderRadius: 6,
-                        background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
-                        color: 'rgba(255,255,255,0.45)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
-                      }}>{t.c4ClearBtn}</button>
-                    )}
-                  </div>
-                  </>),
                 })}
 
                 {/* Doc 5 — Historial médico */}
@@ -2612,6 +2582,50 @@ export function IntakeWizard({
                   checkLabel: t.c5Check,
                 })}
 
+              </div>
+
+              {/* ── Firma obligatoria ── */}
+              <div style={{
+                marginTop: 20,
+                padding: '16px',
+                borderRadius: 12,
+                background: hasConsentSig ? 'rgba(6,182,212,0.06)' : 'rgba(245,158,11,0.06)',
+                border: hasConsentSig ? '1px solid rgba(6,182,212,0.30)' : '1px solid rgba(245,158,11,0.35)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: 16 }}>{hasConsentSig ? '✅' : '✍️'}</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: hasConsentSig ? CYAN : '#F59E0B' }}>
+                      {t.c4SignLabel}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', marginTop: 1 }}>
+                      {lang === 'es' ? 'Requerida para continuar' : 'Required to continue'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{
+                  position: 'relative', borderRadius: 8, overflow: 'hidden', touchAction: 'none',
+                  border: hasConsentSig ? '1px solid rgba(6,182,212,0.40)' : '1px solid rgba(245,158,11,0.25)',
+                  background: hasConsentSig ? 'rgba(6,182,212,0.04)' : 'rgba(255,255,255,0.02)',
+                }}>
+                  <canvas ref={consentCanvasRef} style={{ display: 'block', cursor: 'crosshair' }}
+                    onMouseDown={startConsentDraw} onMouseMove={drawConsent} onMouseUp={endConsentDraw} onMouseLeave={endConsentDraw}
+                    onTouchStart={startConsentDraw} onTouchMove={drawConsent} onTouchEnd={endConsentDraw}
+                  />
+                  {!hasConsentSig && (
+                    <div style={{
+                      position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      pointerEvents: 'none', fontSize: 13, color: 'rgba(255,255,255,0.25)',
+                    }}>{t.c4SignPh}</div>
+                  )}
+                </div>
+                {hasConsentSig && (
+                  <button type="button" onClick={clearConsentCanvas} style={{
+                    marginTop: 8, padding: '4px 12px', borderRadius: 6,
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
+                    color: 'rgba(255,255,255,0.45)', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+                  }}>{t.c4ClearBtn}</button>
+                )}
               </div>
 
               {consentsError && <SaveError error={consentsError} />}

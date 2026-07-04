@@ -925,6 +925,7 @@ export function IntakeWizard({
   const consentCanvasRef  = useRef<HTMLCanvasElement>(null);
   const isDrawingConsent  = useRef(false);
   const [hasConsentSig, setHasConsentSig] = useState(false);
+  const [consentSigDataUrl, setConsentSigDataUrl] = useState('');
   const [consentsError, setConsentsError] = useState('');
 
   // Step 8 — Lien signature
@@ -1021,13 +1022,18 @@ export function IntakeWizard({
     setHasConsentSig(true);
   }, []);
 
-  const endConsentDraw = useCallback(() => { isDrawingConsent.current = false; }, []);
+  const endConsentDraw = useCallback(() => {
+    isDrawingConsent.current = false;
+    const canvas = consentCanvasRef.current;
+    if (canvas) setConsentSigDataUrl(canvas.toDataURL('image/png'));
+  }, []);
 
   const clearConsentCanvas = useCallback(() => {
     const canvas = consentCanvasRef.current;
     if (!canvas) return;
     canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
     setHasConsentSig(false);
+    setConsentSigDataUrl('');
   }, []);
 
   useEffect(() => {
@@ -1038,11 +1044,18 @@ export function IntakeWizard({
       if (!parent) return;
       canvas.width  = parent.clientWidth;
       canvas.height = 120;
+      // Restaurar firma guardada después de resize
+      if (consentSigDataUrl) {
+        const img = new Image();
+        img.onload = () => canvas.getContext('2d')?.drawImage(img, 0, 0);
+        img.src = consentSigDataUrl;
+      }
     };
     resize();
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]); // re-run cuando regresa al step 9
 
   // ── Lien canvas (Step 8) ────────────────────────────────────────────────────
   useEffect(() => {
@@ -1095,7 +1108,7 @@ export function IntakeWizard({
       if (stepNum === 6) body = { insurances };
       if (stepNum === 7) body = { health };
       if (stepNum === 9) {
-        const consentSvg = consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '';
+        const consentSvg = consentSigDataUrl || (consentCanvasRef.current ? consentCanvasRef.current.toDataURL('image/png') : '');
         body = {
           consents: {
             hipaa:              consents.hipaa,

@@ -252,9 +252,10 @@ const STRINGS = {
     selfieLabel: 'Selfie tipo ID',
     selfieBtn: 'Seleccionar selfie',
     dlLabel: 'Licencia de conducir',
-    dlFront: 'Frente de la licencia',
-    dlBack: 'Reverso de la licencia',
+    dlFront: 'Licencia (Frontal)',
     insCardLabel: 'Tarjeta de seguro',
+    insCardFront: 'Tarjeta de seguro (Frontal)',
+    insCardBack: 'Tarjeta de seguro (Posterior)',
     insCardBtn: 'Foto de tu tarjeta de seguro',
     phase1Note: '📋 Fase de Registro: Tus fotos serán revisadas en tu primera visita. No se almacenan en el sistema hasta completar el protocolo de seguridad HIPAA.',
     cantPhotoTitle: '¿No puedes tomar las fotos ahora?',
@@ -265,16 +266,16 @@ const STRINGS = {
     // Step 7 — Photo capture guidance
     selfieInstructions: ['Buena iluminación frontal', 'Centra tu rostro en el óvalo', 'Sin lentes ni gorras'],
     dlFrontInstructions: ['Superficie plana, sin reflejos', 'Toda la licencia visible', 'Texto legible y nítido'],
-    dlBackInstructions: ['Reverso completo visible', 'Sin reflejos ni sombras', 'Código de barras sin cortar'],
     insCardInstructions: ['Tarjeta completa visible', 'Nombre y número de póliza legibles', 'Sin reflejos ni dedos'],
+    insCardBackInstructions: ['Reverso completo visible', 'Sin reflejos ni sombras', 'Código de barras sin cortar'],
     reviewQuestion: '¿Se ve bien?',
     usePhotoBtn: '✅ Usar esta foto',
     retakeBtn: '🔄 Retomar',
     changePhotoBtn: 'Cambiar',
     selfieCaptureLabel: '📷 Abrir cámara — selfie',
     dlFrontCaptureLabel: '📷 Abrir cámara',
-    dlBackCaptureLabel: '📷 Abrir cámara',
     insCardCaptureLabel: '📷 Abrir cámara',
+    insCardBackCaptureLabel: '📷 Abrir cámara',
     // Cámara in-app
     camGuideFace: 'Centra tu rostro en el óvalo',
     camGuideDoc: 'Alinea el documento dentro del marco',
@@ -542,9 +543,10 @@ const STRINGS = {
     selfieLabel: 'ID-style selfie',
     selfieBtn: 'Select selfie',
     dlLabel: "Driver's license",
-    dlFront: 'Front of license',
-    dlBack: 'Back of license',
+    dlFront: 'License (Front)',
     insCardLabel: 'Insurance card',
+    insCardFront: 'Insurance card (Front)',
+    insCardBack: 'Insurance card (Back)',
     insCardBtn: 'Photo of your insurance card',
     phase1Note: '📋 Registration Phase: Your photos will be reviewed at your first visit. They are not stored until the HIPAA security protocol is complete.',
     cantPhotoTitle: "Can't take photos right now?",
@@ -555,16 +557,16 @@ const STRINGS = {
     // Step 7 — Photo capture guidance
     selfieInstructions: ['Good front lighting', 'Center your face in the oval', 'No glasses or hats'],
     dlFrontInstructions: ['Flat surface, no glare', 'Full license visible', 'Text readable and in focus'],
-    dlBackInstructions: ['Full back side visible', 'No glare or shadows', 'Barcode not cut off'],
     insCardInstructions: ['Full card visible', 'Name and policy number readable', 'No glare or fingers'],
+    insCardBackInstructions: ['Full back side visible', 'No glare or shadows', 'Barcode not cut off'],
     reviewQuestion: 'Does this look good?',
     usePhotoBtn: '✅ Use this photo',
     retakeBtn: '🔄 Retake',
     changePhotoBtn: 'Change',
     selfieCaptureLabel: '📷 Open camera — selfie',
     dlFrontCaptureLabel: '📷 Open camera',
-    dlBackCaptureLabel: '📷 Open camera',
     insCardCaptureLabel: '📷 Open camera',
+    insCardBackCaptureLabel: '📷 Open camera',
     // In-app camera
     camGuideFace: 'Center your face in the oval',
     camGuideDoc: 'Align the document within the frame',
@@ -895,10 +897,10 @@ export function IntakeWizard({
 
   // Step 6 — ID photos (Phase 1A: collected, not uploaded pre-HIPAA BAA)
   const [idPhotos, setIdPhotos] = useState({
-    selfie:        null as File | null,
-    dlFront:       null as File | null,
-    dlBack:        null as File | null,
-    insuranceCard: null as File | null,
+    selfie:             null as File | null,
+    insuranceCardFront: null as File | null,
+    insuranceCardBack:  null as File | null,
+    dlFront:            null as File | null,
   });
   const [takeAtClinic, setTakeAtClinic] = useState(false);
 
@@ -2225,7 +2227,7 @@ export function IntakeWizard({
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-                  {/* Selfie */}
+                  {/* 1 · Foto del paciente (selfie) */}
                   <FormSection
                     title={t.selfieLabel}
                     sub={lang === 'es' ? 'Necesitamos verificar tu identidad con una foto reciente.' : 'We need to verify your identity with a recent photo.'}
@@ -2243,12 +2245,39 @@ export function IntakeWizard({
                     />
                   </FormSection>
 
-                  {/* Licencia */}
+                  {/* 2 · Tarjeta de seguro — Frontal + Posterior */}
+                  <FormSection
+                    title={t.insCardLabel}
+                    sub={lang === 'es' ? 'Fotografía el frente y reverso de tu tarjeta de seguro.' : 'Photograph the front and back of your insurance card.'}
+                    accent={idPhotos.insuranceCardFront && idPhotos.insuranceCardBack ? 'rgba(16,185,129,0.06)' : undefined}
+                    accentBorder={idPhotos.insuranceCardFront && idPhotos.insuranceCardBack ? 'rgba(16,185,129,0.20)' : undefined}
+                  >
+                    <PhotoCaptureCard
+                      guideType="document" title={t.insCardFront}
+                      instructions={t.insCardInstructions} captureLabel={t.insCardCaptureLabel}
+                      reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
+                      retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
+                      confirmed={idPhotos.insuranceCardFront}
+                      onConfirm={file => setIdPhotos(p => ({ ...p, insuranceCardFront: file }))}
+                      capture="environment" color={EMERALD} lang={lang}
+                    />
+                    <PhotoCaptureCard
+                      guideType="document" title={t.insCardBack}
+                      instructions={t.insCardBackInstructions} captureLabel={t.insCardBackCaptureLabel}
+                      reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
+                      retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
+                      confirmed={idPhotos.insuranceCardBack}
+                      onConfirm={file => setIdPhotos(p => ({ ...p, insuranceCardBack: file }))}
+                      capture="environment" color={EMERALD} lang={lang}
+                    />
+                  </FormSection>
+
+                  {/* 3 · Licencia — solo frontal */}
                   <FormSection
                     title={t.dlLabel}
-                    sub={lang === 'es' ? 'Fotografía el frente y reverso de tu licencia de conducir o ID estatal.' : 'Photograph the front and back of your driver\'s license or state ID.'}
-                    accent={idPhotos.dlFront && idPhotos.dlBack ? 'rgba(99,102,241,0.06)' : undefined}
-                    accentBorder={idPhotos.dlFront && idPhotos.dlBack ? 'rgba(99,102,241,0.20)' : undefined}
+                    sub={lang === 'es' ? 'Fotografía el frente de tu licencia de conducir o ID estatal.' : 'Photograph the front of your driver\'s license or state ID.'}
+                    accent={idPhotos.dlFront ? 'rgba(99,102,241,0.06)' : undefined}
+                    accentBorder={idPhotos.dlFront ? 'rgba(99,102,241,0.20)' : undefined}
                   >
                     <PhotoCaptureCard
                       guideType="document" title={t.dlFront}
@@ -2258,33 +2287,6 @@ export function IntakeWizard({
                       confirmed={idPhotos.dlFront}
                       onConfirm={file => setIdPhotos(p => ({ ...p, dlFront: file }))}
                       capture="environment" color={INDIGO} lang={lang}
-                    />
-                    <PhotoCaptureCard
-                      guideType="document" title={t.dlBack}
-                      instructions={t.dlBackInstructions} captureLabel={t.dlBackCaptureLabel}
-                      reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
-                      retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
-                      confirmed={idPhotos.dlBack}
-                      onConfirm={file => setIdPhotos(p => ({ ...p, dlBack: file }))}
-                      capture="environment" color={INDIGO} lang={lang}
-                    />
-                  </FormSection>
-
-                  {/* Tarjeta seguro */}
-                  <FormSection
-                    title={t.insCardLabel}
-                    sub={lang === 'es' ? 'Fotografía tu tarjeta de seguro de automóvil (frente).' : 'Photograph your auto insurance card (front).'}
-                    accent={idPhotos.insuranceCard ? 'rgba(16,185,129,0.06)' : undefined}
-                    accentBorder={idPhotos.insuranceCard ? 'rgba(16,185,129,0.20)' : undefined}
-                  >
-                    <PhotoCaptureCard
-                      guideType="document" title={t.insCardLabel}
-                      instructions={t.insCardInstructions} captureLabel={t.insCardCaptureLabel}
-                      reviewQuestion={t.reviewQuestion} usePhotoLabel={t.usePhotoBtn}
-                      retakeLabel={t.retakeBtn} changeLabel={t.changePhotoBtn}
-                      confirmed={idPhotos.insuranceCard}
-                      onConfirm={file => setIdPhotos(p => ({ ...p, insuranceCard: file }))}
-                      capture="environment" color={EMERALD} lang={lang}
                     />
                   </FormSection>
 

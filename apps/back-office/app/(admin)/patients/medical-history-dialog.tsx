@@ -1045,6 +1045,135 @@ function AddSurgeryDialog({
   );
 }
 
+// ── Add family history dialog ──────────────────────────────────────────────
+
+const FAMILY_MEMBERS = [
+  'Padre','Madre','Hijo','Hija','Hermano','Hermana',
+  'Abuelo materno','Abuela materna','Abuelo paterno','Abuela paterna',
+  'Tío','Tía','Sobrino','Sobrina','Primo(a)','Nieto','Nieta',
+  'Esposo(a)/Pareja','Padrastro/Madrastra','Medio hermano(a)',
+  'Padre/Madre adoptivo(a)','Otro',
+];
+
+function AddFamilyHistoryDialog({
+  patientId, existing, open, onClose,
+}: {
+  patientId: string;
+  existing:  MedicalHistoryData['familyHistory'];
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  const [memberQuery,   setMemberQuery]   = useState('');
+  const [relation,      setRelation]      = useState('');
+  const [memberOpen,    setMemberOpen]    = useState(false);
+
+  const [diagOptions,   setDiagOptions]   = useState<Array<{ id: string; label: string }>>([]);
+  const [condition,     setCondition]     = useState('');
+
+  useEffect(() => { searchDiagnoses('').then(rows => setDiagOptions(rows.map(r => ({ id: r.id, label: r.label })))); }, []);
+
+  const filteredMembers = FAMILY_MEMBERS.filter(m =>
+    m.toLowerCase().includes(memberQuery.toLowerCase())
+  );
+
+  function handleSave() {
+    if (!relation || !condition) return;
+    const newItem = { id: crypto.randomUUID(), relation, condition };
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { familyHistory: [...(existing ?? []), newItem] });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">
+            Agregar historial familiar
+          </DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Registrar la condición médica de un miembro de la familia para rastrear patrones de salud hereditarios.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-4">
+
+          {/* Miembro de la familia — filtro local */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Miembro de la familia</label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMemberOpen(o => !o)}
+                className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
+              >
+                <span className={relation ? 'text-text-1' : 'text-text-muted'}>
+                  {relation || 'Selecciona una opción'}
+                </span>
+                <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
+              </button>
+              {memberOpen && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
+                  <div className="p-2 border-b border-border/60">
+                    <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
+                      <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                      <input
+                        autoFocus
+                        value={memberQuery}
+                        onChange={e => setMemberQuery(e.target.value)}
+                        placeholder="Buscar..."
+                        className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-52 overflow-y-auto">
+                    {filteredMembers.map(m => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => { setRelation(m); setMemberOpen(false); setMemberQuery(''); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors
+                          ${relation === m ? 'bg-brand/10 text-brand' : 'text-text-2'}`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Condición — ICD search */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Condición</label>
+            <SearchDropdown
+              value={condition}
+              placeholder="Selecciona una opción"
+              options={diagOptions}
+              onSearch={q => searchDiagnoses(q).then(rows => setDiagOptions(rows.map(r => ({ id: r.id, label: r.label }))))}
+              onSelect={(_, label) => setCondition(label)}
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending || !relation || !condition}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Add history dialog ─────────────────────────────────────────────────────
 
 function AddHistoryDialog({
@@ -1207,7 +1336,8 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const [addProblem,      setAddProblem]      = useState(false);
   const [addHistory,      setAddHistory]      = useState(false);
   const [addMedication,   setAddMedication]   = useState(false);
-  const [addSurgery,      setAddSurgery]      = useState(false);
+  const [addSurgery,       setAddSurgery]       = useState(false);
+  const [addFamilyHistory, setAddFamilyHistory] = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -1518,7 +1648,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
                     ))}
               </SectionCard>
 
-              <SectionCard icon={<Users className="w-4 h-4" />} title="Historial familiar" count={mh.familyHistory?.length ?? 0} onAdd={() => {}}>
+              <SectionCard icon={<Users className="w-4 h-4" />} title="Historial familiar" count={mh.familyHistory?.length ?? 0} onAdd={() => setAddFamilyHistory(true)}>
                 {(mh.familyHistory?.length ?? 0) === 0
                   ? <EmptyState text="No hay historial familiar registrado" />
                   : mh.familyHistory!.map(f => (
@@ -1627,6 +1757,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+      />
+    )}
+    {addFamilyHistory && (
+      <AddFamilyHistoryDialog
+        patientId={patient.id}
+        existing={mh.familyHistory}
+        open={addFamilyHistory}
+        onClose={() => setAddFamilyHistory(false)}
       />
     )}
     {addSurgery && (

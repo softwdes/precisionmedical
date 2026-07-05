@@ -42,7 +42,10 @@ export type MedicalHistoryData = {
   functionalStatus?: Array<{ name: string; status: string }>;
   implantedDevices?: string[];
   systemsReview?:    string[];
-  healthExams?:      string;
+  healthExams?:      {
+    bloodTestDate?: string; normalResults?: boolean;
+    colonoscopyYear?: string; abnormal?: boolean;
+  };
   socialHistory?:    { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string };
   comments?:         Array<{ id: string; date: string; text: string; author?: string }>;
 };
@@ -1551,6 +1554,99 @@ function SystemsReviewEditDialog({
   );
 }
 
+// ── Health exams edit dialog ───────────────────────────────────────────────
+
+function HealthExamsEditDialog({
+  patientId, initial, open, onClose,
+}: {
+  patientId: string;
+  initial:   MedicalHistoryData['healthExams'];
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [bloodTestDate,   setBloodTestDate]   = useState(initial?.bloodTestDate   ?? '');
+  const [normalResults,   setNormalResults]   = useState(initial?.normalResults   ?? false);
+  const [colonoscopyYear, setColonoscopyYear] = useState(initial?.colonoscopyYear ?? '');
+  const [abnormal,        setAbnormal]        = useState(initial?.abnormal        ?? false);
+
+  function handleSave() {
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, {
+        healthExams: { bloodTestDate, normalResults, colonoscopyYear, abnormal },
+      });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">Actualizar exámenes de salud</DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Registrar las pruebas de detección de salud del paciente, incluyendo fechas, ubicaciones y resultados.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5">
+          <div className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-4">
+            <p className="text-sm font-semibold text-text-1">Exámenes médicos generales</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* Fecha de análisis de sangre */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-text-muted">Fecha de análisis de sangre</label>
+                <input
+                  type="date"
+                  value={bloodTestDate}
+                  onChange={e => setBloodTestDate(e.target.value)}
+                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                />
+              </div>
+
+              {/* Resultados normales toggle */}
+              <div className="flex items-end pb-1">
+                <ToggleRow
+                  label="Resultados normales"
+                  checked={normalResults}
+                  onChange={setNormalResults}
+                />
+              </div>
+
+              {/* Año de colonoscopia */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-text-muted">Año de colonoscopia</label>
+                <input
+                  value={colonoscopyYear}
+                  onChange={e => setColonoscopyYear(e.target.value)}
+                  placeholder="ej., 2026"
+                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                />
+              </div>
+
+              {/* Anormal toggle */}
+              <div className="flex items-end pb-1">
+                <ToggleRow
+                  label="Anormal"
+                  checked={abnormal}
+                  onChange={setAbnormal}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Add family history dialog ──────────────────────────────────────────────
 
 const FAMILY_MEMBERS = [
@@ -1850,6 +1946,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const [editFunctional,   setEditFunctional]   = useState(false);
   const [editDevices,      setEditDevices]      = useState(false);
   const [editSystems,      setEditSystems]      = useState(false);
+  const [editExams,        setEditExams]        = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -2251,8 +2348,16 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
 
             {/* Row: Exámenes de salud + Historial de comentarios */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard icon={<Activity className="w-4 h-4" />} title="Exámenes de salud" editBtn>
-                <EmptyState text={mh.healthExams ?? 'No hay exámenes de salud registrados'} />
+              <SectionCard icon={<Activity className="w-4 h-4" />} title="Exámenes de salud" editBtn onEdit={() => setEditExams(true)}>
+                {!mh.healthExams
+                  ? <EmptyState text="No hay exámenes de salud registrados" />
+                  : <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      {mh.healthExams.bloodTestDate && <div className="flex justify-between col-span-2"><span className="text-text-muted">Análisis de sangre:</span><span className="text-text-2">{mh.healthExams.bloodTestDate}</span></div>}
+                      {mh.healthExams.colonoscopyYear && <div className="flex justify-between col-span-2"><span className="text-text-muted">Colonoscopia:</span><span className="text-text-2">{mh.healthExams.colonoscopyYear}</span></div>}
+                      {mh.healthExams.normalResults && <div className="col-span-2 text-emerald">✓ Resultados normales</div>}
+                      {mh.healthExams.abnormal && <div className="col-span-2 text-amber">⚠ Anormal</div>}
+                    </div>
+                }
               </SectionCard>
 
               <SectionCard
@@ -2310,6 +2415,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+      />
+    )}
+    {editExams && (
+      <HealthExamsEditDialog
+        patientId={patient.id}
+        initial={mh.healthExams}
+        open={editExams}
+        onClose={() => setEditExams(false)}
       />
     )}
     {editSystems && (

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2 } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -817,6 +817,17 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   const [caseViewTarget, setCaseViewTarget] = useState<CaseRow | null>(null);
   const [caseEditTarget, setCaseEditTarget] = useState<CaseRow | null>(null);
   const [deleteCaseTarget, setDeleteCaseTarget] = useState<CaseRow | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openMenuId]);
+
   const [sendPortalTarget, setSendPortalTarget] = useState<{ id: string; caseCode: string; patient: { firstName: string; lastName: string; phone: string | null; email: string | null; preferredLanguage?: 'es' | 'en' } } | null>(null);
   const [deletingCase, setDeletingCase]    = useState(false);
   const [deleteCaseError, setDeleteCaseError] = useState('');
@@ -932,7 +943,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
             )}
             {patients.map((p) => (
               <>
-              <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
+              <tr key={p.id} className="hover:bg-white/[0.02] transition-colors relative">
                 {/* Chevron expand */}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -1068,36 +1079,52 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                 </td>
 
                 {/* Acciones */}
-                <td className="w-28 px-4 py-3">
-                  <div className="flex items-center justify-end gap-1">
+                <td className="px-4 py-3">
+                  <div className="flex justify-end" ref={openMenuId === p.id ? menuRef : undefined}>
                     <button
-                      onClick={() => router.push(`/patients/${p.id}`)}
-                      className="p-1.5 rounded-md text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
-                      title="Ver detalle y casos"
+                      onClick={() => setOpenMenuId(openMenuId === p.id ? null : p.id)}
+                      className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors"
+                      title="Acciones"
                     >
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <MoreHorizontal className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={() => setViewTarget(p)}
-                      className="p-1.5 rounded-md text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
-                      title="Ver ficha rápida"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setEditTarget(p)}
-                      className="p-1.5 rounded-md text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
-                      title="Editar"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => { setDeleteTarget(p); setDeleteError(''); }}
-                      className="p-1.5 rounded-md text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {openMenuId === p.id && (
+                      <div className="absolute right-4 z-50 mt-8 w-52 rounded-lg border border-border bg-bg-1 shadow-xl py-1 text-sm">
+                        <button onClick={() => { router.push(`/patients/${p.id}`); setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+                          <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" /> Ver detalle
+                        </button>
+                        <button onClick={() => { setEditTarget(p); setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+                          <Pencil className="w-3.5 h-3.5 text-text-muted shrink-0" /> Actualizar
+                        </button>
+                        <button onClick={() => { setViewTarget(p); setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+                          <Shield className="w-3.5 h-3.5 text-text-muted shrink-0" /> Seguros
+                        </button>
+                        <button onClick={() => { setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left opacity-50 cursor-not-allowed" disabled>
+                          <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" /> Archivos personales
+                        </button>
+                        <button onClick={() => { setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left opacity-50 cursor-not-allowed" disabled>
+                          <FileText className="w-3.5 h-3.5 text-text-muted shrink-0" /> Historial médico
+                        </button>
+                        <button onClick={() => { setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left opacity-50 cursor-not-allowed" disabled>
+                          <CreditCard className="w-3.5 h-3.5 text-text-muted shrink-0" /> Tarjetas guardadas
+                        </button>
+                        <button onClick={() => { setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left opacity-50 cursor-not-allowed" disabled>
+                          <History className="w-3.5 h-3.5 text-text-muted shrink-0" /> Historial de auditoría
+                        </button>
+                        <div className="my-1 border-t border-border/60" />
+                        <button onClick={() => { setDeleteTarget(p); setDeleteError(''); setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-rose hover:bg-rose/10 transition-colors text-left">
+                          <Trash2 className="w-3.5 h-3.5 shrink-0" /> Eliminar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </td>
               </tr>

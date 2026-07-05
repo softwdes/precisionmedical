@@ -23,12 +23,23 @@ interface CaseRow {
   id: string;
   caseCode: string;
   status: string;
+  caseType: string | null;
   accidentType: string | null;
+  accidentDate: string | null;
+  accidentNotes: string | null;
   intakeFormCompletedAt: string | null;
   consentsData: Record<string, unknown> | null;
   firstAppointment: { scheduledFor: string } | null;
   lastAppointment:  { scheduledFor: string } | null;
 }
+
+const CASE_TYPE_LABEL: Record<string, string> = {
+  MVA: 'MVA',
+  GENERAL_MEDICINE: 'GM',
+  GM: 'GM',
+  SELFPAY: 'Self-Pay',
+  NURSING_HOME: 'Nursing Home',
+};
 
 function calcIntakeProgress(c: CaseRow, p: PatientRow): {
   pct: number; badge: string; sub: string; colorClass: string; barClass: string;
@@ -1038,12 +1049,13 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                           <table className="w-full min-w-[640px] border-collapse">
                             <thead>
                               <tr className="bg-bg-2/60 border-b border-border/60">
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">Código caso</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">Tipo</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">Tipo</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">Descripción</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[100px]">Fecha accidente</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">1ª cita</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">Última cita</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">Progreso</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[160px]">Progreso</th>
                                 <th className="text-right px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px]">Acciones</th>
                               </tr>
                             </thead>
@@ -1071,14 +1083,23 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                                       />
                                     </td>
 
-                                    {/* Tipo accidente */}
+                                    {/* Tipo (caseType: MVA / GM) */}
                                     <td className="px-3 py-2">
-                                      <span className="text-[11px] text-text-2">{c.accidentType ?? '—'}</span>
+                                      <span className="text-[11px] font-medium text-text-2">
+                                        {c.caseType ? (CASE_TYPE_LABEL[c.caseType] ?? c.caseType) : '—'}
+                                      </span>
                                     </td>
 
-                                    {/* Fecha accidente — no disponible en modelo actual */}
+                                    {/* Descripción (accidentNotes) */}
+                                    <td className="px-3 py-2 max-w-[180px]">
+                                      <span className="text-[11px] text-text-2 line-clamp-2">{c.accidentNotes ?? '—'}</span>
+                                    </td>
+
+                                    {/* Fecha accidente */}
                                     <td className="px-3 py-2">
-                                      <span className="text-[11px] text-text-muted">—</span>
+                                      <span className="text-[11px] text-text-2 tabular-nums">
+                                        {c.accidentDate ? fmtLocalDate(c.accidentDate) : <span className="text-text-muted">—</span>}
+                                      </span>
                                     </td>
 
                                     {/* 1ª cita */}

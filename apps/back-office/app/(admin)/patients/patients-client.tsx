@@ -8,6 +8,7 @@ import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescrip
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { PatientCreateDialog } from './patient-create-dialog';
+import { MedicalHistoryDialog } from './medical-history-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
@@ -779,6 +780,8 @@ export interface PatientRow {
   accidentType: string | null;
   insuranceCarrier: string | null;
   policyNumber: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  medicalHistory: any;
   createdAt: Date;
   updatedAt: Date;
   latestCase: {
@@ -1254,9 +1257,10 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   const [caseViewTarget, setCaseViewTarget] = useState<CaseRow | null>(null);
   const [caseEditTarget, setCaseEditTarget] = useState<CaseRow | null>(null);
   const [deleteCaseTarget, setDeleteCaseTarget] = useState<CaseRow | null>(null);
-  const [segurosTarget,  setSegurosTarget]  = useState<PatientRow | null>(null);
-  const [qrPatientTarget, setQrPatientTarget] = useState<PatientRow | null>(null);
-  const [archivosTarget, setArchivosTarget] = useState<PatientRow | null>(null);
+  const [segurosTarget,       setSegurosTarget]       = useState<PatientRow | null>(null);
+  const [qrPatientTarget,    setQrPatientTarget]    = useState<PatientRow | null>(null);
+  const [archivosTarget,     setArchivosTarget]     = useState<PatientRow | null>(null);
+  const [medHistoryTarget,   setMedHistoryTarget]   = useState<PatientRow | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
@@ -1892,6 +1896,15 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
         />
       )}
 
+      {/* ─── Historial médico ────────────────────────────────────────────────── */}
+      {medHistoryTarget && (
+        <MedicalHistoryDialog
+          patient={medHistoryTarget}
+          open={true}
+          onClose={() => setMedHistoryTarget(null)}
+        />
+      )}
+
       {/* ─── Menú acciones (fixed, escapa overflow-hidden de la tabla) ────────── */}
       {openMenuId && (() => {
         const p = patients.find(x => x.id === openMenuId);
@@ -1918,8 +1931,8 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
               <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuPersonalFiles')}
             </button>
-            <button disabled
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 transition-colors text-left opacity-40 cursor-not-allowed">
+            <button onClick={() => { setMedHistoryTarget(p); setOpenMenuId(null); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
               <FileText className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuMedicalHistory')}
             </button>
             <button disabled

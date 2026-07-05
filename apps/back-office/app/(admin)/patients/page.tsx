@@ -46,6 +46,7 @@ export default async function PatientsPage({
         emergency2Name: true, emergency2Phone: true, emergency2Relation: true,
         dateOfBirth: true, guardianName: true, guardianPhone: true, guardianRelation: true,
         accidentDate: true, accidentType: true, insuranceCarrier: true, policyNumber: true,
+        medicalHistory: true,
         createdAt: true, updatedAt: true,
       },
       orderBy: { createdAt: 'desc' },

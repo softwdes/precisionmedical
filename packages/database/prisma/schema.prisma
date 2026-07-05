@@ -737,6 +737,9 @@ model Patient {
   guardianPhone      String?
   guardianRelation   String?
 
+  // ─── EMR / Historial médico (JSON blob, Phase 1A) ───────────────────────
+  medicalHistory     Json?
+
   appointments       Appointment[]
   commissions        Commission[]
 

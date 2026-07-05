@@ -103,7 +103,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   function validateEmail(v: string) {
     if (!v) { setEmailError(''); return true; }
     const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-    setEmailError(ok ? '' : 'Correo electrónico inválido');
+    setEmailError(ok ? '' : t('errorEmailInvalid'));
     return ok;
   }
 
@@ -171,17 +171,17 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
 
   async function handleSave() {
     if (!form.firstName.trim() || !form.lastName.trim()) {
-      setError('Nombre y apellido son requeridos.');
+      setError(t('errorNameRequired'));
       return;
     }
     if (form.email && !validateEmail(form.email)) return;
     if (form.dateOfBirth) {
       const a = calcAge(form.dateOfBirth);
-      if (a === null || a < 0) { setError('Fecha de nacimiento inválida.'); return; }
-      if (a > 120) { setError('Verifica el año de nacimiento.'); return; }
+      if (a === null || a < 0) { setError(t('errorDOBInvalid')); return; }
+      if (a > 120) { setError(t('errorDOBYear')); return; }
     }
     if (isMinor && !form.guardianName.trim()) {
-      setError('El paciente es menor de edad — se requiere nombre del responsable legal.');
+      setError(t('errorGuardianRequired'));
       return;
     }
     setSaving(true);
@@ -225,87 +225,87 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
 
   const LANG_OPTIONS = [
     { value: '', label: '—' },
-    { value: 'es',    label: 'Español' },
-    { value: 'en',    label: 'Inglés' },
-    { value: 'fr',    label: 'Francés' },
-    { value: 'it',    label: 'Italiano' },
-    { value: 'pt',    label: 'Portugués' },
-    { value: 'other', label: 'Otro' },
+    { value: 'es',    label: t('lang.es') },
+    { value: 'en',    label: t('lang.en') },
+    { value: 'fr',    label: t('lang.fr') },
+    { value: 'it',    label: t('lang.it') },
+    { value: 'pt',    label: t('lang.pt') },
+    { value: 'other', label: t('lang.other') },
   ];
 
   const SEX_OPTIONS = [
     { value: '', label: '—' },
-    { value: 'MALE',              label: 'Masculino' },
-    { value: 'FEMALE',            label: 'Femenino' },
-    { value: 'NON_BINARY',        label: 'No binario' },
-    { value: 'OTHER',             label: 'Otro' },
-    { value: 'PREFER_NOT_TO_SAY', label: 'Prefiero no decir' },
+    { value: 'MALE',              label: t('sex.MALE') },
+    { value: 'FEMALE',            label: t('sex.FEMALE') },
+    { value: 'NON_BINARY',        label: t('sex.NON_BINARY') },
+    { value: 'OTHER',             label: t('sex.OTHER') },
+    { value: 'PREFER_NOT_TO_SAY', label: t('sex.PREFER_NOT_TO_SAY') },
   ];
 
   const MARITAL_OPTIONS = [
     { value: '', label: '—' },
-    { value: 'SINGLE',    label: 'Soltero/a' },
-    { value: 'MARRIED',   label: 'Casado/a' },
-    { value: 'DIVORCED',  label: 'Divorciado/a' },
-    { value: 'WIDOWED',   label: 'Viudo/a' },
-    { value: 'SEPARATED', label: 'Separado/a' },
-    { value: 'OTHER',     label: 'Otro' },
+    { value: 'SINGLE',    label: t('marital.SINGLE') },
+    { value: 'MARRIED',   label: t('marital.MARRIED') },
+    { value: 'DIVORCED',  label: t('marital.DIVORCED') },
+    { value: 'WIDOWED',   label: t('marital.WIDOWED') },
+    { value: 'SEPARATED', label: t('marital.SEPARATED') },
+    { value: 'OTHER',     label: t('marital.OTHER') },
   ];
 
   const RACE_OPTIONS = [
     { value: '', label: '—' },
-    { value: 'AFRICAN_AMERICAN',             label: 'Afroamericano' },
-    { value: 'AMERICAN_INDIAN_ALASKA_NATIVE', label: 'Indio americano/Nativo de Alaska' },
-    { value: 'ASIAN',                        label: 'Asiático' },
-    { value: 'NATIVE_HAWAIIAN',              label: 'Nativo hawaiano u otro' },
-    { value: 'PACIFIC_ISLANDER',             label: 'Isleño del Pacífico' },
-    { value: 'WHITE',                        label: 'Blanco' },
-    { value: 'OTHER',                        label: 'Otro' },
-    { value: 'PREFER_NOT_TO_SAY',            label: 'Prefiero no responder' },
+    { value: 'AFRICAN_AMERICAN',             label: t('race.AFRICAN_AMERICAN') },
+    { value: 'AMERICAN_INDIAN_ALASKA_NATIVE', label: t('race.AMERICAN_INDIAN_ALASKA_NATIVE') },
+    { value: 'ASIAN',                        label: t('race.ASIAN') },
+    { value: 'NATIVE_HAWAIIAN',              label: t('race.NATIVE_HAWAIIAN') },
+    { value: 'PACIFIC_ISLANDER',             label: t('race.PACIFIC_ISLANDER') },
+    { value: 'WHITE',                        label: t('race.WHITE') },
+    { value: 'OTHER',                        label: t('race.OTHER') },
+    { value: 'PREFER_NOT_TO_SAY',            label: t('race.PREFER_NOT_TO_SAY') },
   ];
 
   const ETHNICITY_OPTIONS = [
     { value: '', label: '—' },
-    { value: 'HISPANIC_LATINO',     label: 'Hispano/Latino' },
-    { value: 'NOT_HISPANIC_LATINO', label: 'No hispano/Latino' },
-    { value: 'PREFER_NOT_TO_SAY',   label: 'Prefiero no responder' },
+    { value: 'HISPANIC_LATINO',     label: t('ethnicity.HISPANIC_LATINO') },
+    { value: 'NOT_HISPANIC_LATINO', label: t('ethnicity.NOT_HISPANIC_LATINO') },
+    { value: 'PREFER_NOT_TO_SAY',   label: t('ethnicity.PREFER_NOT_TO_SAY') },
   ];
 
   const COMM_OPTIONS = [
     { value: '', label: '—' },
-    { value: 'PHONE', label: 'Teléfono' },
-    { value: 'EMAIL', label: 'Email' },
-    { value: 'TEXT',  label: 'Mensaje de texto' },
-    { value: 'ANY',   label: 'Cualquiera' },
+    { value: 'PHONE', label: t('comm.PHONE') },
+    { value: 'EMAIL', label: t('comm.EMAIL') },
+    { value: 'TEXT',  label: t('comm.TEXT') },
+    { value: 'ANY',   label: t('comm.ANY') },
   ];
 
   const REFERRAL_OPTIONS = [
     { value: '', label: '—' },
-    { value: 'LAW_FIRM',        label: 'Abogado / Bufete de abogados' },
-    { value: 'WEB_SEARCH',      label: 'Búsqueda web' },
-    { value: 'ACCIDENT_CENTER', label: 'Centro de accidentes Axcess' },
-    { value: 'FACEBOOK',        label: 'Facebook' },
-    { value: 'FAMILY',          label: 'Familia' },
-    { value: 'GOOGLE',          label: 'Google' },
-    { value: 'GOOGLE_MAPS',     label: 'Google Maps' },
-    { value: 'INSTAGRAM',       label: 'Instagram' },
-    { value: 'WEBSITE',         label: 'Página web' },
-    { value: 'CLINIC_STAFF',    label: 'Personal de la clínica (membresía, etc.)' },
-    { value: 'CHIROPRACTOR',    label: 'Quiropráctico (Cascade, Saratoga, etc.)' },
-    { value: 'REFERRAL',        label: 'Recomendación' },
-    { value: 'PATIENT_REFERRAL',label: 'Recomendación de un paciente de la clínica' },
-    { value: 'INSURANCE',       label: 'Seguro' },
-    { value: 'MEDICAL_INSURANCE',label: 'Seguro médico' },
-    { value: 'TIKTOK',          label: 'TikTok' },
-    { value: 'OTHER',           label: 'Otro' },
+    { value: 'LAW_FIRM',         label: t('referral.LAW_FIRM') },
+    { value: 'WEB_SEARCH',       label: t('referral.WEB_SEARCH') },
+    { value: 'ACCIDENT_CENTER',  label: t('referral.ACCIDENT_CENTER') },
+    { value: 'FACEBOOK',         label: t('referral.FACEBOOK') },
+    { value: 'FAMILY',           label: t('referral.FAMILY') },
+    { value: 'GOOGLE',           label: t('referral.GOOGLE') },
+    { value: 'GOOGLE_MAPS',      label: t('referral.GOOGLE_MAPS') },
+    { value: 'INSTAGRAM',        label: t('referral.INSTAGRAM') },
+    { value: 'WEBSITE',          label: t('referral.WEBSITE') },
+    { value: 'CLINIC_STAFF',     label: t('referral.CLINIC_STAFF') },
+    { value: 'CHIROPRACTOR',     label: t('referral.CHIROPRACTOR') },
+    { value: 'REFERRAL',         label: t('referral.REFERRAL') },
+    { value: 'PATIENT_REFERRAL', label: t('referral.PATIENT_REFERRAL') },
+    { value: 'INSURANCE',        label: t('referral.INSURANCE') },
+    { value: 'MEDICAL_INSURANCE',label: t('referral.MEDICAL_INSURANCE') },
+    { value: 'TIKTOK',           label: t('referral.TIKTOK') },
+    { value: 'OTHER',            label: t('referral.OTHER') },
   ];
 
   const GUARDIAN_OPTIONS = [
     { value: '', label: '—' },
-    { value: 'FATHER',         label: 'Padre' },
-    { value: 'MOTHER',         label: 'Madre' },
-    { value: 'LEGAL_GUARDIAN', label: 'Tutor legal' },
-    { value: 'OTHER',          label: 'Otro' },
+    { value: 'FATHER',         label: t('guardianRelation.FATHER') },
+    { value: 'MOTHER',         label: t('guardianRelation.MOTHER') },
+    { value: 'LEGAL_GUARDIAN', label: t('guardianRelation.LEGAL_GUARDIAN') },
+    { value: 'OTHER',          label: t('guardianRelation.OTHER') },
   ];
 
   return (
@@ -318,10 +318,10 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       <ConfirmDialog
         open={confirmExit}
         variant="warning"
-        title="¿Cerrar sin guardar?"
-        description="Tienes datos ingresados que se perderán si cierras ahora. ¿Deseas continuar?"
-        confirmLabel="Sí, cerrar"
-        cancelLabel="Seguir editando"
+        title={t('confirmExitTitle')}
+        description={t('confirmExitDesc')}
+        confirmLabel={t('confirmExitYes')}
+        cancelLabel={t('confirmExitCancel')}
         onConfirm={handleConfirmExit}
         onCancel={() => setConfirmExit(false)}
       />
@@ -343,99 +343,99 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
 
           <div className="px-6 py-5 space-y-5">
 
-            {/* ══ Información personal ══ */}
+            {/* ══ Personal info ══ */}
             <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
                 <User className="w-4 h-4 text-brand" />
-                <h3 className="text-sm font-semibold text-text-1">Información personal</h3>
+                <h3 className="text-sm font-semibold text-text-1">{t('sectionPersonal')}</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label="Nombre *"   value={form.firstName} onChange={set('firstName')} placeholder="Nombre" />
-                <FormField.Input label="Apellido *" value={form.lastName}  onChange={set('lastName')}  placeholder="Apellido" />
+                <FormField.Input label={`${t('fieldFirstName')} *`} value={form.firstName} onChange={set('firstName')} placeholder={t('fieldFirstName')} />
+                <FormField.Input label={`${t('fieldLastName')} *`}  value={form.lastName}  onChange={set('lastName')}  placeholder={t('fieldLastName')} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField.Input
-                  label="Correo electrónico"
+                  label={t('fieldEmail')}
                   value={form.email}
                   onChange={(v) => { set('email')(v); if (emailError) validateEmail(v); }}
                   onBlur={() => validateEmail(form.email)}
-                  placeholder="paciente@email.com"
+                  placeholder="patient@email.com"
                   type="email"
                   error={emailError}
                 />
                 <div className="space-y-1">
-                  <FormField.Input label="Fecha de nacimiento" value={form.dateOfBirth} onChange={set('dateOfBirth')} type="date" />
+                  <FormField.Input label={t('fieldDOB')} value={form.dateOfBirth} onChange={set('dateOfBirth')} type="date" />
                   {age !== null && (
                     <p className={`text-[11px] ${isMinor ? 'text-amber font-semibold' : 'text-text-muted'}`}>
-                      {age} años{isMinor ? ' · Menor de edad' : ''}
+                      {isMinor ? t('ageMinor', { age }) : t('ageYears', { age })}
                     </p>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label="Teléfono" value={form.phone}  onChange={setPhone('phone')}  placeholder="(305) 000-0000" type="tel" />
-                <FormField.Input label="Celular"  value={form.phone2} onChange={setPhone('phone2')} placeholder="(305) 000-0000" type="tel" />
+                <FormField.Input label={t('fieldPhone')}  value={form.phone}  onChange={setPhone('phone')}  placeholder="(305) 000-0000" type="tel" />
+                <FormField.Input label={t('fieldPhone2')} value={form.phone2} onChange={setPhone('phone2')} placeholder="(305) 000-0000" type="tel" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <LocationSelect
-                  label="Estado"
+                  label={t('fieldState')}
                   value={form.addressState}
                   onChange={(v) => setForm(prev => ({ ...prev, addressState: v, addressCity: '' }))}
                   options={['Utah', ...US_STATES.filter(s => s.code !== 'UT').map(s => s.name)]}
-                  placeholder="Seleccionar estado"
+                  placeholder={t('placeholderSelectState')}
                 />
                 <LocationSelect
-                  label="Ciudad"
+                  label={t('fieldCity')}
                   value={form.addressCity}
                   onChange={(v) => setForm(prev => ({ ...prev, addressCity: v, addressZip: CITY_ZIP[v] ?? prev.addressZip }))}
                   options={form.addressState ? (CITIES_BY_STATE[US_STATES.find(s => s.name === form.addressState)?.code ?? ''] ?? []) : []}
-                  placeholder={form.addressState ? 'Seleccionar ciudad' : 'Primero selecciona estado'}
+                  placeholder={form.addressState ? t('placeholderSelectCity') : t('placeholderSelectStateFirst')}
                   disabled={!form.addressState}
                 />
-                <FormField.Input label="Código postal" value={form.addressZip} onChange={set('addressZip')} placeholder="ej. 90210" />
+                <FormField.Input label={t('fieldZip')} value={form.addressZip} onChange={set('addressZip')} placeholder="e.g. 90210" />
               </div>
 
-              <FormField.Input label="Dirección" value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St, Apt 4B" />
+              <FormField.Input label={t('fieldAddress')} value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St, Apt 4B" />
 
-              <FormField.Select label="¿Cómo se enteró de nosotros?" value={form.referralSource} onChange={set('referralSource')} options={REFERRAL_OPTIONS} />
+              <FormField.Select label={t('fieldReferralSource')} value={form.referralSource} onChange={set('referralSource')} options={REFERRAL_OPTIONS} />
 
               <FormField.Select label={t('fieldStatus')} value={form.status} onChange={set('status')} options={STATUS_OPTIONS} />
             </div>
 
-            {/* ══ Información clínica ══ */}
+            {/* ══ Clinical info ══ */}
             <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
                 <Stethoscope className="w-4 h-4 text-brand" />
-                <h3 className="text-sm font-semibold text-text-1">Información clínica del paciente</h3>
+                <h3 className="text-sm font-semibold text-text-1">{t('sectionClinical')}</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label="Empleador"          value={form.employer}          onChange={set('employer')}          placeholder="ej. Juan Perez" />
-                <FormField.Input label="Farmacia preferida" value={form.preferredPharmacy} onChange={set('preferredPharmacy')} placeholder="Nombre de farmacia" />
+                <FormField.Input label={t('fieldEmployer')}  value={form.employer}          onChange={set('employer')}          placeholder="e.g. Acme Corp" />
+                <FormField.Input label={t('fieldPharmacy')}  value={form.preferredPharmacy} onChange={set('preferredPharmacy')} placeholder={t('fieldPharmacy')} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Select label="¿Cómo le gustaría que se comuniquen con usted?" value={form.communicationPreference} onChange={set('communicationPreference')} options={COMM_OPTIONS} />
-                <FormField.Input  label="Seguro social" value={form.socialSecurityNumber} onChange={set('socialSecurityNumber')} placeholder="XXX-XX-XXXX" />
+                <FormField.Select label={t('fieldCommPref')} value={form.communicationPreference} onChange={set('communicationPreference')} options={COMM_OPTIONS} />
+                <FormField.Input  label={t('fieldSSN')}      value={form.socialSecurityNumber}    onChange={set('socialSecurityNumber')}    placeholder="XXX-XX-XXXX" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Select label="Raza"      value={form.race}      onChange={set('race')}      options={RACE_OPTIONS} />
-                <FormField.Select label="Etnicidad" value={form.ethnicity} onChange={set('ethnicity')} options={ETHNICITY_OPTIONS} />
+                <FormField.Select label={t('fieldRace')}      value={form.race}      onChange={set('race')}      options={RACE_OPTIONS} />
+                <FormField.Select label={t('fieldEthnicity')} value={form.ethnicity} onChange={set('ethnicity')} options={ETHNICITY_OPTIONS} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Select label="Sexo"             value={form.sex}               onChange={set('sex')}               options={SEX_OPTIONS} />
-                <FormField.Select label="Idioma preferido" value={form.preferredLanguage} onChange={set('preferredLanguage')} options={LANG_OPTIONS} />
-                <FormField.Select label="Estado civil"     value={form.maritalStatus}     onChange={set('maritalStatus')}     options={MARITAL_OPTIONS} />
+                <FormField.Select label={t('fieldSex')}     value={form.sex}               onChange={set('sex')}               options={SEX_OPTIONS} />
+                <FormField.Select label={t('fieldLang')}    value={form.preferredLanguage} onChange={set('preferredLanguage')} options={LANG_OPTIONS} />
+                <FormField.Select label={t('fieldMarital')} value={form.maritalStatus}     onChange={set('maritalStatus')}     options={MARITAL_OPTIONS} />
               </div>
             </div>
 
-            {/* ══ Responsable legal (solo si menor) ══ */}
+            {/* ══ Legal guardian (minors only) ══ */}
             {isMinor && (
               <div className="rounded-lg border border-amber/30 bg-amber/5 p-5 space-y-4">
                 <div className="flex items-center gap-2 pb-1 border-b border-amber/20">
@@ -447,30 +447,30 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                   {t('guardianNote')}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField.Input  label={`${t('fieldGuardianName')} *`} value={form.guardianName}     onChange={set('guardianName')}     placeholder="Nombre completo" />
+                  <FormField.Input  label={`${t('fieldGuardianName')} *`} value={form.guardianName}     onChange={set('guardianName')}     placeholder={t('fieldGuardianName')} />
                   <FormField.Select label={t('fieldGuardianRelation')}     value={form.guardianRelation} onChange={set('guardianRelation')} options={GUARDIAN_OPTIONS} />
                 </div>
                 <FormField.Input label={t('fieldGuardianPhone')} value={form.guardianPhone} onChange={setPhone('guardianPhone')} placeholder="(801) 555-0100" type="tel" />
               </div>
             )}
 
-            {/* ══ Contactos de emergencia ══ */}
+            {/* ══ Emergency contacts ══ */}
             <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
                 <PhoneCall className="w-4 h-4 text-brand" />
-                <h3 className="text-sm font-semibold text-text-1">Contactos de emergencia</h3>
+                <h3 className="text-sm font-semibold text-text-1">{t('sectionEmergencyContacts')}</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label="Nombre"   value={form.emergencyContactName}     onChange={set('emergencyContactName')}       placeholder="Nombre" />
-                <FormField.Input label="Teléfono" value={form.emergencyContactPhone}    onChange={setPhone('emergencyContactPhone')} placeholder="(305) 000-0000" type="tel" />
-                <FormField.Input label="Relación" value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')}   placeholder="Ej. Esposo/a, Madre..." />
+                <FormField.Input label={t('fieldName')}     value={form.emergencyContactName}     onChange={set('emergencyContactName')}       placeholder={t('fieldName')} />
+                <FormField.Input label={t('fieldPhone')}    value={form.emergencyContactPhone}    onChange={setPhone('emergencyContactPhone')} placeholder="(305) 000-0000" type="tel" />
+                <FormField.Input label={t('fieldRelation')} value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')}   placeholder="e.g. Spouse, Mother..." />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label="Nombre"   value={form.emergency2Name}     onChange={set('emergency2Name')}             placeholder="Nombre" />
-                <FormField.Input label="Teléfono" value={form.emergency2Phone}    onChange={setPhone('emergency2Phone')}       placeholder="(305) 000-0000" type="tel" />
-                <FormField.Input label="Relación" value={form.emergency2Relation} onChange={set('emergency2Relation')}         placeholder="Ej. Hermano/a..." />
+                <FormField.Input label={t('fieldName')}     value={form.emergency2Name}     onChange={set('emergency2Name')}       placeholder={t('fieldName')} />
+                <FormField.Input label={t('fieldPhone')}    value={form.emergency2Phone}    onChange={setPhone('emergency2Phone')} placeholder="(305) 000-0000" type="tel" />
+                <FormField.Input label={t('fieldRelation')} value={form.emergency2Relation} onChange={set('emergency2Relation')}   placeholder="e.g. Sibling..." />
               </div>
             </div>
 

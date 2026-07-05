@@ -35,6 +35,7 @@ interface CaseRow {
 
 const CASE_TYPE_LABEL: Record<string, string> = {
   MVA: 'MVA',
+  GENERAL: 'GM',
   GENERAL_MEDICINE: 'GM',
   GM: 'GM',
   SELFPAY: 'Self-Pay',

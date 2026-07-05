@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { updateMedicalHistory } from './actions';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   User, Phone, Mail, AlertTriangle, Heart, Pill, Scissors, Users,
@@ -17,7 +18,10 @@ import type { PatientRow } from './patients-client';
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export type MedicalHistoryData = {
-  visitInfo?:        { referredBy?: string; mainReason?: string; otherConcerns?: string };
+  visitInfo?:        {
+    referredBy?: string; mainReason?: string; otherConcerns?: string;
+    noCurrentMeds?: boolean; broughtMedList?: boolean; noSignificantHistory?: boolean;
+  };
   healthInfo?:       { goals?: string; selfRating?: number | null };
   allergies?:        string;
   problems?:         Array<{ id: string; condition: string; diagnosedAt?: string; status?: string; comments?: string }>;
@@ -115,10 +119,10 @@ function EmptyState({ text }: { text: string }) {
 }
 
 function SectionCard({
-  icon, title, count, onAdd, editBtn = false, children,
+  icon, title, count, onAdd, editBtn = false, onEdit, children,
 }: {
   icon: React.ReactNode; title: string; count?: number;
-  onAdd?: () => void; editBtn?: boolean; children: React.ReactNode;
+  onAdd?: () => void; editBtn?: boolean; onEdit?: () => void; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -143,7 +147,10 @@ function SectionCard({
             </button>
           )}
           {editBtn && (
-            <button className="text-text-muted hover:text-brand transition-colors">
+            <button
+              onClick={onEdit}
+              className="text-text-muted hover:text-brand transition-colors"
+            >
               <Edit2 className="w-3.5 h-3.5" />
             </button>
           )}
@@ -195,10 +202,150 @@ function TableShell({
   );
 }
 
+// ── Toggle row (reusable within edit modals) ───────────────────────────────
+
+function ToggleRow({
+  label, checked, onChange,
+}: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between px-3 py-2.5 rounded-md border border-border/60 bg-bg-2/40">
+      <span className="text-sm text-text-2">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none
+          ${checked ? 'bg-brand' : 'bg-text-muted/30'}`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform
+            ${checked ? 'translate-x-4' : 'translate-x-0'}`}
+        />
+      </button>
+    </div>
+  );
+}
+
+// ── Visit info edit dialog ─────────────────────────────────────────────────
+
+function VisitInfoEditDialog({
+  patientId, initial, open, onClose,
+}: {
+  patientId: string;
+  initial:   MedicalHistoryData['visitInfo'];
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [form, setForm] = useState({
+    referredBy:          initial?.referredBy          ?? '',
+    mainReason:          initial?.mainReason           ?? '',
+    otherConcerns:       initial?.otherConcerns        ?? '',
+    noCurrentMeds:       initial?.noCurrentMeds        ?? false,
+    broughtMedList:      initial?.broughtMedList       ?? false,
+    noSignificantHistory: initial?.noSignificantHistory ?? false,
+  });
+
+  function set(key: string, value: string | boolean) {
+    setForm(f => ({ ...f, [key]: value }));
+  }
+
+  function handleSave() {
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { visitInfo: form });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">
+            Actualizar información de la visita
+          </DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Actualizar detalles de la visita y estado de medicamentos
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
+          {/* Detalles de la visita */}
+          <div className="space-y-3">
+            <p className="text-sm font-semibold text-text-1">Detalles de la visita</p>
+
+            <div className="space-y-1">
+              <label className="text-xs text-text-muted">Referido por</label>
+              <input
+                value={form.referredBy}
+                onChange={e => set('referredBy', e.target.value)}
+                placeholder="¿Quién lo refirió?"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-text-muted">Razón principal de la visita</label>
+              <input
+                value={form.mainReason}
+                onChange={e => set('mainReason', e.target.value)}
+                placeholder="Razón principal"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-text-muted">Otras inquietudes</label>
+              <input
+                value={form.otherConcerns}
+                onChange={e => set('otherConcerns', e.target.value)}
+                placeholder="Cualquier otra inquietud"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              />
+            </div>
+          </div>
+
+          {/* Estado de medicamentos */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-text-1">Estado de medicamentos</p>
+            <ToggleRow
+              label="Sin medicamentos actuales"
+              checked={form.noCurrentMeds}
+              onChange={v => set('noCurrentMeds', v)}
+            />
+            <ToggleRow
+              label="Trajo lista de medicamentos"
+              checked={form.broughtMedList}
+              onChange={v => set('broughtMedList', v)}
+            />
+            <ToggleRow
+              label="Sin historial médico significativo"
+              checked={form.noSignificantHistory}
+              onChange={v => set('noSignificantHistory', v)}
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main dialog ────────────────────────────────────────────────────────────
 
 export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
-  const locale = useLocale();
+  const locale         = useLocale();
+  const [editVisitInfo, setEditVisitInfo] = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -220,6 +367,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-[96vw] w-full max-h-[96vh] p-0 overflow-hidden flex flex-col">
 
@@ -401,6 +549,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
                 icon={<User className="w-4 h-4" />}
                 title="Información de la visita"
                 editBtn
+                onEdit={() => setEditVisitInfo(true)}
               >
                 <div className="space-y-2 text-[12.5px]">
                   <div className="flex justify-between">
@@ -584,5 +733,15 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         </div>
       </DialogContent>
     </Dialog>
+
+    {editVisitInfo && (
+      <VisitInfoEditDialog
+        patientId={patient.id}
+        initial={mh.visitInfo}
+        open={editVisitInfo}
+        onClose={() => setEditVisitInfo(false)}
+      />
+    )}
+  </>
   );
 }

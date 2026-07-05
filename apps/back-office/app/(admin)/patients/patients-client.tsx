@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
@@ -43,43 +44,48 @@ const CASE_TYPE_LABEL: Record<string, string> = {
   NURSING_HOME: 'Nursing Home',
 };
 
+type MissingKey = 'missingAddress' | 'missingEmergency' | 'missingDemographics' | 'missingConsents' | 'missingSignature';
+
 function calcIntakeProgress(c: CaseRow, p: PatientRow): {
-  pct: number; badge: string; sub: string; colorClass: string; barClass: string;
+  pct: number; missingKeys: MissingKey[]; colorClass: string; barClass: string;
 } {
   if (c.intakeFormCompletedAt) {
-    return { pct: 100, badge: 'Completo', sub: '', colorClass: 'bg-emerald/10 text-emerald border-emerald/20', barClass: 'bg-emerald' };
+    return { pct: 100, missingKeys: [], colorClass: 'bg-emerald/10 text-emerald border-emerald/20', barClass: 'bg-emerald' };
   }
   const cd = (c.consentsData ?? {}) as Record<string, unknown>;
-  const missing: string[] = [];
+  const missingKeys: MissingKey[] = [];
 
-  // Personal / dirección
-  if (!p.addressLine1 || !p.addressCity) missing.push('dirección');
-  // Emergencia
-  if (!p.emergencyContactName) missing.push('emergencia');
-  // Demografía
-  if (!p.race || !p.sex || !p.maritalStatus) missing.push('demografía');
-  // Consentimientos
+  if (!p.addressLine1 || !p.addressCity) missingKeys.push('missingAddress');
+  if (!p.emergencyContactName) missingKeys.push('missingEmergency');
+  if (!p.race || !p.sex || !p.maritalStatus) missingKeys.push('missingDemographics');
   const hasConsents = cd.hipaa && cd.treatment && cd.financial;
-  if (!hasConsents) missing.push('consentimientos');
-  // Firma lien
-  if (!cd.financialSignatureSvg) missing.push('firma');
+  if (!hasConsents) missingKeys.push('missingConsents');
+  if (!cd.financialSignatureSvg) missingKeys.push('missingSignature');
 
   const total = 5;
-  const done  = total - missing.length;
+  const done  = total - missingKeys.length;
   const pct   = Math.round((done / total) * 100);
 
-  const badge = missing.length === 0 ? 'Completo'
-    : missing.length === 1 && missing[0] === 'consentimientos' ? 'Faltan consentimientos'
-    : missing.length === 1 && missing[0] === 'firma' ? 'Falta firma'
-    : `Incompleto ${pct}%`;
-
-  const sub = missing.length > 0 ? `Falta: ${missing.join(', ')}` : '';
   const colorClass = pct === 100 ? 'bg-emerald/10 text-emerald border-emerald/20'
     : pct >= 60  ? 'bg-amber/10 text-amber border-amber/20'
     : 'bg-rose/10 text-rose border-rose/20';
   const barClass = pct === 100 ? 'bg-emerald' : pct >= 60 ? 'bg-amber' : 'bg-rose';
 
-  return { pct, badge, sub, colorClass, barClass };
+  return { pct, missingKeys, colorClass, barClass };
+}
+
+type TFunc = ReturnType<typeof useTranslations<'phoenix.patients'>>;
+
+function formatProgress(prog: ReturnType<typeof calcIntakeProgress>, t: TFunc) {
+  const { pct, missingKeys } = prog;
+  const badge = pct === 100 ? t('progressComplete')
+    : missingKeys.length === 1 && missingKeys[0] === 'missingConsents' ? t('progressConsentsMissing')
+    : missingKeys.length === 1 && missingKeys[0] === 'missingSignature' ? t('progressSignatureMissing')
+    : t('progressIncomplete', { pct });
+  const sub = missingKeys.length > 0
+    ? `${t('progressMissingLabel')} ${missingKeys.map(k => t(k)).join(', ')}`
+    : '';
+  return { badge, sub };
 }
 
 
@@ -831,6 +837,7 @@ function NuevoSeguroDialog({ onClose, onSave }: {
   onClose: () => void;
   onSave: (entry: InsuranceEntry) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [tab, setTab] = useState<'MEDICAL' | 'AUTO'>('MEDICAL');
   const [entry, setEntry] = useState<InsuranceEntry>(() => emptyInsEntry('MEDICAL'));
 
@@ -842,18 +849,18 @@ function NuevoSeguroDialog({ onClose, onSave }: {
       <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="w-4 h-4 text-brand" /> Nuevo seguro
+            <Plus className="w-4 h-4 text-brand" /> {t('segurosNewTitle')}
           </DialogTitle>
-          <DialogDescription className="text-text-muted text-xs">Completa la información del seguro</DialogDescription>
+          <DialogDescription className="text-text-muted text-xs">{t('segurosNewDesc')}</DialogDescription>
         </DialogHeader>
 
         {/* Tabs */}
         <div className="flex px-6 pt-4 gap-2 shrink-0">
-          {(['MEDICAL', 'AUTO'] as const).map(t => (
-            <button key={t} onClick={() => switchTab(t)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === t ? 'bg-brand text-white' : 'bg-bg-2 text-text-2 hover:bg-bg-2/80 border border-border'}`}
+          {(['MEDICAL', 'AUTO'] as const).map(tp => (
+            <button key={tp} onClick={() => switchTab(tp)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === tp ? 'bg-brand text-white' : 'bg-bg-2 text-text-2 hover:bg-bg-2/80 border border-border'}`}
             >
-              {t === 'MEDICAL' ? 'Seguro médico' : 'Seguro de auto'}
+              {tp === 'MEDICAL' ? t('segurosTabMedico') : t('segurosTabAuto')}
             </button>
           ))}
         </div>
@@ -862,71 +869,71 @@ function NuevoSeguroDialog({ onClose, onSave }: {
           {tab === 'MEDICAL' ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>Compañía de seguro</label><input className={insInput} placeholder="Nombre de la aseguradora" value={entry.carrier} onChange={e => set('carrier', e.target.value)} /></div>
-                <div><label className={insLabel}>N° de ID / N° de póliza</label><input className={insInput} placeholder="Número de póliza" value={entry.policyId} onChange={e => set('policyId', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosCarrier')}</label><input className={insInput} value={entry.carrier} onChange={e => set('carrier', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosPolicyId')}</label><input className={insInput} value={entry.policyId} onChange={e => set('policyId', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>Nombre del titular</label><input className={insInput} placeholder="Nombre completo" value={entry.holderName} onChange={e => set('holderName', e.target.value)} /></div>
-                <div><label className={insLabel}>N° de grupo</label><input className={insInput} placeholder="Número de grupo" value={entry.groupNum} onChange={e => set('groupNum', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosHolderName')}</label><input className={insInput} value={entry.holderName} onChange={e => set('holderName', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosGroupNum')}</label><input className={insInput} value={entry.groupNum} onChange={e => set('groupNum', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>Nacimiento del asegurado</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.holderDOB} onChange={e => set('holderDOB', e.target.value)} /></div>
-                <div><label className={insLabel}>Relación con el asegurado</label><input className={insInput} placeholder="Ej. Titular, Cónyuge, Hijo/a" value={entry.holderRelation} onChange={e => set('holderRelation', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosHolderDOB')}</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.holderDOB} onChange={e => set('holderDOB', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosHolderRelation')}</label><input className={insInput} value={entry.holderRelation} onChange={e => set('holderRelation', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div><label className={insLabel}>Fecha efectiva</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.effectiveDate} onChange={e => set('effectiveDate', e.target.value)} /></div>
-                <div><label className={insLabel}>Copago</label><input className={insInput} placeholder="$0.00" value={entry.copay} onChange={e => set('copay', e.target.value)} /></div>
-                <div><label className={insLabel}>Deducible</label><input className={insInput} placeholder="$0.00" value={entry.deductible} onChange={e => set('deductible', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosEffectiveDate')}</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.effectiveDate} onChange={e => set('effectiveDate', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosCopay')}</label><input className={insInput} placeholder="$0.00" value={entry.copay} onChange={e => set('copay', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosDeductible')}</label><input className={insInput} placeholder="$0.00" value={entry.deductible} onChange={e => set('deductible', e.target.value)} /></div>
               </div>
             </>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>Compañía de seguro</label><input className={insInput} placeholder="Nombre de la aseguradora" value={entry.carrier} onChange={e => set('carrier', e.target.value)} /></div>
-                <div><label className={insLabel}>N° de póliza</label><input className={insInput} placeholder="Número de póliza" value={entry.policyId} onChange={e => set('policyId', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosCarrier')}</label><input className={insInput} value={entry.carrier} onChange={e => set('carrier', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosPolicyId')}</label><input className={insInput} value={entry.policyId} onChange={e => set('policyId', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>Fecha de pérdida</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.lossDate} onChange={e => set('lossDate', e.target.value)} /></div>
-                <div><label className={insLabel}>PIP disponible</label><input className={insInput} placeholder="Ej. $10,000" value={entry.pipAvailable} onChange={e => set('pipAvailable', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosLossDate')}</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.lossDate} onChange={e => set('lossDate', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosPip')}</label><input className={insInput} value={entry.pipAvailable} onChange={e => set('pipAvailable', e.target.value)} /></div>
               </div>
-              <div><label className={insLabel}>N° de reclamo</label><input className={insInput} placeholder="Número de reclamo" value={entry.claimNum} onChange={e => set('claimNum', e.target.value)} /></div>
+              <div><label className={insLabel}>{t('segurosClaimNum')}</label><input className={insInput} value={entry.claimNum} onChange={e => set('claimNum', e.target.value)} /></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>Nombre del ajustador</label><input className={insInput} placeholder="Nombre completo" value={entry.adjusterName} onChange={e => set('adjusterName', e.target.value)} /></div>
-                <div><label className={insLabel}>Teléfono del ajustador</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterPhone} onChange={e => set('adjusterPhone', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosAdjusterName')}</label><input className={insInput} value={entry.adjusterName} onChange={e => set('adjusterName', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosAdjusterPhone')}</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterPhone} onChange={e => set('adjusterPhone', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>Fax del ajustador</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterFax} onChange={e => set('adjusterFax', e.target.value)} /></div>
-                <div><label className={insLabel}>Teléfono 2 del ajustador</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterPhone2} onChange={e => set('adjusterPhone2', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosAdjusterFax')}</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterFax} onChange={e => set('adjusterFax', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosAdjusterPhone2')}</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterPhone2} onChange={e => set('adjusterPhone2', e.target.value)} /></div>
               </div>
-              <div><label className={insLabel}>Correo del ajustador</label><input type="email" className={insInput} placeholder="correo@ejemplo.com" value={entry.adjusterEmail} onChange={e => set('adjusterEmail', e.target.value)} /></div>
-              <div><label className={insLabel}>Comentarios</label><textarea className={`${insInput} resize-none`} rows={3} placeholder="Comentarios adicionales..." value={entry.comments} onChange={e => set('comments', e.target.value)} /></div>
+              <div><label className={insLabel}>{t('segurosAdjusterEmail')}</label><input type="email" className={insInput} value={entry.adjusterEmail} onChange={e => set('adjusterEmail', e.target.value)} /></div>
+              <div><label className={insLabel}>{t('segurosComments')}</label><textarea className={`${insInput} resize-none`} rows={3} value={entry.comments} onChange={e => set('comments', e.target.value)} /></div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={entry.fullLien} onChange={e => set('fullLien', e.target.checked)} className="w-4 h-4 rounded border border-border accent-brand" />
-                <span className="text-sm text-text-2">Full Lien</span>
+                <span className="text-sm text-text-2">{t('segurosFullLien')}</span>
               </label>
               {entry.fullLien && (
-                <div><label className={insLabel}>Comentarios del lien</label><textarea className={`${insInput} resize-none`} rows={2} placeholder="Detalles del lien..." value={entry.lienComments} onChange={e => set('lienComments', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosLienComments')}</label><textarea className={`${insInput} resize-none`} rows={2} value={entry.lienComments} onChange={e => set('lienComments', e.target.value)} /></div>
               )}
             </>
           )}
         </div>
 
         <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
-          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cancelar</Button>
-          <Button className="w-full sm:w-auto" onClick={() => { onSave(entry); onClose(); }}>Guardar seguro</Button>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>{t('btnCancel')}</Button>
+          <Button className="w-full sm:w-auto" onClick={() => { onSave(entry); onClose(); }}>{t('segurosGuardar')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-const INS_TYPE_LABEL: Record<string, string> = { MEDICAL: 'Médico', AUTO: 'Auto' };
 const INS_TYPE_COLOR: Record<string, string> = {
   MEDICAL: 'bg-cyan/10 text-cyan border-cyan/20',
   AUTO:    'bg-amber/10 text-amber border-amber/20',
 };
 
 function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
+  const t = useTranslations('phoenix.patients');
   const cd = patient.latestCase?.consentsData as Record<string, unknown> | null;
   const initialIns = Array.isArray(cd?.insurances) ? (cd!.insurances as InsuranceEntry[]) : [];
   const [insurances, setInsurances] = useState<InsuranceEntry[]>(initialIns);
@@ -950,6 +957,8 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
     finally { setSaving(false); }
   }
 
+  const insTypeLabel = { MEDICAL: t('segurosTypeMedical'), AUTO: t('segurosTypeAuto') };
+
   async function handleAdd(entry: InsuranceEntry) { await saveInsurances([...insurances, entry]); }
   async function handleDelete(id: string) { await saveInsurances(insurances.filter(i => i.id !== id)); }
 
@@ -960,10 +969,10 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
           <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-brand" />
-              Seguros — {patient.firstName} {patient.lastName}
+              {t('menuInsurance')} — {patient.firstName} {patient.lastName}
             </DialogTitle>
             <DialogDescription className="text-text-muted text-xs">
-              {patient.latestCase?.caseCode ?? 'Sin caso activo'}
+              {patient.latestCase?.caseCode ?? t('segurosNoCase')}
             </DialogDescription>
           </DialogHeader>
 
@@ -971,23 +980,23 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
             {!patient.latestCase && (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
                 <Shield className="w-10 h-10 opacity-20" />
-                <p className="text-sm font-medium">Sin caso activo</p>
-                <p className="text-[11px] text-center">Crea un caso para poder registrar seguros.</p>
+                <p className="text-sm font-medium">{t('segurosNoCase')}</p>
+                <p className="text-[11px] text-center">{t('segurosNoCaseDesc')}</p>
               </div>
             )}
 
             {patient.latestCase && insurances.length === 0 && !saving && (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
                 <Shield className="w-10 h-10 opacity-20" />
-                <p className="text-sm font-medium">No hay seguros activos</p>
-                <p className="text-[11px]">Usa el botón &ldquo;Agregar seguro&rdquo; para comenzar</p>
+                <p className="text-sm font-medium">{t('segurosEmpty')}</p>
+                <p className="text-[11px]">{t('segurosEmptyDesc')}</p>
               </div>
             )}
 
             {saving && (
               <div className="flex items-center justify-center py-6 text-text-muted gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Guardando...</span>
+                <span className="text-sm">{t('segurosSaving')}</span>
               </div>
             )}
 
@@ -996,7 +1005,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     <TagPill
-                      label={INS_TYPE_LABEL[ins.insType] ?? ins.insType}
+                      label={insTypeLabel[ins.insType] ?? ins.insType}
                       colorClass={INS_TYPE_COLOR[ins.insType] ?? 'bg-bg-2 text-text-2 border-border'}
                     />
                     <span className="text-sm font-medium text-text-1">{ins.carrier || '—'}</span>
@@ -1005,26 +1014,26 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
                     onClick={() => handleDelete(ins.id)}
                     disabled={saving}
                     className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors shrink-0"
-                    title="Eliminar seguro"
+                    title={t('segurosDelete')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
-                  {ins.policyId && <div className="flex justify-between"><span className="text-text-muted">Póliza</span><span className="text-text-1 font-mono">{ins.policyId}</span></div>}
-                  {ins.insType === 'MEDICAL' && ins.holderName && <div className="flex justify-between"><span className="text-text-muted">Titular</span><span className="text-text-1">{ins.holderName}</span></div>}
-                  {ins.insType === 'MEDICAL' && ins.holderRelation && <div className="flex justify-between"><span className="text-text-muted">Relación</span><span className="text-text-1">{ins.holderRelation}</span></div>}
-                  {ins.insType === 'MEDICAL' && ins.copay && <div className="flex justify-between"><span className="text-text-muted">Copago</span><span className="text-text-1">{ins.copay}</span></div>}
-                  {ins.insType === 'MEDICAL' && ins.deductible && <div className="flex justify-between"><span className="text-text-muted">Deducible</span><span className="text-text-1">{ins.deductible}</span></div>}
-                  {ins.insType === 'MEDICAL' && ins.effectiveDate && <div className="flex justify-between"><span className="text-text-muted">Fecha efectiva</span><span className="text-text-1">{ins.effectiveDate}</span></div>}
-                  {ins.insType === 'AUTO' && ins.claimNum && <div className="flex justify-between"><span className="text-text-muted">N° reclamo</span><span className="text-text-1 font-mono">{ins.claimNum}</span></div>}
-                  {ins.insType === 'AUTO' && ins.adjusterName && <div className="flex justify-between"><span className="text-text-muted">Ajustador</span><span className="text-text-1">{ins.adjusterName}</span></div>}
-                  {ins.insType === 'AUTO' && ins.adjusterPhone && <div className="flex justify-between"><span className="text-text-muted">Tel.</span><span className="text-text-1 font-mono">{ins.adjusterPhone}</span></div>}
-                  {ins.insType === 'AUTO' && ins.adjusterEmail && <div className="flex justify-between"><span className="text-text-muted">Email</span><span className="text-text-1 truncate max-w-[130px]">{ins.adjusterEmail}</span></div>}
-                  {ins.insType === 'AUTO' && ins.lossDate && <div className="flex justify-between"><span className="text-text-muted">Fecha pérdida</span><span className="text-text-1">{ins.lossDate}</span></div>}
-                  {ins.insType === 'AUTO' && ins.pipAvailable && <div className="flex justify-between"><span className="text-text-muted">PIP</span><span className="text-text-1">{ins.pipAvailable}</span></div>}
-                  {ins.fullLien && <div className="flex items-center gap-1.5 col-span-2"><span className="w-1.5 h-1.5 rounded-full bg-amber shrink-0" /><span className="text-amber font-medium">Full Lien</span></div>}
+                  {ins.policyId && <div className="flex justify-between"><span className="text-text-muted">{t('segurosPolicyLabel')}</span><span className="text-text-1 font-mono">{ins.policyId}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.holderName && <div className="flex justify-between"><span className="text-text-muted">{t('segurosHolderLabel')}</span><span className="text-text-1">{ins.holderName}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.holderRelation && <div className="flex justify-between"><span className="text-text-muted">{t('segurosRelationLabel')}</span><span className="text-text-1">{ins.holderRelation}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.copay && <div className="flex justify-between"><span className="text-text-muted">{t('segurosCopay')}</span><span className="text-text-1">{ins.copay}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.deductible && <div className="flex justify-between"><span className="text-text-muted">{t('segurosDeductible')}</span><span className="text-text-1">{ins.deductible}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.effectiveDate && <div className="flex justify-between"><span className="text-text-muted">{t('segurosEffectiveDate')}</span><span className="text-text-1">{ins.effectiveDate}</span></div>}
+                  {ins.insType === 'AUTO' && ins.claimNum && <div className="flex justify-between"><span className="text-text-muted">{t('segurosClaimLabel')}</span><span className="text-text-1 font-mono">{ins.claimNum}</span></div>}
+                  {ins.insType === 'AUTO' && ins.adjusterName && <div className="flex justify-between"><span className="text-text-muted">{t('segurosAdjusterLabel')}</span><span className="text-text-1">{ins.adjusterName}</span></div>}
+                  {ins.insType === 'AUTO' && ins.adjusterPhone && <div className="flex justify-between"><span className="text-text-muted">{t('segurosTelLabel')}</span><span className="text-text-1 font-mono">{ins.adjusterPhone}</span></div>}
+                  {ins.insType === 'AUTO' && ins.adjusterEmail && <div className="flex justify-between"><span className="text-text-muted">{t('segurosEmailLabel')}</span><span className="text-text-1 truncate max-w-[130px]">{ins.adjusterEmail}</span></div>}
+                  {ins.insType === 'AUTO' && ins.lossDate && <div className="flex justify-between"><span className="text-text-muted">{t('segurosLossLabel')}</span><span className="text-text-1">{ins.lossDate}</span></div>}
+                  {ins.insType === 'AUTO' && ins.pipAvailable && <div className="flex justify-between"><span className="text-text-muted">{t('segurosPipLabel')}</span><span className="text-text-1">{ins.pipAvailable}</span></div>}
+                  {ins.fullLien && <div className="flex items-center gap-1.5 col-span-2"><span className="w-1.5 h-1.5 rounded-full bg-amber shrink-0" /><span className="text-amber font-medium">{t('segurosFullLienLabel')}</span></div>}
                 </div>
               </div>
             ))}
@@ -1035,10 +1044,10 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
           </div>
 
           <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cerrar</Button>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>{t('btnClose')}</Button>
             {patient.latestCase && (
               <Button className="w-full sm:w-auto" onClick={() => setShowNuevo(true)} disabled={saving}>
-                <Plus className="w-3.5 h-3.5 mr-1" /> Agregar seguro
+                <Plus className="w-3.5 h-3.5 mr-1" /> {t('segurosAdd')}
               </Button>
             )}
           </DialogFooter>
@@ -1057,6 +1066,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
 
 // ── QR Paciente dialog ─────────────────────────────────────────────────────
 function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
+  const t = useTranslations('phoenix.patients');
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [copied, setCopied]       = useState(false);
   const portalToken = patient.latestCase?.portalToken ?? null;
@@ -1089,10 +1099,8 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Acceso de paciente · {patient.firstName} {patient.lastName}</DialogTitle>
-          <DialogDescription>
-            Comparte este código QR o enlace con el paciente para que pueda completar o actualizar su información de registro de manera segura.
-          </DialogDescription>
+          <DialogTitle>{t('qrPatientTitle' as never) || 'Patient access'} · {patient.firstName} {patient.lastName}</DialogTitle>
+          <DialogDescription>{t('qrShareDesc')}</DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
           {portalUrl ? (
@@ -1105,7 +1113,7 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
               </div>
               {qrDataUrl ? (
                 <div className="flex justify-center">
-                  <img src={qrDataUrl} alt="QR de acceso" className="rounded-lg border border-border" width={280} height={280} />
+                  <img src={qrDataUrl} alt="QR" className="rounded-lg border border-border" width={280} height={280} />
                 </div>
               ) : (
                 <div className="flex justify-center py-10 text-text-muted">
@@ -1116,16 +1124,16 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
           ) : (
             <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
               <QrCode className="w-10 h-10 opacity-20" />
-              <p className="text-sm font-medium">Sin enlace de portal</p>
-              <p className="text-[11px] text-center">Envía el formulario de admisión primero para generar el QR del paciente.</p>
+              <p className="text-sm font-medium">{t('qrNoPortal')}</p>
+              <p className="text-[11px] text-center">{t('qrNoPortalDesc')}</p>
             </div>
           )}
         </div>
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose}>Cerrar</Button>
+          <Button variant="outline" onClick={onClose}>{t('btnClose')}</Button>
           {qrDataUrl && (
             <Button onClick={downloadQr}>
-              <Download className="w-3.5 h-3.5 mr-1" /> Descargar
+              <Download className="w-3.5 h-3.5 mr-1" /> {t('btnDownload')}
             </Button>
           )}
         </DialogFooter>
@@ -1135,22 +1143,24 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
 }
 
 // ── Archivos personales dialog ─────────────────────────────────────────────
-const PHOTO_SLOTS = [
-  { key: 'selfie',              label: 'Foto del paciente' },
-  { key: 'insuranceCardFront',  label: 'Tarjeta de seguro (Frontal)' },
-  { key: 'insuranceCardBack',   label: 'Tarjeta de seguro (Posterior)' },
-  { key: 'dlFront',             label: 'Licencia (Frontal)' },
-] as const;
+const PHOTO_SLOT_KEYS = ['selfie', 'insuranceCardFront', 'insuranceCardBack', 'dlFront'] as const;
 
 function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
+  const t = useTranslations('phoenix.patients');
   const photos = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.photos as Record<string, string> | undefined;
+  const PHOTO_SLOTS = [
+    { key: 'selfie',             label: t('photoSlotSelfie') },
+    { key: 'insuranceCardFront', label: t('photoSlotInsCardFront') },
+    { key: 'insuranceCardBack',  label: t('photoSlotInsCardBack') },
+    { key: 'dlFront',            label: t('photoSlotDlFront') },
+  ] as const;
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-5xl p-0">
         <div className="px-6 py-4 border-b border-border">
-          <h2 className="text-base font-semibold text-text-1">Paciente: {patient.firstName} {patient.lastName}</h2>
-          <p className="text-[12px] text-text-muted mt-0.5">Fotos y archivos personales del paciente.</p>
+          <h2 className="text-base font-semibold text-text-1">{patient.firstName} {patient.lastName}</h2>
+          <p className="text-[12px] text-text-muted mt-0.5">{t('archivosSubtitle')}</p>
         </div>
 
         <div className="px-6 py-5 space-y-6 max-h-[75vh] overflow-y-auto">
@@ -1167,17 +1177,15 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
                     ) : (
                       <div className="flex flex-col items-center gap-1.5 text-text-muted py-6">
                         <Camera className="w-7 h-7 opacity-30" />
-                        <span className="text-[10px]">Agregar foto</span>
-                        <span className="text-[9px] text-center px-2 opacity-70">Toca para usar la cámara o seleccionar una imagen</span>
                       </div>
                     )}
                   </div>
                   <div className="flex gap-1.5 px-3 py-2">
                     <button disabled className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-muted opacity-50 cursor-not-allowed">
-                      <Camera className="w-3 h-3" /> Cámara
+                      <Camera className="w-3 h-3" /> {t('btnCamera')}
                     </button>
                     <button disabled className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-muted opacity-50 cursor-not-allowed">
-                      <Upload className="w-3 h-3" /> Archivo
+                      <Upload className="w-3 h-3" /> {t('btnFile')}
                     </button>
                   </div>
                 </div>
@@ -1185,15 +1193,15 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
             })}
           </div>
 
-          {/* Archivos personales */}
+          {/* Personal files */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text-2">
-                <FolderOpen className="w-3.5 h-3.5" /> Archivos personales
+                <FolderOpen className="w-3.5 h-3.5" /> {t('archivosPersonalFiles')}
               </div>
               <div className="flex gap-1.5">
                 <button disabled className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan/80 text-white text-[11px] font-medium opacity-50 cursor-not-allowed">
-                  <Upload className="w-3 h-3" /> Subir archivos
+                  <Upload className="w-3 h-3" /> {t('btnUploadFiles')}
                 </button>
                 <button disabled className="p-1.5 rounded-md border border-border text-text-muted opacity-50 cursor-not-allowed">
                   <RefreshCw className="w-3 h-3" />
@@ -1208,15 +1216,15 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
               </div>
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
                 <FolderOpen className="w-10 h-10 opacity-15" />
-                <p className="text-sm font-medium">Directorio vacío</p>
-                <p className="text-[11px]">No hay archivos o carpetas en este directorio</p>
+                <p className="text-sm font-medium">{t('archivosEmptyDir')}</p>
+                <p className="text-[11px]">{t('archivosEmptyDirDesc')}</p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="px-6 py-3 border-t border-border flex justify-end">
-          <Button variant="outline" onClick={onClose}>Cerrar</Button>
+          <Button variant="outline" onClick={onClose}>{t('btnClose')}</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -1224,7 +1232,8 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
 }
 
 export function PatientsClient({ patients, q, page, totalPages, total }: Props) {
-  const router  = useRouter();
+  const t      = useTranslations('phoenix.patients');
+  const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<PatientRow | null>(null);
   const [deleteError,  setDeleteError]  = useState('');
   const [deleting,     setDeleting]     = useState(false);
@@ -1345,7 +1354,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
           className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
-          Registro rápido
+          {t('btnQuickRegister')}
         </button>
         <PatientCreateDialog />
       </div>
@@ -1354,15 +1363,15 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
         <table className="w-full text-sm">
           <thead className="bg-bg-2 border-b border-border">
             <tr>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Paciente</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Contacto</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Casos</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Estado</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Admisión</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Formulario</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Creado</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Actualizado</th>
-              <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Acciones</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colContact')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colCases')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colAdmission')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">{t('colForm')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">{t('colCreated')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">{t('colUpdated')}</th>
+              <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -1370,7 +1379,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-text-muted text-sm">
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  {q ? `Sin resultados para "${q}"` : 'No hay pacientes registrados'}
+                  {q ? t('noResultsFor', { q }) : t('noPatients')}
                 </td>
               </tr>
             )}
@@ -1383,7 +1392,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                     <button
                       onClick={() => toggleExpand(p.id)}
                       className="p-1 rounded text-text-muted hover:text-brand transition-colors shrink-0"
-                      title={expandedId === p.id ? 'Colapsar' : 'Ver casos'}
+                      title={expandedId === p.id ? t('tooltipCollapse') : t('tooltipExpand')}
                     >
                       {expandedId === p.id
                         ? <ChevronUp className="w-3.5 h-3.5" />
@@ -1426,7 +1435,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                     onClick={() => router.push(`/patients/${p.id}`)}
                     className="text-text-2 hover:text-brand transition-colors"
                   >
-                    {p.caseCount} caso{p.caseCount !== 1 ? 's' : ''}
+                    {p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                   </button>
                 </td>
 
@@ -1452,16 +1461,17 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                       },
                       p,
                     );
+                    const { badge, sub } = formatProgress(prog, t);
                     return (
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <TagPill label={prog.badge} colorClass={prog.colorClass} />
+                          <TagPill label={badge} colorClass={prog.colorClass} />
                           <span className="text-[10px] text-text-muted tabular-nums">{prog.pct}%</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
                           <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
                         </div>
-                        {prog.sub && <p className="text-[10px] text-text-muted mt-0.5 truncate">{prog.sub}</p>}
+                        {sub && <p className="text-[10px] text-text-muted mt-0.5 truncate">{sub}</p>}
                       </div>
                     );
                   })() : <span className="text-[10px] text-text-muted">—</span>}
@@ -1485,17 +1495,17 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                           },
                         })}
                         className="p-1 rounded hover:bg-brand/10 transition-colors group"
-                        title={p.latestCase.intakeFormSentAt ? `Reenviar formulario (enviado ${fmtLocalDate(p.latestCase.intakeFormSentAt)})` : 'Enviar formulario por email'}
+                        title={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fmtLocalDate(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
                       >
                         <Mail className={`w-3.5 h-3.5 transition-colors ${p.latestCase.intakeFormSentAt ? 'text-brand' : 'text-text-muted group-hover:text-brand'}`} />
                       </button>
                     ) : (
-                      <span title={!p.email ? 'Sin email registrado' : 'Sin caso activo'}>
+                      <span title={!p.email ? t('tooltipNoEmail') : t('tooltipNoCase')}>
                         <Mail className="w-3.5 h-3.5 text-text-muted opacity-25" />
                       </span>
                     )}
-                    {/* Ícono completado */}
-                    <span title={p.latestCase?.intakeFormCompletedAt ? `Completado ${fmtLocalDate(p.latestCase.intakeFormCompletedAt)}` : 'Formulario pendiente'}>
+                    {/* Form completed icon */}
+                    <span title={p.latestCase?.intakeFormCompletedAt ? t('tooltipFormCompleted', { date: fmtLocalDate(p.latestCase.intakeFormCompletedAt) }) : t('tooltipFormPending')}>
                       <CheckCircle2 className={`w-3.5 h-3.5 ${p.latestCase?.intakeFormCompletedAt ? 'text-emerald' : 'text-text-muted opacity-25'}`} />
                     </span>
                   </div>
@@ -1532,22 +1542,22 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
-                          <Briefcase className="w-3 h-3" /> Casos del paciente
+                          <Briefcase className="w-3 h-3" /> {t('patientCases')}
                         </span>
                         <button
                           onClick={() => setWizardPatient({ id: p.id, firstName: p.firstName, lastName: p.lastName })}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-[11px] font-medium hover:bg-brand/90 transition-colors"
                         >
-                          <Plus className="w-3 h-3" /> Agregar caso
+                          <Plus className="w-3 h-3" /> {t('btnAddCase')}
                         </button>
                       </div>
 
                       {loadingCases[p.id] && (
-                        <p className="text-[11px] text-text-muted py-2">Cargando casos...</p>
+                        <p className="text-[11px] text-text-muted py-2">{t('loadingCases')}</p>
                       )}
 
                       {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length === 0 && (
-                        <p className="text-[11px] text-text-muted py-2">No hay casos registrados.</p>
+                        <p className="text-[11px] text-text-muted py-2">{t('noCasesRegistered')}</p>
                       )}
 
                       {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length > 0 && (
@@ -1556,18 +1566,19 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                             <thead>
                               <tr className="bg-bg-2/60 border-b border-border/60">
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">Tipo</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">Descripción</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[100px]">Fecha accidente</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">1ª cita</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">Última cita</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[160px]">Progreso</th>
-                                <th className="text-right px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px]">Acciones</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">{t('colType')}</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('colDescription')}</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[100px]">{t('colAccidentDate')}</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">{t('colFirstAppt')}</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">{t('colLastAppt')}</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[160px]">{t('colProgress')}</th>
+                                <th className="text-right px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px]">{t('colActions')}</th>
                               </tr>
                             </thead>
                             <tbody>
                               {(expandedCases[p.id] ?? []).map((c, idx) => {
                                 const prog = calcIntakeProgress(c, p);
+                                const { badge: progBadge, sub: progSub } = formatProgress(prog, t);
                                 return (
                                   <tr
                                     key={c.id}
@@ -1622,10 +1633,10 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                                       </span>
                                     </td>
 
-                                    {/* Progreso */}
+                                    {/* Progress */}
                                     <td className="px-3 py-2 min-w-[140px]">
                                       <div className="flex items-center gap-2 mb-1">
-                                        <TagPill label={prog.badge} colorClass={prog.colorClass} />
+                                        <TagPill label={progBadge} colorClass={prog.colorClass} />
                                       </div>
                                       <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
                                         <div
@@ -1633,8 +1644,8 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                                           style={{ width: `${prog.pct}%` }}
                                         />
                                       </div>
-                                      {prog.sub && (
-                                        <p className="text-[10px] text-text-muted mt-0.5 truncate">{prog.sub}</p>
+                                      {progSub && (
+                                        <p className="text-[10px] text-text-muted mt-0.5 truncate">{progSub}</p>
                                       )}
                                     </td>
 
@@ -1644,21 +1655,21 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                                         <button
                                           onClick={() => setCaseViewTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
-                                          title="Ver caso"
+                                          title={t('tooltipViewCase')}
                                         >
                                           <Eye className="w-3 h-3" />
                                         </button>
                                         <button
                                           onClick={() => setCaseEditTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
-                                          title="Editar caso"
+                                          title={t('tooltipEditCase')}
                                         >
                                           <Pencil className="w-3 h-3" />
                                         </button>
                                         <button
                                           onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
                                           className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
-                                          title="Cancelar caso"
+                                          title={t('tooltipCancelCase')}
                                           disabled={c.status === 'CANCELLED'}
                                         >
                                           <Trash2 className="w-3 h-3" />
@@ -1666,21 +1677,21 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                                         <button
                                           onClick={() => window.open(`/api/admin/cases/${c.id}/pdf`, '_blank')}
                                           className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
-                                          title="Descargar PDF"
+                                          title={t('tooltipDownloadPdf')}
                                         >
                                           <Download className="w-3 h-3" />
                                         </button>
                                         <button
                                           onClick={() => setCaseApptTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
-                                          title="Ver citas programadas"
+                                          title={t('tooltipViewAppts')}
                                         >
                                           <CalendarDays className="w-3 h-3" />
                                         </button>
                                         <button
                                           onClick={() => setCaseQrTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
-                                          title="Acceso paciente / QR"
+                                          title={t('tooltipPatientQr')}
                                         >
                                           <QrCode className="w-3 h-3" />
                                         </button>
@@ -1707,7 +1718,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-1">
           <span className="text-[11px] text-text-muted">
-            Página {page + 1} de {totalPages} · {total} paciente{total !== 1 ? 's' : ''}
+            {t('pageInfo', { page: page + 1, total: totalPages })} · {total} {total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}
           </span>
           <div className="flex gap-1">
             <button
@@ -1888,32 +1899,32 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
           >
             <button onClick={() => { setEditTarget(p); setOpenMenuId(null); }}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
-              <Pencil className="w-3.5 h-3.5 text-text-muted shrink-0" /> Actualizar
+              <Pencil className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuEdit')}
             </button>
             <button onClick={() => { setSegurosTarget(p); setOpenMenuId(null); }}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
-              <Shield className="w-3.5 h-3.5 text-text-muted shrink-0" /> Seguros
+              <Shield className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuInsurance')}
             </button>
             <button onClick={() => { setQrPatientTarget(p); setOpenMenuId(null); }}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
-              <QrCode className="w-3.5 h-3.5 text-text-muted shrink-0" /> QR de paciente
+              <QrCode className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuPatientQr')}
             </button>
             <button onClick={() => { setArchivosTarget(p); setOpenMenuId(null); }}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
-              <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" /> Archivos personales
+              <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuPersonalFiles')}
             </button>
             <button disabled
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 transition-colors text-left opacity-40 cursor-not-allowed">
-              <FileText className="w-3.5 h-3.5 text-text-muted shrink-0" /> Historial médico
+              <FileText className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuMedicalHistory')}
             </button>
             <button disabled
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 transition-colors text-left opacity-40 cursor-not-allowed">
-              <History className="w-3.5 h-3.5 text-text-muted shrink-0" /> Historial de auditoría
+              <History className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuAuditHistory')}
             </button>
             <div className="my-1 border-t border-border/60" />
             <button onClick={() => { setDeleteTarget(p); setDeleteError(''); setOpenMenuId(null); }}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-rose hover:bg-rose/10 transition-colors text-left">
-              <Trash2 className="w-3.5 h-3.5 shrink-0" /> Eliminar
+              <Trash2 className="w-3.5 h-3.5 shrink-0" /> {t('menuDelete')}
             </button>
           </div>
         );
@@ -1943,9 +1954,9 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
       <Dialog open={!!deleteCaseTarget} onOpenChange={(o) => { if (!o) setDeleteCaseTarget(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-text-1">¿Estás seguro de eliminar este registro?</DialogTitle>
+            <DialogTitle className="text-text-1">{t('deleteCaseTitle')}</DialogTitle>
             <DialogDescription className="text-text-2 text-sm mt-1">
-              Esta acción no se puede deshacer.
+              {t('deleteCaseBody')}
             </DialogDescription>
           </DialogHeader>
           {deleteCaseError && (
@@ -1955,10 +1966,10 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
             <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDeleteCase} disabled={deletingCase}>
-              {deletingCase ? 'Eliminando...' : 'Eliminar'}
+              {deletingCase ? t('btnDeleting') : t('menuDelete')}
             </Button>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteCaseTarget(null)} disabled={deletingCase}>
-              Cancelar
+              {t('btnCancel')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2004,16 +2015,12 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-text-1">¿Eliminar paciente?</DialogTitle>
+            <DialogTitle className="text-text-1">{t('deletePatientTitle')}</DialogTitle>
             <DialogDescription className="text-text-2 text-sm mt-1">
-              Esta acción eliminará a{' '}
-              <span className="font-semibold text-text-1">
-                {deleteTarget?.firstName} {deleteTarget?.lastName}
-              </span>{' '}
-              del sistema. No se puede deshacer.
+              {t('deletePatientBody', { name: `${deleteTarget?.firstName ?? ''} ${deleteTarget?.lastName ?? ''}` })}
               {(deleteTarget?.caseCount ?? 0) > 0 && (
                 <span className="block mt-2 text-amber text-xs">
-                  ⚠ Este paciente tiene {deleteTarget!.caseCount} caso{deleteTarget!.caseCount !== 1 ? 's' : ''} asociado{deleteTarget!.caseCount !== 1 ? 's' : ''} — no se podrá eliminar.
+                  ⚠ {t('deletePatientHasCases', { count: deleteTarget!.caseCount })}
                 </span>
               )}
             </DialogDescription>
@@ -2025,10 +2032,10 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setDeleteTarget(null)} disabled={deleting}>
-              Cancelar
+              {t('btnCancel')}
             </Button>
             <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDelete} disabled={deleting}>
-              {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              {deleting ? t('btnDeleting') : t('btnYesDelete')}
             </Button>
           </DialogFooter>
         </DialogContent>

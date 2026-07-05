@@ -4,6 +4,7 @@
  */
 
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { PageHeader } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
@@ -15,6 +16,7 @@ export default async function PatientsPage({
 }: {
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
+  const t = await getTranslations('phoenix.patients');
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
 
@@ -108,8 +110,8 @@ export default async function PatientsPage({
   return (
     <div className="p-4 sm:p-6 space-y-4">
       <PageHeader
-        title="Pacientes"
-        subtitle={`${total} paciente${total !== 1 ? 's' : ''}${q ? ` · búsqueda: "${q}"` : ''}`}
+        title={t('listTitle')}
+        subtitle={`${total} ${total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}${q ? ` · ${t('btnSearch').toLowerCase()}: "${q}"` : ''}`}
       />
 
       {/* Barra de búsqueda + botón crear */}
@@ -118,7 +120,7 @@ export default async function PatientsPage({
           <input
             name="q"
             defaultValue={q}
-            placeholder="Buscar por nombre, teléfono, email o código..."
+            placeholder={t('searchPlaceholder')}
             className="flex-1 min-w-[200px] bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             autoComplete="off"
           />
@@ -126,14 +128,14 @@ export default async function PatientsPage({
             type="submit"
             className="px-3 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors"
           >
-            Buscar
+            {t('btnSearch')}
           </button>
           {q && (
             <Link
               href="/patients"
               className="px-3 py-2 rounded-md border border-border text-sm text-text-2 hover:border-border-strong transition-colors"
             >
-              Limpiar
+              {t('btnClear')}
             </Link>
           )}
         </form>

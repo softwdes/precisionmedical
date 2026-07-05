@@ -41,7 +41,7 @@ export type MedicalHistoryData = {
   cognitiveStatus?:  Array<{ name: string; status: string }>;
   functionalStatus?: Array<{ name: string; status: string }>;
   implantedDevices?: string[];
-  systemsReview?:    string;
+  systemsReview?:    string[];
   healthExams?:      string;
   socialHistory?:    { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string };
   comments?:         Array<{ id: string; date: string; text: string; author?: string }>;
@@ -1483,6 +1483,74 @@ function DevicesEditDialog({
   );
 }
 
+// ── Systems review edit dialog ─────────────────────────────────────────────
+
+function SystemsReviewEditDialog({
+  patientId, initial, open, onClose,
+}: {
+  patientId: string;
+  initial:   string[] | undefined;
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
+
+  function addRow()                        { setItems(p => [...p, '']); }
+  function removeRow(i: number)            { setItems(p => p.filter((_, idx) => idx !== i)); }
+  function updateRow(i: number, v: string) { setItems(p => p.map((x, idx) => idx === i ? v : x)); }
+
+  function handleSave() {
+    const systemsReview = items.map(s => s.trim()).filter(Boolean);
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { systemsReview });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">Revisión de sistemas</DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Registrar cualquier síntoma o inquietud identificada durante la revisión sistemática de los sistemas del cuerpo.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-3 max-h-[60vh] overflow-y-auto">
+          {items.map((val, i) => (
+            <div key={i} className="space-y-1">
+              <label className="text-xs text-text-muted">Revisión de sistema {i + 1}</label>
+              <div className="flex items-center gap-2">
+                <input
+                  value={val}
+                  onChange={e => updateRow(i, e.target.value)}
+                  placeholder="ej., Cardiovascular - dolor en el pecho, Respiratorio - falta de aire"
+                  className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                />
+                <button type="button" onClick={() => removeRow(i)} className="p-1.5 rounded text-text-muted hover:text-rose transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
+            <Plus className="w-4 h-4" /> Agregar revisión de sistema
+          </button>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Add family history dialog ──────────────────────────────────────────────
 
 const FAMILY_MEMBERS = [
@@ -1781,6 +1849,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const [editCognitive,    setEditCognitive]    = useState(false);
   const [editFunctional,   setEditFunctional]   = useState(false);
   const [editDevices,      setEditDevices]      = useState(false);
+  const [editSystems,      setEditSystems]      = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -2168,8 +2237,15 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
                 }
               </SectionCard>
 
-              <SectionCard icon={<ClipboardList className="w-4 h-4" />} title="Revisión de sistemas" editBtn>
-                <EmptyState text={mh.systemsReview ?? 'No hay revisiones de sistemas registradas'} />
+              <SectionCard icon={<ClipboardList className="w-4 h-4" />} title="Revisión de sistemas" editBtn onEdit={() => setEditSystems(true)}>
+                {(mh.systemsReview?.length ?? 0) === 0
+                  ? <EmptyState text="No hay revisiones de sistemas registradas" />
+                  : <div className="space-y-1">
+                      {mh.systemsReview!.map((s, i) => (
+                        <div key={i} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{s}</div>
+                      ))}
+                    </div>
+                }
               </SectionCard>
             </div>
 
@@ -2234,6 +2310,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+      />
+    )}
+    {editSystems && (
+      <SystemsReviewEditDialog
+        patientId={patient.id}
+        initial={mh.systemsReview}
+        open={editSystems}
+        onClose={() => setEditSystems(false)}
       />
     )}
     {editDevices && (

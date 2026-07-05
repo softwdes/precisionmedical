@@ -341,11 +341,99 @@ function VisitInfoEditDialog({
   );
 }
 
+// ── Health info edit dialog ────────────────────────────────────────────────
+
+function HealthInfoEditDialog({
+  patientId, initial, open, onClose,
+}: {
+  patientId: string;
+  initial:   MedicalHistoryData['healthInfo'];
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [goals, setGoals]       = useState(initial?.goals ?? '');
+  const [rating, setRating]     = useState<number | null>(initial?.selfRating ?? null);
+
+  function handleSave() {
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { healthInfo: { goals, selfRating: rating } });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">
+            Actualizar información de salud
+          </DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Actualizar metas de salud y autoevaluación del paciente
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-5">
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Metas de salud</label>
+            <input
+              value={goals}
+              onChange={e => setGoals(e.target.value)}
+              placeholder="Ingrese las metas de salud"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm text-text-2">Autoevaluación (1-5)</label>
+            <div className="flex items-center gap-3 flex-wrap">
+              {[1, 2, 3, 4, 5].map(n => (
+                <label key={n} className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="rating"
+                    checked={rating === n}
+                    onChange={() => setRating(n)}
+                    className="accent-brand"
+                  />
+                  <span className="text-sm text-text-2">{n}</span>
+                </label>
+              ))}
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="rating"
+                  checked={rating === null}
+                  onChange={() => setRating(null)}
+                  className="accent-brand"
+                />
+                <span className="text-sm text-text-2">N/D</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main dialog ────────────────────────────────────────────────────────────
 
 export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const locale         = useLocale();
-  const [editVisitInfo, setEditVisitInfo] = useState(false);
+  const [editVisitInfo,  setEditVisitInfo]  = useState(false);
+  const [editHealthInfo, setEditHealthInfo] = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -572,6 +660,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
                 icon={<Activity className="w-4 h-4" />}
                 title="Información de salud"
                 editBtn
+                onEdit={() => setEditHealthInfo(true)}
               >
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-md border border-border/60 bg-bg-2/40 p-3">
@@ -581,7 +670,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
                   <div className="rounded-md border border-border/60 bg-bg-2/40 p-3">
                     <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">Autoevaluación</p>
                     <p className="text-[11px] text-text-2">
-                      {mh.healthInfo?.selfRating != null ? `${mh.healthInfo.selfRating}/10` : 'Sin calificación'}
+                      {mh.healthInfo?.selfRating != null ? `${mh.healthInfo.selfRating}/5` : 'Sin calificación'}
                     </p>
                   </div>
                 </div>
@@ -742,6 +831,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         onClose={() => setEditVisitInfo(false)}
       />
     )}
-  </>
+    {editHealthInfo && (
+      <HealthInfoEditDialog
+        patientId={patient.id}
+        initial={mh.healthInfo}
+        open={editHealthInfo}
+        onClose={() => setEditHealthInfo(false)}
+      />
+    )}
+    </>
   );
 }

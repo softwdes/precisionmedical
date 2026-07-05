@@ -1647,6 +1647,68 @@ function HealthExamsEditDialog({
   );
 }
 
+// ── Add comment dialog ─────────────────────────────────────────────────────
+
+function AddCommentDialog({
+  patientId, existing, open, onClose,
+}: {
+  patientId: string;
+  existing:  MedicalHistoryData['comments'];
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [text, setText] = useState('');
+
+  function handleSave() {
+    if (!text.trim()) return;
+    const now = new Date();
+    const date = now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    const newComment = { id: crypto.randomUUID(), date, text: text.trim() };
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { comments: [...(existing ?? []), newComment] });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">Agregar comentario al historial</DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Proporcione los detalles del nuevo comentario que se agregará al historial médico.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5">
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Comentario</label>
+            <textarea
+              autoFocus
+              rows={5}
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="Escriba su comentario aquí"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending || !text.trim()}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Agregar comentario'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Add family history dialog ──────────────────────────────────────────────
 
 const FAMILY_MEMBERS = [
@@ -1947,6 +2009,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const [editDevices,      setEditDevices]      = useState(false);
   const [editSystems,      setEditSystems]      = useState(false);
   const [editExams,        setEditExams]        = useState(false);
+  const [addComment,       setAddComment]       = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -2364,7 +2427,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
                 icon={<MessageSquare className="w-4 h-4" />}
                 title="Historial de comentarios"
                 count={mh.comments?.length ?? 0}
-                onAdd={() => {}}
+                onAdd={() => setAddComment(true)}
               >
                 {(mh.comments?.length ?? 0) === 0
                   ? <EmptyState text="No hay comentarios disponibles." />
@@ -2415,6 +2478,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+      />
+    )}
+    {addComment && (
+      <AddCommentDialog
+        patientId={patient.id}
+        existing={mh.comments}
+        open={addComment}
+        onClose={() => setAddComment(false)}
       />
     )}
     {editExams && (

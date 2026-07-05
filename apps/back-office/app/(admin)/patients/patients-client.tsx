@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -784,6 +784,7 @@ export interface PatientRow {
     caseCode: string;
     caseType: string;
     status: string;
+    portalToken: string | null;
     intakeFormSentAt: string | null;
     intakeFormCompletedAt: string | null;
     consentsData: Record<string, unknown> | null;
@@ -799,6 +800,174 @@ interface Props {
   total: number;
 }
 
+
+// ── QR Paciente dialog ─────────────────────────────────────────────────────
+function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [copied, setCopied]       = useState(false);
+  const portalToken = patient.latestCase?.portalToken ?? null;
+  const portalBase  = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'https://forms.precisionmedicalcare.com';
+  const portalUrl   = portalToken ? `${portalBase}/c/${portalToken}` : null;
+
+  useEffect(() => {
+    if (!portalUrl) return;
+    QRCode.toDataURL(portalUrl, { width: 280, margin: 2 })
+      .then(setQrDataUrl)
+      .catch(() => {});
+  }, [portalUrl]);
+
+  const copyLink = async () => {
+    if (!portalUrl) return;
+    await navigator.clipboard.writeText(portalUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadQr = () => {
+    if (!qrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    a.download = `qr-${patient.firstName}-${patient.lastName}.png`;
+    a.click();
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Acceso de paciente · {patient.firstName} {patient.lastName}</DialogTitle>
+          <DialogDescription>
+            Comparte este código QR o enlace con el paciente para que pueda completar o actualizar su información de registro de manera segura.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          {portalUrl ? (
+            <>
+              <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2 px-3 py-2">
+                <code className="flex-1 text-[11px] font-mono text-text-2 truncate">{portalUrl}</code>
+                <button onClick={copyLink} className="p-1.5 rounded hover:bg-bg-1 text-text-muted hover:text-text-1 transition-colors shrink-0">
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              {qrDataUrl ? (
+                <div className="flex justify-center">
+                  <img src={qrDataUrl} alt="QR de acceso" className="rounded-lg border border-border" width={280} height={280} />
+                </div>
+              ) : (
+                <div className="flex justify-center py-10 text-text-muted">
+                  <RefreshCw className="w-6 h-6 animate-spin opacity-40" />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
+              <QrCode className="w-10 h-10 opacity-20" />
+              <p className="text-sm font-medium">Sin enlace de portal</p>
+              <p className="text-[11px] text-center">Envía el formulario de admisión primero para generar el QR del paciente.</p>
+            </div>
+          )}
+        </div>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={onClose}>Cerrar</Button>
+          {qrDataUrl && (
+            <Button onClick={downloadQr}>
+              <Download className="w-3.5 h-3.5 mr-1" /> Descargar
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Archivos personales dialog ─────────────────────────────────────────────
+const PHOTO_SLOTS = [
+  { key: 'selfie',              label: 'Foto del paciente' },
+  { key: 'insuranceCardFront',  label: 'Tarjeta de seguro (Frontal)' },
+  { key: 'insuranceCardBack',   label: 'Tarjeta de seguro (Posterior)' },
+  { key: 'dlFront',             label: 'Licencia (Frontal)' },
+] as const;
+
+function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
+  const photos = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.photos as Record<string, string> | undefined;
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-5xl p-0">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-text-1">Paciente: {patient.firstName} {patient.lastName}</h2>
+          <p className="text-[12px] text-text-muted mt-0.5">Fotos y archivos personales del paciente.</p>
+        </div>
+
+        <div className="px-6 py-5 space-y-6 max-h-[75vh] overflow-y-auto">
+          {/* Fotos */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {PHOTO_SLOTS.map(({ key, label }) => {
+              const url = photos?.[key] ?? null;
+              return (
+                <div key={key} className="rounded-lg border border-border bg-bg-2/40 overflow-hidden flex flex-col">
+                  <p className="px-3 pt-3 pb-1 text-[11px] font-semibold text-cyan">{label}</p>
+                  <div className="flex-1 mx-3 mb-1 rounded-md bg-bg-2 border border-border/60 overflow-hidden flex items-center justify-center min-h-[140px]">
+                    {url ? (
+                      <img src={url} alt={label} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 text-text-muted py-6">
+                        <Camera className="w-7 h-7 opacity-30" />
+                        <span className="text-[10px]">Agregar foto</span>
+                        <span className="text-[9px] text-center px-2 opacity-70">Toca para usar la cámara o seleccionar una imagen</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-1.5 px-3 py-2">
+                    <button disabled className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-muted opacity-50 cursor-not-allowed">
+                      <Camera className="w-3 h-3" /> Cámara
+                    </button>
+                    <button disabled className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-muted opacity-50 cursor-not-allowed">
+                      <Upload className="w-3 h-3" /> Archivo
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Archivos personales */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text-2">
+                <FolderOpen className="w-3.5 h-3.5" /> Archivos personales
+              </div>
+              <div className="flex gap-1.5">
+                <button disabled className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan/80 text-white text-[11px] font-medium opacity-50 cursor-not-allowed">
+                  <Upload className="w-3 h-3" /> Subir archivos
+                </button>
+                <button disabled className="p-1.5 rounded-md border border-border text-text-muted opacity-50 cursor-not-allowed">
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+            <div className="rounded-md border border-border overflow-hidden">
+              <div className="grid grid-cols-3 bg-bg-2 border-b border-border px-3 py-2">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Nombre</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Tamaño</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Última modificación</span>
+              </div>
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
+                <FolderOpen className="w-10 h-10 opacity-15" />
+                <p className="text-sm font-medium">Directorio vacío</p>
+                <p className="text-[11px]">No hay archivos o carpetas en este directorio</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-3 border-t border-border flex justify-end">
+          <Button variant="outline" onClick={onClose}>Cerrar</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function PatientsClient({ patients, q, page, totalPages, total }: Props) {
   const router  = useRouter();
@@ -817,6 +986,9 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   const [caseViewTarget, setCaseViewTarget] = useState<CaseRow | null>(null);
   const [caseEditTarget, setCaseEditTarget] = useState<CaseRow | null>(null);
   const [deleteCaseTarget, setDeleteCaseTarget] = useState<CaseRow | null>(null);
+  const [segurosTarget,  setSegurosTarget]  = useState<PatientRow | null>(null);
+  const [qrPatientTarget, setQrPatientTarget] = useState<PatientRow | null>(null);
+  const [archivosTarget, setArchivosTarget] = useState<PatientRow | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -1098,12 +1270,16 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                           className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
                           <Pencil className="w-3.5 h-3.5 text-text-muted shrink-0" /> Actualizar
                         </button>
-                        <button onClick={() => { setViewTarget(p); setOpenMenuId(null); }}
+                        <button onClick={() => { setSegurosTarget(p); setOpenMenuId(null); }}
                           className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
                           <Shield className="w-3.5 h-3.5 text-text-muted shrink-0" /> Seguros
                         </button>
-                        <button onClick={() => { setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left opacity-50 cursor-not-allowed" disabled>
+                        <button onClick={() => { setQrPatientTarget(p); setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+                          <QrCode className="w-3.5 h-3.5 text-text-muted shrink-0" /> QR de paciente
+                        </button>
+                        <button onClick={() => { setArchivosTarget(p); setOpenMenuId(null); }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
                           <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" /> Archivos personales
                         </button>
                         <button onClick={() => { setOpenMenuId(null); }}
@@ -1458,6 +1634,58 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
         onOpenChange={(o) => { if (!o) setSendPortalTarget(null); }}
         caseInfo={sendPortalTarget}
       />
+
+      {/* ─── Seguros ─────────────────────────────────────────────────────────── */}
+      <Dialog open={!!segurosTarget} onOpenChange={(o) => { if (!o) setSegurosTarget(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-brand" />
+              Información sobre seguros de {segurosTarget?.firstName} {segurosTarget?.lastName}
+            </DialogTitle>
+            <DialogDescription>Consulta y agrega seguros de paciente</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            {segurosTarget?.insuranceCarrier ? (
+              <div className="rounded-md border border-border bg-bg-2/40 p-4 space-y-2">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Seguro principal</p>
+                <div className="text-sm text-text-1 font-medium">{segurosTarget.insuranceCarrier}</div>
+                {segurosTarget.policyNumber && (
+                  <div className="text-[11px] text-text-muted">Póliza: <span className="font-mono text-text-2">{segurosTarget.policyNumber}</span></div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
+                <Shield className="w-10 h-10 opacity-20" />
+                <p className="text-sm font-medium">No hay seguros activos</p>
+                <p className="text-[11px]">Agrega un seguro para comenzar</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setSegurosTarget(null)}>Cerrar</Button>
+            <Button disabled className="opacity-50 cursor-not-allowed">
+              <Plus className="w-3.5 h-3.5 mr-1" /> Agregar seguro
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── QR Paciente ─────────────────────────────────────────────────────── */}
+      {qrPatientTarget && (
+        <QrPatientDialog
+          patient={qrPatientTarget}
+          onClose={() => setQrPatientTarget(null)}
+        />
+      )}
+
+      {/* ─── Archivos personales ─────────────────────────────────────────────── */}
+      {archivosTarget && (
+        <ArchivosDialog
+          patient={archivosTarget}
+          onClose={() => setArchivosTarget(null)}
+        />
+      )}
 
       {/* ─── Case QR dialog ─────────────────────────────────────────────────── */}
       {caseQrTarget && (

@@ -801,6 +801,260 @@ interface Props {
 }
 
 
+// ── InsuranceEntry (mismo tipo que forms wizard) ──────────────────────────
+type InsuranceEntry = {
+  id: string; insType: 'MEDICAL' | 'AUTO';
+  carrier: string; policyId: string; holderName: string; groupNum: string;
+  holderDOB: string; holderRelation: string; effectiveDate: string;
+  copay: string; deductible: string;
+  lossDate: string; pipAvailable: string; claimNum: string;
+  adjusterName: string; adjusterPhone: string; adjusterFax: string;
+  adjusterPhone2: string; adjusterEmail: string; comments: string;
+  fullLien: boolean; lienComments: string;
+};
+
+function emptyInsEntry(insType: 'MEDICAL' | 'AUTO'): InsuranceEntry {
+  return {
+    id: Math.random().toString(36).slice(2),
+    insType, carrier: '', policyId: '', holderName: '', groupNum: '',
+    holderDOB: '', holderRelation: '', effectiveDate: '', copay: '', deductible: '',
+    lossDate: '', pipAvailable: '', claimNum: '', adjusterName: '', adjusterPhone: '',
+    adjusterFax: '', adjusterPhone2: '', adjusterEmail: '', comments: '',
+    fullLien: false, lienComments: '',
+  };
+}
+
+const insLabel = 'text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5';
+const insInput = 'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand';
+
+function NuevoSeguroDialog({ onClose, onSave }: {
+  onClose: () => void;
+  onSave: (entry: InsuranceEntry) => void;
+}) {
+  const [tab, setTab] = useState<'MEDICAL' | 'AUTO'>('MEDICAL');
+  const [entry, setEntry] = useState<InsuranceEntry>(() => emptyInsEntry('MEDICAL'));
+
+  function switchTab(t: 'MEDICAL' | 'AUTO') { setTab(t); setEntry(emptyInsEntry(t)); }
+  function set(k: keyof InsuranceEntry, v: string | boolean) { setEntry(prev => ({ ...prev, [k]: v })); }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="w-4 h-4 text-brand" /> Nuevo seguro
+          </DialogTitle>
+          <DialogDescription className="text-text-muted text-xs">Completa la información del seguro</DialogDescription>
+        </DialogHeader>
+
+        {/* Tabs */}
+        <div className="flex px-6 pt-4 gap-2 shrink-0">
+          {(['MEDICAL', 'AUTO'] as const).map(t => (
+            <button key={t} onClick={() => switchTab(t)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === t ? 'bg-brand text-white' : 'bg-bg-2 text-text-2 hover:bg-bg-2/80 border border-border'}`}
+            >
+              {t === 'MEDICAL' ? 'Seguro médico' : 'Seguro de auto'}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {tab === 'MEDICAL' ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label className={insLabel}>Compañía de seguro</label><input className={insInput} placeholder="Nombre de la aseguradora" value={entry.carrier} onChange={e => set('carrier', e.target.value)} /></div>
+                <div><label className={insLabel}>N° de ID / N° de póliza</label><input className={insInput} placeholder="Número de póliza" value={entry.policyId} onChange={e => set('policyId', e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label className={insLabel}>Nombre del titular</label><input className={insInput} placeholder="Nombre completo" value={entry.holderName} onChange={e => set('holderName', e.target.value)} /></div>
+                <div><label className={insLabel}>N° de grupo</label><input className={insInput} placeholder="Número de grupo" value={entry.groupNum} onChange={e => set('groupNum', e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label className={insLabel}>Nacimiento del asegurado</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.holderDOB} onChange={e => set('holderDOB', e.target.value)} /></div>
+                <div><label className={insLabel}>Relación con el asegurado</label><input className={insInput} placeholder="Ej. Titular, Cónyuge, Hijo/a" value={entry.holderRelation} onChange={e => set('holderRelation', e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div><label className={insLabel}>Fecha efectiva</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.effectiveDate} onChange={e => set('effectiveDate', e.target.value)} /></div>
+                <div><label className={insLabel}>Copago</label><input className={insInput} placeholder="$0.00" value={entry.copay} onChange={e => set('copay', e.target.value)} /></div>
+                <div><label className={insLabel}>Deducible</label><input className={insInput} placeholder="$0.00" value={entry.deductible} onChange={e => set('deductible', e.target.value)} /></div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label className={insLabel}>Compañía de seguro</label><input className={insInput} placeholder="Nombre de la aseguradora" value={entry.carrier} onChange={e => set('carrier', e.target.value)} /></div>
+                <div><label className={insLabel}>N° de póliza</label><input className={insInput} placeholder="Número de póliza" value={entry.policyId} onChange={e => set('policyId', e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label className={insLabel}>Fecha de pérdida</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.lossDate} onChange={e => set('lossDate', e.target.value)} /></div>
+                <div><label className={insLabel}>PIP disponible</label><input className={insInput} placeholder="Ej. $10,000" value={entry.pipAvailable} onChange={e => set('pipAvailable', e.target.value)} /></div>
+              </div>
+              <div><label className={insLabel}>N° de reclamo</label><input className={insInput} placeholder="Número de reclamo" value={entry.claimNum} onChange={e => set('claimNum', e.target.value)} /></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label className={insLabel}>Nombre del ajustador</label><input className={insInput} placeholder="Nombre completo" value={entry.adjusterName} onChange={e => set('adjusterName', e.target.value)} /></div>
+                <div><label className={insLabel}>Teléfono del ajustador</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterPhone} onChange={e => set('adjusterPhone', e.target.value)} /></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><label className={insLabel}>Fax del ajustador</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterFax} onChange={e => set('adjusterFax', e.target.value)} /></div>
+                <div><label className={insLabel}>Teléfono 2 del ajustador</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterPhone2} onChange={e => set('adjusterPhone2', e.target.value)} /></div>
+              </div>
+              <div><label className={insLabel}>Correo del ajustador</label><input type="email" className={insInput} placeholder="correo@ejemplo.com" value={entry.adjusterEmail} onChange={e => set('adjusterEmail', e.target.value)} /></div>
+              <div><label className={insLabel}>Comentarios</label><textarea className={`${insInput} resize-none`} rows={3} placeholder="Comentarios adicionales..." value={entry.comments} onChange={e => set('comments', e.target.value)} /></div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={entry.fullLien} onChange={e => set('fullLien', e.target.checked)} className="w-4 h-4 rounded border border-border accent-brand" />
+                <span className="text-sm text-text-2">Full Lien</span>
+              </label>
+              {entry.fullLien && (
+                <div><label className={insLabel}>Comentarios del lien</label><textarea className={`${insInput} resize-none`} rows={2} placeholder="Detalles del lien..." value={entry.lienComments} onChange={e => set('lienComments', e.target.value)} /></div>
+              )}
+            </>
+          )}
+        </div>
+
+        <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cancelar</Button>
+          <Button className="w-full sm:w-auto" onClick={() => { onSave(entry); onClose(); }}>Guardar seguro</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const INS_TYPE_LABEL: Record<string, string> = { MEDICAL: 'Médico', AUTO: 'Auto' };
+const INS_TYPE_COLOR: Record<string, string> = {
+  MEDICAL: 'bg-cyan/10 text-cyan border-cyan/20',
+  AUTO:    'bg-amber/10 text-amber border-amber/20',
+};
+
+function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
+  const cd = patient.latestCase?.consentsData as Record<string, unknown> | null;
+  const initialIns = Array.isArray(cd?.insurances) ? (cd!.insurances as InsuranceEntry[]) : [];
+  const [insurances, setInsurances] = useState<InsuranceEntry[]>(initialIns);
+  const [showNuevo, setShowNuevo]   = useState(false);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState('');
+
+  async function saveInsurances(updated: InsuranceEntry[]) {
+    if (!patient.latestCase) return;
+    setSaving(true); setError('');
+    try {
+      const res = await fetch(`/api/admin/cases/${patient.latestCase.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consents: { insurances: updated } }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(json.message ?? 'Error al guardar.'); return; }
+      setInsurances(updated);
+    } catch { setError('Error de red.'); }
+    finally { setSaving(false); }
+  }
+
+  async function handleAdd(entry: InsuranceEntry) { await saveInsurances([...insurances, entry]); }
+  async function handleDelete(id: string) { await saveInsurances(insurances.filter(i => i.id !== id)); }
+
+  return (
+    <>
+      <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+        <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-brand" />
+              Seguros — {patient.firstName} {patient.lastName}
+            </DialogTitle>
+            <DialogDescription className="text-text-muted text-xs">
+              {patient.latestCase?.caseCode ?? 'Sin caso activo'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+            {!patient.latestCase && (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
+                <Shield className="w-10 h-10 opacity-20" />
+                <p className="text-sm font-medium">Sin caso activo</p>
+                <p className="text-[11px] text-center">Crea un caso para poder registrar seguros.</p>
+              </div>
+            )}
+
+            {patient.latestCase && insurances.length === 0 && !saving && (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
+                <Shield className="w-10 h-10 opacity-20" />
+                <p className="text-sm font-medium">No hay seguros activos</p>
+                <p className="text-[11px]">Usa el botón &ldquo;Agregar seguro&rdquo; para comenzar</p>
+              </div>
+            )}
+
+            {saving && (
+              <div className="flex items-center justify-center py-6 text-text-muted gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Guardando...</span>
+              </div>
+            )}
+
+            {!saving && insurances.map((ins) => (
+              <div key={ins.id} className="rounded-lg border border-border bg-bg-1 p-4">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <TagPill
+                      label={INS_TYPE_LABEL[ins.insType] ?? ins.insType}
+                      colorClass={INS_TYPE_COLOR[ins.insType] ?? 'bg-bg-2 text-text-2 border-border'}
+                    />
+                    <span className="text-sm font-medium text-text-1">{ins.carrier || '—'}</span>
+                  </div>
+                  <button
+                    onClick={() => handleDelete(ins.id)}
+                    disabled={saving}
+                    className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors shrink-0"
+                    title="Eliminar seguro"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
+                  {ins.policyId && <div className="flex justify-between"><span className="text-text-muted">Póliza</span><span className="text-text-1 font-mono">{ins.policyId}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.holderName && <div className="flex justify-between"><span className="text-text-muted">Titular</span><span className="text-text-1">{ins.holderName}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.holderRelation && <div className="flex justify-between"><span className="text-text-muted">Relación</span><span className="text-text-1">{ins.holderRelation}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.copay && <div className="flex justify-between"><span className="text-text-muted">Copago</span><span className="text-text-1">{ins.copay}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.deductible && <div className="flex justify-between"><span className="text-text-muted">Deducible</span><span className="text-text-1">{ins.deductible}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.effectiveDate && <div className="flex justify-between"><span className="text-text-muted">Fecha efectiva</span><span className="text-text-1">{ins.effectiveDate}</span></div>}
+                  {ins.insType === 'AUTO' && ins.claimNum && <div className="flex justify-between"><span className="text-text-muted">N° reclamo</span><span className="text-text-1 font-mono">{ins.claimNum}</span></div>}
+                  {ins.insType === 'AUTO' && ins.adjusterName && <div className="flex justify-between"><span className="text-text-muted">Ajustador</span><span className="text-text-1">{ins.adjusterName}</span></div>}
+                  {ins.insType === 'AUTO' && ins.adjusterPhone && <div className="flex justify-between"><span className="text-text-muted">Tel.</span><span className="text-text-1 font-mono">{ins.adjusterPhone}</span></div>}
+                  {ins.insType === 'AUTO' && ins.adjusterEmail && <div className="flex justify-between"><span className="text-text-muted">Email</span><span className="text-text-1 truncate max-w-[130px]">{ins.adjusterEmail}</span></div>}
+                  {ins.insType === 'AUTO' && ins.lossDate && <div className="flex justify-between"><span className="text-text-muted">Fecha pérdida</span><span className="text-text-1">{ins.lossDate}</span></div>}
+                  {ins.insType === 'AUTO' && ins.pipAvailable && <div className="flex justify-between"><span className="text-text-muted">PIP</span><span className="text-text-1">{ins.pipAvailable}</span></div>}
+                  {ins.fullLien && <div className="flex items-center gap-1.5 col-span-2"><span className="w-1.5 h-1.5 rounded-full bg-amber shrink-0" /><span className="text-amber font-medium">Full Lien</span></div>}
+                </div>
+              </div>
+            ))}
+
+            {error && (
+              <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose">{error}</div>
+            )}
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cerrar</Button>
+            {patient.latestCase && (
+              <Button className="w-full sm:w-auto" onClick={() => setShowNuevo(true)} disabled={saving}>
+                <Plus className="w-3.5 h-3.5 mr-1" /> Agregar seguro
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {showNuevo && (
+        <NuevoSeguroDialog
+          onClose={() => setShowNuevo(false)}
+          onSave={handleAdd}
+        />
+      )}
+    </>
+  );
+}
+
 // ── QR Paciente dialog ─────────────────────────────────────────────────────
 function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
   const [qrDataUrl, setQrDataUrl] = useState('');
@@ -1602,40 +1856,9 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
       />
 
       {/* ─── Seguros ─────────────────────────────────────────────────────────── */}
-      <Dialog open={!!segurosTarget} onOpenChange={(o) => { if (!o) setSegurosTarget(null); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-brand" />
-              Información sobre seguros de {segurosTarget?.firstName} {segurosTarget?.lastName}
-            </DialogTitle>
-            <DialogDescription>Consulta y agrega seguros de paciente</DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-3">
-            {segurosTarget?.insuranceCarrier ? (
-              <div className="rounded-md border border-border bg-bg-2/40 p-4 space-y-2">
-                <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Seguro principal</p>
-                <div className="text-sm text-text-1 font-medium">{segurosTarget.insuranceCarrier}</div>
-                {segurosTarget.policyNumber && (
-                  <div className="text-[11px] text-text-muted">Póliza: <span className="font-mono text-text-2">{segurosTarget.policyNumber}</span></div>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
-                <Shield className="w-10 h-10 opacity-20" />
-                <p className="text-sm font-medium">No hay seguros activos</p>
-                <p className="text-[11px]">Agrega un seguro para comenzar</p>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setSegurosTarget(null)}>Cerrar</Button>
-            <Button disabled className="opacity-50 cursor-not-allowed">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Agregar seguro
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {segurosTarget && (
+        <SegurosDialog patient={segurosTarget} onClose={() => setSegurosTarget(null)} />
+      )}
 
       {/* ─── QR Paciente ─────────────────────────────────────────────────────── */}
       {qrPatientTarget && (

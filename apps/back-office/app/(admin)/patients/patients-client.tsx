@@ -783,6 +783,7 @@ export interface PatientRow {
     status: string;
     intakeFormSentAt: string | null;
     intakeFormCompletedAt: string | null;
+    consentsData: Record<string, unknown> | null;
   } | null;
   caseCount: number;
 }
@@ -911,7 +912,8 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Estado</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Admisión</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Formulario</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Creado / Actualizado</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Creado</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Actualizado</th>
               <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Acciones</th>
             </tr>
           </thead>
@@ -989,16 +991,31 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                 </td>
 
                 {/* Admisión */}
-                <td className="px-4 py-3 hidden lg:table-cell">
+                <td className="px-4 py-3 hidden lg:table-cell min-w-[180px]">
                   {p.latestCase ? (() => {
-                    const lc = p.latestCase;
-                    if (lc.intakeFormCompletedAt) return (
-                      <TagPill label="Completo" colorClass="bg-emerald/10 text-emerald border-emerald/20" />
+                    const prog = calcIntakeProgress(
+                      {
+                        id: '', caseCode: '', status: p.latestCase.status,
+                        caseType: p.latestCase.caseType, accidentType: null,
+                        accidentDate: null, accidentNotes: null,
+                        intakeFormCompletedAt: p.latestCase.intakeFormCompletedAt,
+                        consentsData: p.latestCase.consentsData,
+                        firstAppointment: null, lastAppointment: null,
+                      },
+                      p,
                     );
-                    if (lc.intakeFormSentAt) return (
-                      <TagPill label="En progreso" colorClass="bg-amber/10 text-amber border-amber/20" />
+                    return (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <TagPill label={prog.badge} colorClass={prog.colorClass} />
+                          <span className="text-[10px] text-text-muted tabular-nums">{prog.pct}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
+                          <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
+                        </div>
+                        {prog.sub && <p className="text-[10px] text-text-muted mt-0.5 truncate">{prog.sub}</p>}
+                      </div>
                     );
-                    return <TagPill label="Pendiente" colorClass="bg-text-muted/10 text-text-muted border-text-muted/20" />;
                   })() : <span className="text-[10px] text-text-muted">—</span>}
                 </td>
 
@@ -1022,12 +1039,14 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                   </div>
                 </td>
 
-                {/* Creado / Actualizado */}
-                <td className="px-4 py-3 hidden xl:table-cell">
-                  <div className="text-[11px] text-text-muted space-y-0.5">
-                    <div><span className="text-text-muted/60">Creado </span>{fmtLocalDate(p.createdAt)}</div>
-                    <div><span className="text-text-muted/60">Upd. </span>{fmtLocalDate(p.updatedAt)}</div>
-                  </div>
+                {/* Creado */}
+                <td className="px-4 py-3 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
+                  {fmtLocalDate(p.createdAt)}
+                </td>
+
+                {/* Actualizado */}
+                <td className="px-4 py-3 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
+                  {fmtLocalDate(p.updatedAt)}
                 </td>
 
                 {/* Acciones */}
@@ -1068,7 +1087,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
                 <tr key={`${p.id}-cases`} className="bg-bg-2/30">
-                  <td colSpan={8} className="px-6 py-3">
+                  <td colSpan={9} className="px-6 py-3">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">

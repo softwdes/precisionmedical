@@ -70,6 +70,7 @@ export default async function PatientsPage({
         status: true,
         intakeFormSentAt: true,
         intakeFormCompletedAt: true,
+        consentsData: true,
       },
     }),
   ]);
@@ -87,10 +88,11 @@ export default async function PatientsPage({
     caseCount: caseCountMap[p.id] ?? 0,
     latestCase: latestCaseMap[p.id]
       ? {
-          caseType:             latestCaseMap[p.id].caseType,
-          status:               latestCaseMap[p.id].status,
-          intakeFormSentAt:     latestCaseMap[p.id].intakeFormSentAt?.toISOString() ?? null,
+          caseType:              latestCaseMap[p.id].caseType,
+          status:                latestCaseMap[p.id].status,
+          intakeFormSentAt:      latestCaseMap[p.id].intakeFormSentAt?.toISOString() ?? null,
           intakeFormCompletedAt: latestCaseMap[p.id].intakeFormCompletedAt?.toISOString() ?? null,
+          consentsData:          latestCaseMap[p.id].consentsData as Record<string, unknown> | null,
         }
       : null,
   }));

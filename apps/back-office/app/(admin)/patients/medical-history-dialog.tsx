@@ -37,7 +37,7 @@ export type MedicalHistoryData = {
   surgeries?:        Array<{ id: string; procedure: string; date?: string; notes?: string }>;
   familyHistory?:    Array<{ id: string; relation: string; condition: string }>;
   providers?:        Array<{ id: string; name: string; specialty?: string; notes?: string }>;
-  vaccines?:         string;
+  vaccines?:         string[];
   cognitiveStatus?:  string;
   functionalStatus?: string;
   implantedDevices?: string;
@@ -1149,6 +1149,86 @@ function AddProviderDialog({
   );
 }
 
+// ── Vaccines edit dialog ───────────────────────────────────────────────────
+
+function VaccinesEditDialog({
+  patientId, initial, open, onClose,
+}: {
+  patientId: string;
+  initial:   string[] | undefined;
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
+
+  function addRow()                       { setItems(prev => [...prev, '']); }
+  function removeRow(i: number)           { setItems(prev => prev.filter((_, idx) => idx !== i)); }
+  function updateRow(i: number, v: string){ setItems(prev => prev.map((x, idx) => idx === i ? v : x)); }
+
+  function handleSave() {
+    const vaccines = items.map(s => s.trim()).filter(Boolean);
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { vaccines });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">Vacunas</DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Agregar o actualizar los registros de vacunación del paciente. Incluir nombres de vacunas y refuerzos relevantes.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-3 max-h-[60vh] overflow-y-auto">
+          {items.map((val, i) => (
+            <div key={i} className="space-y-1">
+              <label className="text-xs text-text-muted">Vacuna {i + 1}</label>
+              <div className="flex items-center gap-2">
+                <input
+                  value={val}
+                  onChange={e => updateRow(i, e.target.value)}
+                  autoFocus={i === items.length - 1 && i > 0}
+                  className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  className="p-1.5 rounded text-text-muted hover:text-rose transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={addRow}
+            className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Agregar vacuna
+          </button>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Add family history dialog ──────────────────────────────────────────────
 
 const FAMILY_MEMBERS = [
@@ -1443,6 +1523,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const [addSurgery,       setAddSurgery]       = useState(false);
   const [addFamilyHistory, setAddFamilyHistory] = useState(false);
   const [addProvider,      setAddProvider]      = useState(false);
+  const [editVaccines,     setEditVaccines]     = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -1774,8 +1855,15 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
                     ))}
               </SectionCard>
 
-              <SectionCard icon={<Shield className="w-4 h-4" />} title="Vacunas" editBtn>
-                <EmptyState text={mh.vaccines ?? 'No hay vacunas registradas'} />
+              <SectionCard icon={<Shield className="w-4 h-4" />} title="Vacunas" editBtn onEdit={() => setEditVaccines(true)}>
+                {(mh.vaccines?.length ?? 0) === 0
+                  ? <EmptyState text="No hay vacunas registradas" />
+                  : <div className="space-y-1">
+                      {mh.vaccines!.map((v, i) => (
+                        <div key={i} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{v}</div>
+                      ))}
+                    </div>
+                }
               </SectionCard>
             </div>
 
@@ -1862,6 +1950,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+      />
+    )}
+    {editVaccines && (
+      <VaccinesEditDialog
+        patientId={patient.id}
+        initial={mh.vaccines}
+        open={editVaccines}
+        onClose={() => setEditVaccines(false)}
       />
     )}
     {addProvider && (

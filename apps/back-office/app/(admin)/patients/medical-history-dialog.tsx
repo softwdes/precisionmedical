@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { updateMedicalHistory, searchDiagnoses, searchDrugs, searchDoctors } from './actions';
+import { updateMedicalHistory, searchDiagnoses, searchDrugs, searchDoctors, searchSpecialties } from './actions';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   User, Phone, Mail, AlertTriangle, Heart, Pill, Scissors, Users,
@@ -1045,6 +1045,110 @@ function AddSurgeryDialog({
   );
 }
 
+// ── Add provider history dialog ────────────────────────────────────────────
+
+function AddProviderDialog({
+  patientId, existing, open, onClose,
+}: {
+  patientId: string;
+  existing:  MedicalHistoryData['providers'];
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  const [doctorOptions,    setDoctorOptions]    = useState<Array<{ id: string; label: string }>>([]);
+  const [providerName,     setProviderName]     = useState('');
+  const [providerId,       setProviderId]       = useState('');
+
+  const [specOptions,      setSpecOptions]      = useState<Array<{ id: string; label: string }>>([]);
+  const [specialty,        setSpecialty]        = useState('');
+
+  const [lastVisit,        setLastVisit]        = useState('');
+
+  useEffect(() => {
+    searchDoctors('').then(rows => setDoctorOptions(rows.map(r => ({ id: r.id, label: r.name }))));
+    searchSpecialties('').then(rows => setSpecOptions(rows.map(r => ({ id: r.id, label: r.name }))));
+  }, []);
+
+  function handleSave() {
+    if (!providerName) return;
+    const newItem = {
+      id:        crypto.randomUUID(),
+      name:      providerName,
+      specialty: specialty || undefined,
+      notes:     lastVisit ? `Última visita: ${lastVisit}` : undefined,
+    };
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { providers: [...(existing ?? []), newItem] });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">
+            Agregar historial de proveedor
+          </DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Registrar la información del proveedor de salud y la fecha de su última visita.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-4">
+
+          {/* Nombre del proveedor */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Nombre del proveedor</label>
+            <SearchDropdown
+              value={providerName}
+              placeholder="Selecciona una opción"
+              options={doctorOptions}
+              onSearch={q => searchDoctors(q).then(rows => setDoctorOptions(rows.map(r => ({ id: r.id, label: r.name }))))}
+              onSelect={(id, label) => { setProviderId(id); setProviderName(label); }}
+            />
+          </div>
+
+          {/* Especialidad */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Especialidad</label>
+            <SearchDropdown
+              value={specialty}
+              placeholder="Selecciona una opción"
+              options={specOptions}
+              onSearch={q => searchSpecialties(q).then(rows => setSpecOptions(rows.map(r => ({ id: r.id, label: r.name }))))}
+              onSelect={(_, label) => setSpecialty(label)}
+            />
+          </div>
+
+          {/* Fecha de última visita — mm/dd/yyyy */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Fecha de última visita</label>
+            <input
+              type="date"
+              value={lastVisit}
+              onChange={e => setLastVisit(e.target.value)}
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending || !providerName}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Add family history dialog ──────────────────────────────────────────────
 
 const FAMILY_MEMBERS = [
@@ -1338,6 +1442,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const [addMedication,   setAddMedication]   = useState(false);
   const [addSurgery,       setAddSurgery]       = useState(false);
   const [addFamilyHistory, setAddFamilyHistory] = useState(false);
+  const [addProvider,      setAddProvider]      = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -1661,7 +1766,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
 
             {/* Row: Historial de proveedores + Vacunas */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard icon={<Briefcase className="w-4 h-4" />} title="Historial de proveedores" count={mh.providers?.length ?? 0} onAdd={() => {}}>
+              <SectionCard icon={<Briefcase className="w-4 h-4" />} title="Historial de proveedores" count={mh.providers?.length ?? 0} onAdd={() => setAddProvider(true)}>
                 {(mh.providers?.length ?? 0) === 0
                   ? <EmptyState text="No hay historial de proveedores registrado" />
                   : mh.providers!.map(p => (
@@ -1757,6 +1862,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+      />
+    )}
+    {addProvider && (
+      <AddProviderDialog
+        patientId={patient.id}
+        existing={mh.providers}
+        open={addProvider}
+        onClose={() => setAddProvider(false)}
       />
     )}
     {addFamilyHistory && (

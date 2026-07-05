@@ -36,6 +36,16 @@ export async function searchDoctors(q: string): Promise<Array<{ id: string; name
   return rows.map(r => ({ id: r.id, name: `${r.firstName} ${r.lastName}` }));
 }
 
+export async function searchSpecialties(q: string): Promise<Array<{ id: string; name: string }>> {
+  const rows = await db.specialtyCatalog.findMany({
+    where: q ? { name: { contains: q, mode: 'insensitive' } } : {},
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+    take: 30,
+  });
+  return rows;
+}
+
 export async function searchDiagnoses(q: string): Promise<Array<{ id: string; label: string; code: string }>> {
   const rows = await db.diagnosis.findMany({
     where: {

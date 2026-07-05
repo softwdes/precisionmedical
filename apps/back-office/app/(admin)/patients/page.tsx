@@ -66,6 +66,8 @@ export default async function PatientsPage({
       orderBy: { createdAt: 'desc' },
       select: {
         patientId: true,
+        id: true,
+        caseCode: true,
         caseType: true,
         status: true,
         intakeFormSentAt: true,
@@ -88,6 +90,8 @@ export default async function PatientsPage({
     caseCount: caseCountMap[p.id] ?? 0,
     latestCase: latestCaseMap[p.id]
       ? {
+          id:                    latestCaseMap[p.id].id,
+          caseCode:              latestCaseMap[p.id].caseCode,
           caseType:              latestCaseMap[p.id].caseType,
           status:                latestCaseMap[p.id].status,
           intakeFormSentAt:      latestCaseMap[p.id].intakeFormSentAt?.toISOString() ?? null,

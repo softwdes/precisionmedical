@@ -9,6 +9,7 @@ import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { PatientCreateDialog } from './patient-create-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
+import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import QRCode from 'qrcode';
 
 function fmtLocalDate(d: Date | string | null | undefined): string {
@@ -779,6 +780,8 @@ export interface PatientRow {
   createdAt: Date;
   updatedAt: Date;
   latestCase: {
+    id: string;
+    caseCode: string;
     caseType: string;
     status: string;
     intakeFormSentAt: string | null;
@@ -814,6 +817,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   const [caseViewTarget, setCaseViewTarget] = useState<CaseRow | null>(null);
   const [caseEditTarget, setCaseEditTarget] = useState<CaseRow | null>(null);
   const [deleteCaseTarget, setDeleteCaseTarget] = useState<CaseRow | null>(null);
+  const [sendPortalTarget, setSendPortalTarget] = useState<{ id: string; caseCode: string; patient: { firstName: string; lastName: string; phone: string | null; email: string | null; preferredLanguage?: 'es' | 'en' } } | null>(null);
   const [deletingCase, setDeletingCase]    = useState(false);
   const [deleteCaseError, setDeleteCaseError] = useState('');
 
@@ -1021,21 +1025,35 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
 
                 {/* Formulario */}
                 <td className="px-4 py-3 hidden xl:table-cell">
-                  <div className="flex items-center gap-2">
-                    {p.latestCase?.intakeFormSentAt ? (
-                      <span title={`Email enviado ${fmtLocalDate(p.latestCase.intakeFormSentAt)}`}>
-                        <Mail className="w-3.5 h-3.5 text-brand" />
-                      </span>
+                  <div className="flex items-center gap-1.5">
+                    {/* Ícono email — clickeable si hay caso + email */}
+                    {p.latestCase && p.email ? (
+                      <button
+                        onClick={() => setSendPortalTarget({
+                          id: p.latestCase!.id,
+                          caseCode: p.latestCase!.caseCode,
+                          patient: {
+                            firstName: p.firstName,
+                            lastName: p.lastName,
+                            phone: p.phone,
+                            email: p.email,
+                            preferredLanguage: (p.preferredLanguage as 'es' | 'en' | null) ?? undefined,
+                          },
+                        })}
+                        className="p-1 rounded hover:bg-brand/10 transition-colors group"
+                        title={p.latestCase.intakeFormSentAt ? `Reenviar formulario (enviado ${fmtLocalDate(p.latestCase.intakeFormSentAt)})` : 'Enviar formulario por email'}
+                      >
+                        <Mail className={`w-3.5 h-3.5 transition-colors ${p.latestCase.intakeFormSentAt ? 'text-brand' : 'text-text-muted group-hover:text-brand'}`} />
+                      </button>
                     ) : (
-                      <Mail className="w-3.5 h-3.5 text-text-muted opacity-30" />
-                    )}
-                    {p.latestCase?.intakeFormCompletedAt ? (
-                      <span title={`Completado ${fmtLocalDate(p.latestCase.intakeFormCompletedAt)}`}>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
+                      <span title={!p.email ? 'Sin email registrado' : 'Sin caso activo'}>
+                        <Mail className="w-3.5 h-3.5 text-text-muted opacity-25" />
                       </span>
-                    ) : (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-text-muted opacity-30" />
                     )}
+                    {/* Ícono completado */}
+                    <span title={p.latestCase?.intakeFormCompletedAt ? `Completado ${fmtLocalDate(p.latestCase.intakeFormCompletedAt)}` : 'Formulario pendiente'}>
+                      <CheckCircle2 className={`w-3.5 h-3.5 ${p.latestCase?.intakeFormCompletedAt ? 'text-emerald' : 'text-text-muted opacity-25'}`} />
+                    </span>
                   </div>
                 </td>
 
@@ -1406,6 +1424,13 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
 
       {/* ─── Quick Register ──────────────────────────────────────────────────── */}
       <QuickRegisterDialog open={quickRegister} onOpenChange={setQuickRegister} />
+
+      {/* ─── Send Portal Link ────────────────────────────────────────────────── */}
+      <SendPortalDialog
+        open={!!sendPortalTarget}
+        onOpenChange={(o) => { if (!o) setSendPortalTarget(null); }}
+        caseInfo={sendPortalTarget}
+      />
 
       {/* ─── Case QR dialog ─────────────────────────────────────────────────── */}
       {caseQrTarget && (

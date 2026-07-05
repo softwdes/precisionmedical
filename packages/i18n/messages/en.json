@@ -2212,11 +2212,16 @@
         "INACTIVE": "Inactive"
       },
       "caseStatus": {
-        "NEW_REFERRAL": "New Referral",
-        "INTAKE_PENDING": "Intake Pending",
-        "INTAKE_COMPLETED": "To Confirm",
+        "NEW_REFERRAL": "New referral",
+        "INTAKE_PENDING": "Intake pending",
+        "INTAKE_COMPLETED": "Intake completed",
         "CONFIRMED": "Confirmed",
-        "ACTIVE": "Active (in clinic)"
+        "ACTIVE": "Active",
+        "MMI": "MMI",
+        "CLOSED": "Closed",
+        "SETTLED": "Settled",
+        "ARCHIVED": "Archived",
+        "CANCELLED": "Cancelled"
       },
       "ageYears": "{age} years old",
       "registeredRelative": "Registered {relative}",
@@ -2525,7 +2530,24 @@
         "MEDICAL_INSURANCE": "Medical insurance",
         "TIKTOK": "TikTok",
         "OTHER": "Other"
-      }
+      },
+      "btnNewPatient": "New patient",
+      "btnCreating": "Creating...",
+      "createDialogSubtitle": "Fill in the basic information. Fields marked with * are required.",
+      "caseInfoTitle": "Case information",
+      "caseLabelType": "Case type",
+      "caseLabelStatus": "Status",
+      "caseLabelCreated": "Created date",
+      "caseLabelAccident": "Accident date",
+      "caseLabelAttorney": "Representing attorney",
+      "caseLabelChiro": "Treating chiropractor",
+      "caseLabelDesc": "Case description",
+      "caseLabelLawFirm": "Law firm",
+      "caseLabelInsurance": "Insurance information",
+      "caseNotSpecified": "Not specified",
+      "caseNoLawFirm": "No law firm on record",
+      "caseNoInsurance": "No active insurance · Add insurance to get started",
+      "caseEditBtn": "Edit case"
     }
   },
   "clinical": {

@@ -2212,11 +2212,16 @@
         "INACTIVE": "Inactivo"
       },
       "caseStatus": {
-        "NEW_REFERRAL": "Nuevo paciente",
+        "NEW_REFERRAL": "Nuevo referido",
         "INTAKE_PENDING": "Intake pendiente",
-        "INTAKE_COMPLETED": "Por confirmar",
+        "INTAKE_COMPLETED": "Intake completo",
         "CONFIRMED": "Confirmado",
-        "ACTIVE": "Activo (en clínica)"
+        "ACTIVE": "Activo",
+        "MMI": "MMI",
+        "CLOSED": "Cerrado",
+        "SETTLED": "Liquidado",
+        "ARCHIVED": "Archivado",
+        "CANCELLED": "Cancelado"
       },
       "ageYears": "{age} años",
       "registeredRelative": "Registrado {relative}",
@@ -2525,7 +2530,24 @@
         "MEDICAL_INSURANCE": "Seguro médico",
         "TIKTOK": "TikTok",
         "OTHER": "Otro"
-      }
+      },
+      "btnNewPatient": "Nuevo paciente",
+      "btnCreating": "Creando...",
+      "createDialogSubtitle": "Completa los datos básicos. Los campos marcados con * son requeridos.",
+      "caseInfoTitle": "Información del caso",
+      "caseLabelType": "Tipo de caso",
+      "caseLabelStatus": "Estado",
+      "caseLabelCreated": "Fecha de creación",
+      "caseLabelAccident": "Fecha del accidente",
+      "caseLabelAttorney": "Abogado representante",
+      "caseLabelChiro": "Quiropráctico tratante",
+      "caseLabelDesc": "Descripción del caso",
+      "caseLabelLawFirm": "Firma de abogados",
+      "caseLabelInsurance": "Información de seguros",
+      "caseNotSpecified": "No especificado",
+      "caseNoLawFirm": "No hay firma de abogados",
+      "caseNoInsurance": "No hay seguros activos · Agrega un seguro para comenzar",
+      "caseEditBtn": "Editar caso"
     }
   },
   "clinical": {

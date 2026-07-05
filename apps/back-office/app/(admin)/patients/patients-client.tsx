@@ -1033,108 +1033,139 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                         <p className="text-[11px] text-text-muted py-2">No hay casos registrados.</p>
                       )}
 
-                      {!loadingCases[p.id] && (expandedCases[p.id] ?? []).map(c => {
-                        const prog = calcIntakeProgress(c, p);
-                        return (
-                        <div key={c.id} className="rounded-md border border-border/60 bg-bg-1 px-3 py-2 space-y-2">
-                          {/* Row 1: identidad + acciones */}
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <Car className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                              <span className="text-[12px] font-mono text-text-1">{c.caseCode}</span>
-                              {c.accidentType && (
-                                <span className="text-[10px] text-text-muted">{c.accidentType}</span>
-                              )}
-                              <TagPill
-                                label={c.status}
-                                colorClass={
-                                  c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
-                                  : c.status === 'ACTIVE'  ? 'bg-emerald/10 text-emerald border-emerald/20'
-                                  : 'bg-brand/10 text-brand border-brand/20'
-                                }
-                              />
-                            </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => setCaseViewTarget(c)}
-                              className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
-                              title="Ver caso"
-                            >
-                              <Eye className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => setCaseEditTarget(c)}
-                              className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
-                              title="Editar caso"
-                            >
-                              <Pencil className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
-                              className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
-                              title="Cancelar caso"
-                              disabled={c.status === 'CANCELLED'}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => window.open(`/api/admin/cases/${c.id}/pdf`, '_blank')}
-                              className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
-                              title="Descargar PDF"
-                            >
-                              <Download className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => setCaseApptTarget(c)}
-                              className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
-                              title="Ver citas programadas"
-                            >
-                              <CalendarDays className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => setCaseQrTarget(c)}
-                              className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
-                              title="Acceso paciente / QR"
-                            >
-                              <QrCode className="w-3 h-3" />
-                            </button>
-                          </div>
-                          </div>
+                      {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length > 0 && (
+                        <div className="overflow-x-auto rounded-md border border-border/60">
+                          <table className="w-full min-w-[640px] border-collapse">
+                            <thead>
+                              <tr className="bg-bg-2/60 border-b border-border/60">
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">Código caso</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">Tipo</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[100px]">Fecha accidente</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">1ª cita</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">Última cita</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">Progreso</th>
+                                <th className="text-right px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px]">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(expandedCases[p.id] ?? []).map((c, idx) => {
+                                const prog = calcIntakeProgress(c, p);
+                                return (
+                                  <tr
+                                    key={c.id}
+                                    className={`border-b border-border/40 last:border-0 hover:bg-white/[0.02] transition-colors ${idx % 2 === 1 ? 'bg-bg-2/20' : ''}`}
+                                  >
+                                    {/* Código caso */}
+                                    <td className="px-3 py-2">
+                                      <div className="flex items-center gap-1.5">
+                                        <Car className="w-3 h-3 text-text-muted shrink-0" />
+                                        <span className="text-[11px] font-mono text-text-1">{c.caseCode}</span>
+                                      </div>
+                                      <TagPill
+                                        label={c.status}
+                                        colorClass={
+                                          c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
+                                          : c.status === 'ACTIVE'  ? 'bg-emerald/10 text-emerald border-emerald/20'
+                                          : 'bg-brand/10 text-brand border-brand/20'
+                                        }
+                                      />
+                                    </td>
 
-                          {/* Row 2: progreso intake + citas */}
-                          <div className="flex items-start justify-between gap-4 flex-wrap">
-                            {/* Admisión */}
-                            <div className="flex-1 min-w-[160px]">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[9px] uppercase tracking-wider text-text-muted font-semibold">Admisión</span>
-                                <TagPill label={prog.badge} colorClass={prog.colorClass} />
-                              </div>
-                              <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
-                                <div
-                                  className={`h-full rounded-full transition-all ${prog.barClass}`}
-                                  style={{ width: `${prog.pct}%` }}
-                                />
-                              </div>
-                              {prog.sub && (
-                                <p className="text-[10px] text-text-muted mt-0.5">{prog.sub}</p>
-                              )}
-                            </div>
+                                    {/* Tipo accidente */}
+                                    <td className="px-3 py-2">
+                                      <span className="text-[11px] text-text-2">{c.accidentType ?? '—'}</span>
+                                    </td>
 
-                            {/* Citas */}
-                            <div className="flex gap-4 text-[11px] text-text-muted shrink-0">
-                              <div>
-                                <span className="text-[9px] uppercase tracking-wider font-semibold block mb-0.5">1ª cita</span>
-                                <span className="text-text-2">{c.firstAppointment ? fmtApptDate(c.firstAppointment.scheduledFor) : 'N/D'}</span>
-                              </div>
-                              <div>
-                                <span className="text-[9px] uppercase tracking-wider font-semibold block mb-0.5">Última cita</span>
-                                <span className="text-text-2">{c.lastAppointment ? fmtApptDate(c.lastAppointment.scheduledFor) : 'N/D'}</span>
-                              </div>
-                            </div>
-                          </div>
+                                    {/* Fecha accidente — no disponible en modelo actual */}
+                                    <td className="px-3 py-2">
+                                      <span className="text-[11px] text-text-muted">—</span>
+                                    </td>
+
+                                    {/* 1ª cita */}
+                                    <td className="px-3 py-2">
+                                      <span className="text-[11px] text-text-2 tabular-nums">
+                                        {c.firstAppointment ? fmtApptDate(c.firstAppointment.scheduledFor) : <span className="text-text-muted">N/D</span>}
+                                      </span>
+                                    </td>
+
+                                    {/* Última cita */}
+                                    <td className="px-3 py-2">
+                                      <span className="text-[11px] text-text-2 tabular-nums">
+                                        {c.lastAppointment ? fmtApptDate(c.lastAppointment.scheduledFor) : <span className="text-text-muted">N/D</span>}
+                                      </span>
+                                    </td>
+
+                                    {/* Progreso */}
+                                    <td className="px-3 py-2 min-w-[140px]">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <TagPill label={prog.badge} colorClass={prog.colorClass} />
+                                      </div>
+                                      <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
+                                        <div
+                                          className={`h-full rounded-full transition-all ${prog.barClass}`}
+                                          style={{ width: `${prog.pct}%` }}
+                                        />
+                                      </div>
+                                      {prog.sub && (
+                                        <p className="text-[10px] text-text-muted mt-0.5 truncate">{prog.sub}</p>
+                                      )}
+                                    </td>
+
+                                    {/* Acciones */}
+                                    <td className="px-3 py-2">
+                                      <div className="flex items-center justify-end gap-0.5">
+                                        <button
+                                          onClick={() => setCaseViewTarget(c)}
+                                          className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
+                                          title="Ver caso"
+                                        >
+                                          <Eye className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => setCaseEditTarget(c)}
+                                          className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                                          title="Editar caso"
+                                        >
+                                          <Pencil className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
+                                          className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
+                                          title="Cancelar caso"
+                                          disabled={c.status === 'CANCELLED'}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => window.open(`/api/admin/cases/${c.id}/pdf`, '_blank')}
+                                          className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
+                                          title="Descargar PDF"
+                                        >
+                                          <Download className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => setCaseApptTarget(c)}
+                                          className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
+                                          title="Ver citas programadas"
+                                        >
+                                          <CalendarDays className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => setCaseQrTarget(c)}
+                                          className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                                          title="Acceso paciente / QR"
+                                        >
+                                          <QrCode className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
-                        );
-                      })}
+                      )}
                     </div>
                   </td>
                 </tr>

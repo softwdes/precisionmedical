@@ -5,6 +5,37 @@ import { db } from '@precision-medical/database';
 import { writeAuditLog } from '@precision-medical/database/audit';
 import type { MedicalHistoryData } from './medical-history-dialog';
 
+export async function searchDrugs(q: string): Promise<Array<{ id: number; name: string; generic: string; category: string }>> {
+  const rows = await db.drug.findMany({
+    where: q
+      ? { OR: [
+          { name:    { contains: q, mode: 'insensitive' } },
+          { generic: { contains: q, mode: 'insensitive' } },
+        ]}
+      : {},
+    select: { id: true, name: true, generic: true, category: true },
+    orderBy: { name: 'asc' },
+    take: 30,
+  });
+  return rows;
+}
+
+export async function searchDoctors(q: string): Promise<Array<{ id: string; name: string }>> {
+  const rows = await db.employee.findMany({
+    where: {
+      position: { contains: 'DOCTOR', mode: 'insensitive' },
+      ...(q ? { OR: [
+        { firstName: { contains: q, mode: 'insensitive' } },
+        { lastName:  { contains: q, mode: 'insensitive' } },
+      ]} : {}),
+    },
+    select: { id: true, firstName: true, lastName: true },
+    orderBy: [{ lastName: 'asc' }],
+    take: 20,
+  });
+  return rows.map(r => ({ id: r.id, name: `${r.firstName} ${r.lastName}` }));
+}
+
 export async function searchDiagnoses(q: string): Promise<Array<{ id: string; label: string; code: string }>> {
   const rows = await db.diagnosis.findMany({
     where: {

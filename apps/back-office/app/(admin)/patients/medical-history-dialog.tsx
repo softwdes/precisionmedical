@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { updateMedicalHistory, searchDiagnoses } from './actions';
+import { updateMedicalHistory, searchDiagnoses, searchDrugs, searchDoctors } from './actions';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   User, Phone, Mail, AlertTriangle, Heart, Pill, Scissors, Users,
@@ -26,7 +26,14 @@ export type MedicalHistoryData = {
   allergies?:        string;
   problems?:         Array<{ id: string; condition: string; diagnosedAt?: string; status?: string; comments?: string }>;
   history?:          Array<{ id: string; condition: string; diagnosedAt?: string; status?: string; comments?: string }>;
-  medications?:      Array<{ id: string; name: string; dose?: string; instructions?: string; prescribedBy?: string }>;
+  medications?:      Array<{
+    id: string; name: string; status: 'IN_USE' | 'HISTORY';
+    dose?: string; instructions?: string;
+    quantity?: number; unit?: string; refills?: string;
+    startDate?: string; autoExpire?: boolean; autoRenew?: boolean;
+    prescribedBy?: string; diagnosisCode?: string; diagnosisLabel?: string;
+    pharmacy?: string; pharmacyNote?: string;
+  }>;
   surgeries?:        Array<{ id: string; procedure: string; date?: string; notes?: string }>;
   familyHistory?:    Array<{ id: string; relation: string; condition: string }>;
   providers?:        Array<{ id: string; name: string; specialty?: string; notes?: string }>;
@@ -589,6 +596,366 @@ function AddProblemDialog({
   );
 }
 
+// ── Shared: simple searchable dropdown ────────────────────────────────────
+
+function SearchDropdown({
+  value, placeholder, options, onSearch, onSelect,
+}: {
+  value:       string;
+  placeholder: string;
+  options:     Array<{ id: string; label: string; badge?: string }>;
+  onSearch:    (q: string) => void;
+  onSelect:    (id: string, label: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ]       = useState('');
+
+  function handleQ(v: string) { setQ(v); onSearch(v); }
+  function pick(id: string, label: string) { onSelect(id, label); setOpen(false); setQ(''); }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
+      >
+        <span className={value ? 'text-text-1' : 'text-text-muted'}>{value || placeholder}</span>
+        <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
+          <div className="p-2 border-b border-border/60">
+            <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
+              <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
+              <input
+                autoFocus
+                value={q}
+                onChange={e => handleQ(e.target.value)}
+                placeholder="Buscar..."
+                className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
+              />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {options.length === 0
+              ? <p className="px-3 py-3 text-xs text-text-muted text-center">Sin resultados</p>
+              : options.map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => pick(opt.id, opt.label)}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors flex items-center justify-between
+                      ${value === opt.label ? 'bg-brand/10 text-brand' : 'text-text-2'}`}
+                  >
+                    <span>{opt.label}</span>
+                    {opt.badge && (
+                      <span className="text-[10px] bg-bg-2 border border-border/60 text-text-muted px-1.5 py-0.5 rounded">{opt.badge}</span>
+                    )}
+                  </button>
+                ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Add medication dialog ──────────────────────────────────────────────────
+
+const DISPENSE_UNITS = ['Tabletas','Cápsulas','ml','mg','Gramos','Unidades','Inhalaciones','Gotas','Parche(s)'];
+const REFILL_OPTIONS = ['Sin reposiciones','1 reposición','2 reposiciones','3 reposiciones','4 reposiciones','5 reposiciones','6 reposiciones','Reposiciones ilimitadas'];
+
+const CATEGORY_BADGE: Record<string, string> = {
+  NSAID: 'NSAID', RELAXANT: 'relajante', OPIOID: 'opioide',
+  NEURO: 'neuro', TOPICAL: 'tópico', STEROID: 'esteroide', OTHER: 'otro',
+};
+
+function AddMedicationDialog({
+  patientId, existing, preferredPharmacy, open, onClose,
+}: {
+  patientId:          string;
+  existing:           MedicalHistoryData['medications'];
+  preferredPharmacy?: string | null;
+  open:               boolean;
+  onClose:            () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  // Estado
+  const [status, setStatus] = useState<'IN_USE' | 'HISTORY'>('IN_USE');
+
+  // Medicamento
+  const [drugOptions,  setDrugOptions]  = useState<Array<{ id: string; label: string; badge?: string }>>([]);
+  const [drugName,     setDrugName]     = useState('');
+
+  // Dosis / indicaciones
+  const [dose,         setDose]         = useState('');
+  const [instructions, setInstructions] = useState('');
+
+  // Cantidad / unidad / reposiciones
+  const [quantity, setQuantity] = useState(30);
+  const [unit,     setUnit]     = useState('');
+  const [refills,  setRefills]  = useState('Sin reposiciones');
+
+  // Fecha / checkboxes
+  const today = new Date().toISOString().slice(0, 10);
+  const [startDate,   setStartDate]   = useState(today);
+  const [autoExpire,  setAutoExpire]  = useState(false);
+  const [autoRenew,   setAutoRenew]   = useState(false);
+
+  // Prescrito por
+  const [doctorOptions,  setDoctorOptions]  = useState<Array<{ id: string; label: string }>>([]);
+  const [prescribedBy,   setPrescribedBy]   = useState('');
+  const [prescribedById, setPrescribedById] = useState('');
+
+  // Diagnóstico
+  const [diagOptions,   setDiagOptions]   = useState<Array<{ id: string; label: string }>>([]);
+  const [diagLabel,     setDiagLabel]     = useState('');
+  const [diagCode,      setDiagCode]      = useState('');
+
+  // Farmacia
+  const [pharmacy,     setPharmacy]     = useState(preferredPharmacy ?? '');
+  const [pharmacyNote, setPharmacyNote] = useState('');
+
+  // Initial loads
+  useEffect(() => {
+    searchDrugs('').then(rows =>
+      setDrugOptions(rows.map(r => ({ id: String(r.id), label: r.name, badge: CATEGORY_BADGE[r.category] ?? r.category })))
+    );
+    searchDoctors('').then(rows => setDoctorOptions(rows.map(r => ({ id: r.id, label: r.name }))));
+    searchDiagnoses('').then(rows => setDiagOptions(rows.map(r => ({ id: r.id, label: `${r.code} - ${r.label}` }))));
+  }, []);
+
+  function handleDrugSearch(q: string) {
+    searchDrugs(q).then(rows =>
+      setDrugOptions(rows.map(r => ({ id: String(r.id), label: r.name, badge: CATEGORY_BADGE[r.category] ?? r.category })))
+    );
+  }
+  function handleDoctorSearch(q: string) {
+    searchDoctors(q).then(rows => setDoctorOptions(rows.map(r => ({ id: r.id, label: r.name }))));
+  }
+  function handleDiagSearch(q: string) {
+    searchDiagnoses(q).then(rows => setDiagOptions(rows.map(r => ({ id: r.id, label: `${r.code} - ${r.label}` }))));
+  }
+
+  function handleSave() {
+    if (!drugName) return;
+    const newMed = {
+      id: crypto.randomUUID(),
+      name: drugName,
+      status,
+      dose:          dose || undefined,
+      instructions:  instructions || undefined,
+      quantity,
+      unit:          unit || undefined,
+      refills,
+      startDate,
+      autoExpire,
+      autoRenew,
+      prescribedBy:  prescribedBy || undefined,
+      diagnosisCode: diagCode || undefined,
+      diagnosisLabel: diagLabel || undefined,
+      pharmacy:      pharmacy || undefined,
+      pharmacyNote:  pharmacyNote || undefined,
+    };
+    const updated = [...(existing ?? []), newMed];
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { medications: updated });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">Nueva prescripción</DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Registrar un medicamento en el historial del paciente
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
+
+          {/* Estado */}
+          <div className="flex items-center gap-6">
+            {(['IN_USE', 'HISTORY'] as const).map(s => (
+              <label key={s} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="medStatus"
+                  checked={status === s}
+                  onChange={() => setStatus(s)}
+                  className="accent-brand"
+                />
+                <span className="text-sm text-text-2">{s === 'IN_USE' ? 'En uso' : 'Historial médico'}</span>
+              </label>
+            ))}
+          </div>
+
+          {/* Medicamento */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Medicamento</label>
+            <SearchDropdown
+              value={drugName}
+              placeholder="Selecciona un medicamento"
+              options={drugOptions}
+              onSearch={handleDrugSearch}
+              onSelect={(_, label) => setDrugName(label)}
+            />
+            <p className="text-[11px] text-text-muted">
+              {drugName ? drugName : 'Selecciona un medicamento para ver su descripción'}
+            </p>
+          </div>
+
+          {/* Dosis */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Dosis</label>
+            <input
+              value={dose}
+              onChange={e => setDose(e.target.value)}
+              placeholder="Ej.: 5 mg, 20 mg, 10 ml"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+            />
+          </div>
+
+          {/* Indicaciones */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Indicaciones</label>
+            <textarea
+              rows={3}
+              value={instructions}
+              onChange={e => setInstructions(e.target.value)}
+              placeholder="Ej.: Tomar 1 tableta por vía oral dos veces al día con alimentos"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+            />
+          </div>
+
+          {/* Cantidad / Unidad / Reposiciones */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-sm text-text-2">Cantidad a dispensar</label>
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={e => setQuantity(Number(e.target.value))}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm text-text-2">Unidad de dispensación</label>
+              <select
+                value={unit}
+                onChange={e => setUnit(e.target.value)}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              >
+                <option value="">Selecciona una opción</option>
+                {DISPENSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm text-text-2">Reposiciones</label>
+              <select
+                value={refills}
+                onChange={e => setRefills(e.target.value)}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              >
+                {REFILL_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Fecha de inicio + checkboxes */}
+          <div className="flex items-end gap-4 flex-wrap">
+            <div className="space-y-1.5">
+              <label className="text-sm text-text-2">Fecha de inicio</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer pb-2">
+              <input type="checkbox" checked={autoExpire} onChange={e => setAutoExpire(e.target.checked)} className="accent-brand" />
+              <span className="text-sm text-text-2">Expiración automática</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer pb-2">
+              <input type="checkbox" checked={autoRenew} onChange={e => setAutoRenew(e.target.checked)} className="accent-brand" />
+              <span className="text-sm text-text-2">Renovación automática</span>
+            </label>
+          </div>
+
+          {/* Prescrito por */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Prescrito por</label>
+            <SearchDropdown
+              value={prescribedBy}
+              placeholder="Selecciona el médico que prescribe"
+              options={doctorOptions}
+              onSearch={handleDoctorSearch}
+              onSelect={(id, label) => { setPrescribedById(id); setPrescribedBy(label); }}
+            />
+          </div>
+
+          {/* Diagnóstico */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Diagnóstico</label>
+            <SearchDropdown
+              value={diagLabel}
+              placeholder="Selecciona un diagnóstico"
+              options={diagOptions}
+              onSearch={handleDiagSearch}
+              onSelect={(_, label) => {
+                const [code, ...rest] = label.split(' - ');
+                setDiagCode(code.trim());
+                setDiagLabel(rest.join(' - ').trim());
+              }}
+            />
+            <p className="text-[11px] text-text-muted">
+              {diagLabel ? diagLabel : 'Selecciona un diagnóstico para ver su descripción'}
+            </p>
+          </div>
+
+          {/* Farmacia */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Nombre de la farmacia</label>
+            <input
+              value={pharmacy}
+              onChange={e => setPharmacy(e.target.value)}
+              placeholder="Nombre de la farmacia"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Nota para la farmacia</label>
+            <textarea
+              rows={3}
+              value={pharmacyNote}
+              onChange={e => setPharmacyNote(e.target.value)}
+              placeholder="Instrucciones especiales para la farmacia..."
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending || !drugName}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Crear prescripción'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Add history dialog ─────────────────────────────────────────────────────
 
 function AddHistoryDialog({
@@ -748,8 +1115,9 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const locale         = useLocale();
   const [editVisitInfo,  setEditVisitInfo]  = useState(false);
   const [editHealthInfo, setEditHealthInfo] = useState(false);
-  const [addProblem,     setAddProblem]     = useState(false);
-  const [addHistory,     setAddHistory]     = useState(false);
+  const [addProblem,      setAddProblem]      = useState(false);
+  const [addHistory,      setAddHistory]      = useState(false);
+  const [addMedication,   setAddMedication]   = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -1035,7 +1403,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
               icon={<Pill className="w-4 h-4" />}
               title="Medicamentos"
               count={mh.medications?.length ?? 0}
-              onAdd={() => {}}
+              onAdd={() => setAddMedication(true)}
             >
               <TableShell
                 headers={['Medicamento', 'Dosis', 'Indicaciones', 'Prescrito por', 'Acciones']}
@@ -1169,6 +1537,15 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+      />
+    )}
+    {addMedication && (
+      <AddMedicationDialog
+        patientId={patient.id}
+        existing={mh.medications}
+        preferredPharmacy={patient.preferredPharmacy}
+        open={addMedication}
+        onClose={() => setAddMedication(false)}
       />
     )}
     </>

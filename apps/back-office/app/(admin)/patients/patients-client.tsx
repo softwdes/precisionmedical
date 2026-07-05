@@ -990,6 +990,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
   const [qrPatientTarget, setQrPatientTarget] = useState<PatientRow | null>(null);
   const [archivosTarget, setArchivosTarget] = useState<PatientRow | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!openMenuId) return;
@@ -999,6 +1000,12 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [openMenuId]);
+
+  const openMenu = (id: string, btn: HTMLButtonElement) => {
+    const r = btn.getBoundingClientRect();
+    setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    setOpenMenuId(id);
+  };
 
   const [sendPortalTarget, setSendPortalTarget] = useState<{ id: string; caseCode: string; patient: { firstName: string; lastName: string; phone: string | null; email: string | null; preferredLanguage?: 'es' | 'en' } } | null>(null);
   const [deletingCase, setDeletingCase]    = useState(false);
@@ -1115,7 +1122,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
             )}
             {patients.map((p) => (
               <>
-              <tr key={p.id} className="hover:bg-white/[0.02] transition-colors relative">
+              <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
                 {/* Chevron expand */}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -1252,55 +1259,14 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
 
                 {/* Acciones */}
                 <td className="px-4 py-3">
-                  <div className="flex justify-end" ref={openMenuId === p.id ? menuRef : undefined}>
+                  <div className="flex justify-end">
                     <button
-                      onClick={() => setOpenMenuId(openMenuId === p.id ? null : p.id)}
+                      onClick={(e) => openMenu(p.id, e.currentTarget)}
                       className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors"
                       title="Acciones"
                     >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
-                    {openMenuId === p.id && (
-                      <div className="absolute right-4 z-50 mt-8 w-52 rounded-lg border border-border bg-bg-1 shadow-xl py-1 text-sm">
-                        <button onClick={() => { router.push(`/patients/${p.id}`); setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
-                          <ExternalLink className="w-3.5 h-3.5 text-text-muted shrink-0" /> Ver detalle
-                        </button>
-                        <button onClick={() => { setEditTarget(p); setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
-                          <Pencil className="w-3.5 h-3.5 text-text-muted shrink-0" /> Actualizar
-                        </button>
-                        <button onClick={() => { setSegurosTarget(p); setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
-                          <Shield className="w-3.5 h-3.5 text-text-muted shrink-0" /> Seguros
-                        </button>
-                        <button onClick={() => { setQrPatientTarget(p); setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
-                          <QrCode className="w-3.5 h-3.5 text-text-muted shrink-0" /> QR de paciente
-                        </button>
-                        <button onClick={() => { setArchivosTarget(p); setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
-                          <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" /> Archivos personales
-                        </button>
-                        <button onClick={() => { setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left opacity-50 cursor-not-allowed" disabled>
-                          <FileText className="w-3.5 h-3.5 text-text-muted shrink-0" /> Historial médico
-                        </button>
-                        <button onClick={() => { setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left opacity-50 cursor-not-allowed" disabled>
-                          <CreditCard className="w-3.5 h-3.5 text-text-muted shrink-0" /> Tarjetas guardadas
-                        </button>
-                        <button onClick={() => { setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left opacity-50 cursor-not-allowed" disabled>
-                          <History className="w-3.5 h-3.5 text-text-muted shrink-0" /> Historial de auditoría
-                        </button>
-                        <div className="my-1 border-t border-border/60" />
-                        <button onClick={() => { setDeleteTarget(p); setDeleteError(''); setOpenMenuId(null); }}
-                          className="flex items-center gap-2.5 w-full px-3 py-2 text-rose hover:bg-rose/10 transition-colors text-left">
-                          <Trash2 className="w-3.5 h-3.5 shrink-0" /> Eliminar
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </td>
               </tr>
@@ -1686,6 +1652,49 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
           onClose={() => setArchivosTarget(null)}
         />
       )}
+
+      {/* ─── Menú acciones (fixed, escapa overflow-hidden de la tabla) ────────── */}
+      {openMenuId && (() => {
+        const p = patients.find(x => x.id === openMenuId);
+        if (!p) return null;
+        return (
+          <div
+            ref={menuRef}
+            style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 9999 }}
+            className="w-52 rounded-lg border border-border bg-bg-1 shadow-xl py-1 text-sm"
+          >
+            <button onClick={() => { setEditTarget(p); setOpenMenuId(null); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+              <Pencil className="w-3.5 h-3.5 text-text-muted shrink-0" /> Actualizar
+            </button>
+            <button onClick={() => { setSegurosTarget(p); setOpenMenuId(null); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+              <Shield className="w-3.5 h-3.5 text-text-muted shrink-0" /> Seguros
+            </button>
+            <button onClick={() => { setQrPatientTarget(p); setOpenMenuId(null); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+              <QrCode className="w-3.5 h-3.5 text-text-muted shrink-0" /> QR de paciente
+            </button>
+            <button onClick={() => { setArchivosTarget(p); setOpenMenuId(null); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">
+              <FolderOpen className="w-3.5 h-3.5 text-text-muted shrink-0" /> Archivos personales
+            </button>
+            <button disabled
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 transition-colors text-left opacity-40 cursor-not-allowed">
+              <FileText className="w-3.5 h-3.5 text-text-muted shrink-0" /> Historial médico
+            </button>
+            <button disabled
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 transition-colors text-left opacity-40 cursor-not-allowed">
+              <History className="w-3.5 h-3.5 text-text-muted shrink-0" /> Historial de auditoría
+            </button>
+            <div className="my-1 border-t border-border/60" />
+            <button onClick={() => { setDeleteTarget(p); setDeleteError(''); setOpenMenuId(null); }}
+              className="flex items-center gap-2.5 w-full px-3 py-2 text-rose hover:bg-rose/10 transition-colors text-left">
+              <Trash2 className="w-3.5 h-3.5 shrink-0" /> Eliminar
+            </button>
+          </div>
+        );
+      })()}
 
       {/* ─── Case QR dialog ─────────────────────────────────────────────────── */}
       {caseQrTarget && (

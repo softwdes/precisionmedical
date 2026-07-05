@@ -285,6 +285,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
               <SideRow label="Referido por" value={patient.referralSource} />
               <SideRow label="Farmacia"    value={patient.preferredPharmacy} />
               <SideRow label="Empleador"   value={patient.employer} />
+              <SideRow label="Proveedor"   value={mh.providers?.[0]?.name ?? null} />
             </SideSection>
 
             {/* Insurance */}

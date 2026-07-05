@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { updateMedicalHistory } from './actions';
+import { useState, useTransition, useEffect } from 'react';
+import { updateMedicalHistory, searchDiagnoses } from './actions';
 import { useTranslations, useLocale } from 'next-intl';
 import {
   User, Phone, Mail, AlertTriangle, Heart, Pill, Scissors, Users,
   MessageSquare, Activity, Brain, Shield, ClipboardList, Stethoscope,
-  ChevronDown, ChevronUp, Edit2, Plus, Calendar, X,
+  ChevronDown, ChevronUp, Edit2, Plus, Calendar, X, Search,
   Cigarette, Wine, FlaskConical, Briefcase,
 } from 'lucide-react';
 import {
@@ -428,12 +428,174 @@ function HealthInfoEditDialog({
   );
 }
 
+// ── Add problem dialog ─────────────────────────────────────────────────────
+
+type DiagnosisOption = { id: string; label: string; code: string };
+
+function AddProblemDialog({
+  patientId, existing, open, onClose,
+}: {
+  patientId: string;
+  existing:  MedicalHistoryData['problems'];
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [query,     setQuery]        = useState('');
+  const [results,   setResults]      = useState<DiagnosisOption[]>([]);
+  const [selected,  setSelected]     = useState<DiagnosisOption | null>(null);
+  const [dropOpen,  setDropOpen]     = useState(false);
+  const [isCurrent, setIsCurrent]   = useState(true);
+  const [isResolved, setIsResolved] = useState(false);
+  const [diagDate,   setDiagDate]   = useState('');
+  const [comments,   setComments]   = useState('');
+
+  // Initial load
+  useEffect(() => { searchDiagnoses('').then(setResults); }, []);
+
+  function handleQuery(v: string) {
+    setQuery(v);
+    searchDiagnoses(v).then(setResults);
+  }
+
+  function pick(opt: DiagnosisOption) {
+    setSelected(opt);
+    setDropOpen(false);
+    setQuery('');
+  }
+
+  function handleSave() {
+    if (!selected) return;
+    const status = isCurrent ? 'Actual' : isResolved ? 'Resuelto' : undefined;
+    const newProblem = {
+      id:          crypto.randomUUID(),
+      condition:   selected.label,
+      diagnosedAt: diagDate || undefined,
+      status,
+      comments:    comments || undefined,
+    };
+    const updated = [...(existing ?? []), newProblem];
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { problems: updated });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">
+            Agregar historial médico personal
+          </DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Agregar una nueva condición médica al historial del paciente
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+
+          {/* Condición — searchable dropdown */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Condición</label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setDropOpen(o => !o)}
+                className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
+              >
+                <span className={selected ? 'text-text-1' : 'text-text-muted'}>
+                  {selected ? selected.label : 'Seleccionar una condición'}
+                </span>
+                <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
+              </button>
+
+              {dropOpen && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
+                  <div className="p-2 border-b border-border/60">
+                    <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
+                      <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                      <input
+                        autoFocus
+                        value={query}
+                        onChange={e => handleQuery(e.target.value)}
+                        placeholder="Buscar..."
+                        className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto">
+                    {results.length === 0 ? (
+                      <p className="px-3 py-3 text-xs text-text-muted text-center">Sin resultados</p>
+                    ) : results.map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => pick(opt)}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-brand/10 transition-colors
+                          ${selected?.id === opt.id ? 'bg-brand/10 text-brand' : 'text-text-2'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Estado */}
+          <div className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
+            <p className="text-sm font-semibold text-text-1">Estado</p>
+            <div className="grid grid-cols-2 gap-3">
+              <ToggleRow label="Actual"    checked={isCurrent}  onChange={setIsCurrent} />
+              <ToggleRow label="Resuelto"  checked={isResolved} onChange={setIsResolved} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-text-muted">Diagnosticado el</label>
+              <input
+                type="date"
+                value={diagDate}
+                onChange={e => setDiagDate(e.target.value)}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              />
+            </div>
+          </div>
+
+          {/* Comentarios */}
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Comentarios</label>
+            <textarea
+              rows={3}
+              value={comments}
+              onChange={e => setComments(e.target.value)}
+              placeholder="Notas o detalles adicionales"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending || !selected}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main dialog ────────────────────────────────────────────────────────────
 
 export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const locale         = useLocale();
   const [editVisitInfo,  setEditVisitInfo]  = useState(false);
   const [editHealthInfo, setEditHealthInfo] = useState(false);
+  const [addProblem,     setAddProblem]     = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -682,7 +844,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
               icon={<Heart className="w-4 h-4" />}
               title="Lista de problemas"
               count={mh.problems?.length ?? 0}
-              onAdd={() => {}}
+              onAdd={() => setAddProblem(true)}
             >
               <TableShell
                 headers={['Condición', 'Diagnosticado el', 'Estado', 'Comentarios', 'Acciones']}
@@ -837,6 +999,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         initial={mh.healthInfo}
         open={editHealthInfo}
         onClose={() => setEditHealthInfo(false)}
+      />
+    )}
+    {addProblem && (
+      <AddProblemDialog
+        patientId={patient.id}
+        existing={mh.problems}
+        open={addProblem}
+        onClose={() => setAddProblem(false)}
       />
     )}
     </>

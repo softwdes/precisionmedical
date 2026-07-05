@@ -5,6 +5,22 @@ import { db } from '@precision-medical/database';
 import { writeAuditLog } from '@precision-medical/database/audit';
 import type { MedicalHistoryData } from './medical-history-dialog';
 
+export async function searchDiagnoses(q: string): Promise<Array<{ id: string; label: string; code: string }>> {
+  const rows = await db.diagnosis.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { icd10Description: { contains: q, mode: 'insensitive' } },
+        { icd10Code:        { contains: q, mode: 'insensitive' } },
+      ],
+    },
+    select: { id: true, icd10Code: true, icd10Description: true },
+    orderBy: [{ usageCount: 'desc' }, { icd10Description: 'asc' }],
+    take: 30,
+  });
+  return rows.map(r => ({ id: r.id, label: r.icd10Description, code: r.icd10Code }));
+}
+
 export async function updateMedicalHistory(
   patientId: string,
   patch: Partial<MedicalHistoryData>,

@@ -38,7 +38,7 @@ export type MedicalHistoryData = {
   familyHistory?:    Array<{ id: string; relation: string; condition: string }>;
   providers?:        Array<{ id: string; name: string; specialty?: string; notes?: string }>;
   vaccines?:         string[];
-  cognitiveStatus?:  string;
+  cognitiveStatus?:  Array<{ name: string; status: string }>;
   functionalStatus?: string;
   implantedDevices?: string;
   systemsReview?:    string;
@@ -1229,6 +1229,106 @@ function VaccinesEditDialog({
   );
 }
 
+// ── Cognitive status edit dialog ───────────────────────────────────────────
+
+type CognitiveEntry = { name: string; status: string };
+
+function CognitiveEditDialog({
+  patientId, initial, open, onClose,
+}: {
+  patientId: string;
+  initial:   CognitiveEntry[] | undefined;
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [entries, setEntries] = useState<CognitiveEntry[]>(
+    initial?.length ? [...initial] : [{ name: '', status: '' }]
+  );
+
+  function addEntry()              { setEntries(p => [...p, { name: '', status: '' }]); }
+  function removeEntry(i: number)  { setEntries(p => p.filter((_, idx) => idx !== i)); }
+  function update(i: number, field: 'name' | 'status', v: string) {
+    setEntries(p => p.map((e, idx) => idx === i ? { ...e, [field]: v } : e));
+  }
+
+  function handleSave() {
+    const cognitiveStatus = entries.filter(e => e.name.trim() || e.status.trim());
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { cognitiveStatus });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">Estado cognitivo</DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Actualizar la información del estado cognitivo del paciente. Puede agregar, editar o eliminar entradas según sea necesario.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-3 max-h-[65vh] overflow-y-auto">
+          {entries.map((entry, i) => (
+            <div key={i} className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-text-1">Entrada {i + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => removeEntry(i)}
+                  className="p-1 rounded text-text-muted hover:text-rose transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-text-muted">Nombre cognitivo</label>
+                  <input
+                    value={entry.name}
+                    onChange={e => update(i, 'name', e.target.value)}
+                    placeholder="ej., Memoria, Atención, Lenguaje"
+                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-text-muted">Estado</label>
+                  <input
+                    value={entry.status}
+                    onChange={e => update(i, 'status', e.target.value)}
+                    placeholder="ej., Normal, Deteriorado, Mejorando"
+                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={addEntry}
+            className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Agregar estado cognitivo
+          </button>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Add family history dialog ──────────────────────────────────────────────
 
 const FAMILY_MEMBERS = [
@@ -1524,6 +1624,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const [addFamilyHistory, setAddFamilyHistory] = useState(false);
   const [addProvider,      setAddProvider]      = useState(false);
   const [editVaccines,     setEditVaccines]     = useState(false);
+  const [editCognitive,    setEditCognitive]    = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -1869,8 +1970,18 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
 
             {/* Row: Estado cognitivo + Estado funcional */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard icon={<Brain className="w-4 h-4" />} title="Estado cognitivo" editBtn>
-                <EmptyState text={mh.cognitiveStatus ?? 'No hay información de estado cognitivo disponible'} />
+              <SectionCard icon={<Brain className="w-4 h-4" />} title="Estado cognitivo" editBtn onEdit={() => setEditCognitive(true)}>
+                {(mh.cognitiveStatus?.length ?? 0) === 0
+                  ? <EmptyState text="No hay información de estado cognitivo disponible" />
+                  : <div className="space-y-1">
+                      {mh.cognitiveStatus!.map((e, i) => (
+                        <div key={i} className="flex justify-between text-[11px] border-b border-border/40 py-1 last:border-0">
+                          <span className="text-text-muted">{e.name}</span>
+                          <span className="text-text-2">{e.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                }
               </SectionCard>
 
               <SectionCard icon={<Activity className="w-4 h-4" />} title="Estado funcional" editBtn>
@@ -1950,6 +2061,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+      />
+    )}
+    {editCognitive && (
+      <CognitiveEditDialog
+        patientId={patient.id}
+        initial={mh.cognitiveStatus}
+        open={editCognitive}
+        onClose={() => setEditCognitive(false)}
       />
     )}
     {editVaccines && (

@@ -956,6 +956,95 @@ function AddMedicationDialog({
   );
 }
 
+// ── Add surgery dialog ─────────────────────────────────────────────────────
+
+function AddSurgeryDialog({
+  patientId, existing, open, onClose,
+}: {
+  patientId: string;
+  existing:  MedicalHistoryData['surgeries'];
+  open:      boolean;
+  onClose:   () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [procedure, setProcedure]    = useState('');
+  const [year,      setYear]         = useState('');
+  const [notes,     setNotes]        = useState('');
+
+  function handleSave() {
+    if (!procedure.trim()) return;
+    const newItem = {
+      id:        crypto.randomUUID(),
+      procedure: procedure.trim(),
+      date:      year.trim() || undefined,
+      notes:     notes.trim() || undefined,
+    };
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { surgeries: [...(existing ?? []), newItem] });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">
+            Agregar procedimiento quirúrgico
+          </DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            Agregar un nuevo procedimiento quirúrgico al historial del paciente
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="px-6 py-5 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Nombre del procedimiento</label>
+            <input
+              autoFocus
+              value={procedure}
+              onChange={e => setProcedure(e.target.value)}
+              placeholder="ej., Apendicectomía"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Año</label>
+            <input
+              value={year}
+              onChange={e => setYear(e.target.value)}
+              placeholder="ej., 2018"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm text-text-2">Comentarios</label>
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Detalles adicionales sobre el procedimiento"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+            />
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-border flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={isPending || !procedure.trim()}
+            className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
+          >
+            {isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Add history dialog ─────────────────────────────────────────────────────
 
 function AddHistoryDialog({
@@ -1118,6 +1207,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const [addProblem,      setAddProblem]      = useState(false);
   const [addHistory,      setAddHistory]      = useState(false);
   const [addMedication,   setAddMedication]   = useState(false);
+  const [addSurgery,      setAddSurgery]      = useState(false);
 
   const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
@@ -1420,7 +1510,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
 
             {/* Row: Cirugías + Historial familiar */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard icon={<Scissors className="w-4 h-4" />} title="Cirugías y procedimientos" count={mh.surgeries?.length ?? 0} onAdd={() => {}}>
+              <SectionCard icon={<Scissors className="w-4 h-4" />} title="Cirugías y procedimientos" count={mh.surgeries?.length ?? 0} onAdd={() => setAddSurgery(true)}>
                 {(mh.surgeries?.length ?? 0) === 0
                   ? <EmptyState text="No hay procedimientos quirúrgicos registrados" />
                   : mh.surgeries!.map(s => (
@@ -1537,6 +1627,14 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+      />
+    )}
+    {addSurgery && (
+      <AddSurgeryDialog
+        patientId={patient.id}
+        existing={mh.surgeries}
+        open={addSurgery}
+        onClose={() => setAddSurgery(false)}
       />
     )}
     {addMedication && (

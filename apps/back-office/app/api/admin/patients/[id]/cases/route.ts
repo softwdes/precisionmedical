@@ -8,7 +8,7 @@ export async function GET(
 ): Promise<NextResponse> {
   const { id } = await params;
 
-  const cases = await db.case.findMany({
+  const rawCases = await db.case.findMany({
     where: { patientId: id, deletedAt: null },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -17,7 +17,39 @@ export async function GET(
       status: true,
       specialty: { select: { id: true, name: true, color: true } },
       accidentType: true,
+      intakeFormCompletedAt: true,
+      consentsData: true,
     },
+  });
+
+  // Fetch appointments per case separately to get first/last
+  const caseIds = rawCases.map(c => c.id);
+  const appts = await db.appointment.findMany({
+    where: { caseId: { in: caseIds } },
+    orderBy: { scheduledFor: 'asc' },
+    select: { caseId: true, scheduledFor: true },
+  });
+
+  const apptsByCaseId: Record<string, Date[]> = {};
+  for (const a of appts) {
+    if (!a.caseId) continue;
+    if (!apptsByCaseId[a.caseId]) apptsByCaseId[a.caseId] = [];
+    apptsByCaseId[a.caseId].push(a.scheduledFor);
+  }
+
+  const cases = rawCases.map(c => {
+    const cAppts = apptsByCaseId[c.id] ?? [];
+    return {
+      id:                   c.id,
+      caseCode:             c.caseCode,
+      status:               c.status,
+      specialty:            c.specialty,
+      accidentType:         c.accidentType,
+      intakeFormCompletedAt: c.intakeFormCompletedAt?.toISOString() ?? null,
+      consentsData:         c.consentsData,
+      firstAppointment:     cAppts[0]                  ? { scheduledFor: cAppts[0].toISOString() }                  : null,
+      lastAppointment:      cAppts.length > 1           ? { scheduledFor: cAppts[cAppts.length - 1].toISOString() } : null,
+    };
   });
 
   return NextResponse.json({ cases });

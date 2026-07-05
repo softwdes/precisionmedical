@@ -53,13 +53,47 @@ export default async function PatientsPage({
     db.patient.count({ where }),
   ]);
 
-  const caseCounts = await db.case.groupBy({
-    by: ['patientId'],
-    where: { patientId: { in: patients.map(p => p.id) } },
-    _count: { _all: true },
-  });
+  const patientIds = patients.map(p => p.id);
+
+  const [caseCounts, latestCases] = await Promise.all([
+    db.case.groupBy({
+      by: ['patientId'],
+      where: { patientId: { in: patientIds }, deletedAt: null },
+      _count: { _all: true },
+    }),
+    db.case.findMany({
+      where: { patientId: { in: patientIds }, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        patientId: true,
+        caseType: true,
+        status: true,
+        intakeFormSentAt: true,
+        intakeFormCompletedAt: true,
+      },
+    }),
+  ]);
+
   const caseCountMap = Object.fromEntries(caseCounts.map(c => [c.patientId, c._count._all]));
-  const rows = patients.map(p => ({ ...p, caseCount: caseCountMap[p.id] ?? 0 }));
+
+  // Keep only the most-recent case per patient
+  const latestCaseMap: Record<string, typeof latestCases[0]> = {};
+  for (const c of latestCases) {
+    if (!latestCaseMap[c.patientId]) latestCaseMap[c.patientId] = c;
+  }
+
+  const rows = patients.map(p => ({
+    ...p,
+    caseCount: caseCountMap[p.id] ?? 0,
+    latestCase: latestCaseMap[p.id]
+      ? {
+          caseType:             latestCaseMap[p.id].caseType,
+          status:               latestCaseMap[p.id].status,
+          intakeFormSentAt:     latestCaseMap[p.id].intakeFormSentAt?.toISOString() ?? null,
+          intakeFormCompletedAt: latestCaseMap[p.id].intakeFormCompletedAt?.toISOString() ?? null,
+        }
+      : null,
+  }));
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2 } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -777,7 +777,13 @@ export interface PatientRow {
   insuranceCarrier: string | null;
   policyNumber: string | null;
   createdAt: Date;
-  updatedAt?: Date;
+  updatedAt: Date;
+  latestCase: {
+    caseType: string;
+    status: string;
+    intakeFormSentAt: string | null;
+    intakeFormCompletedAt: string | null;
+  } | null;
   caseCount: number;
 }
 
@@ -902,8 +908,10 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Paciente</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Contacto</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Casos</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Status</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Registrado</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Estado</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Admisión</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Formulario</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">Creado / Actualizado</th>
               <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Acciones</th>
             </tr>
           </thead>
@@ -972,7 +980,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                   </button>
                 </td>
 
-                {/* Status */}
+                {/* Estado */}
                 <td className="px-4 py-3 hidden sm:table-cell">
                   <TagPill
                     label={STATUS_LABEL[p.status] ?? p.status}
@@ -980,9 +988,46 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
                   />
                 </td>
 
-                {/* Registrado */}
-                <td className="px-4 py-3 hidden xl:table-cell text-[11px] text-text-muted">
-                  {fmtLocalDate(p.createdAt)}
+                {/* Admisión */}
+                <td className="px-4 py-3 hidden lg:table-cell">
+                  {p.latestCase ? (() => {
+                    const lc = p.latestCase;
+                    if (lc.intakeFormCompletedAt) return (
+                      <TagPill label="Completo" colorClass="bg-emerald/10 text-emerald border-emerald/20" />
+                    );
+                    if (lc.intakeFormSentAt) return (
+                      <TagPill label="En progreso" colorClass="bg-amber/10 text-amber border-amber/20" />
+                    );
+                    return <TagPill label="Pendiente" colorClass="bg-text-muted/10 text-text-muted border-text-muted/20" />;
+                  })() : <span className="text-[10px] text-text-muted">—</span>}
+                </td>
+
+                {/* Formulario */}
+                <td className="px-4 py-3 hidden xl:table-cell">
+                  <div className="flex items-center gap-2">
+                    {p.latestCase?.intakeFormSentAt ? (
+                      <span title={`Email enviado ${fmtLocalDate(p.latestCase.intakeFormSentAt)}`}>
+                        <Mail className="w-3.5 h-3.5 text-brand" />
+                      </span>
+                    ) : (
+                      <Mail className="w-3.5 h-3.5 text-text-muted opacity-30" />
+                    )}
+                    {p.latestCase?.intakeFormCompletedAt ? (
+                      <span title={`Completado ${fmtLocalDate(p.latestCase.intakeFormCompletedAt)}`}>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
+                      </span>
+                    ) : (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-text-muted opacity-30" />
+                    )}
+                  </div>
+                </td>
+
+                {/* Creado / Actualizado */}
+                <td className="px-4 py-3 hidden xl:table-cell">
+                  <div className="text-[11px] text-text-muted space-y-0.5">
+                    <div><span className="text-text-muted/60">Creado </span>{fmtLocalDate(p.createdAt)}</div>
+                    <div><span className="text-text-muted/60">Upd. </span>{fmtLocalDate(p.updatedAt)}</div>
+                  </div>
                 </td>
 
                 {/* Acciones */}
@@ -1023,7 +1068,7 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
                 <tr key={`${p.id}-cases`} className="bg-bg-2/30">
-                  <td colSpan={6} className="px-6 py-3">
+                  <td colSpan={8} className="px-6 py-3">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">

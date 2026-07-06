@@ -412,9 +412,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                     <input className={INPUT} value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido del paciente" />
                   </Field>
                   <Field label="Fecha de nacimiento" required>
-                    <input type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10}
-                      className={INPUT} value={dobDisplay} onChange={e => { const f = fmtDate(e.target.value); setDobDisplay(f); const iso = dateToIso(f); if (iso || f === '') setDob(iso); }}
-                      onBlur={() => { const iso = dateToIso(dobDisplay); if (iso) { setDob(iso); setDobDisplay(isoToDisp(iso)); } else if (!dobDisplay.replace(/\D/g,'').length) { setDob(''); setDobDisplay(''); } }} />
+                    <input type="date" className={`${INPUT} [color-scheme:dark]`} value={dob} onChange={e => { setDob(e.target.value); setDobDisplay(''); }} />
                   </Field>
                   <Field label="Teléfono">
                     <input className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="(000) 000-0000" />
@@ -496,9 +494,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 {isMVA && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Field label="Fecha de accidente">
-                      <input type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10}
-                        className={INPUT} value={accDisplay} onChange={e => { const f = fmtDate(e.target.value); setAccDisplay(f); const iso = dateToIso(f); if (iso || f === '') setAccidentDate(iso); }}
-                        onBlur={() => { const iso = dateToIso(accDisplay); if (iso) { setAccidentDate(iso); setAccDisplay(isoToDisp(iso)); } else if (!accDisplay.replace(/\D/g,'').length) { setAccidentDate(''); setAccDisplay(''); } }} />
+                      <input type="date" className={`${INPUT} [color-scheme:dark]`} value={accidentDate} onChange={e => { setAccidentDate(e.target.value); setAccDisplay(''); }} />
                     </Field>
                     <Field label="Bufete / fuente de referido">
                       <input className={INPUT} value={lawFirm} onChange={e => setLawFirm(e.target.value)} placeholder="Nombre del bufete" />

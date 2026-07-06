@@ -567,7 +567,7 @@ function AddProblemDialog({
                 type="date"
                 value={diagDate}
                 onChange={e => setDiagDate(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
               />
             </div>
           </div>
@@ -878,7 +878,7 @@ function AddMedicationDialog({
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
               />
             </div>
             <label className="flex items-center gap-2 cursor-pointer pb-2">
@@ -1133,7 +1133,7 @@ function AddProviderDialog({
               type="date"
               value={lastVisit}
               onChange={e => setLastVisit(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
             />
           </div>
         </div>
@@ -1960,7 +1960,7 @@ function AddHistoryDialog({
                 type="date"
                 value={diagDate}
                 onChange={e => setDiagDate(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
               />
             </div>
           </div>

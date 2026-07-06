@@ -336,7 +336,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
         if (!c) return;
         setDetail(c);
         setCaseType((c.caseType === 'MVA' ? 'MVA' : 'GENERAL') as 'MVA' | 'GENERAL');
-        setAccDateDisp(isoToDisp(c.accidentDate));
+        setAccDateDisp(c.accidentDate?.slice(0, 10) ?? '');
         setDescription(c.accidentNotes ?? '');
         setLawFirmId(c.lawFirm?.id ?? null);
         setLawFirmLabel(c.lawFirm?.firmName ?? '');
@@ -351,7 +351,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
   async function handleSave() {
     setSaving(true);
     setError('');
-    const accidentDate = dispToIso(accDateDisp) || null;
+    const accidentDate = accDateDisp || null;
     try {
       const res = await fetch(`/api/admin/cases/${caseId}`, {
         method: 'PATCH',
@@ -420,11 +420,10 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
                 {/* Fecha del accidente */}
                 <div>
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Fecha del accidente</label>
-                  <input type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10}
+                  <input type="date"
                     value={accDateDisp}
-                    onChange={e => setAccDateDisp(fmtDateInput(e.target.value))}
-                    onBlur={() => { const iso = dispToIso(accDateDisp); if (iso) setAccDateDisp(isoToDisp(iso)); }}
-                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
+                    onChange={e => setAccDateDisp(e.target.value)}
+                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand [color-scheme:dark]"
                   />
                 </div>
 
@@ -880,11 +879,11 @@ function NuevoSeguroDialog({ onClose, onSave }: {
                 <div><label className={insLabel}>{t('segurosGroupNum')}</label><input className={insInput} value={entry.groupNum} onChange={e => set('groupNum', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>{t('segurosHolderDOB')}</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.holderDOB} onChange={e => set('holderDOB', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosHolderDOB')}</label><input type="date" className={`${insInput} [color-scheme:dark]`} value={entry.holderDOB} onChange={e => set('holderDOB', e.target.value)} /></div>
                 <div><label className={insLabel}>{t('segurosHolderRelation')}</label><input className={insInput} value={entry.holderRelation} onChange={e => set('holderRelation', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div><label className={insLabel}>{t('segurosEffectiveDate')}</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.effectiveDate} onChange={e => set('effectiveDate', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosEffectiveDate')}</label><input type="date" className={`${insInput} [color-scheme:dark]`} value={entry.effectiveDate} onChange={e => set('effectiveDate', e.target.value)} /></div>
                 <div><label className={insLabel}>{t('segurosCopay')}</label><input className={insInput} placeholder="$0.00" value={entry.copay} onChange={e => set('copay', e.target.value)} /></div>
                 <div><label className={insLabel}>{t('segurosDeductible')}</label><input className={insInput} placeholder="$0.00" value={entry.deductible} onChange={e => set('deductible', e.target.value)} /></div>
               </div>
@@ -896,7 +895,7 @@ function NuevoSeguroDialog({ onClose, onSave }: {
                 <div><label className={insLabel}>{t('segurosPolicyId')}</label><input className={insInput} value={entry.policyId} onChange={e => set('policyId', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>{t('segurosLossDate')}</label><input className={insInput} placeholder="MM/DD/YYYY" value={entry.lossDate} onChange={e => set('lossDate', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosLossDate')}</label><input type="date" className={`${insInput} [color-scheme:dark]`} value={entry.lossDate} onChange={e => set('lossDate', e.target.value)} /></div>
                 <div><label className={insLabel}>{t('segurosPip')}</label><input className={insInput} value={entry.pipAvailable} onChange={e => set('pipAvailable', e.target.value)} /></div>
               </div>
               <div><label className={insLabel}>{t('segurosClaimNum')}</label><input className={insInput} value={entry.claimNum} onChange={e => set('claimNum', e.target.value)} /></div>

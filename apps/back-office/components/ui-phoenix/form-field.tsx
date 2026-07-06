@@ -24,32 +24,6 @@ function FieldLabel({ children, required }: { children: React.ReactNode } & Requ
   );
 }
 
-// Converts YYYY-MM-DD (internal) ↔ MM/DD/YYYY (display)
-// Chrome on Windows with Spanish OS locale ignores lang attribute on date inputs
-// and uses the OS locale. This component bypasses that by using type="text".
-function isoToDisplay(iso: string): string {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-');
-  if (!y || !m || !d) return iso;
-  return `${m}/${d}/${y}`;
-}
-
-function displayToIso(display: string): string {
-  const clean = display.replace(/\D/g, '');
-  if (clean.length < 8) return '';
-  const m = clean.slice(0, 2);
-  const d = clean.slice(2, 4);
-  const y = clean.slice(4, 8);
-  return `${y}-${m}-${d}`;
-}
-
-function formatDateDisplay(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
 function DateInputField({
   label, required, value, onChange, hint, error,
 }: Required & {
@@ -59,38 +33,19 @@ function DateInputField({
   hint?: React.ReactNode;
   error?: string;
 }) {
-  const [display, setDisplay] = React.useState(() => isoToDisplay(value));
-
-  // Sync if parent changes value externally
-  React.useEffect(() => {
-    setDisplay(isoToDisplay(value));
-  }, [value]);
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const formatted = formatDateDisplay(e.target.value);
-    setDisplay(formatted);
-    const iso = displayToIso(formatted);
-    if (iso || formatted === '') onChange(iso);
-  }
-
-  function handleBlur() {
-    const iso = displayToIso(display);
-    if (iso) { onChange(iso); setDisplay(isoToDisplay(iso)); }
-    else if (display.replace(/\D/g, '').length === 0) { onChange(''); setDisplay(''); }
-  }
-
   return (
     <div>
       <FieldLabel required={required}>{label}</FieldLabel>
-      <Input
-        type="text"
-        inputMode="numeric"
-        value={display}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        placeholder="MM/DD/YYYY"
-        maxLength={10}
-        className={error ? 'border-rose focus-visible:ring-rose/30' : undefined}
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={[
+          'w-full bg-bg-2 border rounded-md px-3 py-2 text-sm text-text-1',
+          'focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand',
+          '[color-scheme:dark]',
+          error ? 'border-rose focus:ring-rose/30 focus:border-rose' : 'border-border',
+        ].join(' ')}
       />
       {error && <p className="text-[10px] text-rose mt-1">{error}</p>}
       {!error && hint && <div className="text-text-muted text-[10px] mt-1">{hint}</div>}

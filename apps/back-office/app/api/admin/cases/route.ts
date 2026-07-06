@@ -24,7 +24,8 @@ const InputSchema = z.object({
   patient: z.object({
     firstName: z.string().min(1).max(100),
     lastName: z.string().min(1).max(100),
-    phone: z.string().min(7).max(30),
+    // Para pacientes existentes el phone puede venir vacío · se ignora en el update
+    phone: z.string().max(30).default(''),
     email: z.string().email().nullable().optional().or(z.literal('').transform(() => null)),
     dateOfBirth: z.string().datetime().nullable().optional(),
     preferredLanguage: z.enum(['es', 'en']).default('es'),
@@ -111,6 +112,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // ─── Paciente nuevo requiere teléfono válido ────────────────────────
+  if (!parsed.existingPatientId && parsed.patient.phone.replace(/\D/g, '').length < 7) {
+    return NextResponse.json(
+      { error: 'INVALID_PAYLOAD', message: 'El teléfono es requerido para pacientes nuevos.' },
+      { status: 400 },
+    );
+  }
+
   // ─── Validaciones de unicidad (solo pacientes nuevos) ───────────────
   if (!parsed.existingPatientId) {
     const checks = await Promise.all([
@@ -181,17 +190,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ─── Transacción · Patient + Case (+ Appointment opcional) ──────────
   const result = await db.$transaction(async (tx) => {
-    // Paciente conocido → actualizar datos del call y reusar · nunca crear duplicado
+    // Paciente conocido → solo actualizar campos del accidente/caso · nunca tocar
+    //                     demografía (nombre, teléfono) para evitar corrupción
     // Paciente nuevo    → crear con código generado
     const patient = parsed.existingPatientId
       ? await tx.patient.update({
           where: { id: parsed.existingPatientId },
           data: {
-            firstName: parsed.patient.firstName,
-            lastName: parsed.patient.lastName,
-            phone: parsed.patient.phone,
-            ...(parsed.patient.email !== undefined && { email: parsed.patient.email }),
-            ...(parsed.patient.dateOfBirth && { dateOfBirth: new Date(parsed.patient.dateOfBirth) }),
             ...(parsed.accident.date && { accidentDate: new Date(parsed.accident.date) }),
             accidentType: parsed.accident.type,
             ...(parsed.legal.lawFirmId && { lawyerReferrerId: parsed.legal.lawFirmId }),

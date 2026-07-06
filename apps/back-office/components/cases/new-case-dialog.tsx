@@ -259,7 +259,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // ─── Validation ────────────────────────────────────────────────────────
   const canSubmit = useMemo(() => {
     if (!firstName.trim() || !lastName.trim()) return false;
-    if (!phone.trim()) return false;
+    // Para pacientes nuevos el phone es requerido; para existentes ya está en DB
+    if (!existingPatientId && !phone.trim()) return false;
     if (caseType === 'MVA' && lawyerStatus === 'HAS' && !lawFirm) return false;
     if (scheduleNow && (!clinicId || !providerId || !slotIso)) return false;
     return true;

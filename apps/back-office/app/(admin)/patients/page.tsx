@@ -32,7 +32,7 @@ export default async function PatientsPage({
       }
     : {};
 
-  const [patients, total] = await Promise.all([
+  const [patients, total, specialties, clinics, providers] = await Promise.all([
     db.patient.findMany({
       where,
       select: {
@@ -54,6 +54,20 @@ export default async function PatientsPage({
       take:  PAGE_SIZE,
     }),
     db.patient.count({ where }),
+    db.specialtyCatalog.findMany({
+      where: { isActive: true, deletedAt: null },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, name: true, color: true },
+    }),
+    db.clinic.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, address: true },
+    }),
+    db.provider.findMany({
+      where: { status: 'ACTIVE', deletedAt: null },
+      orderBy: [{ specialty: 'asc' }, { lastName: 'asc' }],
+      select: { id: true, firstName: true, lastName: true, specialty: true },
+    }),
   ]);
 
   const patientIds = patients.map(p => p.id);
@@ -143,7 +157,7 @@ export default async function PatientsPage({
 
       </div>
 
-      <PatientsClient patients={rows} q={q} page={page} totalPages={totalPages} total={total} />
+      <PatientsClient patients={rows} q={q} page={page} totalPages={totalPages} total={total} specialties={specialties} clinics={clinics} providers={providers} />
     </div>
   );
 }

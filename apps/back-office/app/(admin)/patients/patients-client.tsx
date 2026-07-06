@@ -3,13 +3,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, Phone, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { PatientCreateDialog } from './patient-create-dialog';
 import { MedicalHistoryDialog } from './medical-history-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
+import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import QRCode from 'qrcode';
@@ -803,6 +804,9 @@ interface Props {
   page: number;
   totalPages: number;
   total: number;
+  specialties: Array<{ id: string; name: string; color: string }>;
+  clinics: Array<{ id: string; name: string; address: string | null }>;
+  providers: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
 }
 
 
@@ -1230,7 +1234,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   );
 }
 
-export function PatientsClient({ patients, q, page, totalPages, total }: Props) {
+export function PatientsClient({ patients, q, page, totalPages, total, specialties, clinics, providers }: Props) {
   const t      = useTranslations('phoenix.patients');
   const locale = useLocale();
   const router = useRouter();
@@ -1242,6 +1246,8 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
     DISCHARGED: t('patientStatus.DISCHARGED'),
     INACTIVE:   t('patientStatus.INACTIVE'),
   };
+  const [newCaseOpen,    setNewCaseOpen]    = useState(false);
+  const [newCaseInitial, setNewCaseInitial] = useState<NewCaseInitialState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PatientRow | null>(null);
   const [deleteError,  setDeleteError]  = useState('');
   const [deleting,     setDeleting]     = useState(false);
@@ -1355,8 +1361,16 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
 
   return (
     <>
-      {/* Barra de acciones — Registro rápido + Agregar paciente */}
+      {/* Barra de acciones — Nueva llamada + Registro rápido + Agregar paciente */}
       <div className="flex flex-wrap items-center justify-end gap-2 -mt-2 mb-1">
+        <button
+          type="button"
+          onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-brand/40 bg-brand/5 text-sm text-brand hover:bg-brand/10 hover:border-brand/60 transition-colors"
+        >
+          <PhoneCall className="w-3.5 h-3.5" />
+          Nueva llamada / Crear caso
+        </button>
         <button
           type="button"
           onClick={() => setQuickRegister(true)}
@@ -2028,6 +2042,19 @@ export function PatientsClient({ patients, q, page, totalPages, total }: Props) 
           }}
         />
       )}
+
+      {/* ─── Nueva llamada / Crear caso ─────────────────────────────────────── */}
+      <NewCaseDialog
+        open={newCaseOpen}
+        onOpenChange={(open) => {
+          setNewCaseOpen(open);
+          if (!open) { setNewCaseInitial(null); router.refresh(); }
+        }}
+        specialties={specialties}
+        clinics={clinics}
+        providers={providers}
+        initialState={newCaseInitial}
+      />
 
       {/* ─── Delete confirm ──────────────────────────────────────────────────── */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>

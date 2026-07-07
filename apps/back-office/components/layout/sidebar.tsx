@@ -4,11 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  Stethoscope,
-  Scale,
-  ShieldCheck,
-  DollarSign,
-  FileText,
+  Settings,
   Building2,
   Phone,
   Briefcase,
@@ -39,13 +35,9 @@ interface NavSection {
 
 const SECTIONS: NavSection[] = [
   {
-    titleKey: 'catalogs',
+    titleKey: 'settings',
     items: [
-      { href: '/admin/specialties', icon: Stethoscope, labelKey: 'specialties', mockup: 'B.36' },
-      { href: '/admin/lawyers',     icon: Scale,       labelKey: 'lawyers',      mockup: 'B.30' },
-      { href: '/admin/insurances',  icon: ShieldCheck, labelKey: 'insurances',   mockup: 'B.32' },
-      { href: '/admin/services',    icon: DollarSign,  labelKey: 'services',     mockup: 'B.33' },
-      { href: '/admin/diagnoses',   icon: FileText,    labelKey: 'diagnoses',    mockup: 'B.35' },
+      { href: '/settings', icon: Settings, labelKey: 'settings', mockup: 'B.36+' },
     ],
   },
   {

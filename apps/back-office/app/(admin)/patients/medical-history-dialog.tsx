@@ -218,15 +218,15 @@ function ToggleRow({
   label, checked, onChange,
 }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex items-center justify-between px-3 py-2.5 rounded-md border border-border/60 bg-bg-2/40">
+    <div className={`flex items-center justify-between px-3 py-2.5 rounded-md border transition-colors ${checked ? 'border-brand/40 bg-brand/5' : 'border-border/60 bg-bg-2/40'}`}>
       <span className="text-sm text-text-2">{label}</span>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none
-          ${checked ? 'bg-brand' : 'bg-text-muted/30'}`}
+        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 transition-colors focus:outline-none
+          ${checked ? 'bg-brand border-brand' : 'bg-white/10 border-white/20'}`}
       >
         <span
           className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform
@@ -240,12 +240,13 @@ function ToggleRow({
 // ── Visit info edit dialog ─────────────────────────────────────────────────
 
 function VisitInfoEditDialog({
-  patientId, initial, open, onClose,
+  patientId, initial, open, onClose, onSaved,
 }: {
   patientId: string;
   initial:   MedicalHistoryData['visitInfo'];
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
@@ -264,6 +265,7 @@ function VisitInfoEditDialog({
   function handleSave() {
     startTransition(async () => {
       await updateMedicalHistory(patientId, { visitInfo: form });
+      onSaved?.({ visitInfo: form });
       onClose();
     });
   }
@@ -354,12 +356,13 @@ function VisitInfoEditDialog({
 // ── Health info edit dialog ────────────────────────────────────────────────
 
 function HealthInfoEditDialog({
-  patientId, initial, open, onClose,
+  patientId, initial, open, onClose, onSaved,
 }: {
   patientId: string;
   initial:   MedicalHistoryData['healthInfo'];
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [goals, setGoals]       = useState(initial?.goals ?? '');
@@ -368,6 +371,7 @@ function HealthInfoEditDialog({
   function handleSave() {
     startTransition(async () => {
       await updateMedicalHistory(patientId, { healthInfo: { goals, selfRating: rating } });
+      onSaved?.({ healthInfo: { goals, selfRating: rating } });
       onClose();
     });
   }
@@ -443,12 +447,13 @@ function HealthInfoEditDialog({
 type DiagnosisOption = { id: string; label: string; code: string };
 
 function AddProblemDialog({
-  patientId, existing, open, onClose,
+  patientId, existing, open, onClose, onSaved,
 }: {
   patientId: string;
   existing:  MedicalHistoryData['problems'];
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [query,     setQuery]        = useState('');
@@ -487,6 +492,7 @@ function AddProblemDialog({
     const updated = [...(existing ?? []), newProblem];
     startTransition(async () => {
       await updateMedicalHistory(patientId, { problems: updated });
+      onSaved?.({ problems: updated });
       onClose();
     });
   }
@@ -675,13 +681,14 @@ const CATEGORY_BADGE: Record<string, string> = {
 };
 
 function AddMedicationDialog({
-  patientId, existing, preferredPharmacy, open, onClose,
+  patientId, existing, preferredPharmacy, open, onClose, onSaved,
 }: {
   patientId:          string;
   existing:           MedicalHistoryData['medications'];
   preferredPharmacy?: string | null;
   open:               boolean;
   onClose:            () => void;
+  onSaved?:           (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -765,6 +772,7 @@ function AddMedicationDialog({
     const updated = [...(existing ?? []), newMed];
     startTransition(async () => {
       await updateMedicalHistory(patientId, { medications: updated });
+      onSaved?.({ medications: updated });
       onClose();
     });
   }
@@ -962,12 +970,13 @@ function AddMedicationDialog({
 // ── Add surgery dialog ─────────────────────────────────────────────────────
 
 function AddSurgeryDialog({
-  patientId, existing, open, onClose,
+  patientId, existing, open, onClose, onSaved,
 }: {
   patientId: string;
   existing:  MedicalHistoryData['surgeries'];
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [procedure, setProcedure]    = useState('');
@@ -982,8 +991,10 @@ function AddSurgeryDialog({
       date:      year.trim() || undefined,
       notes:     notes.trim() || undefined,
     };
+    const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { surgeries: [...(existing ?? []), newItem] });
+      await updateMedicalHistory(patientId, { surgeries: updated });
+      onSaved?.({ surgeries: updated });
       onClose();
     });
   }
@@ -1051,12 +1062,13 @@ function AddSurgeryDialog({
 // ── Add provider history dialog ────────────────────────────────────────────
 
 function AddProviderDialog({
-  patientId, existing, open, onClose,
+  patientId, existing, open, onClose, onSaved,
 }: {
   patientId: string;
   existing:  MedicalHistoryData['providers'];
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -1082,8 +1094,10 @@ function AddProviderDialog({
       specialty: specialty || undefined,
       notes:     lastVisit ? `Última visita: ${lastVisit}` : undefined,
     };
+    const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { providers: [...(existing ?? []), newItem] });
+      await updateMedicalHistory(patientId, { providers: updated });
+      onSaved?.({ providers: updated });
       onClose();
     });
   }
@@ -1155,12 +1169,13 @@ function AddProviderDialog({
 // ── Vaccines edit dialog ───────────────────────────────────────────────────
 
 function VaccinesEditDialog({
-  patientId, initial, open, onClose,
+  patientId, initial, open, onClose, onSaved,
 }: {
   patientId: string;
   initial:   string[] | undefined;
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
@@ -1173,6 +1188,7 @@ function VaccinesEditDialog({
     const vaccines = items.map(s => s.trim()).filter(Boolean);
     startTransition(async () => {
       await updateMedicalHistory(patientId, { vaccines });
+      onSaved?.({ vaccines });
       onClose();
     });
   }
@@ -1237,12 +1253,13 @@ function VaccinesEditDialog({
 type CognitiveEntry = { name: string; status: string };
 
 function CognitiveEditDialog({
-  patientId, initial, open, onClose,
+  patientId, initial, open, onClose, onSaved,
 }: {
   patientId: string;
   initial:   CognitiveEntry[] | undefined;
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [entries, setEntries] = useState<CognitiveEntry[]>(
@@ -1259,6 +1276,7 @@ function CognitiveEditDialog({
     const cognitiveStatus = entries.filter(e => e.name.trim() || e.status.trim());
     startTransition(async () => {
       await updateMedicalHistory(patientId, { cognitiveStatus });
+      onSaved?.({ cognitiveStatus });
       onClose();
     });
   }
@@ -1335,12 +1353,13 @@ function CognitiveEditDialog({
 // ── Functional status edit dialog ──────────────────────────────────────────
 
 function FunctionalEditDialog({
-  patientId, initial, open, onClose,
+  patientId, initial, open, onClose, onSaved,
 }: {
   patientId: string;
   initial:   Array<{ name: string; status: string }> | undefined;
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [entries, setEntries] = useState(
@@ -1357,6 +1376,7 @@ function FunctionalEditDialog({
     const functionalStatus = entries.filter(e => e.name.trim() || e.status.trim());
     startTransition(async () => {
       await updateMedicalHistory(patientId, { functionalStatus });
+      onSaved?.({ functionalStatus });
       onClose();
     });
   }
@@ -1421,12 +1441,13 @@ function FunctionalEditDialog({
 // ── Implanted devices edit dialog ──────────────────────────────────────────
 
 function DevicesEditDialog({
-  patientId, initial, open, onClose,
+  patientId, initial, open, onClose, onSaved,
 }: {
   patientId: string;
   initial:   string[] | undefined;
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
@@ -1439,6 +1460,7 @@ function DevicesEditDialog({
     const implantedDevices = items.map(s => s.trim()).filter(Boolean);
     startTransition(async () => {
       await updateMedicalHistory(patientId, { implantedDevices });
+      onSaved?.({ implantedDevices });
       onClose();
     });
   }
@@ -1489,12 +1511,13 @@ function DevicesEditDialog({
 // ── Systems review edit dialog ─────────────────────────────────────────────
 
 function SystemsReviewEditDialog({
-  patientId, initial, open, onClose,
+  patientId, initial, open, onClose, onSaved,
 }: {
   patientId: string;
   initial:   string[] | undefined;
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
@@ -1507,6 +1530,7 @@ function SystemsReviewEditDialog({
     const systemsReview = items.map(s => s.trim()).filter(Boolean);
     startTransition(async () => {
       await updateMedicalHistory(patientId, { systemsReview });
+      onSaved?.({ systemsReview });
       onClose();
     });
   }
@@ -1557,12 +1581,13 @@ function SystemsReviewEditDialog({
 // ── Health exams edit dialog ───────────────────────────────────────────────
 
 function HealthExamsEditDialog({
-  patientId, initial, open, onClose,
+  patientId, initial, open, onClose, onSaved,
 }: {
   patientId: string;
   initial:   MedicalHistoryData['healthExams'];
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [bloodTestDate,   setBloodTestDate]   = useState(initial?.bloodTestDate   ?? '');
@@ -1575,6 +1600,7 @@ function HealthExamsEditDialog({
       await updateMedicalHistory(patientId, {
         healthExams: { bloodTestDate, normalResults, colonoscopyYear, abnormal },
       });
+      onSaved?.({ healthExams: { bloodTestDate, normalResults, colonoscopyYear, abnormal } });
       onClose();
     });
   }
@@ -1650,12 +1676,13 @@ function HealthExamsEditDialog({
 // ── Add comment dialog ─────────────────────────────────────────────────────
 
 function AddCommentDialog({
-  patientId, existing, open, onClose,
+  patientId, existing, open, onClose, onSaved,
 }: {
   patientId: string;
   existing:  MedicalHistoryData['comments'];
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [text, setText] = useState('');
@@ -1665,8 +1692,10 @@ function AddCommentDialog({
     const now = new Date();
     const date = now.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
     const newComment = { id: crypto.randomUUID(), date, text: text.trim() };
+    const newComments = [...(existing ?? []), newComment];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { comments: [...(existing ?? []), newComment] });
+      await updateMedicalHistory(patientId, { comments: newComments });
+      onSaved?.({ comments: newComments });
       onClose();
     });
   }
@@ -1720,12 +1749,13 @@ const FAMILY_MEMBERS = [
 ];
 
 function AddFamilyHistoryDialog({
-  patientId, existing, open, onClose,
+  patientId, existing, open, onClose, onSaved,
 }: {
   patientId: string;
   existing:  MedicalHistoryData['familyHistory'];
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -1745,8 +1775,10 @@ function AddFamilyHistoryDialog({
   function handleSave() {
     if (!relation || !condition) return;
     const newItem = { id: crypto.randomUUID(), relation, condition };
+    const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
-      await updateMedicalHistory(patientId, { familyHistory: [...(existing ?? []), newItem] });
+      await updateMedicalHistory(patientId, { familyHistory: updated });
+      onSaved?.({ familyHistory: updated });
       onClose();
     });
   }
@@ -1841,12 +1873,13 @@ function AddFamilyHistoryDialog({
 // ── Add history dialog ─────────────────────────────────────────────────────
 
 function AddHistoryDialog({
-  patientId, existing, open, onClose,
+  patientId, existing, open, onClose, onSaved,
 }: {
   patientId: string;
   existing:  MedicalHistoryData['history'];
   open:      boolean;
   onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [query,     setQuery]        = useState('');
@@ -1884,6 +1917,7 @@ function AddHistoryDialog({
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
       await updateMedicalHistory(patientId, { history: updated });
+      onSaved?.({ history: updated });
       onClose();
     });
   }
@@ -2011,7 +2045,8 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const [editExams,        setEditExams]        = useState(false);
   const [addComment,       setAddComment]       = useState(false);
 
-  const mh = (patient.medicalHistory ?? {}) as MedicalHistoryData;
+  const [mh, setMh] = useState<MedicalHistoryData>(() => (patient.medicalHistory ?? {}) as MedicalHistoryData);
+  const onSaved = (patch: Partial<MedicalHistoryData>) => setMh(prev => ({ ...prev, ...patch }));
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
 
   const age    = calcAge(patient.dateOfBirth);
@@ -2454,6 +2489,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         initial={mh.visitInfo}
         open={editVisitInfo}
         onClose={() => setEditVisitInfo(false)}
+        onSaved={onSaved}
       />
     )}
     {editHealthInfo && (
@@ -2462,6 +2498,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         initial={mh.healthInfo}
         open={editHealthInfo}
         onClose={() => setEditHealthInfo(false)}
+        onSaved={onSaved}
       />
     )}
     {addProblem && (
@@ -2470,6 +2507,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.problems}
         open={addProblem}
         onClose={() => setAddProblem(false)}
+        onSaved={onSaved}
       />
     )}
     {addHistory && (
@@ -2478,6 +2516,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.history}
         open={addHistory}
         onClose={() => setAddHistory(false)}
+        onSaved={onSaved}
       />
     )}
     {addComment && (
@@ -2486,6 +2525,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.comments}
         open={addComment}
         onClose={() => setAddComment(false)}
+        onSaved={onSaved}
       />
     )}
     {editExams && (
@@ -2494,6 +2534,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         initial={mh.healthExams}
         open={editExams}
         onClose={() => setEditExams(false)}
+        onSaved={onSaved}
       />
     )}
     {editSystems && (
@@ -2502,6 +2543,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         initial={mh.systemsReview}
         open={editSystems}
         onClose={() => setEditSystems(false)}
+        onSaved={onSaved}
       />
     )}
     {editDevices && (
@@ -2510,6 +2552,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         initial={mh.implantedDevices}
         open={editDevices}
         onClose={() => setEditDevices(false)}
+        onSaved={onSaved}
       />
     )}
     {editFunctional && (
@@ -2518,6 +2561,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         initial={mh.functionalStatus}
         open={editFunctional}
         onClose={() => setEditFunctional(false)}
+        onSaved={onSaved}
       />
     )}
     {editCognitive && (
@@ -2526,6 +2570,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         initial={mh.cognitiveStatus}
         open={editCognitive}
         onClose={() => setEditCognitive(false)}
+        onSaved={onSaved}
       />
     )}
     {editVaccines && (
@@ -2534,6 +2579,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         initial={mh.vaccines}
         open={editVaccines}
         onClose={() => setEditVaccines(false)}
+        onSaved={onSaved}
       />
     )}
     {addProvider && (
@@ -2542,6 +2588,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.providers}
         open={addProvider}
         onClose={() => setAddProvider(false)}
+        onSaved={onSaved}
       />
     )}
     {addFamilyHistory && (
@@ -2550,6 +2597,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.familyHistory}
         open={addFamilyHistory}
         onClose={() => setAddFamilyHistory(false)}
+        onSaved={onSaved}
       />
     )}
     {addSurgery && (
@@ -2558,6 +2606,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         existing={mh.surgeries}
         open={addSurgery}
         onClose={() => setAddSurgery(false)}
+        onSaved={onSaved}
       />
     )}
     {addMedication && (
@@ -2567,6 +2616,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
         preferredPharmacy={patient.preferredPharmacy}
         open={addMedication}
         onClose={() => setAddMedication(false)}
+        onSaved={onSaved}
       />
     )}
     </>

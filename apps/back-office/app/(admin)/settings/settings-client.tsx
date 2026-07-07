@@ -173,7 +173,7 @@ export function SettingsClient({ initialClinics }: Props) {
                     </div>
                     <div className="flex gap-1 shrink-0">
                       <IconAction icon={Pencil} label="Editar" onClick={() => openEdit(c)} />
-                      <IconAction icon={Trash2} label="Eliminar" tone="danger" onClick={() => setDeleting(c)} />
+                      <IconAction icon={Trash2} label="Eliminar" variant="danger" onClick={() => setDeleting(c)} />
                     </div>
                   </div>
                 ))}
@@ -201,7 +201,7 @@ export function SettingsClient({ initialClinics }: Props) {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1 justify-end">
                             <IconAction icon={Pencil} label="Editar" onClick={() => openEdit(c)} />
-                            <IconAction icon={Trash2} label="Eliminar" tone="danger" onClick={() => setDeleting(c)} />
+                            <IconAction icon={Trash2} label="Eliminar" variant="danger" onClick={() => setDeleting(c)} />
                           </div>
                         </td>
                       </tr>

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Gantt — Precision Medical Care 2026</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:#fff;color:#0F172A;font-size:13px;line-height:1.4;
+  padding:36px 40px;min-width:860px;
+}
+
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;
+  padding-bottom:18px;margin-bottom:24px;border-bottom:2.5px solid #0F172A}
+.hdr-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:#6366F1;margin-bottom:4px}
+.hdr-title{font-size:26px;font-weight:800;letter-spacing:-.6px;color:#0F172A;line-height:1.1}
+.hdr-sub{font-size:11px;color:#64748B;margin-top:6px;letter-spacing:.02em}
+.hdr-meta{text-align:right;font-size:10.5px;color:#64748B;line-height:1.8}
+.hdr-meta strong{display:block;font-size:13px;font-weight:700;color:#0F172A;letter-spacing:-.2px}
+
+.legend{display:flex;gap:18px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+.l-item{display:flex;align-items:center;gap:6px;font-size:10px;color:#64748B;letter-spacing:.03em}
+.l-bar{width:20px;height:8px;border-radius:2px;flex-shrink:0}
+.l-line{width:16px;height:2px;flex-shrink:0}
+
+.gantt{width:100%}
+.g-row{display:flex;align-items:center;min-height:40px;border-bottom:1px solid #F1F5F9}
+.g-row:hover .g-info,.g-row:hover .g-track{background:#FAFBFF}
+.g-info{width:220px;flex-shrink:0;padding:7px 14px 7px 0;display:flex;flex-direction:column;justify-content:center}
+.g-track{flex:1;position:relative;height:40px;display:flex;align-items:center}
+
+.g-head{display:flex;margin-bottom:6px}
+.g-head-left{width:220px;flex-shrink:0}
+.g-months{flex:1;display:grid;grid-template-columns:repeat(6,1fr)}
+.month-col{border-left:1px solid #E2E8F0;padding:0 0 6px;text-align:center;
+  font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94A3B8}
+.month-col:first-child{border-left:none}
+
+.g-track::before{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:repeating-linear-gradient(
+    to right,transparent 0,transparent calc(100%/6 - 1px),
+    #E2E8F0 calc(100%/6 - 1px),#E2E8F0 calc(100%/6)
+  );pointer-events:none;z-index:0}
+
+.today-line{position:absolute;top:-4px;bottom:-4px;width:2px;background:#EF4444;z-index:20;left:19.4%}
+.today-tag{position:absolute;top:-20px;left:50%;transform:translateX(-50%);
+  font-size:8px;font-weight:800;letter-spacing:.08em;color:#EF4444;
+  text-transform:uppercase;white-space:nowrap;background:#fff;padding:0 3px}
+
+.phase-row{display:flex;align-items:center;margin:10px 0 2px}
+.ph-label{width:220px;flex-shrink:0;font-size:9px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;color:#94A3B8;padding-right:14px;text-align:right}
+.ph-stripe{flex:1;height:22px;border-radius:3px;display:flex;align-items:center;
+  padding:0 10px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;position:relative}
+
+.bar{position:absolute;height:18px;border-radius:3px;z-index:2;display:flex;align-items:center;overflow:visible}
+.bar-bg{position:absolute;inset:0;border-radius:3px;opacity:.18}
+.bar-fill{position:absolute;top:0;left:0;bottom:0;border-radius:3px}
+.bar-pct{position:absolute;right:-28px;font-size:9px;font-weight:700;
+  letter-spacing:.04em;color:#64748B;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+.mod-name{font-size:12px;font-weight:600;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mod-code{font-size:9.5px;color:#94A3B8;margin-top:1px;font-variant-numeric:tabular-nums}
+.chip{display:inline-flex;align-items:center;padding:1px 5px;border-radius:2px;
+  font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:2px}
+
+.ms-row{display:flex;margin-top:18px}
+.ms-left{width:220px;flex-shrink:0;font-size:9px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:#94A3B8;padding-top:14px;text-align:right;padding-right:14px}
+.ms-track{flex:1;position:relative;height:54px;border-top:1px solid #E2E8F0}
+.ms-marker{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px}
+.ms-diamond{width:10px;height:10px;transform:rotate(45deg);margin-top:-5px;flex-shrink:0;border:2px solid}
+.ms-text{font-size:8.5px;font-weight:600;letter-spacing:.03em;white-space:nowrap;text-align:center;line-height:1.4;color:#0F172A}
+.ms-date{font-size:8px;color:#94A3B8;font-variant-numeric:tabular-nums}
+
+.footer{margin-top:24px;padding-top:16px;border-top:1px solid #E2E8F0;
+  display:flex;justify-content:space-between;align-items:flex-end;gap:24px}
+.footer-note{font-size:10px;color:#94A3B8;line-height:1.7;max-width:380px}
+.footer-note strong{color:#64748B;font-weight:600}
+.kpis{display:flex;gap:28px}
+.kpi{text-align:center}
+.kpi-val{font-size:28px;font-weight:800;color:#0F172A;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.kpi-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.1em;color:#94A3B8;margin-top:3px;line-height:1.3}
+
+.ov-bar{flex:1;height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden}
+.ov-fill{height:100%;border-radius:3px;background:linear-gradient(to right,#6366F1,#06B6D4)}
+
+@media print {
+  body { padding: 20px; }
+  .g-row:hover .g-info, .g-row:hover .g-track { background: transparent; }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="hdr-eyebrow">Precision Medical Care · Plan de Entrega</div>
+    <div class="hdr-title">Cronograma de Desarrollo<br>Sistema EMR / Back-Office</div>
+    <div class="hdr-sub">Versión 3.0 · Fases 1A → 1B → 2 · Junio–Noviembre 2026</div>
+  </div>
+  <div class="hdr-meta">
+    <strong>Alta Gerencia — Confidencial</strong>
+    Fecha de corte: 6 Jul 2026<br>
+    Responsable técnico: Erick Salinas<br>
+    Estado: Fase 1A en ejecución<br>
+    Entorno: phoenix-dev (mock data)
+  </div>
+</div>
+
+<div class="legend">
+  <div class="l-item"><div class="l-bar" style="background:#6366F1"></div>Phase 1A — Recepción &amp; Portal</div>
+  <div class="l-item"><div class="l-bar" style="background:#0891B2"></div>Phase 1B — Flujo Clínico</div>
+  <div class="l-item"><div class="l-bar" style="background:#D97706"></div>Phase 2 — Billing &amp; Integraciones</div>
+  <div class="l-item"><div class="l-bar" style="background:#E2E8F0;border:1px dashed #CBD5E1"></div>Planificado</div>
+  <div class="l-item"><div class="l-line" style="background:#EF4444"></div>Hoy (6 Jul)</div>
+</div>
+
+<div style="margin-bottom:20px;display:flex;align-items:center;gap:16px">
+  <span style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94A3B8;white-space:nowrap">Avance global</span>
+  <div class="ov-bar" style="max-width:300px"><div class="ov-fill" style="width:44%"></div></div>
+  <span style="font-size:10px;font-weight:700;color:#0F172A;font-variant-numeric:tabular-nums">44%</span>
+  <span style="font-size:10px;color:#94A3B8">· Phase 1A promedia 80% · 1B promedia 30% · 2 promedia 20%</span>
+</div>
+
+<div class="gantt">
+  <div class="g-head">
+    <div class="g-head-left"></div>
+    <div class="g-months">
+      <div class="month-col">Jun 2026</div>
+      <div class="month-col">Jul 2026</div>
+      <div class="month-col">Ago 2026</div>
+      <div class="month-col">Sep 2026</div>
+      <div class="month-col">Oct 2026</div>
+      <div class="month-col">Nov 2026</div>
+    </div>
+  </div>
+
+  <!-- PHASE 1A -->
+  <div class="phase-row">
+    <div class="ph-label">Phase 1A</div>
+    <div class="ph-stripe" style="background:#EEF2FF;color:#6366F1">
+      Recepción · Portal de Paciente · Portal de Abogado
+      <span style="margin-left:auto;font-size:8px;opacity:.7">Target: 31 Jul 2026</span>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Front Office &amp; Recepción</div>
+      <div class="mod-code">B.1 – B.4 · back-office</div>
+      <div class="chip" style="background:#DCFCE7;color:#15803D">✓ 90% · Casi listo</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"><div class="today-tag">Hoy</div></div>
+      <div class="bar" style="left:0%;width:33%">
+        <div class="bar-bg" style="background:#6366F1"></div>
+        <div class="bar-fill" style="width:90%;background:#6366F1"></div>
+        <span class="bar-pct">90%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Portal de Paciente / Intake</div>
+      <div class="mod-code">B.5 – B.9 · forms app</div>
+      <div class="chip" style="background:#DCFCE7;color:#15803D">✓ 90% · Casi listo</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:0%;width:30%">
+        <div class="bar-bg" style="background:#6366F1"></div>
+        <div class="bar-fill" style="width:90%;background:#6366F1"></div>
+        <span class="bar-pct">90%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Portal de Abogado</div>
+      <div class="mod-code">B.22 · attorney app</div>
+      <div class="chip" style="background:#DCFCE7;color:#15803D">✓ 85% · Casi listo</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:0%;width:32%">
+        <div class="bar-bg" style="background:#6366F1"></div>
+        <div class="bar-fill" style="width:85%;background:#6366F1"></div>
+        <span class="bar-pct">85%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Lista &amp; Expediente de Pacientes</div>
+      <div class="mod-code">B.4 ext. · Historia médica EMR</div>
+      <div class="chip" style="background:#DBEAFE;color:#1D4ED8">→ 75% · En curso</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:0%;width:42%">
+        <div class="bar-bg" style="background:#6366F1"></div>
+        <div class="bar-fill" style="width:75%;background:#6366F1"></div>
+        <span class="bar-pct">75%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Calendario &amp; Citas</div>
+      <div class="mod-code">B.10 – B.11 · back-office</div>
+      <div class="chip" style="background:#DBEAFE;color:#1D4ED8">→ 60% · En curso</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:8%;width:34%">
+        <div class="bar-bg" style="background:#6366F1"></div>
+        <div class="bar-fill" style="width:60%;background:#6366F1"></div>
+        <span class="bar-pct">60%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 1B -->
+  <div class="phase-row">
+    <div class="ph-label">Phase 1B</div>
+    <div class="ph-stripe" style="background:#ECFEFF;color:#0E7490">
+      Flujo Clínico · Admisión · Triaje · Nota Médica
+      <span style="margin-left:auto;font-size:8px;opacity:.7">Target: 30 Sep 2026</span>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Edson / Intake Legal</div>
+      <div class="mod-code">B.12 – B.13 · Coordinación legal</div>
+      <div class="chip" style="background:#FEF9C3;color:#92400E">◐ 40% · En curso</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:17%;width:36%">
+        <div class="bar-bg" style="background:#0891B2"></div>
+        <div class="bar-fill" style="width:40%;background:#0891B2"></div>
+        <span class="bar-pct">40%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Admisión &amp; Check-in</div>
+      <div class="mod-code">B.14 – B.15 · MA / Recepción</div>
+      <div class="chip" style="background:#FEF9C3;color:#92400E">◐ 30% · En curso</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:22%;width:36%">
+        <div class="bar-bg" style="background:#0891B2"></div>
+        <div class="bar-fill" style="width:30%;background:#0891B2"></div>
+        <span class="bar-pct">30%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Triaje &amp; Signos Vitales</div>
+      <div class="mod-code">B.16 · Asistente médico</div>
+      <div class="chip" style="background:#F1F5F9;color:#475569">○ 20% · Próximo</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:33%;width:30%">
+        <div class="bar-bg" style="background:#0891B2"></div>
+        <div class="bar-fill" style="width:20%;background:#0891B2"></div>
+        <span class="bar-pct">20%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Vista Doctor &amp; Nota Médica</div>
+      <div class="mod-code">B.17 – B.18 · PDF + ICD/CPT</div>
+      <div class="chip" style="background:#FEF9C3;color:#92400E">◐ 30% · En curso</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:33%;width:34%">
+        <div class="bar-bg" style="background:#0891B2"></div>
+        <div class="bar-fill" style="width:30%;background:#0891B2"></div>
+        <span class="bar-pct">30%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 2 -->
+  <div class="phase-row">
+    <div class="ph-label">Phase 2</div>
+    <div class="ph-stripe" style="background:#FFFBEB;color:#92400E">
+      Billing · Settlement · Dashboard · Twilio / Weave · BAA producción
+      <span style="margin-left:auto;font-size:8px;opacity:.7">Target: 30 Nov 2026</span>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Billing &amp; Facturación</div>
+      <div class="mod-code">B.25 – B.27 · Brunella</div>
+      <div class="chip" style="background:#FEF9C3;color:#92400E">◐ 40% · Iniciado</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:50%;width:34%">
+        <div class="bar-bg" style="background:#D97706"></div>
+        <div class="bar-fill" style="width:40%;background:#D97706"></div>
+        <span class="bar-pct">40%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Settlement &amp; Liquidaciones</div>
+      <div class="mod-code">B.28 · Registro de acuerdos</div>
+      <div class="chip" style="background:#F1F5F9;color:#475569">○ 20% · Planificado</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:67%;width:25%">
+        <div class="bar-bg" style="background:#D97706"></div>
+        <div class="bar-fill" style="width:20%;background:#D97706"></div>
+        <span class="bar-pct">20%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Dashboard Ejecutivo</div>
+      <div class="mod-code">B.29 · KPIs &amp; métricas clínicas</div>
+      <div class="chip" style="background:#F1F5F9;color:#475569">○ 20% · Planificado</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:75%;width:25%">
+        <div class="bar-bg" style="background:#D97706"></div>
+        <div class="bar-fill" style="width:20%;background:#D97706"></div>
+        <span class="bar-pct">20%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Integración Twilio / Weave</div>
+      <div class="mod-code">Caller ID · Llamadas entrantes auto</div>
+      <div class="chip" style="background:#F1F5F9;color:#475569">○ Planificado</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:67%;width:33%;border:1px dashed #D97706">
+        <div class="bar-bg" style="background:#D97706"></div>
+        <div class="bar-fill" style="width:5%;background:#D97706"></div>
+        <span class="bar-pct">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="g-row">
+    <div class="g-info">
+      <div class="mod-name">Migración Email · Mailgun BAA</div>
+      <div class="mod-code">Resend → Mailgun · HIPAA requerido</div>
+      <div class="chip" style="background:#FEF9C3;color:#92400E">◐ Planificado</div>
+    </div>
+    <div class="g-track">
+      <div class="today-line"></div>
+      <div class="bar" style="left:22%;width:22%;border:1px dashed #D97706">
+        <div class="bar-bg" style="background:#D97706"></div>
+        <div class="bar-fill" style="width:15%;background:#D97706"></div>
+        <span class="bar-pct">—</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MILESTONES -->
+<div class="ms-row">
+  <div class="ms-left">Hitos</div>
+  <div class="ms-track">
+    <div style="position:absolute;top:0;bottom:0;left:19.4%;width:2px;background:#EF4444;opacity:.3;z-index:1"></div>
+
+    <div class="ms-marker" style="left:32.7%">
+      <div class="ms-diamond" style="background:#6366F1;border-color:#6366F1"></div>
+      <div class="ms-text"><strong>Go-live 1A</strong><br>Recepción + Portal<br><span class="ms-date">31 Jul 2026</span></div>
+    </div>
+
+    <div class="ms-marker" style="left:66.7%">
+      <div class="ms-diamond" style="background:#0891B2;border-color:#0891B2"></div>
+      <div class="ms-text"><strong>Go-live 1B</strong><br>Flujo Clínico completo<br><span class="ms-date">30 Sep 2026</span></div>
+    </div>
+
+    <div class="ms-marker" style="left:99%">
+      <div class="ms-diamond" style="background:#D97706;border-color:#D97706"></div>
+      <div class="ms-text"><strong>Lanzamiento</strong><br>Sistema completo · BAA<br><span class="ms-date">30 Nov 2026</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-note">
+    <strong>Notas:</strong><br>
+    · Fechas estimadas sujetas a cambios según priorización de gerencia<br>
+    · Phase 2 requiere BAA firmados con Supabase y Mailgun antes de ir a producción<br>
+    · Datos actuales en entorno <em>phoenix-dev</em> (mock) — cero PHI real hasta Phase 2<br>
+    · Twilio / Weave pospuesto a Phase 2 post-BAA (integración de Caller ID)
+  </div>
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-val" style="color:#6366F1">44%</div>
+      <div class="kpi-lbl">Avance<br>global</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">14</div>
+      <div class="kpi-lbl">Módulos<br>totales</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val" style="color:#15803D">5</div>
+      <div class="kpi-lbl">Listos<br>Phase 1A</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val" style="color:#D97706">~5</div>
+      <div class="kpi-lbl">Meses al<br>lanzamiento</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

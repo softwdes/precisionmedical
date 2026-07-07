@@ -819,6 +819,74 @@ function isoToInput(iso: string | null): string {
   return iso.slice(0, 10);
 }
 
+// Convierte YYYY-MM-DD → MM/DD/YYYY para mostrar
+function isoToDisplay(iso: string): string {
+  if (!iso || iso.length < 10) return '';
+  const [y, m, d] = iso.split('-');
+  return `${m}/${d}/${y}`;
+}
+
+// Convierte MM/DD/YYYY → YYYY-MM-DD para guardar; '' si inválido
+function displayToISO(display: string): string {
+  const digits = display.replace(/\D/g, '');
+  if (digits.length < 8) return '';
+  const m = digits.slice(0, 2);
+  const d = digits.slice(2, 4);
+  const y = digits.slice(4, 8);
+  const date = new Date(Number(y), Number(m) - 1, Number(d));
+  if (
+    date.getFullYear() !== Number(y) ||
+    date.getMonth()    !== Number(m) - 1 ||
+    date.getDate()     !== Number(d)
+  ) return '';
+  return `${y}-${m}-${d}`;
+}
+
+// Input de fecha siempre MM/DD/YYYY sin importar el locale del dispositivo.
+// value/onChange usan YYYY-MM-DD (compatible con el estado existente).
+function DateInputMDY({
+  value, onChange, style, placeholder = 'MM/DD/YYYY',
+}: {
+  value: string;
+  onChange: (iso: string) => void;
+  style?: React.CSSProperties;
+  placeholder?: string;
+}) {
+  const [display, setDisplay] = React.useState(() => isoToDisplay(value));
+
+  React.useEffect(() => { setDisplay(isoToDisplay(value)); }, [value]);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+    let masked = digits;
+    if (digits.length > 4) masked = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+    else if (digits.length > 2) masked = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    setDisplay(masked);
+    if (digits.length === 8) onChange(displayToISO(masked));
+    else if (digits.length === 0) onChange('');
+  }
+
+  function handleBlur() {
+    const iso = displayToISO(display);
+    if (iso) { onChange(iso); setDisplay(isoToDisplay(iso)); }
+    else if (!display.trim()) onChange('');
+    else setDisplay(isoToDisplay(value)); // reset si inválido
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      placeholder={placeholder}
+      value={display}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      style={style}
+      maxLength={10}
+    />
+  );
+}
+
 function fmtDate(iso: string | null, locale: string): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-US', {
@@ -1578,8 +1646,8 @@ export function IntakeWizard({
                 {/* DOB + Teléfono */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.dob}>
-                    <input type="date" lang="en-US" style={S.input} value={personal.dateOfBirth}
-                      onChange={e => setPersonal(p => ({ ...p, dateOfBirth: e.target.value }))} />
+                    <DateInputMDY style={S.input} value={personal.dateOfBirth}
+                      onChange={v => setPersonal(p => ({ ...p, dateOfBirth: v }))} />
                   </Field>
                   <Field label={t.phone}>
                     <input type="tel" style={{ ...S.input, ...(phoneError ? { borderColor: '#F43F5E' } : {}) }}
@@ -1907,8 +1975,8 @@ export function IntakeWizard({
                 {/* DOB + Teléfono */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.guardianDOB}>
-                    <input type="date" lang="en-US" style={S.input} value={personal.guardianDOB}
-                      onChange={e => setPersonal(p => ({ ...p, guardianDOB: e.target.value }))} />
+                    <DateInputMDY style={S.input} value={personal.guardianDOB}
+                      onChange={v => setPersonal(p => ({ ...p, guardianDOB: v }))} />
                   </Field>
                   <Field label={t.guardianPhone}>
                     <input type="tel" style={S.input} value={personal.guardianPhone}
@@ -1983,8 +2051,8 @@ export function IntakeWizard({
                     sub={lang === 'es' ? 'Describa correctamente la razón de su visita a la clínica.' : 'Describe correctly the reason for your visit to the clinic.'}
                   >
                     <Field label={t.accidentDate}>
-                      <input type="date" lang="en-US" style={S.input} value={acc.date}
-                        onChange={e => setAcc(a => ({ ...a, date: e.target.value }))} />
+                      <DateInputMDY style={S.input} value={acc.date}
+                        onChange={v => setAcc(a => ({ ...a, date: v }))} />
                     </Field>
 
                     <Field label={t.accidentDesc}>
@@ -2173,8 +2241,8 @@ export function IntakeWizard({
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <Field label={t.insHolderDOB}>
-                      <input type="date" lang="en-US" style={S.input} value={insModalEntry.holderDOB}
-                        onChange={e => setInsModalEntry(v => ({ ...v, holderDOB: e.target.value }))} />
+                      <DateInputMDY style={S.input} value={insModalEntry.holderDOB}
+                        onChange={v => setInsModalEntry(e => ({ ...e, holderDOB: v }))} />
                     </Field>
                     <Field label={t.insHolderRelation}>
                       <input type="text" style={S.input} value={insModalEntry.holderRelation}
@@ -2183,8 +2251,8 @@ export function IntakeWizard({
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <Field label={t.insEffectiveDate}>
-                      <input type="date" lang="en-US" style={S.input} value={insModalEntry.effectiveDate}
-                        onChange={e => setInsModalEntry(v => ({ ...v, effectiveDate: e.target.value }))} />
+                      <DateInputMDY style={S.input} value={insModalEntry.effectiveDate}
+                        onChange={v => setInsModalEntry(e => ({ ...e, effectiveDate: v }))} />
                     </Field>
                     <Field label={t.insCopay}>
                       <input type="text" style={S.input} value={insModalEntry.copay} placeholder="$0.00"
@@ -2213,8 +2281,8 @@ export function IntakeWizard({
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <Field label={t.insLossDate}>
-                      <input type="date" lang="en-US" style={S.input} value={insModalEntry.lossDate}
-                        onChange={e => setInsModalEntry(v => ({ ...v, lossDate: e.target.value }))} />
+                      <DateInputMDY style={S.input} value={insModalEntry.lossDate}
+                        onChange={v => setInsModalEntry(e => ({ ...e, lossDate: v }))} />
                     </Field>
                     <Field label={t.insPip}>
                       <select style={{ ...S.input, backgroundColor: '#1a2236', color: '#fff' }}

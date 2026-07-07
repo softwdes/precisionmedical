@@ -879,13 +879,58 @@ function NuevoSeguroDialog({ onClose, onSave }: {
                 <div><label className={insLabel}>{t('segurosGroupNum')}</label><input className={insInput} value={entry.groupNum} onChange={e => set('groupNum', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>{t('segurosHolderDOB')}</label><input type="date" className={`${insInput} [color-scheme:dark]`} value={entry.holderDOB} onChange={e => set('holderDOB', e.target.value)} /></div>
+                <div>
+                  <label className={insLabel}>{t('segurosHolderDOB')}</label>
+                  <input
+                    type="date"
+                    max={new Date().toISOString().split('T')[0]}
+                    className={`${insInput} [color-scheme:dark]`}
+                    value={entry.holderDOB}
+                    onChange={e => set('holderDOB', e.target.value)}
+                  />
+                </div>
                 <div><label className={insLabel}>{t('segurosHolderRelation')}</label><input className={insInput} value={entry.holderRelation} onChange={e => set('holderRelation', e.target.value)} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div><label className={insLabel}>{t('segurosEffectiveDate')}</label><input type="date" className={`${insInput} [color-scheme:dark]`} value={entry.effectiveDate} onChange={e => set('effectiveDate', e.target.value)} /></div>
-                <div><label className={insLabel}>{t('segurosCopay')}</label><input className={insInput} placeholder="$0.00" value={entry.copay} onChange={e => set('copay', e.target.value)} /></div>
-                <div><label className={insLabel}>{t('segurosDeductible')}</label><input className={insInput} placeholder="$0.00" value={entry.deductible} onChange={e => set('deductible', e.target.value)} /></div>
+                <div>
+                  <label className={insLabel}>{t('segurosEffectiveDate')}</label>
+                  <input
+                    type="date"
+                    className={`${insInput} [color-scheme:dark]`}
+                    value={entry.effectiveDate}
+                    onChange={e => set('effectiveDate', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={insLabel}>{t('segurosCopay')}</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-sm select-none">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className={`${insInput} pl-7`}
+                      placeholder="0.00"
+                      value={entry.copay}
+                      onChange={e => set('copay', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={insLabel}>{t('segurosDeductible')}</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-sm select-none">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className={`${insInput} pl-7`}
+                      placeholder="0.00"
+                      value={entry.deductible}
+                      onChange={e => set('deductible', e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
             </>
           ) : (
@@ -1026,9 +1071,9 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
                   {ins.policyId && <div className="flex justify-between"><span className="text-text-muted">{t('segurosPolicyLabel')}</span><span className="text-text-1 font-mono">{ins.policyId}</span></div>}
                   {ins.insType === 'MEDICAL' && ins.holderName && <div className="flex justify-between"><span className="text-text-muted">{t('segurosHolderLabel')}</span><span className="text-text-1">{ins.holderName}</span></div>}
                   {ins.insType === 'MEDICAL' && ins.holderRelation && <div className="flex justify-between"><span className="text-text-muted">{t('segurosRelationLabel')}</span><span className="text-text-1">{ins.holderRelation}</span></div>}
-                  {ins.insType === 'MEDICAL' && ins.copay && <div className="flex justify-between"><span className="text-text-muted">{t('segurosCopay')}</span><span className="text-text-1">{ins.copay}</span></div>}
-                  {ins.insType === 'MEDICAL' && ins.deductible && <div className="flex justify-between"><span className="text-text-muted">{t('segurosDeductible')}</span><span className="text-text-1">{ins.deductible}</span></div>}
-                  {ins.insType === 'MEDICAL' && ins.effectiveDate && <div className="flex justify-between"><span className="text-text-muted">{t('segurosEffectiveDate')}</span><span className="text-text-1">{ins.effectiveDate}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.copay && <div className="flex justify-between"><span className="text-text-muted">{t('segurosCopay')}</span><span className="text-text-1 font-mono">${parseFloat(ins.copay).toFixed(2)}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.deductible && <div className="flex justify-between"><span className="text-text-muted">{t('segurosDeductible')}</span><span className="text-text-1 font-mono">${parseFloat(ins.deductible).toFixed(2)}</span></div>}
+                  {ins.insType === 'MEDICAL' && ins.effectiveDate && <div className="flex justify-between"><span className="text-text-muted">{t('segurosEffectiveDate')}</span><span className="text-text-1">{new Date(ins.effectiveDate + 'T00:00:00').toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</span></div>}
                   {ins.insType === 'AUTO' && ins.claimNum && <div className="flex justify-between"><span className="text-text-muted">{t('segurosClaimLabel')}</span><span className="text-text-1 font-mono">{ins.claimNum}</span></div>}
                   {ins.insType === 'AUTO' && ins.adjusterName && <div className="flex justify-between"><span className="text-text-muted">{t('segurosAdjusterLabel')}</span><span className="text-text-1">{ins.adjusterName}</span></div>}
                   {ins.insType === 'AUTO' && ins.adjusterPhone && <div className="flex justify-between"><span className="text-text-muted">{t('segurosTelLabel')}</span><span className="text-text-1 font-mono">{ins.adjusterPhone}</span></div>}
@@ -1070,17 +1115,28 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
 function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
   const t = useTranslations('phoenix.patients');
   const [qrDataUrl, setQrDataUrl] = useState('');
+  const [portalUrl, setPortalUrl] = useState<string | null>(null);
+  const [loading, setLoading]     = useState(false);
   const [copied, setCopied]       = useState(false);
-  const portalToken = patient.latestCase?.portalToken ?? null;
-  const portalBase  = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'https://forms.precisionmedicalcare.com';
-  const portalUrl   = portalToken ? `${portalBase}/c/${portalToken}` : null;
 
   useEffect(() => {
-    if (!portalUrl) return;
-    QRCode.toDataURL(portalUrl, { width: 280, margin: 2 })
-      .then(setQrDataUrl)
-      .catch(() => {});
-  }, [portalUrl]);
+    if (!patient.latestCase?.id) return;
+    setLoading(true);
+    fetch(`/api/admin/cases/${patient.latestCase.id}/generate-portal-token`, { method: 'POST' })
+      .then(r => r.json())
+      .then(async (j) => {
+        if (j.portalUrl) {
+          setPortalUrl(j.portalUrl);
+          const url = await QRCode.toDataURL(j.portalUrl, {
+            width: 280, margin: 2,
+            color: { dark: '#e2e8f0', light: '#12141f' },
+          });
+          setQrDataUrl(url);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [patient.latestCase?.id]);
 
   const copyLink = async () => {
     if (!portalUrl) return;
@@ -1101,11 +1157,16 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t('qrPatientTitle' as never) || 'Patient access'} · {patient.firstName} {patient.lastName}</DialogTitle>
+          <DialogTitle>{t('qrPatientTitle')} · {patient.firstName} {patient.lastName}</DialogTitle>
           <DialogDescription>{t('qrShareDesc')}</DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          {portalUrl ? (
+          {loading && (
+            <div className="flex justify-center py-10 text-text-muted">
+              <RefreshCw className="w-6 h-6 animate-spin opacity-40" />
+            </div>
+          )}
+          {!loading && portalUrl && (
             <>
               <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2 px-3 py-2">
                 <code className="flex-1 text-[11px] font-mono text-text-2 truncate">{portalUrl}</code>
@@ -1123,7 +1184,8 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
                 </div>
               )}
             </>
-          ) : (
+          )}
+          {!loading && !portalUrl && !patient.latestCase && (
             <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
               <QrCode className="w-10 h-10 opacity-20" />
               <p className="text-sm font-medium">{t('qrNoPortal')}</p>
@@ -1145,17 +1207,64 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
 }
 
 // ── Archivos personales dialog ─────────────────────────────────────────────
-const PHOTO_SLOT_KEYS = ['selfie', 'insuranceCardFront', 'insuranceCardBack', 'dlFront'] as const;
+type PhotoKey = 'selfie' | 'insuranceCardFront' | 'insuranceCardBack' | 'dlFront';
 
 function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
-  const t = useTranslations('phoenix.patients');
-  const photos = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.photos as Record<string, string> | undefined;
-  const PHOTO_SLOTS = [
-    { key: 'selfie',             label: t('photoSlotSelfie') },
-    { key: 'insuranceCardFront', label: t('photoSlotInsCardFront') },
-    { key: 'insuranceCardBack',  label: t('photoSlotInsCardBack') },
-    { key: 'dlFront',            label: t('photoSlotDlFront') },
-  ] as const;
+  const t      = useTranslations('phoenix.patients');
+  const router = useRouter();
+
+  const initialPhotos = ((patient.latestCase?.consentsData as Record<string, unknown> | null)?.photos ?? {}) as Record<string, string>;
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(initialPhotos);
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [errors, setErrors]       = useState<Record<string, string>>({});
+
+  const caseId = patient.latestCase?.id ?? null;
+
+  const PHOTO_SLOTS: { key: PhotoKey; label: string; capture: 'user' | 'environment' }[] = [
+    { key: 'selfie',             label: t('photoSlotSelfie'),       capture: 'user' },
+    { key: 'insuranceCardFront', label: t('photoSlotInsCardFront'), capture: 'environment' },
+    { key: 'insuranceCardBack',  label: t('photoSlotInsCardBack'),  capture: 'environment' },
+    { key: 'dlFront',            label: t('photoSlotDlFront'),      capture: 'environment' },
+  ];
+
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const cameraRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  async function handleFile(photoKey: PhotoKey, file: File) {
+    if (!caseId) return;
+    setErrors(p => ({ ...p, [photoKey]: '' }));
+
+    // Optimistic preview
+    const blobUrl = URL.createObjectURL(file);
+    setPhotoUrls(p => ({ ...p, [photoKey]: blobUrl }));
+    setUploading(p => ({ ...p, [photoKey]: true }));
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('photoType', photoKey);
+      const res  = await fetch(`/api/admin/cases/${caseId}/upload-photo`, { method: 'POST', body: fd });
+      const json = await res.json().catch(() => ({}));
+
+      if (res.ok && json.url) {
+        setPhotoUrls(p => {
+          if (p[photoKey] === blobUrl) URL.revokeObjectURL(blobUrl);
+          return { ...p, [photoKey]: json.url };
+        });
+        router.refresh();
+      } else {
+        setPhotoUrls(p => ({ ...p, [photoKey]: initialPhotos[photoKey] ?? '' }));
+        setErrors(p => ({ ...p, [photoKey]: 'Error al subir. Intenta de nuevo.' }));
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch {
+      setPhotoUrls(p => ({ ...p, [photoKey]: initialPhotos[photoKey] ?? '' }));
+      setErrors(p => ({ ...p, [photoKey]: 'Error de conexión.' }));
+      URL.revokeObjectURL(blobUrl);
+    } finally {
+      setUploading(p => ({ ...p, [photoKey]: false }));
+    }
+  }
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -1166,27 +1275,84 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
         </div>
 
         <div className="px-6 py-5 space-y-6 max-h-[75vh] overflow-y-auto">
-          {/* Fotos */}
+          {!caseId && (
+            <div className="rounded-md border border-amber/30 bg-amber/10 px-4 py-3 text-[12px] text-amber">
+              Este paciente no tiene un caso activo. Crea un caso primero para subir fotos.
+            </div>
+          )}
+
+          {/* Fotos de identificación */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {PHOTO_SLOTS.map(({ key, label }) => {
-              const url = photos?.[key] ?? null;
+            {PHOTO_SLOTS.map(({ key, label, capture }) => {
+              const url      = photoUrls[key] ?? null;
+              const isLoading = uploading[key] ?? false;
+              const err      = errors[key] ?? '';
+
               return (
                 <div key={key} className="rounded-lg border border-border bg-bg-2/40 overflow-hidden flex flex-col">
+                  {/* Hidden inputs */}
+                  <input
+                    ref={el => { fileRefs.current[key] = el; }}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(key, f); e.target.value = ''; }}
+                  />
+                  <input
+                    ref={el => { cameraRefs.current[key] = el; }}
+                    type="file"
+                    accept="image/*"
+                    capture={capture}
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(key, f); e.target.value = ''; }}
+                  />
+
                   <p className="px-3 pt-3 pb-1 text-[11px] font-semibold text-cyan">{label}</p>
-                  <div className="flex-1 mx-3 mb-1 rounded-md bg-bg-2 border border-border/60 overflow-hidden flex items-center justify-center min-h-[140px]">
-                    {url ? (
-                      <img src={url} alt={label} className="w-full h-full object-cover" />
+
+                  {/* Preview area */}
+                  <div className="flex-1 mx-3 mb-1 rounded-md bg-bg-2 border border-border/60 overflow-hidden flex items-center justify-center min-h-[140px] relative">
+                    {isLoading ? (
+                      <RefreshCw className="w-6 h-6 animate-spin text-text-muted opacity-50" />
+                    ) : url ? (
+                      <>
+                        <img src={url} alt={label} className="w-full h-full object-cover" />
+                        {/* Overlay de reemplazar al hover */}
+                        <button
+                          onClick={() => fileRefs.current[key]?.click()}
+                          className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/0 hover:bg-black/50 transition-colors group"
+                        >
+                          <RefreshCw className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <span className="text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity font-medium">Reemplazar</span>
+                        </button>
+                      </>
                     ) : (
-                      <div className="flex flex-col items-center gap-1.5 text-text-muted py-6">
-                        <Camera className="w-7 h-7 opacity-30" />
-                      </div>
+                      <button
+                        disabled={!caseId}
+                        onClick={() => fileRefs.current[key]?.click()}
+                        className="flex flex-col items-center gap-2 text-text-muted py-6 hover:text-text-2 transition-colors disabled:cursor-not-allowed group"
+                      >
+                        <Camera className="w-7 h-7 opacity-30 group-hover:opacity-60 transition-opacity" />
+                        <span className="text-[10px] opacity-0 group-hover:opacity-60 transition-opacity">Subir foto</span>
+                      </button>
                     )}
                   </div>
+
+                  {err && <p className="px-3 text-[10px] text-rose mb-1">{err}</p>}
+
+                  {/* Action buttons */}
                   <div className="flex gap-1.5 px-3 py-2">
-                    <button disabled className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-muted opacity-50 cursor-not-allowed">
+                    <button
+                      disabled={!caseId || isLoading}
+                      onClick={() => cameraRefs.current[key]?.click()}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:bg-bg-2 hover:border-cyan/40 hover:text-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
                       <Camera className="w-3 h-3" /> {t('btnCamera')}
                     </button>
-                    <button disabled className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-muted opacity-50 cursor-not-allowed">
+                    <button
+                      disabled={!caseId || isLoading}
+                      onClick={() => fileRefs.current[key]?.click()}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:bg-bg-2 hover:border-cyan/40 hover:text-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
                       <Upload className="w-3 h-3" /> {t('btnFile')}
                     </button>
                   </div>
@@ -1195,26 +1361,18 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
             })}
           </div>
 
-          {/* Personal files */}
+          {/* Personal files — sección futura */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text-2">
                 <FolderOpen className="w-3.5 h-3.5" /> {t('archivosPersonalFiles')}
               </div>
-              <div className="flex gap-1.5">
-                <button disabled className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan/80 text-white text-[11px] font-medium opacity-50 cursor-not-allowed">
-                  <Upload className="w-3 h-3" /> {t('btnUploadFiles')}
-                </button>
-                <button disabled className="p-1.5 rounded-md border border-border text-text-muted opacity-50 cursor-not-allowed">
-                  <RefreshCw className="w-3 h-3" />
-                </button>
-              </div>
             </div>
             <div className="rounded-md border border-border overflow-hidden">
               <div className="grid grid-cols-3 bg-bg-2 border-b border-border px-3 py-2">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Nombre</span>
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Tamaño</span>
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Última modificación</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('archivosColName')}</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('archivosColSize')}</span>
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('archivosColDate')}</span>
               </div>
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-muted">
                 <FolderOpen className="w-10 h-10 opacity-15" />

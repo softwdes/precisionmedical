@@ -159,7 +159,7 @@ export function SettingsClient({ initialClinics }: Props) {
           </div>
 
           {clinics.length === 0 ? (
-            <EmptyState icon={Building2} title="Sin clínicas" description="Agrega la primera ubicación clínica." />
+            <EmptyState.Rich icon={Building2} title="Sin clínicas" subtitle="Agrega la primera ubicación clínica." />
           ) : (
             <>
               {/* Mobile: cards */}

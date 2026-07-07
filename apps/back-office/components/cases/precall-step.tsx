@@ -334,8 +334,8 @@ export function PreCallStep({
 
         <InfoCard title={t('manualCardTitle')} icon={ClipboardList} tone="amber">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
-            <FormField.Input label={t('manualLastName')} required value={quickLastName} onChange={setQuickLastName} placeholder="López" />
+            <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} autoFocus />
+            <FormField.Input label={t('manualLastName')} required value={quickLastName} onChange={setQuickLastName} />
           </div>
           <FormField.Phone
             label={t('manualPhone')}
@@ -361,8 +361,8 @@ export function PreCallStep({
 
       <InfoCard title={t('outgoingCardTitle')} icon={PhoneOutgoing} tone="cyan">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} placeholder="Sandra" autoFocus />
-          <FormField.Input label={t('manualLastName')} value={quickLastName} onChange={setQuickLastName} placeholder="López" />
+          <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} autoFocus />
+          <FormField.Input label={t('manualLastName')} value={quickLastName} onChange={setQuickLastName} />
         </div>
         <FormField.Phone
           label={t('manualPhone')}

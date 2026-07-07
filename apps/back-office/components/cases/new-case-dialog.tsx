@@ -486,10 +486,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           {/* ── Sección 1: Patient ─────────────────────────────────────── */}
           <InfoCard title={t('sectionPatient')} icon={User} number={1}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField.Input label={t('firstName')} required value={firstName} onChange={setFirstName} placeholder="Sandra" autoFocus />
-              <FormField.Input label={t('lastName')} required value={lastName} onChange={setLastName} placeholder="López" />
+              <FormField.Input label={t('firstName')} required value={firstName} onChange={setFirstName} autoFocus />
+              <FormField.Input label={t('lastName')} required value={lastName} onChange={setLastName} />
               <FormField.Phone label={t('phone')} required value={phone} onChange={(v) => setPhone(v)} />
-              <FormField.Input label={t('email')} value={email} onChange={setEmail} placeholder="sandra@email.com" type="email" />
+              <FormField.Input label={t('email')} value={email} onChange={setEmail} type="email" />
               <FormField.Input label={t('dob')} value={dateOfBirth} onChange={setDateOfBirth} type="date" />
               <FormField.Select label={t('language')} value={language} onChange={(v) => setLanguage(v as 'es' | 'en')}
                 options={[{ value: 'es', label: t('langEs') }, { value: 'en', label: t('langEn') }]} />
@@ -530,18 +530,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           {/* ── Sección 3: Accidente (solo para MVA) ────────────────────── */}
           {caseType === 'MVA' && (
             <InfoCard title={t('sectionAccident')} icon={Car} number={3}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <FormField.Input label={t('accidentDate')} value={accidentDate} onChange={setAccidentDate} type="date" />
-                <FormField.Select label={t('accidentType')} value={accidentType} onChange={setAccidentType}
-                  options={[
-                    { value: 'AUTO', label: t('accAuto') },
-                    { value: 'MOTORCYCLE', label: t('accMoto') },
-                    { value: 'PEDESTRIAN', label: t('accPed') },
-                    { value: 'WORKPLACE', label: t('accWork') },
-                    { value: 'OTHER', label: t('accOther') },
-                  ]} />
-              </div>
-              <FormField.Input label={t('accidentLocation')} value={accidentLocation} onChange={setAccidentLocation} placeholder={t('accidentLocationPlaceholder')} />
+              <FormField.Input label={t('accidentDate')} value={accidentDate} onChange={setAccidentDate} type="date" />
+              <FormField.Input label={t('accidentLocation')} value={accidentLocation} onChange={setAccidentLocation} />
               <FormField.Textarea label={t('accidentNotes')} value={accidentNotes} onChange={setAccidentNotes}
                 placeholder={t('accidentNotesPlaceholder')}
                 hint={t('accidentHint')} />
@@ -598,8 +588,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormField.Input label={t('caseManagerLabel')} value={caseManagerName} onChange={setCaseManagerName} placeholder="Bob Jones" />
-                        <FormField.Input label={t('caseManagerEmail')} value={caseManagerEmail} onChange={setCaseManagerEmail} placeholder="bob@firm.com" type="email" />
+                        <FormField.Input label={t('caseManagerLabel')} value={caseManagerName} onChange={setCaseManagerName} />
+                        <FormField.Input label={t('caseManagerEmail')} value={caseManagerEmail} onChange={setCaseManagerEmail} type="email" />
                       </div>
                       <FormField.Phone label={t('firmPhone')} value={firmPhone} onChange={(v) => setFirmPhone(v)} />
                     </>

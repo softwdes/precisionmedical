@@ -4,7 +4,7 @@
  * SignaturePad — canvas de firma digital reutilizable.
  * Devuelve un dataURL PNG via onChange cuando hay trazos.
  * Uso:
- *   <SignaturePad onChange={(dataUrl) => setSignature(dataUrl)} />
+ *   <SignaturePad onChange={(dataUrl) => setSignature(dataUrl)} initialValue={existingDataUrl} />
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
@@ -12,23 +12,24 @@ import { Eraser, PenLine } from 'lucide-react';
 
 interface Props {
   onChange: (dataUrl: string | null) => void;
+  initialValue?: string | null;
   clearLabel?: string;
   hintLabel?: string;
   height?: number;
 }
 
-export function SignaturePad({ onChange, clearLabel = 'Limpiar', hintLabel = 'Firme en el área de arriba.', height = 160 }: Props) {
+export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', hintLabel = 'Firme en el área de arriba.', height = 160 }: Props) {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const drawing     = useRef(false);
   const lastPos     = useRef<{ x: number; y: number } | null>(null);
-  const [hasStrokes, setHasStrokes] = useState(false);
+  const [hasStrokes, setHasStrokes] = useState(!!initialValue);
 
   function getCtx() {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-    ctx.strokeStyle = '#e2e8f0'; // text-text-1 aproximado
+    ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth   = 2;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
@@ -68,14 +69,51 @@ export function SignaturePad({ onChange, clearLabel = 'Limpiar', hintLabel = 'Fi
     if (!hasStrokes) setHasStrokes(true);
   }
 
-  function endDraw(e: React.MouseEvent | React.TouchEvent) {
-    e.preventDefault();
+  // Finaliza el trazo y persiste el dataURL — llamado tanto desde eventos del canvas
+  // como desde el listener global de window (fix: mouseup fuera del canvas).
+  const commitStroke = useCallback(() => {
     if (!drawing.current) return;
     drawing.current = false;
     lastPos.current = null;
     const canvas = canvasRef.current;
     if (canvas) onChange(canvas.toDataURL('image/png'));
+  }, [onChange]);
+
+  function endDraw(e: React.MouseEvent | React.TouchEvent) {
+    e.preventDefault();
+    commitStroke();
   }
+
+  // Listener global: captura mouseup/touchend aunque el cursor salga del canvas.
+  useEffect(() => {
+    const onUp = () => commitStroke();
+    window.addEventListener('mouseup',   onUp);
+    window.addEventListener('touchend',  onUp);
+    return () => {
+      window.removeEventListener('mouseup',  onUp);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, [commitStroke]);
+
+  // Ajusta resolución al devicePixelRatio y re-dibuja la firma existente si la hay.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr  = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = rect.width  * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+
+    // Si había una firma previa (remount al volver al paso), restaurarla en el canvas.
+    if (initialValue) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      img.src = initialValue;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clear = useCallback(() => {
     const canvas = canvasRef.current;
@@ -85,18 +123,6 @@ export function SignaturePad({ onChange, clearLabel = 'Limpiar', hintLabel = 'Fi
     setHasStrokes(false);
     onChange(null);
   }, [onChange]);
-
-  // Ajustar resolución al devicePixelRatio para que no se vea pixelado
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dpr  = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width  = rect.width  * dpr;
-    canvas.height = rect.height * dpr;
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.scale(dpr, dpr);
-  }, []);
 
   return (
     <div className="space-y-1">

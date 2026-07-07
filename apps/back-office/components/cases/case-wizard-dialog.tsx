@@ -626,6 +626,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                   </label>
                   <SignaturePad
                     onChange={(dataUrl) => setConsent('signatureDataUrl', dataUrl)}
+                    initialValue={consents.signatureDataUrl}
                     clearLabel={t('clear')}
                     hintLabel={t('signHere')}
                     height={140}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -237,25 +237,44 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     }
   }, [specialtyId, displayProviders, providerId, scheduleNow]);
 
-  // ─── Generate slots: próximos 3 días hábiles ───────────────────────────
-  const slotOptions = useMemo(() => {
-    const out: Array<{ iso: string; label: string }> = [];
-    const baseDate = new Date();
-    baseDate.setHours(0, 0, 0, 0);
-    for (let dayOffset = 1; dayOffset <= 5 && out.length < 12; dayOffset++) {
-      const date = new Date(baseDate.getTime() + dayOffset * 24 * 60 * 60 * 1000);
-      if (date.getDay() === 0 || date.getDay() === 6) continue;
-      for (const [h, m] of [[9, 30], [11, 0], [14, 30], [16, 0]] as const) {
-        const slot = new Date(date);
-        slot.setHours(h, m, 0, 0);
-        out.push({
-          iso: slot.toISOString(),
-          label: slot.toLocaleString('es-US', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }),
-        });
-      }
+  // ─── Slots reales: consulta disponibilidad del doctor en la clínica ─────
+  const [slotOptions, setSlotOptions]   = useState<Array<{ iso: string; label: string }>>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!providerId || !clinicId || !scheduleNow) {
+      setSlotOptions([]);
+      setSlotIso(null);
+      return;
     }
-    return out;
-  }, []);
+    const controller = new AbortController();
+    setSlotsLoading(true);
+    setSlotIso(null);
+
+    const fromDate = new Date().toISOString();
+    const toDate   = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString();
+    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '12' });
+
+    fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.ok) return;
+        setSlotOptions(
+          (data.slots as Array<{ startAt: string }>).map((s) => ({
+            iso: s.startAt,
+            label: new Date(s.startAt).toLocaleString('es-US', {
+              weekday: 'short', day: 'numeric', month: 'short',
+              hour: 'numeric', minute: '2-digit',
+              timeZone: 'America/Denver',
+            }),
+          })),
+        );
+      })
+      .catch(() => { /* abortado o error de red */ })
+      .finally(() => setSlotsLoading(false));
+
+    return () => controller.abort();
+  }, [providerId, clinicId, duration, scheduleNow]);
 
   // ─── Validation ────────────────────────────────────────────────────────
   const canSubmit = useMemo(() => {
@@ -666,23 +685,43 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 </div>
 
                 <div>
-                  <Label>{t('slotsLabel')}</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
-                    {slotOptions.map((s) => (
-                      <button
-                        key={s.iso}
-                        type="button"
-                        onClick={() => setSlotIso(s.iso)}
-                        className={`px-2 py-2 rounded-md border text-[11px] font-medium transition-colors capitalize ${
-                          slotIso === s.iso
-                            ? 'bg-emerald/15 border-emerald/40 text-emerald font-semibold'
-                            : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
+                  <Label>
+                    {t('slotsLabel')}
+                    {slotsLoading && (
+                      <span className="ml-2 text-[10px] text-text-muted font-normal animate-pulse">
+                        {t('slotsLoading')}
+                      </span>
+                    )}
+                  </Label>
+
+                  {!providerId || !clinicId ? (
+                    <p className="mt-1.5 text-[11px] text-text-muted italic">{t('slotsSelectFirst')}</p>
+                  ) : slotsLoading ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="h-9 rounded-md border border-border bg-bg-2 animate-pulse" />
+                      ))}
+                    </div>
+                  ) : slotOptions.length === 0 ? (
+                    <Note tone="amber">{t('slotsNone')}</Note>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
+                      {slotOptions.map((s) => (
+                        <button
+                          key={s.iso}
+                          type="button"
+                          onClick={() => setSlotIso(s.iso)}
+                          className={`px-2 py-2 rounded-md border text-[11px] font-medium transition-colors capitalize ${
+                            slotIso === s.iso
+                              ? 'bg-emerald/15 border-emerald/40 text-emerald font-semibold'
+                              : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
+                          }`}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

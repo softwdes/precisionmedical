@@ -311,6 +311,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
             hipaa: false, assignedParties: false,
             treatment: false, financial: false, medicalHistory: false,
             lawFirm:      isMVA ? (lawFirm.trim() || null) : null,
+            attorney:     isMVA ? (attorney.trim() || null) : null,
             chiropractor: isMVA ? (chiropractor.trim() || null) : null,
           },
         }),

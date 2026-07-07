@@ -1412,12 +1412,24 @@ export function IntakeWizard({
       const ok = await saveStepData(fromStep);
       if (!ok) return;
     }
+    // Step 3 → saltar step 4 (tutor) si el paciente es mayor de edad
+    if (fromStep === 3 && !isMinorPatient) {
+      setStep(5 as Step);
+      window.scrollTo(0, 0);
+      return;
+    }
     setStep(s => (s + 1) as Step);
     window.scrollTo(0, 0);
   };
 
   const goBack = () => {
     setSaveError('');
+    // Step 5 → saltar step 4 (tutor) hacia atrás si el paciente es mayor de edad
+    if (step === 5 && !isMinorPatient) {
+      setStep(3 as Step);
+      window.scrollTo(0, 0);
+      return;
+    }
     setStep(s => (s - 1) as Step);
     window.scrollTo(0, 0);
   };

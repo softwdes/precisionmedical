@@ -1700,6 +1700,8 @@
         "firmPhone": "Firm phone",
         "lawyerNoteHas": "Central firm catalog · if not listed, use 'Add new firm' for quick creation. Edson will later verify representation with the attorney.",
         "lawyerNoteSeeking": "Patient has no attorney yet. Edson will review and may suggest PI firms. Case stays in pre-intake until representation is confirmed.",
+        "chiropractorLabel": "Treating chiropractor",
+        "chiropractorPlaceholder": "",
         "lawyerNoteDeclined": "No attorney = no lien. The patient must understand treatment is billed directly (cash or own insurance). Confirm before continuing.",
         "sectionInsurance": "Auto insurance (PIP)",
         "insuranceLabel": "PIP insurer",

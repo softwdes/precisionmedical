@@ -45,6 +45,7 @@ const InputSchema = z.object({
     caseManagerName: z.string().max(120).nullable().optional(),
     caseManagerEmail: z.string().email().nullable().optional().or(z.literal('').transform(() => null)),
     firmPhone: z.string().max(30).nullable().optional(),
+    chiropractor: z.string().max(120).nullable().optional(),
   }),
   // Insurance
   insurance: z.object({
@@ -255,6 +256,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               attorney:     attorneyRecord
                 ? `${attorneyRecord.firstName ?? ''} ${attorneyRecord.lastName ?? ''}`.trim() || null
                 : null,
+              chiropractor: parsed.legal.chiropractor ?? null,
               insurances: insuranceRecord
                 ? [{
                     id:       `pre-${Date.now()}`,

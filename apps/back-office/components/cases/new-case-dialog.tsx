@@ -124,6 +124,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [caseManagerName, setCaseManagerName]   = useState('');
   const [caseManagerEmail, setCaseManagerEmail] = useState('');
   const [firmPhone, setFirmPhone]               = useState('');
+  const [chiropractor, setChiropractor]         = useState('');
 
   // ─── Section 5: Insurance ─────────────────────────────────────────────
   const [insurance, setInsurance]   = useState<AutoResult | null>(null);
@@ -170,7 +171,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     if (!open) return;
     setCaseType('MVA');
     setAccidentDate(''); setAccidentType('AUTO'); setAccidentLocation(''); setAccidentNotes('');
-    setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setCaseManagerName(''); setCaseManagerEmail(''); setFirmPhone('');
+    setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setCaseManagerName(''); setCaseManagerEmail(''); setFirmPhone(''); setChiropractor('');
     setInsurance(null); setPolicyNumber('');
     setSpecialtyId(specialties[0]?.id ?? ''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
     setProviderId(''); setSlotIso(null); setDuration(45);
@@ -300,6 +301,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             caseManagerName: lawyerStatus === 'HAS' ? (caseManagerName.trim() || null) : null,
             caseManagerEmail: lawyerStatus === 'HAS' ? (caseManagerEmail.trim() || null) : null,
             firmPhone: lawyerStatus === 'HAS' ? (firmPhone.trim() || null) : null,
+            chiropractor: chiropractor.trim() || null,
           },
           insurance: {
             primaryInsuranceId: insurance?.id ?? null,
@@ -604,6 +606,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               {lawyerStatus === 'DECLINED' && (
                 <Note tone="rose">{t('lawyerNoteDeclined')}</Note>
               )}
+
+              <FormField.Input
+                label={t('chiropractorLabel')}
+                value={chiropractor}
+                onChange={setChiropractor}
+                placeholder={t('chiropractorPlaceholder')}
+              />
             </InfoCard>
           )}
 

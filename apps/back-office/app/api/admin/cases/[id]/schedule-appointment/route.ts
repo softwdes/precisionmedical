@@ -95,6 +95,40 @@ export async function POST(
     );
   }
 
+  // ─── Verificar conflicto de horario (P1) ──────────────────────────────
+  const newStart    = scheduledForDate;
+  const newEnd      = new Date(newStart.getTime() + parsed.durationMinutes * 60 * 1000);
+  const bufferStart = new Date(newStart.getTime() - 240 * 60 * 1000);
+
+  const conflict = await db.appointment.findFirst({
+    where: {
+      providerId: parsed.providerId,
+      status:     { not: 'CANCELLED' },
+      scheduledFor: { gte: bufferStart, lt: newEnd },
+    },
+    select: {
+      id: true, scheduledFor: true, durationMinutes: true,
+      patient: { select: { firstName: true, lastName: true } },
+    },
+  });
+
+  if (conflict) {
+    const conflictEnd = new Date(conflict.scheduledFor.getTime() + conflict.durationMinutes * 60 * 1000);
+    if (conflict.scheduledFor < newEnd && conflictEnd > newStart) {
+      const conflictTime = conflict.scheduledFor.toLocaleTimeString('es-US', {
+        hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+      });
+      return NextResponse.json(
+        {
+          error:   'SLOT_CONFLICT',
+          message: `El doctor ya tiene una cita a las ${conflictTime} con ${conflict.patient.firstName} ${conflict.patient.lastName}. Selecciona otro horario.`,
+          conflictAppointmentId: conflict.id,
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   // Transaction: crear Appointment + Case.status → ACTIVE
   const result = await db.$transaction(async (tx) => {
     const appointment = await tx.appointment.create({

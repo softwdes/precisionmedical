@@ -177,6 +177,38 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (scheduledForDate.getTime() < Date.now()) {
       return NextResponse.json({ error: 'INVALID_DATE', message: 'La fecha/hora debe ser futura.' }, { status: 400 });
     }
+
+    // ─── Verificar conflicto de horario (P1) ────────────────────────────
+    const apptEnd     = new Date(scheduledForDate.getTime() + parsed.appointment.durationMinutes * 60 * 1000);
+    const bufferStart = new Date(scheduledForDate.getTime() - 240 * 60 * 1000);
+
+    const conflict = await db.appointment.findFirst({
+      where: {
+        providerId: parsed.appointment.providerId,
+        status:     { not: 'CANCELLED' },
+        scheduledFor: { gte: bufferStart, lt: apptEnd },
+      },
+      select: {
+        id: true, scheduledFor: true, durationMinutes: true,
+        patient: { select: { firstName: true, lastName: true } },
+      },
+    });
+
+    if (conflict) {
+      const conflictEnd = new Date(conflict.scheduledFor.getTime() + conflict.durationMinutes * 60 * 1000);
+      if (conflict.scheduledFor < apptEnd && conflictEnd > scheduledForDate) {
+        const conflictTime = conflict.scheduledFor.toLocaleTimeString('es-US', {
+          hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+        });
+        return NextResponse.json(
+          {
+            error:   'SLOT_CONFLICT',
+            message: `El doctor ya tiene una cita a las ${conflictTime} con ${conflict.patient.firstName} ${conflict.patient.lastName}. Selecciona otro horario.`,
+          },
+          { status: 409 },
+        );
+      }
+    }
   }
 
   // ─── Resolver nombres para pre-llenar consentsData del wizard ──────────

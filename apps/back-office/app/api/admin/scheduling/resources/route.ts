@@ -11,6 +11,23 @@
 import { NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
 
+// Mapeo: nombre del catálogo (SpecialtyCatalog.name normalizado) →
+// valores del enum Specialty del Provider que cubren esa línea de servicio.
+// Usado para filtrar providers por el tipo de caso al agendar.
+const CATALOG_TO_SPECIALTY_ENUM: Record<string, string[]> = {
+  'auto accidents':    ['CHIROPRACTIC', 'ORTHOPEDICS', 'PAIN_MANAGEMENT', 'PHYSICAL_THERAPY', 'NEUROLOGY', 'RADIOLOGY'],
+  'pain management':  ['PAIN_MANAGEMENT'],
+  'family practice':  ['GENERAL'],
+  'surgery':          ['ORTHOPEDICS'],
+  'urgent care':      ['GENERAL', 'OTHER'],
+  'chiropractic':     ['CHIROPRACTIC'],
+  'physical therapy': ['PHYSICAL_THERAPY'],
+  'orthopedics':      ['ORTHOPEDICS'],
+  'neurology':        ['NEUROLOGY'],
+  'radiology':        ['RADIOLOGY'],
+  'psychology':       ['PSYCHOLOGY'],
+};
+
 export async function GET(): Promise<NextResponse> {
   const [clinics, providers, specialties] = await Promise.all([
     db.clinic.findMany({
@@ -20,13 +37,7 @@ export async function GET(): Promise<NextResponse> {
     db.provider.findMany({
       where: { status: 'ACTIVE', deletedAt: null },
       orderBy: [{ lastName: 'asc' }],
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        specialty: true,
-        licenseNumber: true,
-      },
+      select: { id: true, firstName: true, lastName: true, specialty: true, licenseNumber: true },
     }),
     db.specialtyCatalog.findMany({
       where: { isActive: true, deletedAt: null },
@@ -35,16 +46,26 @@ export async function GET(): Promise<NextResponse> {
     }),
   ]);
 
+  // Construye un mapa inverso: Specialty enum → [catalogId, ...]
+  const enumToCatalogIds: Record<string, string[]> = {};
+  for (const cat of specialties) {
+    const key = cat.name.toLowerCase().trim();
+    const enums = CATALOG_TO_SPECIALTY_ENUM[key] ?? [];
+    for (const e of enums) {
+      enumToCatalogIds[e] ??= [];
+      enumToCatalogIds[e].push(cat.id);
+    }
+  }
+
   return NextResponse.json({
     clinics,
-    // specialtyCatalogIds vacío — el filtro es por specialty enum del provider vs del caso
     providers: providers.map((p) => ({
-      id: p.id,
-      firstName: p.firstName,
-      lastName: p.lastName,
-      specialty: p.specialty,
-      licenseNumber: p.licenseNumber,
-      specialtyCatalogIds: [] as string[],
+      id:                 p.id,
+      firstName:          p.firstName,
+      lastName:           p.lastName,
+      specialty:          p.specialty,
+      licenseNumber:      p.licenseNumber,
+      specialtyCatalogIds: enumToCatalogIds[p.specialty] ?? [],
     })),
     specialties,
   });

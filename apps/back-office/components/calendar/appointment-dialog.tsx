@@ -12,7 +12,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  CalendarCheck, AlertCircle, Check, Building2, Stethoscope, Clock,
+  CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
   FileText, ChevronRight, Calendar as CalendarIcon, User, Search, X,
 } from 'lucide-react';
 import {
@@ -119,12 +119,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [caseId,     setCaseId]     = useState('');
   const [clinicId,   setClinicId]   = useState('');
   const [providerId, setProviderId] = useState('');
-  const [date,       setDate]       = useState('');
-  const [time,       setTime]       = useState('');
+  const [slotIso,    setSlotIso]    = useState<string | null>(null);
   const [duration,   setDuration]   = useState(30);
   const [type,       setType]       = useState<AppointmentType>('AUTO_ACCIDENT');
   const [notes,      setNotes]      = useState('');
   const [showAll,    setShowAll]    = useState(false); // override specialty filter
+
+  // Slot picker — slots reales desde la DB
+  const [slotOptions,   setSlotOptions]   = useState<Array<{ iso: string; label: string }>>([]);
+  const [slotsLoading,  setSlotsLoading]  = useState(false);
 
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -169,8 +172,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setCaseId(props.mode === 'case' ? (props.caseInfo?.id ?? '') : '');
     setClinicId('');
     setProviderId('');
-    setDate(initialDate ?? '');
-    setTime(initialTime ?? '');
+    setSlotIso(null);
+    setSlotOptions([]);
     setDuration(30);
     setType('AUTO_ACCIDENT');
     setNotes('');
@@ -229,19 +232,57 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setProviderId('');
   }, []);
 
+  // ─── Slots reales: carga disponibilidad cuando cambia provider/clinic/duration ──
+
+  useEffect(() => {
+    if (!providerId || !clinicId) {
+      setSlotOptions([]);
+      setSlotIso(null);
+      return;
+    }
+    const controller = new AbortController();
+    setSlotsLoading(true);
+    setSlotIso(null);
+
+    const fromDate = new Date().toISOString();
+    const toDate   = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString();
+    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '16' });
+
+    fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.ok) return;
+        const slots = (data.slots as Array<{ startAt: string }>).map((s) => ({
+          iso: s.startAt,
+          label: new Date(s.startAt).toLocaleString('es-US', {
+            weekday: 'short', day: 'numeric', month: 'short',
+            hour: 'numeric', minute: '2-digit',
+            timeZone: 'America/Denver',
+          }),
+        }));
+        setSlotOptions(slots);
+        // Si había initialDate+initialTime, pre-seleccionar el slot más cercano
+        if (initialDate && initialTime) {
+          const target = new Date(`${initialDate}T${initialTime}:00`).getTime();
+          const closest = slots.find((s) => Math.abs(new Date(s.iso).getTime() - target) < 30 * 60 * 1000);
+          if (closest) setSlotIso(closest.iso);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setSlotsLoading(false));
+
+    return () => controller.abort();
+  }, [providerId, clinicId, duration, initialDate, initialTime]);
+
   // ─── Computed: scheduledFor ──────────────────────────────────────────────────
 
-  const scheduledForIso = useMemo(() => {
-    if (!date || !time) return null;
-    const d = new Date(`${date}T${time}:00`);
-    return Number.isNaN(d.getTime()) ? null : d.toISOString();
-  }, [date, time]);
+  const scheduledForIso = slotIso;
 
   const scheduledLabel = useMemo(() => {
     if (!scheduledForIso) return null;
     return new Date(scheduledForIso).toLocaleString('es-US', {
       weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
-      hour: 'numeric', minute: '2-digit',
+      hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
     });
   }, [scheduledForIso]);
 
@@ -524,43 +565,57 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             )}
           </div>
 
-          {/* ── Fecha + Hora ── */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="appt-date">
-                <CalendarIcon className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                Fecha <span className="text-rose">*</span>
-              </Label>
-              <input
-                id="appt-date"
-                type="date"
-                lang="en-US"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-              />
-            </div>
-            <div>
-              <Label htmlFor="appt-time">
-                <Clock className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                Hora <span className="text-rose">*</span>
-              </Label>
-              <input
-                id="appt-time"
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-              />
-            </div>
-          </div>
+          {/* ── Horarios disponibles ── */}
+          <div>
+            <Label>
+              <CalendarIcon className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
+              Horario disponible <span className="text-rose">*</span>
+              {slotsLoading && (
+                <span className="ml-2 text-[10px] text-text-muted font-normal animate-pulse">
+                  verificando disponibilidad…
+                </span>
+              )}
+            </Label>
 
-          {scheduledLabel && (
-            <div className={`rounded-md border px-3 py-2 text-xs ${isFuture ? 'bg-emerald/5 border-emerald/20 text-emerald' : 'bg-rose/5 border-rose/20 text-rose'}`}>
-              <strong className="capitalize">{scheduledLabel}</strong>
-              {!isFuture && <span className="ml-2">⚠ La fecha/hora debe ser futura</span>}
-            </div>
-          )}
+            {!providerId || !clinicId ? (
+              <p className="mt-1.5 text-[11px] text-text-muted italic">
+                Selecciona clínica y doctor para ver los horarios disponibles.
+              </p>
+            ) : slotsLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="h-9 rounded-md border border-border bg-bg-2 animate-pulse" />
+                ))}
+              </div>
+            ) : slotOptions.length === 0 ? (
+              <div className="mt-1.5 rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-[11px] text-amber">
+                Sin disponibilidad en los próximos 8 días para este doctor y clínica. Cambia el doctor o la clínica.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
+                {slotOptions.map((s) => (
+                  <button
+                    key={s.iso}
+                    type="button"
+                    onClick={() => setSlotIso(s.iso)}
+                    className={`px-2 py-2 rounded-md border text-[11px] font-medium transition-colors capitalize ${
+                      slotIso === s.iso
+                        ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
+                        : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {scheduledLabel && !slotsLoading && (
+              <div className="mt-2 rounded-md border border-brand/20 bg-brand/5 px-3 py-2 text-xs text-brand">
+                <strong className="capitalize">{scheduledLabel}</strong>
+              </div>
+            )}
+          </div>
 
           {/* ── Duración ── */}
           <div>

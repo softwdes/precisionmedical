@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { HexColorPicker } from 'react-colorful';
 import {
   Building2, Stethoscope, Scale, ShieldCheck, DollarSign,
   FileText, Plus, Pencil, Trash2, AlertCircle,
@@ -74,6 +75,19 @@ export function SettingsClient({
   const [activeTab, setActiveTab] = useState<Tab>('clinicas');
   const [clinics, setClinics]     = useState<Clinic[]>(initialClinics);
 
+  // ── Color picker toggle ────────────────────────────────────────────────────
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    }
+    if (pickerOpen) document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [pickerOpen]);
+
   // ── Dialog state ───────────────────────────────────────────────────────────
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing]       = useState<Clinic | null>(null);
@@ -98,7 +112,7 @@ export function SettingsClient({
 
   const cities = form.state ? (CITIES_BY_STATE[form.state] ?? []) : [];
 
-  function openCreate() { setForm(EMPTY_FORM); setError(null); setCreateOpen(true); }
+  function openCreate() { setForm(EMPTY_FORM); setError(null); setPickerOpen(false); setCreateOpen(true); }
   function openEdit(c: Clinic) {
     setForm({ name: c.name, phone: c.phone, cellPhone: c.cellPhone, email: c.email,
               address: c.address, zipCode: c.zipCode, state: c.state, city: c.city, color: c.color || '#6366F1' });
@@ -277,9 +291,9 @@ export function SettingsClient({
               {/* Color swatches */}
               <div>
                 <Label>Color</Label>
-                <div className="mt-1.5 flex flex-wrap gap-2">
+                <div className="mt-1.5 flex flex-wrap gap-2 items-center">
                   {COLOR_SWATCHES.map((hex) => (
-                    <button key={hex} type="button" onClick={() => setForm((p) => ({ ...p, color: hex }))}
+                    <button key={hex} type="button" onClick={() => { setForm((p) => ({ ...p, color: hex })); setPickerOpen(false); }}
                       title={hex}
                       className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110"
                       style={{
@@ -288,6 +302,31 @@ export function SettingsClient({
                         boxShadow: form.color === hex ? `0 0 0 1px ${hex}` : 'none',
                       }} />
                   ))}
+                  {/* Custom color toggle */}
+                  <div className="relative" ref={pickerRef}>
+                    <button type="button" onClick={() => setPickerOpen((o) => !o)}
+                      title="Color personalizado"
+                      className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center bg-bg-2 border-border hover:border-text-muted"
+                      style={!COLOR_SWATCHES.includes(form.color) ? {
+                        borderColor: 'white',
+                        boxShadow: `0 0 0 1px ${form.color}`,
+                        backgroundColor: form.color,
+                      } : {}}>
+                      {COLOR_SWATCHES.includes(form.color) && (
+                        <span className="text-text-muted text-[14px] leading-none">+</span>
+                      )}
+                    </button>
+                    {pickerOpen && (
+                      <div className="absolute left-0 top-9 z-50 rounded-lg border border-border bg-bg-1 p-3 shadow-xl">
+                        <HexColorPicker
+                          color={form.color}
+                          onChange={(c) => setForm((p) => ({ ...p, color: c }))}
+                          style={{ width: '180px', height: '140px' }}
+                        />
+                        <p className="mt-2 text-center text-text-muted text-[11px] font-mono">{form.color}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <p className="mt-1 text-text-muted text-[11px] font-mono">{form.color}</p>
               </div>

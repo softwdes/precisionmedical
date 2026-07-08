@@ -1717,10 +1717,10 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
 
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
-                <tr key={`${p.id}-cases`} className="bg-bg-2/30">
-                  <td colSpan={9} className="px-6 py-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
+                <tr key={`${p.id}-cases`} className="bg-white/[0.015]">
+                  <td colSpan={9} className="px-6 py-2">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between flex-wrap gap-2 py-1.5 border-b border-border/20">
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
                           <Briefcase className="w-3 h-3" /> {t('patientCases')}
                         </span>
@@ -1741,10 +1741,10 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                       )}
 
                       {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length > 0 && (
-                        <div className="overflow-x-auto rounded-md border border-border/60">
+                        <div className="overflow-x-auto rounded-md border border-border/20">
                           <table className="w-full min-w-[640px] border-collapse">
                             <thead>
-                              <tr className="bg-bg-2/60 border-b border-border/60">
+                              <tr className="bg-white/[0.02] border-b border-border/20">
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">{t('colType')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('colDescription')}</th>
@@ -1762,7 +1762,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                                 return (
                                   <tr
                                     key={c.id}
-                                    className={`border-b border-border/40 last:border-0 hover:bg-white/[0.02] transition-colors ${idx % 2 === 1 ? 'bg-bg-2/20' : ''}`}
+                                    className={`border-b border-border/15 last:border-0 hover:bg-white/[0.02] transition-colors ${idx % 2 === 1 ? 'bg-white/[0.01]' : ''}`}
                                   >
                                     {/* Código caso */}
                                     <td className="px-3 py-2">

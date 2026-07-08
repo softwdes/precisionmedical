@@ -1554,7 +1554,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
               <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/10">
+          <tbody>
             {patients.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-text-muted text-sm">
@@ -1565,7 +1565,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             )}
             {patients.map((p) => (
               <>
-              <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
+              <tr key={p.id} className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
                 {/* Chevron expand */}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -1717,7 +1717,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
 
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
-                <tr key={`${p.id}-cases`} className="bg-white/[0.015]">
+                <tr key={`${p.id}-cases`} className="bg-white/[0.015] border-b border-white/[0.06]">
                   <td colSpan={9} className="px-6 py-2">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5 border-b border-border/20">

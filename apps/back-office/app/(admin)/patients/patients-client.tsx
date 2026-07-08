@@ -648,7 +648,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border/30">
                   {appointments.map(a => (
                     <tr key={a.id} className="hover:bg-white/[0.02] transition-colors">
                       <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{fmtApptDate(a.scheduledFor)}</td>
@@ -1554,7 +1554,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
               <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-border/30">
             {patients.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-text-muted text-sm">

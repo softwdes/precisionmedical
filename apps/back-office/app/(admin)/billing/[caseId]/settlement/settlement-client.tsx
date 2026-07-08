@@ -424,7 +424,7 @@ export function SettlementClient() {
                 ) : (
                   <table className="w-full text-[11.5px]">
                     <thead>
-                      <tr className="border-b border-border">
+                      <tr className="border-b border-border/30">
                         <th className="text-left pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Concepto</th>
                         <th className="text-right pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Monto</th>
                       </tr>

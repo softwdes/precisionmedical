@@ -235,7 +235,7 @@ export function SettingsClient({
                   </thead>
                   <tbody>
                     {clinics.map((c) => (
-                      <tr key={c.id} className="border-b border-border/50 hover:bg-white/[0.02]">
+                      <tr key={c.id} className="border-b border-border/30 hover:bg-white/[0.02]">
                         <td className="px-3 py-3">
                           <div className="w-4 h-4 rounded-full" style={{ backgroundColor: c.color || '#6366F1' }} />
                         </td>

@@ -293,7 +293,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-border">
+                <tr className="border-b border-border/30">
                   <th className="text-left px-4 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold whitespace-nowrap">Fecha</th>
                   <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Actor</th>
                   <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Acción</th>

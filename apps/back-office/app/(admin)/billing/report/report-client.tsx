@@ -413,7 +413,7 @@ export function ReportClient() {
           ) : (
             <table className="w-full text-[12px]">
               <thead>
-                <tr className="border-b border-border">
+                <tr className="border-b border-border/30">
                   <th className="text-left pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('thFirm')}</th>
                   <th className="text-right pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('thCases')}</th>
                   <th className="text-right pb-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('thBilled')}</th>

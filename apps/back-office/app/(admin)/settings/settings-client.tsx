@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Building2, Stethoscope, Scale, ShieldCheck, DollarSign,
-  FileText, Plus, Pencil, Trash2, ArrowRight, AlertCircle,
+  FileText, Plus, Pencil, Trash2, AlertCircle,
 } from 'lucide-react';
 import {
   Button, Input, Dialog, DialogContent, DialogHeader,
@@ -35,15 +36,16 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
   { id: 'diagnosticos',   label: 'Diagnósticos',    icon: FileText    },
 ];
 
-const CATALOG_LINKS: Record<Exclude<Tab, 'clinicas'>, { href: string; desc: string }> = {
-  especialidades: { href: '/admin/specialties', desc: 'Service lines, tipos de caso, flujos de trabajo y CPT sugeridos.' },
-  bufetes:        { href: '/admin/lawyers',     desc: 'Bufetes de abogados, miembros y velocidad de pago.' },
-  aseguradoras:   { href: '/admin/insurances',  desc: 'Aseguradoras, códigos cortos y configuración de cobros.' },
-  servicios:      { href: '/admin/services',    desc: 'Códigos CPT, tarifas y servicios favoritos.' },
-  diagnosticos:   { href: '/admin/diagnoses',   desc: 'Códigos ICD-10 y diagnósticos frecuentes.' },
+const CATALOG_HREFS: Record<Exclude<Tab, 'clinicas'>, string> = {
+  especialidades: '/admin/specialties',
+  bufetes:        '/admin/lawyers',
+  aseguradoras:   '/admin/insurances',
+  servicios:      '/admin/services',
+  diagnosticos:   '/admin/diagnoses',
 };
 
 export function SettingsClient({ initialClinics }: Props) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('clinicas');
   const [clinics, setClinics]     = useState<Clinic[]>(initialClinics);
 
@@ -127,20 +129,20 @@ export function SettingsClient({ initialClinics }: Props) {
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
+          const cls = `flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors shrink-0 ${
+            active ? 'bg-gradient-brand text-white shadow-glow' : 'text-text-2 hover:text-text-1 hover:bg-white/5'
+          }`;
+          if (tab.id === 'clinicas') {
+            return (
+              <button key={tab.id} type="button" onClick={() => setActiveTab('clinicas')} className={cls}>
+                <Icon className="w-3.5 h-3.5" />{tab.label}
+              </button>
+            );
+          }
           return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors shrink-0 ${
-                active
-                  ? 'bg-gradient-brand text-white shadow-glow'
-                  : 'text-text-2 hover:text-text-1 hover:bg-white/5'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {tab.label}
-            </button>
+            <Link key={tab.id} href={CATALOG_HREFS[tab.id as Exclude<Tab, 'clinicas'>]} className={cls}>
+              <Icon className="w-3.5 h-3.5" />{tab.label}
+            </Link>
           );
         })}
       </div>
@@ -215,34 +217,6 @@ export function SettingsClient({ initialClinics }: Props) {
       )}
 
       {/* ── Other catalog tabs ── */}
-      {activeTab !== 'clinicas' && (
-        <div className="max-w-lg">
-          {(() => {
-            const info = CATALOG_LINKS[activeTab as Exclude<Tab, 'clinicas'>];
-            const tab  = TABS.find((t) => t.id === activeTab)!;
-            const Icon = tab.icon;
-            return (
-              <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-brand" />
-                  </div>
-                  <div>
-                    <p className="text-text-1 font-semibold text-sm">{tab.label}</p>
-                    <p className="text-text-muted text-[11px] mt-0.5">{info.desc}</p>
-                  </div>
-                </div>
-                <Link href={info.href}>
-                  <Button className="flex items-center gap-2 w-full sm:w-auto">
-                    Gestionar {tab.label} <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </Link>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-
       {/* ── Create dialog ── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">

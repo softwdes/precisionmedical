@@ -1717,7 +1717,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
 
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
-                <tr key={`${p.id}-cases`} className="bg-white/[0.015] border-b border-white/[0.06]">
+                <tr key={`${p.id}-cases`} className="bg-white/[0.03] border-b border-white/[0.06]">
                   <td colSpan={9} className="px-6 py-2">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5 border-b border-border/20">
@@ -1744,7 +1744,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                         <div className="overflow-x-auto">
                           <table className="w-full min-w-[640px] border-collapse">
                             <thead>
-                              <tr className="border-b border-border/10">
+                              <tr className="border-b border-white/[0.06]">
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">{t('colType')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('colDescription')}</th>
@@ -1762,7 +1762,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                                 return (
                                   <tr
                                     key={c.id}
-                                    className={`border-b border-border/10 last:border-0 hover:bg-white/[0.02] transition-colors`}
+                                    className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03] transition-colors"
                                   >
                                     {/* Código caso */}
                                     <td className="px-3 py-2">

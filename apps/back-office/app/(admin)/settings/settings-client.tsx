@@ -49,10 +49,18 @@ interface Props {
   diagnosisStats:     React.ComponentProps<typeof DiagnosesClient>['stats'];
 }
 
+// ── Color palette ──────────────────────────────────────────────────────────────
+const COLOR_SWATCHES = [
+  '#6366F1', '#8B5CF6', '#EC4899', '#F43F5E',
+  '#F59E0B', '#CA8A04', '#16A34A', '#10B981',
+  '#06B6D4', '#0EA5E9', '#1D4ED8', '#DC2626',
+  '#94A3B8', '#64748B', '#C2410C', '#1E293B',
+];
+
 // ── Empty form ─────────────────────────────────────────────────────────────────
 const EMPTY_FORM = {
   name: '', phone: '', cellPhone: '', email: '',
-  address: '', zipCode: '', state: '', city: '', color: '#6366F1',
+  address: '', zipCode: '', state: 'UT', city: '', color: '#6366F1',
 };
 
 export function SettingsClient({
@@ -259,23 +267,32 @@ export function SettingsClient({
                 <Building2 className="w-4 h-4 text-brand" /> {title}
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-3 py-2">
-              {/* Row: Nombre + Color */}
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
-                <div>
-                  <Label>Nombre <span className="text-rose">*</span></Label>
-                  <Input value={form.name} onChange={set('name')} placeholder="Murray, Provo, West Valley..." autoFocus />
-                </div>
-                <div>
-                  <Label>Color</Label>
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={form.color} onChange={(e) => setForm((p) => ({ ...p, color: e.target.value }))}
-                      className="w-10 h-9 rounded cursor-pointer border border-border bg-transparent p-0.5" />
-                    <span className="text-text-muted text-[11px] font-mono">{form.color}</span>
-                  </div>
-                </div>
+            <div className="space-y-4 py-2">
+              {/* Nombre */}
+              <div>
+                <Label>Nombre <span className="text-rose">*</span></Label>
+                <Input value={form.name} onChange={set('name')} placeholder="Murray, Provo, West Valley..." autoFocus />
               </div>
-              {/* Row: Teléfono + Celular */}
+
+              {/* Color swatches */}
+              <div>
+                <Label>Color</Label>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {COLOR_SWATCHES.map((hex) => (
+                    <button key={hex} type="button" onClick={() => setForm((p) => ({ ...p, color: hex }))}
+                      title={hex}
+                      className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110"
+                      style={{
+                        backgroundColor: hex,
+                        borderColor: form.color === hex ? 'white' : 'transparent',
+                        boxShadow: form.color === hex ? `0 0 0 1px ${hex}` : 'none',
+                      }} />
+                  ))}
+                </div>
+                <p className="mt-1 text-text-muted text-[11px] font-mono">{form.color}</p>
+              </div>
+
+              {/* Teléfono + Celular */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label>Teléfono</Label>
@@ -286,12 +303,14 @@ export function SettingsClient({
                   <Input value={form.cellPhone} onChange={set('cellPhone')} placeholder="(801) 000-0000" />
                 </div>
               </div>
+
               {/* Email */}
               <div>
                 <Label>Correo electrónico</Label>
                 <Input type="email" value={form.email} onChange={set('email')} placeholder="info@clinica.com" />
               </div>
-              {/* Row: Estado + Ciudad */}
+
+              {/* Estado + Ciudad */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label>Estado</Label>
@@ -314,7 +333,8 @@ export function SettingsClient({
                   </select>
                 </div>
               </div>
-              {/* Row: Código postal + Dirección */}
+
+              {/* Código postal + Dirección */}
               <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3">
                 <div>
                   <Label>Código postal</Label>
@@ -325,6 +345,7 @@ export function SettingsClient({
                   <Input value={form.address} onChange={set('address')} placeholder="275 E 6100 S Suite 100" />
                 </div>
               </div>
+
               {error && (
                 <div className="flex items-start gap-2 rounded-md border border-rose/30 bg-rose/5 px-3 py-2 text-[11px] text-rose">
                   <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{error}

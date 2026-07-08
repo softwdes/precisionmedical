@@ -16,7 +16,11 @@ export default async function SettingsPage() {
   ] = await Promise.all([
     db.clinic.findMany({
       orderBy: { name: 'asc' },
-      select: { id: true, name: true, address: true, phone: true, _count: { select: { appointments: true } } },
+      select: {
+        id: true, name: true, address: true, phone: true, cellPhone: true,
+        email: true, zipCode: true, state: true, city: true, color: true,
+        _count: { select: { appointments: true } },
+      },
     }),
     db.specialtyCatalog.findMany({
       where: { deletedAt: null },
@@ -48,6 +52,8 @@ export default async function SettingsPage() {
     <SettingsClient
       initialClinics={clinics.map((c) => ({
         id: c.id, name: c.name, address: c.address ?? '', phone: c.phone ?? '',
+        cellPhone: c.cellPhone ?? '', email: c.email ?? '', zipCode: c.zipCode ?? '',
+        state: c.state ?? '', city: c.city ?? '', color: c.color ?? '#6366F1',
         appointmentCount: c._count.appointments,
       }))}
       initialSpecialties={specialties.map((s) => ({

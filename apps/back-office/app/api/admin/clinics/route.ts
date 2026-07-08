@@ -2,34 +2,50 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 
+const CLINIC_SELECT = {
+  id: true, name: true, address: true, phone: true, cellPhone: true,
+  email: true, zipCode: true, state: true, city: true, color: true,
+  _count: { select: { appointments: true } },
+} as const;
+
 export async function GET(): Promise<NextResponse> {
-  const clinics = await db.clinic.findMany({
-    orderBy: { name: 'asc' },
-    select: {
-      id: true, name: true, address: true, phone: true,
-      _count: { select: { appointments: true } },
-    },
-  });
+  const clinics = await db.clinic.findMany({ orderBy: { name: 'asc' }, select: CLINIC_SELECT });
   return NextResponse.json({ clinics });
 }
 
 const CreateSchema = z.object({
-  name:    z.string().min(1).max(100),
-  address: z.string().max(200).optional(),
-  phone:   z.string().max(30).optional(),
+  name:      z.string().min(1).max(100),
+  address:   z.string().max(300).optional(),
+  phone:     z.string().max(30).optional(),
+  cellPhone: z.string().max(30).optional(),
+  email:     z.string().email().optional().or(z.literal('')),
+  zipCode:   z.string().max(10).optional(),
+  state:     z.string().max(2).optional(),
+  city:      z.string().max(100).optional(),
+  color:     z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const actor = actorFromHeaders(req.headers);
   let parsed;
   try { parsed = CreateSchema.parse(await req.json()); }
-  catch (err) { return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 }); }
+  catch { return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 }); }
 
   const exists = await db.clinic.findUnique({ where: { name: parsed.name }, select: { id: true } });
   if (exists) return NextResponse.json({ error: 'DUPLICATE_NAME', message: `Ya existe una clínica con el nombre "${parsed.name}".` }, { status: 409 });
 
   const clinic = await db.clinic.create({
-    data: { name: parsed.name, address: parsed.address ?? null, phone: parsed.phone ?? null },
+    data: {
+      name: parsed.name,
+      address:   parsed.address   || null,
+      phone:     parsed.phone     || null,
+      cellPhone: parsed.cellPhone || null,
+      email:     parsed.email     || null,
+      zipCode:   parsed.zipCode   || null,
+      state:     parsed.state     || null,
+      city:      parsed.city      || null,
+      color:     parsed.color     || '#6366F1',
+    },
   });
 
   await writeAuditLog(db, {

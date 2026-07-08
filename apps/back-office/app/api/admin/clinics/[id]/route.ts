@@ -5,9 +5,15 @@ import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database
 type Ctx = { params: Promise<{ id: string }> };
 
 const UpdateSchema = z.object({
-  name:    z.string().min(1).max(100).optional(),
-  address: z.string().max(200).nullable().optional(),
-  phone:   z.string().max(30).nullable().optional(),
+  name:      z.string().min(1).max(100).optional(),
+  address:   z.string().max(300).nullable().optional(),
+  phone:     z.string().max(30).nullable().optional(),
+  cellPhone: z.string().max(30).nullable().optional(),
+  email:     z.string().email().nullable().optional().or(z.literal('').transform(() => null)),
+  zipCode:   z.string().max(10).nullable().optional(),
+  state:     z.string().max(2).nullable().optional(),
+  city:      z.string().max(100).nullable().optional(),
+  color:     z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {

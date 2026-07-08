@@ -817,9 +817,15 @@ model Clinic {
   name         String        @unique
   address      String?
   phone        String?
-  
+  cellPhone    String?
+  email        String?
+  zipCode      String?
+  state        String?
+  city         String?
+  color        String?       @default("#6366F1")
+
   appointments Appointment[]
-  
+
   @@map("clinics")
 }
 

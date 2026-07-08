@@ -37,15 +37,15 @@ const SECTIONS: NavSection[] = [
   {
     titleKey: 'workspaces',
     items: [
-      { href: '/patients',     icon: Users,          labelKey: 'patients',    mockup: 'B.4'        },
-      { href: '/front-office', icon: Building2,    labelKey: 'frontOffice', mockup: 'B.1–B.4'   },
-      { href: '/calendar',     icon: CalendarDays, labelKey: 'calendar',    mockup: 'B.10–B.11'  },
+      { href: '/dashboard',    icon: BarChart3,      labelKey: 'dashboard',   mockup: 'B.29'        },
+      { href: '/patients',     icon: Users,          labelKey: 'patients',    mockup: 'B.4'         },
+      { href: '/front-office', icon: Building2,      labelKey: 'frontOffice', mockup: 'B.1–B.4'    },
+      { href: '/calendar',     icon: CalendarDays,   labelKey: 'calendar',    mockup: 'B.10–B.11'  },
       { href: '/edson',        icon: ClipboardList,  labelKey: 'edson',       mockup: 'B.12–B.13/B.23–B.24' },
-      { href: '/intake',       icon: Phone,          labelKey: 'intake',      mockup: 'B.12–B.13' },
-      { href: '/admission',    icon: ClipboardCheck, labelKey: 'admission',   mockup: 'B.14–B.15' },
-      { href: '/billing',      icon: Briefcase,      labelKey: 'billing',     mockup: 'B.25–B.28' },
-      { href: '/dashboard',    icon: BarChart3,  labelKey: 'dashboard',   mockup: 'B.29' },
-      { href: '/settings',     icon: Settings,       labelKey: 'settings',    mockup: 'B.36+'      },
+      { href: '/intake',       icon: Phone,          labelKey: 'intake',      mockup: 'B.12–B.13'  },
+      { href: '/admission',    icon: ClipboardCheck, labelKey: 'admission',   mockup: 'B.14–B.15'  },
+      { href: '/billing',      icon: Briefcase,      labelKey: 'billing',     mockup: 'B.25–B.28'  },
+      { href: '/settings',     icon: Settings,       labelKey: 'settings',    mockup: 'B.36+'       },
     ],
   },
   {

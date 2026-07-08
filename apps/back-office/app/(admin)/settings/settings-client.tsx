@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   Building2, Stethoscope, Scale, ShieldCheck, DollarSign,
   FileText, Plus, Pencil, Trash2, AlertCircle,
@@ -12,18 +10,14 @@ import {
   DialogTitle, DialogFooter, Label,
 } from '@precision/ui';
 import { PageHeader, IconAction, EmptyState } from '@/components/ui-phoenix';
+import { SpecialtiesClient } from '@/app/(admin)/admin/specialties/specialties-client';
+import { LawyersClient }     from '@/app/(admin)/admin/lawyers/lawyers-client';
+import { InsurancesClient }  from '@/app/(admin)/admin/insurances/insurances-client';
+import { ServicesClient }    from '@/app/(admin)/admin/services/services-client';
+import { DiagnosesClient }   from '@/app/(admin)/admin/diagnoses/diagnoses-client';
 
-interface Clinic {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  appointmentCount: number;
-}
-
-interface Props {
-  initialClinics: Clinic[];
-}
+// ── Types (mirrors each catalog client's Props) ────────────────────────────────
+interface Clinic { id: string; name: string; address: string; phone: string; appointmentCount: number; }
 
 type Tab = 'clinicas' | 'especialidades' | 'bufetes' | 'aseguradoras' | 'servicios' | 'diagnosticos';
 
@@ -36,16 +30,29 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
   { id: 'diagnosticos',   label: 'Diagnósticos',    icon: FileText    },
 ];
 
-const CATALOG_HREFS: Record<Exclude<Tab, 'clinicas'>, string> = {
-  especialidades: '/admin/specialties',
-  bufetes:        '/admin/lawyers',
-  aseguradoras:   '/admin/insurances',
-  servicios:      '/admin/services',
-  diagnosticos:   '/admin/diagnoses',
-};
+// Props mirrors the data each child client expects, typed loosely to avoid duplication
+interface Props {
+  initialClinics:     Clinic[];
+  initialSpecialties: React.ComponentProps<typeof SpecialtiesClient>['specialties'];
+  specialtyStats:     React.ComponentProps<typeof SpecialtiesClient>['stats'];
+  initialFirms:       React.ComponentProps<typeof LawyersClient>['firms'];
+  firmStats:          React.ComponentProps<typeof LawyersClient>['stats'];
+  initialInsurances:  React.ComponentProps<typeof InsurancesClient>['insurances'];
+  insuranceStats:     React.ComponentProps<typeof InsurancesClient>['stats'];
+  initialServices:    React.ComponentProps<typeof ServicesClient>['services'];
+  serviceStats:       React.ComponentProps<typeof ServicesClient>['stats'];
+  initialDiagnoses:   React.ComponentProps<typeof DiagnosesClient>['diagnoses'];
+  diagnosisStats:     React.ComponentProps<typeof DiagnosesClient>['stats'];
+}
 
-export function SettingsClient({ initialClinics }: Props) {
-  const router = useRouter();
+export function SettingsClient({
+  initialClinics,
+  initialSpecialties, specialtyStats,
+  initialFirms,       firmStats,
+  initialInsurances,  insuranceStats,
+  initialServices,    serviceStats,
+  initialDiagnoses,   diagnosisStats,
+}: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('clinicas');
   const [clinics, setClinics]     = useState<Clinic[]>(initialClinics);
 
@@ -118,38 +125,40 @@ export function SettingsClient({ initialClinics }: Props) {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-      <PageHeader
-        title="Configuración"
-        subtitle="Clínicas, catálogos y configuración global del sistema"
-      />
+    <div className="space-y-4 sm:space-y-6">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6">
+        <PageHeader
+          title="Configuración"
+          subtitle="Clínicas, catálogos y configuración global del sistema"
+        />
 
-      {/* ── Tab bar ── */}
-      <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar border-b border-border">
-        {TABS.map((tab) => {
-          const Icon = tab.icon;
-          const active = activeTab === tab.id;
-          const cls = `flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors shrink-0 ${
-            active ? 'bg-gradient-brand text-white shadow-glow' : 'text-text-2 hover:text-text-1 hover:bg-white/5'
-          }`;
-          if (tab.id === 'clinicas') {
+        {/* ── Tab bar ── */}
+        <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar border-b border-border mt-4">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
             return (
-              <button key={tab.id} type="button" onClick={() => setActiveTab('clinicas')} className={cls}>
-                <Icon className="w-3.5 h-3.5" />{tab.label}
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-medium whitespace-nowrap transition-colors shrink-0 ${
+                  active
+                    ? 'bg-gradient-brand text-white shadow-glow'
+                    : 'text-text-2 hover:text-text-1 hover:bg-white/5'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
               </button>
             );
-          }
-          return (
-            <Link key={tab.id} href={CATALOG_HREFS[tab.id as Exclude<Tab, 'clinicas'>]} className={cls}>
-              <Icon className="w-3.5 h-3.5" />{tab.label}
-            </Link>
-          );
-        })}
+          })}
+        </div>
       </div>
 
       {/* ── Clínicas tab ── */}
       {activeTab === 'clinicas' && (
-        <div className="space-y-4">
+        <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <p className="text-text-1 font-semibold text-sm">{clinics.length} clínica{clinics.length !== 1 ? 's' : ''} registrada{clinics.length !== 1 ? 's' : ''}</p>
@@ -216,7 +225,23 @@ export function SettingsClient({ initialClinics }: Props) {
         </div>
       )}
 
-      {/* ── Other catalog tabs ── */}
+      {/* ── Catalog tabs (render inline, no navigation) ── */}
+      {activeTab === 'especialidades' && (
+        <SpecialtiesClient specialties={initialSpecialties} stats={specialtyStats} />
+      )}
+      {activeTab === 'bufetes' && (
+        <LawyersClient firms={initialFirms} stats={firmStats} />
+      )}
+      {activeTab === 'aseguradoras' && (
+        <InsurancesClient insurances={initialInsurances} stats={insuranceStats} />
+      )}
+      {activeTab === 'servicios' && (
+        <ServicesClient services={initialServices} stats={serviceStats} />
+      )}
+      {activeTab === 'diagnosticos' && (
+        <DiagnosesClient diagnoses={initialDiagnoses} stats={diagnosisStats} />
+      )}
+
       {/* ── Create dialog ── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">

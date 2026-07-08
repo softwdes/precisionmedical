@@ -1554,7 +1554,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
               <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/30">
+          <tbody className="divide-y divide-border/10">
             {patients.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-text-muted text-sm">
@@ -1741,10 +1741,10 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                       )}
 
                       {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length > 0 && (
-                        <div className="overflow-x-auto rounded-md border border-border/20">
+                        <div className="overflow-x-auto">
                           <table className="w-full min-w-[640px] border-collapse">
                             <thead>
-                              <tr className="bg-white/[0.02] border-b border-border/20">
+                              <tr className="border-b border-border/10">
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">{t('colType')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('colDescription')}</th>
@@ -1762,7 +1762,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                                 return (
                                   <tr
                                     key={c.id}
-                                    className={`border-b border-border/15 last:border-0 hover:bg-white/[0.02] transition-colors ${idx % 2 === 1 ? 'bg-white/[0.01]' : ''}`}
+                                    className={`border-b border-border/10 last:border-0 hover:bg-white/[0.02] transition-colors`}
                                   >
                                     {/* Código caso */}
                                     <td className="px-3 py-2">

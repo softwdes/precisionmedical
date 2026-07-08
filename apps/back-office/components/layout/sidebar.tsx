@@ -35,12 +35,6 @@ interface NavSection {
 
 const SECTIONS: NavSection[] = [
   {
-    titleKey: 'settings',
-    items: [
-      { href: '/settings', icon: Settings, labelKey: 'settings', mockup: 'B.36+' },
-    ],
-  },
-  {
     titleKey: 'workspaces',
     items: [
       { href: '/patients',     icon: Users,          labelKey: 'patients',    mockup: 'B.4'        },
@@ -51,6 +45,7 @@ const SECTIONS: NavSection[] = [
       { href: '/admission',    icon: ClipboardCheck, labelKey: 'admission',   mockup: 'B.14–B.15' },
       { href: '/billing',      icon: Briefcase,      labelKey: 'billing',     mockup: 'B.25–B.28' },
       { href: '/dashboard',    icon: BarChart3,  labelKey: 'dashboard',   mockup: 'B.29' },
+      { href: '/settings',     icon: Settings,       labelKey: 'settings',    mockup: 'B.36+'      },
     ],
   },
   {

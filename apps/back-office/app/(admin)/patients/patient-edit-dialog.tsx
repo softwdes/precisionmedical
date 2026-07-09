@@ -63,11 +63,11 @@ interface Props {
 
 function toDateInput(d: Date | string | null | undefined): string {
   if (!d) return '';
-  const date = new Date(d);
-  if (isNaN(date.getTime())) return '';
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  if (typeof d === 'string') return d.slice(0, 10);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 

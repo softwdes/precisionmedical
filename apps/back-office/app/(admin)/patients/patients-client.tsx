@@ -1315,6 +1315,43 @@ function InAppCamera({
 // ── Archivos personales dialog ─────────────────────────────────────────────
 type PhotoKey = 'selfie' | 'insuranceCardFront' | 'insuranceCardBack' | 'dlFront';
 
+// Resize + re-encode image so upload stays well under Vercel's 4.5MB body limit.
+// maxSideKB is the target max file size in KB.
+function compressImage(file: File, maxSideKB = 1400): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      const MAX_SIDE = 1600; // px — enough for ID documents at typical DPI
+      let { width, height } = img;
+      if (width > MAX_SIDE || height > MAX_SIDE) {
+        if (width > height) { height = Math.round((height / width) * MAX_SIDE); width = MAX_SIDE; }
+        else { width = Math.round((width / height) * MAX_SIDE); height = MAX_SIDE; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('no ctx')); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      // Try quality 0.85 first; if still too large, drop to 0.70
+      canvas.toBlob(blob1 => {
+        if (!blob1) { reject(new Error('toBlob failed')); return; }
+        if (blob1.size <= maxSideKB * 1024) {
+          resolve(new File([blob1], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+          return;
+        }
+        canvas.toBlob(blob2 => {
+          const final = blob2 ?? blob1;
+          resolve(new File([final], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.70);
+      }, 'image/jpeg', 0.85);
+    };
+    img.onerror = reject;
+    img.src = objUrl;
+  });
+}
+
 function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: () => void }) {
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
@@ -1338,14 +1375,23 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   async function handleFile(photoKey: PhotoKey, file: File) {
     setErrors(p => ({ ...p, [photoKey]: '' }));
 
+    // Compress/resize to ≤1.5MB before upload (Vercel body limit is 4.5MB,
+    // multipart overhead + JPEG at 1920×1080 can exceed it)
+    let uploadFile = file;
+    try {
+      uploadFile = await compressImage(file, 1400);
+    } catch {
+      // If compression fails, attempt upload with original (may fail on large files)
+    }
+
     // Optimistic preview
-    const blobUrl = URL.createObjectURL(file);
+    const blobUrl = URL.createObjectURL(uploadFile);
     setPhotoUrls(p => ({ ...p, [photoKey]: blobUrl }));
     setUploading(p => ({ ...p, [photoKey]: true }));
 
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', uploadFile);
       fd.append('photoType', photoKey);
       const res  = await fetch(`/api/admin/patients/${patient.id}/upload-photo`, { method: 'POST', body: fd });
       const json = await res.json().catch(() => ({}));
@@ -1358,7 +1404,8 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
         router.refresh();
       } else {
         setPhotoUrls(p => ({ ...p, [photoKey]: initialPhotos[photoKey] ?? '' }));
-        setErrors(p => ({ ...p, [photoKey]: 'Error al subir. Intenta de nuevo.' }));
+        const detail = (json as { error?: string }).error ?? '';
+        setErrors(p => ({ ...p, [photoKey]: detail === 'NO_CASE_FOUND' ? 'Paciente sin caso activo.' : 'Error al subir. Intenta de nuevo.' }));
         URL.revokeObjectURL(blobUrl);
       }
     } catch {

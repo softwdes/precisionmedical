@@ -42,9 +42,9 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   });
   if (!patient) return NextResponse.json({ error: 'PATIENT_NOT_FOUND' }, { status: 404 });
 
-  // Busca el caso más reciente del paciente
+  // Busca el caso más reciente del paciente (excluye soft-deleted, igual que la lista de pacientes)
   const latestCase = await db.case.findFirst({
-    where:   { patientId },
+    where:   { patientId, deletedAt: null },
     orderBy: { createdAt: 'desc' },
     select:  { id: true, consentsData: true },
   });
@@ -114,7 +114,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> 
   }
 
   const latestCase = await db.case.findFirst({
-    where:   { patientId },
+    where:   { patientId, deletedAt: null },
     orderBy: { createdAt: 'desc' },
     select:  { id: true, consentsData: true },
   });

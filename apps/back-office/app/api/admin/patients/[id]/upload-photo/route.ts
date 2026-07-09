@@ -10,7 +10,7 @@ import { db, writeAuditLog } from '@precision-medical/database';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_URL = (process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL)!;
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const BUCKET       = 'intake-photos';
 const VALID_TYPES  = ['selfie', 'insuranceCardFront', 'insuranceCardBack', 'dlFront'] as const;

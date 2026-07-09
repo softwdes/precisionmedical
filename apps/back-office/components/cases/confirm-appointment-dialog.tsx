@@ -155,7 +155,7 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
             <div className="space-y-1 text-xs text-text-2">
               <div><strong className="text-text-1">Caso:</strong> <code className="font-mono">{caseInfo.caseCode}</code></div>
               {caseInfo.accidentDate && (
-                <div><strong className="text-text-1">DOL (Date of Loss):</strong> {new Date(caseInfo.accidentDate).toLocaleDateString('es-US')}</div>
+                <div><strong className="text-text-1">DOL (Date of Loss):</strong> {new Date(caseInfo.accidentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })}</div>
               )}
               {caseInfo.accidentLocation && (
                 <div><strong className="text-text-1">Lugar:</strong> {caseInfo.accidentLocation}</div>

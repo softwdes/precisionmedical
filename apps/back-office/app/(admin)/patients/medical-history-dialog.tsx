@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { updateMedicalHistory, searchDiagnoses, searchDrugs, searchDoctors, searchSpecialties } from './actions';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   User, Phone, Mail, AlertTriangle, Heart, Pill, Scissors, Users,
   MessageSquare, Activity, Brain, Shield, ClipboardList, Stethoscope,
@@ -58,10 +58,10 @@ interface Props {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function fmtDOB(dob: Date | string | null | undefined, locale: string): string {
+function fmtDOB(dob: Date | string | null | undefined): string {
   if (!dob) return 'N/D';
   const d = typeof dob === 'string' ? new Date(dob) : dob;
-  return d.toLocaleDateString(locale, { month: 'numeric', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
 }
 
 function calcAge(dob: Date | string | null | undefined): number | null {
@@ -2028,7 +2028,6 @@ function AddHistoryDialog({
 // ── Main dialog ────────────────────────────────────────────────────────────
 
 export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
-  const locale         = useLocale();
   const [editVisitInfo,  setEditVisitInfo]  = useState(false);
   const [editHealthInfo, setEditHealthInfo] = useState(false);
   const [addProblem,      setAddProblem]      = useState(false);
@@ -2050,7 +2049,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   const insurances = (patient.latestCase?.consentsData as Record<string, unknown> | null)?.insurances as Array<Record<string, string>> | undefined;
 
   const age    = calcAge(patient.dateOfBirth);
-  const dobStr = fmtDOB(patient.dateOfBirth, locale);
+  const dobStr = fmtDOB(patient.dateOfBirth);
 
   // Sidebar section label maps
   const SEX_LABEL: Record<string, string> = {

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
@@ -186,7 +186,6 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
   caseId: string; open: boolean; onClose: () => void; onEdit: () => void;
 }) {
   const t      = useTranslations('phoenix.patients');
-  const locale = useLocale();
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -238,8 +237,8 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-[12.5px]">
                 <div className="flex justify-between"><span className="text-text-muted">{t('caseLabelType')}</span><span className="text-text-1 font-medium">{detail.caseType}</span></div>
                 <div className="flex justify-between"><span className="text-text-muted">{t('caseLabelStatus')}</span><span className="text-text-1">{t(`caseStatus.${detail.status}` as Parameters<typeof t>[0]) ?? detail.status}</span></div>
-                <div className="flex justify-between"><span className="text-text-muted">{t('caseLabelCreated')}</span><span className="text-text-1">{fmtIsoDate(detail.createdAt, locale)}</span></div>
-                <div className="flex justify-between"><span className="text-text-muted">{t('caseLabelAccident')}</span><span className="text-text-1">{fmtIsoDate(detail.accidentDate, locale)}</span></div>
+                <div className="flex justify-between"><span className="text-text-muted">{t('caseLabelCreated')}</span><span className="text-text-1">{fmtIsoDate(detail.createdAt)}</span></div>
+                <div className="flex justify-between"><span className="text-text-muted">{t('caseLabelAccident')}</span><span className="text-text-1">{fmtIsoDate(detail.accidentDate)}</span></div>
                 <div className="flex justify-between"><span className="text-text-muted">{t('caseLabelAttorney')}</span><span className="text-text-1">{detail.attorney ? `${detail.attorney.firstName} ${detail.attorney.lastName}` : t('caseNotSpecified')}</span></div>
                 <div className="flex justify-between"><span className="text-text-muted">{t('caseLabelChiro')}</span><span className="text-text-1">{chiropractor ?? t('caseNotSpecified')}</span></div>
               </div>
@@ -1578,7 +1577,6 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
 
 export function PatientsClient({ patients, q, page, totalPages, total, specialties, clinics, providers }: Props) {
   const t      = useTranslations('phoenix.patients');
-  const locale = useLocale();
   const router = useRouter();
 
   const STATUS_LABEL: Record<string, string> = {
@@ -1860,7 +1858,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                           },
                         })}
                         className="p-1 rounded hover:bg-brand/10 transition-colors group"
-                        title={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fmtLocalDate(p.latestCase.intakeFormSentAt, locale) }) : t('tooltipSendFormNew')}
+                        title={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fmtLocalDate(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
                       >
                         <Mail className={`w-3.5 h-3.5 transition-colors ${p.latestCase.intakeFormSentAt ? 'text-brand' : 'text-text-muted group-hover:text-brand'}`} />
                       </button>
@@ -1870,7 +1868,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                       </span>
                     )}
                     {/* Form completed icon */}
-                    <span title={p.latestCase?.intakeFormCompletedAt ? t('tooltipFormCompleted', { date: fmtLocalDate(p.latestCase.intakeFormCompletedAt, locale) }) : t('tooltipFormPending')}>
+                    <span title={p.latestCase?.intakeFormCompletedAt ? t('tooltipFormCompleted', { date: fmtLocalDate(p.latestCase.intakeFormCompletedAt) }) : t('tooltipFormPending')}>
                       <CheckCircle2 className={`w-3.5 h-3.5 ${p.latestCase?.intakeFormCompletedAt ? 'text-emerald' : 'text-text-muted opacity-25'}`} />
                     </span>
                   </div>
@@ -1878,12 +1876,12 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
 
                 {/* Creado */}
                 <td className="px-4 py-3 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
-                  {fmtLocalDate(p.createdAt, locale)}
+                  {fmtLocalDate(p.createdAt)}
                 </td>
 
                 {/* Actualizado */}
                 <td className="px-4 py-3 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
-                  {fmtLocalDate(p.updatedAt, locale)}
+                  {fmtLocalDate(p.updatedAt)}
                 </td>
 
                 {/* Acciones */}

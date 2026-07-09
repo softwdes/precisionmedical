@@ -1538,7 +1538,7 @@ function PatientSidebar({ data, onEditInsurance, onEditLegal }: {
         <Section id="case" title="Caso">
           <Row label="Código"         value={appt.case.caseCode} />
           <Row label="Tipo accidente" value={appt.case.accidentType?.replace(/_/g, ' ')} />
-          <Row label="Fecha accidente" value={appt.case.accidentDate ? new Date(appt.case.accidentDate).toLocaleDateString('es-US', { timeZone: 'America/Denver' }) : undefined} />
+          <Row label="Fecha accidente" value={appt.case.accidentDate ? new Date(appt.case.accidentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', timeZone: 'America/Denver' }) : undefined} />
         </Section>
       )}
 

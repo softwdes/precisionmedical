@@ -1314,6 +1314,37 @@ export function IntakeWizard({
     }
   };
 
+  // ── Silent autosave for legal rep fields ──────────────────────────────────
+  const saveAccidentFields = useCallback(
+    async (patch: Partial<typeof acc>) => {
+      const merged = { ...acc, ...patch };
+      try {
+        await fetch(`/api/intake/${token}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            step: 5,
+            data: {
+              accident: {
+                date:         merged.date,
+                type:         merged.type,
+                notes:        merged.notes,
+                lawFirm:      merged.lawFirm,
+                attorney:     merged.attorney,
+                chiropractor: merged.chiropractor,
+              },
+            },
+          }),
+        });
+        setLastSaved(new Date());
+      } catch {
+        // silent — user will still save on Continuar
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [token, acc],
+  );
+
   // ── API helpers ─────────────────────────────────────────────────────────────
   const saveStepData = async (stepNum: number): Promise<boolean> => {
     setSaving(true);
@@ -2093,7 +2124,11 @@ export function IntakeWizard({
                       <select
                         style={{ ...S.input, backgroundColor: '#1a2236', colorScheme: 'dark', color: acc.lawFirm ? '#fff' : 'rgba(255,255,255,0.35)', appearance: 'none', WebkitAppearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath d=\'M1 1l5 5 5-5\' stroke=\'%2306B6D4\' stroke-width=\'1.5\' fill=\'none\' stroke-linecap=\'round\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 32 }}
                         value={acc.lawFirm}
-                        onChange={e => setAcc(a => ({ ...a, lawFirm: e.target.value }))}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setAcc(a => ({ ...a, lawFirm: v }));
+                          saveAccidentFields({ lawFirm: v });
+                        }}
                       >
                         <option value="">{t.lawFirmPh}</option>
                         {lawFirms.map(f => (
@@ -2106,12 +2141,14 @@ export function IntakeWizard({
                       <Field label={t.attorneyRep}>
                         <input type="text" style={S.input} value={acc.attorney}
                           placeholder={t.attorneyRepPh}
-                          onChange={e => setAcc(a => ({ ...a, attorney: e.target.value }))} />
+                          onChange={e => setAcc(a => ({ ...a, attorney: e.target.value }))}
+                          onBlur={e => saveAccidentFields({ attorney: e.target.value })} />
                       </Field>
                       <Field label={t.chiropractorLabel}>
                         <input type="text" style={S.input} value={acc.chiropractor}
                           placeholder={t.chiropractorPh}
-                          onChange={e => setAcc(a => ({ ...a, chiropractor: e.target.value }))} />
+                          onChange={e => setAcc(a => ({ ...a, chiropractor: e.target.value }))}
+                          onBlur={e => saveAccidentFields({ chiropractor: e.target.value })} />
                       </Field>
                     </div>
                   </FormSection>

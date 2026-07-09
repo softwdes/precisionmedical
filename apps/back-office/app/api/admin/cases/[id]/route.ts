@@ -73,8 +73,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
     data.consentsData = {
       ...prev,
       ...(consents ?? {}),
-      ...(chiropractor !== undefined ? { chiropractor } : {}),
-      ...(lawFirmLabel !== undefined ? { lawFirm: lawFirmLabel } : {}),
+      ...(chiropractor ? { chiropractor } : chiropractor === null ? { chiropractor: null } : {}),
+      ...(lawFirmLabel ? { lawFirm: lawFirmLabel } : lawFirmLabel === null ? { lawFirm: null } : {}),
     };
   }
 

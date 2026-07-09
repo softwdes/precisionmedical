@@ -1206,6 +1206,112 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
   );
 }
 
+// ── In-App Camera (getUserMedia) ────────────────────────────────────────────
+function InAppCamera({
+  facingMode, guideType, onCapture, onCancel, onPermissionError,
+}: {
+  facingMode: 'user' | 'environment';
+  guideType:  'face' | 'document';
+  onCapture:        (f: File) => void;
+  onCancel:         () => void;
+  onPermissionError: () => void;
+}) {
+  const videoRef  = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: facingMode }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    }).then(stream => {
+      if (!active) { stream.getTracks().forEach(tr => tr.stop()); return; }
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    }).catch(() => { if (active) setError('Sin acceso a la cámara.'); });
+    return () => {
+      active = false;
+      streamRef.current?.getTracks().forEach(tr => tr.stop());
+      streamRef.current = null;
+    };
+  }, [facingMode]);
+
+  const handleCapture = () => {
+    const video = videoRef.current; const canvas = canvasRef.current;
+    if (!video || !canvas || !ready) return;
+    const w = video.videoWidth || 1280; const h = video.videoHeight || 720;
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, w, h);
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      streamRef.current?.getTracks().forEach(tr => tr.stop());
+      onCapture(new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' }));
+    }, 'image/jpeg', 0.92);
+  };
+
+  if (error) return (
+    <div className="rounded-xl border border-rose/25 bg-black/80 p-5 text-center space-y-3">
+      <p className="text-2xl">📷</p>
+      <p className="text-[12px] text-text-muted leading-relaxed">{error}</p>
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-border text-[12px] text-text-muted hover:bg-bg-2 transition-colors">Cancelar</button>
+        <button onClick={onPermissionError} className="flex-[2] py-2 rounded-lg border border-brand/40 bg-brand/10 text-[12px] text-brand font-semibold hover:bg-brand/20 transition-colors">Usar archivo</button>
+      </div>
+    </div>
+  );
+
+  const isOval = guideType === 'face';
+  return (
+    <div className="rounded-xl overflow-hidden border border-brand/30 bg-black">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-black/70">
+        <button onClick={onCancel} className="text-[12px] text-text-muted hover:text-text-2 transition-colors">← Cancelar</button>
+        <span className="text-[10px] font-bold tracking-widest text-brand">{isOval ? 'SELFIE' : 'DOCUMENTO'}</span>
+        <div className="w-10" />
+      </div>
+      {/* Video */}
+      <div className={`relative bg-[#111] ${isOval ? 'px-8 pt-4 pb-2' : 'px-3 py-2'}`}>
+        {isOval ? (
+          <div className="mx-auto relative" style={{ width: '100%', maxWidth: 200, aspectRatio: '3/4', borderRadius: '50%', overflow: 'hidden', border: '2.5px solid rgba(99,102,241,0.65)' }}>
+            <video ref={videoRef} autoPlay playsInline muted onCanPlay={() => setReady(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }} />
+            {!ready && <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-[11px] text-text-muted">Iniciando cámara…</div>}
+          </div>
+        ) : (
+          <div className="relative w-full rounded-lg overflow-hidden bg-[#111]" style={{ aspectRatio: '4/3' }}>
+            <video ref={videoRef} autoPlay playsInline muted onCanPlay={() => setReady(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            {/* Corner markers */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute" style={{ inset: '14%' }}>
+                {[['top-0 left-0 border-t border-l'],['top-0 right-0 border-t border-r'],['bottom-0 left-0 border-b border-l'],['bottom-0 right-0 border-b border-r']].map(([cls], i) => (
+                  <div key={i} className={`absolute w-5 h-5 border-brand/80 border-2 ${cls}`} />
+                ))}
+              </div>
+            </div>
+            {!ready && <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-[11px] text-text-muted">Iniciando cámara…</div>}
+          </div>
+        )}
+      </div>
+      <canvas ref={canvasRef} className="hidden" />
+      {/* Shutter */}
+      <div className="flex flex-col items-center gap-3 py-5 bg-black/80">
+        <p className="text-[11px] text-text-muted">{isOval ? 'Centra tu rostro en el óvalo' : 'Alinea el documento dentro del marco'}</p>
+        <button onClick={handleCapture} disabled={!ready} aria-label="Capturar"
+          className="w-16 h-16 rounded-full border-[3px] border-white/70 flex items-center justify-center disabled:opacity-40 hover:scale-105 transition-transform">
+          <div className={`w-12 h-12 rounded-full transition-colors ${ready ? 'bg-white' : 'bg-white/30'}`} />
+        </button>
+        <p className="text-[10px] text-white/25">Capturar</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Archivos personales dialog ─────────────────────────────────────────────
 type PhotoKey = 'selfie' | 'insuranceCardFront' | 'insuranceCardBack' | 'dlFront';
 
@@ -1226,7 +1332,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   ];
 
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const cameraRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [cameraSlot, setCameraSlot] = useState<PhotoKey | null>(null);
 
   async function handleFile(photoKey: PhotoKey, file: File) {
     setErrors(p => ({ ...p, [photoKey]: '' }));
@@ -1278,28 +1384,35 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
             </div>
           )}
 
+          {/* In-app camera overlay */}
+          {cameraSlot && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
+              <div className="w-full max-w-sm">
+                <InAppCamera
+                  facingMode={PHOTO_SLOTS.find(s => s.key === cameraSlot)?.capture ?? 'environment'}
+                  guideType={cameraSlot === 'selfie' ? 'face' : 'document'}
+                  onCapture={file => { handleFile(cameraSlot, file); setCameraSlot(null); }}
+                  onCancel={() => setCameraSlot(null)}
+                  onPermissionError={() => { setCameraSlot(null); fileRefs.current[cameraSlot]?.click(); }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Fotos de identificación */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {PHOTO_SLOTS.map(({ key, label, capture }) => {
-              const url      = photoUrls[key] ?? null;
+            {PHOTO_SLOTS.map(({ key, label }) => {
+              const url       = photoUrls[key] ?? null;
               const isLoading = uploading[key] ?? false;
-              const err      = errors[key] ?? '';
+              const err       = errors[key] ?? '';
 
               return (
                 <div key={key} className="rounded-lg border border-border bg-bg-2/40 overflow-hidden flex flex-col">
-                  {/* Hidden inputs */}
+                  {/* Hidden file input (Archivo button) */}
                   <input
                     ref={el => { fileRefs.current[key] = el; }}
                     type="file"
                     accept="image/*"
-                    className="hidden"
-                    onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(key, f); e.target.value = ''; }}
-                  />
-                  <input
-                    ref={el => { cameraRefs.current[key] = el; }}
-                    type="file"
-                    accept="image/*"
-                    capture={capture}
                     className="hidden"
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(key, f); e.target.value = ''; }}
                   />
@@ -1313,7 +1426,6 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
                     ) : url ? (
                       <>
                         <img src={url} alt={label} className="w-full h-full object-cover" />
-                        {/* Overlay de reemplazar al hover */}
                         <button
                           onClick={() => fileRefs.current[key]?.click()}
                           className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/0 hover:bg-black/50 transition-colors group"
@@ -1325,11 +1437,11 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
                     ) : (
                       <button
                         disabled={!patient.latestCase}
-                        onClick={() => fileRefs.current[key]?.click()}
+                        onClick={() => setCameraSlot(key)}
                         className="flex flex-col items-center gap-2 text-text-muted py-6 hover:text-text-2 transition-colors disabled:cursor-not-allowed group"
                       >
                         <Camera className="w-7 h-7 opacity-30 group-hover:opacity-60 transition-opacity" />
-                        <span className="text-[10px] opacity-0 group-hover:opacity-60 transition-opacity">Subir foto</span>
+                        <span className="text-[10px] opacity-0 group-hover:opacity-60 transition-opacity">Abrir cámara</span>
                       </button>
                     )}
                   </div>
@@ -1340,7 +1452,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
                   <div className="flex gap-1.5 px-3 py-2">
                     <button
                       disabled={!patient.latestCase || isLoading}
-                      onClick={() => cameraRefs.current[key]?.click()}
+                      onClick={() => setCameraSlot(key)}
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:bg-bg-2 hover:border-cyan/40 hover:text-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Camera className="w-3 h-3" /> {t('btnCamera')}

@@ -104,3 +104,51 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   return NextResponse.json({ url, caseId: latestCase.id });
 }
+
+export async function DELETE(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  const { id: patientId } = await ctx.params;
+  const photoType = req.nextUrl.searchParams.get('photoType');
+
+  if (!photoType || !(VALID_TYPES as readonly string[]).includes(photoType)) {
+    return NextResponse.json({ error: 'INVALID_TYPE' }, { status: 400 });
+  }
+
+  const latestCase = await db.case.findFirst({
+    where:   { patientId },
+    orderBy: { createdAt: 'desc' },
+    select:  { id: true, consentsData: true },
+  });
+  if (!latestCase) return NextResponse.json({ error: 'NO_CASE_FOUND' }, { status: 404 });
+
+  const prev   = (latestCase.consentsData ?? {}) as Record<string, unknown>;
+  const photos = { ...((prev.photos ?? {}) as Record<string, string>) };
+  const path   = photos[photoType];
+  delete photos[photoType];
+
+  await db.case.update({
+    where: { id: latestCase.id },
+    data:  { consentsData: { ...prev, photos } as object },
+  });
+
+  // Remove from Supabase Storage (best-effort)
+  if (path) {
+    const storagePath = path.split(`/object/public/${BUCKET}/`)[1];
+    if (storagePath) {
+      fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${storagePath}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY },
+      }).catch(() => undefined);
+    }
+  }
+
+  writeAuditLog(db, {
+    actorType:   'HUMAN_USER',
+    actorUserId: null,
+    action:      'STAFF_PHOTO_DELETE',
+    entityType:  'Case',
+    entityId:    latestCase.id,
+    metadata:    { photoType, patientId },
+  }).catch(() => undefined);
+
+  return NextResponse.json({ ok: true });
+}

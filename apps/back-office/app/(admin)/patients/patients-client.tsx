@@ -1322,6 +1322,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   const initialPhotos = ((patient.latestCase?.consentsData as Record<string, unknown> | null)?.photos ?? {}) as Record<string, string>;
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(initialPhotos);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
+  const [deleting, setDeleting]   = useState<Record<string, boolean>>({});
   const [errors, setErrors]       = useState<Record<string, string>>({});
 
   const PHOTO_SLOTS: { key: PhotoKey; label: string; capture: 'user' | 'environment' }[] = [
@@ -1369,6 +1370,24 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
     }
   }
 
+  async function handleDelete(photoKey: PhotoKey) {
+    setErrors(p => ({ ...p, [photoKey]: '' }));
+    setDeleting(p => ({ ...p, [photoKey]: true }));
+    try {
+      const res = await fetch(`/api/admin/patients/${patient.id}/upload-photo?photoType=${photoKey}`, { method: 'DELETE' });
+      if (res.ok) {
+        setPhotoUrls(p => { const n = { ...p }; delete n[photoKey]; return n; });
+        router.refresh();
+      } else {
+        setErrors(p => ({ ...p, [photoKey]: 'Error al eliminar.' }));
+      }
+    } catch {
+      setErrors(p => ({ ...p, [photoKey]: 'Error de conexión.' }));
+    } finally {
+      setDeleting(p => ({ ...p, [photoKey]: false }));
+    }
+  }
+
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-5xl p-0">
@@ -1404,6 +1423,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
             {PHOTO_SLOTS.map(({ key, label }) => {
               const url       = photoUrls[key] ?? null;
               const isLoading = uploading[key] ?? false;
+              const isDel     = deleting[key] ?? false;
               const err       = errors[key] ?? '';
 
               return (
@@ -1421,18 +1441,27 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
 
                   {/* Preview area */}
                   <div className="flex-1 mx-3 mb-1 rounded-md bg-bg-2 border border-border/60 overflow-hidden flex items-center justify-center min-h-[140px] relative">
-                    {isLoading ? (
+                    {isLoading || isDel ? (
                       <RefreshCw className="w-6 h-6 animate-spin text-text-muted opacity-50" />
                     ) : url ? (
                       <>
                         <img src={url} alt={label} className="w-full h-full object-cover" />
-                        <button
-                          onClick={() => fileRefs.current[key]?.click()}
-                          className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/0 hover:bg-black/50 transition-colors group"
-                        >
-                          <RefreshCw className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <span className="text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity font-medium">Reemplazar</span>
-                        </button>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/0 hover:bg-black/50 transition-colors group">
+                          <button
+                            onClick={() => fileRefs.current[key]?.click()}
+                            className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 rounded px-2 py-1"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 text-white" />
+                            <span className="text-[10px] text-white font-medium">Reemplazar</span>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(key)}
+                            className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-rose/20 hover:bg-rose/40 rounded px-2 py-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose" />
+                            <span className="text-[10px] text-rose font-medium">Eliminar</span>
+                          </button>
+                        </div>
                       </>
                     ) : (
                       <button

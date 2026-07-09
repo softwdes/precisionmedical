@@ -19,7 +19,7 @@
  *   ✓ "Lo tomo en la clínica" fallback en Step 6
  */
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 
@@ -989,8 +989,7 @@ export function IntakeWizard({
   });
 
   // Calcular si es menor de edad (DOB del paciente, parseo local)
-  const isMinorPatient = (() => {
-    const dob = personal.dateOfBirth || patient.dateOfBirth;
+  function calcIsMinor(dob: string | null | undefined): boolean {
     if (!dob) return false;
     const [y, mo, d] = dob.slice(0, 10).split('-').map(Number);
     const birth = new Date(y, mo - 1, d);
@@ -999,16 +998,21 @@ export function IntakeWizard({
     const m = today.getMonth() - birth.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
     return age < 18;
-  })();
+  }
+  const isMinorPatient = calcIsMinor(personal.dateOfBirth || patient.dateOfBirth);
 
-  // Guardia defensiva: si el paciente no es menor y llega al step 4, avanzar a 5
-  React.useEffect(() => {
-    if (step === 4 && !isMinorPatient) {
+  // Ref always pointing to latest isMinorPatient — safe to read inside async goNext after await
+  const isMinorRef = useRef(isMinorPatient);
+  isMinorRef.current = isMinorPatient;
+
+  // Guardia defensiva: si el paciente no es menor y llega al step 4, avanzar a 5.
+  // useLayoutEffect para que se ejecute ANTES del paint — el usuario nunca ve el step 4.
+  useLayoutEffect(() => {
+    if (step === 4 && !isMinorRef.current) {
       setStep(5 as Step);
       window.scrollTo(0, 0);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, personal.dateOfBirth]);
+  }, [step]);
 
   const [acc, setAcc] = useState({
     date:         isoToInput(accident.date),
@@ -1453,7 +1457,8 @@ export function IntakeWizard({
       if (!ok) return;
     }
     // Step 3 → saltar step 4 (tutor) si el paciente es mayor de edad
-    if (fromStep === 3 && !isMinorPatient) {
+    // Leer isMinorRef.current (no closure) — siempre fresco tras el await de saveStepData
+    if (fromStep === 3 && !isMinorRef.current) {
       setStep(5 as Step);
       window.scrollTo(0, 0);
       return;
@@ -1465,7 +1470,7 @@ export function IntakeWizard({
   const goBack = () => {
     setSaveError('');
     // Step 5 → saltar step 4 (tutor) hacia atrás si el paciente es mayor de edad
-    if (step === 5 && !isMinorPatient) {
+    if (step === 5 && !isMinorRef.current) {
       setStep(3 as Step);
       window.scrollTo(0, 0);
       return;

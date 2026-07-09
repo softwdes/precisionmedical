@@ -1218,8 +1218,6 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [errors, setErrors]       = useState<Record<string, string>>({});
 
-  const caseId = patient.latestCase?.id ?? null;
-
   const PHOTO_SLOTS: { key: PhotoKey; label: string; capture: 'user' | 'environment' }[] = [
     { key: 'selfie',             label: t('photoSlotSelfie'),       capture: 'user' },
     { key: 'insuranceCardFront', label: t('photoSlotInsCardFront'), capture: 'environment' },
@@ -1231,7 +1229,6 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   const cameraRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   async function handleFile(photoKey: PhotoKey, file: File) {
-    if (!caseId) return;
     setErrors(p => ({ ...p, [photoKey]: '' }));
 
     // Optimistic preview
@@ -1243,7 +1240,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
       const fd = new FormData();
       fd.append('file', file);
       fd.append('photoType', photoKey);
-      const res  = await fetch(`/api/admin/cases/${caseId}/upload-photo`, { method: 'POST', body: fd });
+      const res  = await fetch(`/api/admin/patients/${patient.id}/upload-photo`, { method: 'POST', body: fd });
       const json = await res.json().catch(() => ({}));
 
       if (res.ok && json.url) {
@@ -1275,9 +1272,9 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
         </div>
 
         <div className="px-6 py-5 space-y-6 max-h-[75vh] overflow-y-auto">
-          {!caseId && (
+          {!patient.latestCase && (
             <div className="rounded-md border border-amber/30 bg-amber/10 px-4 py-3 text-[12px] text-amber">
-              Este paciente no tiene un caso activo. Crea un caso primero para subir fotos.
+              Este paciente no tiene casos registrados. Las fotos se guardarán cuando se cree el primer caso.
             </div>
           )}
 

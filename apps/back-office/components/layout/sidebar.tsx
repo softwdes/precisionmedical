@@ -5,17 +5,14 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   Settings,
-  Building2,
   Phone,
   Briefcase,
   BarChart3,
-  Search,
   Lock,
   X,
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
-  Shield,
   Users,
 } from 'lucide-react';
 import { cn } from '@precision/ui';
@@ -35,29 +32,16 @@ interface NavSection {
 
 const SECTIONS: NavSection[] = [
   {
-    titleKey: 'workspaces',
+    titleKey: '',
     items: [
-      { href: '/dashboard',    icon: BarChart3,      labelKey: 'dashboard',   mockup: 'B.29'        },
-      { href: '/patients',     icon: Users,          labelKey: 'patients',    mockup: 'B.4'         },
-      { href: '/front-office', icon: Building2,      labelKey: 'frontOffice', mockup: 'B.1–B.4'    },
-      { href: '/calendar',     icon: CalendarDays,   labelKey: 'calendar',    mockup: 'B.10–B.11'  },
-      { href: '/edson',        icon: ClipboardList,  labelKey: 'edson',       mockup: 'B.12–B.13/B.23–B.24' },
-      { href: '/intake',       icon: Phone,          labelKey: 'intake',      mockup: 'B.12–B.13'  },
-      { href: '/admission',    icon: ClipboardCheck, labelKey: 'admission',   mockup: 'B.14–B.15'  },
-      { href: '/billing',      icon: Briefcase,      labelKey: 'billing',     mockup: 'B.25–B.28'  },
-      { href: '/settings',     icon: Settings,       labelKey: 'settings',    mockup: 'B.36+'       },
-    ],
-  },
-  {
-    titleKey: 'globalSearch',
-    items: [
-      { href: '/search', icon: Search, labelKey: 'globalSearch', mockup: 'B.34 · ⌘K', disabled: true },
-    ],
-  },
-  {
-    titleKey: 'compliance',
-    items: [
-      { href: '/audit-logs', icon: Shield, labelKey: 'auditLog', mockup: 'B.44' },
+      { href: '/dashboard',  icon: BarChart3,      labelKey: 'dashboard',  mockup: 'B.29'        },
+      { href: '/patients',   icon: Users,          labelKey: 'patients',   mockup: 'B.4'         },
+      { href: '/calendar',   icon: CalendarDays,   labelKey: 'calendar',   mockup: 'B.10–B.11'  },
+      { href: '/edson',      icon: ClipboardList,  labelKey: 'edson',      mockup: 'B.12–B.13/B.23–B.24' },
+      { href: '/intake',     icon: Phone,          labelKey: 'intake',     mockup: 'B.12–B.13'  },
+      { href: '/admission',  icon: ClipboardCheck, labelKey: 'admission',  mockup: 'B.14–B.15'  },
+      { href: '/billing',    icon: Briefcase,      labelKey: 'billing',    mockup: 'B.25–B.28'  },
+      { href: '/settings',   icon: Settings,       labelKey: 'settings',   mockup: 'B.36+'       },
     ],
   },
 ];
@@ -106,9 +90,11 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps): Re
       <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
         {SECTIONS.map((section) => (
           <div key={section.titleKey}>
-            <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold px-3 mb-2">
-              {t(section.titleKey)}
-            </div>
+            {section.titleKey && (
+              <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold px-3 mb-2">
+                {t(section.titleKey)}
+              </div>
+            )}
             <ul className="space-y-1">
               {section.items.map((item) => (
                 <NavItemLink

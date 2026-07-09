@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import {
   Building2, Stethoscope, Scale, ShieldCheck, DollarSign,
-  FileText, Plus, Pencil, Trash2, AlertCircle,
+  FileText, Plus, Pencil, Trash2, AlertCircle, Shield,
 } from 'lucide-react';
 import {
   Button, Input, Dialog, DialogContent, DialogHeader,
@@ -17,6 +17,7 @@ import { LawyersClient }     from '@/app/(admin)/admin/lawyers/lawyers-client';
 import { InsurancesClient }  from '@/app/(admin)/admin/insurances/insurances-client';
 import { ServicesClient }    from '@/app/(admin)/admin/services/services-client';
 import { DiagnosesClient }   from '@/app/(admin)/admin/diagnoses/diagnoses-client';
+import { AuditLogsClient }  from '@/app/(admin)/audit-logs/audit-logs-client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Clinic {
@@ -25,7 +26,7 @@ interface Clinic {
   appointmentCount: number;
 }
 
-type Tab = 'clinicas' | 'especialidades' | 'bufetes' | 'aseguradoras' | 'servicios' | 'diagnosticos';
+type Tab = 'clinicas' | 'especialidades' | 'bufetes' | 'aseguradoras' | 'servicios' | 'diagnosticos' | 'auditlog';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
   { id: 'clinicas',       label: 'Clínicas',       icon: Building2   },
@@ -34,6 +35,7 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
   { id: 'aseguradoras',   label: 'Aseguradoras',    icon: ShieldCheck },
   { id: 'servicios',      label: 'Servicios CPT',   icon: DollarSign  },
   { id: 'diagnosticos',   label: 'Diagnósticos',    icon: FileText    },
+  { id: 'auditlog',       label: 'Audit Log',       icon: Shield      },
 ];
 
 interface Props {
@@ -48,6 +50,8 @@ interface Props {
   serviceStats:       React.ComponentProps<typeof ServicesClient>['stats'];
   initialDiagnoses:   React.ComponentProps<typeof DiagnosesClient>['diagnoses'];
   diagnosisStats:     React.ComponentProps<typeof DiagnosesClient>['stats'];
+  auditKpis:          React.ComponentProps<typeof AuditLogsClient>['kpis'];
+  initialAuditLogs:   React.ComponentProps<typeof AuditLogsClient>['initialLogs'];
 }
 
 // ── Color palette ──────────────────────────────────────────────────────────────
@@ -71,6 +75,7 @@ export function SettingsClient({
   initialInsurances,  insuranceStats,
   initialServices,    serviceStats,
   initialDiagnoses,   diagnosisStats,
+  auditKpis,          initialAuditLogs,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('clinicas');
   const [clinics, setClinics]     = useState<Clinic[]>(initialClinics);
@@ -268,6 +273,7 @@ export function SettingsClient({
       {activeTab === 'aseguradoras'   && <InsurancesClient insurances={initialInsurances} stats={insuranceStats} />}
       {activeTab === 'servicios'      && <ServicesClient services={initialServices} stats={serviceStats} />}
       {activeTab === 'diagnosticos'   && <DiagnosesClient diagnoses={initialDiagnoses} stats={diagnosisStats} />}
+      {activeTab === 'auditlog'       && <AuditLogsClient kpis={auditKpis} initialLogs={initialAuditLogs} />}
 
       {/* ── Clinic form dialog (shared for create + edit) ── */}
       {[

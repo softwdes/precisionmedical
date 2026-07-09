@@ -13,6 +13,11 @@ export default async function SettingsPage() {
     serviceFavs,
     diagnoses,
     diagnosisFavs,
+    auditTotal,
+    auditToday,
+    auditHuman,
+    auditSystem,
+    auditLogs,
   ] = await Promise.all([
     db.clinic.findMany({
       orderBy: { name: 'asc' },
@@ -43,6 +48,19 @@ export default async function SettingsPage() {
     db.userServiceFavorite.findMany({ where: { userId: FAKE_USER_ID }, select: { serviceCodeId: true } }),
     db.diagnosis.findMany({ orderBy: [{ isActive: 'desc' }, { piRelevant: 'desc' }, { icd10Code: 'asc' }] }),
     db.userDiagnosisFavorite.findMany({ where: { userId: FAKE_USER_ID }, select: { diagnosisId: true } }),
+    db.auditLog.count(),
+    db.auditLog.count({ where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
+    db.auditLog.count({ where: { actorType: 'HUMAN_USER' } }),
+    db.auditLog.count({ where: { actorType: 'SYSTEM' } }),
+    db.auditLog.findMany({
+      select: {
+        id: true, actorType: true, actorUserId: true, actorRole: true,
+        action: true, entityType: true, entityId: true,
+        ipAddress: true, metadata: true, createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
   ]);
 
   const serviceFavIds  = new Set(serviceFavs.map((f) => f.serviceCodeId));
@@ -129,6 +147,9 @@ export default async function SettingsPage() {
         withSnomed: diagnoses.filter((d) => d.snomedCode).length,
         favorites: diagnosisFavIds.size,
       }}
+      auditKpis={{ total: auditTotal, todayCount: auditToday, humanCount: auditHuman, systemCount: auditSystem }}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      initialAuditLogs={auditLogs.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() })) as any}
     />
   );
 }

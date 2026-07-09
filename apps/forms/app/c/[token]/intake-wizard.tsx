@@ -1001,6 +1001,15 @@ export function IntakeWizard({
     return age < 18;
   })();
 
+  // Guardia defensiva: si el paciente no es menor y llega al step 4, avanzar a 5
+  React.useEffect(() => {
+    if (step === 4 && !isMinorPatient) {
+      setStep(5 as Step);
+      window.scrollTo(0, 0);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, personal.dateOfBirth]);
+
   const [acc, setAcc] = useState({
     date:         isoToInput(accident.date),
     type:         (['MVA', 'GM'].includes(accident.type ?? '') ? accident.type as CaseType : 'MVA'),

@@ -1324,7 +1324,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
                       </>
                     ) : (
                       <button
-                        disabled={!caseId}
+                        disabled={!patient.latestCase}
                         onClick={() => fileRefs.current[key]?.click()}
                         className="flex flex-col items-center gap-2 text-text-muted py-6 hover:text-text-2 transition-colors disabled:cursor-not-allowed group"
                       >
@@ -1339,14 +1339,14 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
                   {/* Action buttons */}
                   <div className="flex gap-1.5 px-3 py-2">
                     <button
-                      disabled={!caseId || isLoading}
+                      disabled={!patient.latestCase || isLoading}
                       onClick={() => cameraRefs.current[key]?.click()}
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:bg-bg-2 hover:border-cyan/40 hover:text-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Camera className="w-3 h-3" /> {t('btnCamera')}
                     </button>
                     <button
-                      disabled={!caseId || isLoading}
+                      disabled={!patient.latestCase || isLoading}
                       onClick={() => fileRefs.current[key]?.click()}
                       className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:bg-bg-2 hover:border-cyan/40 hover:text-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >

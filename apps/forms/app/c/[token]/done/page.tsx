@@ -13,7 +13,7 @@ type Props = { params: Promise<{ token: string }> };
 
 function fmtDateTime(d: Date | null | undefined): string {
   if (!d) return '—';
-  return new Date(d).toLocaleString('es-US', {
+  return new Date(d).toLocaleString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
     timeZone: 'America/Denver',
@@ -137,7 +137,7 @@ export default async function DonePage({ params }: Props) {
         {/* Actions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Close window */}
-          <CloseWindowButton />
+          <CloseWindowButton firstName={firstName} caseCode={caseCode} />
 
           {/* Download PDF — Phase 2 placeholder */}
           <button

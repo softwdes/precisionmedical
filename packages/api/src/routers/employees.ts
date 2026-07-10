@@ -4,6 +4,8 @@ import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
+const SPECIALTY_VALUES = ['RADIOLOGY', 'NEUROLOGY', 'ORTHOPEDICS', 'PHYSICAL_THERAPY', 'CHIROPRACTIC', 'PAIN_MANAGEMENT', 'PSYCHOLOGY', 'GENERAL', 'OTHER'] as const;
+
 const createEmployeeSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
@@ -22,6 +24,10 @@ const createEmployeeSchema = z.object({
   paymentMethod: z.enum(['BANK_TRANSFER', 'CASH', 'ZELLE', 'WIRE', 'OTHER']).optional(),
   bankAccount: z.string().optional(),
   employment_type: z.enum(['exempt', 'non_exempt']).optional(),
+  // Doctor-specific (required when position=DOCTOR, ignored otherwise)
+  specialty: z.enum(SPECIALTY_VALUES).optional(),
+  npiNumber: z.string().optional(),
+  licenseNumber: z.string().optional(),
 });
 
 export const employeesRouter = router({
@@ -93,11 +99,14 @@ export const employeesRouter = router({
 
       const employeeCode = `EMP-${year}-${String((count ?? 0) + 1).padStart(4, '0')}`;
 
+      // Strip doctor-only fields before inserting into employees table
+      const { specialty, npiNumber, licenseNumber, ...employeeFields } = input;
+
       const { data, error } = await supabaseAdmin
         .from('employees')
         .insert({
           id: randomUUID(),
-          ...input,
+          ...employeeFields,
           employeeCode,
           startDate: input.startDate.toISOString(),
           updatedAt: new Date().toISOString(),
@@ -107,13 +116,42 @@ export const employeesRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
+      // ── Doctor-specific: auto-create Provider + DoctorCredentials ────────────
+      if (input.position === 'DOCTOR' && specialty) {
+        const now = new Date().toISOString();
+
+        // Upsert Provider record (email is @unique) so this doctor appears
+        // in appointment dropdowns immediately.
+        await supabaseAdmin.from('providers').upsert({
+          firstName: input.firstName,
+          lastName:  input.lastName,
+          email:     input.email,
+          specialty,
+          status:    'ACTIVE',
+          updatedAt: now,
+        }, { onConflict: 'email', ignoreDuplicates: false }).select('id').maybeSingle();
+
+        // Insert DoctorCredentials linked to this employee.
+        await supabaseAdmin.from('doctor_credentials').insert({
+          id:                   randomUUID(),
+          employeeId:           data.id,
+          specialty,
+          npiNumber:            npiNumber  || null,
+          medicalLicenseNumber: licenseNumber || null,
+          isActive:             true,
+          createdAt:            now,
+          updatedAt:            now,
+        }).select().maybeSingle();
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
       await supabaseAdmin.from('audit_logs').insert({
         actorUserId: ctx.user.id,
         actorRole: ctx.user.role,
         action: 'employee.created',
         entityType: 'Employee',
         entityId: data.id,
-        after: { ...data, bankAccount: undefined },
+        after: { ...data, bankAccount: undefined, specialty, npiNumber, licenseNumber },
         createdAt: new Date().toISOString(),
       });
 
@@ -132,14 +170,58 @@ export const employeesRouter = router({
       const { data: before } = await supabaseAdmin.from('employees').select('*').eq('id', input.id).single();
       if (!before) throw new TRPCError({ code: 'NOT_FOUND' });
 
+      // Strip doctor-only fields before updating employees table
+      const { specialty, npiNumber, licenseNumber, ...employeeUpdateFields } = input.data;
+
       const { data, error } = await supabaseAdmin
         .from('employees')
-        .update({ ...input.data, updatedAt: new Date().toISOString() })
+        .update({ ...employeeUpdateFields, updatedAt: new Date().toISOString() })
         .eq('id', input.id)
         .select()
         .single();
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      // ── Sync Provider when employee is / becomes a Doctor ───────────────────
+      const effectivePosition = (input.data.position ?? before.position) as string;
+      if (effectivePosition === 'DOCTOR') {
+        const now       = new Date().toISOString();
+        const firstName = input.data.firstName ?? before.firstName;
+        const lastName  = input.data.lastName  ?? before.lastName;
+        const email     = input.data.email     ?? before.email;
+
+        // Fetch current doctor_credentials to know existing specialty
+        const { data: creds } = await supabaseAdmin
+          .from('doctor_credentials')
+          .select('specialty')
+          .eq('employeeId', input.id)
+          .maybeSingle();
+
+        const effectiveSpecialty = specialty ?? (creds?.specialty as string | undefined) ?? 'GENERAL';
+
+        // Sync Provider (upsert by email)
+        await supabaseAdmin.from('providers').upsert({
+          firstName,
+          lastName,
+          email,
+          specialty: effectiveSpecialty,
+          status:    'ACTIVE',
+          updatedAt: now,
+        }, { onConflict: 'email', ignoreDuplicates: false });
+
+        // Upsert DoctorCredentials
+        if (specialty || npiNumber !== undefined || licenseNumber !== undefined) {
+          await supabaseAdmin.from('doctor_credentials').upsert({
+            employeeId:           input.id,
+            specialty:            effectiveSpecialty,
+            ...(npiNumber            !== undefined ? { npiNumber } : {}),
+            ...(licenseNumber        !== undefined ? { medicalLicenseNumber: licenseNumber } : {}),
+            isActive:             true,
+            updatedAt:            now,
+          }, { onConflict: 'employeeId', ignoreDuplicates: false });
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────────
 
       await supabaseAdmin.from('audit_logs').insert({
         actorUserId: ctx.user.id,

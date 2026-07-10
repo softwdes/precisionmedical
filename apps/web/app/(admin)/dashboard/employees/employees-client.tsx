@@ -31,6 +31,18 @@ type Department = inferRouterOutputs<AppRouter>['departments']['list'][number];
 type PositionKey = 'DOCTOR' | 'NURSE' | 'RECEPTIONIST' | 'SOFTWARE_DEVELOPER' | 'CLINIC_ADMIN' | 'MEDICAL_ASSISTANT' | 'COMMUNICATOR' | 'CLEANING_STAFF';
 const VALID_POSITIONS: readonly PositionKey[] = ['DOCTOR', 'NURSE', 'RECEPTIONIST', 'SOFTWARE_DEVELOPER', 'CLINIC_ADMIN', 'MEDICAL_ASSISTANT', 'COMMUNICATOR', 'CLEANING_STAFF'];
 
+const SPECIALTY_OPTIONS = [
+  { value: 'GENERAL',          label: 'General' },
+  { value: 'CHIROPRACTIC',     label: 'Quiropráctico' },
+  { value: 'PHYSICAL_THERAPY', label: 'Fisioterapia' },
+  { value: 'PAIN_MANAGEMENT',  label: 'Manejo del dolor' },
+  { value: 'NEUROLOGY',        label: 'Neurología' },
+  { value: 'ORTHOPEDICS',      label: 'Ortopedia' },
+  { value: 'RADIOLOGY',        label: 'Radiología' },
+  { value: 'PSYCHOLOGY',       label: 'Psicología' },
+  { value: 'OTHER',            label: 'Otra' },
+] as const;
+
 const TYPE_COLORS: Record<string, 'success' | 'info' | 'secondary'> = { FULL_TIME: 'success', PART_TIME: 'info' };
 const TYPE_DISPLAY: Record<string, string> = { FULL_TIME: 'Tiempo completo', PART_TIME: 'Medio tiempo' };
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = { ACTIVE: 'success', ON_LEAVE: 'warning', SUSPENDED: 'destructive', INACTIVE: 'secondary' };
@@ -737,6 +749,8 @@ function CreateEmployeeDialog({
     firstName: '', lastName: '', email: '', phone: '',
     type: 'FULL_TIME' as const, departmentId: '', position: '' as PositionKey | '', startDate: '',
     countryId: '', baseSalary: '', baseCurrency: 'USD' as const, paymentMethod: 'BANK_TRANSFER' as const, bankAccount: '',
+    specialty: '' as typeof SPECIALTY_OPTIONS[number]['value'] | '',
+    npiNumber: '', licenseNumber: '',
   };
 
   const [step, setStep] = useState(1);
@@ -755,6 +769,7 @@ function CreateEmployeeDialog({
   });
 
   const handleSubmit = (): void => {
+    const isDoctor = form.position === 'DOCTOR';
     create.mutate({
       ...form,
       position: form.position as PositionKey,
@@ -762,6 +777,9 @@ function CreateEmployeeDialog({
       baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
       phone: form.phone || undefined,
       bankAccount: form.bankAccount || undefined,
+      specialty:    isDoctor && form.specialty ? (form.specialty as typeof SPECIALTY_OPTIONS[number]['value']) : undefined,
+      npiNumber:    isDoctor && form.npiNumber    ? form.npiNumber    : undefined,
+      licenseNumber: isDoctor && form.licenseNumber ? form.licenseNumber : undefined,
     });
   };
 
@@ -833,7 +851,7 @@ function CreateEmployeeDialog({
             </div>
             <div className="space-y-1.5">
               <Label>{t('employees.position')} *</Label>
-              <Select value={form.position} onValueChange={(v) => f('position', v)}>
+              <Select value={form.position} onValueChange={(v) => { f('position', v); if (v !== 'DOCTOR') setForm(p => ({ ...p, specialty: '', npiNumber: '', licenseNumber: '' })); }}>
                 <SelectTrigger><SelectValue placeholder={t('employees.selectPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="DOCTOR">{t('employees.positions.DOCTOR')}</SelectItem>
@@ -847,6 +865,33 @@ function CreateEmployeeDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            {form.position === 'DOCTOR' && (
+              <div className="rounded-lg border border-brand/25 bg-brand/5 p-3 space-y-3">
+                <p className="text-[11px] font-semibold text-brand uppercase tracking-wider">Credenciales médicas</p>
+                <div className="space-y-1.5">
+                  <Label>Especialidad *</Label>
+                  <Select value={form.specialty} onValueChange={(v) => f('specialty', v)}>
+                    <SelectTrigger><SelectValue placeholder="Selecciona especialidad" /></SelectTrigger>
+                    <SelectContent>
+                      {SPECIALTY_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label>NPI Number</Label>
+                    <Input value={form.npiNumber} onChange={(e) => f('npiNumber', e.target.value)} placeholder="1234567890" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Licencia médica</Label>
+                    <Input value={form.licenseNumber} onChange={(e) => f('licenseNumber', e.target.value)} placeholder="Nº de licencia" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-text-muted">Este doctor aparecerá automáticamente en el sistema de citas.</p>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label>{t('employees.country')} *</Label>
               <Select value={form.countryId} onValueChange={(v) => {
@@ -904,7 +949,7 @@ function CreateEmployeeDialog({
               {t('common.next')}
             </Button>
           ) : (
-            <Button onClick={handleSubmit} loading={create.isPending}>{t('employees.createEmployee')}</Button>
+            <Button onClick={handleSubmit} loading={create.isPending} disabled={create.isPending || (form.position === 'DOCTOR' && !form.specialty)}>{t('employees.createEmployee')}</Button>
           )}
         </DialogFooter>
       </DialogContent>

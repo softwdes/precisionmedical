@@ -1,17 +1,21 @@
 import { db } from '@precision-medical/database';
+import { createServerClient } from '@precision-medical/auth/server';
+import { redirect } from 'next/navigation';
 import { DiagnosesClient } from './diagnoses-client';
 
 // B.35 — Catálogo de Diagnósticos (ICD-10 + SNOMED CT dual coding)
 export default async function DiagnosesPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
   const diagnoses = await db.diagnosis.findMany({
     where: {},
     orderBy: [{ isActive: 'desc' }, { piRelevant: 'desc' }, { icd10Code: 'asc' }],
   });
 
-  // Phase 1A favoritos (fake user)
-  const FAKE_USER_ID = 'erick-super-admin-stub';
   const favorites = await db.userDiagnosisFavorite.findMany({
-    where: { userId: FAKE_USER_ID },
+    where: { userId: user.id },
     select: { diagnosisId: true },
   });
   const favIds = new Set(favorites.map((f) => f.diagnosisId));

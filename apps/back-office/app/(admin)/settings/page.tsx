@@ -1,18 +1,24 @@
 import { db } from '@precision-medical/database';
+import { createServerClient } from '@precision-medical/auth/server';
+import { redirect } from 'next/navigation';
 import { SettingsClient } from './settings-client';
 
-const FAKE_USER_ID = 'erick-super-admin-stub';
-
 export default async function SettingsPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+  const userId = user.id;
   const [
     clinics,
     specialties,
+    providers,
     firms,
     insurances,
     services,
     serviceFavs,
     diagnoses,
     diagnosisFavs,
+    templates,
     auditTotal,
     auditToday,
     auditHuman,
@@ -32,6 +38,11 @@ export default async function SettingsPage() {
       orderBy: { sortOrder: 'asc' },
       include: { _count: { select: { doctorAssignments: true } } },
     }),
+    db.provider.findMany({
+      where: { deletedAt: null },
+      orderBy: [{ status: 'asc' }, { lastName: 'asc' }],
+      include: { _count: { select: { appointments: true } } },
+    }),
     db.lawyer.findMany({
       where: { entityType: 'FIRM', deletedAt: null },
       orderBy: [{ status: 'asc' }, { firmName: 'asc' }],
@@ -45,9 +56,17 @@ export default async function SettingsPage() {
       where: { deletedAt: null },
       orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { code: 'asc' }],
     }),
-    db.userServiceFavorite.findMany({ where: { userId: FAKE_USER_ID }, select: { serviceCodeId: true } }),
+    db.userServiceFavorite.findMany({ where: { userId: userId }, select: { serviceCodeId: true } }),
     db.diagnosis.findMany({ orderBy: [{ isActive: 'desc' }, { piRelevant: 'desc' }, { icd10Code: 'asc' }] }),
-    db.userDiagnosisFavorite.findMany({ where: { userId: FAKE_USER_ID }, select: { diagnosisId: true } }),
+    db.userDiagnosisFavorite.findMany({ where: { userId: userId }, select: { diagnosisId: true } }),
+    db.template.findMany({
+      where: { deletedAt: null },
+      include: {
+        sections: { orderBy: { orderIndex: 'asc' } },
+        _count: { select: { visitNotes: true, favorites: true } },
+      },
+      orderBy: [{ isActive: 'desc' }, { usageCount: 'desc' }, { title: 'asc' }],
+    }),
     db.auditLog.count(),
     db.auditLog.count({ where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
     db.auditLog.count({ where: { actorType: 'HUMAN_USER' } }),
@@ -84,6 +103,26 @@ export default async function SettingsPage() {
         active: specialties.filter((s) => s.isActive).length,
         inactive: specialties.filter((s) => !s.isActive).length,
         totalDoctors: specialties.reduce((sum, s) => sum + s._count.doctorAssignments, 0),
+      }}
+      initialProviders={providers.map((p) => ({
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        email: p.email,
+        phone: p.phone,
+        specialty: p.specialty,
+        licenseNumber: p.licenseNumber,
+        status: p.status,
+        appointmentCount: p._count.appointments,
+      }))}
+      providerStats={{
+        total: providers.length,
+        active: providers.filter((p) => p.status === 'ACTIVE').length,
+        inactive: providers.filter((p) => p.status !== 'ACTIVE').length,
+        bySpecialty: providers.reduce((acc, p) => {
+          acc[p.specialty] = (acc[p.specialty] ?? 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
       }}
       initialFirms={firms.map((f) => ({
         id: f.id, firmName: f.firmName ?? '—', email: f.email, phone: f.phone,
@@ -146,6 +185,35 @@ export default async function SettingsPage() {
         piRelevant: diagnoses.filter((d) => d.piRelevant).length,
         withSnomed: diagnoses.filter((d) => d.snomedCode).length,
         favorites: diagnosisFavIds.size,
+      }}
+      initialTemplates={templates.map((t) => ({
+        id:            t.id,
+        title:         t.title,
+        description:   t.description,
+        encounterType: t.encounterType,
+        caseType:      t.caseType,
+        scope:         t.scope,
+        specialty:     t.specialty,
+        isActive:      t.isActive,
+        usageCount:    t.usageCount,
+        sections:      t.sections.map((s) => ({
+          id:               s.id,
+          sectionKey:       s.sectionKey,
+          content:          s.content,
+          enabledByDefault: s.enabledByDefault,
+          orderIndex:       s.orderIndex,
+        })),
+        visitNoteCount: t._count.visitNotes,
+      }))}
+      templateStats={{
+        total:    templates.length,
+        active:   templates.filter((t) => t.isActive).length,
+        shared:   templates.filter((t) => t.scope === 'SHARED').length,
+        personal: templates.filter((t) => t.scope === 'PERSONAL').length,
+        byEncounter: templates.reduce((acc, t) => {
+          acc[t.encounterType] = (acc[t.encounterType] ?? 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
       }}
       auditKpis={{ total: auditTotal, todayCount: auditToday, humanCount: auditHuman, systemCount: auditSystem }}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

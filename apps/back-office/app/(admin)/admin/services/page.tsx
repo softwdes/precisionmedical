@@ -1,17 +1,21 @@
 import { db } from '@precision-medical/database';
+import { createServerClient } from '@precision-medical/auth/server';
+import { redirect } from 'next/navigation';
 import { ServicesClient } from './services-client';
 
 // B.33 — Catálogo de Servicios (CPT/HCPCS/Custom)
 export default async function ServicesPage() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
   const services = await db.serviceCode.findMany({
     where: { deletedAt: null },
     orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { code: 'asc' }],
   });
 
-  // Phase 1A: favoritos por user fake (Phase 1B usa auth real)
-  const FAKE_USER_ID = 'erick-super-admin-stub';
   const favorites = await db.userServiceFavorite.findMany({
-    where: { userId: FAKE_USER_ID },
+    where: { userId: user.id },
     select: { serviceCodeId: true },
   });
   const favIds = new Set(favorites.map((f) => f.serviceCodeId));

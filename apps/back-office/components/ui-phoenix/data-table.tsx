@@ -53,7 +53,7 @@ function Table({ children }: { children: React.ReactNode }) {
 function Head({ children }: { children: React.ReactNode }) {
   return (
     <thead>
-      <tr className="border-b border-border bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
+      <tr className="border-b border-border/40 bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
         {children}
       </tr>
     </thead>

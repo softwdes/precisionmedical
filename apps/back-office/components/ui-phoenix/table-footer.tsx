@@ -20,7 +20,7 @@ export interface TableFooterProps {
 
 export function TableFooter({ left, right }: TableFooterProps) {
   return (
-    <div className="px-5 py-3 bg-bg-2/30 border-t border-border text-xs text-text-muted flex items-center justify-between flex-wrap gap-2">
+    <div className="px-5 py-3 bg-bg-2/30 border-t border-border/40 text-xs text-text-muted flex items-center justify-between flex-wrap gap-2">
       <span>{left}</span>
       {right && <span>{right}</span>}
     </div>

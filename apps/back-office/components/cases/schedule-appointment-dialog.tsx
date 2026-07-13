@@ -292,12 +292,6 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
                 )}
               </div>
             )}
-            {caseInfo.specialty && selectedProvider && SPECIALTY_LABELS[selectedProvider.specialty] !== caseInfo.specialty.name && (
-              <div className="mt-1.5 text-[11px] text-amber flex items-start gap-1">
-                <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
-                <span>El caso es de <strong>{caseInfo.specialty.name}</strong> pero el doctor seleccionado es de otra especialidad. Confirmá antes de agendar.</span>
-              </div>
-            )}
           </div>
 
           {/* Fecha + hora */}

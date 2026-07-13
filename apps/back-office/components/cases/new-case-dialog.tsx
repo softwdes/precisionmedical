@@ -126,7 +126,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [policyNumber, setPolicyNumber] = useState('');
 
   // ─── Section 3: Schedule appointment ──────────────────────────────────
-  const [specialtyId, setSpecialtyId] = useState(specialties[0]?.id ?? '');
+  const [specialtyId, setSpecialtyId] = useState('');
   const [scheduleNow, setScheduleNow] = useState(true);
   const [clinicId, setClinicId]       = useState(clinics[0]?.id ?? '');
   const [providerId, setProviderId]   = useState('');
@@ -801,7 +801,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     <FormField.Select label={t('clinic')} value={clinicId} onChange={setClinicId}
                       options={clinics.map((c) => ({ value: c.id, label: c.name }))} />
                     <FormField.Select label={t('specialty')} value={specialtyId} onChange={(v) => { setSpecialtyId(v); setShowAllProviders(false); }}
-                      options={specialties.map((s) => ({ value: s.id, label: s.name }))} />
+                      options={[{ value: '', label: 'Sin especialidad' }, ...specialties.map((s) => ({ value: s.id, label: s.name }))]} />
                   </div>
 
                   {/* Doctor */}

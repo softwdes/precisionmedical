@@ -745,6 +745,7 @@ model Patient {
 
   // Phoenix 2026-06-06: un paciente puede tener varios cases (varios MVAs)
   cases              Case[]          @relation("PatientCases")
+  documents          PatientDocument[]
 
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
@@ -870,6 +871,9 @@ model Appointment {
 
   // B.18 Nota de visita — firmada por el doctor
   visitNote       VisitNote?
+
+  // Billing clínico (costs + payments migrados de v2)
+  billing         AppointmentBilling?
 
   // B.20 Órdenes de laboratorio / imaging
   labOrders       LabOrder[]
@@ -2125,6 +2129,9 @@ model Case {
   notes             CaseNote[]
   lienSignatures    LienSignature[]
   intakeSubmission  IntakeSubmission?   @relation("CaseIntakeSubmission")
+  documents         PatientDocument[]
+  consents          CaseConsent[]
+  authorizedDependents AuthorizedDependent[]
 
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -2252,6 +2259,7 @@ model InsuranceCarrier {
   // Phoenix 2026-06-06: relaciones inversas a Case
   casesAsPrimary    Case[]      @relation("CasePrimaryInsurance")
   casesAsSecondary  Case[]      @relation("CaseSecondaryInsurance")
+  billingPayments   BillingPayment[]
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -2362,3 +2370,180 @@ model LabCatalog {
   @@index([category])
   @@map("lab_catalog")
 }
+
+// ─── Billing Clínico (migrado de LM v2 costs + payments) ─────────────────────
+// Separado del modelo Payment (que es payroll de empleados).
+
+enum BillingPaymentSource {
+  INSURANCE
+  PATIENT
+  LAWYER
+
+  @@map("billing_payment_source")
+}
+
+enum BillingPaymentMethod {
+  CHECK
+  CARD
+  CASH
+  TRANSFER
+  NONE
+
+  @@map("billing_payment_method")
+}
+
+enum BillingPaymentStatus {
+  COMPLETED
+  CANCELLED
+  PENDING
+
+  @@map("billing_payment_status")
+}
+
+/// Ledger de facturación por cita (1:1 con Appointment).
+/// Un registro por cita, generado al asignar servicios CPT.
+model AppointmentBilling {
+  id             String      @id @default(cuid())
+
+  appointmentId  String      @unique
+  appointment    Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  caseId         String?     // denormalizado para queries de billing por caso
+
+  totalCost      Decimal     @db.Decimal(10, 2) @default(0)
+  discount       Decimal     @db.Decimal(10, 2) @default(0)
+  insuranceCovered Decimal   @db.Decimal(10, 2) @default(0)
+  amountPaid     Decimal     @db.Decimal(10, 2) @default(0)
+  balanceDue     Decimal     @db.Decimal(10, 2) @default(0)
+
+  payments       BillingPayment[]
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([caseId])
+  @@index([appointmentId])
+  @@map("appointment_billing")
+}
+
+/// Un pago recibido contra un billing de cita.
+/// Fuente: seguro PIP, copago del paciente, o pago de bufete de abogados.
+model BillingPayment {
+  id          String               @id @default(cuid())
+
+  billingId   String
+  billing     AppointmentBilling   @relation(fields: [billingId], references: [id], onDelete: Cascade)
+
+  source      BillingPaymentSource
+  paymentType String?              // "direct_insurance" | "copay" | "contractual_obligation" | etc.
+  amount      Decimal              @db.Decimal(10, 2)
+  method      BillingPaymentMethod @default(NONE)
+  status      BillingPaymentStatus @default(COMPLETED)
+
+  // Si source=INSURANCE, quién pagó
+  insuranceCarrierId String?
+  insuranceCarrier   InsuranceCarrier? @relation(fields: [insuranceCarrierId], references: [id], onDelete: SetNull)
+
+  notes       String?  @db.Text
+  paidAt      DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([billingId])
+  @@index([source])
+  @@index([status])
+  @@map("billing_payments")
+}
+
+// ─── Document Management System ──────────────────────────────────────────────
+//
+// Archivos y carpetas por paciente/caso. Almacenamiento en AWS S3.
+// Migrado desde v2 (minioKey → s3Key). Carpetas virtuales via isFolder flag.
+
+model PatientDocument {
+  id          String   @id @default(cuid())
+
+  name        String                       // Nombre visible del archivo o carpeta
+  s3Key       String?                      // Ruta en S3 (nulo si isFolder=true)
+  isFolder    Boolean  @default(false)
+  size        Int?                         // Bytes (nulo si isFolder)
+  mimeType    String?                      // "application/pdf", "image/jpeg", etc.
+
+  patientId   String?
+  patient     Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  caseId      String?
+  case        Case?    @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  parentId    String?
+  parent      PatientDocument?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children    PatientDocument[] @relation("FolderChildren")
+
+  createdByUserId String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([patientId])
+  @@index([caseId])
+  @@index([parentId])
+  @@map("patient_documents")
+}
+
+// ─── Case Consents ────────────────────────────────────────────────────────────
+//
+// Registros individuales de consentimiento firmados por paciente/representante.
+// Migrado desde v2 case_consents (15,610 registros).
+// El wizard de forms app (v3) genera nuevos registros aquí.
+
+enum ConsentCode {
+  CONSENT_FOR_TREATMENT
+  MEDICAL_INFORMATION_RELEASE_TO_ASSIGNED_PARTIES
+  CREDIT_AND_FINANCE_CHARGE_POLICY_AND_AGREEMENT
+  MEDICATION_HISTORY_AUTHORITY
+  HIPAA_NOTICE_OF_PRIVACY_PRACTICES
+  ASSIGNMENT_OF_BENEFITS
+}
+
+model CaseConsent {
+  id          String      @id @default(cuid())
+
+  caseId      String
+  case        Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  code        ConsentCode
+  accepted    Boolean     @default(false)
+
+  // Firma — puede ser URL en Supabase Storage (v3 nuevos) o blob legacy (v2)
+  signatureUrl    String?  @db.Text  // URL pública o presigned (v3)
+  signatureLegacy String?  @db.Text  // base64 blob cifrado migrado de v2
+
+  signedAt    DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@unique([caseId, code])
+  @@index([caseId])
+  @@map("case_consents")
+}
+
+// ─── Authorized Dependents ───────────────────────────────────────────────────
+//
+// Personas autorizadas a actuar en nombre del paciente en un caso.
+// Nombre y relación cifrados con AES-256-GCM (PHI).
+
+model AuthorizedDependent {
+  id           String  @id @default(cuid())
+
+  caseId       String
+  case         Case    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  nameEncrypted         String  @db.Text  // AES-GCM cifrado
+  relationshipEncrypted String  @db.Text  // AES-GCM cifrado
+
+  createdAt    DateTime @default(now())
+
+  @@index([caseId])
+  @@map("authorized_dependents")
+}
+

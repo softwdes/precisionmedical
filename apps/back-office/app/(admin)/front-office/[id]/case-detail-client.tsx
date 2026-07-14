@@ -15,6 +15,7 @@ import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment-dialog';
 import { AddNoteDialog } from '@/components/cases/add-note-dialog';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
+import { DocumentsTab } from '@/components/cases/documents-tab';
 
 // Front Office · Detalle del caso
 
@@ -468,6 +469,9 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
           />
         </div>
       </div>
+
+      {/* Documentos del caso */}
+      <DocumentsTab caseId={caseInfo.id} />
 
       {/* Modals */}
       <SendPortalDialog

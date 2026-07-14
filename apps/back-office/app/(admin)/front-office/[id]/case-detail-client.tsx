@@ -8,7 +8,7 @@ import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, Scale, Shield, AlertCircle,
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
   PhoneCall, Zap, AlertTriangle, CalendarCheck, Pencil,
-  FolderOpen, DollarSign,
+  FolderOpen, DollarSign, ClipboardList, Pill,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui-phoenix';
@@ -18,6 +18,9 @@ import { AddNoteDialog } from '@/components/cases/add-note-dialog';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { DocumentsTab } from '@/components/cases/documents-tab';
 import { FinanzasTab } from '@/components/cases/finanzas-tab';
+import { CitasTab } from '@/components/cases/citas-tab';
+import { HistorialMedicoTab } from '@/components/cases/historial-medico-tab';
+import { PrescripcionesTab } from '@/components/cases/prescripciones-tab';
 
 // Front Office · Detalle del caso
 
@@ -126,7 +129,7 @@ interface Props {
   auditEvents: AuditEvent[];
 }
 
-type ActiveTab = 'caso' | 'finanzas' | 'documentos';
+type ActiveTab = 'caso' | 'citas' | 'historial' | 'prescripciones' | 'finanzas' | 'documentos';
 
 export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
   const t = useTranslations('phoenix.caseDetail');
@@ -325,9 +328,12 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       {/* Tabs */}
       <div className="flex border-b border-border gap-0 overflow-x-auto scroll-thin -mb-2">
         {([
-          { id: 'caso',       label: 'Información del caso', icon: FileText },
-          { id: 'finanzas',   label: 'Finanzas',             icon: DollarSign },
-          { id: 'documentos', label: 'Documentos',           icon: FolderOpen },
+          { id: 'caso',           label: 'Paciente',                    icon: FileText },
+          { id: 'citas',          label: 'Citas',                       icon: Calendar },
+          { id: 'historial',      label: 'Historial médico',            icon: ClipboardList },
+          { id: 'prescripciones', label: 'Prescripciones y laboratorios', icon: Pill },
+          { id: 'finanzas',       label: 'Finanzas',                    icon: DollarSign },
+          { id: 'documentos',     label: 'Documentos',                  icon: FolderOpen },
         ] as { id: ActiveTab; label: string; icon: React.ElementType }[]).map(tab => (
           <button
             key={tab.id}
@@ -496,6 +502,24 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
           />
         </div>
       </div>}
+
+      {/* Tab: Citas */}
+      {activeTab === 'citas' && (
+        <CitasTab
+          caseId={caseInfo.id}
+          caseCode={caseInfo.caseCode}
+          patient={{ firstName: caseInfo.patient.firstName, lastName: caseInfo.patient.lastName }}
+          specialty={caseInfo.specialty}
+        />
+      )}
+
+      {/* Tab: Historial médico */}
+      {activeTab === 'historial' && <HistorialMedicoTab patientId={caseInfo.patient.id} />}
+
+      {/* Tab: Prescripciones y laboratorios */}
+      {activeTab === 'prescripciones' && (
+        <PrescripcionesTab caseId={caseInfo.id} patientId={caseInfo.patient.id} />
+      )}
 
       {/* Tab: Finanzas */}
       {activeTab === 'finanzas' && <FinanzasTab caseId={caseInfo.id} />}

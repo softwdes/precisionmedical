@@ -473,7 +473,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
       {/* ── Modal: Pagar deuda ─────────────────────────────────────────────────── */}
       {payOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-4 overflow-y-auto">
-          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-3xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-4xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
 
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -567,7 +567,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
             <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registrar pago</div>
 
-              {/* Fila 1: selects en grid fijo, seguro reemplaza tipo cuando es INSURANCE */}
+              {/* Fila selects: Source | Método | Tipo  (para Seguro: Source | Método | Carrier) */}
               <div className="grid grid-cols-3 gap-2">
                 <SelectUp
                   value={paySource}
@@ -588,7 +588,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                   <SelectUp
                     value={payInsuranceId}
                     onChange={setPayInsuranceId}
-                    options={insuranceOptions.length ? insuranceOptions : [{ label: 'Sin seguros', value: '' }]}
+                    options={insuranceOptions.length ? insuranceOptions : [{ label: 'Sin seguros en el caso', value: '' }]}
                     placeholder="Seguro del caso…"
                   />
                 ) : (
@@ -600,30 +600,28 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                 )}
               </div>
 
-              {/* Fila 2: tipo de seguro (cuando aplica) + distribución + botón */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {paySource === 'INSURANCE' && (
+              {/* Segunda fila de selects: solo para Seguro (tipo de pago de seguro) */}
+              {paySource === 'INSURANCE' && (
+                <div className="grid grid-cols-3 gap-2">
                   <SelectUp
                     value={payType}
                     onChange={setPayType}
                     options={typeOptions}
-                    className="w-52"
-                  />
-                )}
-
-                <div className="flex items-center gap-1.5 text-xs text-text-muted ml-auto">
-                  <span className="hidden sm:inline whitespace-nowrap">Distribuir total:</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0"
-                    onChange={e => autoDistribute(e.target.value)}
-                    className="w-28 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
-                    title="Escribe un monto y se distribuye automáticamente del más reciente al más antiguo"
                   />
                 </div>
+              )}
 
+              {/* Fila acción: input ancho completo + botón */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
+                  onChange={e => autoDistribute(e.target.value)}
+                  className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
+                  title="Escribe un monto total y se distribuye automáticamente del más reciente al más antiguo"
+                />
                 <Button
                   size="sm"
                   onClick={submitPayment}

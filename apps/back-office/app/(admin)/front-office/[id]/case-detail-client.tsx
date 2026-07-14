@@ -273,10 +273,10 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       {/* Top nav: back to queue + status */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/patients')}
           className="inline-flex items-center gap-1.5 text-text-2 hover:text-text-1 text-sm transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> {t('backToQueue')}
+          <ArrowLeft className="w-4 h-4" /> Pacientes
         </button>
         <TagPill label={<span><span className="mr-1">{st.icon}</span>{st.label}</span>} colorClass={st.colorClass} />
       </div>

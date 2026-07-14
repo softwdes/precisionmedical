@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -8,6 +8,7 @@ import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, Scale, Shield, AlertCircle,
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
   PhoneCall, Zap, AlertTriangle, CalendarCheck, Pencil,
+  FolderOpen, DollarSign,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui-phoenix';
@@ -16,6 +17,7 @@ import { ConfirmAppointmentDialog } from '@/components/cases/confirm-appointment
 import { AddNoteDialog } from '@/components/cases/add-note-dialog';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import { DocumentsTab } from '@/components/cases/documents-tab';
+import { FinanzasTab } from '@/components/cases/finanzas-tab';
 
 // Front Office · Detalle del caso
 
@@ -124,9 +126,12 @@ interface Props {
   auditEvents: AuditEvent[];
 }
 
+type ActiveTab = 'caso' | 'finanzas' | 'documentos';
+
 export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
   const t = useTranslations('phoenix.caseDetail');
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<ActiveTab>('caso');
   const [sendPortalOpen, setSendPortalOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
@@ -317,8 +322,30 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       {/* Next action banner según status */}
       <NextActionBanner caseInfo={caseInfo} />
 
-      {/* Grid: izquierda info bloques, derecha timeline+notes */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* Tabs */}
+      <div className="flex border-b border-border gap-0 overflow-x-auto scroll-thin -mb-2">
+        {([
+          { id: 'caso',       label: 'Información del caso', icon: FileText },
+          { id: 'finanzas',   label: 'Finanzas',             icon: DollarSign },
+          { id: 'documentos', label: 'Documentos',           icon: FolderOpen },
+        ] as { id: ActiveTab; label: string; icon: React.ElementType }[]).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
+              activeTab === tab.id
+                ? 'border-brand text-brand'
+                : 'border-transparent text-text-2 hover:text-text-1 hover:border-border'
+            }`}
+          >
+            <tab.icon className="w-3.5 h-3.5" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab: Caso — Grid izquierda info bloques, derecha timeline+notes */}
+      {activeTab === 'caso' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Columna izquierda · datos del caso */}
         <div className="space-y-4 lg:col-span-2">
           <InfoCard title={t('sectionAccident')} icon={Calendar}>
@@ -468,10 +495,13 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
             onAddNote={() => setAddNoteOpen(true)}
           />
         </div>
-      </div>
+      </div>}
 
-      {/* Documentos del caso */}
-      <DocumentsTab caseId={caseInfo.id} />
+      {/* Tab: Finanzas */}
+      {activeTab === 'finanzas' && <FinanzasTab caseId={caseInfo.id} />}
+
+      {/* Tab: Documentos */}
+      {activeTab === 'documentos' && <DocumentsTab caseId={caseInfo.id} />}
 
       {/* Modals */}
       <SendPortalDialog

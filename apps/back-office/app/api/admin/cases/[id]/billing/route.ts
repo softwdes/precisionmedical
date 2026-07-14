@@ -16,11 +16,21 @@ export async function GET(
 
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
-    select: { id: true, deletedAt: true },
+    select: {
+      id: true,
+      deletedAt: true,
+      primaryInsurance:   { select: { id: true, name: true } },
+      secondaryInsurance: { select: { id: true, name: true } },
+    },
   });
   if (!caseRecord || caseRecord.deletedAt) {
     return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
   }
+
+  const insurances = [
+    caseRecord.primaryInsurance   ? { ...caseRecord.primaryInsurance,   label: `${caseRecord.primaryInsurance.name} (Principal)` }   : null,
+    caseRecord.secondaryInsurance ? { ...caseRecord.secondaryInsurance, label: `${caseRecord.secondaryInsurance.name} (Secundario)` } : null,
+  ].filter(Boolean);
 
   const billings = await db.appointmentBilling.findMany({
     where: {
@@ -84,5 +94,6 @@ export async function GET(
   return NextResponse.json({
     billings: serialized,
     kpis: { totalCost, totalPaid, totalBalance },
+    insurances,
   });
 }

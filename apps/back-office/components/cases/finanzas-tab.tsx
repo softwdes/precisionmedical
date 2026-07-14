@@ -2,17 +2,13 @@
 
 /**
  * FinanzasTab — Resumen financiero del caso.
- *
- * • KPIs: Costo Total / Total Pagado / Deuda Total
- * • Tabla "Detalle por cita" expandible con sub-filas de pagos
- * • Modal "Pagar deuda" con distribución manual + registro de pago
- * • Eliminar pago individual (revert)
+ * KPIs · tabla expandible por cita · modal pago con distribución
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   DollarSign, ChevronRight, ChevronDown, Loader2, RefreshCw,
-  Trash2, CreditCard, FileText, X,
+  Trash2, CreditCard, FileText, X, ChevronUp,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState } from '@/components/ui-phoenix';
@@ -45,22 +41,27 @@ interface BillingRecord {
   payments: BillingPayment[];
 }
 
+interface CaseInsurance { id: string; name: string; label: string }
 interface Kpis { totalCost: number; totalPaid: number; totalBalance: number }
 
-// ─── Payment type options ───────────────────────────────────────────────────────
+// ─── Payment type options (igual a v2) ─────────────────────────────────────────
 
 const PAYMENT_TYPES: Record<string, { label: string; value: string }[]> = {
   INSURANCE: [
-    { label: 'Pago de seguro (Ins)',              value: 'direct_insurance' },
-    { label: 'Obligación contractual (CO)',        value: 'contractual_obligation' },
+    { label: 'Pago de seguro (Ins)',                value: 'direct_insurance' },
+    { label: 'Obligación contractual (CO)',          value: 'contractual_obligation' },
     { label: 'Pérdida por presentación tardía (TF)', value: 'late_filing_penalty' },
   ],
   LAWYER: [
     { label: 'Pago de abogado (Att)', value: 'attorney_payment' },
   ],
   PATIENT: [
-    { label: 'Pago directo',  value: 'patient_direct' },
-    { label: 'Copago',        value: 'copay' },
+    { label: 'Copago (Cp)',                    value: 'copay' },
+    { label: 'Deducible (Ded)',                value: 'deductible' },
+    { label: 'Coaseguro (Coins)',              value: 'coinsurance' },
+    { label: 'Pago directo (Self-Pay)',        value: 'patient_direct' },
+    { label: 'Cortesía profesional (Pro Cur)', value: 'professional_courtesy' },
+    { label: 'Cobranzas externas (Coll)',      value: 'external_collections' },
   ],
 };
 
@@ -89,6 +90,67 @@ function billingStatus(b: BillingRecord): 'paid' | 'partial' | 'pending' {
   return 'pending';
 }
 
+// ─── Custom Select (abre hacia arriba) ─────────────────────────────────────────
+
+interface SelectOption { label: string; value: string }
+
+function SelectUp({
+  value, onChange, options, placeholder, className = '',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: SelectOption[];
+  placeholder?: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find(o => o.value === value);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  return (
+    <div ref={ref} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors"
+      >
+        <span className={selected ? 'text-text-1' : 'text-text-muted'}>
+          {selected?.label ?? placeholder ?? 'Seleccionar'}
+        </span>
+        {open ? <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" /> : <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />}
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full mb-1 left-0 right-0 z-50 bg-bg-1 border border-border rounded-md shadow-xl overflow-hidden">
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between gap-2 ${
+                opt.value === value
+                  ? 'bg-brand/10 text-brand'
+                  : 'text-text-1 hover:bg-bg-2'
+              }`}
+            >
+              {opt.label}
+              {opt.value === value && <span className="text-brand text-xs">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── KPI Card ──────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, color }: { label: string; value: number; color: string }) {
@@ -103,24 +165,22 @@ function KpiCard({ label, value, color }: { label: string; value: number; color:
 // ─── Main component ─────────────────────────────────────────────────────────────
 
 export function FinanzasTab({ caseId }: { caseId: string }) {
-  const [billings, setBillings] = useState<BillingRecord[]>([]);
-  const [kpis, setKpis]         = useState<Kpis>({ totalCost: 0, totalPaid: 0, totalBalance: 0 });
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
+  const [billings, setBillings]     = useState<BillingRecord[]>([]);
+  const [kpis, setKpis]             = useState<Kpis>({ totalCost: 0, totalPaid: 0, totalBalance: 0 });
+  const [insurances, setInsurances] = useState<CaseInsurance[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+  const [expanded, setExpanded]     = useState<Set<string>>(new Set());
 
-  // Expanded rows
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  // Payment modal
-  const [payOpen, setPayOpen]     = useState(false);
-  const [payAmounts, setPayAmounts] = useState<Record<string, string>>({});
-  const [payNotes, setPayNotes]   = useState<Record<string, string>>({});
-  const [paySource, setPaySource] = useState<'INSURANCE' | 'PATIENT' | 'LAWYER'>('INSURANCE');
-  const [payMethod, setPayMethod] = useState<string>('CHECK');
-  const [payType, setPayType]     = useState<string>('');
-  const [paying, setPaying]       = useState(false);
-
-  // Delete payment
+  // Modal
+  const [payOpen, setPayOpen]         = useState(false);
+  const [payAmounts, setPayAmounts]   = useState<Record<string, string>>({});
+  const [payNotes, setPayNotes]       = useState<Record<string, string>>({});
+  const [paySource, setPaySource]     = useState<'INSURANCE' | 'PATIENT' | 'LAWYER'>('PATIENT');
+  const [payMethod, setPayMethod]     = useState<string>('CHECK');
+  const [payType, setPayType]         = useState<string>('');
+  const [payInsuranceId, setPayInsuranceId] = useState<string>('');
+  const [paying, setPaying]           = useState(false);
   const [deletingPay, setDeletingPay] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -132,6 +192,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
       const data = await res.json();
       setBillings(data.billings ?? []);
       setKpis(data.kpis ?? { totalCost: 0, totalPaid: 0, totalBalance: 0 });
+      setInsurances(data.insurances ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar finanzas');
     } finally {
@@ -141,16 +202,16 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  // When opening payment modal, auto-init amounts (distribute from most recent to oldest)
   function openPayModal() {
     const pending = billings.filter(b => b.balanceDue > 0);
     const init: Record<string, string> = {};
     pending.forEach(b => { init[b.id] = ''; });
     setPayAmounts(init);
     setPayNotes({});
-    setPaySource('INSURANCE');
+    setPaySource('PATIENT');
     setPayMethod('CHECK');
-    setPayType(PAYMENT_TYPES['INSURANCE'][0].value);
+    setPayType(PAYMENT_TYPES['PATIENT'][0].value);
+    setPayInsuranceId(insurances[0]?.id ?? '');
     setPayOpen(true);
   }
 
@@ -162,7 +223,6 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
     });
   }
 
-  // Auto-distribute a total amount from most recent to oldest
   function autoDistribute(totalStr: string) {
     const total = parseFloat(totalStr);
     if (!total || total <= 0) return;
@@ -181,16 +241,9 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
   async function submitPayment() {
     const entries = Object.entries(payAmounts)
       .filter(([, v]) => parseFloat(v) > 0)
-      .map(([billingId, v]) => ({
-        billingId,
-        amount: parseFloat(v),
-        notes: payNotes[billingId] || null,
-      }));
+      .map(([billingId, v]) => ({ billingId, amount: parseFloat(v), notes: payNotes[billingId] || null }));
 
-    if (entries.length === 0) {
-      alert('Ingresa al menos un monto mayor a 0.');
-      return;
-    }
+    if (!entries.length) { alert('Ingresa al menos un monto mayor a 0.'); return; }
 
     setPaying(true);
     try {
@@ -202,13 +255,11 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
           source: paySource,
           method: payMethod,
           paymentType: payType || null,
+          insuranceCarrierId: paySource === 'INSURANCE' ? (payInsuranceId || null) : null,
           paidAt: new Date().toISOString(),
         }),
       });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.message ?? `HTTP ${res.status}`);
-      }
+      if (!res.ok) { const d = await res.json(); throw new Error(d.message ?? `HTTP ${res.status}`); }
       setPayOpen(false);
       load();
     } catch (e) {
@@ -222,10 +273,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
     if (!confirm('¿Cancelar este pago? El balance se revertirá.')) return;
     setDeletingPay(payId);
     try {
-      const res = await fetch(
-        `/api/admin/cases/${caseId}/billing/${billingId}/payments/${payId}`,
-        { method: 'DELETE' },
-      );
+      const res = await fetch(`/api/admin/cases/${caseId}/billing/${billingId}/payments/${payId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       load();
     } catch (e) {
@@ -235,9 +283,25 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
     }
   }
 
-  const pending = billings.filter(b => b.balanceDue > 0);
+  const pending     = billings.filter(b => b.balanceDue > 0);
   const totalPending = pending.reduce((s, b) => s + b.balanceDue, 0);
-  const payTotal = Object.values(payAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const payTotal    = Object.values(payAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+
+  // Options for custom selects
+  const sourceOptions: SelectOption[] = [
+    { label: 'Paciente', value: 'PATIENT' },
+    { label: 'Seguro',   value: 'INSURANCE' },
+    { label: 'Abogado',  value: 'LAWYER' },
+  ];
+  const methodOptions: SelectOption[] = [
+    { label: 'Cheque',        value: 'CHECK' },
+    { label: 'Tarjeta',       value: 'CARD' },
+    { label: 'Efectivo',      value: 'CASH' },
+    { label: 'Transferencia', value: 'TRANSFER' },
+    { label: '— Sin especificar', value: 'NONE' },
+  ];
+  const typeOptions: SelectOption[] = PAYMENT_TYPES[paySource] ?? [];
+  const insuranceOptions: SelectOption[] = insurances.map(i => ({ label: i.label, value: i.id }));
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -256,8 +320,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
           </Button>
           {kpis.totalBalance > 0 && (
             <Button size="sm" onClick={openPayModal} className="gap-1.5 bg-amber hover:bg-amber/90 text-black border-0">
-              <CreditCard className="w-3.5 h-3.5" />
-              Pagar deuda
+              <CreditCard className="w-3.5 h-3.5" /> Pagar deuda
             </Button>
           )}
         </div>
@@ -265,9 +328,9 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
 
       {/* KPIs */}
       <div className="flex gap-3 flex-wrap">
-        <KpiCard label="Costo Total"   value={kpis.totalCost}    color="text-text-1" />
-        <KpiCard label="Total Pagado"  value={kpis.totalPaid}    color="text-emerald" />
-        <KpiCard label="Deuda Total"   value={kpis.totalBalance} color={kpis.totalBalance > 0 ? 'text-rose' : 'text-text-1'} />
+        <KpiCard label="Costo Total"  value={kpis.totalCost}    color="text-text-1" />
+        <KpiCard label="Total Pagado" value={kpis.totalPaid}    color="text-emerald" />
+        <KpiCard label="Deuda Total"  value={kpis.totalBalance} color={kpis.totalBalance > 0 ? 'text-rose' : 'text-text-1'} />
       </div>
 
       {/* Tabla */}
@@ -293,21 +356,19 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
               <thead>
                 <tr className="border-b border-border/60 bg-bg-2/40">
                   <th className="w-6 px-2" />
-                  <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha de cita</th>
-                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Total</th>
-                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Descuento</th>
-                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Total descontado</th>
+                  <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha</th>
+                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
+                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Desc. %</th>
+                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Monto desc.</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
-                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Balance</th>
-                  <th className="w-20 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Acciones</th>
+                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
+                  <th className="w-16 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
                 </tr>
               </thead>
               <tbody>
                 {billings.map(b => {
                   const st = billingStatus(b);
                   const isExpanded = expanded.has(b.id);
-                  const totalDescontado = b.totalCost - b.discount;
-
                   return (
                     <>
                       <tr
@@ -316,39 +377,27 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                         onClick={() => toggleExpanded(b.id)}
                       >
                         <td className="px-2 py-3 text-text-muted">
-                          {isExpanded
-                            ? <ChevronDown className="w-3.5 h-3.5" />
-                            : <ChevronRight className="w-3.5 h-3.5" />
-                          }
+                          {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
-                        <td className="px-3 py-3 text-text-1 font-mono text-xs whitespace-nowrap">
-                          {fmtDate(b.appointmentDate)}
-                        </td>
-                        <td className="px-3 py-3 text-right font-semibold font-mono whitespace-nowrap">
-                          {fmt$(b.totalCost)}
-                        </td>
+                        <td className="px-3 py-3 text-text-1 font-mono text-xs whitespace-nowrap">{fmtDate(b.appointmentDate)}</td>
+                        <td className="px-3 py-3 text-right font-semibold font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
                         <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">
                           {b.discount > 0 ? `${((b.discount / b.totalCost) * 100).toFixed(2)}%` : '0.00%'}
                         </td>
-                        <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap hidden lg:table-cell">
-                          {fmt$(totalDescontado)}
+                        <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap hidden lg:table-cell">{fmt$(b.discount)}</td>
+                        <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
+                          <span className={b.amountPaid > 0 ? 'text-emerald font-semibold' : 'text-text-muted'}>{fmt$(b.amountPaid)}</span>
                         </td>
                         <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
-                          <span className={b.amountPaid > 0 ? 'text-emerald font-semibold' : 'text-text-muted'}>
-                            {fmt$(b.amountPaid)}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
-                          <span className={b.balanceDue > 0 ? 'text-rose font-semibold' : 'text-emerald'}>
-                            {fmt$(b.balanceDue)}
-                          </span>
+                          {b.balanceDue > 0 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold">{fmt$(b.balanceDue)}</span>
+                          ) : (
+                            <span className="text-emerald font-semibold text-xs">{fmt$(0)}</span>
+                          )}
                         </td>
                         <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              className="p-1 rounded text-text-muted hover:text-cyan transition-colors"
-                              title="Notas de cita"
-                            >
+                          <div className="flex items-center justify-end">
+                            <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Nota de cita">
                               <FileText className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -360,14 +409,12 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                         <tr key={`${b.id}-payments`} className="border-b border-border/40 bg-bg-2/30">
                           <td colSpan={8} className="px-6 py-0">
                             {b.payments.length === 0 ? (
-                              <div className="py-3 text-text-muted text-xs italic">
-                                No hay detalles sobre los pagos
-                              </div>
+                              <div className="py-3 text-text-muted text-xs italic">Sin pagos registrados para esta cita.</div>
                             ) : (
                               <table className="w-full text-xs my-2">
                                 <thead>
                                   <tr className="text-text-muted">
-                                    <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">Fecha de pago</th>
+                                    <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">Fecha pago</th>
                                     <th className="text-right py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">Cantidad</th>
                                     <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">Método</th>
                                     <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">Pagado por</th>
@@ -377,7 +424,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                                 </thead>
                                 <tbody className="divide-y divide-border/20">
                                   {b.payments.map(p => (
-                                    <tr key={p.id} className={p.status === 'CANCELLED' ? 'opacity-40 line-through' : ''}>
+                                    <tr key={p.id} className={p.status === 'CANCELLED' ? 'opacity-40' : ''}>
                                       <td className="py-1.5 pr-4 font-mono text-text-2">{fmtDate(p.paidAt)}</td>
                                       <td className="py-1.5 pr-4 text-right font-mono font-semibold text-emerald whitespace-nowrap">{fmt$(p.amount)}</td>
                                       <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">{METHOD_LABELS[p.method] ?? p.method}</td>
@@ -388,8 +435,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                                       <td className="py-1.5 pr-4 hidden md:table-cell">
                                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                                           p.status === 'COMPLETED' ? 'bg-emerald/10 text-emerald' :
-                                          p.status === 'CANCELLED' ? 'bg-rose/10 text-rose' :
-                                          'bg-amber/10 text-amber'
+                                          p.status === 'CANCELLED' ? 'bg-rose/10 text-rose' : 'bg-amber/10 text-amber'
                                         }`}>
                                           {p.status === 'COMPLETED' ? 'Completado' : p.status === 'CANCELLED' ? 'Cancelado' : 'Pendiente'}
                                         </span>
@@ -402,10 +448,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                                             className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50"
                                             title="Cancelar pago"
                                           >
-                                            {deletingPay === p.id
-                                              ? <Loader2 className="w-3 h-3 animate-spin" />
-                                              : <Trash2 className="w-3 h-3" />
-                                            }
+                                            {deletingPay === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                                           </button>
                                         )}
                                       </td>
@@ -429,10 +472,8 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
       {/* ── Modal: Pagar deuda ─────────────────────────────────────────────────── */}
       {payOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-4 overflow-y-auto">
-          <div
-            className="bg-bg-1 border border-border rounded-xl w-full max-w-3xl my-8 overflow-hidden"
-            onClick={e => e.stopPropagation()}
-          >
+          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-3xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
@@ -441,7 +482,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                 </h2>
                 <p className="text-text-muted text-xs mt-0.5">Complete el pago para el caso seleccionado abajo.</p>
               </div>
-              <button onClick={() => setPayOpen(false)} className="text-text-muted hover:text-text-1 transition-colors">
+              <button onClick={() => setPayOpen(false)} className="text-text-muted hover:text-text-1 transition-colors p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -453,15 +494,15 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                 <div className="text-xl font-bold font-mono text-rose mt-0.5">{fmt$(totalPending)}</div>
               </div>
               <div className="px-5 py-3">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Citas pendientes</div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagos pendientes</div>
                 <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{pending.length}</div>
               </div>
             </div>
 
             {/* Distribution table */}
-            <div className="overflow-x-auto max-h-80 overflow-y-auto">
+            <div className="overflow-x-auto max-h-72 overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-bg-2/90 backdrop-blur-sm border-b border-border">
+                <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
                   <tr>
                     <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
@@ -470,7 +511,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
                     <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28">Pagar</th>
-                    <th className="px-3 py-2.5 w-10" />
+                    <th className="px-3 py-2.5 w-12 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
@@ -484,29 +525,34 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                         <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">{fmt$(b.discount)}</td>
                         <td className="px-3 py-3 text-right text-emerald font-mono text-xs whitespace-nowrap">{fmt$(b.amountPaid)}</td>
                         <td className="px-3 py-3 text-right">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap">
                             {fmt$(b.balanceDue)}
                           </span>
                         </td>
                         <td className="px-3 py-3">
-                          <input
-                            type="number"
-                            min="0"
-                            max={b.balanceDue}
-                            step="0.01"
-                            value={payAmounts[b.id] ?? ''}
-                            onChange={e => setPayAmounts(prev => ({ ...prev, [b.id]: e.target.value }))}
-                            className="w-full rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
-                            placeholder="0.00"
-                          />
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max={b.balanceDue}
+                              step="0.01"
+                              value={payAmounts[b.id] ?? ''}
+                              onChange={e => setPayAmounts(prev => ({ ...prev, [b.id]: e.target.value }))}
+                              className="w-full rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
+                              placeholder="0.00"
+                            />
+                            <button
+                              onClick={() => setPayAmounts(prev => ({ ...prev, [b.id]: b.balanceDue.toFixed(2) }))}
+                              className="text-[10px] text-brand hover:text-brand/70 transition-colors font-semibold flex-shrink-0"
+                              title="Máximo"
+                            >
+                              MAX
+                            </button>
+                          </div>
                         </td>
                         <td className="px-3 py-3">
-                          <button
-                            onClick={() => setPayAmounts(prev => ({ ...prev, [b.id]: b.balanceDue.toFixed(2) }))}
-                            className="text-[10px] text-brand hover:text-brand/70 transition-colors font-semibold"
-                            title="Pagar total pendiente"
-                          >
-                            MAX
+                          <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Agregar nota">
+                            <FileText className="w-3.5 h-3.5" />
                           </button>
                         </td>
                       </tr>
@@ -516,90 +562,77 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
               </table>
             </div>
 
-            {/* Auto-distribute */}
-            <div className="px-5 py-3 border-t border-border/60 bg-bg-2/30">
-              <div className="flex items-center gap-2 text-xs text-text-muted">
-                <span>Distribución automática:</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Monto total…"
-                  onChange={e => autoDistribute(e.target.value)}
-                  className="w-36 rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 font-mono outline-none focus:border-brand"
-                />
-                <span className="text-text-muted">→ se distribuye del más reciente al más antiguo</span>
-              </div>
-            </div>
-
-            {/* Register payment section */}
-            <div className="px-5 py-4 border-t border-border space-y-3">
+            {/* Registrar pago — footer igual a v2 */}
+            <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registrar pago</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+
+              <div className="flex flex-wrap gap-2 items-end">
                 {/* Source */}
-                <select
+                <SelectUp
                   value={paySource}
-                  onChange={e => {
-                    const src = e.target.value as typeof paySource;
+                  onChange={v => {
+                    const src = v as typeof paySource;
                     setPaySource(src);
                     setPayType(PAYMENT_TYPES[src]?.[0]?.value ?? '');
+                    if (src === 'INSURANCE') setPayInsuranceId(insurances[0]?.id ?? '');
                   }}
-                  className="rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
-                >
-                  <option value="INSURANCE">Seguro</option>
-                  <option value="PATIENT">Paciente</option>
-                  <option value="LAWYER">Abogado</option>
-                </select>
+                  options={sourceOptions}
+                  className="w-36"
+                />
 
-                {/* Method */}
-                <select
+                {/* Método */}
+                <SelectUp
                   value={payMethod}
-                  onChange={e => setPayMethod(e.target.value)}
-                  className="rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
-                >
-                  <option value="CHECK">Cheque</option>
-                  <option value="CARD">Tarjeta</option>
-                  <option value="CASH">Efectivo</option>
-                  <option value="TRANSFER">Transferencia</option>
-                  <option value="NONE">— Sin especificar</option>
-                </select>
+                  onChange={setPayMethod}
+                  options={methodOptions}
+                  className="w-36"
+                />
 
-                {/* Payment type */}
-                <select
+                {/* Tipo de pago */}
+                <SelectUp
                   value={payType}
-                  onChange={e => setPayType(e.target.value)}
-                  className="rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand sm:col-span-2 md:col-span-1"
-                >
-                  {(PAYMENT_TYPES[paySource] ?? []).map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                  onChange={setPayType}
+                  options={typeOptions}
+                  className="w-52"
+                />
 
-                {/* Total to pay (display only) */}
-                <div className="rounded-md bg-bg-2 border border-border px-3 py-2 flex items-center justify-between">
-                  <span className="text-text-muted text-xs">Total:</span>
-                  <span className="font-mono font-bold text-sm text-emerald">{fmt$(payTotal)}</span>
+                {/* Seguro — solo cuando source = INSURANCE */}
+                {paySource === 'INSURANCE' && (
+                  <SelectUp
+                    value={payInsuranceId}
+                    onChange={setPayInsuranceId}
+                    options={insuranceOptions.length ? insuranceOptions : [{ label: 'Sin seguros en el caso', value: '' }]}
+                    placeholder="Seguro…"
+                    className="w-52"
+                  />
+                )}
+
+                {/* Total + botón pagar */}
+                <div className="flex items-center gap-2 ml-auto">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
+                    onChange={e => autoDistribute(e.target.value)}
+                    className="w-28 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
+                    title="Monto total a distribuir automáticamente"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={submitPayment}
+                    disabled={paying || payTotal <= 0}
+                    className="gap-1.5 bg-amber hover:bg-amber/90 text-black border-0 whitespace-nowrap"
+                  >
+                    {paying
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Procesando…</>
+                      : <>+ Pagar{payTotal > 0 ? ` ${fmt$(payTotal)}` : '…'}</>
+                    }
+                  </Button>
                 </div>
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-5 py-4 border-t border-border flex flex-col sm:flex-row gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setPayOpen(false)} disabled={paying} className="sm:w-auto w-full">
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={submitPayment}
-                disabled={paying || payTotal <= 0}
-                className="sm:w-auto w-full gap-1.5 bg-amber hover:bg-amber/90 text-black border-0"
-              >
-                {paying
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Procesando…</>
-                  : <><CreditCard className="w-3.5 h-3.5" /> + Pagar {payTotal > 0 ? fmt$(payTotal) : '…'}</>
-                }
-              </Button>
-            </div>
           </div>
         </div>
       )}

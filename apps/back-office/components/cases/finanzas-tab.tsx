@@ -53,7 +53,8 @@ const PAYMENT_TYPES: Record<string, { label: string; value: string }[]> = {
     { label: 'Pérdida por presentación tardía (TF)', value: 'late_filing_penalty' },
   ],
   LAWYER: [
-    { label: 'Pago de abogado (Att)', value: 'attorney_payment' },
+    { label: 'Pago de abogado (Att)',         value: 'attorney_payment' },
+    { label: 'Acuerdo de reducción (Red AG)', value: 'reduction_agreement' },
   ],
   PATIENT: [
     { label: 'Copago (Cp)',                    value: 'copay' },
@@ -562,12 +563,12 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
               </table>
             </div>
 
-            {/* Registrar pago — footer igual a v2 */}
+            {/* Registrar pago — footer */}
             <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registrar pago</div>
 
-              <div className="flex flex-wrap gap-2 items-end">
-                {/* Source */}
+              {/* Fila 1: selects en grid fijo, seguro reemplaza tipo cuando es INSURANCE */}
+              <div className="grid grid-cols-3 gap-2">
                 <SelectUp
                   value={paySource}
                   onChange={v => {
@@ -577,38 +578,41 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                     if (src === 'INSURANCE') setPayInsuranceId(insurances[0]?.id ?? '');
                   }}
                   options={sourceOptions}
-                  className="w-36"
                 />
-
-                {/* Método */}
                 <SelectUp
                   value={payMethod}
                   onChange={setPayMethod}
                   options={methodOptions}
-                  className="w-36"
                 />
-
-                {/* Tipo de pago */}
-                <SelectUp
-                  value={payType}
-                  onChange={setPayType}
-                  options={typeOptions}
-                  className="w-52"
-                />
-
-                {/* Seguro — solo cuando source = INSURANCE */}
-                {paySource === 'INSURANCE' && (
+                {paySource === 'INSURANCE' ? (
                   <SelectUp
                     value={payInsuranceId}
                     onChange={setPayInsuranceId}
-                    options={insuranceOptions.length ? insuranceOptions : [{ label: 'Sin seguros en el caso', value: '' }]}
-                    placeholder="Seguro…"
+                    options={insuranceOptions.length ? insuranceOptions : [{ label: 'Sin seguros', value: '' }]}
+                    placeholder="Seguro del caso…"
+                  />
+                ) : (
+                  <SelectUp
+                    value={payType}
+                    onChange={setPayType}
+                    options={typeOptions}
+                  />
+                )}
+              </div>
+
+              {/* Fila 2: tipo de seguro (cuando aplica) + distribución + botón */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {paySource === 'INSURANCE' && (
+                  <SelectUp
+                    value={payType}
+                    onChange={setPayType}
+                    options={typeOptions}
                     className="w-52"
                   />
                 )}
 
-                {/* Total + botón pagar */}
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="flex items-center gap-1.5 text-xs text-text-muted ml-auto">
+                  <span className="hidden sm:inline whitespace-nowrap">Distribuir total:</span>
                   <input
                     type="number"
                     min="0"
@@ -616,20 +620,21 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                     placeholder="0"
                     onChange={e => autoDistribute(e.target.value)}
                     className="w-28 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
-                    title="Monto total a distribuir automáticamente"
+                    title="Escribe un monto y se distribuye automáticamente del más reciente al más antiguo"
                   />
-                  <Button
-                    size="sm"
-                    onClick={submitPayment}
-                    disabled={paying || payTotal <= 0}
-                    className="gap-1.5 bg-amber hover:bg-amber/90 text-black border-0 whitespace-nowrap"
-                  >
-                    {paying
-                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Procesando…</>
-                      : <>+ Pagar{payTotal > 0 ? ` ${fmt$(payTotal)}` : '…'}</>
-                    }
-                  </Button>
                 </div>
+
+                <Button
+                  size="sm"
+                  onClick={submitPayment}
+                  disabled={paying || payTotal <= 0}
+                  className="gap-1.5 bg-amber hover:bg-amber/90 text-black border-0 whitespace-nowrap"
+                >
+                  {paying
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Procesando…</>
+                    : <>+ Pagar{payTotal > 0 ? ` ${fmt$(payTotal)}` : '…'}</>
+                  }
+                </Button>
               </div>
             </div>
 

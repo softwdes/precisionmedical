@@ -5,11 +5,11 @@
  * Upload/download stubbed hasta AWS S3 credentials.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Folder, FolderOpen, File, FileText, FileImage, Upload,
   FolderPlus, Trash2, Download, ChevronRight, Home, Loader2,
-  RefreshCw, X, FileArchive,
+  RefreshCw, X, FileArchive, CloudUpload,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState } from '@/components/ui-phoenix';
@@ -44,7 +44,7 @@ function formatBytes(bytes: number | null): string {
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}, ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}, ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
 }
 
 function FileIcon({ mimeType, size = 4 }: { mimeType: string | null; size?: number }) {
@@ -58,6 +58,130 @@ function FileIcon({ mimeType, size = 4 }: { mimeType: string | null; size?: numb
   return <File className={`${cls} text-text-muted`} />;
 }
 
+// ─── Upload Modal ──────────────────────────────────────────────────────────────
+
+function UploadModal({ onClose, onUpload, uploading }: {
+  onClose: () => void;
+  onUpload: (files: File[]) => void;
+  uploading: boolean;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+  const [pending, setPending]   = useState<File[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) setPending(prev => [...prev, ...files]);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) setPending(prev => [...prev, ...files]);
+    e.target.value = '';
+  }
+
+  function removeFile(idx: number) {
+    setPending(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function submit() {
+    if (!pending.length) return;
+    onUpload(pending);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-bg-1 border border-border rounded-xl w-full max-w-lg p-6 space-y-5"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-text-1 font-semibold text-base">Subir archivos</h2>
+            <p className="text-text-muted text-xs mt-0.5">
+              Aquí puedes subir archivos al sistema. Puedes seleccionar múltiples archivos a la vez, pero asegúrate de que cada archivo no exceda los 100MB.
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors ml-3 flex-shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Drop zone */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => inputRef.current?.click()}
+          className={`rounded-lg border-2 border-dashed transition-colors cursor-pointer flex flex-col items-center justify-center gap-3 py-10 px-6 ${
+            dragOver
+              ? 'border-brand bg-brand/5'
+              : 'border-border/60 hover:border-brand/40 hover:bg-bg-2/40'
+          }`}
+        >
+          <CloudUpload className={`w-10 h-10 ${dragOver ? 'text-brand' : 'text-text-muted'} transition-colors`} />
+          <div className="text-center">
+            <p className={`text-sm font-medium ${dragOver ? 'text-brand' : 'text-text-1'}`}>Subir archivos</p>
+            <p className="text-text-muted text-xs mt-0.5">Haz clic o arrastra y suelta archivos aquí para subirlos</p>
+          </div>
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </div>
+
+        {/* File hint */}
+        <p className="text-[11px] text-text-muted">
+          Selecciona o arrastra y suelta archivos aquí (máximo 10 archivos, 100MB cada uno). Formatos compatibles: imágenes, PDF, Word, Excel.
+        </p>
+
+        {/* Pending files list */}
+        {pending.length > 0 && (
+          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+            {pending.map((f, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-md bg-bg-2/60 border border-border/40 px-3 py-2">
+                <FileIcon mimeType={f.type} size={4} />
+                <span className="text-text-1 text-xs truncate flex-1">{f.name}</span>
+                <span className="text-text-muted text-xs font-mono flex-shrink-0">{formatBytes(f.size)}</span>
+                <button onClick={() => removeFile(i)} className="text-text-muted hover:text-rose transition-colors flex-shrink-0">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={uploading}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            onClick={submit}
+            disabled={uploading || pending.length === 0}
+            className="gap-1.5"
+          >
+            {uploading
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo…</>
+              : <><Upload className="w-3.5 h-3.5" /> Subir archivos</>
+            }
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Preview Modal ─────────────────────────────────────────────────────────────
 
 function PreviewModal({ item, onClose, onDownload }: {
@@ -66,57 +190,36 @@ function PreviewModal({ item, onClose, onDownload }: {
   onDownload: (item: DocItem) => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-bg-1 border border-border rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+      <div className="bg-bg-1 border border-border rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
           <div className="flex items-center gap-3 min-w-0">
             <FileIcon mimeType={item.mimeType} size={5} />
             <div className="min-w-0">
               <p className="text-text-1 font-semibold text-sm truncate">{item.name}</p>
               <div className="flex items-center gap-3 mt-0.5">
-                {item.size && (
-                  <span className="text-[11px] text-text-muted">Tamaño: {formatBytes(item.size)}</span>
-                )}
-                {item.mimeType && (
-                  <span className="text-[11px] text-text-muted uppercase">{item.mimeType.split('/')[1] ?? item.mimeType}</span>
-                )}
+                {item.size && <span className="text-[11px] text-text-muted">Tamaño: {formatBytes(item.size)}</span>}
+                {item.mimeType && <span className="text-[11px] text-text-muted uppercase">Formato: {item.mimeType.split('/')[1] ?? item.mimeType}</span>}
               </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors flex-shrink-0"
-          >
+          <button onClick={onClose} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors flex-shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Body — placeholder hasta S3 */}
         <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12 px-5">
           <div className="w-16 h-16 rounded-xl bg-bg-2 border border-border flex items-center justify-center">
             <FileIcon mimeType={item.mimeType} size={8} />
           </div>
           <div className="text-center space-y-1">
             <p className="text-text-1 font-medium text-sm">{item.name}</p>
-            <p className="text-text-muted text-xs">
-              La vista previa estará disponible cuando se configure el almacenamiento S3.
-            </p>
+            <p className="text-text-muted text-xs">La vista previa estará disponible cuando se configure el almacenamiento S3.</p>
           </div>
         </div>
-
-        {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
           <Button variant="outline" size="sm" onClick={onClose}>Cerrar</Button>
-          <Button size="sm" onClick={() => onDownload(item)} className="gap-1.5">
-            <Download className="w-3.5 h-3.5" />
-            Descargar
+          <Button size="sm" onClick={() => { onDownload(item); onClose(); }} className="gap-1.5">
+            <Download className="w-3.5 h-3.5" /> Descargar
           </Button>
         </div>
       </div>
@@ -133,18 +236,14 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: 'Pestaña Principal' }]);
   const [currentParentId, setCurrentParentId] = useState<string | null>(null);
 
-  // Selection
   const [selected, setSelected]     = useState<Set<string>>(new Set());
-
-  // Modals
   const [newFolderOpen, setNewFolderOpen]   = useState(false);
   const [newFolderName, setNewFolderName]   = useState('');
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [uploadOpen, setUploadOpen]         = useState(false);
+  const [uploading, setUploading]           = useState(false);
   const [previewItem, setPreviewItem]       = useState<DocItem | null>(null);
-
-  // Ops
-  const [uploading, setUploading]   = useState(false);
-  const [deleting, setDeleting]     = useState<string | null>(null);
+  const [deleting, setDeleting]             = useState<string | null>(null);
 
   const load = useCallback(async (parentId: string | null) => {
     setLoading(true);
@@ -176,18 +275,12 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     setCurrentParentId(item.id);
   }
 
-  // ── Selection helpers ──────────────────────────────────────────────────────
-
-  const allFileIds = items.filter(i => !i.isFolder).map(i => i.id);
-  const allSelected = allFileIds.length > 0 && allFileIds.every(id => selected.has(id));
+  const allIds     = items.map(i => i.id);
+  const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id));
   const someSelected = selected.size > 0;
 
   function toggleAll() {
-    if (allSelected) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(items.map(i => i.id)));
-    }
+    setSelected(allSelected ? new Set() : new Set(allIds));
   }
 
   function toggleOne(id: string) {
@@ -197,8 +290,6 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
       return next;
     });
   }
-
-  // ── Folder creation ────────────────────────────────────────────────────────
 
   async function createFolder() {
     if (!newFolderName.trim()) return;
@@ -220,50 +311,50 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     }
   }
 
-  // ── Upload ─────────────────────────────────────────────────────────────────
-
-  async function handleUpload(file: File) {
+  async function handleUpload(files: File[]) {
     setUploading(true);
     try {
-      const urlRes = await fetch(`/api/admin/cases/${caseId}/documents/upload-url`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: file.name,
-          mimeType: file.type || 'application/octet-stream',
-          size: file.size,
-          parentId: currentParentId,
-        }),
-      });
-      const urlData = await urlRes.json();
+      for (const file of files) {
+        const urlRes = await fetch(`/api/admin/cases/${caseId}/documents/upload-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            size: file.size,
+            parentId: currentParentId,
+          }),
+        });
+        const urlData = await urlRes.json();
 
-      if (!urlRes.ok) {
-        if (urlData.error === 'S3_NOT_CONFIGURED') {
-          alert('La subida de archivos aún no está configurada. Las credenciales S3 están pendientes.\n\nPuedes crear carpetas mientras tanto.');
-          return;
+        if (!urlRes.ok) {
+          if (urlData.error === 'S3_NOT_CONFIGURED') {
+            alert('La subida de archivos aún no está configurada. Las credenciales S3 están pendientes.\n\nPuedes crear carpetas mientras tanto.');
+            break;
+          }
+          throw new Error(urlData.message ?? `HTTP ${urlRes.status}`);
         }
-        throw new Error(urlData.message ?? `HTTP ${urlRes.status}`);
+
+        await fetch(urlData.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        });
+
+        await fetch(`/api/admin/cases/${caseId}/documents`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: file.name,
+            isFolder: false,
+            s3Key: urlData.s3Key,
+            mimeType: file.type,
+            size: file.size,
+            parentId: currentParentId,
+          }),
+        });
       }
-
-      await fetch(urlData.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-
-      await fetch(`/api/admin/cases/${caseId}/documents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: file.name,
-          isFolder: false,
-          s3Key: urlData.s3Key,
-          mimeType: file.type,
-          size: file.size,
-          parentId: currentParentId,
-        }),
-      });
-
+      setUploadOpen(false);
       load(currentParentId);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Error al subir archivo');
@@ -272,15 +363,12 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     }
   }
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
-
   async function handleDelete(item: DocItem) {
     if (item.isFolder && item._count.children > 0) {
       alert(`La carpeta "${item.name}" tiene ${item._count.children} elemento(s). Vaciala antes de eliminarla.`);
       return;
     }
     if (!window.confirm(`¿Eliminar ${item.isFolder ? 'la carpeta' : 'el archivo'} "${item.name}"?`)) return;
-
     setDeleting(item.id);
     try {
       const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}`, { method: 'DELETE' });
@@ -296,8 +384,6 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     }
   }
 
-  // ── Download ───────────────────────────────────────────────────────────────
-
   async function handleDownload(item: DocItem) {
     const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}/download`);
     const data = await res.json();
@@ -311,12 +397,6 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     }
     window.open(data.url, '_blank');
   }
-
-  async function handleBulkDownload() {
-    alert('La descarga masiva estará disponible cuando se configure el almacenamiento S3.');
-  }
-
-  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -335,10 +415,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                     {item.name}
                   </span>
                 ) : (
-                  <button
-                    onClick={() => navigateTo(item)}
-                    className="hover:text-brand transition-colors flex items-center gap-1"
-                  >
+                  <button onClick={() => navigateTo(item)} className="hover:text-brand transition-colors flex items-center gap-1">
                     {i === 0 && <Home className="w-3 h-3" />}
                     {item.name}
                   </button>
@@ -349,56 +426,31 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
 
           {/* Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Button
-              variant="outline" size="sm"
-              onClick={() => load(currentParentId)}
-              disabled={loading}
-            >
+            <Button variant="outline" size="sm" onClick={() => load(currentParentId)} disabled={loading}>
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </Button>
-
-            <Button
-              variant="outline" size="sm"
-              onClick={() => setNewFolderOpen(true)}
-              className="gap-1.5"
-            >
+            <Button variant="outline" size="sm" onClick={() => setNewFolderOpen(true)} className="gap-1.5">
               <FolderPlus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Crear carpeta</span>
             </Button>
-
-            <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium cursor-pointer hover:bg-bg-1 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{uploading ? 'Subiendo…' : 'Subir archivos'}</span>
-              <input
-                type="file"
-                multiple
-                className="sr-only"
-                disabled={uploading}
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  if (file) handleUpload(file);
-                  e.target.value = '';
-                }}
-              />
-            </label>
+            <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
+              <Upload className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Subir archivos</span>
+            </Button>
           </div>
         </div>
 
         {/* Bulk select bar */}
         {someSelected && (
           <div className="flex items-center gap-3 px-4 py-2 bg-brand/5 border-b border-brand/20 text-sm">
-            <span className="text-brand font-medium">{selected.size} seleccionado{selected.size !== 1 ? 's' : ''}</span>
+            <span className="text-brand font-medium text-xs">{selected.size} seleccionado{selected.size !== 1 ? 's' : ''}</span>
             <button
-              onClick={handleBulkDownload}
+              onClick={() => alert('La descarga masiva estará disponible cuando se configure el almacenamiento S3.')}
               className="flex items-center gap-1.5 text-text-2 hover:text-brand transition-colors text-xs"
             >
-              <Download className="w-3.5 h-3.5" />
-              Descarga masiva
+              <Download className="w-3.5 h-3.5" /> Descarga masiva
             </button>
-            <button
-              onClick={() => setSelected(new Set())}
-              className="ml-auto text-text-muted hover:text-text-1 transition-colors"
-            >
+            <button onClick={() => setSelected(new Set())} className="ml-auto text-text-muted hover:text-text-1 transition-colors">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -416,18 +468,14 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
             <EmptyState.Rich
               icon={FolderOpen}
               title="Sin documentos"
-              subtitle={
-                currentParentId
-                  ? 'Esta carpeta está vacía.'
-                  : 'No hay documentos en este caso. Crea una carpeta o sube un archivo.'
-              }
+              subtitle={currentParentId ? 'Esta carpeta está vacía.' : 'No hay documentos en este caso. Crea una carpeta o sube un archivo.'}
             />
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-bg-2/60">
-                <th className="px-3 py-2.5 w-9">
+                <th className="px-4 py-2.5 w-9">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -444,11 +492,8 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
             </thead>
             <tbody className="divide-y divide-border/40">
               {items.map(item => (
-                <tr
-                  key={item.id}
-                  className={`hover:bg-white/[0.02] group transition-colors ${selected.has(item.id) ? 'bg-brand/[0.03]' : ''}`}
-                >
-                  <td className="px-3 py-2.5">
+                <tr key={item.id} className={`hover:bg-white/[0.02] group transition-colors ${selected.has(item.id) ? 'bg-brand/[0.03]' : ''}`}>
+                  <td className="px-4 py-2.5">
                     <input
                       type="checkbox"
                       checked={selected.has(item.id)}
@@ -464,15 +509,13 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                       }
                       <button
                         onClick={() => item.isFolder ? navigateInto(item) : setPreviewItem(item)}
-                        className={`truncate text-left transition-colors hover:text-brand ${item.isFolder ? 'text-text-1 font-medium' : 'text-text-1'}`}
+                        className="truncate text-left text-text-1 hover:text-brand transition-colors font-normal"
                         title={item.name}
                       >
                         {item.name}
                       </button>
                       {item.isFolder && item._count.children > 0 && (
-                        <span className="text-[10px] font-mono text-text-muted flex-shrink-0">
-                          ({item._count.children})
-                        </span>
+                        <span className="text-[10px] font-mono text-text-muted flex-shrink-0">({item._count.children})</span>
                       )}
                     </div>
                   </td>
@@ -485,11 +528,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                       {!item.isFolder && (
-                        <button
-                          onClick={() => handleDownload(item)}
-                          className="p-1 rounded text-text-muted hover:text-brand transition-colors"
-                          title="Descargar"
-                        >
+                        <button onClick={() => handleDownload(item)} className="p-1 rounded text-text-muted hover:text-brand transition-colors" title="Descargar">
                           <Download className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -499,10 +538,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                         className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50"
                         title="Eliminar"
                       >
-                        {deleting === item.id
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <Trash2 className="w-3.5 h-3.5" />
-                        }
+                        {deleting === item.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </td>
@@ -515,14 +551,8 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
 
       {/* New Folder Modal */}
       {newFolderOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }}
-        >
-          <div
-            className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4"
-            onClick={e => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }}>
+          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2">
               <FolderPlus className="w-4 h-4 text-brand" />
               <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Nueva carpeta</h2>
@@ -540,15 +570,22 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
             />
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }} disabled={creatingFolder} className="flex-1">
-                Cancelar
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }} disabled={creatingFolder} className="flex-1">Cancelar</Button>
               <Button size="sm" onClick={createFolder} disabled={creatingFolder || !newFolderName.trim()} className="flex-1">
                 {creatingFolder ? 'Creando…' : 'Crear'}
               </Button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Upload Modal */}
+      {uploadOpen && (
+        <UploadModal
+          onClose={() => setUploadOpen(false)}
+          onUpload={handleUpload}
+          uploading={uploading}
+        />
       )}
 
       {/* File Preview Modal */}

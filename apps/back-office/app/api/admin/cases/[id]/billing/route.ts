@@ -23,7 +23,12 @@ export async function GET(
   }
 
   const billings = await db.appointmentBilling.findMany({
-    where: { caseId },
+    where: {
+      OR: [
+        { caseId },
+        { appointment: { caseId } },
+      ],
+    },
     include: {
       appointment: {
         select: { id: true, scheduledFor: true, status: true },

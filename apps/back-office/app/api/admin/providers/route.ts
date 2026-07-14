@@ -1,14 +1,46 @@
 /**
  * Providers CRUD API
  *
- * POST   /api/admin/providers        → crear provider
- * PATCH  /api/admin/providers        → editar provider (body.id requerido)
- * DELETE /api/admin/providers?id=... → soft delete provider
+ * GET    /api/admin/providers?q=&status=&limit=  → listar / buscar providers
+ * POST   /api/admin/providers                    → crear provider
+ * PATCH  /api/admin/providers                    → editar provider (body.id requerido)
+ * DELETE /api/admin/providers?id=...             → soft delete provider
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const { searchParams } = new URL(req.url);
+  const q      = searchParams.get('q') ?? '';
+  const status = searchParams.get('status') ?? 'ACTIVE';
+  const limit  = Math.min(parseInt(searchParams.get('limit') ?? '100'), 200);
+
+  const providers = await db.provider.findMany({
+    where: {
+      deletedAt: null,
+      ...(status ? { status: status as 'ACTIVE' | 'INACTIVE' | 'PENDING_APPROVAL' | 'TERMINATED' } : {}),
+      ...(q ? {
+        OR: [
+          { firstName: { contains: q, mode: 'insensitive' } },
+          { lastName:  { contains: q, mode: 'insensitive' } },
+        ],
+      } : {}),
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      specialty: true,
+      status: true,
+    },
+    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    take: limit,
+  });
+
+  return NextResponse.json({ providers });
+}
 
 const ProviderInputSchema = z.object({
   id: z.string().optional(),

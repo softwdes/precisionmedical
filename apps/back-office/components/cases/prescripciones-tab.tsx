@@ -61,7 +61,7 @@ const LAB_STATUS_LABELS: Record<string, string> = {
 };
 
 const BILLING_TYPE_OPTIONS = [
-  'Seguro primario', 'Seguro secundario', 'Self-Pay', 'Medicare', 'Medicaid', 'Otro',
+  'Cliente', 'Paciente', 'Privado', 'Medicaid', 'Medicare', 'Compensación laboral',
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -115,12 +115,12 @@ function useDrugSearch(query: string) {
   return results;
 }
 
-// ─── Providers hook ───────────────────────────────────────────────────────────
+// ─── Providers hook — usa el GET de /api/admin/providers (Provider model clínico) ─
 
 function useProviders() {
   const [providers, setProviders] = useState<Array<{ id: string; label: string }>>([]);
   useEffect(() => {
-    fetch('/api/admin/providers?limit=100')
+    fetch('/api/admin/providers?status=ACTIVE&limit=100')
       .then(r => r.ok ? r.json() : { providers: [] })
       .then((d: { providers: Array<{ id: string; firstName: string; lastName: string }> }) =>
         setProviders(d.providers?.map(p => ({ id: p.id, label: `Dr. ${p.firstName} ${p.lastName}` })) ?? [])
@@ -128,6 +128,138 @@ function useProviders() {
       .catch(() => {});
   }, []);
   return providers;
+}
+
+// ─── Lab catalog search hook ──────────────────────────────────────────────────
+
+function useLabSearch(query: string) {
+  const [results, setResults] = useState<Array<{ id: number; code: string; name: string }>>([]);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (query.length < 1) { setResults([]); return; }
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/admin/lab-catalog/search?q=${encodeURIComponent(query)}&limit=20`);
+        if (r.ok) {
+          const data = await r.json();
+          setResults(data.results ?? []);
+        }
+      } catch { setResults([]); }
+    }, 200);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [query]);
+
+  return results;
+}
+
+// ─── Diagnosis search hook ────────────────────────────────────────────────────
+
+function useDiagSearch(query: string) {
+  const [results, setResults] = useState<Array<{ id: string; code: string; label: string }>>([]);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (query.length < 1) { setResults([]); return; }
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/admin/diagnoses/search?q=${encodeURIComponent(query)}&limit=20`);
+        if (r.ok) {
+          const data = await r.json();
+          setResults(data.results ?? []);
+        }
+      } catch { setResults([]); }
+    }, 200);
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [query]);
+
+  return results;
+}
+
+// ─── Multi-select searchable ──────────────────────────────────────────────────
+
+interface SelectItem { id: string | number; label: string; sublabel?: string }
+
+function MultiSelectSearch({
+  placeholder,
+  selected,
+  onAdd,
+  onRemove,
+  results,
+  onQueryChange,
+  query,
+}: {
+  placeholder: string;
+  selected: SelectItem[];
+  onAdd: (item: SelectItem) => void;
+  onRemove: (id: string | number) => void;
+  results: SelectItem[];
+  onQueryChange: (q: string) => void;
+  query: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Selected chips */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1.5">
+          {selected.map(s => (
+            <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-brand/10 border border-brand/30 px-2 py-0.5 text-[11px] text-brand">
+              {s.label}
+              <button onClick={() => onRemove(s.id)} className="hover:text-rose leading-none">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Search input */}
+      <div
+        className="flex items-center gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 cursor-text focus-within:border-brand transition-colors"
+        onClick={() => setOpen(true)}
+      >
+        <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
+        <input
+          type="text"
+          value={query}
+          onChange={e => { onQueryChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          className="flex-1 bg-transparent text-sm text-text-1 placeholder-text-muted outline-none"
+        />
+      </div>
+
+      {/* Dropdown */}
+      {open && results.length > 0 && (
+        <div className="absolute z-20 left-0 right-0 mt-1 rounded-md border border-border bg-bg-1 shadow-xl max-h-52 overflow-y-auto scroll-thin">
+          {results.map(r => {
+            const already = selected.some(s => s.id === r.id);
+            return (
+              <button
+                key={r.id}
+                onClick={() => { if (!already) { onAdd(r); onQueryChange(''); } setOpen(false); }}
+                className={`w-full text-left px-3 py-2 text-sm flex items-baseline gap-2 transition-colors ${already ? 'opacity-40 cursor-default' : 'hover:bg-bg-2'}`}
+              >
+                {r.sublabel && <span className="font-mono text-text-muted text-[11px] shrink-0">{r.sublabel}</span>}
+                <span className="text-text-1 truncate">{r.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Modal: Nueva prescripción ────────────────────────────────────────────────
@@ -436,7 +568,7 @@ function PrescriptionModal({
   );
 }
 
-// ─── Modal: Nuevo laboratorio ─────────────────────────────────────────────────
+// ─── Modal: Nuevo laboratorio (v2 layout) ────────────────────────────────────
 
 function LabModal({
   onClose,
@@ -447,23 +579,33 @@ function LabModal({
 }) {
   const providers = useProviders();
   const [saving, setSaving] = useState(false);
-  const [sampleDate, setSampleDate] = useState('');
-  const [billingType, setBillingType] = useState('');
+
+  // Fields
+  const [providerId, setProviderId]     = useState('');
   const [providerName, setProviderName] = useState('');
-  const [status, setStatus] = useState<string>('PENDING');
-  const [labItems, setLabItems] = useState('');
-  const [diagnoses, setDiagnoses] = useState('');
+  const [sampleDate, setSampleDate]     = useState(() => new Date().toISOString().slice(0, 10));
+  const [billingType, setBillingType]   = useState('');
+
+  // Lab catalog multi-select
+  const [labQuery, setLabQuery]         = useState('');
+  const labResults                      = useLabSearch(labQuery);
+  const [selectedLabs, setSelectedLabs] = useState<SelectItem[]>([]);
+
+  // Diagnosis multi-select
+  const [diagQuery, setDiagQuery]       = useState('');
+  const diagResults                     = useDiagSearch(diagQuery);
+  const [selectedDiags, setSelectedDiags] = useState<SelectItem[]>([]);
 
   async function handleSave() {
     setSaving(true);
     try {
       await onSave({
-        sampleDate: sampleDate || null,
-        billingType: billingType || null,
+        sampleDate:   sampleDate || null,
+        billingType:  billingType || null,
         providerName: providerName || null,
-        status,
-        labItems: labItems.split(',').map(s => s.trim()).filter(Boolean),
-        diagnoses: diagnoses.split(',').map(s => s.trim()).filter(Boolean),
+        status:       'PENDING',
+        labItems:     selectedLabs.map(l => `${l.sublabel} - ${l.label}`),
+        diagnoses:    selectedDiags.map(d => `${d.sublabel} - ${d.label}`),
       });
       onClose();
     } finally { setSaving(false); }
@@ -478,7 +620,7 @@ function LabModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
           <h2 className="text-text-1 font-semibold text-sm flex items-center gap-2">
-            <FlaskConical className="w-4 h-4 text-cyan" /> Agregar laboratorio
+            <FlaskConical className="w-4 h-4 text-cyan" /> Crear laboratorio
           </h2>
           <button onClick={onClose} className="text-text-muted hover:text-text-1 p-1 rounded">
             <X className="w-4 h-4" />
@@ -487,77 +629,74 @@ function LabModal({
 
         {/* Body */}
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4 scroll-thin">
-          {/* Fecha de muestra */}
-          <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Fecha de muestra</label>
-            <input
-              type="date"
-              value={sampleDate}
-              onChange={e => setSampleDate(e.target.value)}
-              className="rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
-            />
-          </div>
 
-          {/* Tipo de facturación */}
-          <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Tipo de facturación</label>
-            <select
-              value={billingType}
-              onChange={e => setBillingType(e.target.value)}
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
-            >
-              <option value="">Todos los tipos de facturación</option>
-              {BILLING_TYPE_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
-          </div>
-
-          {/* Médico */}
+          {/* Médico — full width dropdown */}
           <div>
             <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Médico</label>
             <select
-              value={providerName}
-              onChange={e => setProviderName(e.target.value)}
+              value={providerId}
+              onChange={e => {
+                setProviderId(e.target.value);
+                const found = providers.find(p => p.id === e.target.value);
+                setProviderName(found?.label ?? '');
+              }}
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
             >
-              <option value="">Todos los médicos</option>
-              {providers.map(p => <option key={p.id} value={p.label}>{p.label}</option>)}
+              <option value="">Selecciona un usuario</option>
+              {providers.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </div>
 
-          {/* Estado */}
-          <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Estado</label>
-            <select
-              value={status}
-              onChange={e => setStatus(e.target.value)}
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
-            >
-              {LAB_STATUS_OPTIONS.map(s => <option key={s} value={s}>{LAB_STATUS_LABELS[s]}</option>)}
-            </select>
+          {/* Fecha + Tipo de facturación — 2 columnas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Fecha de toma de muestra</label>
+              <input
+                type="date"
+                value={sampleDate}
+                onChange={e => setSampleDate(e.target.value)}
+                className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Tipo de facturación</label>
+              <select
+                value={billingType}
+                onChange={e => setBillingType(e.target.value)}
+                className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+              >
+                <option value="">Selecciona un tipo de facturación</option>
+                {BILLING_TYPE_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
           </div>
 
-          {/* Laboratorios */}
-          <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Laboratorios</label>
-            <textarea
-              value={labItems}
-              onChange={e => setLabItems(e.target.value)}
-              rows={2}
-              placeholder="CBC, BMP, HbA1c… (separados por coma)"
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand resize-none"
-            />
-          </div>
-
-          {/* Diagnósticos */}
-          <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Diagnósticos</label>
-            <textarea
-              value={diagnoses}
-              onChange={e => setDiagnoses(e.target.value)}
-              rows={2}
-              placeholder="ICD-10 o descripción… (separados por coma)"
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand resize-none"
-            />
+          {/* Laboratorios + Diagnósticos — 2 columnas */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Laboratorios</label>
+              <MultiSelectSearch
+                placeholder="Seleccionar laboratorios..."
+                selected={selectedLabs}
+                onAdd={item => setSelectedLabs(prev => [...prev, item])}
+                onRemove={id => setSelectedLabs(prev => prev.filter(l => l.id !== id))}
+                results={labResults.map(r => ({ id: r.id, label: r.name, sublabel: r.code }))}
+                query={labQuery}
+                onQueryChange={setLabQuery}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Diagnósticos</label>
+              <MultiSelectSearch
+                placeholder="Seleccionar diagnósticos..."
+                selected={selectedDiags}
+                onAdd={item => setSelectedDiags(prev => [...prev, item])}
+                onRemove={id => setSelectedDiags(prev => prev.filter(d => d.id !== id))}
+                results={diagResults.map(r => ({ id: r.id, label: r.label, sublabel: r.code }))}
+                query={diagQuery}
+                onQueryChange={setDiagQuery}
+              />
+            </div>
           </div>
         </div>
 
@@ -566,7 +705,7 @@ function LabModal({
           <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
-            Agregar laboratorio
+            Crear laboratorio
           </Button>
         </div>
       </div>
@@ -705,10 +844,13 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
 // ─── Labs section ─────────────────────────────────────────────────────────────
 
 function LabsSection({ caseId }: { caseId: string }) {
+  const providers = useProviders();
   const [items, setItems] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [providerFilter, setProviderFilter] = useState('');
+  const [billingFilter, setBillingFilter] = useState('');
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const PAGE_SIZE = 10;
@@ -729,7 +871,9 @@ function LabsSection({ caseId }: { caseId: string }) {
 
   const filtered = items.filter(l =>
     (!search || l.labItems.join(' ').toLowerCase().includes(search.toLowerCase())) &&
-    (!statusFilter || l.status === statusFilter)
+    (!statusFilter || l.status === statusFilter) &&
+    (!providerFilter || l.providerName === providerFilter) &&
+    (!billingFilter || l.billingType === billingFilter)
   );
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -761,8 +905,8 @@ function LabsSection({ caseId }: { caseId: string }) {
       </div>
 
       {/* Filters */}
-      <div className="px-4 py-2 border-b border-border/40 flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="px-4 py-2 border-b border-border/40 flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-1 min-w-[160px]">
           <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
           <input
             type="text"
@@ -772,6 +916,22 @@ function LabsSection({ caseId }: { caseId: string }) {
             className="flex-1 bg-transparent text-sm text-text-1 placeholder-text-muted outline-none min-w-0"
           />
         </div>
+        <select
+          value={billingFilter}
+          onChange={e => { setBillingFilter(e.target.value); setPage(1); }}
+          className="rounded-md bg-bg-2 border border-border px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
+        >
+          <option value="">Todos los tipos de facturación</option>
+          {BILLING_TYPE_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
+        </select>
+        <select
+          value={providerFilter}
+          onChange={e => { setProviderFilter(e.target.value); setPage(1); }}
+          className="rounded-md bg-bg-2 border border-border px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
+        >
+          <option value="">Todos los médicos</option>
+          {providers.map(p => <option key={p.id} value={p.label}>{p.label}</option>)}
+        </select>
         <select
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}

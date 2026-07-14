@@ -30,6 +30,7 @@ export function HistorialMedicoTab({ patientId }: Props) {
       if (r.ok) {
         const data = await r.json();
         setPatient(data.patient);
+        setDialogOpen(true); // abre directamente al cargar
       }
     } finally {
       setLoading(false);

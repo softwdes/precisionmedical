@@ -492,8 +492,12 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
             </thead>
             <tbody className="divide-y divide-border/40">
               {items.map(item => (
-                <tr key={item.id} className={`hover:bg-white/[0.02] group transition-colors ${selected.has(item.id) ? 'bg-brand/[0.03]' : ''}`}>
-                  <td className="px-4 py-2.5">
+                <tr
+                  key={item.id}
+                  className={`hover:bg-white/[0.02] group transition-colors cursor-pointer ${selected.has(item.id) ? 'bg-brand/[0.03]' : ''}`}
+                  onClick={() => item.isFolder ? navigateInto(item) : setPreviewItem(item)}
+                >
+                  <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selected.has(item.id)}
@@ -507,13 +511,9 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                         ? <Folder className="w-4 h-4 text-amber flex-shrink-0" />
                         : <FileIcon mimeType={item.mimeType} />
                       }
-                      <button
-                        onClick={() => item.isFolder ? navigateInto(item) : setPreviewItem(item)}
-                        className="truncate text-left text-text-1 hover:text-brand transition-colors font-normal"
-                        title={item.name}
-                      >
+                      <span className="truncate text-text-1 group-hover:text-brand transition-colors font-normal" title={item.name}>
                         {item.name}
-                      </button>
+                      </span>
                       {item.isFolder && item._count.children > 0 && (
                         <span className="text-[10px] font-mono text-text-muted flex-shrink-0">({item._count.children})</span>
                       )}
@@ -525,7 +525,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                   <td className="px-3 py-2.5 text-right text-text-muted text-xs hidden md:table-cell whitespace-nowrap">
                     {formatDate(item.createdAt)}
                   </td>
-                  <td className="px-3 py-2.5">
+                  <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                       {!item.isFolder && (
                         <button onClick={() => handleDownload(item)} className="p-1 rounded text-text-muted hover:text-brand transition-colors" title="Descargar">

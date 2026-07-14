@@ -600,15 +600,13 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                 )}
               </div>
 
-              {/* Segunda fila de selects: solo para Seguro (tipo de pago de seguro) */}
+              {/* Segunda fila: tipo de pago del seguro (ancho completo) */}
               {paySource === 'INSURANCE' && (
-                <div className="grid grid-cols-3 gap-2">
-                  <SelectUp
-                    value={payType}
-                    onChange={setPayType}
-                    options={typeOptions}
-                  />
-                </div>
+                <SelectUp
+                  value={payType}
+                  onChange={setPayType}
+                  options={typeOptions}
+                />
               )}
 
               {/* Fila acción: input ancho completo + botón */}

@@ -2,20 +2,14 @@
 
 /**
  * DocumentsTab — Explorador de archivos del caso.
- *
- * Muestra la jerarquía de carpetas/archivos almacenados en patient_documents.
- * La descarga y subida directa a S3 están stubbed hasta que lleguen las creds.
- *
- * Pendiente (task_5fc56dfb):
- *   - AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET, AWS_S3_REGION
- *   - Una vez configurados: habilitar upload-url y download endpoints
+ * Upload/download stubbed hasta AWS S3 credentials.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
   Folder, FolderOpen, File, FileText, FileImage, Upload,
   FolderPlus, Trash2, Download, ChevronRight, Home, Loader2,
-  RefreshCw,
+  RefreshCw, X, FileArchive,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { EmptyState } from '@/components/ui-phoenix';
@@ -44,21 +38,90 @@ interface BreadcrumbItem {
 function formatBytes(bytes: number | null): string {
   if (!bytes) return '—';
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  });
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}, ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
 }
 
-function FileIcon({ mimeType }: { mimeType: string | null }) {
-  if (!mimeType) return <File className="w-4 h-4 text-text-muted flex-shrink-0" />;
-  if (mimeType.startsWith('image/')) return <FileImage className="w-4 h-4 text-cyan flex-shrink-0" />;
-  if (mimeType === 'application/pdf') return <FileText className="w-4 h-4 text-rose flex-shrink-0" />;
-  return <File className="w-4 h-4 text-text-muted flex-shrink-0" />;
+function FileIcon({ mimeType, size = 4 }: { mimeType: string | null; size?: number }) {
+  const cls = `w-${size} h-${size} flex-shrink-0`;
+  if (!mimeType) return <File className={`${cls} text-text-muted`} />;
+  if (mimeType.startsWith('image/')) return <FileImage className={`${cls} text-cyan`} />;
+  if (mimeType === 'application/pdf') return <FileText className={`${cls} text-rose`} />;
+  if (mimeType.includes('word') || mimeType.includes('document')) return <FileText className={`${cls} text-brand`} />;
+  if (mimeType.includes('sheet') || mimeType.includes('excel')) return <FileText className={`${cls} text-emerald`} />;
+  if (mimeType.includes('zip') || mimeType.includes('rar')) return <FileArchive className={`${cls} text-amber`} />;
+  return <File className={`${cls} text-text-muted`} />;
+}
+
+// ─── Preview Modal ─────────────────────────────────────────────────────────────
+
+function PreviewModal({ item, onClose, onDownload }: {
+  item: DocItem;
+  onClose: () => void;
+  onDownload: (item: DocItem) => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-bg-1 border border-border rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-3 min-w-0">
+            <FileIcon mimeType={item.mimeType} size={5} />
+            <div className="min-w-0">
+              <p className="text-text-1 font-semibold text-sm truncate">{item.name}</p>
+              <div className="flex items-center gap-3 mt-0.5">
+                {item.size && (
+                  <span className="text-[11px] text-text-muted">Tamaño: {formatBytes(item.size)}</span>
+                )}
+                {item.mimeType && (
+                  <span className="text-[11px] text-text-muted uppercase">{item.mimeType.split('/')[1] ?? item.mimeType}</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body — placeholder hasta S3 */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12 px-5">
+          <div className="w-16 h-16 rounded-xl bg-bg-2 border border-border flex items-center justify-center">
+            <FileIcon mimeType={item.mimeType} size={8} />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-text-1 font-medium text-sm">{item.name}</p>
+            <p className="text-text-muted text-xs">
+              La vista previa estará disponible cuando se configure el almacenamiento S3.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+          <Button variant="outline" size="sm" onClick={onClose}>Cerrar</Button>
+          <Button size="sm" onClick={() => onDownload(item)} className="gap-1.5">
+            <Download className="w-3.5 h-3.5" />
+            Descargar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────────
@@ -67,23 +130,26 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
   const [items, setItems]           = useState<DocItem[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
-  const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: 'Inicio' }]);
+  const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ id: null, name: 'Pestaña Principal' }]);
   const [currentParentId, setCurrentParentId] = useState<string | null>(null);
 
-  // Folder creation modal
-  const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
+  // Selection
+  const [selected, setSelected]     = useState<Set<string>>(new Set());
+
+  // Modals
+  const [newFolderOpen, setNewFolderOpen]   = useState(false);
+  const [newFolderName, setNewFolderName]   = useState('');
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [previewItem, setPreviewItem]       = useState<DocItem | null>(null);
 
-  // Upload state
+  // Ops
   const [uploading, setUploading]   = useState(false);
-
-  // Delete confirmation
   const [deleting, setDeleting]     = useState<string | null>(null);
 
   const load = useCallback(async (parentId: string | null) => {
     setLoading(true);
     setError(null);
+    setSelected(new Set());
     try {
       const qs = parentId ? `?parentId=${parentId}` : '';
       const res = await fetch(`/api/admin/cases/${caseId}/documents${qs}`);
@@ -97,9 +163,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     }
   }, [caseId]);
 
-  useEffect(() => {
-    load(currentParentId);
-  }, [load, currentParentId]);
+  useEffect(() => { load(currentParentId); }, [load, currentParentId]);
 
   function navigateInto(folder: DocItem) {
     setBreadcrumb(prev => [...prev, { id: folder.id, name: folder.name }]);
@@ -111,6 +175,30 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     setBreadcrumb(prev => prev.slice(0, idx + 1));
     setCurrentParentId(item.id);
   }
+
+  // ── Selection helpers ──────────────────────────────────────────────────────
+
+  const allFileIds = items.filter(i => !i.isFolder).map(i => i.id);
+  const allSelected = allFileIds.length > 0 && allFileIds.every(id => selected.has(id));
+  const someSelected = selected.size > 0;
+
+  function toggleAll() {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(items.map(i => i.id)));
+    }
+  }
+
+  function toggleOne(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  // ── Folder creation ────────────────────────────────────────────────────────
 
   async function createFolder() {
     if (!newFolderName.trim()) return;
@@ -132,10 +220,11 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     }
   }
 
+  // ── Upload ─────────────────────────────────────────────────────────────────
+
   async function handleUpload(file: File) {
     setUploading(true);
     try {
-      // Step 1: get presigned URL
       const urlRes = await fetch(`/api/admin/cases/${caseId}/documents/upload-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,14 +245,12 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
         throw new Error(urlData.message ?? `HTTP ${urlRes.status}`);
       }
 
-      // Step 2: PUT directly to S3
       await fetch(urlData.uploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': file.type },
         body: file,
       });
 
-      // Step 3: register in DB
       await fetch(`/api/admin/cases/${caseId}/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -185,15 +272,14 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     }
   }
 
+  // ── Delete ─────────────────────────────────────────────────────────────────
+
   async function handleDelete(item: DocItem) {
     if (item.isFolder && item._count.children > 0) {
       alert(`La carpeta "${item.name}" tiene ${item._count.children} elemento(s). Vaciala antes de eliminarla.`);
       return;
     }
-    const confirmed = window.confirm(
-      `¿Eliminar ${item.isFolder ? 'la carpeta' : 'el archivo'} "${item.name}"?`
-    );
-    if (!confirmed) return;
+    if (!window.confirm(`¿Eliminar ${item.isFolder ? 'la carpeta' : 'el archivo'} "${item.name}"?`)) return;
 
     setDeleting(item.id);
     try {
@@ -210,12 +296,14 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     }
   }
 
+  // ── Download ───────────────────────────────────────────────────────────────
+
   async function handleDownload(item: DocItem) {
     const res = await fetch(`/api/admin/cases/${caseId}/documents/${item.id}/download`);
     const data = await res.json();
     if (!res.ok) {
       if (data.error === 'S3_NOT_CONFIGURED') {
-        alert('La descarga aún no está disponible. Las credenciales S3 están pendientes.');
+        alert('La descarga estará disponible cuando se configure el almacenamiento S3.');
         return;
       }
       alert(data.message ?? 'Error al generar enlace de descarga');
@@ -224,129 +312,166 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     window.open(data.url, '_blank');
   }
 
+  async function handleBulkDownload() {
+    alert('La descarga masiva estará disponible cuando se configure el almacenamiento S3.');
+  }
+
+  // ─── Render ────────────────────────────────────────────────────────────────
+
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <FolderOpen className="w-4 h-4 text-brand" />
-          <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Documentos del caso</h3>
-          <span className="text-text-muted text-xs font-mono">({items.length})</span>
+    <>
+      <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-border bg-bg-2/40">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1 text-xs text-text-muted overflow-x-auto scroll-thin min-w-0">
+            {breadcrumb.map((item, i) => (
+              <span key={item.id ?? 'root'} className="flex items-center gap-1 flex-shrink-0">
+                {i > 0 && <ChevronRight className="w-3 h-3" />}
+                {i === breadcrumb.length - 1 ? (
+                  <span className="text-text-1 font-medium flex items-center gap-1">
+                    {i === 0 && <FolderOpen className="w-3.5 h-3.5 text-brand" />}
+                    {i > 0 && <Folder className="w-3.5 h-3.5 text-amber" />}
+                    {item.name}
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => navigateTo(item)}
+                    className="hover:text-brand transition-colors flex items-center gap-1"
+                  >
+                    {i === 0 && <Home className="w-3 h-3" />}
+                    {item.name}
+                  </button>
+                )}
+              </span>
+            ))}
+          </nav>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              variant="outline" size="sm"
+              onClick={() => load(currentParentId)}
+              disabled={loading}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+
+            <Button
+              variant="outline" size="sm"
+              onClick={() => setNewFolderOpen(true)}
+              className="gap-1.5"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Crear carpeta</span>
+            </Button>
+
+            <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium cursor-pointer hover:bg-bg-1 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{uploading ? 'Subiendo…' : 'Subir archivos'}</span>
+              <input
+                type="file"
+                multiple
+                className="sr-only"
+                disabled={uploading}
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUpload(file);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => load(currentParentId)}
-            disabled={loading}
-            className="gap-1.5"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Actualizar</span>
-          </Button>
+        {/* Bulk select bar */}
+        {someSelected && (
+          <div className="flex items-center gap-3 px-4 py-2 bg-brand/5 border-b border-brand/20 text-sm">
+            <span className="text-brand font-medium">{selected.size} seleccionado{selected.size !== 1 ? 's' : ''}</span>
+            <button
+              onClick={handleBulkDownload}
+              className="flex items-center gap-1.5 text-text-2 hover:text-brand transition-colors text-xs"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Descarga masiva
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="ml-auto text-text-muted hover:text-text-1 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setNewFolderOpen(true)}
-            className="gap-1.5"
-          >
-            <FolderPlus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Nueva carpeta</span>
-          </Button>
-
-          {/* File upload input */}
-          <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium cursor-pointer hover:bg-bg-1 transition-colors ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-            {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{uploading ? 'Subiendo…' : 'Subir archivo'}</span>
-            <input
-              type="file"
-              className="sr-only"
-              disabled={uploading}
-              onChange={e => {
-                const file = e.target.files?.[0];
-                if (file) handleUpload(file);
-                e.target.value = '';
-              }}
+        {/* Content */}
+        {loading ? (
+          <div className="flex items-center justify-center py-16 gap-2 text-text-muted text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" /> Cargando…
+          </div>
+        ) : error ? (
+          <div className="m-4 rounded-md border border-rose/30 bg-rose/10 px-3 py-3 text-sm text-rose">{error}</div>
+        ) : items.length === 0 ? (
+          <div className="py-16">
+            <EmptyState.Rich
+              icon={FolderOpen}
+              title="Sin documentos"
+              subtitle={
+                currentParentId
+                  ? 'Esta carpeta está vacía.'
+                  : 'No hay documentos en este caso. Crea una carpeta o sube un archivo.'
+              }
             />
-          </label>
-        </div>
-      </div>
-
-      {/* Breadcrumb */}
-      {breadcrumb.length > 1 && (
-        <nav className="flex items-center gap-1 text-xs text-text-muted overflow-x-auto scroll-thin">
-          {breadcrumb.map((item, i) => (
-            <span key={item.id ?? 'root'} className="flex items-center gap-1 flex-shrink-0">
-              {i > 0 && <ChevronRight className="w-3 h-3" />}
-              {i === breadcrumb.length - 1 ? (
-                <span className="text-text-1 font-semibold">{item.name}</span>
-              ) : (
-                <button
-                  onClick={() => navigateTo(item)}
-                  className="hover:text-brand transition-colors flex items-center gap-1"
-                >
-                  {i === 0 && <Home className="w-3 h-3" />}
-                  {item.name}
-                </button>
-              )}
-            </span>
-          ))}
-        </nav>
-      )}
-
-      {/* Content */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12 gap-2 text-text-muted text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Cargando…
-        </div>
-      ) : error ? (
-        <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-3 text-sm text-rose">
-          {error}
-        </div>
-      ) : items.length === 0 ? (
-        <EmptyState.Rich
-          icon={FolderOpen}
-          title="Sin documentos"
-          subtitle={
-            currentParentId
-              ? 'Esta carpeta está vacía. Sube un archivo o crea una subcarpeta.'
-              : 'No hay documentos en este caso. Crea una carpeta o sube un archivo.'
-          }
-        />
-      ) : (
-        <div className="rounded-md border border-border overflow-hidden">
+          </div>
+        ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-bg-2/60 border-b border-border">
-                <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-full">Nombre</th>
-                <th className="text-right px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell whitespace-nowrap">Tamaño</th>
-                <th className="text-right px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell whitespace-nowrap">Fecha</th>
-                <th className="w-16 px-3 py-2" />
+              <tr className="border-b border-border bg-bg-2/60">
+                <th className="px-3 py-2.5 w-9">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    className="accent-brand w-3.5 h-3.5 cursor-pointer"
+                    title="Seleccionar todo"
+                  />
+                </th>
+                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Nombre</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell whitespace-nowrap">Tamaño</th>
+                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell whitespace-nowrap">Última modificación</th>
+                <th className="w-16 px-3 py-2.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
               {items.map(item => (
-                <tr key={item.id} className="hover:bg-white/[0.02] group">
+                <tr
+                  key={item.id}
+                  className={`hover:bg-white/[0.02] group transition-colors ${selected.has(item.id) ? 'bg-brand/[0.03]' : ''}`}
+                >
+                  <td className="px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(item.id)}
+                      onChange={() => toggleOne(item.id)}
+                      className="accent-brand w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2 min-w-0">
-                      {item.isFolder ? (
-                        <Folder className="w-4 h-4 text-amber flex-shrink-0" />
-                      ) : (
-                        <FileIcon mimeType={item.mimeType} />
-                      )}
+                      {item.isFolder
+                        ? <Folder className="w-4 h-4 text-amber flex-shrink-0" />
+                        : <FileIcon mimeType={item.mimeType} />
+                      }
                       <button
-                        onClick={() => item.isFolder ? navigateInto(item) : handleDownload(item)}
-                        className={`truncate text-left text-text-1 hover:text-brand transition-colors ${item.isFolder ? 'font-medium' : ''}`}
+                        onClick={() => item.isFolder ? navigateInto(item) : setPreviewItem(item)}
+                        className={`truncate text-left transition-colors hover:text-brand ${item.isFolder ? 'text-text-1 font-medium' : 'text-text-1'}`}
                         title={item.name}
                       >
                         {item.name}
                       </button>
                       {item.isFolder && item._count.children > 0 && (
                         <span className="text-[10px] font-mono text-text-muted flex-shrink-0">
-                          {item._count.children}
+                          ({item._count.children})
                         </span>
                       )}
                     </div>
@@ -385,10 +510,10 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* New folder modal */}
+      {/* New Folder Modal */}
       {newFolderOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -402,39 +527,38 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
               <FolderPlus className="w-4 h-4 text-brand" />
               <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Nueva carpeta</h2>
             </div>
-
             <input
               type="text"
               value={newFolderName}
               onChange={e => setNewFolderName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') createFolder(); if (e.key === 'Escape') { setNewFolderOpen(false); setNewFolderName(''); } }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') createFolder();
+                if (e.key === 'Escape') { setNewFolderOpen(false); setNewFolderName(''); }
+              }}
               placeholder="Nombre de la carpeta"
               autoFocus
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
             />
-
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }}
-                disabled={creatingFolder}
-                className="flex-1"
-              >
+              <Button variant="outline" size="sm" onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }} disabled={creatingFolder} className="flex-1">
                 Cancelar
               </Button>
-              <Button
-                size="sm"
-                onClick={createFolder}
-                disabled={creatingFolder || !newFolderName.trim()}
-                className="flex-1"
-              >
+              <Button size="sm" onClick={createFolder} disabled={creatingFolder || !newFolderName.trim()} className="flex-1">
                 {creatingFolder ? 'Creando…' : 'Crear'}
               </Button>
             </div>
           </div>
         </div>
       )}
-    </div>
+
+      {/* File Preview Modal */}
+      {previewItem && (
+        <PreviewModal
+          item={previewItem}
+          onClose={() => setPreviewItem(null)}
+          onDownload={item => { handleDownload(item); setPreviewItem(null); }}
+        />
+      )}
+    </>
   );
 }

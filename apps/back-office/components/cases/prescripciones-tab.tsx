@@ -130,7 +130,7 @@ function useProviders() {
   return providers;
 }
 
-// ─── Lab catalog search hook ──────────────────────────────────────────────────
+// ─── Lab catalog search hook — carga inmediato con query vacío ────────────────
 
 function useLabSearch(query: string) {
   const [results, setResults] = useState<Array<{ id: number; code: string; name: string }>>([]);
@@ -138,7 +138,8 @@ function useLabSearch(query: string) {
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
-    if (query.length < 1) { setResults([]); return; }
+    // delay 0ms para query vacío (carga inicial), 200ms para búsqueda
+    const delay = query.length === 0 ? 0 : 200;
     timer.current = setTimeout(async () => {
       try {
         const r = await fetch(`/api/admin/lab-catalog/search?q=${encodeURIComponent(query)}&limit=20`);
@@ -147,14 +148,14 @@ function useLabSearch(query: string) {
           setResults(data.results ?? []);
         }
       } catch { setResults([]); }
-    }, 200);
+    }, delay);
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [query]);
 
   return results;
 }
 
-// ─── Diagnosis search hook ────────────────────────────────────────────────────
+// ─── Diagnosis search hook — carga inmediato con query vacío ─────────────────
 
 function useDiagSearch(query: string) {
   const [results, setResults] = useState<Array<{ id: string; code: string; label: string }>>([]);
@@ -162,7 +163,7 @@ function useDiagSearch(query: string) {
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
-    if (query.length < 1) { setResults([]); return; }
+    const delay = query.length === 0 ? 0 : 200;
     timer.current = setTimeout(async () => {
       try {
         const r = await fetch(`/api/admin/diagnoses/search?q=${encodeURIComponent(query)}&limit=20`);
@@ -171,7 +172,7 @@ function useDiagSearch(query: string) {
           setResults(data.results ?? []);
         }
       } catch { setResults([]); }
-    }, 200);
+    }, delay);
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [query]);
 

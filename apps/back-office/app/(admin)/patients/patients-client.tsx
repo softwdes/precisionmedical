@@ -2016,7 +2016,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                                     <td className="px-3 py-2">
                                       <div className="flex items-center justify-end gap-0.5">
                                         <button
-                                          onClick={() => setCaseViewTarget(c)}
+                                          onClick={() => router.push(`/front-office/${c.id}`)}
                                           className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
                                           title={t('tooltipViewCase')}
                                         >

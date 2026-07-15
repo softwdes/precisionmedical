@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search as SearchIcon, Phone, Mail, Stethoscope, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search as SearchIcon, Phone, Mail, Pencil, Trash2, Link2, LinkIcon } from 'lucide-react';
 import {
   Button,
   Input,
@@ -26,8 +26,6 @@ import {
   PersonAvatar,
 } from '@/components/ui-phoenix';
 
-// Catálogo de doctores/providers
-
 interface Provider {
   id: string;
   firstName: string;
@@ -38,6 +36,14 @@ interface Provider {
   licenseNumber: string | null;
   status: string;
   appointmentCount: number;
+  employeeId: string | null;
+  employee: { id: string; firstName: string; lastName: string } | null;
+}
+
+interface DoctorEmployee {
+  id: string;
+  name: string;
+  linkedProviderId: string | null;
 }
 
 interface Props {
@@ -77,19 +83,27 @@ const EMPTY_FORM = {
   specialty: 'GENERAL' as string,
   licenseNumber: '',
   status: 'ACTIVE' as string,
+  employeeId: '' as string,
 };
 
 export function ProvidersClient({ providers, stats }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [search, setSearch]   = useState('');
-  const [filter, setFilter]   = useState<'all' | 'active' | 'inactive'>('all');
+  const [filter, setFilter]   = useState<'all' | 'active' | 'inactive' | 'unlinked'>('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing]   = useState<Provider | null>(null);
   const [deleting, setDeleting] = useState<Provider | null>(null);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [form, setForm]         = useState(EMPTY_FORM);
+  const [doctorEmployees, setDoctorEmployees] = useState<DoctorEmployee[]>([]);
+
+  useEffect(() => {
+    fetch('/api/admin/employees/doctors')
+      .then(r => r.ok ? r.json() : { doctors: [] })
+      .then(d => setDoctorEmployees(d.doctors ?? []));
+  }, []);
 
   const set = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
@@ -102,8 +116,11 @@ export function ProvidersClient({ providers, stats }: Props) {
     }
     if (filter === 'active'   && p.status !== 'ACTIVE') return false;
     if (filter === 'inactive' && p.status === 'ACTIVE') return false;
+    if (filter === 'unlinked' && p.employeeId) return false;
     return true;
   });
+
+  const unlinkedCount = providers.filter(p => !p.employeeId).length;
 
   const refresh = () => startTransition(() => router.refresh());
 
@@ -122,6 +139,7 @@ export function ProvidersClient({ providers, stats }: Props) {
       specialty:     p.specialty,
       licenseNumber: p.licenseNumber ?? '',
       status:        p.status,
+      employeeId:    p.employeeId ?? '',
     });
     setError(null);
     setEditing(p);
@@ -131,7 +149,11 @@ export function ProvidersClient({ providers, stats }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const body = isEdit ? { ...form, id: editing!.id } : form;
+      const body = {
+        ...(isEdit ? { id: editing!.id } : {}),
+        ...form,
+        employeeId: form.employeeId || null,
+      };
       const res = await fetch('/api/admin/providers', {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -166,7 +188,13 @@ export function ProvidersClient({ providers, stats }: Props) {
     }
   }
 
-  const FormFields = () => (
+  // Employees disponibles para vincular (excluye los ya vinculados a otro provider)
+  const availableEmployees = (currentProviderId?: string) =>
+    doctorEmployees.filter(
+      d => !d.linkedProviderId || d.linkedProviderId === currentProviderId
+    );
+
+  const FormFields = ({ providerId }: { providerId?: string }) => (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
@@ -217,9 +245,32 @@ export function ProvidersClient({ providers, stats }: Props) {
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="licenseNumber">Número de Licencia</Label>
+        <Label htmlFor="licenseNumber">Número de Licencia / NPI</Label>
         <Input id="licenseNumber" value={form.licenseNumber} onChange={set('licenseNumber')} placeholder="NPI o licencia estatal" />
       </div>
+
+      {/* Vínculo con empleado HR */}
+      <div className="space-y-1.5">
+        <Label htmlFor="employeeId" className="flex items-center gap-1.5">
+          <Link2 className="w-3.5 h-3.5 text-brand" />
+          Empleado vinculado (HR)
+        </Label>
+        <select
+          id="employeeId"
+          value={form.employeeId}
+          onChange={set('employeeId')}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <option value="">— Sin vínculo —</option>
+          {availableEmployees(providerId).map(d => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
+        </select>
+        <p className="text-[11px] text-text-muted">
+          Solo aparecen empleados con cargo Doctor no vinculados a otro perfil clínico.
+        </p>
+      </div>
+
       {error && (
         <p className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">{error}</p>
       )}
@@ -239,10 +290,10 @@ export function ProvidersClient({ providers, stats }: Props) {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label="Total"    value={stats.total}    sub="registrados"   color="text-text-1" />
-        <KpiCard label="Activos"  value={stats.active}   sub="en servicio"   color="text-emerald" />
-        <KpiCard label="Quiro."   value={stats.bySpecialty['CHIROPRACTIC'] ?? 0}  sub="Quiropráctica"  color="text-violet" />
-        <KpiCard label="Medicina" value={stats.bySpecialty['GENERAL'] ?? 0}       sub="General"        color="text-cyan" />
+        <KpiCard label="Total"      value={stats.total}    sub="registrados"    color="text-text-1" />
+        <KpiCard label="Activos"    value={stats.active}   sub="en servicio"    color="text-emerald" />
+        <KpiCard label="Vinculados" value={stats.total - unlinkedCount} sub="con empleado HR" color="text-brand" />
+        <KpiCard label="Sin vínculo" value={unlinkedCount} sub="pendientes"     color={unlinkedCount > 0 ? 'text-amber' : 'text-text-muted'} />
       </div>
 
       {/* Filters */}
@@ -259,6 +310,9 @@ export function ProvidersClient({ providers, stats }: Props) {
         <FilterPill active={filter === 'all'}      onClick={() => setFilter('all')}      label="Todos" />
         <FilterPill active={filter === 'active'}   onClick={() => setFilter('active')}   label="Activos" />
         <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label="Inactivos" />
+        {unlinkedCount > 0 && (
+          <FilterPill active={filter === 'unlinked'} onClick={() => setFilter('unlinked')} label={`Sin vínculo (${unlinkedCount})`} />
+        )}
       </div>
 
       {/* Table */}
@@ -270,6 +324,7 @@ export function ProvidersClient({ providers, stats }: Props) {
               <DataTable.Th>Especialidad</DataTable.Th>
               <DataTable.Th>Contacto</DataTable.Th>
               <DataTable.Th>Licencia</DataTable.Th>
+              <DataTable.Th>Empleado HR</DataTable.Th>
               <DataTable.Th>Estado</DataTable.Th>
               <DataTable.Th align="right">Citas</DataTable.Th>
               <DataTable.Th align="right">Acciones</DataTable.Th>
@@ -277,7 +332,7 @@ export function ProvidersClient({ providers, stats }: Props) {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <EmptyState.Inline message={search ? `Sin resultados para "${search}"` : 'No hay doctores aún'} />
                   </td>
                 </tr>
@@ -310,6 +365,16 @@ export function ProvidersClient({ providers, stats }: Props) {
                     <span className="text-[11px] font-mono text-text-muted">{p.licenseNumber ?? '—'}</span>
                   </DataTable.Td>
                   <DataTable.Td>
+                    {p.employee ? (
+                      <div className="flex items-center gap-1.5">
+                        <LinkIcon className="w-3 h-3 text-brand shrink-0" />
+                        <span className="text-[11px] text-text-2">{p.employee.firstName} {p.employee.lastName}</span>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-amber italic">Sin vínculo</span>
+                    )}
+                  </DataTable.Td>
+                  <DataTable.Td>
                     <StatusPill
                       state={p.status === 'ACTIVE' ? 'active' : p.status === 'PENDING_APPROVAL' ? 'warning' : 'inactive'}
                       label={STATUS_LABELS[p.status] ?? p.status}
@@ -320,8 +385,8 @@ export function ProvidersClient({ providers, stats }: Props) {
                   </DataTable.Td>
                   <DataTable.Td align="right">
                     <div className="flex items-center gap-1 justify-end">
-                      <IconAction icon={Pencil} label="Editar"    onClick={() => openEdit(p)} />
-                      <IconAction icon={Trash2} label="Eliminar"  variant="danger" onClick={() => setDeleting(p)} />
+                      <IconAction icon={Pencil} label="Editar"   onClick={() => openEdit(p)} />
+                      <IconAction icon={Trash2} label="Eliminar" variant="danger" onClick={() => setDeleting(p)} />
                     </div>
                   </DataTable.Td>
                 </DataTable.Row>
@@ -355,7 +420,7 @@ export function ProvidersClient({ providers, stats }: Props) {
           <DialogHeader>
             <DialogTitle>Editar Doctor</DialogTitle>
           </DialogHeader>
-          <FormFields />
+          <FormFields providerId={editing?.id} />
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
             <Button className="w-full sm:w-auto" onClick={() => handleSave(true)} disabled={saving}>

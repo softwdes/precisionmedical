@@ -41,7 +41,10 @@ export default async function SettingsPage() {
     db.provider.findMany({
       where: { deletedAt: null },
       orderBy: [{ status: 'asc' }, { lastName: 'asc' }],
-      include: { _count: { select: { appointments: true } } },
+      include: {
+        _count: { select: { appointments: true } },
+        employee: { select: { id: true, firstName: true, lastName: true } },
+      },
     }),
     db.lawyer.findMany({
       where: { entityType: 'FIRM', deletedAt: null },
@@ -114,6 +117,8 @@ export default async function SettingsPage() {
         licenseNumber: p.licenseNumber,
         status: p.status,
         appointmentCount: p._count.appointments,
+        employeeId: p.employeeId ?? null,
+        employee: p.employee ?? null,
       }))}
       providerStats={{
         total: providers.length,

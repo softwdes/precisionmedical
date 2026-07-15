@@ -34,6 +34,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       lastName: true,
       specialty: true,
       status: true,
+      employeeId: true,
+      employee: { select: { id: true, firstName: true, lastName: true } },
     },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     take: limit,
@@ -54,6 +56,7 @@ const ProviderInputSchema = z.object({
   ]),
   licenseNumber: z.string().max(100).nullable().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'PENDING_APPROVAL', 'TERMINATED']).default('ACTIVE'),
+  employeeId: z.string().nullable().optional(),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -120,6 +123,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       specialty: parsed.specialty,
       licenseNumber: parsed.licenseNumber ?? null,
       status: parsed.status,
+      employeeId: parsed.employeeId !== undefined ? parsed.employeeId : undefined,
     },
   });
 

@@ -200,6 +200,10 @@ model Employee {
   // Tabla separada para no inflar Employee con NULLs para empleados no-doctores.
   doctorCredentials DoctorCredentials?
 
+  // Vínculo con el perfil clínico Provider (citas/labs/prescripciones).
+  // Solo relevante cuando position=DOCTOR.
+  providerProfile   Provider?
+
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   deletedAt       DateTime?
@@ -625,28 +629,32 @@ model Provider {
   id             String          @id @default(cuid())
   userId         String?         @unique
   user           User?           @relation(fields: [userId], references: [id])
-  
+
+  // Vínculo opcional con el registro HR del doctor en Employee
+  employeeId     String?         @unique
+  employee       Employee?       @relation(fields: [employeeId], references: [id])
+
   firstName      String
   lastName       String
-  
+
   email          String          @unique
   phone          String?
-  
+
   specialty      Specialty
   licenseNumber  String?
-  
+
   status         ExternalStatus  @default(ACTIVE)
-  
+
   serviceTariffs ServiceTariff[]
-  
+
   referrals      Patient[]       @relation("ProviderReferrer")
   commissions    Commission[]    @relation("ProviderCommission")
   appointments   Appointment[]
-  
+
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   deletedAt      DateTime?
-  
+
   @@map("providers")
 }
 

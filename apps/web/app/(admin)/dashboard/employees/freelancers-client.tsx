@@ -120,7 +120,7 @@ export function FreelancersClient({
   };
 
   const { data, refetch } = trpc.freelancers.list.useQuery(
-    { page, pageSize: 25, search: search || undefined, modalidad: (modalidadFilter as 'POR_HORA' | 'POR_SERVICIO' | 'CONTRATISTA' | undefined) || undefined },
+    { page, pageSize: 15, search: search || undefined, modalidad: (modalidadFilter as 'POR_HORA' | 'POR_SERVICIO' | 'CONTRATISTA' | undefined) || undefined },
     { initialData: initial },
   );
 

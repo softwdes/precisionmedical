@@ -173,7 +173,7 @@ export function FxClient({
 
   // ── Queries
   const { data, refetch } = trpc.fx.list.useQuery(
-    { page, pageSize: 25, period: periodFilter, exchangeHouse: houseFilter || undefined },
+    { page, pageSize: 15, period: periodFilter, exchangeHouse: houseFilter || undefined },
     { initialData: initial },
   );
 

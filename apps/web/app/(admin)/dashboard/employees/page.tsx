@@ -58,7 +58,7 @@ export default async function EmployeesPage({
 
   if (activeTab === 'freelancers' && empPerm !== 'payroll_only') {
     const [initial, initialSummary] = await Promise.all([
-      api.freelancers.list({ page: 1, pageSize: 25 }),
+      api.freelancers.list({ page: 1, pageSize: 15 }),
       api.freelancers.getSummary(),
     ]);
     content = <FreelancersClient initial={initial} initialSummary={initialSummary} />;
@@ -83,7 +83,7 @@ export default async function EmployeesPage({
     content = <ReporteHorasClient initialEmployees={empOptions} />;
   } else {
     const [initial, departments] = await Promise.all([
-      api.employees.list({ page: 1, pageSize: 25 }),
+      api.employees.list({ page: 1, pageSize: 15 }),
       api.departments.list(),
     ]);
     content = <EmployeesClient initial={initial} departments={departments} />;

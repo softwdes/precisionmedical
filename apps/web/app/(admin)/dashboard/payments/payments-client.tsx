@@ -112,7 +112,7 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
   };
 
   const { data, refetch } = trpc.payments.list.useQuery(
-    { page, pageSize: 25, status: (statusFilter as 'PENDING' | 'SCHEDULED' | 'PAID' | 'PARTIAL' | 'CANCELLED' | 'REVERSED' | undefined) || undefined },
+    { page, pageSize: 15, status: (statusFilter as 'PENDING' | 'SCHEDULED' | 'PAID' | 'PARTIAL' | 'CANCELLED' | 'REVERSED' | undefined) || undefined },
     { initialData: initial },
   );
 

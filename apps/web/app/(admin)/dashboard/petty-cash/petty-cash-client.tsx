@@ -84,7 +84,7 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
     type:       filterType,
     month:      filterMonth,
     page,
-    pageSize:   20,
+    pageSize:   15,
   });
 
   const clinicOptions = useMemo(() => {

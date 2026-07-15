@@ -209,7 +209,7 @@ export function UsersClient({
 
   const { data, refetch } = trpc.users.list.useQuery(
     {
-      page, pageSize: 20, search: search || undefined,
+      page, pageSize: 10, search: search || undefined,
       role: (roleFilter as 'SUPER_ADMIN' | 'ADMIN' | 'EMPLOYEE' | 'LAWYER' | 'PROVIDER' | 'AUDITOR_AI' | undefined) || undefined,
       status: (statusFilter as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION' | undefined) || undefined,
     },

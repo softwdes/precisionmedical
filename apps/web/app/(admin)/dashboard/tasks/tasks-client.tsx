@@ -68,7 +68,7 @@ export function TasksClient({
 
   const { data, refetch } = trpc.tasks.list.useQuery(
     {
-      page, pageSize: 25,
+      page, pageSize: 15,
       status: (statusFilter as 'ASSIGNED' | 'IN_PROGRESS' | 'DELIVERED' | 'REVIEWED' | 'REJECTED' | 'CANCELLED' | undefined) || undefined,
       priority: (priorityFilter as 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | undefined) || undefined,
       assigneeId: assigneeFilter || undefined,

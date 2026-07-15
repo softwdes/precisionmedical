@@ -82,7 +82,7 @@ export function EmployeesClient({
 
   // Lazy-fetch payments data only when view === 'pagos'
   const { data: pagosInitial } = trpc.payments.list.useQuery(
-    { page: 1, pageSize: 25 },
+    { page: 1, pageSize: 15 },
     { enabled: view === 'pagos' },
   );
   const { data: pagosSummary } = trpc.payments.getSummary.useQuery(
@@ -756,8 +756,18 @@ function CreateEmployeeDialog({
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(INITIAL_FORM);
   const [successData, setSuccessData] = useState<{ name: string; email: string; type: string } | null>(null);
+  const [emailTouched, setEmailTouched] = useState(false);
 
-  const resetForm = (): void => { setForm(INITIAL_FORM); setStep(1); };
+  const resetForm = (): void => { setForm(INITIAL_FORM); setStep(1); setEmailTouched(false); };
+
+  const formatPhone = (val: string): string => {
+    const digits = val.replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
+  const emailValid = !form.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
 
   const create = trpc.employees.create.useMutation({
     onSuccess: (result) => {
@@ -817,8 +827,29 @@ function CreateEmployeeDialog({
               <div className="space-y-1.5"><Label>{t('employees.firstName')} *</Label><Input required value={form.firstName} onChange={(e) => f('firstName', e.target.value)} /></div>
               <div className="space-y-1.5"><Label>{t('employees.lastName')} *</Label><Input required value={form.lastName} onChange={(e) => f('lastName', e.target.value)} /></div>
             </div>
-            <div className="space-y-1.5"><Label>{t('employees.email')} *</Label><Input type="email" required value={form.email} onChange={(e) => f('email', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>{t('employees.phone')}</Label><Input value={form.phone} onChange={(e) => f('phone', e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.email')} *</Label>
+              <Input
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) => { f('email', e.target.value); setEmailTouched(true); }}
+                onBlur={() => setEmailTouched(true)}
+                className={emailTouched && !emailValid ? 'border-rose focus-visible:ring-rose' : ''}
+              />
+              {emailTouched && !emailValid && (
+                <p className="text-[11px] text-rose">Ingresa un email válido (ej: nombre@dominio.com)</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.phone')}</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) => f('phone', formatPhone(e.target.value))}
+                placeholder="(801) 555-0100"
+                maxLength={14}
+              />
+            </div>
           </div>
         )}
 
@@ -992,6 +1023,16 @@ function EditEmployeeDialog({
   });
 
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [emailTouched, setEmailTouched] = useState(false);
+
+  const formatPhone = (val: string): string => {
+    const digits = val.replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
+
+  const emailValid = !form.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
 
   const handleSubmit = (): void => {
     const errs: Record<string, string> = {};
@@ -1033,8 +1074,29 @@ function EditEmployeeDialog({
               <div className="space-y-1.5"><Label>{t('employees.firstName')} *</Label><Input required value={form.firstName} onChange={(e) => f('firstName', e.target.value)} /></div>
               <div className="space-y-1.5"><Label>{t('employees.lastName')} *</Label><Input required value={form.lastName} onChange={(e) => f('lastName', e.target.value)} /></div>
             </div>
-            <div className="space-y-1.5"><Label>{t('employees.email')} *</Label><Input type="email" required value={form.email} onChange={(e) => f('email', e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>{t('employees.phone')}</Label><Input value={form.phone} onChange={(e) => f('phone', e.target.value)} /></div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.email')} *</Label>
+              <Input
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) => { f('email', e.target.value); setEmailTouched(true); }}
+                onBlur={() => setEmailTouched(true)}
+                className={emailTouched && !emailValid ? 'border-rose focus-visible:ring-rose' : ''}
+              />
+              {emailTouched && !emailValid && (
+                <p className="text-[11px] text-rose">Ingresa un email válido (ej: nombre@dominio.com)</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('employees.phone')}</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) => f('phone', formatPhone(e.target.value))}
+                placeholder="(801) 555-0100"
+                maxLength={14}
+              />
+            </div>
           </div>
         )}
 

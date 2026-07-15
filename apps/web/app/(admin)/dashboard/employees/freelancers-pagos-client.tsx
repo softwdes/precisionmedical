@@ -66,7 +66,7 @@ export function FreelancersPagosClient({
 
   const { data, refetch } = trpc.freelancers.listPagos.useQuery({
     page,
-    pageSize: 25,
+    pageSize: 15,
     status:   (statusFilter as 'PENDING' | 'PAID' | 'CANCELLED' | 'REVERSED' | undefined) || undefined,
   });
 

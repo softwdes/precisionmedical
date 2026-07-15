@@ -9,7 +9,7 @@ import { db } from '@precision-medical/database';
 import { PageHeader } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 15;
 
 export default async function PatientsPage({
   searchParams,

@@ -6,7 +6,7 @@ import { FrontOfficeClient } from './front-office-client';
 // B.1 + B.2 — Recepción primaria · Front Office workspace
 // Vista de Recepción + modal de crear caso.
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 15;
 
 export default async function FrontOfficePage({
   searchParams,

@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Star, Trash2, Plus, Search as SearchIcon } from 'lucide-react';
+import { Eye, Pencil, Star, Trash2, Plus, Search as SearchIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import {
   Button,
   Input,
@@ -26,8 +25,6 @@ import {
   EmptyState,
 } from '@/components/ui-phoenix';
 
-// B.35 — Diagnósticos ICD-10 + SNOMED CT dual
-
 interface Diagnosis {
   id: string;
   icd10Code: string;
@@ -42,7 +39,6 @@ interface Diagnosis {
 }
 
 interface Props {
-  diagnoses: Diagnosis[];
   stats: {
     total: number;
     active: number;
@@ -50,6 +46,7 @@ interface Props {
     withSnomed: number;
     favorites: number;
   };
+  userId?: string;
 }
 
 const CATEGORY_OPTIONS = [
@@ -64,36 +61,76 @@ const CATEGORY_OPTIONS = [
   { value: 'OTHER', label: 'Otro' },
 ];
 
-export function DiagnosesClient({ diagnoses, stats }: Props) {
-  const router = useRouter();
-  const t = useTranslations('phoenix.diagnoses');
+const PAGE_SIZE = 50;
+
+export function DiagnosesClient({ stats, userId = '' }: Props) {
+  const t  = useTranslations('phoenix.diagnoses');
   const tc = useTranslations('phoenix.common');
-  const [, startTransition] = useTransition();
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'favorites' | 'piRelevant'>('all');
+
+  const [rows, setRows]           = useState<Diagnosis[]>([]);
+  const [total, setTotal]         = useState(0);
+  const [page, setPage]           = useState(1);
+  const [loading, setLoading]     = useState(false);
+  const [search, setSearch]       = useState('');
+  const [filter, setFilter]       = useState<'all' | 'favorites' | 'piRelevant'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<Diagnosis | null>(null);
-  const [viewing, setViewing] = useState<Diagnosis | null>(null);
-  const [deleting, setDeleting] = useState<Diagnosis | null>(null);
+  const [editing, setEditing]     = useState<Diagnosis | null>(null);
+  const [viewing, setViewing]     = useState<Diagnosis | null>(null);
+  const [deleting, setDeleting]   = useState<Diagnosis | null>(null);
 
-  const filtered = diagnoses.filter((d) => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (
-        !d.icd10Code.toLowerCase().includes(q) &&
-        !d.icd10Description.toLowerCase().includes(q) &&
-        !(d.snomedCode ?? '').toLowerCase().includes(q) &&
-        !(d.snomedDescription ?? '').toLowerCase().includes(q)
-      ) return false;
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const load = useCallback(async (p: number, q: string, f: string, cat: string) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q, filter: f, category: cat, page: String(p), limit: String(PAGE_SIZE),
+        ...(userId ? { userId } : {}),
+      });
+      const r = await fetch(`/api/admin/diagnoses?${params}`);
+      if (r.ok) {
+        const data = await r.json();
+        setRows(data.diagnoses ?? []);
+        setTotal(data.total ?? 0);
+      }
+    } finally {
+      setLoading(false);
     }
-    if (filter === 'favorites' && !d.isFavorite) return false;
-    if (filter === 'piRelevant' && !d.piRelevant) return false;
-    if (categoryFilter !== 'all' && d.category !== categoryFilter) return false;
-    return true;
-  });
+  }, [userId]);
 
-  const refresh = () => startTransition(() => router.refresh());
+  // Carga inicial
+  useEffect(() => { load(1, '', 'all', 'all'); }, [load]);
+
+  // Debounce search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setPage(1);
+      load(1, search, filter, categoryFilter);
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  function applyFilter(f: typeof filter) {
+    setFilter(f);
+    setPage(1);
+    load(1, search, f, categoryFilter);
+  }
+
+  function applyCategory(cat: string) {
+    setCategoryFilter(cat);
+    setPage(1);
+    load(1, search, filter, cat);
+  }
+
+  function goPage(p: number) {
+    setPage(p);
+    load(p, search, filter, categoryFilter);
+  }
+
+  const refresh = () => load(page, search, filter, categoryFilter);
 
   const toggleFavorite = async (dx: Diagnosis) => {
     await fetch(`/api/admin/diagnoses/${dx.id}/favorite`, {
@@ -101,6 +138,8 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
     });
     refresh();
   };
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -115,9 +154,9 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KpiCard label={t('kpiTotal')}       value={stats.total}      sub="Catalog"        color="text-text-1" />
-        <KpiCard label={t('kpiPiRelevant')}  value={stats.piRelevant} sub="MVA cases"      color="text-rose" />
-        <KpiCard label={t('kpiWithSnomed')}  value={stats.withSnomed} sub="Dual complete"  color="text-emerald" />
+        <KpiCard label={t('kpiTotal')}       value={stats.total}      sub="Catalog"           color="text-text-1" />
+        <KpiCard label={t('kpiPiRelevant')}  value={stats.piRelevant} sub="MVA cases"         color="text-rose" />
+        <KpiCard label={t('kpiWithSnomed')}  value={stats.withSnomed} sub="Dual complete"     color="text-emerald" />
         <KpiCard label={t('kpiFavorites')}   value={stats.favorites}  sub="B.18 autocomplete" color="text-amber" />
       </div>
 
@@ -132,15 +171,15 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
               className="pl-9"
             />
           </div>
-          <FilterPill active={filter === 'all'}        onClick={() => setFilter('all')}        label={t('filterAll')}        count={stats.total} />
-          <FilterPill active={filter === 'favorites'}  onClick={() => setFilter('favorites')}  label={t('filterFavorites')}  count={stats.favorites} />
-          <FilterPill active={filter === 'piRelevant'} onClick={() => setFilter('piRelevant')} label={t('filterPiRelevant')} count={stats.piRelevant} />
+          <FilterPill active={filter === 'all'}        onClick={() => applyFilter('all')}        label={t('filterAll')}        count={stats.total} />
+          <FilterPill active={filter === 'favorites'}  onClick={() => applyFilter('favorites')}  label={t('filterFavorites')}  count={stats.favorites} />
+          <FilterPill active={filter === 'piRelevant'} onClick={() => applyFilter('piRelevant')} label={t('filterPiRelevant')} count={stats.piRelevant} />
         </div>
         <div className="flex items-center gap-2">
           <Label className="text-xs text-text-muted">Categoría ICD-10:</Label>
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => applyCategory(e.target.value)}
             className="bg-bg-2 border border-border rounded-md px-3 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand"
           >
             <option value="all">Todas las categorías</option>
@@ -162,7 +201,16 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
               <DataTable.Th align="right">Acciones</DataTable.Th>
             </DataTable.Head>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center">
+                    <div className="flex items-center justify-center gap-2 text-text-muted">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Cargando diagnósticos…</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
                 <tr>
                   <DataTable.Td colSpan={7}>
                     <EmptyState.Inline
@@ -170,57 +218,75 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
                     />
                   </DataTable.Td>
                 </tr>
-              ) : (
-                filtered.map((d) => (
-                  <DataTable.Row key={d.id} muted={!d.isActive} highlight={d.isFavorite}>
-                    <DataTable.Td align="center" className="px-2">
-                      <button type="button" onClick={() => toggleFavorite(d)} className="hover:scale-125 transition-transform" title={d.isFavorite ? 'Quitar' : 'Marcar favorito'}>
-                        <Star className={`w-4 h-4 ${d.isFavorite ? 'fill-amber text-amber' : 'text-text-muted/40'}`} />
-                      </button>
-                    </DataTable.Td>
-                    <DataTable.Td>
-                      <code className="text-brand font-mono font-bold text-sm">{d.icd10Code}</code>
-                      <div className="text-text-1 text-[12.5px] mt-0.5 line-clamp-1" title={d.icd10Description}>{d.icd10Description}</div>
-                    </DataTable.Td>
-                    <DataTable.Td>
-                      {d.snomedCode ? (
-                        <>
-                          <code className="text-emerald font-mono font-bold text-sm">{d.snomedCode}</code>
-                          <div className="text-text-2 text-[12.5px] mt-0.5 line-clamp-1" title={d.snomedDescription ?? ''}>{d.snomedDescription}</div>
-                        </>
-                      ) : (
-                        <span className="text-text-muted italic text-xs">Sin SNOMED mapping</span>
-                      )}
-                    </DataTable.Td>
-                    <DataTable.Td align="center">
-                      <CategoryPill cat={d.category} />
-                    </DataTable.Td>
-                    <DataTable.Td className="text-text-2 text-xs">
-                      {d.bodySystem ?? <span className="text-text-muted italic">—</span>}
-                    </DataTable.Td>
-                    <DataTable.Td align="center">
-                      {d.piRelevant ? (
-                        <TagPill label="🩸 PI" colorClass="bg-rose/15 text-rose border-rose/30" />
-                      ) : (
-                        <span className="text-text-muted text-[10px]">—</span>
-                      )}
-                    </DataTable.Td>
-                    <DataTable.Td align="right">
-                      <div className="flex items-center justify-end gap-1">
-                        <IconAction onClick={() => setViewing(d)}  icon={Eye}    label="Ver" />
-                        <IconAction onClick={() => setEditing(d)}  icon={Pencil} label="Editar" />
-                        <IconAction onClick={() => setDeleting(d)} icon={Trash2} label="Eliminar" variant="danger" />
-                      </div>
-                    </DataTable.Td>
-                  </DataTable.Row>
-                ))
-              )}
+              ) : rows.map((d) => (
+                <DataTable.Row key={d.id} muted={!d.isActive} highlight={d.isFavorite}>
+                  <DataTable.Td align="center" className="px-2">
+                    <button type="button" onClick={() => toggleFavorite(d)} className="hover:scale-125 transition-transform" title={d.isFavorite ? 'Quitar' : 'Marcar favorito'}>
+                      <Star className={`w-4 h-4 ${d.isFavorite ? 'fill-amber text-amber' : 'text-text-muted/40'}`} />
+                    </button>
+                  </DataTable.Td>
+                  <DataTable.Td>
+                    <code className="text-brand font-mono font-bold text-sm">{d.icd10Code}</code>
+                    <div className="text-text-1 text-[12.5px] mt-0.5 line-clamp-1" title={d.icd10Description}>{d.icd10Description}</div>
+                  </DataTable.Td>
+                  <DataTable.Td>
+                    {d.snomedCode ? (
+                      <>
+                        <code className="text-emerald font-mono font-bold text-sm">{d.snomedCode}</code>
+                        <div className="text-text-2 text-[12.5px] mt-0.5 line-clamp-1" title={d.snomedDescription ?? ''}>{d.snomedDescription}</div>
+                      </>
+                    ) : (
+                      <span className="text-text-muted italic text-xs">Sin SNOMED mapping</span>
+                    )}
+                  </DataTable.Td>
+                  <DataTable.Td align="center">
+                    <CategoryPill cat={d.category} />
+                  </DataTable.Td>
+                  <DataTable.Td className="text-text-2 text-xs">
+                    {d.bodySystem ?? <span className="text-text-muted italic">—</span>}
+                  </DataTable.Td>
+                  <DataTable.Td align="center">
+                    {d.piRelevant ? (
+                      <TagPill label="🩸 PI" colorClass="bg-rose/15 text-rose border-rose/30" />
+                    ) : (
+                      <span className="text-text-muted text-[10px]">—</span>
+                    )}
+                  </DataTable.Td>
+                  <DataTable.Td align="right">
+                    <div className="flex items-center justify-end gap-1">
+                      <IconAction onClick={() => setViewing(d)}  icon={Eye}    label="Ver" />
+                      <IconAction onClick={() => setEditing(d)}  icon={Pencil} label="Editar" />
+                      <IconAction onClick={() => setDeleting(d)} icon={Trash2} label="Eliminar" variant="danger" />
+                    </div>
+                  </DataTable.Td>
+                </DataTable.Row>
+              ))}
             </tbody>
           </DataTable.Table>
         </DataTable.Scroll>
         <TableFooter
-          left={`${filtered.length} diagnósticos mostrados`}
-          right={<span className="text-text-muted">ICD-10 source: CDC · SNOMED CT source: NLM/UMLS · Both free for US clinical use</span>}
+          left={
+            <div className="flex items-center gap-3">
+              <span>{total.toLocaleString()} diagnósticos · página {page} de {totalPages || 1}</span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => goPage(page - 1)}
+                  disabled={page <= 1 || loading}
+                  className="p-1 rounded hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => goPage(page + 1)}
+                  disabled={page >= totalPages || loading}
+                  className="p-1 rounded hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          }
+          right={<span className="text-text-muted">ICD-10: CDC · SNOMED CT: NLM/UMLS</span>}
         />
       </DataTable.Card>
 
@@ -246,9 +312,8 @@ export function DiagnosesClient({ diagnoses, stats }: Props) {
   );
 }
 
-// ─── Domain pills ───────────────────────────────────────────────────────────
+// ─── Domain pills ────────────────────────────────────────────────────────────
 
-/** CategoryPill — Pill por capítulo ICD-10 (S/T/M/R/G/F/V_W/Z/OTHER) */
 function CategoryPill({ cat }: { cat: string }) {
   const colors: Record<string, string> = {
     S: 'bg-rose/15 text-rose border-rose/30',
@@ -267,14 +332,14 @@ function CategoryPill({ cat }: { cat: string }) {
 // ─── Modals ──────────────────────────────────────────────────────────────────
 
 function DiagnosisDialog({ open, onOpenChange, editing, onSaved }: { open: boolean; onOpenChange: (open: boolean) => void; editing: Diagnosis | null; onSaved: () => void }) {
-  const [icd10Code, setIcd10Code]     = useState(editing?.icd10Code ?? '');
+  const [icd10Code, setIcd10Code]               = useState(editing?.icd10Code ?? '');
   const [icd10Description, setIcd10Description] = useState(editing?.icd10Description ?? '');
-  const [snomedCode, setSnomedCode]   = useState(editing?.snomedCode ?? '');
+  const [snomedCode, setSnomedCode]             = useState(editing?.snomedCode ?? '');
   const [snomedDescription, setSnomedDescription] = useState(editing?.snomedDescription ?? '');
-  const [category, setCategory]       = useState(editing?.category ?? 'M');
-  const [bodySystem, setBodySystem]   = useState(editing?.bodySystem ?? '');
-  const [piRelevant, setPiRelevant]   = useState(editing?.piRelevant ?? false);
-  const [isActive, setIsActive]       = useState(editing?.isActive ?? true);
+  const [category, setCategory]                 = useState(editing?.category ?? 'M');
+  const [bodySystem, setBodySystem]             = useState(editing?.bodySystem ?? '');
+  const [piRelevant, setPiRelevant]             = useState(editing?.piRelevant ?? false);
+  const [isActive, setIsActive]                 = useState(editing?.isActive ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
 
@@ -411,26 +476,19 @@ function ViewDialog({ diagnosis, onClose, onEdit }: { diagnosis: Diagnosis | nul
             {diagnosis.isFavorite && <Star className="w-5 h-5 fill-amber text-amber" />}
           </DialogTitle>
         </DialogHeader>
-
         <div className="space-y-3 py-4">
           <div className="bg-brand/5 border border-brand/20 rounded-md p-3">
             <div className="text-brand text-xs font-semibold uppercase tracking-wider mb-1.5">ICD-10 (billing)</div>
-            <div className="flex items-baseline gap-2">
-              <code className="text-brand font-mono font-bold text-base">{diagnosis.icd10Code}</code>
-            </div>
+            <code className="text-brand font-mono font-bold text-base">{diagnosis.icd10Code}</code>
             <div className="text-text-2 text-sm mt-1">{diagnosis.icd10Description}</div>
           </div>
-
           {diagnosis.snomedCode && (
             <div className="bg-emerald/5 border border-emerald/20 rounded-md p-3">
               <div className="text-emerald text-xs font-semibold uppercase tracking-wider mb-1.5">SNOMED CT (clínico)</div>
-              <div className="flex items-baseline gap-2">
-                <code className="text-emerald font-mono font-bold text-base">{diagnosis.snomedCode}</code>
-              </div>
+              <code className="text-emerald font-mono font-bold text-base">{diagnosis.snomedCode}</code>
               <div className="text-text-2 text-sm mt-1">{diagnosis.snomedDescription}</div>
             </div>
           )}
-
           <div className="grid grid-cols-2 gap-3 text-sm">
             <InfoRow label="Capítulo"    value={<CategoryPill cat={diagnosis.category} />} />
             <InfoRow label="Body system" value={diagnosis.bodySystem ?? <span className="text-text-muted italic">—</span>} />
@@ -438,7 +496,6 @@ function ViewDialog({ diagnosis, onClose, onEdit }: { diagnosis: Diagnosis | nul
             <InfoRow label="Estado"      value={diagnosis.isActive ? <span className="text-emerald">Activo</span> : <span className="text-text-muted">Inactivo</span>} />
           </div>
         </div>
-
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cerrar</Button>
           <Button onClick={onEdit}><Pencil className="w-3.5 h-3.5 mr-1" /> Editar</Button>

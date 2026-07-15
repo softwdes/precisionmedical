@@ -16,8 +16,11 @@ export default async function SettingsPage() {
     insurances,
     services,
     serviceFavs,
-    diagnoses,
+    ,  // diagnoses — eliminado, se carga via API paginada
     diagnosisFavs,
+    diagnosisTotal,
+    diagnosisPiRelevant,
+    diagnosisWithSnomed,
     templates,
     auditTotal,
     auditToday,
@@ -60,8 +63,12 @@ export default async function SettingsPage() {
       orderBy: [{ isActive: 'desc' }, { sortOrder: 'asc' }, { code: 'asc' }],
     }),
     db.userServiceFavorite.findMany({ where: { userId: userId }, select: { serviceCodeId: true } }),
-    db.diagnosis.findMany({ orderBy: [{ isActive: 'desc' }, { piRelevant: 'desc' }, { icd10Code: 'asc' }] }),
+    // Diagnoses: solo stats — los rows se cargan via API paginada en DiagnosesClient
+    Promise.resolve([] as unknown[]),
     db.userDiagnosisFavorite.findMany({ where: { userId: userId }, select: { diagnosisId: true } }),
+    db.diagnosis.count(),
+    db.diagnosis.count({ where: { piRelevant: true } }),
+    db.diagnosis.count({ where: { snomedCode: { not: null } } }),
     db.template.findMany({
       where: { deletedAt: null },
       include: {
@@ -178,19 +185,14 @@ export default async function SettingsPage() {
         custom: services.filter((s) => s.type === 'CUSTOM_PM').length,
         favorites: serviceFavIds.size,
       }}
-      initialDiagnoses={diagnoses.map((d) => ({
-        id: d.id, icd10Code: d.icd10Code, icd10Description: d.icd10Description,
-        snomedCode: d.snomedCode, snomedDescription: d.snomedDescription,
-        category: d.category, bodySystem: d.bodySystem, piRelevant: d.piRelevant,
-        isActive: d.isActive, isFavorite: diagnosisFavIds.has(d.id),
-      }))}
       diagnosisStats={{
-        total: diagnoses.length,
-        active: diagnoses.filter((d) => d.isActive).length,
-        piRelevant: diagnoses.filter((d) => d.piRelevant).length,
-        withSnomed: diagnoses.filter((d) => d.snomedCode).length,
+        total: diagnosisTotal,
+        active: diagnosisTotal,
+        piRelevant: diagnosisPiRelevant,
+        withSnomed: diagnosisWithSnomed,
         favorites: diagnosisFavIds.size,
       }}
+      diagnosisUserId={userId}
       initialTemplates={templates.map((t) => ({
         id:            t.id,
         title:         t.title,

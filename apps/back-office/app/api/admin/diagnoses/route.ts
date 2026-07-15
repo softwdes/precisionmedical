@@ -1,9 +1,81 @@
 /**
  * B.35 — Diagnoses CRUD API (ICD-10 + SNOMED dual)
+ *
+ * GET /api/admin/diagnoses?q=&category=&filter=&page=&limit=
+ *   Paginado server-side — nunca devuelve más de 50 rows a la vez.
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const { searchParams } = new URL(req.url);
+  const q        = searchParams.get('q') ?? '';
+  const category = searchParams.get('category') ?? '';
+  const filter   = searchParams.get('filter') ?? 'all';   // all | piRelevant | favorites
+  const page     = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
+  const limit    = Math.min(50, parseInt(searchParams.get('limit') ?? '50'));
+  const userId   = searchParams.get('userId') ?? '';
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = {
+    ...(q ? {
+      OR: [
+        { icd10Code:         { contains: q, mode: 'insensitive' } },
+        { icd10Description:  { contains: q, mode: 'insensitive' } },
+        { snomedCode:        { contains: q, mode: 'insensitive' } },
+        { snomedDescription: { contains: q, mode: 'insensitive' } },
+      ],
+    } : {}),
+    ...(category && category !== 'all' ? { category } : {}),
+    ...(filter === 'piRelevant' ? { piRelevant: true } : {}),
+  };
+
+  // Para filtro favorites: obtener IDs del usuario y filtrar
+  let favIds: Set<string> = new Set();
+  if (filter === 'favorites' && userId) {
+    const favs = await db.userDiagnosisFavorite.findMany({
+      where: { userId },
+      select: { diagnosisId: true },
+    });
+    favIds = new Set(favs.map((f) => f.diagnosisId));
+    if (favIds.size === 0) {
+      return NextResponse.json({ diagnoses: [], total: 0, page, limit, pages: 0 });
+    }
+    (where as Record<string, unknown>).id = { in: [...favIds] };
+  }
+
+  // Para marcar favoritos en los resultados
+  if (userId && filter !== 'favorites') {
+    const favs = await db.userDiagnosisFavorite.findMany({
+      where: { userId },
+      select: { diagnosisId: true },
+    });
+    favIds = new Set(favs.map((f) => f.diagnosisId));
+  }
+
+  const [rows, total] = await Promise.all([
+    db.diagnosis.findMany({
+      where,
+      orderBy: [{ piRelevant: 'desc' }, { icd10Code: 'asc' }],
+      skip: (page - 1) * limit,
+      take: limit,
+      select: {
+        id: true, icd10Code: true, icd10Description: true,
+        snomedCode: true, snomedDescription: true,
+        category: true, bodySystem: true, piRelevant: true, isActive: true,
+      },
+    }),
+    db.diagnosis.count({ where }),
+  ]);
+
+  const diagnoses = rows.map((d) => ({
+    ...d,
+    isFavorite: favIds.has(d.id),
+  }));
+
+  return NextResponse.json({ diagnoses, total, page, limit, pages: Math.ceil(total / limit) });
+}
 
 const InputSchema = z.object({
   id: z.string().optional(),

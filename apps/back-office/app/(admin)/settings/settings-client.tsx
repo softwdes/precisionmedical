@@ -52,8 +52,8 @@ interface Props {
   insuranceStats:     React.ComponentProps<typeof InsurancesClient>['stats'];
   initialServices:    React.ComponentProps<typeof ServicesClient>['services'];
   serviceStats:       React.ComponentProps<typeof ServicesClient>['stats'];
-  initialDiagnoses:   React.ComponentProps<typeof DiagnosesClient>['diagnoses'];
   diagnosisStats:     React.ComponentProps<typeof DiagnosesClient>['stats'];
+  diagnosisUserId?:   string;
   initialProviders:   React.ComponentProps<typeof ProvidersClient>['providers'];
   providerStats:      React.ComponentProps<typeof ProvidersClient>['stats'];
   initialTemplates:   React.ComponentProps<typeof TemplatesClient>['templates'];
@@ -82,7 +82,7 @@ export function SettingsClient({
   initialFirms,       firmStats,
   initialInsurances,  insuranceStats,
   initialServices,    serviceStats,
-  initialDiagnoses,   diagnosisStats,
+  diagnosisStats,     diagnosisUserId,
   initialProviders,   providerStats,
   initialTemplates,   templateStats,
   auditKpis,          initialAuditLogs,
@@ -283,7 +283,7 @@ export function SettingsClient({
       {activeTab === 'bufetes'        && <LawyersClient firms={initialFirms} stats={firmStats} />}
       {activeTab === 'aseguradoras'   && <InsurancesClient insurances={initialInsurances} stats={insuranceStats} />}
       {activeTab === 'servicios'      && <ServicesClient services={initialServices} stats={serviceStats} />}
-      {activeTab === 'diagnosticos'   && <DiagnosesClient diagnoses={initialDiagnoses} stats={diagnosisStats} />}
+      {activeTab === 'diagnosticos'   && <DiagnosesClient stats={diagnosisStats} userId={diagnosisUserId} />}
       {activeTab === 'plantillas'     && <TemplatesClient templates={initialTemplates} stats={templateStats} />}
       {activeTab === 'auditlog'       && <AuditLogsClient kpis={auditKpis} initialLogs={initialAuditLogs} />}
 

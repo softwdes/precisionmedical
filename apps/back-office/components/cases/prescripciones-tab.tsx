@@ -191,6 +191,7 @@ function MultiSelectSearch({
   results,
   onQueryChange,
   query,
+  openUpward = false,
 }: {
   placeholder: string;
   selected: SelectItem[];
@@ -199,6 +200,7 @@ function MultiSelectSearch({
   results: SelectItem[];
   onQueryChange: (q: string) => void;
   query: string;
+  openUpward?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -243,7 +245,7 @@ function MultiSelectSearch({
 
       {/* Dropdown */}
       {open && results.length > 0 && (
-        <div className="absolute z-20 left-0 right-0 bottom-full mb-1 rounded-md border border-border bg-bg-1 shadow-xl max-h-52 overflow-y-auto scroll-thin">
+        <div className={`absolute z-20 left-0 right-0 rounded-md border border-border bg-bg-1 shadow-xl max-h-52 overflow-y-auto scroll-thin ${openUpward ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
           {results.map(r => {
             const already = selected.some(s => s.id === r.id);
             return (
@@ -615,7 +617,7 @@ function LabModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="bg-bg-1 border border-border rounded-xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden"
+        className="bg-bg-1 border border-border rounded-xl w-full max-w-2xl flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -629,7 +631,7 @@ function LabModal({
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4 scroll-thin">
+        <div className="px-5 py-4 space-y-4 pb-52">
 
           {/* Médico — full width dropdown */}
           <div>

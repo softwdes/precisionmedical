@@ -124,7 +124,7 @@ export function EmployeesClient({
     ON_LEAVE: t('employees.statuses.ON_LEAVE'),
   };
 
-  const { data, refetch } = trpc.employees.list.useQuery(
+  const { data: fetchedData, refetch } = trpc.employees.list.useQuery(
     {
       page, pageSize: 15, search: search || undefined,
       type: (typeFilter as 'FULL_TIME' | 'PART_TIME' | undefined) || undefined,
@@ -132,8 +132,8 @@ export function EmployeesClient({
       departmentId: deptFilter || undefined,
       position: positionFilter || undefined,
     },
-    { initialData: initial },
   );
+  const data = fetchedData ?? initial;
 
   const deactivate = trpc.employees.deactivate.useMutation({
     onSuccess: () => {

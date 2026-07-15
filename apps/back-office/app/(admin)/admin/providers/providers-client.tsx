@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search as SearchIcon, Phone, Mail, Pencil, Trash2, Link2, LinkIcon } from 'lucide-react';
+import { Search as SearchIcon, Phone, Mail, Pencil, Trash2, Link2, LinkIcon } from 'lucide-react';
 import {
   Button,
   Input,
@@ -10,7 +10,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
   Label,
 } from '@precision/ui';
@@ -91,7 +90,6 @@ export function ProvidersClient({ providers, stats }: Props) {
   const [, startTransition] = useTransition();
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState<'all' | 'active' | 'inactive' | 'unlinked'>('all');
-  const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing]   = useState<Provider | null>(null);
   const [deleting, setDeleting] = useState<Provider | null>(null);
   const [saving, setSaving]     = useState(false);
@@ -124,12 +122,6 @@ export function ProvidersClient({ providers, stats }: Props) {
 
   const refresh = () => startTransition(() => router.refresh());
 
-  function openCreate() {
-    setForm(EMPTY_FORM);
-    setError(null);
-    setCreateOpen(true);
-  }
-
   function openEdit(p: Provider) {
     setForm({
       firstName:     p.firstName,
@@ -145,17 +137,17 @@ export function ProvidersClient({ providers, stats }: Props) {
     setEditing(p);
   }
 
-  async function handleSave(isEdit: boolean) {
+  async function handleSave() {
     setSaving(true);
     setError(null);
     try {
       const body = {
-        ...(isEdit ? { id: editing!.id } : {}),
+        id: editing!.id,
         ...form,
         employeeId: form.employeeId || null,
       };
       const res = await fetch('/api/admin/providers', {
-        method: isEdit ? 'PATCH' : 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -163,7 +155,6 @@ export function ProvidersClient({ providers, stats }: Props) {
         const data = await res.json();
         throw new Error(data.message ?? data.error ?? 'Error al guardar');
       }
-      setCreateOpen(false);
       setEditing(null);
       refresh();
     } catch (e) {
@@ -282,11 +273,6 @@ export function ProvidersClient({ providers, stats }: Props) {
       <PageHeader
         title="Doctores / Providers"
         subtitle={`${stats.active} activos · ${stats.total} total`}
-        action={
-          <Button onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" /> Nuevo Doctor
-          </Button>
-        }
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -397,23 +383,6 @@ export function ProvidersClient({ providers, stats }: Props) {
         <TableFooter left={`${filtered.length} de ${providers.length} doctores`} />
       </DataTable.Card>
 
-      {/* Create Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Nuevo Doctor</DialogTitle>
-            <DialogDescription>Agregar un doctor o proveedor al catálogo.</DialogDescription>
-          </DialogHeader>
-          <FormFields />
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCreateOpen(false)} disabled={saving}>Cancelar</Button>
-            <Button className="w-full sm:w-auto" onClick={() => handleSave(false)} disabled={saving}>
-              {saving ? 'Guardando…' : 'Crear Doctor'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Edit Dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-lg">
@@ -423,7 +392,7 @@ export function ProvidersClient({ providers, stats }: Props) {
           <FormFields providerId={editing?.id} />
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditing(null)} disabled={saving}>Cancelar</Button>
-            <Button className="w-full sm:w-auto" onClick={() => handleSave(true)} disabled={saving}>
+            <Button className="w-full sm:w-auto" onClick={() => handleSave()} disabled={saving}>
               {saving ? 'Guardando…' : 'Guardar Cambios'}
             </Button>
           </DialogFooter>

@@ -182,15 +182,34 @@ export const employeesRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
-      // ── Sync Provider when employee is / becomes a Doctor ───────────────────
+      // ── Sync Provider linked via employeeId FK ──────────────────────────────
       const effectivePosition = (input.data.position ?? before.position) as string;
-      if (effectivePosition === 'DOCTOR') {
-        const now       = new Date().toISOString();
-        const firstName = input.data.firstName ?? before.firstName;
-        const lastName  = input.data.lastName  ?? before.lastName;
-        const email     = input.data.email     ?? before.email;
+      const now       = new Date().toISOString();
+      const firstName = (input.data.firstName ?? before.firstName) as string;
+      const lastName  = (input.data.lastName  ?? before.lastName)  as string;
+      const email     = (input.data.email     ?? before.email)     as string;
+      const phone     = (input.data.phone     ?? before.phone)     as string | null;
 
-        // Fetch current doctor_credentials to know existing specialty
+      // Find provider explicitly linked to this employee (via employeeId FK)
+      const { data: linkedProvider } = await supabaseAdmin
+        .from('providers')
+        .select('id')
+        .eq('employeeId', input.id)
+        .maybeSingle();
+
+      if (linkedProvider) {
+        // Sync shared identity fields — Provider keeps authority over clinical fields
+        await supabaseAdmin.from('providers').update({
+          firstName,
+          lastName,
+          email,
+          ...(phone !== undefined ? { phone } : {}),
+          updatedAt: now,
+        }).eq('id', linkedProvider.id);
+      }
+
+      // Upsert DoctorCredentials when position is DOCTOR
+      if (effectivePosition === 'DOCTOR' && (specialty || npiNumber !== undefined || licenseNumber !== undefined)) {
         const { data: creds } = await supabaseAdmin
           .from('doctor_credentials')
           .select('specialty')
@@ -199,27 +218,14 @@ export const employeesRouter = router({
 
         const effectiveSpecialty = specialty ?? (creds?.specialty as string | undefined) ?? 'GENERAL';
 
-        // Sync Provider (upsert by email)
-        await supabaseAdmin.from('providers').upsert({
-          firstName,
-          lastName,
-          email,
-          specialty: effectiveSpecialty,
-          status:    'ACTIVE',
-          updatedAt: now,
-        }, { onConflict: 'email', ignoreDuplicates: false });
-
-        // Upsert DoctorCredentials
-        if (specialty || npiNumber !== undefined || licenseNumber !== undefined) {
-          await supabaseAdmin.from('doctor_credentials').upsert({
-            employeeId:           input.id,
-            specialty:            effectiveSpecialty,
-            ...(npiNumber            !== undefined ? { npiNumber } : {}),
-            ...(licenseNumber        !== undefined ? { medicalLicenseNumber: licenseNumber } : {}),
-            isActive:             true,
-            updatedAt:            now,
-          }, { onConflict: 'employeeId', ignoreDuplicates: false });
-        }
+        await supabaseAdmin.from('doctor_credentials').upsert({
+          employeeId:           input.id,
+          specialty:            effectiveSpecialty,
+          ...(npiNumber     !== undefined ? { npiNumber }                    : {}),
+          ...(licenseNumber !== undefined ? { medicalLicenseNumber: licenseNumber } : {}),
+          isActive:             true,
+          updatedAt:            now,
+        }, { onConflict: 'employeeId', ignoreDuplicates: false });
       }
       // ─────────────────────────────────────────────────────────────────────────
 

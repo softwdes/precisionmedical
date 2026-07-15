@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2 } from 'lucide-react';
 import {
@@ -59,8 +59,10 @@ type Tab = 'summary' | 'members' | 'cases' | 'notes';
 
 export function LawyerDetailClient({ firm, members }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
-  const [tab, setTab] = useState<Tab>('summary');
+  const initialTab = (searchParams.get('tab') as Tab | null) ?? 'summary';
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [editFirmOpen, setEditFirmOpen] = useState(false);
   const [memberDialogOpen, setMemberDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);

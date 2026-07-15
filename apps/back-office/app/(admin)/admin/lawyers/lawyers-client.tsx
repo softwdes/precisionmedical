@@ -194,7 +194,7 @@ export function LawyersClient({ firms, stats }: Props) {
                     </DataTable.Td>
                     <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
-                        <Link href={`/admin/lawyers/${f.id}`} title="Ver detalle (B.31)">
+                        <Link href={`/admin/lawyers/${f.id}?tab=cases`} title="Ver casos del bufete">
                           <IconAction icon={Eye} label="Ver detalle" />
                         </Link>
                         <IconAction onClick={() => setEditing(f)}  icon={Pencil}   label="Editar" />

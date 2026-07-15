@@ -106,6 +106,17 @@ export function EmployeesClient({
     PART_TIME: t('employees.types.PART_TIME'),
   };
 
+  const POSITION_LABELS: Record<string, string> = {
+    DOCTOR:             t('employees.positions.DOCTOR'),
+    NURSE:              t('employees.positions.NURSE'),
+    RECEPTIONIST:       t('employees.positions.RECEPTIONIST'),
+    SOFTWARE_DEVELOPER: t('employees.positions.SOFTWARE_DEVELOPER'),
+    CLINIC_ADMIN:       t('employees.positions.CLINIC_ADMIN'),
+    MEDICAL_ASSISTANT:  t('employees.positions.MEDICAL_ASSISTANT'),
+    COMMUNICATOR:       t('employees.positions.COMMUNICATOR'),
+    CLEANING_STAFF:     t('employees.positions.CLEANING_STAFF'),
+  };
+
   const STATUS_LABELS = {
     ACTIVE: t('employees.statuses.ACTIVE'),
     INACTIVE: t('employees.statuses.INACTIVE'),

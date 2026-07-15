@@ -96,6 +96,17 @@ export default async function CaseDetailPage({ params }: PageProps) {
           type: true,
         },
       },
+      lienSignatures: {
+        orderBy: { signedAt: 'asc' },
+        select: {
+          id: true,
+          signerType: true,
+          signerName: true,
+          signerEmail: true,
+          signatureSvg: true,
+          signedAt: true,
+        },
+      },
     },
   });
 
@@ -147,6 +158,14 @@ export default async function CaseDetailPage({ params }: PageProps) {
         specialty: caseRecord.specialty,
         notes: caseRecord.notes,
         appointments: caseRecord.appointments,
+        lienSignatures: caseRecord.lienSignatures.map((s) => ({
+          id: s.id,
+          signerType: s.signerType,
+          signerName: s.signerName,
+          signerEmail: s.signerEmail,
+          signatureSvg: s.signatureSvg,
+          signedAt: s.signedAt,
+        })),
       }}
       auditEvents={auditEvents.map((e) => ({
         id: e.id,

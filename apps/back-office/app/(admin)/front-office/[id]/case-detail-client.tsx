@@ -8,7 +8,7 @@ import {
   ArrowLeft, Phone, Mail, MapPin, Calendar, Scale, Shield, AlertCircle,
   Send, FileCheck, MessageSquarePlus, Clock, User, Bot, Cpu, FileText,
   PhoneCall, Zap, AlertTriangle, CalendarCheck, Pencil,
-  FolderOpen, DollarSign, ClipboardList, Pill,
+  FolderOpen, DollarSign, ClipboardList, Pill, PenLine, CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@precision/ui';
 import { PageHeader, TagPill, PersonAvatar, EntityAvatar } from '@/components/ui-phoenix';
@@ -112,6 +112,14 @@ interface CaseInfo {
     durationMinutes: number;
     status: string;
     type: string;
+  }>;
+  lienSignatures: Array<{
+    id: string;
+    signerType: string;
+    signerName: string;
+    signerEmail: string | null;
+    signatureSvg: string | null;
+    signedAt: Date;
   }>;
 }
 
@@ -426,6 +434,29 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
               </>
             ) : (
               <div className="text-text-muted text-sm italic">{t('noLawFirm')}</div>
+            )}
+
+            {/* Firmas del caso */}
+            {caseInfo.lienSignatures.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border/30">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3 flex items-center gap-1.5">
+                  <PenLine className="w-3 h-3" /> Firmas del lien
+                </div>
+                <div className="space-y-3">
+                  {caseInfo.lienSignatures.map((sig) => (
+                    <LienSignatureRow key={sig.id} sig={sig} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {caseInfo.lienSignatures.length === 0 && (
+              <div className="mt-4 pt-4 border-t border-border/30">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2 flex items-center gap-1.5">
+                  <PenLine className="w-3 h-3" /> Firmas del lien
+                </div>
+                <div className="text-text-muted text-[11px] italic">Sin firmas registradas</div>
+              </div>
             )}
           </InfoCard>
 
@@ -1068,4 +1099,65 @@ function formatRelative(d: Date | string): string {
   if (h < 24) return `hace ${Math.floor(h)}h`;
   if (h < 24 * 7) return `hace ${Math.floor(h / 24)}d`;
   return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric' });
+}
+
+// ─── LienSignatureRow ──────────────────────────────────────────────────────────
+
+const SIGNER_LABELS: Record<string, string> = {
+  PATIENT:  'Paciente',
+  ATTORNEY: 'Abogado',
+  DOCTOR:   'Doctor',
+};
+
+const SIGNER_COLORS: Record<string, string> = {
+  PATIENT:  'bg-cyan/10 border-cyan/30 text-cyan',
+  ATTORNEY: 'bg-brand/10 border-brand/30 text-brand',
+  DOCTOR:   'bg-violet/10 border-violet/30 text-violet',
+};
+
+function LienSignatureRow({
+  sig,
+}: {
+  sig: { id: string; signerType: string; signerName: string; signerEmail: string | null; signatureSvg: string | null; signedAt: Date };
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const colorClass = SIGNER_COLORS[sig.signerType] ?? 'bg-bg-2 border-border text-text-2';
+  const label = SIGNER_LABELS[sig.signerType] ?? sig.signerType;
+
+  return (
+    <div className="rounded-md border border-border/40 bg-bg-2/40 overflow-hidden">
+      <div className="flex items-center gap-3 px-3 py-2">
+        <CheckCircle2 className="w-4 h-4 text-emerald shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${colorClass}`}>{label}</span>
+            <span className="text-sm text-text-1 font-medium truncate">{sig.signerName}</span>
+            {sig.signerEmail && (
+              <span className="text-[11px] text-text-muted truncate hidden sm:inline">{sig.signerEmail}</span>
+            )}
+          </div>
+          <div className="text-[10px] text-text-muted mt-0.5 font-mono">
+            Firmado: {new Date(sig.signedAt).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </div>
+        {sig.signatureSvg && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="text-[10px] text-brand hover:text-text-1 transition-colors shrink-0 font-medium"
+          >
+            {expanded ? 'Ocultar' : 'Ver firma'}
+          </button>
+        )}
+      </div>
+      {expanded && sig.signatureSvg && (
+        <div className="border-t border-border/40 px-3 py-3 bg-white/[0.02]">
+          <img
+            src={sig.signatureSvg.startsWith('data:') ? sig.signatureSvg : `data:image/png;base64,${sig.signatureSvg}`}
+            alt={`Firma de ${sig.signerName}`}
+            className="max-h-24 max-w-full object-contain rounded border border-border/30 bg-white p-1"
+          />
+        </div>
+      )}
+    </div>
+  );
 }

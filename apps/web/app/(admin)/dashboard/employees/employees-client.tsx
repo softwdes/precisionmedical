@@ -246,6 +246,7 @@ export function EmployeesClient({
                 <TableHead>{t('employees.employee')}</TableHead>
                 <TableHead>{t('employees.employeeCode')}</TableHead>
                 <TableHead>{t('employees.department')}</TableHead>
+                <TableHead>{t('employees.position')}</TableHead>
                 <TableHead>{t('employees.type')}</TableHead>
                 <TableHead>{t('employees.status')}</TableHead>
                 <TableHead>{t('employees.salary')}</TableHead>
@@ -255,7 +256,7 @@ export function EmployeesClient({
             <TableBody>
               {(data?.items ?? []).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-text-3">{t('employees.noEmployees')}</TableCell>
+                  <TableCell colSpan={8} className="text-center py-12 text-text-3">{t('employees.noEmployees')}</TableCell>
                 </TableRow>
               ) : (
                 (data?.items ?? []).map((emp) => (
@@ -273,6 +274,7 @@ export function EmployeesClient({
                     </TableCell>
                     <TableCell className="font-mono text-small text-text-2">{emp.employeeCode}</TableCell>
                     <TableCell className="text-small text-text-2">{(emp.department as unknown as { name: string } | null)?.name ?? '—'}</TableCell>
+                    <TableCell className="text-small text-text-2">{POSITION_LABELS[emp.position] ?? emp.position ?? '—'}</TableCell>
                     <TableCell><Badge variant={TYPE_COLORS[emp.type] ?? 'secondary'}>{TYPE_LABELS[emp.type as keyof typeof TYPE_LABELS] ?? emp.type}</Badge></TableCell>
                     <TableCell><Badge variant={STATUS_COLORS[emp.status] ?? 'secondary'}>{STATUS_LABELS[emp.status as keyof typeof STATUS_LABELS] ?? emp.status}</Badge></TableCell>
                     <TableCell className="text-small text-text-2">

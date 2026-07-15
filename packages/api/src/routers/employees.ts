@@ -61,10 +61,13 @@ export const employeesRouter = router({
       if (departmentId) query = query.eq('departmentId', departmentId);
       if (type) query = query.eq('type', type);
       if (status) query = query.eq('status', status);
-      if (position) query = query.eq('position', position);
+      if (position) query = query.in('position', [position]);
 
       const { data, error, count } = await query;
-      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      if (error) {
+        console.error('[employees.list] Supabase error:', error);
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      }
 
       return {
         items: data ?? [],

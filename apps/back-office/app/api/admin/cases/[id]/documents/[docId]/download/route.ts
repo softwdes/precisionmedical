@@ -1,13 +1,18 @@
 /**
  * GET /api/admin/cases/[id]/documents/[docId]/download
- *   Retorna una URL presignada de S3 para descarga directa (15 min).
- *
- * TODO: requiere AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET, AWS_S3_REGION
- *       en .env de back-office. Cuando lleguen las credenciales, reemplazar el stub.
+ *   Retorna una URL presignada de Supabase Storage para descarga directa (15 min).
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+
+const BUCKET = 'case-documents';
 
 export async function GET(
   _req: NextRequest,
@@ -30,14 +35,14 @@ export async function GET(
     return NextResponse.json({ error: 'NO_S3_KEY' }, { status: 400 });
   }
 
-  // TODO: generate real presigned URL when S3 creds are configured
-  // const { GetObjectCommand, S3Client } = await import('@aws-sdk/client-s3');
-  // const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
-  // const s3 = new S3Client({ region: process.env.AWS_S3_REGION, credentials: { ... } });
-  // const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: process.env.AWS_S3_BUCKET, Key: doc.s3Key }), { expiresIn: 900 });
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(doc.s3Key, 900);
 
-  return NextResponse.json(
-    { error: 'S3_NOT_CONFIGURED', message: 'Credenciales S3 pendientes de configurar.' },
-    { status: 503 },
-  );
+  if (error || !data) {
+    console.error('[download] Supabase Storage error:', error);
+    return NextResponse.json({ error: 'STORAGE_ERROR', message: error?.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ url: data.signedUrl, name: doc.name });
 }

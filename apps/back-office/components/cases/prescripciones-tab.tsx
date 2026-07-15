@@ -243,7 +243,7 @@ function MultiSelectSearch({
 
       {/* Dropdown */}
       {open && results.length > 0 && (
-        <div className="absolute z-20 left-0 right-0 mt-1 rounded-md border border-border bg-bg-1 shadow-xl max-h-52 overflow-y-auto scroll-thin">
+        <div className="absolute z-20 left-0 right-0 bottom-full mb-1 rounded-md border border-border bg-bg-1 shadow-xl max-h-52 overflow-y-auto scroll-thin">
           {results.map(r => {
             const already = selected.some(s => s.id === r.id);
             return (
@@ -389,7 +389,7 @@ function PrescriptionModal({
                   className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {drugResults.length > 0 && (
-                  <div className="absolute z-10 left-0 right-0 mt-1 rounded-md border border-border bg-bg-1 shadow-lg max-h-36 overflow-y-auto">
+                  <div className="absolute z-10 left-0 right-0 bottom-full mb-1 rounded-md border border-border bg-bg-1 shadow-lg max-h-36 overflow-y-auto">
                     {drugResults.map(d => (
                       <button key={d.value} onClick={() => { setDrugSelected(d.label); setDrugQuery(''); }}
                         className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-2">
@@ -517,7 +517,7 @@ function PrescriptionModal({
                   className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {diagResults.length > 0 && (
-                  <div className="absolute z-10 left-0 right-0 mt-1 rounded-md border border-border bg-bg-1 shadow-lg max-h-36 overflow-y-auto">
+                  <div className="absolute z-10 left-0 right-0 bottom-full mb-1 rounded-md border border-border bg-bg-1 shadow-lg max-h-36 overflow-y-auto">
                     {diagResults.map(d => (
                       <button key={d.code} onClick={() => { setDiagnosisSelected(`${d.code} · ${d.label}`); setDiagnosisQuery(''); }}
                         className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-2">

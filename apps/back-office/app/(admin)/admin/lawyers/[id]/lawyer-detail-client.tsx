@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useTransition, useEffect, useCallback } from 'react';
+import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2, PenLine } from 'lucide-react';
+import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import {
   Button,
   Input,
@@ -530,6 +531,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [signCase, setSignCase] = useState<CaseRow | null>(null);
 
   const attorneys = members.filter((m) => m.memberRole === 'ATTORNEY');
 
@@ -651,6 +653,15 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
       </div>
 
       {/* Table */}
+      {signCase && (
+        <SignAttorneyModal
+          caseRow={signCase}
+          defaultName={signCase.attorney ? `${signCase.attorney.firstName ?? ''} ${signCase.attorney.lastName ?? ''}`.trim() : ''}
+          onClose={() => setSignCase(null)}
+          onSigned={() => { setSignCase(null); load(); }}
+        />
+      )}
+
       {loading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
@@ -688,6 +699,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                       e.stopPropagation();
                       setOpenMenu(openMenu === c.id ? null : c.id);
                     }}
+                    onSign={() => { setOpenMenu(null); setSignCase(c); }}
                   />
                 ))}
               </tbody>
@@ -707,10 +719,12 @@ function CaseTableRow({
   row,
   menuOpen,
   onMenuToggle,
+  onSign,
 }: {
   row: CaseRow;
   menuOpen: boolean;
   onMenuToggle: (e: React.MouseEvent) => void;
+  onSign: () => void;
 }) {
   const patientName = `${row.patient.lastName ?? ''}, ${row.patient.firstName ?? ''}`.trim().replace(/^,\s*/, '');
   const attorneyName = row.attorney
@@ -752,7 +766,7 @@ function CaseTableRow({
           <MoreHorizontal className="w-4 h-4" />
         </button>
         {menuOpen && (
-          <div className="absolute right-2 top-10 z-50 min-w-[160px] rounded-lg border border-border bg-bg-2 shadow-xl py-1">
+          <div className="absolute right-2 top-10 z-50 min-w-[180px] rounded-lg border border-border bg-bg-2 shadow-xl py-1">
             <Link
               href={`/front-office/${row.id}`}
               className="flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
@@ -760,10 +774,163 @@ function CaseTableRow({
               <ExternalLink className="w-3.5 h-3.5 text-brand" />
               Ver caso
             </Link>
+            {!row.hasSigned ? (
+              <button
+                onClick={onSign}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
+              >
+                <PenLine className="w-3.5 h-3.5 text-emerald" />
+                Firmar como abogado
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-2 text-sm text-text-muted cursor-default">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
+                Ya firmado
+              </div>
+            )}
           </div>
         )}
       </td>
     </tr>
+  );
+}
+
+// ─── Sign Attorney Modal ─────────────────────────────────────────────────────
+
+function SignAttorneyModal({
+  caseRow,
+  defaultName,
+  onClose,
+  onSigned,
+}: {
+  caseRow: CaseRow;
+  defaultName: string;
+  onClose: () => void;
+  onSigned: () => void;
+}) {
+  const [signerName, setSignerName] = useState(defaultName);
+  const [signerEmail, setSignerEmail] = useState('');
+  const [signaturePng, setSignaturePng] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [alreadySigned, setAlreadySigned] = useState(false);
+
+  const canSubmit = signerName.trim() && signaturePng && agreed && !saving;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/cases/${caseRow.id}/sign-attorney`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signerName: signerName.trim(), signerEmail: signerEmail.trim() || undefined, signatureSvg: signaturePng }),
+      });
+      if (res.status === 409) { setAlreadySigned(true); return; }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? `HTTP ${res.status}`);
+      }
+      onSigned();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al guardar la firma');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="bg-bg-1 border border-border rounded-xl w-full max-w-md space-y-4 p-5 max-h-[92vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex items-center gap-2">
+            <PenLine className="w-4 h-4 text-brand" /> Firmar lien — {caseRow.caseCode}
+          </h2>
+          <button onClick={onClose} className="text-text-muted hover:text-text-1 text-lg leading-none">×</button>
+        </div>
+
+        {alreadySigned ? (
+          <div className="rounded-md border border-emerald/30 bg-emerald/10 px-4 py-3 text-sm text-emerald text-center">
+            <CheckCircle2 className="w-5 h-5 mx-auto mb-1" />
+            Este caso ya fue firmado por un abogado.
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">
+                  Nombre del firmante <span className="text-rose">*</span>
+                </label>
+                <input
+                  value={signerName}
+                  onChange={(e) => setSignerName(e.target.value)}
+                  placeholder="Nombre completo del abogado"
+                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Email (opcional)</label>
+                <input
+                  type="email"
+                  value={signerEmail}
+                  onChange={(e) => setSignerEmail(e.target.value)}
+                  placeholder="abogado@firma.com"
+                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-2">
+                Firma digital <span className="text-rose">*</span>
+              </label>
+              <SignaturePad
+                onChange={setSignaturePng}
+                hintLabel="Firme aquí con el mouse o dedo"
+                height={160}
+              />
+            </div>
+
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded accent-brand shrink-0"
+              />
+              <span className="text-[11px] text-text-2">
+                Confirmo que estoy autorizado para firmar este lien en nombre del cliente y del bufete representado.
+              </span>
+            </label>
+
+            {error && (
+              <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">⚠ {error}</div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 rounded-md border border-border text-text-2 text-sm hover:bg-white/5 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                className="flex-1 px-4 py-2 rounded-md bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {saving ? 'Guardando...' : 'Confirmar firma'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

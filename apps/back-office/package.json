@@ -16,6 +16,7 @@
     "@precision-medical/observability": "workspace:*",
     "@precision/ui": "workspace:*",
     "@sentry/nextjs": "^8.55.0",
+    "@supabase/supabase-js": "^2.105.1",
     "@types/qrcode": "^1.5.6",
     "cmdk": "^1.1.1",
     "lucide-react": "^0.452.0",

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2 } from 'lucide-react';
 import {
   Button,
   Input,
@@ -135,8 +135,8 @@ export function LawyerDetailClient({ firm, members }: Props) {
         <TabButton active={tab === 'members'} onClick={() => setTab('members')}>
           Miembros <span className="text-text-muted ml-1 font-mono">({members.length})</span>
         </TabButton>
-        <TabButton active={tab === 'cases'} onClick={() => setTab('cases')} disabled>
-          Casos <span className="text-text-muted ml-1 text-[10px]">(Phase 2)</span>
+        <TabButton active={tab === 'cases'} onClick={() => setTab('cases')}>
+          Casos
         </TabButton>
         <TabButton active={tab === 'notes'} onClick={() => setTab('notes')}>Notas internas</TabButton>
       </div>
@@ -156,13 +156,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
           onDeletedMember={refresh}
         />
       )}
-      {tab === 'cases' && (
-        <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-12 text-center">
-          <Briefcase className="w-12 h-12 text-text-muted mx-auto mb-3" />
-          <div className="text-white font-semibold">Casos activos del bufete</div>
-          <div className="text-text-2 text-sm mt-1">Disponible cuando se construya el módulo de Casos (Phase 2).</div>
-        </div>
-      )}
+      {tab === 'cases' && <CasesTab firmId={firm.id} members={members} />}
       {tab === 'notes' && <NotesTab firm={firm} onSaved={refresh} />}
 
       {/* Firm edit dialog */}
@@ -482,6 +476,310 @@ function NotesTab({ firm, onSaved }: { firm: Firm; onSaved: () => void }) {
         <Button onClick={handleSave} disabled={saving}>
           {saving ? 'Guardando...' : 'Guardar notas'}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Cases Tab ──────────────────────────────────────────────────────────────
+
+interface CaseRow {
+  id: string;
+  caseCode: string;
+  caseType: string;
+  status: string;
+  createdAt: string;
+  patient: { firstName: string | null; lastName: string | null };
+  attorney: { id: string; firstName: string | null; lastName: string | null } | null;
+  hasSigned: boolean;
+}
+
+interface CasesStats {
+  total: number;
+  recentCount: number;
+  signatureRate: number;
+  byMonth: Array<{ month: string; count: number }>;
+}
+
+const CASE_TYPE_COLORS: Record<string, string> = {
+  MVA:          'bg-brand/15 text-brand border-brand/30',
+  GENERAL:      'bg-cyan/15 text-cyan border-cyan/30',
+  WORKERS_COMP: 'bg-amber/15 text-amber border-amber/30',
+  NURSING_HOME: 'bg-violet/15 text-violet border-violet/30',
+};
+
+const CASE_STATUS_LABELS: Record<string, string> = {
+  NEW_REFERRAL:      'Nuevo',
+  INTAKE_PENDING:    'Intake pendiente',
+  INTAKE_COMPLETED:  'Intake completo',
+  CONFIRMED:         'Confirmado',
+  ACTIVE:            'Activo',
+  MMI:               'MMI',
+  CLOSED:            'Cerrado',
+  SETTLED:           'Liquidado',
+  ARCHIVED:          'Archivado',
+  CANCELLED:         'Cancelado',
+};
+
+function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
+  const [cases, setCases] = useState<CaseRow[]>([]);
+  const [stats, setStats] = useState<CasesStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+
+  const attorneys = members.filter((m) => m.memberRole === 'ATTORNEY');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (statusFilter) params.set('status', statusFilter);
+    const res = await fetch(`/api/admin/lawyers/${firmId}/cases?${params}`);
+    if (res.ok) {
+      const data = await res.json();
+      setCases(data.cases);
+      setStats(data.stats);
+    }
+    setLoading(false);
+  }, [firmId, search, statusFilter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!openMenu) return;
+    const handler = () => setOpenMenu(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [openMenu]);
+
+  const monthLabels = (stats?.byMonth ?? []).map((b) => {
+    const [, m] = b.month.split('-');
+    return new Date(2024, parseInt(m, 10) - 1).toLocaleString('es', { month: 'short' });
+  });
+  const monthCounts = (stats?.byMonth ?? []).map((b) => b.count);
+  const maxCount = Math.max(...monthCounts, 1);
+
+  return (
+    <div className="space-y-5">
+      {/* KPI row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KpiMini
+          label="Total casos"
+          value={stats?.total ?? '—'}
+          icon={<FileText className="w-4 h-4 text-brand" />}
+        />
+        <KpiMini
+          label="Últimos 30 días"
+          value={stats?.recentCount ?? '—'}
+          icon={<Clock className="w-4 h-4 text-cyan" />}
+        />
+        <KpiMini
+          label="Tasa de firma"
+          value={stats ? `${stats.signatureRate}%` : '—'}
+          icon={<CheckCircle2 className="w-4 h-4 text-emerald" />}
+        />
+        <KpiMini
+          label="Abogados en firma"
+          value={attorneys.length}
+          icon={<UserCircle className="w-4 h-4 text-violet" />}
+        />
+      </div>
+
+      {/* Sparkline */}
+      {monthCounts.length > 0 && (
+        <div className="rounded-lg border border-border bg-bg-1 p-4">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
+            Casos referidos por mes
+          </div>
+          <svg viewBox={`0 0 ${monthCounts.length * 60} 60`} className="w-full h-14" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgb(99,102,241)" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="rgb(99,102,241)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {monthCounts.map((c, i) => {
+              const x = i * 60 + 30;
+              const y = 50 - (c / maxCount) * 44;
+              return (
+                <g key={i}>
+                  {i < monthCounts.length - 1 && (
+                    <line
+                      x1={x} y1={y}
+                      x2={(i + 1) * 60 + 30}
+                      y2={50 - (monthCounts[i + 1]! / maxCount) * 44}
+                      stroke="rgb(99,102,241)" strokeWidth="2" strokeLinecap="round"
+                    />
+                  )}
+                  <circle cx={x} cy={y} r="3" fill="rgb(99,102,241)" />
+                </g>
+              );
+            })}
+          </svg>
+          <div className="flex justify-between mt-1">
+            {monthLabels.map((l, i) => (
+              <span key={i} className="text-[10px] text-text-muted font-mono capitalize">{l}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Search + filter */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por caso o paciente..."
+          className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+        >
+          <option value="">Todos los estados</option>
+          {Object.entries(CASE_STATUS_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="space-y-2">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-12 rounded-md bg-bg-2 animate-pulse" />
+          ))}
+        </div>
+      ) : cases.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-10 text-center">
+          <Briefcase className="w-10 h-10 text-text-muted mx-auto mb-2" />
+          <div className="text-text-2 text-sm">Sin casos encontrados</div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-bg-2/50">
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted">Caso</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted">Tipo</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha registro</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted">Paciente</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted">Abogado</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted">Estado</th>
+                  <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted">Firma</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                {cases.map((c) => (
+                  <CaseTableRow
+                    key={c.id}
+                    row={c}
+                    menuOpen={openMenu === c.id}
+                    onMenuToggle={(e) => {
+                      e.stopPropagation();
+                      setOpenMenu(openMenu === c.id ? null : c.id);
+                    }}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 border-t border-border text-[11px] text-text-muted">
+            {cases.length} caso{cases.length !== 1 ? 's' : ''}
+            {stats && cases.length < stats.total ? ` (mostrando ${cases.length} de ${stats.total})` : ''}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CaseTableRow({
+  row,
+  menuOpen,
+  onMenuToggle,
+}: {
+  row: CaseRow;
+  menuOpen: boolean;
+  onMenuToggle: (e: React.MouseEvent) => void;
+}) {
+  const patientName = `${row.patient.lastName ?? ''}, ${row.patient.firstName ?? ''}`.trim().replace(/^,\s*/, '');
+  const attorneyName = row.attorney
+    ? `${row.attorney.firstName ?? ''} ${row.attorney.lastName ?? ''}`.trim()
+    : '—';
+  const typeColor = CASE_TYPE_COLORS[row.caseType] ?? 'bg-white/5 text-text-muted border-border';
+  const dateStr = new Date(row.createdAt).toLocaleDateString('es-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+  return (
+    <tr className="hover:bg-white/[0.02] transition-colors">
+      <td className="px-4 py-3">
+        <span className="font-mono text-xs text-text-1">{row.caseCode}</span>
+      </td>
+      <td className="px-4 py-3">
+        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${typeColor}`}>
+          {row.caseType}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-xs text-text-2 font-mono">{dateStr}</td>
+      <td className="px-4 py-3 text-sm text-text-1">{patientName || '—'}</td>
+      <td className="px-4 py-3 text-sm text-text-2">{attorneyName}</td>
+      <td className="px-4 py-3">
+        <span className="text-[10px] text-text-muted">
+          {CASE_STATUS_LABELS[row.status] ?? row.status}
+        </span>
+      </td>
+      <td className="px-4 py-3">
+        {row.hasSigned ? (
+          <span className="text-[10px] text-emerald font-semibold">✓ Firmado</span>
+        ) : (
+          <span className="text-[10px] text-text-muted">Pendiente</span>
+        )}
+      </td>
+      <td className="px-4 py-3 relative">
+        <button
+          onClick={onMenuToggle}
+          className="w-7 h-7 rounded-md flex items-center justify-center text-text-muted hover:text-white hover:bg-white/5 transition-colors"
+        >
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
+        {menuOpen && (
+          <div className="absolute right-2 top-10 z-50 min-w-[160px] rounded-lg border border-border bg-bg-2 shadow-xl py-1">
+            <Link
+              href={`/front-office/${row.id}`}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-brand" />
+              Ver caso
+            </Link>
+          </div>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function KpiMini({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: React.ReactNode;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-bg-1 p-4 flex items-start gap-3">
+      <div className="w-8 h-8 rounded-lg bg-bg-2 flex items-center justify-center shrink-0">{icon}</div>
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted leading-none mb-1">{label}</div>
+        <div className="text-xl font-bold text-text-1 font-mono">{value}</div>
       </div>
     </div>
   );

@@ -40,9 +40,10 @@ export const employeesRouter = router({
       departmentId: z.string().optional(),
       type: z.enum(['FULL_TIME', 'PART_TIME']).optional(),
       status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'ON_LEAVE']).optional(),
+      position: z.string().optional(),
     }))
     .query(async ({ input }) => {
-      const { page, pageSize, search, countryId, departmentId, type, status } = input;
+      const { page, pageSize, search, countryId, departmentId, type, status, position } = input;
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
@@ -60,6 +61,7 @@ export const employeesRouter = router({
       if (departmentId) query = query.eq('departmentId', departmentId);
       if (type) query = query.eq('type', type);
       if (status) query = query.eq('status', status);
+      if (position) query = query.eq('position', position);
 
       const { data, error, count } = await query;
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });

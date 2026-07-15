@@ -95,6 +95,7 @@ export function EmployeesClient({
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
+  const [positionFilter, setPositionFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [viewingEmpId, setViewingEmpId] = useState<string | null>(null);
   const [editEmp, setEditEmp] = useState<EmployeeListItem | null>(null);
@@ -114,10 +115,11 @@ export function EmployeesClient({
 
   const { data, refetch } = trpc.employees.list.useQuery(
     {
-      page, pageSize: 25, search: search || undefined,
+      page, pageSize: 15, search: search || undefined,
       type: (typeFilter as 'FULL_TIME' | 'PART_TIME' | undefined) || undefined,
       status: (statusFilter as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'ON_LEAVE' | undefined) || undefined,
       departmentId: deptFilter || undefined,
+      position: positionFilter || undefined,
     },
     { initialData: initial },
   );
@@ -191,6 +193,13 @@ export function EmployeesClient({
           <SelectContent>
             <SelectItem value="ALL">{t('employees.allDepartments')}</SelectItem>
             {departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={positionFilter} onValueChange={(v) => { setPositionFilter(v === 'ALL' ? '' : v); setPage(1); }}>
+          <SelectTrigger className="w-44"><SelectValue placeholder={t('employees.position')} /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos los cargos</SelectItem>
+            {Object.entries(POSITION_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === 'ALL' ? '' : v); setPage(1); }}>

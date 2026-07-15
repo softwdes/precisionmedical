@@ -358,181 +358,251 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
         ))}
       </div>
 
-      {/* Tab: Caso — Grid izquierda info bloques, derecha timeline+notes */}
-      {activeTab === 'caso' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Columna izquierda · datos del caso */}
-        <div className="space-y-4 lg:col-span-2">
-          <InfoCard title={t('sectionAccident')} icon={Calendar}>
-            <InfoRow label={t('fieldDol')} value={caseInfo.accidentDate ? formatDate(caseInfo.accidentDate) : '—'} />
-            <InfoRow label={t('fieldType')} value={caseInfo.accidentType ?? '—'} />
-            <InfoRow label={t('fieldLocation')} value={caseInfo.accidentLocation ?? '—'} />
-            {caseInfo.accidentNotes && (
-              <InfoRow label={t('fieldNotes')} value={<div className="text-text-2 text-xs whitespace-pre-wrap">{caseInfo.accidentNotes}</div>} />
-            )}
-            <InfoRow label={t('fieldSpecialty')} value={
-              caseInfo.specialty ? (
-                <TagPill
-                  label={caseInfo.specialty.name}
-                  colorClass="bg-bg-2 text-text-2 border-border"
-                  compact
-                  icon={<span className="w-1.5 h-1.5 rounded-full" style={{ background: caseInfo.specialty.color }} />}
-                />
-              ) : '—'
-            } />
-            <InfoRow label={t('fieldWorkflow')} value={<code className="text-text-2 font-mono text-xs">{caseInfo.caseType}</code>} />
-          </InfoCard>
+      {/* Tab: Caso ─────────────────────────────────────────────────────────── */}
+      {activeTab === 'caso' && (
+        <div className="space-y-4">
 
-          <InfoCard title={t('sectionLegal')} icon={Scale} onEdit={() => { setFirmQuery(''); setLegalOpen(true); }}>
-            {caseInfo.lawFirm ? (
-              <>
-                <div className="flex items-center gap-3 mb-3">
-                  <EntityAvatar name={caseInfo.lawFirm.firmName ?? '?'} />
-                  <div className="min-w-0">
-                    <Link href={`/admin/lawyers/${caseInfo.lawFirm.id}`} className="text-text-1 font-semibold hover:text-brand truncate block">
-                      {caseInfo.lawFirm.firmName}
-                    </Link>
-                    {(caseInfo.lawFirm.city || caseInfo.lawFirm.state) && (
-                      <div className="text-text-muted text-[11px] flex items-center gap-1">
-                        <MapPin className="w-3 h-3" /> {[caseInfo.lawFirm.city, caseInfo.lawFirm.state].filter(Boolean).join(', ')}
-                      </div>
+          {/* ── Fila 1: Paciente + Caso ──────────────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            {/* Información personal */}
+            <InfoCard title={t('sectionPatient')} icon={User}>
+              <div className="flex items-start gap-4 mb-4">
+                <PersonAvatar
+                  firstName={caseInfo.patient.firstName}
+                  lastName={caseInfo.patient.lastName}
+                  size={12}
+                  gradientClass="bg-gradient-cyan"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-text-1 font-bold text-base leading-tight">
+                    {caseInfo.patient.firstName} {caseInfo.patient.lastName}
+                  </div>
+                  {caseInfo.patient.patientCode && (
+                    <div className="text-text-muted text-[11px] font-mono mt-0.5">{caseInfo.patient.patientCode}</div>
+                  )}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                    {caseInfo.patient.email && (
+                      <a href={`mailto:${caseInfo.patient.email}`} className="inline-flex items-center gap-1 text-cyan text-xs hover:text-text-1">
+                        <Mail className="w-3 h-3" /> {caseInfo.patient.email}
+                      </a>
+                    )}
+                    {caseInfo.patient.phone && (
+                      <a href={`tel:${caseInfo.patient.phone}`} className="inline-flex items-center gap-1 text-emerald text-xs font-mono hover:text-text-1">
+                        <Phone className="w-3 h-3" /> {caseInfo.patient.phone}
+                      </a>
                     )}
                   </div>
-                  {caseInfo.lawFirm.paymentSpeed === 'SLOW' && (
-                    <TagPill label={`⚠ ${t('tagSlow')}`} colorClass="bg-amber/15 text-amber border-amber/30" />
-                  )}
                 </div>
-                {caseInfo.lawFirm.email && (
-                  <InfoRow label={t('fieldFirmEmail')} value={
-                    <a href={`mailto:${caseInfo.lawFirm.email}`} className="text-cyan hover:text-text-1">{caseInfo.lawFirm.email}</a>
+                <Link
+                  href={`/patients/${caseInfo.patient.id}`}
+                  className="text-text-muted hover:text-brand transition-colors shrink-0"
+                  title="Editar paciente"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+              <div className="space-y-0">
+                {caseInfo.patient.dateOfBirth && (
+                  <InfoRow label="Fecha de nacimiento" value={
+                    <span>{formatDate(caseInfo.patient.dateOfBirth)} · {age !== null ? `${age} años` : ''}</span>
                   } />
                 )}
-                {caseInfo.lawFirm.phone && <InfoRow label={t('fieldPhone')} value={<span className="font-mono">{caseInfo.lawFirm.phone}</span>} />}
-                {caseInfo.lawFirm.caseflowFlags.length > 0 && (
-                  <InfoRow label={t('fieldFlags')} value={
-                    <div className="flex flex-wrap gap-1">
+                <InfoRow label={t('fieldDol')} value={caseInfo.accidentDate ? formatDate(caseInfo.accidentDate) : '—'} />
+                <InfoRow label={t('fieldType')} value={caseInfo.accidentType ?? '—'} />
+                <InfoRow label={t('fieldLocation')} value={caseInfo.accidentLocation ?? '—'} />
+                {caseInfo.accidentNotes && (
+                  <InfoRow label={t('fieldNotes')} value={
+                    <div className="text-text-2 text-xs whitespace-pre-wrap leading-relaxed">{caseInfo.accidentNotes}</div>
+                  } />
+                )}
+              </div>
+            </InfoCard>
+
+            {/* Información del caso */}
+            <InfoCard title="Información del caso" icon={FileText} onEdit={undefined}>
+              {/* Barra de progreso */}
+              <CaseProgressBar status={caseInfo.status} />
+
+              <div className="mt-4 space-y-0">
+                <InfoRow label="Tipo de caso" value={
+                  <code className="text-text-1 font-mono text-xs font-bold">{caseInfo.caseType}</code>
+                } />
+                <InfoRow label={t('fieldSpecialty')} value={
+                  caseInfo.specialty ? (
+                    <TagPill
+                      label={caseInfo.specialty.name}
+                      colorClass="bg-bg-2 text-text-2 border-border"
+                      compact
+                      icon={<span className="w-1.5 h-1.5 rounded-full" style={{ background: caseInfo.specialty.color }} />}
+                    />
+                  ) : <span className="text-text-muted text-sm">—</span>
+                } />
+                <InfoRow label="Estado" value={
+                  <TagPill label={st.label} colorClass={st.colorClass} />
+                } />
+                <InfoRow label="Fecha de creación" value={formatDate(caseInfo.createdAt)} />
+                {caseInfo.accidentDate && (
+                  <InfoRow label="Fecha del accidente" value={formatDate(caseInfo.accidentDate)} />
+                )}
+                <InfoRow label="Firma de abogados" value={
+                  caseInfo.lawFirm ? (
+                    <Link href={`/admin/lawyers/${caseInfo.lawFirm.id}`} className="text-text-1 font-semibold hover:text-brand text-sm">
+                      {caseInfo.lawFirm.firmName}
+                    </Link>
+                  ) : <span className="text-text-muted text-sm italic">Sin bufete</span>
+                } />
+                <InfoRow label="Abogado representante" value={
+                  caseInfo.attorney
+                    ? <span className="text-text-1 text-sm">{caseInfo.attorney.firstName} {caseInfo.attorney.lastName}</span>
+                    : <span className="text-text-muted text-sm italic">No especificado</span>
+                } />
+                <InfoRow label="Quiropráctico tratante" value={
+                  <span className="text-text-muted text-sm italic">No especificado</span>
+                } />
+                {caseInfo.intakeFormCompletedAt && (
+                  <InfoRow label="Intake completado" value={formatDate(caseInfo.intakeFormCompletedAt)} />
+                )}
+              </div>
+            </InfoCard>
+          </div>
+
+          {/* ── Fila 2: Legal + Seguros + Sidebar ────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+            {/* Legal · Bufete + Firmas */}
+            <InfoCard title={t('sectionLegal')} icon={Scale} onEdit={() => { setFirmQuery(''); setLegalOpen(true); }}>
+              {caseInfo.lawFirm ? (
+                <>
+                  <div className="flex items-center gap-3 mb-3">
+                    <EntityAvatar name={caseInfo.lawFirm.firmName ?? '?'} />
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/admin/lawyers/${caseInfo.lawFirm.id}`} className="text-text-1 font-semibold hover:text-brand truncate block text-sm">
+                        {caseInfo.lawFirm.firmName}
+                      </Link>
+                      {(caseInfo.lawFirm.city || caseInfo.lawFirm.state) && (
+                        <div className="text-text-muted text-[11px] flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {[caseInfo.lawFirm.city, caseInfo.lawFirm.state].filter(Boolean).join(', ')}
+                        </div>
+                      )}
+                    </div>
+                    {caseInfo.lawFirm.paymentSpeed === 'SLOW' && (
+                      <TagPill label={`⚠ ${t('tagSlow')}`} colorClass="bg-amber/15 text-amber border-amber/30" />
+                    )}
+                  </div>
+                  {caseInfo.lawFirm.phone && (
+                    <InfoRow label={t('fieldPhone')} value={<span className="font-mono text-xs">{caseInfo.lawFirm.phone}</span>} />
+                  )}
+                  {caseInfo.lawFirm.caseflowFlags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
                       {caseInfo.lawFirm.caseflowFlags.map((f) => (
                         <TagPill key={f} label={f} colorClass="bg-brand/10 text-brand border-brand/20" mono compact />
                       ))}
                     </div>
-                  } />
-                )}
-                {caseInfo.attorney && (
-                  <div className="mt-3 pt-3 border-t border-border/30">
-                    <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-2">{t('assignedAttorney')}</div>
-                    <div className="flex items-center gap-2">
-                      <PersonAvatar firstName={caseInfo.attorney.firstName ?? '?'} lastName={caseInfo.attorney.lastName ?? ''} size={8} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-text-1 text-sm">{caseInfo.attorney.firstName} {caseInfo.attorney.lastName}</div>
-                        {caseInfo.attorney.email && <div className="text-text-muted text-[11px]">{caseInfo.attorney.email}</div>}
+                  )}
+                  {caseInfo.attorney && (
+                    <div className="mt-3 pt-3 border-t border-border/30">
+                      <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold mb-2">{t('assignedAttorney')}</div>
+                      <div className="flex items-center gap-2">
+                        <PersonAvatar firstName={caseInfo.attorney.firstName ?? '?'} lastName={caseInfo.attorney.lastName ?? ''} size={8} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-text-1 text-sm">{caseInfo.attorney.firstName} {caseInfo.attorney.lastName}</div>
+                          {caseInfo.attorney.email && <div className="text-text-muted text-[11px]">{caseInfo.attorney.email}</div>}
+                        </div>
+                        {caseInfo.attorney.memberRole && (
+                          <TagPill label={caseInfo.attorney.memberRole} colorClass="bg-bg-2 text-text-2 border-border" compact />
+                        )}
                       </div>
-                      {caseInfo.attorney.memberRole && (
-                        <TagPill label={caseInfo.attorney.memberRole} colorClass="bg-bg-2 text-text-2 border-border" compact />
-                      )}
                     </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-text-muted text-sm italic">{t('noLawFirm')}</div>
-            )}
+                  )}
+                </>
+              ) : (
+                <div className="text-text-muted text-sm italic">{t('noLawFirm')}</div>
+              )}
 
-            {/* Firmas del caso */}
-            {caseInfo.lienSignatures.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-border/30">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3 flex items-center gap-1.5">
-                  <PenLine className="w-3 h-3" /> Firmas del lien
-                </div>
-                <div className="space-y-3">
-                  {caseInfo.lienSignatures.map((sig) => (
-                    <LienSignatureRow key={sig.id} sig={sig} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {caseInfo.lienSignatures.length === 0 && (
-              <div className="mt-4 pt-4 border-t border-border/30">
+              {/* Firmas del lien */}
+              <div className="mt-3 pt-3 border-t border-border/30">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2 flex items-center gap-1.5">
                   <PenLine className="w-3 h-3" /> Firmas del lien
                 </div>
-                <div className="text-text-muted text-[11px] italic">Sin firmas registradas</div>
-              </div>
-            )}
-          </InfoCard>
-
-          <InfoCard title={t('sectionInsurance')} icon={Shield} onEdit={() => { setInsQuery(''); setInsOpen(true); }}>
-            {caseInfo.primaryInsurance ? (
-              <div className="space-y-3">
-                <div className="rounded-md border border-cyan/30 bg-cyan/5 p-3">
-                  <div className="flex items-center gap-3">
-                    <EntityAvatar code={caseInfo.primaryInsurance.shortCode} color={caseInfo.primaryInsurance.color} />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-text-1 font-semibold truncate flex items-center gap-1">
-                        {caseInfo.primaryInsurance.name}
-                        {caseInfo.primaryInsurance.responseSpeed === 'SLOW' && (
-                          <AlertTriangle className="w-3 h-3 text-amber" />
-                        )}
-                      </div>
-                      <div className="text-text-muted text-[11px]">Primary · {caseInfo.primaryInsurance.type}</div>
-                    </div>
+                {caseInfo.lienSignatures.length > 0 ? (
+                  <div className="space-y-2">
+                    {caseInfo.lienSignatures.map((sig) => (
+                      <LienSignatureRow key={sig.id} sig={sig} />
+                    ))}
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                    {caseInfo.primaryPolicyNumber && (
-                      <div><span className="text-text-muted">Policy:</span> <code className="text-text-1 font-mono">{caseInfo.primaryPolicyNumber}</code></div>
-                    )}
-                    {caseInfo.primaryInsurance.claimsPhone && (
-                      <div><span className="text-text-muted">Claims:</span> <span className="text-text-1 font-mono">{caseInfo.primaryInsurance.claimsPhone}</span></div>
-                    )}
-                    <div><span className="text-text-muted">HCFA:</span> <span className="text-text-1">{caseInfo.primaryInsurance.hcfaChannel}</span></div>
-                    {caseInfo.primaryInsurance.preauthRequired && (
-                      <div className="text-amber">⚠ {t('preauthRequired')}</div>
-                    )}
-                  </div>
-                  <div className="mt-2 flex items-center gap-2 text-xs">
-                    {caseInfo.pipVerifiedAt ? (
-                      <TagPill
-                        label={`✓ ${t('pipVerified')} ${formatRelative(caseInfo.pipVerifiedAt)}`}
-                        colorClass="bg-emerald/10 text-emerald border-emerald/30"
-                      />
-                    ) : (
-                      <TagPill
-                        label={`⏳ ${t('pipNotVerified')}`}
-                        colorClass="bg-amber/10 text-amber border-amber/30"
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {caseInfo.secondaryInsurance && (
-                  <div className="rounded-md border border-violet/30 bg-violet/5 p-3">
-                    <div className="flex items-center gap-3">
-                      <EntityAvatar code={caseInfo.secondaryInsurance.shortCode} color={caseInfo.secondaryInsurance.color} />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-text-1 font-semibold truncate">{caseInfo.secondaryInsurance.name}</div>
-                        <div className="text-text-muted text-[11px]">Secondary · {caseInfo.secondaryInsurance.type}</div>
-                      </div>
-                    </div>
-                    {caseInfo.secondaryPolicyNumber && (
-                      <div className="mt-2 text-xs"><span className="text-text-muted">Policy:</span> <code className="text-text-1 font-mono">{caseInfo.secondaryPolicyNumber}</code></div>
-                    )}
-                  </div>
+                ) : (
+                  <div className="text-text-muted text-[11px] italic">Sin firmas registradas</div>
                 )}
               </div>
-            ) : (
-              <div className="text-text-muted text-sm italic">{t('noPrimaryInsurance')}</div>
-            )}
-          </InfoCard>
-        </div>
+            </InfoCard>
 
-        {/* Columna derecha · timeline + notas */}
-        <div className="space-y-4">
-          <Timeline caseInfo={caseInfo} auditEvents={auditEvents} />
-          <NotesPanel
-            notes={caseInfo.notes}
-            onAddNote={() => setAddNoteOpen(true)}
-          />
+            {/* Seguros */}
+            <InfoCard title={t('sectionInsurance')} icon={Shield} onEdit={() => { setInsQuery(''); setInsOpen(true); }}>
+              {caseInfo.primaryInsurance ? (
+                <div className="space-y-3">
+                  <div className="rounded-md border border-cyan/30 bg-cyan/5 p-3">
+                    <div className="flex items-center gap-3">
+                      <EntityAvatar code={caseInfo.primaryInsurance.shortCode} color={caseInfo.primaryInsurance.color} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-text-1 font-semibold truncate flex items-center gap-1 text-sm">
+                          {caseInfo.primaryInsurance.name}
+                          {caseInfo.primaryInsurance.responseSpeed === 'SLOW' && (
+                            <AlertTriangle className="w-3 h-3 text-amber" />
+                          )}
+                        </div>
+                        <div className="text-text-muted text-[11px]">Primary · {caseInfo.primaryInsurance.type}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 space-y-1 text-xs">
+                      {caseInfo.primaryPolicyNumber && (
+                        <div><span className="text-text-muted">Policy:</span> <code className="text-text-1 font-mono">{caseInfo.primaryPolicyNumber}</code></div>
+                      )}
+                      {caseInfo.primaryInsurance.claimsPhone && (
+                        <div><span className="text-text-muted">Claims:</span> <span className="text-text-1 font-mono">{caseInfo.primaryInsurance.claimsPhone}</span></div>
+                      )}
+                      <div><span className="text-text-muted">HCFA:</span> <span className="text-text-1">{caseInfo.primaryInsurance.hcfaChannel}</span></div>
+                      {caseInfo.primaryInsurance.preauthRequired && (
+                        <div className="text-amber">⚠ {t('preauthRequired')}</div>
+                      )}
+                    </div>
+                    <div className="mt-2">
+                      {caseInfo.pipVerifiedAt ? (
+                        <TagPill label={`✓ ${t('pipVerified')} ${formatRelative(caseInfo.pipVerifiedAt)}`} colorClass="bg-emerald/10 text-emerald border-emerald/30" />
+                      ) : (
+                        <TagPill label={`⏳ ${t('pipNotVerified')}`} colorClass="bg-amber/10 text-amber border-amber/30" />
+                      )}
+                    </div>
+                  </div>
+                  {caseInfo.secondaryInsurance && (
+                    <div className="rounded-md border border-violet/30 bg-violet/5 p-3">
+                      <div className="flex items-center gap-3">
+                        <EntityAvatar code={caseInfo.secondaryInsurance.shortCode} color={caseInfo.secondaryInsurance.color} />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-text-1 font-semibold truncate text-sm">{caseInfo.secondaryInsurance.name}</div>
+                          <div className="text-text-muted text-[11px]">Secondary · {caseInfo.secondaryInsurance.type}</div>
+                        </div>
+                      </div>
+                      {caseInfo.secondaryPolicyNumber && (
+                        <div className="mt-2 text-xs"><span className="text-text-muted">Policy:</span> <code className="text-text-1 font-mono">{caseInfo.secondaryPolicyNumber}</code></div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-text-muted text-sm italic">{t('noPrimaryInsurance')}</div>
+              )}
+            </InfoCard>
+
+            {/* Timeline + Notas */}
+            <div className="space-y-4">
+              <Timeline caseInfo={caseInfo} auditEvents={auditEvents} />
+              <NotesPanel notes={caseInfo.notes} onAddNote={() => setAddNoteOpen(true)} />
+            </div>
+          </div>
+
         </div>
-      </div>}
+      )}
 
       {/* Tab: Citas */}
       {activeTab === 'citas' && (
@@ -857,6 +927,60 @@ function NextActionBanner({ caseInfo }: { caseInfo: CaseInfo }) {
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-sm">{banner.title}</div>
         <div className="text-text-2 text-xs mt-0.5">{banner.message}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CaseProgressBar ──────────────────────────────────────────────────────────
+
+const PROGRESS_STAGES: Array<{ key: CaseStatus[]; label: string }> = [
+  { key: ['NEW_REFERRAL'],                                   label: 'Registro' },
+  { key: ['INTAKE_PENDING', 'INTAKE_COMPLETED'],             label: 'Intake' },
+  { key: ['CONFIRMED'],                                      label: 'Primera cita' },
+  { key: ['ACTIVE', 'MMI'],                                  label: 'Seguimiento' },
+  { key: ['CLOSED', 'SETTLED', 'ARCHIVED', 'CANCELLED'],    label: 'Cerrado' },
+];
+
+function CaseProgressBar({ status }: { status: CaseStatus }) {
+  const activeIdx = PROGRESS_STAGES.findIndex((s) => s.key.includes(status));
+  const isCancelled = status === 'CANCELLED';
+
+  return (
+    <div className="mb-1">
+      <div className="flex items-center gap-0">
+        {PROGRESS_STAGES.map((stage, i) => {
+          const isDone    = i < activeIdx;
+          const isActive  = i === activeIdx;
+          const isLast    = i === PROGRESS_STAGES.length - 1;
+
+          let dotColor    = 'bg-border';
+          let lineColor   = 'bg-border';
+          let labelColor  = 'text-text-muted';
+
+          if (isCancelled && isLast) {
+            dotColor   = 'bg-rose';
+            labelColor = 'text-rose';
+          } else if (isDone) {
+            dotColor  = 'bg-emerald';
+            lineColor = 'bg-emerald';
+          } else if (isActive) {
+            dotColor   = 'bg-brand';
+            labelColor = 'text-brand font-semibold';
+          }
+
+          return (
+            <React.Fragment key={stage.label}>
+              <div className="flex flex-col items-center" style={{ minWidth: 0 }}>
+                <div className={`w-2.5 h-2.5 rounded-full ${dotColor} ring-2 ring-bg-1 z-10`} />
+                <span className={`text-[9px] mt-1 whitespace-nowrap ${labelColor}`}>{stage.label}</span>
+              </div>
+              {!isLast && (
+                <div className={`h-px flex-1 ${lineColor} mt-[-10px]`} />
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );

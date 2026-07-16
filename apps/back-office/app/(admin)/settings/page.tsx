@@ -137,10 +137,11 @@ export default async function SettingsPage() {
         }, {} as Record<string, number>),
       }}
       initialFirms={firms.map((f) => ({
-        id: f.id, firmName: f.firmName ?? '—', email: f.email, phone: f.phone,
-        address: f.address, city: f.city, state: f.state, notes: f.notes,
-        paymentSpeed: f.paymentSpeed, caseflowFlags: f.caseflowFlags,
-        status: f.status, memberCount: f._count.members, createdAt: f.createdAt,
+        id: f.id, firmName: f.firmName ?? '—', entityType: f.entityType,
+        email: f.email, phone: f.phone, address: f.address, city: f.city,
+        state: f.state, notes: f.notes, paymentSpeed: f.paymentSpeed,
+        caseflowFlags: f.caseflowFlags, status: f.status,
+        memberCount: f._count.members, createdAt: f.createdAt, updatedAt: f.updatedAt,
       }))}
       firmStats={{
         total: firms.length,
@@ -148,6 +149,8 @@ export default async function SettingsPage() {
         inactive: firms.filter((f) => f.status === 'INACTIVE').length,
         totalMembers: firms.reduce((n, f) => n + f._count.members, 0),
         slowPayers: firms.filter((f) => f.paymentSpeed === 'SLOW').length,
+        independentCount: firms.filter((f) => f.entityType === 'INDEPENDENT').length,
+        newLast30: 0,
       }}
       initialInsurances={insurances.map((i) => ({
         id: i.id, name: i.name, legalName: i.legalName, shortCode: i.shortCode,

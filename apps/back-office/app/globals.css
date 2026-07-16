@@ -17,8 +17,9 @@
   --surface: #161D31;
   --surface-2: #1E2740;
 
-  --border: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.10);
+  --border: rgb(255 255 255 / 0.06);
+  --border-strong: rgb(255 255 255 / 0.10);
+  --row-sep: rgba(255, 255, 255, 0.04);
 
   --text-1: #F5F7FB;
   --text-2: #A8B2CC;
@@ -45,8 +46,9 @@
   --surface: #FFFFFF;
   --surface-2: #F8FAFC;
 
-  --border: rgba(15, 23, 42, 0.10);
-  --border-strong: rgba(15, 23, 42, 0.18);
+  --border: rgb(15 23 42 / 0.10);
+  --border-strong: rgb(15 23 42 / 0.18);
+  --row-sep: rgba(15, 23, 42, 0.07);
 
   --text-1: #0F172A;
   --text-2: #475569;

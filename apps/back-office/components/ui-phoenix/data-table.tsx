@@ -53,7 +53,7 @@ function Table({ children }: { children: React.ReactNode }) {
 function Head({ children }: { children: React.ReactNode }) {
   return (
     <thead>
-      <tr className="border-b border-border/40 bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
+      <tr className="border-b border-row-sep bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
         {children}
       </tr>
     </thead>
@@ -98,7 +98,7 @@ function Row({
   return (
     <tr
       onClick={onClick}
-      className={`border-b border-border/30 hover:bg-white/[0.02] transition-colors ${
+      className={`border-b border-row-sep hover:bg-white/[0.02] transition-colors ${
         muted ? 'opacity-50' : ''
       } ${highlight ? (highlightClass ?? 'bg-brand/[0.04]') : ''} ${onClick ? 'cursor-pointer' : ''}`}
     >

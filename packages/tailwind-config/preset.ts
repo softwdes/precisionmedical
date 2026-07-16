@@ -13,6 +13,7 @@ const config: Omit<Config, 'content'> = {
         'surface-2': 'var(--surface-2)',
         border: 'var(--border)',
         'border-strong': 'var(--border-strong)',
+        'row-sep': 'var(--row-sep)',
         'text-1': 'var(--text-1)',
         'text-2': 'var(--text-2)',
         'text-3': 'var(--text-3)',

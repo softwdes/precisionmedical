@@ -525,6 +525,8 @@ const CASE_STATUS_LABELS: Record<string, string> = {
   CANCELLED:         'Cancelado',
 };
 
+const PAGE_SIZE = 10;
+
 function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [stats, setStats] = useState<CasesStats | null>(null);
@@ -533,6 +535,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [signCase, setSignCase] = useState<CaseRow | null>(null);
+  const [page, setPage] = useState(1);
 
   const attorneys = members.filter((m) => m.memberRole === 'ATTORNEY');
 
@@ -551,6 +554,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
   }, [firmId, search, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { setPage(1); }, [search, statusFilter]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -566,6 +570,9 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
   });
   const monthCounts = (stats?.byMonth ?? []).map((b) => b.count);
   const maxCount = Math.max(...monthCounts, 1);
+
+  const totalPages = Math.max(1, Math.ceil(cases.length / PAGE_SIZE));
+  const paginated = cases.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="space-y-4">
@@ -683,7 +690,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-row-sep">
-                {cases.map((c) => (
+                {paginated.map((c) => (
                   <CaseTableRow
                     key={c.id}
                     row={c}
@@ -698,9 +705,26 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-2 border-t border-row-sep text-[11px] text-text-muted">
-            {cases.length} caso{cases.length !== 1 ? 's' : ''}
-            {stats && cases.length < stats.total ? ` (mostrando ${cases.length} de ${stats.total})` : ''}
+          <div className="px-4 py-2 border-t border-row-sep flex items-center justify-between text-[11px] text-text-muted">
+            <span>{cases.length} caso{cases.length !== 1 ? 's' : ''} · página {page} de {totalPages}</span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-2 py-1 rounded text-[11px] border border-border hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← Anterior
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-2 py-1 rounded text-[11px] border border-border hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Siguiente →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

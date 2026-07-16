@@ -121,16 +121,16 @@ export function LawyersClient({ firms, stats }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* KPIs 2×3 */}
         <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <KpiCard label="Total"          value={stats.total}            sub="En catálogo"          color="text-text-1"   icon={Building2}     iconBg="bg-bg-2"         iconColor="text-text-muted" />
-          <KpiCard label="Activas"        value={stats.active}           sub="Recibiendo referidos"  color="text-emerald"  icon={CheckCircle2}  iconBg="bg-emerald/10"   iconColor="text-emerald" />
-          <KpiCard label="Independientes" value={stats.independentCount} sub="Sin bufete"            color="text-violet"   icon={User}          iconBg="bg-violet/10"    iconColor="text-violet" />
-          <KpiCard label="Nuevas 30 días" value={stats.newLast30}        sub="Recientemente"         color="text-cyan"     icon={CalendarPlus}  iconBg="bg-cyan/10"      iconColor="text-cyan" />
-          <KpiCard label="Slow payers"    value={stats.slowPayers}       sub=">150 días avg"         color="text-amber"    icon={Clock}         iconBg="bg-amber/10"     iconColor="text-amber" />
-          <KpiCard label="Miembros"       value={stats.totalMembers}     sub="Abogados + Mgrs"       color="text-brand"    icon={Users}         iconBg="bg-brand/10"     iconColor="text-brand" />
+          <KpiCard compact label="Total"          value={stats.total}            sub="En catálogo"          color="text-text-1"   icon={Building2}     iconBg="bg-bg-2"         iconColor="text-text-muted" />
+          <KpiCard compact label="Activas"        value={stats.active}           sub="Recibiendo referidos"  color="text-emerald"  icon={CheckCircle2}  iconBg="bg-emerald/10"   iconColor="text-emerald" />
+          <KpiCard compact label="Independientes" value={stats.independentCount} sub="Sin bufete"            color="text-violet"   icon={User}          iconBg="bg-violet/10"    iconColor="text-violet" />
+          <KpiCard compact label="Nuevas 30 días" value={stats.newLast30}        sub="Recientemente"         color="text-cyan"     icon={CalendarPlus}  iconBg="bg-cyan/10"      iconColor="text-cyan" />
+          <KpiCard compact label="Slow payers"    value={stats.slowPayers}       sub=">150 días avg"         color="text-amber"    icon={Clock}         iconBg="bg-amber/10"     iconColor="text-amber" />
+          <KpiCard compact label="Miembros"       value={stats.totalMembers}     sub="Abogados + Mgrs"       color="text-brand"    icon={Users}         iconBg="bg-brand/10"     iconColor="text-brand" />
         </div>
 
         {/* Panel distribución por tipo */}
-        <div className="rounded-lg border border-border bg-bg-1 px-5 py-4 flex flex-col justify-between">
+        <div className="rounded-lg border border-border bg-bg-1 px-4 py-3 flex flex-col justify-between">
           <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold mb-3">
             Distribución por tipo
           </div>

@@ -204,67 +204,61 @@ export function LawyersClient({ firms, stats }: Props) {
                   const typeInfo = ENTITY_TYPE_LABEL[f.entityType] ?? { label: f.entityType, color: 'bg-bg-2 text-text-2 border-border' };
                   return (
                     <DataTable.Row key={f.id} muted={f.status !== 'ACTIVE'}>
-                      {/* Nombre */}
-                      <DataTable.Td className="py-2">
+                      {/* Nombre + email icon */}
+                      <DataTable.Td className="py-1.5">
                         <div className="flex items-center gap-2 min-w-0">
                           <EntityAvatar name={f.firmName} size={8} />
                           <span className="text-text-1 font-semibold truncate text-[13px]">{f.firmName}</span>
+                          {f.email && (
+                            <a href={`mailto:${f.email}`} title={f.email} onClick={(e) => e.stopPropagation()}
+                              className="shrink-0 text-text-muted hover:text-cyan transition-colors">
+                              <Mail className="w-3 h-3" />
+                            </a>
+                          )}
                         </div>
                       </DataTable.Td>
 
                       {/* Tipo */}
-                      <DataTable.Td className="py-2">
+                      <DataTable.Td className="py-1.5">
                         <TagPill label={typeInfo.label} colorClass={typeInfo.color} compact />
                       </DataTable.Td>
 
-                      {/* Contacto */}
-                      <DataTable.Td className="py-2">
-                        <div className="text-text-2 text-[11px] space-y-0.5">
-                          {f.email ? (
-                            <div className="flex items-center gap-1 truncate max-w-[180px]">
-                              <Mail className="w-3 h-3 text-text-muted shrink-0" />
-                              <span title={f.email}>{f.email}</span>
-                            </div>
-                          ) : null}
-                          {f.phone ? (
-                            <div className="flex items-center gap-1 font-mono text-text-muted">
-                              <Phone className="w-3 h-3 shrink-0" />
-                              {f.phone}
-                            </div>
-                          ) : (!f.email && <span className="text-text-muted italic">—</span>)}
-                        </div>
+                      {/* Contacto — solo teléfono, una línea */}
+                      <DataTable.Td className="py-1.5">
+                        {f.phone ? (
+                          <div className="flex items-center gap-1 text-[11px] text-text-muted font-mono">
+                            <Phone className="w-3 h-3 shrink-0" />
+                            {f.phone}
+                          </div>
+                        ) : (
+                          <span className="text-text-muted text-[10px] italic">—</span>
+                        )}
                       </DataTable.Td>
 
-                      {/* Dirección */}
-                      <DataTable.Td className="py-2">
-                        <div className="text-[11px] text-text-2 min-w-0">
-                          {f.address ? (
-                            <div className="truncate max-w-[200px]" title={f.address}>{f.address}</div>
-                          ) : null}
-                          {(f.city || f.state) && (
-                            <div className="flex items-center gap-1 text-text-muted mt-0.5">
-                              <MapPin className="w-3 h-3 shrink-0" />
-                              {[f.city, f.state].filter(Boolean).join(', ')}
-                            </div>
-                          )}
-                          {!f.address && !f.city && !f.state && (
-                            <span className="text-text-muted italic">—</span>
-                          )}
-                        </div>
+                      {/* Dirección — solo ciudad, ST */}
+                      <DataTable.Td className="py-1.5">
+                        {(f.city || f.state) ? (
+                          <div className="flex items-center gap-1 text-[11px] text-text-2">
+                            <MapPin className="w-3 h-3 text-text-muted shrink-0" />
+                            <span className="truncate">{[f.city, f.state].filter(Boolean).join(', ')}</span>
+                          </div>
+                        ) : (
+                          <span className="text-text-muted text-[10px] italic">—</span>
+                        )}
                       </DataTable.Td>
 
                       {/* Miembros */}
-                      <DataTable.Td align="center" className="py-2 text-text-1 font-mono font-semibold text-sm">
+                      <DataTable.Td align="center" className="py-1.5 text-text-1 font-mono font-semibold text-sm">
                         {f.memberCount > 0 ? f.memberCount : <span className="text-text-muted">0</span>}
                       </DataTable.Td>
 
                       {/* Pago */}
-                      <DataTable.Td align="center" className="py-2">
+                      <DataTable.Td align="center" className="py-1.5">
                         <PaymentSpeedPill speed={f.paymentSpeed} />
                       </DataTable.Td>
 
                       {/* Flags */}
-                      <DataTable.Td className="py-2">
+                      <DataTable.Td className="py-1.5">
                         <div className="flex flex-wrap gap-1">
                           {f.caseflowFlags.length === 0 ? (
                             <span className="text-text-muted text-[10px] italic">—</span>
@@ -277,7 +271,7 @@ export function LawyersClient({ firms, stats }: Props) {
                       </DataTable.Td>
 
                       {/* Status */}
-                      <DataTable.Td align="center" className="py-2">
+                      <DataTable.Td align="center" className="py-1.5">
                         <StatusPill
                           state={f.status === 'ACTIVE' ? 'active' : 'inactive'}
                           label={f.status === 'ACTIVE' ? 'Activo' : (f.status === 'INACTIVE' ? 'Inactivo' : f.status)}
@@ -285,12 +279,12 @@ export function LawyersClient({ firms, stats }: Props) {
                       </DataTable.Td>
 
                       {/* Creado */}
-                      <DataTable.Td className="py-2">
+                      <DataTable.Td className="py-1.5">
                         <div className="text-[11px] text-text-muted font-mono whitespace-nowrap">{fmtDate(f.createdAt)}</div>
                       </DataTable.Td>
 
                       {/* Acciones */}
-                      <DataTable.Td align="right" className="py-2">
+                      <DataTable.Td align="right" className="py-1.5">
                         <div className="flex items-center justify-end gap-1">
                           <Link href={`/admin/lawyers/${f.id}?tab=cases`} title="Ver casos">
                             <IconAction icon={Eye} label="Ver detalle" />

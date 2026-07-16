@@ -589,8 +589,10 @@ model Lawyer {
   commissions      Commission[]      @relation("LawyerCommission")
 
   // Phoenix 2026-06-06: relaciones a Case
-  casesAsLawFirm   Case[]            @relation("CaseLawFirm")
-  casesAsAttorney  Case[]            @relation("CaseAttorney")
+  casesAsLawFirm      Case[]            @relation("CaseLawFirm")
+  casesAsAttorney     Case[]            @relation("CaseAttorney")
+  casesAsParalegal    Case[]            @relation("CaseParalegal")
+  casesAsLegalAssist  Case[]            @relation("CaseLegalAssistant")
 
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -2084,11 +2086,15 @@ model Case {
   specialtyId       String?
   specialty         SpecialtyCatalog?   @relation(fields: [specialtyId], references: [id])
 
-  // Legal: firm + attorney específico
-  lawFirmId         String?
-  lawFirm           Lawyer?             @relation("CaseLawFirm", fields: [lawFirmId], references: [id])
-  attorneyId        String?
-  attorney          Lawyer?             @relation("CaseAttorney", fields: [attorneyId], references: [id])
+  // Legal: firm + attorney + paralegal + legal assistant
+  lawFirmId           String?
+  lawFirm             Lawyer?             @relation("CaseLawFirm", fields: [lawFirmId], references: [id])
+  attorneyId          String?
+  attorney            Lawyer?             @relation("CaseAttorney", fields: [attorneyId], references: [id])
+  paralegalId         String?
+  paralegal           Lawyer?             @relation("CaseParalegal", fields: [paralegalId], references: [id])
+  legalAssistantId    String?
+  legalAssistant      Lawyer?             @relation("CaseLegalAssistant", fields: [legalAssistantId], references: [id])
 
   // Insurance — primary (PIP) + optional secondary (Med Pay)
   primaryInsuranceId    String?

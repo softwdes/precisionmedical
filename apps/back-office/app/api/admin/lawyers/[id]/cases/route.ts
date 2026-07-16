@@ -44,7 +44,9 @@ export async function GET(
         createdAt: true,
         accidentDate: true,
         patient: { select: { firstName: true, lastName: true } },
-        attorney: { select: { id: true, firstName: true, lastName: true } },
+        attorney:       { select: { id: true, firstName: true, lastName: true } },
+        paralegal:      { select: { id: true, firstName: true, lastName: true } },
+        legalAssistant: { select: { id: true, firstName: true, lastName: true } },
         lienSignatures: { select: { id: true }, take: 1 },
       },
     }),
@@ -88,11 +90,13 @@ export async function GET(
         lastName: c.patient.lastName,
       },
       attorney: c.attorney
-        ? {
-            id: c.attorney.id,
-            firstName: c.attorney.firstName,
-            lastName: c.attorney.lastName,
-          }
+        ? { id: c.attorney.id, firstName: c.attorney.firstName, lastName: c.attorney.lastName }
+        : null,
+      paralegal: c.paralegal
+        ? { id: c.paralegal.id, firstName: c.paralegal.firstName, lastName: c.paralegal.lastName }
+        : null,
+      legalAssistant: c.legalAssistant
+        ? { id: c.legalAssistant.id, firstName: c.legalAssistant.firstName, lastName: c.legalAssistant.lastName }
         : null,
       hasSigned: c.lienSignatures.length > 0,
     })),

@@ -487,6 +487,8 @@ function NotesTab({ firm, onSaved }: { firm: Firm; onSaved: () => void }) {
 
 // ─── Cases Tab ──────────────────────────────────────────────────────────────
 
+interface CaseMember { id: string; firstName: string | null; lastName: string | null }
+
 interface CaseRow {
   id: string;
   caseCode: string;
@@ -494,7 +496,9 @@ interface CaseRow {
   status: string;
   createdAt: string;
   patient: { firstName: string | null; lastName: string | null };
-  attorney: { id: string; firstName: string | null; lastName: string | null } | null;
+  attorney:       CaseMember | null;
+  paralegal:      CaseMember | null;
+  legalAssistant: CaseMember | null;
   hasSigned: boolean;
 }
 
@@ -536,6 +540,24 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [signCase, setSignCase] = useState<CaseRow | null>(null);
   const [page, setPage] = useState(1);
+
+  const patchCase = useCallback(async (
+    caseId: string,
+    field: 'attorneyId' | 'paralegalId' | 'legalAssistantId',
+    member: CaseMember | null,
+  ) => {
+    // Optimistic update
+    setCases((prev) => prev.map((c) => {
+      if (c.id !== caseId) return c;
+      const key = field.replace('Id', '') as 'attorney' | 'paralegal' | 'legalAssistant';
+      return { ...c, [key]: member };
+    }));
+    await fetch(`/api/admin/cases/${caseId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: member?.id ?? null }),
+    });
+  }, []);
 
   const attorneys = members.filter((m) => m.memberRole === 'ATTORNEY');
 
@@ -681,10 +703,11 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                 <tr className="border-b border-row-sep bg-bg-2/50 text-[10px] uppercase tracking-wider font-semibold text-text-muted">
                   <th className="px-4 py-2.5 text-left">Caso</th>
                   <th className="px-4 py-2.5 text-left">Tipo</th>
-                  <th className="px-4 py-2.5 text-left">Fecha registro</th>
+                  <th className="px-4 py-2.5 text-left">Fecha</th>
                   <th className="px-4 py-2.5 text-left">Paciente</th>
                   <th className="px-4 py-2.5 text-left">Abogado</th>
-                  <th className="px-4 py-2.5 text-left">Estado</th>
+                  <th className="px-4 py-2.5 text-left">Paralegal / Gestor</th>
+                  <th className="px-4 py-2.5 text-left">Asistente legal</th>
                   <th className="px-4 py-2.5 text-left">Firma</th>
                   <th className="px-4 py-2.5" />
                 </tr>
@@ -694,12 +717,14 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                   <CaseTableRow
                     key={c.id}
                     row={c}
+                    members={members}
                     menuOpen={openMenu === c.id}
                     onMenuToggle={(e) => {
                       e.stopPropagation();
                       setOpenMenu(openMenu === c.id ? null : c.id);
                     }}
                     onSign={() => { setOpenMenu(null); setSignCase(c); }}
+                    onAssign={patchCase}
                   />
                 ))}
               </tbody>
@@ -732,23 +757,118 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
   );
 }
 
+// ─── Inline assignment dropdown ─────────────────────────────────────────────
+
+function AssignDropdown({
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  value: CaseMember | null;
+  options: Member[];
+  placeholder: string;
+  onChange: (m: CaseMember | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const filtered = options.filter((m) => {
+    const name = `${m.firstName ?? ''} ${m.lastName ?? ''}`.toLowerCase();
+    return name.includes(q.toLowerCase());
+  });
+
+  const label = value
+    ? `${value.firstName ?? ''} ${value.lastName ?? ''}`.trim()
+    : null;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); setQ(''); }}
+        className={`flex items-center gap-1 text-xs rounded px-2 py-1 border transition-colors w-full text-left
+          ${open ? 'border-brand/50 bg-brand/5' : 'border-transparent hover:border-border hover:bg-white/[0.03]'}
+          ${label ? 'text-text-1' : 'text-text-muted'}`}
+      >
+        <span className="truncate max-w-[120px]">{label ?? placeholder}</span>
+        <svg className="w-3 h-3 shrink-0 text-text-muted ml-auto" viewBox="0 0 12 12" fill="none">
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 mt-1 w-52 rounded-lg border border-border bg-bg-2 shadow-xl py-1" onClick={(e) => e.stopPropagation()}>
+          <div className="px-2 py-1.5 border-b border-border">
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full bg-bg-1 border border-border rounded px-2 py-1 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+            />
+          </div>
+          <div className="max-h-40 overflow-y-auto">
+            <button
+              onClick={() => { onChange(null); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-text-muted hover:bg-white/5 transition-colors"
+            >
+              <span className="italic">— Sin asignar</span>
+            </button>
+            {filtered.map((m) => {
+              const name = `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();
+              const isSelected = value?.id === m.id;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => { onChange({ id: m.id, firstName: m.firstName, lastName: m.lastName }); setOpen(false); }}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-white/5
+                    ${isSelected ? 'text-brand' : 'text-text-1'}`}
+                >
+                  {isSelected && <span className="text-brand">✓</span>}
+                  {name || '(sin nombre)'}
+                </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="px-3 py-2 text-xs text-text-muted italic">Sin resultados</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CaseTableRow({
   row,
+  members,
   menuOpen,
   onMenuToggle,
   onSign,
+  onAssign,
 }: {
   row: CaseRow;
+  members: Member[];
   menuOpen: boolean;
   onMenuToggle: (e: React.MouseEvent) => void;
   onSign: () => void;
+  onAssign: (caseId: string, field: 'attorneyId' | 'paralegalId' | 'legalAssistantId', member: CaseMember | null) => void;
 }) {
   const patientName = `${row.patient.lastName ?? ''}, ${row.patient.firstName ?? ''}`.trim().replace(/^,\s*/, '');
-  const attorneyName = row.attorney
-    ? `${row.attorney.firstName ?? ''} ${row.attorney.lastName ?? ''}`.trim()
-    : '—';
   const typeColor = CASE_TYPE_COLORS[row.caseType] ?? 'bg-white/5 text-text-muted border-border';
   const dateStr = new Date(row.createdAt).toLocaleDateString('es-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+  const attorneys     = members.filter((m) => m.memberRole === 'ATTORNEY');
+  const caseManagers  = members.filter((m) => m.memberRole === 'CASE_MANAGER');
+  const legalAssists  = members.filter((m) => ['PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER'].includes(m.memberRole ?? ''));
 
   return (
     <tr className="hover:bg-white/[0.02] transition-colors">
@@ -762,11 +882,29 @@ function CaseTableRow({
       </td>
       <td className="px-4 py-1.5 text-xs text-text-2 font-mono">{dateStr}</td>
       <td className="px-4 py-1.5 text-sm text-text-1">{patientName || '—'}</td>
-      <td className="px-4 py-1.5 text-sm text-text-2">{attorneyName}</td>
-      <td className="px-4 py-1.5">
-        <span className="text-[10px] text-text-muted">
-          {CASE_STATUS_LABELS[row.status] ?? row.status}
-        </span>
+      <td className="px-4 py-1.5 min-w-[140px]">
+        <AssignDropdown
+          value={row.attorney}
+          options={attorneys}
+          placeholder="Seleccionar abogado"
+          onChange={(m) => onAssign(row.id, 'attorneyId', m)}
+        />
+      </td>
+      <td className="px-4 py-1.5 min-w-[140px]">
+        <AssignDropdown
+          value={row.paralegal}
+          options={caseManagers}
+          placeholder="Seleccionar gestor"
+          onChange={(m) => onAssign(row.id, 'paralegalId', m)}
+        />
+      </td>
+      <td className="px-4 py-1.5 min-w-[140px]">
+        <AssignDropdown
+          value={row.legalAssistant}
+          options={legalAssists}
+          placeholder="Seleccionar asistente"
+          onChange={(m) => onAssign(row.id, 'legalAssistantId', m)}
+        />
       </td>
       <td className="px-4 py-1.5">
         {row.hasSigned ? (

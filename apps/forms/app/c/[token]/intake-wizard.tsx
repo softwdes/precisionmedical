@@ -1,5 +1,7 @@
 'use client';
 
+import * as React from 'react';
+
 /**
  * B.5–B.8 — IntakeWizard · Forms del Paciente  (7 pasos)
  *

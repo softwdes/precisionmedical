@@ -68,6 +68,8 @@ export function LawyersClient({ firms, stats }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing]   = useState<Firm | null>(null);
   const [deleting, setDeleting] = useState<Firm | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const filtered = firms.filter((f) => {
     if (search) {
@@ -79,6 +81,10 @@ export function LawyersClient({ firms, stats }: Props) {
     if (filter === 'slow'     && f.paymentSpeed !== 'SLOW') return false;
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const refresh = () => startTransition(() => router.refresh());
 
@@ -107,14 +113,14 @@ export function LawyersClient({ firms, stats }: Props) {
           <Input
             placeholder={tc('search')}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-9"
           />
         </div>
-        <FilterPill active={filter === 'all'}      onClick={() => setFilter('all')}      label={t('filterAll')}      count={stats.total} />
-        <FilterPill active={filter === 'active'}   onClick={() => setFilter('active')}   label={t('filterActive')}   count={stats.active} />
-        <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label={t('filterInactive')} count={stats.inactive} />
-        <FilterPill active={filter === 'slow'}     onClick={() => setFilter('slow')}     label={t('filterSlow')}     count={stats.slowPayers} />
+        <FilterPill active={filter === 'all'}      onClick={() => { setFilter('all');      setPage(1); }} label={t('filterAll')}      count={stats.total} />
+        <FilterPill active={filter === 'active'}   onClick={() => { setFilter('active');   setPage(1); }} label={t('filterActive')}   count={stats.active} />
+        <FilterPill active={filter === 'inactive'} onClick={() => { setFilter('inactive'); setPage(1); }} label={t('filterInactive')} count={stats.inactive} />
+        <FilterPill active={filter === 'slow'}     onClick={() => { setFilter('slow');     setPage(1); }} label={t('filterSlow')}     count={stats.slowPayers} />
       </div>
 
       <DataTable.Card>
@@ -139,7 +145,7 @@ export function LawyersClient({ firms, stats }: Props) {
                   </DataTable.Td>
                 </tr>
               ) : (
-                filtered.map((f) => (
+                paginated.map((f) => (
                   <DataTable.Row key={f.id} muted={f.status !== 'ACTIVE'}>
                     <DataTable.Td>
                       <div className="flex items-center gap-3">
@@ -209,8 +215,32 @@ export function LawyersClient({ firms, stats }: Props) {
           </DataTable.Table>
         </DataTable.Scroll>
         <TableFooter
-          left={`${filtered.length} de ${stats.total} bufetes`}
-          right={<span className="font-mono">phoenix-dev · local</span>}
+          left={`${filtered.length} bufete${filtered.length !== 1 ? 's' : ''} · página ${safePage} de ${totalPages}`}
+          right={
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(1)}
+                disabled={safePage <= 1}
+                className="px-2 py-1 text-xs rounded border border-border text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+              >«</button>
+              <button
+                onClick={() => setPage(safePage - 1)}
+                disabled={safePage <= 1}
+                className="px-2 py-1 text-xs rounded border border-border text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+              >‹</button>
+              <span className="px-2 text-xs text-text-muted font-mono">{safePage}/{totalPages}</span>
+              <button
+                onClick={() => setPage(safePage + 1)}
+                disabled={safePage >= totalPages}
+                className="px-2 py-1 text-xs rounded border border-border text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+              >›</button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={safePage >= totalPages}
+                className="px-2 py-1 text-xs rounded border border-border text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+              >»</button>
+            </div>
+          }
         />
       </DataTable.Card>
 

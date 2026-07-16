@@ -19,7 +19,7 @@ export interface EntityAvatarProps {
   /** Color hex sólido. Si no, usa `bg-gradient-cyan`. */
   color?: string;
   /** Tamaño · default 9 (w-9 h-9). Aumentá para headers de detail. */
-  size?: 8 | 9 | 10 | 12;
+  size?: 6 | 8 | 9 | 10 | 12;
 }
 
 function extractInitials(name: string): string {
@@ -33,6 +33,7 @@ function extractInitials(name: string): string {
 }
 
 const SIZE_CLASSES = {
+  6:  'w-6 h-6 text-[8px]',
   8:  'w-8 h-8 text-[10px]',
   9:  'w-9 h-9 text-[11px]',
   10: 'w-10 h-10 text-xs',

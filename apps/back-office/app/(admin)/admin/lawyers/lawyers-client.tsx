@@ -207,7 +207,7 @@ export function LawyersClient({ firms, stats }: Props) {
                       {/* Nombre + email icon */}
                       <DataTable.Td className="py-1.5">
                         <div className="flex items-center gap-2 min-w-0">
-                          <EntityAvatar name={f.firmName} size={8} />
+                          <EntityAvatar name={f.firmName} size={6} />
                           <span className="text-text-1 font-semibold truncate text-[13px]">{f.firmName}</span>
                           {f.email && (
                             <a href={`mailto:${f.email}`} title={f.email} onClick={(e) => e.stopPropagation()}

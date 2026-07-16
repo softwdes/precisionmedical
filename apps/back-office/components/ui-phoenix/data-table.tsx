@@ -71,7 +71,7 @@ function Th({
 }) {
   return (
     <th
-      className={`${alignClass(align)} px-5 py-3 font-semibold`}
+      className={`${alignClass(align)} px-4 py-2.5 font-semibold`}
       style={width ? { width } : undefined}
     >
       {children}
@@ -124,7 +124,7 @@ function Td({
     <td
       colSpan={colSpan}
       onClick={onClick}
-      className={`${alignClass(align)} px-5 py-3.5 ${className}`}
+      className={`${alignClass(align)} px-4 py-2 ${className}`}
     >
       {children}
     </td>

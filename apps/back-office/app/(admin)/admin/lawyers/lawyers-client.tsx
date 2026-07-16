@@ -205,7 +205,7 @@ export function LawyersClient({ firms, stats }: Props) {
                   return (
                     <DataTable.Row key={f.id} muted={f.status !== 'ACTIVE'}>
                       {/* Nombre + email icon */}
-                      <DataTable.Td className="py-1.5">
+                      <DataTable.Td className="!py-1">
                         <div className="flex items-center gap-2 min-w-0">
                           <EntityAvatar name={f.firmName} size={6} />
                           <span className="text-text-1 font-semibold truncate text-[13px]">{f.firmName}</span>
@@ -219,12 +219,12 @@ export function LawyersClient({ firms, stats }: Props) {
                       </DataTable.Td>
 
                       {/* Tipo */}
-                      <DataTable.Td className="py-1.5">
+                      <DataTable.Td className="!py-1">
                         <TagPill label={typeInfo.label} colorClass={typeInfo.color} compact />
                       </DataTable.Td>
 
                       {/* Contacto — solo teléfono, una línea */}
-                      <DataTable.Td className="py-1.5">
+                      <DataTable.Td className="!py-1">
                         {f.phone ? (
                           <div className="flex items-center gap-1 text-[11px] text-text-muted font-mono">
                             <Phone className="w-3 h-3 shrink-0" />
@@ -236,7 +236,7 @@ export function LawyersClient({ firms, stats }: Props) {
                       </DataTable.Td>
 
                       {/* Dirección — solo ciudad, ST */}
-                      <DataTable.Td className="py-1.5">
+                      <DataTable.Td className="!py-1">
                         {(f.city || f.state) ? (
                           <div className="flex items-center gap-1 text-[11px] text-text-2">
                             <MapPin className="w-3 h-3 text-text-muted shrink-0" />
@@ -253,12 +253,12 @@ export function LawyersClient({ firms, stats }: Props) {
                       </DataTable.Td>
 
                       {/* Pago */}
-                      <DataTable.Td align="center" className="py-1.5">
+                      <DataTable.Td align="center" className="!py-1">
                         <PaymentSpeedPill speed={f.paymentSpeed} />
                       </DataTable.Td>
 
                       {/* Flags */}
-                      <DataTable.Td className="py-1.5">
+                      <DataTable.Td className="!py-1">
                         <div className="flex flex-wrap gap-1">
                           {f.caseflowFlags.length === 0 ? (
                             <span className="text-text-muted text-[10px] italic">—</span>
@@ -271,7 +271,7 @@ export function LawyersClient({ firms, stats }: Props) {
                       </DataTable.Td>
 
                       {/* Status */}
-                      <DataTable.Td align="center" className="py-1.5">
+                      <DataTable.Td align="center" className="!py-1">
                         <StatusPill
                           state={f.status === 'ACTIVE' ? 'active' : 'inactive'}
                           label={f.status === 'ACTIVE' ? 'Activo' : (f.status === 'INACTIVE' ? 'Inactivo' : f.status)}
@@ -279,12 +279,12 @@ export function LawyersClient({ firms, stats }: Props) {
                       </DataTable.Td>
 
                       {/* Creado */}
-                      <DataTable.Td className="py-1.5">
+                      <DataTable.Td className="!py-1">
                         <div className="text-[11px] text-text-muted font-mono whitespace-nowrap">{fmtDate(f.createdAt)}</div>
                       </DataTable.Td>
 
                       {/* Acciones */}
-                      <DataTable.Td align="right" className="py-1.5">
+                      <DataTable.Td align="right" className="!py-1">
                         <div className="flex items-center justify-end gap-1">
                           <Link href={`/admin/lawyers/${f.id}?tab=cases`} title="Ver casos">
                             <IconAction icon={Eye} label="Ver detalle" />

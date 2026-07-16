@@ -4,7 +4,11 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Plus, Search as SearchIcon, Phone, Mail, MapPin } from 'lucide-react';
+import {
+  Eye, Pencil, Trash2, Plus, Search as SearchIcon,
+  Phone, Mail, MapPin,
+  Building2, CheckCircle2, User, CalendarPlus, Clock, Users,
+} from 'lucide-react';
 import {
   Button,
   Input,
@@ -105,7 +109,7 @@ export function LawyersClient({ firms, stats }: Props) {
     <div className="space-y-6">
       <PageHeader
         title={t('title')}
-        subtitle={t('subtitle', { active: stats.active, members: stats.totalMembers, mockup: 'Mockup B.30' })}
+        subtitle={`${stats.active} activas · ${stats.totalMembers} miembros`}
         action={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
@@ -113,13 +117,46 @@ export function LawyersClient({ firms, stats }: Props) {
         }
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard label="Total"           value={stats.total}            sub="En catálogo"         color="text-text-1" />
-        <KpiCard label="Activas"         value={stats.active}           sub="Recibiendo referidos" color="text-emerald" />
-        <KpiCard label="Independientes"  value={stats.independentCount} sub="Sin bufete"           color="text-violet" />
-        <KpiCard label="Nuevas 30 días"  value={stats.newLast30}        sub="Recientemente"        color="text-cyan" />
-        <KpiCard label="Slow payers"     value={stats.slowPayers}       sub=">150 días avg"        color="text-amber" />
-        <KpiCard label="Miembros"        value={stats.totalMembers}     sub="Abogados + Mgrs"      color="text-brand" />
+      {/* Stats: 2/3 KPIs + 1/3 Distribución */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* KPIs 2×3 */}
+        <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <KpiCard label="Total"          value={stats.total}            sub="En catálogo"          color="text-text-1"   icon={Building2}     iconBg="bg-bg-2"         iconColor="text-text-muted" />
+          <KpiCard label="Activas"        value={stats.active}           sub="Recibiendo referidos"  color="text-emerald"  icon={CheckCircle2}  iconBg="bg-emerald/10"   iconColor="text-emerald" />
+          <KpiCard label="Independientes" value={stats.independentCount} sub="Sin bufete"            color="text-violet"   icon={User}          iconBg="bg-violet/10"    iconColor="text-violet" />
+          <KpiCard label="Nuevas 30 días" value={stats.newLast30}        sub="Recientemente"         color="text-cyan"     icon={CalendarPlus}  iconBg="bg-cyan/10"      iconColor="text-cyan" />
+          <KpiCard label="Slow payers"    value={stats.slowPayers}       sub=">150 días avg"         color="text-amber"    icon={Clock}         iconBg="bg-amber/10"     iconColor="text-amber" />
+          <KpiCard label="Miembros"       value={stats.totalMembers}     sub="Abogados + Mgrs"       color="text-brand"    icon={Users}         iconBg="bg-brand/10"     iconColor="text-brand" />
+        </div>
+
+        {/* Panel distribución por tipo */}
+        <div className="rounded-lg border border-border bg-bg-1 px-5 py-4 flex flex-col justify-between">
+          <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold mb-3">
+            Distribución por tipo
+          </div>
+          <div className="space-y-3 flex-1">
+            {[
+              { label: 'Bufetes (Firm)',      count: stats.total - stats.independentCount, color: 'bg-brand',  pct: stats.total > 0 ? Math.round((stats.total - stats.independentCount) / stats.total * 100) : 0 },
+              { label: 'Independientes',      count: stats.independentCount,               color: 'bg-violet', pct: stats.total > 0 ? Math.round(stats.independentCount / stats.total * 100) : 0 },
+            ].map((row) => (
+              <div key={row.label}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] text-text-2 flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${row.color} inline-block`} />
+                    {row.label}
+                  </span>
+                  <span className="text-[11px] text-text-muted font-mono">{row.count}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden">
+                  <div className={`h-full rounded-full ${row.color} transition-all`} style={{ width: `${row.pct}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-row-sep text-[10px] text-text-muted">
+            {stats.active} activas · {stats.inactive} inactivas
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-2 items-center flex-wrap">

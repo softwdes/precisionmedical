@@ -542,6 +542,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
   const [signCase, setSignCase] = useState<CaseRow | null>(null);
   const [historyCase, setHistoryCase] = useState<CaseRow | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<CaseRow | null>(null);
+  const [confirmExempt, setConfirmExempt] = useState<CaseRow | null>(null);
   const [page, setPage] = useState(1);
 
   const patchCase = useCallback(async (
@@ -711,6 +712,13 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
           onConfirm={() => removeCase(confirmRemove.id)}
         />
       )}
+      {confirmExempt && (
+        <ConfirmExemptModal
+          caseRow={confirmExempt}
+          onClose={() => setConfirmExempt(null)}
+          onConfirm={() => { toggleExempt(confirmExempt.id, confirmExempt.signatureExempt); setConfirmExempt(null); }}
+        />
+      )}
       {historyCase && (
         <CaseHistoryDrawer
           caseRow={historyCase}
@@ -759,7 +767,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                     }}
                     onSign={() => { setOpenMenu(null); setSignCase(c); }}
                     onAssign={patchCase}
-                    onToggleExempt={() => { setOpenMenu(null); toggleExempt(c.id, c.signatureExempt); }}
+                    onToggleExempt={() => { setOpenMenu(null); setConfirmExempt(c); }}
                     onRemove={() => { setOpenMenu(null); setConfirmRemove(c); }}
                     onHistory={() => { setOpenMenu(null); setHistoryCase(c); }}
                   />
@@ -1691,6 +1699,59 @@ function ConfirmRemoveModal({
             className="px-4 py-2 text-sm text-white bg-rose hover:bg-rose/80 rounded-md transition-colors"
           >
             Eliminar vínculo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Confirm Exempt Modal ─────────────────────────────────────────────────────
+
+function ConfirmExemptModal({
+  caseRow,
+  onClose,
+  onConfirm,
+}: {
+  caseRow: CaseRow;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const isExempting = !caseRow.signatureExempt;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isExempting ? 'bg-amber/10' : 'bg-brand/10'}`}>
+            <Ban className={`w-5 h-5 ${isExempting ? 'text-amber' : 'text-brand'}`} />
+          </div>
+          <div>
+            <div className="text-text-1 font-semibold text-sm">
+              {isExempting ? 'Firma no requerida' : 'Requerir firma'}
+            </div>
+            <div className="text-text-muted text-[11px] font-mono mt-0.5">{caseRow.caseCode}</div>
+          </div>
+        </div>
+        <p className="text-text-2 text-sm">
+          {isExempting
+            ? 'Este caso quedará exento del requisito de firma del abogado. El expediente puede procesarse sin firma.'
+            : 'Se volverá a requerir la firma del abogado para este caso.'}
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-text-2 hover:text-text-1 border border-border rounded-md hover:bg-white/5 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`px-4 py-2 text-sm text-white rounded-md transition-colors ${isExempting ? 'bg-amber hover:bg-amber/80' : 'bg-brand hover:bg-brand/80'}`}
+          >
+            {isExempting ? 'Confirmar exención' : 'Requerir firma'}
           </button>
         </div>
       </div>

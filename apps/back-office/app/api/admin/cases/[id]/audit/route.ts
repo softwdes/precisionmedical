@@ -14,7 +14,7 @@ export async function GET(
   const events = await db.auditLog.findMany({
     where: { entityType: 'cases', entityId: caseId },
     orderBy: { createdAt: 'desc' },
-    take: 100,
+    take: 200,
     select: {
       id: true,
       action: true,
@@ -26,12 +26,23 @@ export async function GET(
   });
 
   return NextResponse.json({
-    events: events.map((e) => ({
-      id: e.id,
-      action: e.action,
-      actorType: e.actorType,
-      createdAt: e.createdAt.toISOString(),
-      metadata: e.metadata,
-    })),
+    events: events.map((e) => {
+      const meta = (e.metadata ?? {}) as Record<string, unknown>;
+      return {
+        id:             e.id,
+        action:         e.action,
+        actorType:      e.actorType,
+        createdAt:      e.createdAt.toISOString(),
+        // Assignment change fields (migrated from v2 or captured in v3)
+        isAssignment:   e.action === 'ASSIGNMENT_CHANGE',
+        changeType:     meta.changeType     as string | null ?? null,
+        changeAction:   meta.action         as string | null ?? null,
+        changedByEmail: meta.changedByEmail as string | null ?? null,
+        previousValue:  meta.previousValue  as string | null ?? null,
+        newValue:       meta.newValue       as string | null ?? null,
+        // Generic metadata for other events
+        metadata:       meta,
+      };
+    }),
   });
 }

@@ -1264,9 +1264,13 @@ function LienSignatureRow({
   const colorClass = SIGNER_COLORS[sig.signerType] ?? 'bg-bg-2 border-border text-text-2';
   const label = SIGNER_LABELS[sig.signerType] ?? sig.signerType;
 
+  const imgSrc = sig.signatureSvg
+    ? (sig.signatureSvg.startsWith('data:') ? sig.signatureSvg : `data:image/png;base64,${sig.signatureSvg}`)
+    : null;
+
   return (
     <div className="rounded-md border border-border/40 bg-bg-2/40 overflow-hidden">
-      <div className="flex items-center gap-3 px-3 py-2">
+      <div className="flex items-center gap-3 px-3 py-2.5">
         <CheckCircle2 className="w-4 h-4 text-emerald shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -1280,7 +1284,7 @@ function LienSignatureRow({
             Firmado: {new Date(sig.signedAt).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
-        {sig.signatureSvg && (
+        {imgSrc && (
           <button
             onClick={() => setExpanded((v) => !v)}
             className="text-[10px] text-brand hover:text-text-1 transition-colors shrink-0 font-medium"
@@ -1289,12 +1293,12 @@ function LienSignatureRow({
           </button>
         )}
       </div>
-      {expanded && sig.signatureSvg && (
-        <div className="border-t border-border/40 px-3 py-3 bg-white/[0.02]">
+      {imgSrc && (
+        <div className="border-t border-border/40 px-3 py-3 bg-slate-900/80">
           <img
-            src={sig.signatureSvg.startsWith('data:') ? sig.signatureSvg : `data:image/png;base64,${sig.signatureSvg}`}
+            src={imgSrc}
             alt={`Firma de ${sig.signerName}`}
-            className="max-h-24 max-w-full object-contain rounded border border-border/30 bg-white p-1"
+            className={`w-full object-contain rounded transition-all duration-200 ${expanded ? 'max-h-48' : 'max-h-16 opacity-70'}`}
           />
         </div>
       )}

@@ -76,7 +76,16 @@ export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', h
     drawing.current = false;
     lastPos.current = null;
     const canvas = canvasRef.current;
-    if (canvas) onChange(canvas.toDataURL('image/png'));
+    if (!canvas) return;
+    // Export with dark background so signature is visible on any display context
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = canvas.width;
+    offscreen.height = canvas.height;
+    const ctx2 = offscreen.getContext('2d')!;
+    ctx2.fillStyle = '#0f172a';
+    ctx2.fillRect(0, 0, offscreen.width, offscreen.height);
+    ctx2.drawImage(canvas, 0, 0);
+    onChange(offscreen.toDataURL('image/png'));
   }, [onChange]);
 
   function endDraw(e: React.MouseEvent | React.TouchEvent) {

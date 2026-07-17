@@ -1807,9 +1807,9 @@ function CaseHistoryDrawer({
   const otherEvents      = events.filter((e) => !e.isAssignment);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="bg-bg-1 border-l border-border h-full w-full sm:w-[680px] flex flex-col"
+        className="bg-bg-1 border border-border rounded-xl w-full max-w-5xl max-h-[88vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

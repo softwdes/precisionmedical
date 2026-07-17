@@ -82,18 +82,95 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
     };
   }
 
+  // ── Assignment change audit ──────────────────────────────────────────────────
+  // When attorney/paralegal/legalAssistant changes, read previous names for the log.
+  const assignmentFields = ['attorneyId', 'paralegalId', 'legalAssistantId'] as const;
+  const changingAssignment = assignmentFields.some((f) => parsed.data[f] !== undefined);
+
+  let prevCase: {
+    caseCode: string;
+    attorney:       { id: string; firstName: string | null; lastName: string | null } | null;
+    paralegal:      { id: string; firstName: string | null; lastName: string | null } | null;
+    legalAssistant: { id: string; firstName: string | null; lastName: string | null } | null;
+  } | null = null;
+
+  if (changingAssignment) {
+    prevCase = await db.case.findUnique({
+      where: { id },
+      select: {
+        caseCode: true,
+        attorney:       { select: { id: true, firstName: true, lastName: true } },
+        paralegal:      { select: { id: true, firstName: true, lastName: true } },
+        legalAssistant: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const updated = await db.case.update({ where: { id }, data, select: { id: true, caseCode: true } });
 
   const actor = actorFromHeaders(req.headers);
-  await writeAuditLog(db, {
-    actorType:   actor.actorType,
-    actorUserId: actor.actorUserId ?? undefined,
-    action:      'UPDATE_CASE',
-    entityType:  'cases',
-    entityId:    id,
-    metadata:    { caseCode: updated.caseCode, fields: Object.keys(parsed.data) },
-    ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
-  });
+
+  // Write one audit entry per changed assignment field
+  if (changingAssignment && prevCase) {
+    type PrevPerson = { id: string; firstName: string | null; lastName: string | null } | null;
+    const fieldMeta: Record<string, { label: string; prevPerson: PrevPerson }> = {
+      attorneyId:       { label: 'Abogado',          prevPerson: prevCase.attorney },
+      paralegalId:      { label: 'Gestor de casos',  prevPerson: prevCase.paralegal },
+      legalAssistantId: { label: 'Asistente',        prevPerson: prevCase.legalAssistant },
+    };
+
+    for (const field of assignmentFields) {
+      if (parsed.data[field] === undefined) continue;
+      const { label, prevPerson } = fieldMeta[field];
+      const newId = parsed.data[field] as string | null;
+
+      // Resolve new person name from DB if assigned
+      let newName: string | null = null;
+      if (newId) {
+        const emp = await db.employee.findUnique({
+          where: { id: newId },
+          select: { firstName: true, lastName: true },
+        });
+        if (emp) newName = `${emp.firstName} ${emp.lastName}`.trim();
+      }
+
+      const prevName = prevPerson ? `${prevPerson.firstName} ${prevPerson.lastName}`.trim() : null;
+      const action =
+        !prevName && newName  ? 'Asignado'    :
+        prevName  && !newName ? 'Removido'    : 'Actualizado';
+
+      await writeAuditLog(db, {
+        actorType:   actor.actorType,
+        actorUserId: actor.actorUserId ?? undefined,
+        action:      'ASSIGNMENT_CHANGE',
+        entityType:  'cases',
+        entityId:    id,
+        metadata: {
+          changeType:    label,
+          changeTypeRaw: field.replace('Id', '').toUpperCase(),
+          action,
+          actionRaw:     action === 'Asignado' ? 'ASSIGNED' : action === 'Removido' ? 'REMOVED' : 'UPDATED',
+          changedByEmail: actor.actorUserId ?? null,
+          previousValue: prevName,
+          newValue:      newName,
+          caseCode:      prevCase.caseCode,
+        },
+        ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+      });
+    }
+  } else {
+    // Generic update log for non-assignment changes
+    await writeAuditLog(db, {
+      actorType:   actor.actorType,
+      actorUserId: actor.actorUserId ?? undefined,
+      action:      'UPDATE_CASE',
+      entityType:  'cases',
+      entityId:    id,
+      metadata:    { caseCode: updated.caseCode, fields: Object.keys(parsed.data) },
+      ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

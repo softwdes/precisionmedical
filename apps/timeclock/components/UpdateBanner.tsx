@@ -4,21 +4,19 @@ import { useState } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import { useVersionCheck } from '@/lib/useVersionCheck';
 import { clearSessionGuard } from '@/lib/useSessionGuard';
-import { createClient } from '@/lib/supabase/client';
 import { useT } from '@/lib/i18n';
 
 /**
  * Banner sticky en el top que aparece cuando hay un deploy nuevo
  * mientras el usuario tiene la PWA abierta.
  *
- * El click hace una limpieza completa:
+ * El click hace una limpieza completa sin cerrar sesion:
  *   1. clearSessionGuard()              — resetea contador de 12h
- *   2. supabase.auth.signOut()          — cierra sesion (cookies + tokens)
- *   3. unregister de Service Workers    — fuerza bundle nuevo en proxima carga
- *   4. caches.delete() de todas las caches — limpia assets viejos
- *   5. window.location.href = '/login'  — hard navigate, no SPA
+ *   2. unregister de Service Workers    — fuerza bundle nuevo en proxima carga
+ *   3. caches.delete() de todas las caches — limpia assets viejos
+ *   4. hard-reload a la pagina actual   — la sesion Supabase sobrevive (cookies)
  *
- * Sin los pasos 3-4 el SW seguiria sirviendo el bundle cacheado y el
+ * Sin los pasos 2-3 el SW seguiria sirviendo el bundle cacheado y el
  * "Actualizar" no traeria realmente la version nueva — sobre todo en
  * iOS PWA donde el SW es agresivo con el cache.
  */
@@ -32,19 +30,10 @@ export function UpdateBanner(): React.ReactElement | null {
   async function handleApply(): Promise<void> {
     setApplying(true);
     try {
-      // 1. Reset contador SessionGuard
+      // 1. Reset contador SessionGuard (timer de 12h arranca limpio post-reload)
       clearSessionGuard();
 
-      // 2. SignOut Supabase con TIMEOUT — sin esto, si el celular tiene
-      // mala senial el boton se cuelga indefinidamente en "Actualizando..."
-      // y el usuario asume que se trabo.
-      const signOutWithTimeout = Promise.race([
-        createClient().auth.signOut().catch(() => undefined),
-        new Promise<void>(resolve => setTimeout(resolve, 3000)),
-      ]);
-      try { await signOutWithTimeout; } catch { /* noop */ }
-
-      // 3. Desregistrar Service Workers
+      // 2. Desregistrar Service Workers
       if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
         try {
           const regs = await navigator.serviceWorker.getRegistrations();
@@ -52,7 +41,7 @@ export function UpdateBanner(): React.ReactElement | null {
         } catch { /* noop */ }
       }
 
-      // 4. Borrar todas las caches que dejo workbox/next-pwa
+      // 3. Borrar todas las caches que dejo workbox/next-pwa
       if (typeof caches !== 'undefined') {
         try {
           const keys = await caches.keys();
@@ -60,10 +49,9 @@ export function UpdateBanner(): React.ReactElement | null {
         } catch { /* noop */ }
       }
     } finally {
-      // 5. Hard navigate con cache-bust + replace (no back stack).
-      // El query param fuerza al browser a no reusar HTML del HTTP cache
-      // — el SW + caches ya estan limpios, esto es la ultima capa.
-      const url = new URL('/login', window.location.origin);
+      // 4. Hard-reload a la pagina actual con cache-bust.
+      // La sesion Supabase vive en cookies httpOnly y sobrevive el reload.
+      const url = new URL(window.location.href);
       url.searchParams.set('_v', String(Date.now()));
       window.location.replace(url.toString());
     }

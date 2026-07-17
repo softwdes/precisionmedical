@@ -5,14 +5,11 @@ import { useTranslations } from 'next-intl';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import { useVersionCheck } from '@/lib/useVersionCheck';
 import { clearSessionGuard } from '@/lib/useSessionGuard';
-import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 
 /**
  * Banner top que aparece cuando hay un deploy nuevo mientras el usuario
- * tiene la app abierta. Click → cierra sesion, limpia SW + caches, hard
- * navigate al login para forzar bundle nuevo.
- *
- * Mismo patron que apps/timeclock/components/UpdateBanner.tsx.
+ * tiene la app abierta. Click → limpia SW + caches y hard-reload a la
+ * pagina actual manteniendo la sesion activa.
  */
 export function UpdateBanner(): React.ReactElement | null {
   const { isOutdated } = useVersionCheck();
@@ -24,14 +21,8 @@ export function UpdateBanner(): React.ReactElement | null {
   async function handleApply(): Promise<void> {
     setApplying(true);
     try {
+      // Reset timer SessionGuard para que arranque limpio post-reload
       clearSessionGuard();
-
-      // SignOut con timeout 3s — sin esto, mala senial -> boton colgado
-      const signOutWithTimeout = Promise.race([
-        createBrowserClient().auth.signOut().catch(() => undefined),
-        new Promise<void>(resolve => setTimeout(resolve, 3000)),
-      ]);
-      try { await signOutWithTimeout; } catch { /* noop */ }
 
       if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
         try {
@@ -46,8 +37,9 @@ export function UpdateBanner(): React.ReactElement | null {
         } catch { /* noop */ }
       }
     } finally {
-      // Hard navigate con cache-bust + replace (no back stack)
-      const url = new URL('/login', window.location.origin);
+      // Hard-reload a la pagina actual con cache-bust + replace (no back stack).
+      // La sesion Supabase vive en cookies httpOnly y sobrevive el reload.
+      const url = new URL(window.location.href);
       url.searchParams.set('_v', String(Date.now()));
       window.location.replace(url.toString());
     }

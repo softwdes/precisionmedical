@@ -1094,7 +1094,7 @@ function SignAttorneyModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="bg-bg-1 border border-border rounded-xl w-full max-w-md space-y-4 p-5 max-h-[92vh] overflow-y-auto"
+        className="bg-bg-1 border border-border rounded-xl w-full max-w-xl space-y-5 p-6 max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -1111,7 +1111,7 @@ function SignAttorneyModal({
           </div>
         ) : (
           <>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">
                   Nombre del firmante <span className="text-rose">*</span>
@@ -1142,7 +1142,7 @@ function SignAttorneyModal({
               <SignaturePad
                 onChange={setSignaturePng}
                 hintLabel="Firme aquí con el mouse o dedo"
-                height={200}
+                height={240}
               />
             </div>
 

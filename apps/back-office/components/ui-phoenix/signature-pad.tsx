@@ -125,13 +125,27 @@ export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', h
   }, [onChange]);
 
   return (
-    <div className="space-y-1">
-      <div className="relative rounded-md border border-border/60 bg-bg-2/30 overflow-hidden" style={{ height }}>
+    <div className="space-y-2">
+      <div
+        className={`relative rounded-lg overflow-hidden transition-colors ${
+          hasStrokes
+            ? 'border border-brand/40 bg-bg-2/40'
+            : 'border-2 border-dashed border-border/50 bg-bg-2/20 hover:border-brand/30 hover:bg-bg-2/30'
+        }`}
+        style={{ height }}
+      >
+        {/* baseline guide */}
         {!hasStrokes && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="flex flex-col items-center gap-1 text-text-muted/40">
-              <PenLine className="w-6 h-6" />
-            </div>
+          <div
+            className="absolute left-8 right-8 border-b border-dashed border-border/40 pointer-events-none"
+            style={{ top: Math.round(height * 0.68) }}
+          />
+        )}
+        {/* empty state hint */}
+        {!hasStrokes && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
+            <PenLine className="w-7 h-7 text-text-muted/25" />
+            <span className="text-[11px] text-text-muted/40 italic">{hintLabel}</span>
           </div>
         )}
         <canvas
@@ -147,16 +161,20 @@ export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', h
           onTouchEnd={endDraw}
         />
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-1">
         <button
           type="button"
           onClick={clear}
-          className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-1 transition-colors"
+          className="flex items-center gap-1.5 text-[11px] text-text-muted hover:text-rose transition-colors"
         >
           <Eraser className="w-3 h-3" />
           {clearLabel}
         </button>
-        <span className="text-[10px] text-text-muted/60 italic">{hintLabel}</span>
+        {hasStrokes && (
+          <span className="text-[10px] text-emerald/70 flex items-center gap-1">
+            ✓ Firma capturada
+          </span>
+        )}
       </div>
     </div>
   );

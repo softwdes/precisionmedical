@@ -17,6 +17,8 @@ export interface PersonAvatarProps {
   /** Si querés gradient diferente al default brand. Ej: `bg-gradient-cyan` */
   gradientClass?: string;
   size?: 8 | 9 | 10 | 12;
+  /** URL de foto real — si se provee, se muestra la imagen en lugar de las iniciales */
+  photoUrl?: string | null;
 }
 
 const SIZE_CLASSES = {
@@ -31,11 +33,23 @@ export function PersonAvatar({
   lastName,
   gradientClass = 'bg-gradient-brand',
   size = 9,
+  photoUrl,
 }: PersonAvatarProps) {
   const a = (firstName ?? '').trim().charAt(0).toUpperCase();
   const b = (lastName ?? '').trim().charAt(0).toUpperCase();
   const initials = (a + b) || '?';
   const sizeClass = SIZE_CLASSES[size];
+
+  if (photoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photoUrl}
+        alt={`${firstName ?? ''} ${lastName ?? ''}`.trim()}
+        className={`${sizeClass} rounded-full object-cover shrink-0 shadow-glow`}
+      />
+    );
+  }
 
   return (
     <div className={`${sizeClass} rounded-full flex items-center justify-center text-white font-bold shrink-0 ${gradientClass} shadow-glow`}>

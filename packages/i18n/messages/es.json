@@ -2175,6 +2175,7 @@
       "bannerConfirmedMsg": "Caso confirmado. Asignar doctor + clínica + horario para mover al flujo clínico.",
       "bannerActiveTitle": "En tratamiento",
       "bannerActiveMsg": "Caso activo. El doctor toma el caso en /clinical · Recepción puede agregar notas y agendar follow-ups.",
+      "sectionPatient": "Información personal",
       "sectionAccident": "Accidente",
       "fieldDol": "DOL (Date of Loss)",
       "fieldType": "Tipo",

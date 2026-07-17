@@ -2175,6 +2175,7 @@
       "bannerConfirmedMsg": "Case confirmed. Assign doctor + clinic + time slot to move to clinical flow.",
       "bannerActiveTitle": "In treatment",
       "bannerActiveMsg": "Active case. Doctor handles the case in /clinical · Reception can add notes and schedule follow-ups.",
+      "sectionPatient": "Personal Information",
       "sectionAccident": "Accident",
       "fieldDol": "DOL (Date of Loss)",
       "fieldType": "Type",

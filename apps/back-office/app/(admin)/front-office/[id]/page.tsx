@@ -25,6 +25,11 @@ export default async function CaseDetailPage({ params }: PageProps) {
           email: true,
           dateOfBirth: true,
           patientCode: true,
+          addressLine1: true,
+          addressCity: true,
+          addressState: true,
+          addressZip: true,
+          socialSecurityNumber: true,
         },
       },
       lawFirm: {
@@ -150,7 +155,14 @@ export default async function CaseDetailPage({ params }: PageProps) {
         firstAppointmentConfirmedAt: caseRecord.firstAppointmentConfirmedAt,
         createdAt: caseRecord.createdAt,
         updatedAt: caseRecord.updatedAt,
-        patient: caseRecord.patient,
+        patient: {
+          ...caseRecord.patient,
+          photoUrl: (() => {
+            const cd = caseRecord.consentsData as Record<string, unknown> | null;
+            const photos = cd?.photos as Record<string, string> | undefined;
+            return photos?.selfie ?? null;
+          })(),
+        },
         lawFirm: caseRecord.lawFirm,
         attorney: caseRecord.attorney,
         primaryInsurance: caseRecord.primaryInsurance,

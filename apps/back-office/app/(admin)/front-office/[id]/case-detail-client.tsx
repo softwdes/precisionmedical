@@ -55,6 +55,12 @@ interface CaseInfo {
     email: string | null;
     dateOfBirth: Date | null;
     patientCode: string | null;
+    addressLine1: string | null;
+    addressCity: string | null;
+    addressState: string | null;
+    addressZip: string | null;
+    socialSecurityNumber: string | null;
+    photoUrl: string | null;
   };
   lawFirm: {
     id: string;
@@ -366,13 +372,14 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
             {/* Información personal */}
-            <InfoCard title={t('sectionPatient')} icon={User}>
+            <InfoCard title="Información personal" icon={User}>
               <div className="flex items-start gap-4 mb-4">
                 <PersonAvatar
                   firstName={caseInfo.patient.firstName}
                   lastName={caseInfo.patient.lastName}
                   size={12}
                   gradientClass="bg-gradient-cyan"
+                  photoUrl={caseInfo.patient.photoUrl}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="text-text-1 font-bold text-base leading-tight">
@@ -405,17 +412,26 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
               <div className="space-y-0">
                 {caseInfo.patient.dateOfBirth && (
                   <InfoRow label="Fecha de nacimiento" value={
-                    <span>{formatDate(caseInfo.patient.dateOfBirth)} · {age !== null ? `${age} años` : ''}</span>
+                    <span>{formatDate(caseInfo.patient.dateOfBirth)}{age !== null ? ` · ${age} años` : ''}</span>
                   } />
                 )}
-                <InfoRow label={t('fieldDol')} value={caseInfo.accidentDate ? formatDate(caseInfo.accidentDate) : '—'} />
-                <InfoRow label={t('fieldType')} value={caseInfo.accidentType ?? '—'} />
-                <InfoRow label={t('fieldLocation')} value={caseInfo.accidentLocation ?? '—'} />
-                {caseInfo.accidentNotes && (
-                  <InfoRow label={t('fieldNotes')} value={
-                    <div className="text-text-2 text-xs whitespace-pre-wrap leading-relaxed">{caseInfo.accidentNotes}</div>
+                {(caseInfo.patient.addressLine1 || caseInfo.patient.addressCity) && (
+                  <InfoRow label="Dirección" value={
+                    <span className="text-text-2 text-xs">
+                      {[
+                        caseInfo.patient.addressLine1,
+                        caseInfo.patient.addressCity,
+                        caseInfo.patient.addressState,
+                        caseInfo.patient.addressZip,
+                      ].filter(Boolean).join(', ')}
+                    </span>
                   } />
                 )}
+                <InfoRow label="Seguro social" value={
+                  caseInfo.patient.socialSecurityNumber
+                    ? <span className="font-mono text-xs text-text-2">***-**-{caseInfo.patient.socialSecurityNumber.slice(-4)}</span>
+                    : <span className="text-text-muted text-sm">—</span>
+                } />
               </div>
             </InfoCard>
 

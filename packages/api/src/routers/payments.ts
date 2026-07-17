@@ -110,6 +110,32 @@ export const paymentsRouter = router({
 
       const amountLocal = input.baseSalary + (input.bonusAmount ?? 0);
 
+      // For non-USD payments, auto-fill the FX rate from the most recent operation
+      let rateApplied = 1;
+      let amountUsdEquiv = amountLocal;
+      if (input.currencyLocal !== 'USD') {
+        const { data: fxData } = await supabaseAdmin
+          .from('fx_operations')
+          .select('rate, fromWallet:wallets!fx_operations_fromWalletId_fkey(currency), toWallet:wallets!fx_operations_toWalletId_fkey(currency)')
+          .order('performedAt', { ascending: false })
+          .limit(50);
+
+        type FxRow = { rate: unknown; fromWallet: unknown; toWallet: unknown };
+        const wCurrency = (w: unknown): string | null => {
+          if (!w) return null;
+          if (Array.isArray(w)) return (w[0] as { currency?: string })?.currency ?? null;
+          return (w as { currency?: string }).currency ?? null;
+        };
+        const rows = (fxData ?? []) as FxRow[];
+        const lastFx = rows.find(op =>
+          wCurrency(op.fromWallet) === 'USD' && wCurrency(op.toWallet) === input.currencyLocal
+        );
+        if (lastFx) {
+          rateApplied = Number(lastFx.rate);
+          amountUsdEquiv = rateApplied > 0 ? amountLocal / rateApplied : amountLocal;
+        }
+      }
+
       const { data, error } = await supabaseAdmin
         .from('payments')
         .insert({
@@ -122,8 +148,8 @@ export const paymentsRouter = router({
           bonus_amount: input.bonusAmount ?? null,
           bonus_reason: input.bonusReason ?? null,
           currencyLocal: input.currencyLocal,
-          amountUsdEquiv: amountLocal,
-          rateApplied: 1,
+          amountUsdEquiv,
+          rateApplied,
           scheduledDate: input.scheduledDate.toISOString(),
           status: 'PENDING',
           notes: input.notes,
@@ -134,6 +160,47 @@ export const paymentsRouter = router({
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
       return data;
+    }),
+
+  planillaStats: protectedProcedure
+    .input(z.object({
+      currency: z.enum(['BOB', 'PEN']).default('BOB'),
+      period: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const period = input.period ?? new Date().toISOString().slice(0, 7);
+
+      const [walletRes, paidRes, pendingRes, fxRes] = await Promise.all([
+        supabaseAdmin.from('wallets').select('id, name, balance').eq('currency', input.currency).maybeSingle(),
+        supabaseAdmin.from('payments').select('amountLocal').eq('currencyLocal', input.currency).eq('period', period).eq('status', 'PAID').gt('amountLocal', 0),
+        supabaseAdmin.from('payments').select('amountLocal').eq('currencyLocal', input.currency).eq('status', 'PENDING').gt('amountLocal', 0),
+        supabaseAdmin.from('fx_operations')
+          .select('rate, performedAt, amountFrom, amountTo, fromWallet:wallets!fx_operations_fromWalletId_fkey(currency), toWallet:wallets!fx_operations_toWalletId_fkey(currency)')
+          .order('performedAt', { ascending: false })
+          .limit(50),
+      ]);
+
+      type FxRow2 = { rate: unknown; performedAt: string; fromWallet: unknown; toWallet: unknown };
+      const wC = (w: unknown): string | null => {
+        if (!w) return null;
+        if (Array.isArray(w)) return (w[0] as { currency?: string })?.currency ?? null;
+        return (w as { currency?: string }).currency ?? null;
+      };
+      const fxRows = (fxRes.data ?? []) as FxRow2[];
+      const lastFx = fxRows.find(op =>
+        wC(op.fromWallet) === 'USD' && wC(op.toWallet) === input.currency
+      );
+
+      return {
+        currency: input.currency,
+        period,
+        walletBalance: Number(walletRes.data?.balance ?? 0),
+        walletName: walletRes.data?.name ?? null,
+        totalPaid: (paidRes.data ?? []).reduce((s, p) => s + Number(p.amountLocal), 0),
+        totalPending: (pendingRes.data ?? []).reduce((s, p) => s + Number(p.amountLocal), 0),
+        lastFxRate: lastFx ? Number(lastFx.rate) : null,
+        lastFxDate: lastFx?.performedAt ?? null,
+      };
     }),
 
   update: adminProcedure
@@ -276,7 +343,7 @@ export const paymentsRouter = router({
       // historicos inconsistentes), aprovechamos esta mutation para recalcularlo.
       const { data: existing } = await supabaseAdmin
         .from('payments')
-        .select('base_salary, bonus_amount, amountLocal')
+        .select('base_salary, bonus_amount, amountLocal, currencyLocal, walletId')
         .eq('id', input.id)
         .single();
 
@@ -287,14 +354,16 @@ export const paymentsRouter = router({
         updatedAt: new Date().toISOString(),
       };
 
+      let finalAmountLocal = Number(existing?.amountLocal ?? 0);
+
       if (existing && existing.base_salary != null) {
         const correctTotal = Number(existing.base_salary) + Number(existing.bonus_amount ?? 0);
         const currentTotal = Number(existing.amountLocal);
         if (Math.abs(correctTotal - Math.abs(currentTotal)) > 0.01) {
-          // Self-heal: amountLocal estaba desactualizado, lo arreglamos al marcar como pagado
           const signedTotal = currentTotal < 0 ? -correctTotal : correctTotal;
           updatePayload.amountLocal    = signedTotal;
           updatePayload.amountUsdEquiv = signedTotal;
+          finalAmountLocal = signedTotal;
         }
       }
 
@@ -306,6 +375,22 @@ export const paymentsRouter = router({
         .single();
 
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      // Debit wallet balance for non-USD salary payments
+      if (existing?.currencyLocal !== 'USD' && existing?.walletId) {
+        const debitAmt = Math.abs(finalAmountLocal);
+        if (debitAmt > 0) {
+          const { data: wallet } = await supabaseAdmin
+            .from('wallets').select('balance').eq('id', existing.walletId).single();
+          if (wallet) {
+            await supabaseAdmin.from('wallets').update({
+              balance: Number(wallet.balance) - debitAmt,
+              lastMovementAt: new Date().toISOString(),
+            }).eq('id', existing.walletId);
+          }
+        }
+      }
+
       return data;
     }),
 
@@ -321,6 +406,21 @@ export const paymentsRouter = router({
       if (!original) throw new TRPCError({ code: 'NOT_FOUND' });
 
       if (!original.walletId) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Original payment has no wallet assigned' });
+
+      // Credit back wallet for non-USD payments being reversed
+      if (original.currencyLocal !== 'USD' && original.walletId) {
+        const creditAmt = Math.abs(Number(original.amountLocal));
+        if (creditAmt > 0) {
+          const { data: wallet } = await supabaseAdmin
+            .from('wallets').select('balance').eq('id', original.walletId).single();
+          if (wallet) {
+            await supabaseAdmin.from('wallets').update({
+              balance: Number(wallet.balance) + creditAmt,
+              lastMovementAt: new Date().toISOString(),
+            }).eq('id', original.walletId);
+          }
+        }
+      }
 
       const reversalData = {
         id: randomUUID(),

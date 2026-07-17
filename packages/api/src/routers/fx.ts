@@ -200,6 +200,24 @@ export const fxRouter = router({
         .select()
         .single();
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+
+      // Update wallet balances: debit fromWallet, credit toWallet
+      const [fromW, toW] = await Promise.all([
+        supabaseAdmin.from('wallets').select('balance').eq('id', input.fromWalletId).single(),
+        supabaseAdmin.from('wallets').select('balance').eq('id', input.toWalletId).single(),
+      ]);
+      const now = new Date().toISOString();
+      await Promise.all([
+        fromW.data && supabaseAdmin.from('wallets').update({
+          balance: Number(fromW.data.balance) - input.amountFrom,
+          lastMovementAt: now,
+        }).eq('id', input.fromWalletId),
+        toW.data && supabaseAdmin.from('wallets').update({
+          balance: Number(toW.data.balance) + input.amountTo,
+          lastMovementAt: now,
+        }).eq('id', input.toWalletId),
+      ]);
+
       return data;
     }),
 
@@ -252,6 +270,24 @@ export const fxRouter = router({
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
 
       await supabaseAdmin.from('fx_operations').update({ reversedById: data.id }).eq('id', input.id);
+
+      // Undo original wallet balance changes: credit fromWallet back, debit toWallet back
+      const [fromWR, toWR] = await Promise.all([
+        supabaseAdmin.from('wallets').select('balance').eq('id', orig.fromWalletId).single(),
+        supabaseAdmin.from('wallets').select('balance').eq('id', orig.toWalletId).single(),
+      ]);
+      const nowR = new Date().toISOString();
+      await Promise.all([
+        fromWR.data && supabaseAdmin.from('wallets').update({
+          balance: Number(fromWR.data.balance) + Number(orig.amountFrom),
+          lastMovementAt: nowR,
+        }).eq('id', orig.fromWalletId),
+        toWR.data && supabaseAdmin.from('wallets').update({
+          balance: Number(toWR.data.balance) - Number(orig.amountTo),
+          lastMovementAt: nowR,
+        }).eq('id', orig.toWalletId),
+      ]);
+
       return data;
     }),
 });

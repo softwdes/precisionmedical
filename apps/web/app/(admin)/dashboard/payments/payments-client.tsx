@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   Card, CardContent,
 } from '@precision/ui';
-import { Plus, CheckCircle, RotateCcw, Clock, TrendingUp, Star, Pencil, X, Trash2, QrCode } from 'lucide-react';
+import { Plus, CheckCircle, RotateCcw, Clock, TrendingUp, Star, Pencil, X, Trash2, QrCode, Wallet, ArrowRightLeft } from 'lucide-react';
 import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
@@ -19,6 +19,7 @@ import type { AppRouter } from '@precision-medical/api';
 
 type PaymentsListOutput = inferRouterOutputs<AppRouter>['payments']['list'];
 type PaymentsSummary   = inferRouterOutputs<AppRouter>['payments']['getSummary'];
+type PlanillaStats     = inferRouterOutputs<AppRouter>['payments']['planillaStats'];
 type PaymentItem       = PaymentsListOutput['items'][number];
 
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'secondary' | 'info'> = {
@@ -88,7 +89,7 @@ function BonusToggle({ checked, onChange }: { checked: boolean; onChange: (v: bo
 
 // ─── Main component ──────────────────────────────────────────
 
-export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutput; summary: PaymentsSummary }): React.ReactElement {
+export function PaymentsClient({ initial, summary, planillaBolivia }: { initial: PaymentsListOutput; summary: PaymentsSummary; planillaBolivia?: PlanillaStats }): React.ReactElement {
   const t = useTranslations();
   const locale = useLocale();
   const [page, setPage] = useState(1);
@@ -122,15 +123,20 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
   );
   const liveSummary = summaryData ?? summary;
 
+  const { data: planilla, refetch: refetchPlanilla } = trpc.payments.planillaStats.useQuery(
+    { currency: 'BOB' },
+    { initialData: planillaBolivia, staleTime: 30_000, enabled: !!planillaBolivia },
+  );
+
   const items = (data?.items ?? []) as PaymentItem[];
 
   const markPaid = trpc.payments.markAsPaid.useMutation({
-    onSuccess: () => { toast.success(t('payments.markedAsPaid')); setShowMarkPaid(null); void refetch(); void refetchSummary(); },
+    onSuccess: () => { toast.success(t('payments.markedAsPaid')); setShowMarkPaid(null); void refetch(); void refetchSummary(); void refetchPlanilla(); },
     onError: (e) => toast.error(e.message),
   });
 
   const reverse = trpc.payments.reverse.useMutation({
-    onSuccess: () => { toast.success(t('payments.reversed')); setShowReverse(null); void refetch(); void refetchSummary(); },
+    onSuccess: () => { toast.success(t('payments.reversed')); setShowReverse(null); void refetch(); void refetchSummary(); void refetchPlanilla(); },
     onError: (e) => toast.error(e.message),
   });
 
@@ -212,6 +218,78 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
           </CardContent>
         </Card>
       </div>
+
+      {/* Planilla Bolivia banner */}
+      {planilla && (
+        <div className="rounded-xl border border-brand/20 bg-gradient-to-r from-brand/5 to-cyan/5 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/15">
+              <Wallet className="h-3.5 w-3.5 text-brand" />
+            </div>
+            <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-brand">
+              Planilla Bolivia (BOB)
+            </span>
+            {planilla.lastFxRate && (
+              <span className="ml-auto flex items-center gap-1 rounded-md border border-cyan/25 bg-cyan/10 px-2 py-0.5 text-[10.5px] font-semibold text-cyan">
+                <ArrowRightLeft className="h-3 w-3" />
+                1 USD = {planilla.lastFxRate.toFixed(2)} BOB
+                {planilla.lastFxDate && (
+                  <span className="text-[9.5px] font-normal text-cyan/60 ml-1">
+                    · {new Date(planilla.lastFxDate).toLocaleDateString('es-BO', { day: 'numeric', month: 'short' })}
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <p className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-text-3 mb-1">Saldo wallet BOB</p>
+              <p className="text-[18px] font-extrabold tabular-nums leading-none" style={{ color: planilla.walletBalance < 0 ? '#F43F5E' : '#6366F1' }}>
+                Bs {Math.abs(planilla.walletBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              {planilla.walletBalance < 0 && <p className="text-[9.5px] text-rose mt-0.5">Saldo negativo</p>}
+            </div>
+            <div>
+              <p className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-text-3 mb-1">Pagado · {planilla.period}</p>
+              <p className="text-[18px] font-extrabold tabular-nums leading-none text-emerald">
+                Bs {planilla.totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              {planilla.lastFxRate && planilla.totalPaid > 0 && (
+                <p className="text-[9.5px] text-text-3 mt-0.5">
+                  ≈ ${(planilla.totalPaid / planilla.lastFxRate).toLocaleString('en-US', { maximumFractionDigits: 0 })} USD
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-text-3 mb-1">Pendiente BOB</p>
+              <p className="text-[18px] font-extrabold tabular-nums leading-none text-amber">
+                Bs {planilla.totalPending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              {planilla.lastFxRate && planilla.totalPending > 0 && (
+                <p className="text-[9.5px] text-text-3 mt-0.5">
+                  ≈ ${(planilla.totalPending / planilla.lastFxRate).toLocaleString('en-US', { maximumFractionDigits: 0 })} USD
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="text-[9.5px] font-bold uppercase tracking-[0.07em] text-text-3 mb-1">Disponible para sueldos</p>
+              {(() => {
+                const available = planilla.walletBalance - planilla.totalPending;
+                return (
+                  <>
+                    <p className="text-[18px] font-extrabold tabular-nums leading-none" style={{ color: available < 0 ? '#F43F5E' : '#10B981' }}>
+                      Bs {Math.abs(available).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-[9.5px] mt-0.5" style={{ color: available < 0 ? '#F43F5E' : '#7D8590' }}>
+                      {available < 0 ? 'Fondos insuficientes' : 'después de pendientes'}
+                    </p>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter */}
       <div className="flex gap-2">
@@ -570,6 +648,14 @@ export function PaymentsClient({ initial, summary }: { initial: PaymentsListOutp
                       <span className="text-text-3">{t('common.total')}</span>
                       <span className="font-semibold text-emerald">{payment.currencyLocal} {totalToPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     </div>
+                    {payment.currencyLocal === 'BOB' && planilla && (
+                      <div className="flex justify-between gap-2 border-t border-border pt-2 mt-1">
+                        <span className="text-text-3 text-[10.5px]">Saldo wallet BOB tras pago</span>
+                        <span className="font-mono text-[10.5px] font-semibold" style={{ color: planilla.walletBalance - totalToPay < 0 ? '#F43F5E' : '#10B981' }}>
+                          Bs {(planilla.walletBalance - totalToPay).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {emp?.bankQrUrl ? (

@@ -44,7 +44,7 @@ export async function POST(
   }
 
   await db.$executeRaw`
-    INSERT INTO lien_signatures (id, case_id, signer_type, signer_name, signer_email, "signatureSvg", signed_at, created_at)
+    INSERT INTO lien_signatures (id, case_id, signer_type, signer_name, signer_email, signature_svg, signed_at, created_at)
     VALUES (
       gen_random_uuid(),
       ${caseId},

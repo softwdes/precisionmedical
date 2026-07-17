@@ -825,15 +825,23 @@ function AssignDropdown({
             {filtered.map((m) => {
               const name = `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();
               const isSelected = value?.id === m.id;
+              const roleLabel = m.memberRole === 'CASE_MANAGER' ? 'Gestor de casos'
+                : m.memberRole === 'PARALEGAL' ? 'Paralegal'
+                : m.memberRole === 'LEGAL_ASSISTANT' ? 'Asistente legal'
+                : m.memberRole === 'ATTORNEY' ? 'Abogado'
+                : null;
               return (
                 <button
                   key={m.id}
                   onClick={() => { onChange({ id: m.id, firstName: m.firstName, lastName: m.lastName }); setOpen(false); }}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-white/5
+                  className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs transition-colors hover:bg-white/5
                     ${isSelected ? 'text-brand' : 'text-text-1'}`}
                 >
-                  {isSelected && <span className="text-brand">✓</span>}
-                  {name || '(sin nombre)'}
+                  <span className="flex items-center gap-1.5">
+                    {isSelected && <span className="text-brand">✓</span>}
+                    {name || '(sin nombre)'}
+                  </span>
+                  {roleLabel && <span className="text-[10px] text-text-muted shrink-0">{roleLabel}</span>}
                 </button>
               );
             })}
@@ -867,8 +875,9 @@ function CaseTableRow({
   const dateStr = new Date(row.createdAt).toLocaleDateString('es-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
   const attorneys     = members.filter((m) => m.memberRole === 'ATTORNEY');
-  const caseManagers  = members.filter((m) => m.memberRole === 'CASE_MANAGER');
-  const legalAssists  = members.filter((m) => ['PARALEGAL', 'LEGAL_ASSISTANT', 'OTHER'].includes(m.memberRole ?? ''));
+  const nonAttorneys  = members.filter((m) => m.memberRole !== 'ATTORNEY');
+  const caseManagers  = nonAttorneys;
+  const legalAssists  = nonAttorneys;
 
   return (
     <tr className="hover:bg-white/[0.02] transition-colors">

@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -1701,25 +1701,52 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
 
   return (
     <>
-      {/* Barra de acciones — Nueva llamada + Registro rápido + Agregar paciente */}
-      <div className="flex flex-wrap items-center justify-end gap-2 -mt-2 mb-1">
-        <button
-          type="button"
-          onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-brand/40 bg-brand/5 text-sm text-brand hover:bg-brand/10 hover:border-brand/60 transition-colors"
-        >
-          <PhoneCall className="w-3.5 h-3.5" />
-          Nueva llamada / Crear caso
-        </button>
-        <button
-          type="button"
-          onClick={() => setQuickRegister(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          {t('btnQuickRegister')}
-        </button>
-        <PatientCreateDialog />
+      {/* Toolbar: búsqueda + acciones en una sola fila */}
+      <div className="flex flex-wrap items-center gap-2 mb-1">
+        {/* Search form — izquierda, ocupa el espacio disponible */}
+        <form method="GET" action="/patients" className="flex items-center gap-1.5 flex-1 min-w-[180px]">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder={t('searchPlaceholder')}
+              className="w-full pl-8 pr-3 py-2 bg-bg-2 border border-border rounded-md text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              autoComplete="off"
+            />
+          </div>
+          {q && (
+            <a
+              href="/patients"
+              className="p-2 rounded-md border border-border text-text-muted hover:text-text-1 hover:border-border-strong transition-colors"
+              title={t('btnClear')}
+            >
+              <XIcon className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </form>
+
+        {/* Acciones — derecha */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-brand/40 bg-brand/5 text-sm text-brand hover:bg-brand/10 hover:border-brand/60 transition-colors whitespace-nowrap"
+          >
+            <PhoneCall className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Nueva llamada / </span>Crear caso
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickRegister(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors whitespace-nowrap"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">{t('btnQuickRegister')}</span>
+            <span className="md:hidden">Rápido</span>
+          </button>
+          <PatientCreateDialog />
+        </div>
       </div>
 
       <div className="rounded-lg border border-border overflow-hidden">

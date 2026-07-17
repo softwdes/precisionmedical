@@ -3,7 +3,6 @@
  * Accesible desde el sidebar → /patients
  */
 
-import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { PageHeader } from '@/components/ui-phoenix';
@@ -123,39 +122,11 @@ export default async function PatientsPage({
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
+    <div className="p-4 sm:p-6 space-y-3">
       <PageHeader
         title={t('listTitle')}
         subtitle={`${total} ${total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}${q ? ` · ${t('btnSearch').toLowerCase()}: "${q}"` : ''}`}
       />
-
-      {/* Barra de búsqueda + botón crear */}
-      <div className="flex flex-wrap items-center gap-2">
-        <form method="GET" className="flex gap-2 flex-1 min-w-0 flex-wrap">
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder={t('searchPlaceholder')}
-            className="flex-1 min-w-[200px] bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
-            autoComplete="off"
-          />
-          <button
-            type="submit"
-            className="px-3 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors"
-          >
-            {t('btnSearch')}
-          </button>
-          {q && (
-            <Link
-              href="/patients"
-              className="px-3 py-2 rounded-md border border-border text-sm text-text-2 hover:border-border-strong transition-colors"
-            >
-              {t('btnClear')}
-            </Link>
-          )}
-        </form>
-
-      </div>
 
       <PatientsClient patients={rows} q={q} page={page} totalPages={totalPages} total={total} specialties={specialties} clinics={clinics} providers={providers} />
     </div>

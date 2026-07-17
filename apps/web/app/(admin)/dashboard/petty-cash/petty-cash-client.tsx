@@ -12,8 +12,9 @@ import {
 } from '@precision/ui';
 import {
   Wallet, TrendingDown, AlertTriangle, Plus, Download, FileText,
-  ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight,
+  ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight, BarChart2,
 } from 'lucide-react';
+import Link from 'next/link';
 import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
 import { toast } from 'sonner';
 import type { inferRouterOutputs } from '@trpc/server';
@@ -225,6 +226,11 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
             <Download className="h-3.5 w-3.5" /> Excel
+          </Button>
+          <Button variant="outline" size="sm" asChild className="gap-1.5 border-brand/40 text-brand hover:bg-brand/10 hover:text-brand">
+            <Link href="/dashboard/finanzas?tab=reportes">
+              <BarChart2 className="h-3.5 w-3.5" /> Reportes
+            </Link>
           </Button>
           <Button size="sm" onClick={() => setShowModal(true)} className="gap-1.5">
             <Plus className="h-3.5 w-3.5" /> {t('pettyCash.newMovement')}

@@ -1142,7 +1142,7 @@ function SignAttorneyModal({
               <SignaturePad
                 onChange={setSignaturePng}
                 hintLabel="Firme aquí con el mouse o dedo"
-                height={160}
+                height={200}
               />
             </div>
 

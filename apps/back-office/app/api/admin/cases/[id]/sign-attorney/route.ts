@@ -34,34 +34,24 @@ export async function POST(
   }
 
   // Idempotency: 409 if attorney already signed
-  const existing = await db.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM lien_signatures
-    WHERE case_id = ${caseId} AND signer_type = 'ATTORNEY'::"LienSignerType"
-    LIMIT 1
-  `;
-  if (existing.length > 0) {
-    return NextResponse.json({ error: 'ALREADY_SIGNED', signatureId: existing[0]!.id }, { status: 409 });
+  const existing = await db.lienSignature.findFirst({
+    where: { caseId, signerType: 'ATTORNEY' },
+    select: { id: true },
+  });
+  if (existing) {
+    return NextResponse.json({ error: 'ALREADY_SIGNED', signatureId: existing.id }, { status: 409 });
   }
 
-  await db.$executeRaw`
-    INSERT INTO lien_signatures (id, case_id, signer_type, signer_name, signer_email, signature_svg, signed_at, created_at)
-    VALUES (
-      gen_random_uuid(),
-      ${caseId},
-      'ATTORNEY'::"LienSignerType",
-      ${signerName.trim()},
-      ${signerEmail?.trim() ?? null},
-      ${signatureSvg.trim()},
-      NOW(),
-      NOW()
-    )
-  `;
-
-  const inserted = await db.$queryRaw<Array<{ id: string; signed_at: Date }>>`
-    SELECT id, signed_at FROM lien_signatures
-    WHERE case_id = ${caseId} AND signer_type = 'ATTORNEY'::"LienSignerType"
-    ORDER BY signed_at DESC LIMIT 1
-  `;
+  const signature = await db.lienSignature.create({
+    data: {
+      caseId,
+      signerType: 'ATTORNEY',
+      signerName: signerName.trim(),
+      signerEmail: signerEmail?.trim() || null,
+      signatureSvg: signatureSvg.trim(),
+    },
+    select: { id: true, signedAt: true },
+  });
 
   const actor = actorFromHeaders(req.headers);
   await writeAuditLog(db, {
@@ -74,7 +64,7 @@ export async function POST(
   });
 
   return NextResponse.json(
-    { ok: true, signatureId: inserted[0]?.id, signedAt: inserted[0]?.signed_at },
+    { ok: true, signatureId: signature.id, signedAt: signature.signedAt },
     { status: 201 },
   );
 }

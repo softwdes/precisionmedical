@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2, PenLine, Users } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2, PenLine, Users, Ban, History, X, AlertTriangle } from 'lucide-react';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { KpiCard } from '@/components/ui-phoenix/kpi-card';
 import {
@@ -500,6 +500,7 @@ interface CaseRow {
   paralegal:      CaseMember | null;
   legalAssistant: CaseMember | null;
   hasSigned: boolean;
+  signatureExempt: boolean;
 }
 
 interface CasesStats {
@@ -539,6 +540,8 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [signCase, setSignCase] = useState<CaseRow | null>(null);
+  const [historyCase, setHistoryCase] = useState<CaseRow | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<CaseRow | null>(null);
   const [page, setPage] = useState(1);
 
   const patchCase = useCallback(async (
@@ -546,7 +549,6 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
     field: 'attorneyId' | 'paralegalId' | 'legalAssistantId',
     member: CaseMember | null,
   ) => {
-    // Optimistic update
     setCases((prev) => prev.map((c) => {
       if (c.id !== caseId) return c;
       const key = field.replace('Id', '') as 'attorney' | 'paralegal' | 'legalAssistant';
@@ -556,6 +558,25 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ [field]: member?.id ?? null }),
+    });
+  }, []);
+
+  const toggleExempt = useCallback(async (caseId: string, current: boolean) => {
+    setCases((prev) => prev.map((c) => c.id === caseId ? { ...c, signatureExempt: !current } : c));
+    await fetch(`/api/admin/cases/${caseId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signatureExempt: !current }),
+    });
+  }, []);
+
+  const removeCase = useCallback(async (caseId: string) => {
+    setCases((prev) => prev.filter((c) => c.id !== caseId));
+    setConfirmRemove(null);
+    await fetch(`/api/admin/cases/${caseId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lawFirmId: null, attorneyId: null, paralegalId: null, legalAssistantId: null }),
     });
   }, []);
 
@@ -674,13 +695,26 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
         </select>
       </div>
 
-      {/* Table */}
+      {/* Modals */}
       {signCase && (
         <SignAttorneyModal
           caseRow={signCase}
           defaultName={signCase.attorney ? `${signCase.attorney.firstName ?? ''} ${signCase.attorney.lastName ?? ''}`.trim() : ''}
           onClose={() => setSignCase(null)}
           onSigned={() => { setSignCase(null); load(); }}
+        />
+      )}
+      {confirmRemove && (
+        <ConfirmRemoveModal
+          caseRow={confirmRemove}
+          onClose={() => setConfirmRemove(null)}
+          onConfirm={() => removeCase(confirmRemove.id)}
+        />
+      )}
+      {historyCase && (
+        <CaseHistoryDrawer
+          caseRow={historyCase}
+          onClose={() => setHistoryCase(null)}
         />
       )}
 
@@ -725,6 +759,9 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                     }}
                     onSign={() => { setOpenMenu(null); setSignCase(c); }}
                     onAssign={patchCase}
+                    onToggleExempt={() => { setOpenMenu(null); toggleExempt(c.id, c.signatureExempt); }}
+                    onRemove={() => { setOpenMenu(null); setConfirmRemove(c); }}
+                    onHistory={() => { setOpenMenu(null); setHistoryCase(c); }}
                   />
                 ))}
               </tbody>
@@ -862,6 +899,9 @@ function CaseTableRow({
   onMenuToggle,
   onSign,
   onAssign,
+  onToggleExempt,
+  onRemove,
+  onHistory,
 }: {
   row: CaseRow;
   members: Member[];
@@ -869,6 +909,9 @@ function CaseTableRow({
   onMenuToggle: (e: React.MouseEvent) => void;
   onSign: () => void;
   onAssign: (caseId: string, field: 'attorneyId' | 'paralegalId' | 'legalAssistantId', member: CaseMember | null) => void;
+  onToggleExempt: () => void;
+  onRemove: () => void;
+  onHistory: () => void;
 }) {
   const patientName = `${row.patient.lastName ?? ''}, ${row.patient.firstName ?? ''}`.trim().replace(/^,\s*/, '');
   const typeColor = CASE_TYPE_COLORS[row.caseType] ?? 'bg-white/5 text-text-muted border-border';
@@ -918,7 +961,13 @@ function CaseTableRow({
       </td>
       <td className="px-4 py-1.5">
         {row.hasSigned ? (
-          <span className="text-[10px] text-emerald font-semibold">✓ Firmado</span>
+          <span className="text-[10px] text-emerald font-semibold flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Firmado
+          </span>
+        ) : row.signatureExempt ? (
+          <span className="text-[10px] text-amber font-semibold flex items-center gap-1">
+            <Ban className="w-3 h-3" /> Exento
+          </span>
         ) : (
           <span className="text-[10px] text-text-muted">Pendiente</span>
         )}
@@ -932,7 +981,7 @@ function CaseTableRow({
           <MoreHorizontal className="w-4 h-4" />
         </button>
         {menuOpen && (
-          <div className="fixed z-[9999] min-w-[180px] rounded-lg border border-border bg-bg-2 shadow-xl py-1"
+          <div className="fixed z-[9999] min-w-[200px] rounded-lg border border-border bg-bg-2 shadow-xl py-1"
             style={{ top: (btnRef.current?.getBoundingClientRect().bottom ?? 0) + 4, right: window.innerWidth - (btnRef.current?.getBoundingClientRect().right ?? 0) }}
           >
             <Link
@@ -942,7 +991,10 @@ function CaseTableRow({
               <ExternalLink className="w-3.5 h-3.5 text-brand" />
               Ver caso
             </Link>
-            {!row.hasSigned ? (
+
+            <div className="h-px bg-border/50 my-1" />
+
+            {!row.hasSigned && !row.signatureExempt && (
               <button
                 onClick={onSign}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
@@ -950,12 +1002,42 @@ function CaseTableRow({
                 <PenLine className="w-3.5 h-3.5 text-emerald" />
                 Firmar como abogado
               </button>
-            ) : (
+            )}
+            {row.hasSigned && (
               <div className="flex items-center gap-2 px-3 py-2 text-sm text-text-muted cursor-default">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />
                 Ya firmado
               </div>
             )}
+            {!row.hasSigned && (
+              <button
+                onClick={onToggleExempt}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
+              >
+                <Ban className="w-3.5 h-3.5 text-amber" />
+                {row.signatureExempt ? 'Quitar exención de firma' : 'Firma no requerida'}
+              </button>
+            )}
+
+            <div className="h-px bg-border/50 my-1" />
+
+            <button
+              onClick={onHistory}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
+            >
+              <History className="w-3.5 h-3.5 text-cyan" />
+              Ver historial
+            </button>
+
+            <div className="h-px bg-border/50 my-1" />
+
+            <button
+              onClick={onRemove}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-rose hover:bg-rose/5 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Eliminar de firma
+            </button>
           </div>
         )}
       </td>
@@ -1565,5 +1647,173 @@ function MemberDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Confirm Remove Modal ─────────────────────────────────────────────────────
+
+function ConfirmRemoveModal({
+  caseRow,
+  onClose,
+  onConfirm,
+}: {
+  caseRow: CaseRow;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-rose/10 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-5 h-5 text-rose" />
+          </div>
+          <div>
+            <div className="text-text-1 font-semibold text-sm">Eliminar de firma</div>
+            <div className="text-text-muted text-[11px] font-mono mt-0.5">{caseRow.caseCode}</div>
+          </div>
+        </div>
+        <p className="text-text-2 text-sm">
+          Se quitará el vínculo de este caso con el bufete. El caso y el paciente no se eliminan — solo se desvincula la firma legal.
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-text-2 hover:text-text-1 border border-border rounded-md hover:bg-white/5 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm text-white bg-rose hover:bg-rose/80 rounded-md transition-colors"
+          >
+            Eliminar vínculo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Case History Drawer ──────────────────────────────────────────────────────
+
+function CaseHistoryDrawer({
+  caseRow,
+  onClose,
+}: {
+  caseRow: CaseRow;
+  onClose: () => void;
+}) {
+  const [events, setEvents] = useState<Array<{
+    id: string;
+    action: string;
+    actorType: string;
+    createdAt: string;
+    metadata: Record<string, unknown> | null;
+  }>>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/admin/cases/${caseRow.id}/audit`)
+      .then((r) => r.ok ? r.json() : { events: [] })
+      .then((d) => { setEvents(d.events ?? []); setLoadingHistory(false); })
+      .catch(() => setLoadingHistory(false));
+  }, [caseRow.id]);
+
+  const ACTION_LABELS: Record<string, string> = {
+    CASE_CREATED:          'Caso creado',
+    PORTAL_LINK_SENT:      'Portal enviado al paciente',
+    INTAKE_COMPLETED:      'Intake completado',
+    APPOINTMENT_CONFIRMED: 'Cita confirmada',
+    APPOINTMENT_SCHEDULED: 'Cita agendada',
+    ATTORNEY_SIGNED:       'Abogado firmó el lien',
+    CASE_STATUS_CHANGED:   'Estado actualizado',
+    LEGAL_UPDATED:         'Firma legal actualizada',
+    INSURANCE_UPDATED:     'Seguro actualizado',
+    STAFF_PHOTO_UPLOAD:    'Foto subida',
+    NOTE_ADDED:            'Nota agregada',
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onClose}>
+      <div
+        className="bg-bg-1 border-l border-border h-full w-full sm:w-[420px] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div>
+            <div className="text-text-1 font-semibold text-sm flex items-center gap-2">
+              <History className="w-4 h-4 text-cyan" /> Historial del caso
+            </div>
+            <div className="text-text-muted text-[11px] font-mono mt-0.5">{caseRow.caseCode}</div>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center text-text-muted hover:text-text-1 hover:bg-white/5 rounded-md transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-3 border-b border-border/50 bg-bg-2/30">
+          <div className="text-text-2 text-xs">
+            Paciente: <span className="text-text-1 font-medium">
+              {caseRow.patient.firstName} {caseRow.patient.lastName}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {loadingHistory ? (
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-14 rounded-md bg-bg-2 animate-pulse" />
+              ))}
+            </div>
+          ) : events.length === 0 ? (
+            <div className="text-center py-10">
+              <History className="w-8 h-8 text-text-muted mx-auto mb-2" />
+              <div className="text-text-muted text-sm">Sin eventos registrados</div>
+            </div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border/50" />
+              <div className="space-y-4">
+                {events.map((ev) => {
+                  const label = ACTION_LABELS[ev.action] ?? ev.action;
+                  const date = new Date(ev.createdAt);
+                  const dateStr = date.toLocaleDateString('es-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                  const timeStr = date.toLocaleTimeString('es-US', { hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <div key={ev.id} className="flex gap-3 pl-1">
+                      <div className="w-6 h-6 rounded-full bg-bg-2 border border-border flex items-center justify-center shrink-0 mt-0.5 z-10">
+                        <div className="w-1.5 h-1.5 rounded-full bg-cyan" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-text-1 text-sm font-medium">{label}</div>
+                        <div className="text-text-muted text-[11px] mt-0.5">{dateStr} · {timeStr}</div>
+                        {ev.actorType === 'HUMAN_USER' && (
+                          <div className="text-text-muted text-[10px] mt-0.5">Por: Staff</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t border-border/50">
+          <Link
+            href={`/front-office/${caseRow.id}`}
+            className="text-brand text-xs hover:underline flex items-center gap-1"
+            onClick={onClose}
+          >
+            <ExternalLink className="w-3 h-3" /> Ver caso completo
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

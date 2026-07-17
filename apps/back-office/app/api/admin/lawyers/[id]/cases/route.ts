@@ -47,6 +47,7 @@ export async function GET(
         attorney:       { select: { id: true, firstName: true, lastName: true } },
         paralegal:      { select: { id: true, firstName: true, lastName: true } },
         legalAssistant: { select: { id: true, firstName: true, lastName: true } },
+        signatureExempt: true,
         lienSignatures: { select: { id: true }, take: 1 },
       },
     }),
@@ -99,6 +100,7 @@ export async function GET(
         ? { id: c.legalAssistant.id, firstName: c.legalAssistant.firstName, lastName: c.legalAssistant.lastName }
         : null,
       hasSigned: c.lienSignatures.length > 0,
+      signatureExempt: c.signatureExempt,
     })),
     stats: {
       total: totalCount,

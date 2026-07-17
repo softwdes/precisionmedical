@@ -46,6 +46,7 @@ const PatchSchema = z.object({
   accidentDate:     z.string().nullable().optional(),
   accidentLocation: z.string().nullable().optional(),
   accidentNotes:    z.string().nullable().optional(),
+  signatureExempt:  z.boolean().optional(),
   lawFirmId:        z.string().nullable().optional(),
   attorneyId:       z.string().nullable().optional(),
   paralegalId:      z.string().nullable().optional(),

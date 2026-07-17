@@ -2122,6 +2122,7 @@ model Case {
   // Phase 2: hash almacenado + Supabase Auth magic links después de BAA
   portalToken             String?       @unique
 
+  signatureExempt         Boolean             @default(false)
   pipVerifiedAt           DateTime?
   pipVerifiedById         String?       // userId Edson
 

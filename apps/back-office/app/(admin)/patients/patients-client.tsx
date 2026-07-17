@@ -1728,10 +1728,10 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             <tr>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colContact')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colCases')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colCases')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colAdmission')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">{t('colForm')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colForm')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">{t('colCreated')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">{t('colUpdated')}</th>
               <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
@@ -1750,7 +1750,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
               <>
               <tr key={p.id} className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
                 {/* Chevron expand */}
-                <td className="px-4 py-3">
+                <td className="px-4 py-3.5">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleExpand(p.id)}
@@ -1782,7 +1782,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                 </td>
 
                 {/* Contacto */}
-                <td className="px-4 py-3 hidden sm:table-cell">
+                <td className="px-4 py-3.5 hidden sm:table-cell">
                   <div className="text-text-2 text-xs space-y-0.5">
                     {p.phone && <div className="font-mono">{p.phone}</div>}
                     {p.email && <div className="text-text-muted truncate max-w-[180px]">{p.email}</div>}
@@ -1793,17 +1793,18 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                 </td>
 
                 {/* Casos */}
-                <td className="px-4 py-3 hidden lg:table-cell">
+                <td className="px-4 py-3.5 hidden md:table-cell">
                   <button
-                    onClick={() => router.push(`/patients/${p.id}`)}
-                    className="text-text-2 hover:text-brand transition-colors"
+                    onClick={() => toggleExpand(p.id)}
+                    className="flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
+                    title={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                   >
-                    {p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
+                    {p.caseCount}
                   </button>
                 </td>
 
                 {/* Estado */}
-                <td className="px-4 py-3 hidden sm:table-cell">
+                <td className="px-4 py-3.5 hidden sm:table-cell">
                   <TagPill
                     label={STATUS_LABEL[p.status] ?? p.status}
                     colorClass={STATUS_COLORS[p.status] ?? 'bg-bg-2 text-text-2 border-border'}
@@ -1811,7 +1812,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                 </td>
 
                 {/* Admisión */}
-                <td className="px-4 py-3 hidden lg:table-cell min-w-[180px]">
+                <td className="px-4 py-3.5 hidden lg:table-cell min-w-[180px]">
                   {p.latestCase ? (() => {
                     const prog = calcIntakeProgress(
                       {
@@ -1841,7 +1842,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                 </td>
 
                 {/* Formulario */}
-                <td className="px-4 py-3 hidden xl:table-cell">
+                <td className="px-4 py-3.5 hidden lg:table-cell">
                   <div className="flex items-center gap-1.5">
                     {/* Ícono email — clickeable si hay caso + email */}
                     {p.latestCase && p.email ? (
@@ -1875,17 +1876,17 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                 </td>
 
                 {/* Creado */}
-                <td className="px-4 py-3 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
+                <td className="px-4 py-3.5 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
                   {fmtLocalDate(p.createdAt)}
                 </td>
 
                 {/* Actualizado */}
-                <td className="px-4 py-3 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
+                <td className="px-4 py-3.5 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
                   {fmtLocalDate(p.updatedAt)}
                 </td>
 
                 {/* Acciones */}
-                <td className="px-4 py-3">
+                <td className="px-4 py-3.5">
                   <div className="flex justify-end">
                     <button
                       onClick={(e) => openMenu(p.id, e.currentTarget)}

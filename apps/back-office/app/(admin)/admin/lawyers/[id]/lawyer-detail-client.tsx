@@ -936,7 +936,7 @@ function CaseTableRow({
             style={{ top: (btnRef.current?.getBoundingClientRect().bottom ?? 0) + 4, right: window.innerWidth - (btnRef.current?.getBoundingClientRect().right ?? 0) }}
           >
             <Link
-              href={`/patients/${row.id}`}
+              href={`/front-office/${row.id}`}
               className="flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5 text-brand" />

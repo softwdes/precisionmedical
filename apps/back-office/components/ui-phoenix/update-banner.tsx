@@ -4,12 +4,11 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import { useVersionCheck } from '@/lib/useVersionCheck';
-import { createClient as createBrowserClient } from '@precision-medical/auth/client';
 
 /**
  * Banner fijo en el top que aparece cuando hay un deploy nuevo mientras
- * el usuario tiene la app abierta. Click → cierra sesión, limpia caches
- * y SW, hard-navigate al login forzando el bundle nuevo.
+ * el usuario tiene la app abierta. Click → limpia SW + caches y hard-reload
+ * a la página actual, manteniendo la sesión activa.
  */
 export function UpdateBanner(): React.ReactElement | null {
   const { isOutdated } = useVersionCheck();
@@ -21,12 +20,6 @@ export function UpdateBanner(): React.ReactElement | null {
   async function handleApply(): Promise<void> {
     setApplying(true);
     try {
-      // Sign-out con timeout 3s — evita cuelgue en mala señal
-      await Promise.race([
-        createBrowserClient().auth.signOut().catch(() => undefined),
-        new Promise<void>(resolve => setTimeout(resolve, 3000)),
-      ]).catch(() => undefined);
-
       // Desregistrar SW (no-op si no hay PWA aún)
       if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
         try {
@@ -43,7 +36,9 @@ export function UpdateBanner(): React.ReactElement | null {
         } catch { /* noop */ }
       }
     } finally {
-      const url = new URL('/login', window.location.origin);
+      // Hard-reload a la página actual con _v para forzar bundle nuevo.
+      // La sesión Supabase vive en cookies httpOnly y sobrevive el reload.
+      const url = new URL(window.location.href);
       url.searchParams.set('_v', String(Date.now()));
       window.location.replace(url.toString());
     }

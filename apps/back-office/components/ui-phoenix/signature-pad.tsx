@@ -18,7 +18,7 @@ interface Props {
   height?: number;
 }
 
-export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', hintLabel = 'Firme en el área de arriba.', height = 160 }: Props) {
+export function SignaturePad({ onChange, initialValue, clearLabel = 'Limpiar', hintLabel = 'Firme en el área de arriba.', height = 200 }: Props) {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const drawing     = useRef(false);
   const lastPos     = useRef<{ x: number; y: number } | null>(null);

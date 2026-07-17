@@ -873,6 +873,7 @@ function CaseTableRow({
   const patientName = `${row.patient.lastName ?? ''}, ${row.patient.firstName ?? ''}`.trim().replace(/^,\s*/, '');
   const typeColor = CASE_TYPE_COLORS[row.caseType] ?? 'bg-white/5 text-text-muted border-border';
   const dateStr = new Date(row.createdAt).toLocaleDateString('es-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   const attorneys     = members.filter((m) => m.memberRole === 'ATTORNEY');
   const nonAttorneys  = members.filter((m) => m.memberRole !== 'ATTORNEY');
@@ -922,15 +923,18 @@ function CaseTableRow({
           <span className="text-[10px] text-text-muted">Pendiente</span>
         )}
       </td>
-      <td className="px-4 py-1.5 relative">
+      <td className="px-4 py-1.5">
         <button
+          ref={btnRef}
           onClick={onMenuToggle}
           className="w-7 h-7 rounded-md flex items-center justify-center text-text-muted hover:text-white hover:bg-white/5 transition-colors"
         >
           <MoreHorizontal className="w-4 h-4" />
         </button>
         {menuOpen && (
-          <div className="absolute right-2 top-10 z-50 min-w-[180px] rounded-lg border border-border bg-bg-2 shadow-xl py-1">
+          <div className="fixed z-[9999] min-w-[180px] rounded-lg border border-border bg-bg-2 shadow-xl py-1"
+            style={{ top: (btnRef.current?.getBoundingClientRect().bottom ?? 0) + 4, right: window.innerWidth - (btnRef.current?.getBoundingClientRect().right ?? 0) }}
+          >
             <Link
               href={`/patients/${row.id}`}
               className="flex items-center gap-2 px-3 py-2 text-sm text-text-1 hover:bg-white/5 transition-colors"

@@ -530,6 +530,128 @@ export const pettyCashRouter = router({
       return data;
     }),
 
+  // ─── Reporte analítico ────────────────────────────────────────────────────
+  // Usado por el tab "Reportes" en /dashboard/finanzas?tab=reportes.
+  // Retorna KPIs, serie diaria, desglose por categoría y por clínica.
+  report: protectedProcedure
+    .input(z.object({
+      dateFrom: z.string(),    // ISO date "YYYY-MM-DD"
+      dateTo:   z.string(),    // ISO date "YYYY-MM-DD"
+      country:  z.enum(['all', 'EEUU', 'Bolivia']).default('all'),
+      clinicName: z.string().optional(),
+      type:     z.enum(['all', 'DEPOSIT', 'EXPENSE']).default('all'),
+      category: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const { dateFrom, dateTo, country, clinicName, type, category } = input;
+
+      // Resolve box IDs that match the country/clinic filter
+      const { data: allBoxes } = await supabaseAdmin
+        .from('cash_boxes')
+        .select('id, name, balance, currency');
+      const boxes = allBoxes ?? [];
+
+      let relevantBoxes = boxes;
+      if (country === 'EEUU')    relevantBoxes = boxes.filter(b => isEEUUName(b.name));
+      else if (country === 'Bolivia') relevantBoxes = boxes.filter(b => !isEEUUName(b.name));
+      if (clinicName) relevantBoxes = relevantBoxes.filter(b => b.name === clinicName);
+
+      const boxIds = relevantBoxes.map(b => b.id);
+      if (boxIds.length === 0) return {
+        kpis: { totalDeposits: 0, totalExpenses: 0, txCount: 0, avgAmount: 0, medianAmount: 0 },
+        dailySeries: [],
+        byCategory: [],
+        byClinic: [],
+      };
+
+      // Fetch transactions in range
+      const fromIso = new Date(dateFrom).toISOString();
+      const toIso   = new Date(dateTo + 'T23:59:59').toISOString();
+      let q = supabaseAdmin
+        .from('cash_transactions')
+        .select('*')
+        .in('cashBoxId', boxIds)
+        .gte('performedAt', fromIso)
+        .lte('performedAt', toIso)
+        .order('performedAt', { ascending: true });
+
+      if (type !== 'all') q = q.eq('type', type);
+      if (category) q = q.eq('category', category);
+
+      const { data: txs } = await q;
+      const transactions = (txs ?? []).map(tx => ({
+        ...tx,
+        clinicName: boxes.find(b => b.id === tx.cashBoxId)?.name ?? tx.cashBoxId,
+        country: inferCountry(boxes.find(b => b.id === tx.cashBoxId)?.name ?? ''),
+        amountNum: Number(tx.amount),
+      }));
+
+      // KPIs
+      const deposits  = transactions.filter(t => t.type === 'DEPOSIT');
+      const expenses  = transactions.filter(t => t.type === 'EXPENSE');
+      const totalDeposits = deposits.reduce((s, t) => s + t.amountNum, 0);
+      const totalExpenses = expenses.reduce((s, t) => s + Math.abs(t.amountNum), 0);
+      const amounts = transactions.map(t => Math.abs(t.amountNum)).sort((a, b) => a - b);
+      const avgAmount = amounts.length ? amounts.reduce((s, v) => s + v, 0) / amounts.length : 0;
+      const midIdx = Math.floor(amounts.length / 2);
+      const medianAmount = amounts.length
+        ? amounts.length % 2 === 0
+          ? ((amounts[midIdx - 1] ?? 0) + (amounts[midIdx] ?? 0)) / 2
+          : (amounts[midIdx] ?? 0)
+        : 0;
+
+      // Daily series — group by date, split by country
+      const dailyMap: Record<string, { bolivia: number; eeuu: number }> = {};
+      transactions.forEach(tx => {
+        const day = tx.performedAt.slice(0, 10);
+        if (!dailyMap[day]) dailyMap[day] = { bolivia: 0, eeuu: 0 };
+        const amt = tx.type === 'EXPENSE' ? -Math.abs(tx.amountNum) : Math.abs(tx.amountNum);
+        if (tx.country === 'Bolivia') dailyMap[day].bolivia += amt;
+        else                          dailyMap[day].eeuu    += amt;
+      });
+      // Fill every day in range
+      const dailySeries: Array<{ date: string; bolivia: number; eeuu: number }> = [];
+      const cursor = new Date(dateFrom);
+      const end    = new Date(dateTo);
+      while (cursor <= end) {
+        const d = cursor.toISOString().slice(0, 10);
+        dailySeries.push({ date: d, ...(dailyMap[d] ?? { bolivia: 0, eeuu: 0 }) });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      // By category
+      const catMap: Record<string, { amount: number; count: number }> = {};
+      expenses.forEach(tx => {
+        const cat = tx.category ?? 'OTHER';
+        if (!catMap[cat]) catMap[cat] = { amount: 0, count: 0 };
+        catMap[cat].amount += Math.abs(tx.amountNum);
+        catMap[cat].count  += 1;
+      });
+      const catTotal = Object.values(catMap).reduce((s, v) => s + v.amount, 0) || 1;
+      const byCategory = (Object.entries(catMap) as [string, { amount: number; count: number }][])
+        .sort(([, a], [, b]) => b.amount - a.amount)
+        .map(([cat, v]) => ({ category: cat, amount: v.amount, count: v.count, pct: v.amount / catTotal }));
+
+      // By clinic
+      const clinicMap: Record<string, { country: string; amount: number; count: number }> = {};
+      expenses.forEach(tx => {
+        const key = tx.clinicName;
+        if (!clinicMap[key]) clinicMap[key] = { country: tx.country, amount: 0, count: 0 };
+        clinicMap[key].amount += Math.abs(tx.amountNum);
+        clinicMap[key].count  += 1;
+      });
+      const byClinic = (Object.entries(clinicMap) as [string, { country: string; amount: number; count: number }][])
+        .sort(([, a], [, b]) => b.amount - a.amount)
+        .map(([name, v]) => ({ clinicName: name, country: v.country, amount: v.amount, count: v.count }));
+
+      return {
+        kpis: { totalDeposits, totalExpenses, txCount: transactions.length, avgAmount, medianAmount },
+        dailySeries,
+        byCategory,
+        byClinic,
+      };
+    }),
+
   deleteBox: adminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {

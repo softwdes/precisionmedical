@@ -1363,7 +1363,7 @@
     "nav": {
       "catalogs": "Catalogs",
       "specialties": "Specialties",
-      "lawyers": "Law Firms",
+      "lawyers": "Externals",
       "insurances": "Insurance Carriers",
       "services": "Services CPT",
       "diagnoses": "Diagnoses",
@@ -1375,7 +1375,6 @@
       "intake": "Intake (Edson)",
       "admission": "Day Admission",
       "billing": "Billing (Brunella)",
-      "lawyers": "Externals",
       "dashboard": "Dashboard",
       "settings": "Settings",
       "globalSearch": "Global Search",
@@ -2862,5 +2861,8 @@
         "body": "Electronic Health Records (EHR) System Authorization: PMUCFP has implemented a new Electronic Health Records (EHR) system that imports prescription history from third-party sources (e.g., pharmacies). In order to transfer my current and past prescription history to this new system, I hereby provide my consent. By signing below, I authorize PMUCFP to transfer my prescription history."
       }
     }
+  },
+  "finanzas": {
+    "reportesTab": "Reports"
   }
 }

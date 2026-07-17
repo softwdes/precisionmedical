@@ -5,15 +5,17 @@ import { PettyCashClient } from '../petty-cash/petty-cash-client';
 import { FxClient } from '../fx/fx-client';
 import { WalletsClient } from '../wallets/wallets-client';
 import { CashBoxesClient } from './cash-boxes-client';
+import { ReportesClient } from './reportes-client';
 import { ModuleTabs } from '@/components/module-tabs';
 
 export const metadata = { title: 'Finanzas' };
 
 const TABS = [
-  { key: 'caja-chica', label: 'Caja Chica',  href: '/dashboard/finanzas' },
+  { key: 'caja-chica', label: 'Caja Chica',     href: '/dashboard/finanzas' },
   { key: 'cajas',      label: 'Gestionar cajas', href: '/dashboard/finanzas?tab=cajas' },
   { key: 'fx',         label: 'FX / Divisas',    href: '/dashboard/finanzas?tab=fx' },
   { key: 'wallets',    label: 'Wallets',         href: '/dashboard/finanzas?tab=wallets' },
+  { key: 'reportes',   label: 'Reportes',        href: '/dashboard/finanzas?tab=reportes' },
 ];
 
 export default async function FinanzasPage({
@@ -27,7 +29,10 @@ export default async function FinanzasPage({
 
   let content: React.ReactElement;
 
-  if (activeTab === 'cajas') {
+  if (activeTab === 'reportes') {
+    const boxes = await api.pettyCash.listBoxes();
+    content = <ReportesClient initialBoxes={boxes} />;
+  } else if (activeTab === 'cajas') {
     content = <CashBoxesClient />;
   } else if (activeTab === 'fx') {
     // El cliente filtra por el mes actual por defecto. El fetch inicial debe

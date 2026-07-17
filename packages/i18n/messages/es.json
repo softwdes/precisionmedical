@@ -1363,7 +1363,7 @@
     "nav": {
       "catalogs": "Catálogos",
       "specialties": "Especialidades",
-      "lawyers": "Bufetes",
+      "lawyers": "Externos",
       "insurances": "Aseguradoras",
       "services": "Servicios CPT",
       "diagnoses": "Diagnósticos",
@@ -1375,7 +1375,6 @@
       "intake": "Intake (Edson)",
       "admission": "Admisión del día",
       "billing": "Billing (Brunella)",
-      "lawyers": "Externos",
       "dashboard": "Dashboard",
       "settings": "Configuración",
       "globalSearch": "Búsqueda Global",
@@ -2862,5 +2861,8 @@
         "body": "Autorización del Sistema de Historias Clínicas Electrónicas (HCE): PMUCFP ha implementado un nuevo sistema de Historias Clínicas Electrónicas (HCE) que importa el historial de recetas de terceros (p. ej., farmacias). Para transferir mi historial de recetas actual y anterior a este nuevo sistema, doy mi consentimiento. Al firmar a continuación, autorizo a PMUCFP a transferir mi historial de recetas."
       }
     }
+  },
+  "finanzas": {
+    "reportesTab": "Reportes"
   }
 }

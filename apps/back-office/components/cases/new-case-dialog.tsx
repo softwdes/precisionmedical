@@ -139,9 +139,6 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [lawyerStatus, setLawyerStatus] = useState<LawyerStatus>('HAS');
   const [lawFirm, setLawFirm]           = useState<AutoResult | null>(null);
   const [attorney, setAttorney]         = useState<AutoResult | null>(null);
-  const [caseManagerName, setCaseManagerName]   = useState('');
-  const [caseManagerEmail, setCaseManagerEmail] = useState('');
-  const [firmPhone, setFirmPhone]               = useState('');
   const [chiropractor, setChiropractor]         = useState('');
   const [insurance, setInsurance]   = useState<AutoResult | null>(null);
   const [policyNumber, setPolicyNumber] = useState('');
@@ -192,7 +189,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setWizardStep(1);
     setCaseType('MVA');
     setAccidentDate(''); setAccidentType('AUTO'); setAccidentLocation(''); setAccidentNotes('');
-    setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setCaseManagerName(''); setCaseManagerEmail(''); setFirmPhone(''); setChiropractor('');
+    setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setChiropractor('');
     setInsurance(null); setPolicyNumber('');
     setSpecialtyId(specialties[0]?.id ?? ''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
     setProviderId(''); setSlotIso(null); setDuration(45); setAppointmentNotes(''); setShowAllProviders(false);
@@ -341,11 +338,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           },
           legal: {
             lawyerStatus,
-            lawFirmId: lawyerStatus === 'HAS' ? (lawFirm?.id ?? null) : null,
-            attorneyId: lawyerStatus === 'HAS' ? (attorney?.id ?? null) : null,
-            caseManagerName: lawyerStatus === 'HAS' ? (caseManagerName.trim() || null) : null,
-            caseManagerEmail: lawyerStatus === 'HAS' ? (caseManagerEmail.trim() || null) : null,
-            firmPhone: lawyerStatus === 'HAS' ? (firmPhone.trim() || null) : null,
+            lawFirmId:    lawyerStatus === 'HAS' ? (lawFirm?.id ?? null)  : null,
+            attorneyId:   lawyerStatus === 'HAS' ? (attorney?.id ?? null) : null,
             chiropractor: chiropractor.trim() || null,
           },
           insurance: {
@@ -803,18 +797,11 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                           selected={lawFirm} onSelect={(r) => { setLawFirm(r); setAttorney(null); }} />
                       </div>
                       {lawFirm && (
-                        <>
-                          <div>
-                            <Label>{t('attorneyLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('attorneyOptional')}</span></Label>
-                            <Autocomplete endpoint="/api/admin/lawyers/autocomplete" extraParams={{ firmId: lawFirm.id }}
-                              placeholder={t('attorneyPlaceholder')} selected={attorney} onSelect={setAttorney} />
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <FormField.Input label={t('caseManagerLabel')} value={caseManagerName} onChange={setCaseManagerName} />
-                            <FormField.Input label={t('caseManagerEmail')} value={caseManagerEmail} onChange={setCaseManagerEmail} type="email" />
-                          </div>
-                          <FormField.Phone label={t('firmPhone')} value={firmPhone} onChange={(v) => setFirmPhone(v)} />
-                        </>
+                        <div>
+                          <Label>{t('attorneyLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('attorneyOptional')}</span></Label>
+                          <Autocomplete endpoint="/api/admin/lawyers/autocomplete" extraParams={{ firmId: lawFirm.id }}
+                            placeholder={t('attorneyPlaceholder')} selected={attorney} onSelect={setAttorney} />
+                        </div>
                       )}
                       <Note tone="emerald">{t('lawyerNoteHas')}</Note>
                     </div>

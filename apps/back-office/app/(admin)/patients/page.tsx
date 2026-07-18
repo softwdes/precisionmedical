@@ -122,7 +122,7 @@ export default async function PatientsPage({
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="p-4 sm:p-6 space-y-3">
+    <div className="p-4 sm:p-6 space-y-2">
       <PageHeader
         title={t('listTitle')}
         subtitle={`${total} ${total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}${q ? ` · ${t('btnSearch').toLowerCase()}: "${q}"` : ''}`}

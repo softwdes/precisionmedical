@@ -68,22 +68,7 @@ type ReferralSource =
   | 'ACCIDENT_CENTER' | 'WEB_SEARCH' | 'GOOGLE' | 'GOOGLE_MAPS' | 'FACEBOOK' | 'INSTAGRAM'
   | 'TIKTOK' | 'WEBSITE' | 'CLINIC_STAFF' | 'INSURANCE' | 'MEDICAL_INSURANCE' | 'FAMILY' | 'OTHER';
 type FormDelivery = 'SEND_NOW' | 'TABLET_AT_CLINIC';
-type WizardStep  = 1 | 2 | 3 | 4 | 5;
-
-interface ResponsiblePerson { id: string; name: string; relation: string; }
-const RELATION_OPTIONS = ['Cónyuge','Padre/Madre','Hijo/Hija','Hermano/a','Persona responsable legal','Otro'];
-
-interface ConsentState {
-  hipaa: boolean; assignedParties: boolean;
-  assignedPartiesCheck1: boolean; assignedPartiesCheck2: boolean; assignedPartiesCheck3: boolean;
-  treatment: boolean; financial: boolean; medicalHistory: boolean;
-  signatureDataUrl: string | null;
-}
-const EMPTY_CONSENTS: ConsentState = {
-  hipaa: false, assignedParties: false,
-  assignedPartiesCheck1: false, assignedPartiesCheck2: false, assignedPartiesCheck3: false,
-  treatment: false, financial: false, medicalHistory: false, signatureDataUrl: null,
-};
+type WizardStep  = 1 | 2 | 3 | 4;
 
 // Mapa local de especialidad → enum de Provider (fallback cuando specialtyCatalogIds no está disponible)
 const SPECIALTY_ENUM_MAP: Record<string, string[]> = {
@@ -153,14 +138,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [appointmentNotes, setAppointmentNotes] = useState('');
   const [showAllProviders, setShowAllProviders] = useState(false);
 
-  // ─── Section 3: Consents ───────────────────────────────────────────────────
-  const [consents, setConsents]       = useState<ConsentState>(EMPTY_CONSENTS);
-  const [responsible, setResponsible] = useState<ResponsiblePerson[]>([]);
-  function setConsent<K extends keyof ConsentState>(key: K, value: ConsentState[K]) {
-    setConsents(prev => ({ ...prev, [key]: value }));
-  }
-
-  // ─── Section 4: Form delivery ──────────────────────────────────────────
+  // ─── Section 3: Form delivery ──────────────────────────────────────────
   const [formDelivery, setFormDelivery] = useState<FormDelivery>('SEND_NOW');
 
   // ─── Submit + success state ────────────────────────────────────────────
@@ -305,12 +283,11 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // ─── Step validation ───────────────────────────────────────────────────
   const canGoToStep2 = firstName.trim() !== '' && lastName.trim() !== '';
   const canGoToStep3 = canGoToStep2 && (caseType !== 'MVA' || lawyerStatus !== 'HAS' || !!lawFirm);
-  const canGoToStep4 = canGoToStep3; // consents are optional — can always proceed
-  const canGoToStep5 = canGoToStep4 && (!scheduleNow || (!!clinicId && !!providerId && !!slotIso));
-  const canSubmit = canGoToStep5;
+  const canGoToStep4 = canGoToStep3 && (!scheduleNow || (!!clinicId && !!providerId && !!slotIso));
+  const canSubmit = canGoToStep4;
 
   function nextStep() {
-    if (wizardStep < 5) setWizardStep((s) => (s + 1) as WizardStep);
+    if (wizardStep < 4) setWizardStep((s) => (s + 1) as WizardStep);
   }
   function prevStep() {
     if (wizardStep > 1) setWizardStep((s) => (s - 1) as WizardStep);
@@ -359,13 +336,6 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           } : null,
           formDelivery: action === 'finalize' ? formDelivery : null,
           callDurationSeconds: callElapsed,
-          consents: {
-            hipaa: consents.hipaa, assignedParties: consents.assignedParties,
-            assignedPartiesOpts: { check1: consents.assignedPartiesCheck1, check2: consents.assignedPartiesCheck2, check3: consents.assignedPartiesCheck3 },
-            treatment: consents.treatment, financial: consents.financial, medicalHistory: consents.medicalHistory,
-            signatureDataUrl: consents.signatureDataUrl,
-            responsiblePersons: responsible,
-          },
         }),
       });
       if (!res.ok) {
@@ -601,15 +571,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     : t('modeOutbound');
 
   const STEPS = [
-    { n: 1 as WizardStep, label: 'Paciente',        labelShort: '1', icon: User },
-    { n: 2 as WizardStep, label: 'Caso',            labelShort: '2', icon: Car },
-    { n: 3 as WizardStep, label: 'Consentimientos', labelShort: '3', icon: Shield },
-    { n: 4 as WizardStep, label: 'Cita',            labelShort: '4', icon: CalendarCheck },
-    { n: 5 as WizardStep, label: 'Formulario',      labelShort: '5', icon: Send },
+    { n: 1 as WizardStep, label: 'Paciente',  labelShort: '1', icon: User },
+    { n: 2 as WizardStep, label: 'Caso',      labelShort: '2', icon: Car },
+    { n: 3 as WizardStep, label: 'Cita',      labelShort: '3', icon: CalendarCheck },
+    { n: 4 as WizardStep, label: 'Formulario',labelShort: '4', icon: Send },
   ];
 
-  const stepCanProceed = [true, canGoToStep2, canGoToStep3, canGoToStep4, canGoToStep5];
-  const canNext = wizardStep < 5 && stepCanProceed[wizardStep];
+  const stepCanProceed = [true, canGoToStep2, canGoToStep3, canGoToStep4];
+  const canNext = wizardStep < 4 && stepCanProceed[wizardStep];
 
   return (
     <>
@@ -840,143 +809,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             </>
           )}
 
-          {/* ══ STEP 3 — CONSENTIMIENTOS ═════════════════════════════════ */}
+          {/* ══ STEP 3 — PRIMERA CITA ════════════════════════════════════ */}
           {wizardStep === 3 && (
-            <div className="space-y-4">
-
-              {/* 1. HIPAA */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-brand shrink-0" />
-                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">{tc('consents.hipaa.title')}</h4>
-                </div>
-                <div className="rounded-md bg-bg-2/50 border border-border/40 px-3 py-3 text-[11.5px] text-text-muted leading-relaxed max-h-36 overflow-y-auto">
-                  {tc('consents.hipaa.body')}
-                </div>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" checked={consents.hipaa} onChange={e => setConsent('hipaa', e.target.checked)} className="mt-0.5 accent-brand" />
-                  <span className="text-[11px] text-text-1">{tc('acceptAll')}</span>
-                </label>
-              </div>
-
-              {/* 2. Partes cesionadas */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-brand shrink-0" />
-                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">{tc('consents.assignedParties.title')}</h4>
-                </div>
-                <div className="rounded-md bg-bg-2/50 border border-border/40 px-3 py-3 text-[11.5px] text-text-muted leading-relaxed max-h-36 overflow-y-auto">
-                  {tc('consents.assignedParties.body')}
-                </div>
-                {/* Personas responsables */}
-                <div className="space-y-2 pt-1">
-                  {responsible.map((p, i) => (
-                    <div key={p.id} className="flex items-start gap-2 rounded-md border border-border/50 bg-bg-2/30 p-2.5">
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] text-text-muted block mb-1">Nombre completo</label>
-                          <input type="text" value={p.name} placeholder="Nombre del responsable"
-                            onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
-                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-text-muted block mb-1">Relación</label>
-                          <select value={p.relation} onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, relation: e.target.value } : x))}
-                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 outline-none focus:border-brand transition-colors appearance-none">
-                            <option value="" disabled>Seleccione la relación</option>
-                            {RELATION_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <button type="button" onClick={() => setResponsible(prev => prev.filter((_, j) => j !== i))}
-                        className="mt-5 p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors shrink-0">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                  <button type="button"
-                    onClick={() => setResponsible(prev => [...prev, { id: `r-${prev.length}`, name: '', relation: '' }])}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-dashed border-border/60 text-[12px] text-text-muted hover:border-brand/50 hover:text-brand transition-colors">
-                    <span className="text-base leading-none">+</span>
-                    {tc('addResponsible')}
-                  </button>
-                </div>
-                {/* Checkboxes específicos */}
-                <div className="space-y-2 pt-2 border-t border-border/30">
-                  {([
-                    ['assignedPartiesCheck1', tc('consents.assignedParties.check1')],
-                    ['assignedPartiesCheck2', tc('consents.assignedParties.check2')],
-                    ['assignedPartiesCheck3', tc('consents.assignedParties.check3')],
-                  ] as const).map(([key, label]) => (
-                    <label key={key} className="flex items-start gap-2 cursor-pointer">
-                      <input type="checkbox" checked={consents[key]} onChange={e => setConsent(key, e.target.checked)} className="mt-0.5 accent-brand" />
-                      <span className="text-[10.5px] text-text-muted leading-snug">{label}</span>
-                    </label>
-                  ))}
-                </div>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" checked={consents.assignedParties} onChange={e => setConsent('assignedParties', e.target.checked)} className="mt-0.5 accent-brand" />
-                  <span className="text-[11px] text-text-1">{tc('acceptAll')}</span>
-                </label>
-              </div>
-
-              {/* 3. Tratamiento */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-brand shrink-0" />
-                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">{tc('consents.treatment.title')}</h4>
-                </div>
-                <div className="rounded-md bg-bg-2/50 border border-border/40 px-3 py-3 text-[11.5px] text-text-muted leading-relaxed max-h-36 overflow-y-auto">
-                  {tc('consents.treatment.body')}
-                </div>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" checked={consents.treatment} onChange={e => setConsent('treatment', e.target.checked)} className="mt-0.5 accent-brand" />
-                  <span className="text-[11px] text-text-1">{tc('acceptAll')}</span>
-                </label>
-              </div>
-
-              {/* 4. Política financiera + firma */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-brand shrink-0" />
-                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">{tc('consents.financial.title')}</h4>
-                </div>
-                <div className="rounded-md bg-bg-2/50 border border-border/40 px-3 py-3 text-[11.5px] text-text-muted leading-relaxed max-h-36 overflow-y-auto">
-                  {tc('consents.financial.body')}
-                </div>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" checked={consents.financial} onChange={e => setConsent('financial', e.target.checked)} className="mt-0.5 accent-brand" />
-                  <span className="text-[11px] text-text-1">{tc('acceptAll')}</span>
-                </label>
-                <div className="space-y-1 pt-1">
-                  <label className="text-xs font-medium text-text-muted">
-                    {tc('signatureLabel')} <span className="text-rose">*</span>
-                  </label>
-                  <SignaturePad onChange={dataUrl => setConsent('signatureDataUrl', dataUrl)} initialValue={consents.signatureDataUrl}
-                    clearLabel={tc('clear')} hintLabel={tc('signHere')} height={140} />
-                </div>
-              </div>
-
-              {/* 5. Historial médico */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-brand shrink-0" />
-                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">{tc('consents.medicalHistory.title')}</h4>
-                </div>
-                <div className="rounded-md bg-bg-2/50 border border-border/40 px-3 py-3 text-[11.5px] text-text-muted leading-relaxed max-h-36 overflow-y-auto">
-                  {tc('consents.medicalHistory.body')}
-                </div>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" checked={consents.medicalHistory} onChange={e => setConsent('medicalHistory', e.target.checked)} className="mt-0.5 accent-brand" />
-                  <span className="text-[11px] text-text-1">{tc('acceptAll')}</span>
-                </label>
-              </div>
-
-            </div>
-          )}
-
-          {/* ══ STEP 4 — PRIMERA CITA ════════════════════════════════════ */}
-          {wizardStep === 4 && (
             <InfoCard
               title={t('sectionAppointment')} icon={CalendarCheck} number={1} tone="emerald"
               rightSlot={
@@ -1139,8 +973,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             </InfoCard>
           )}
 
-          {/* ══ STEP 5 — FORMULARIO ══════════════════════════════════════ */}
-          {wizardStep === 5 && (
+          {/* ══ STEP 4 — FORMULARIO ══════════════════════════════════════ */}
+          {wizardStep === 4 && (
             <>
               {/* Delivery options */}
               <InfoCard title={t('sectionFormDelivery')} icon={Send} tone="emerald">
@@ -1228,7 +1062,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 <span className="hidden sm:inline">Atrás</span>
               </Button>
             )}
-            {wizardStep === 5 && (
+            {wizardStep === 4 && (
               <Button variant="outline" onClick={() => handleSubmit('pause')}
                 disabled={saving || !firstName || !lastName}
                 className="flex-1 sm:flex-none sm:w-auto gap-1">
@@ -1239,7 +1073,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           </div>
 
           {/* Right side: Next or Finalize */}
-          {wizardStep < 5 ? (
+          {wizardStep < 4 ? (
             <Button onClick={nextStep} disabled={!canNext} className="w-full sm:w-auto gap-1">
               Siguiente
               <ArrowRight className="w-3.5 h-3.5" />

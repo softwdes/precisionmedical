@@ -482,18 +482,19 @@ model CashBox {
   id                  String            @id @default(cuid())
   name                String            @unique
   clinicId            String?
-  
+
   currency            Currency          @default(USD)
   balance             Decimal           @db.Decimal(12, 2) @default(0)
   lowBalanceThreshold Decimal           @db.Decimal(12, 2) @default(100)
-  
+
   responsibleUserId   String?
-  
+  qrDepositUrl        String?           // URL del QR de depósito bancario (Supabase Storage)
+
   transactions        CashTransaction[]
-  
+
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
-  
+
   @@map("cash_boxes")
 }
 

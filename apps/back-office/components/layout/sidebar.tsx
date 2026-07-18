@@ -37,8 +37,8 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: '/dashboard',  icon: BarChart3,      labelKey: 'dashboard',  mockup: 'B.29'        },
       { href: '/patients',   icon: Users,          labelKey: 'patients',   mockup: 'B.4'         },
-      { href: '/admin/lawyers', icon: Scale,       labelKey: 'lawyers',    mockup: 'B.30–B.31'  },
       { href: '/calendar',   icon: CalendarDays,   labelKey: 'calendar',   mockup: 'B.10–B.11'  },
+      { href: '/admin/lawyers', icon: Scale,       labelKey: 'lawyers',    mockup: 'B.30–B.31'  },
       { href: '/edson',      icon: ClipboardList,  labelKey: 'edson',      mockup: 'B.12–B.13/B.23–B.24' },
       { href: '/intake',     icon: Phone,          labelKey: 'intake',     mockup: 'B.12–B.13'  },
       { href: '/admission',  icon: ClipboardCheck, labelKey: 'admission',  mockup: 'B.14–B.15'  },

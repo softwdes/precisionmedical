@@ -1,75 +1,31 @@
 'use client';
 
-/**
- * CaseWizardDialog — wizard de 3 pasos para crear un caso desde la ficha del paciente.
- *
- * Paso 1: Información básica (tipo, fecha accidente, descripción, abogado, quiropráctico)
- * Paso 2: Consentimientos (5 formularios HIPAA + firma digital)
- * Paso 3: Revisión + Crear
- *
- * Distinto de new-case-dialog.tsx (front-office PreCall/timer).
- * HIPAA: consents guardados en Case.consentsData + consentSignaturePng.
- */
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Check, ChevronRight, FileText, Shield, ClipboardList, Car, Stethoscope, X } from 'lucide-react';
+import {
+  Check, ChevronRight, FileText, Car, Stethoscope, Scale, ShieldCheck, Send,
+  Search as SearchIcon, ArrowLeft,
+} from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-  Button,
+  Button, Input, Label,
 } from '@precision/ui';
-import { FormField } from '@/components/ui-phoenix';
-import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
-
-// ─── Law firm select nativo ───────────────────────────────────────────────────
-
-interface LawFirmOption { id: string; label: string; }
-
-function LawFirmSelect({
-  firmId, onChange, placeholder,
-}: {
-  firmId: string | null;
-  onChange: (label: string, id: string | null) => void;
-  placeholder: string;
-}) {
-  const [firms, setFirms] = useState<LawFirmOption[]>([]);
-
-  useEffect(() => {
-    fetch('/api/admin/lawyers/autocomplete')
-      .then(r => r.json())
-      .then(j => setFirms(j.results ?? []))
-      .catch(() => {});
-  }, []);
-
-  return (
-    <div>
-      <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">
-        Firma de abogados
-      </label>
-      <select
-        value={firmId ?? ''}
-        onChange={e => {
-          const selected = firms.find(f => f.id === e.target.value);
-          onChange(selected?.label ?? '', selected?.id ?? null);
-        }}
-        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand transition-colors appearance-none"
-      >
-        <option value="">{placeholder}</option>
-        {firms.map(f => (
-          <option key={f.id} value={f.id}>{f.label}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
+import { FormField, InfoCard, TagPill } from '@/components/ui-phoenix';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface AutoResult { id: string; label: string; subtitle?: string; shortCode?: string; color?: string; }
+type CaseType    = 'MVA' | 'GENERAL';
+type LawyerStatus = 'HAS' | 'SEEKING' | 'DECLINED';
+type FormDelivery = 'SEND_NOW' | 'TABLET_AT_CLINIC';
 
 interface Patient {
   id:        string;
   firstName: string;
   lastName:  string;
+  email?:    string | null;
+  phone?:    string | null;
 }
 
 interface Props {
@@ -77,63 +33,129 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   patient:      Patient;
   onCreated?:   (caseId: string) => void;
-  // Edit mode — pass caseId to edit instead of create
   editCaseId?:  string;
   onSaved?:     () => void;
 }
 
-interface ResponsiblePerson {
-  id:       string;
-  name:     string;
-  relation: string;
+// ─── Autocomplete ─────────────────────────────────────────────────────────────
+
+function Autocomplete({
+  endpoint, extraParams, placeholder, selected, onSelect, renderAvatar,
+}: {
+  endpoint: string;
+  extraParams?: Record<string, string>;
+  placeholder: string;
+  selected: AutoResult | null;
+  onSelect: (r: AutoResult | null) => void;
+  renderAvatar?: (r: AutoResult) => React.ReactNode;
+}) {
+  const [query, setQuery]   = useState('');
+  const [results, setResults] = useState<AutoResult[]>([]);
+  const [open, setOpen]     = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (selected) { setQuery(''); setOpen(false); return; }
+    const handle = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ q: query, ...(extraParams ?? {}) });
+        const res = await fetch(`${endpoint}?${params}`);
+        if (res.ok) { const data = await res.json(); setResults(data.results ?? []); }
+      } catch { setResults([]); } finally { setLoading(false); }
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [query, endpoint, extraParams, selected]);
+
+  if (selected) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-brand/10 border border-brand/30">
+        {renderAvatar?.(selected)}
+        <div className="flex-1 min-w-0">
+          <div className="text-text-1 text-sm font-medium truncate">{selected.label}</div>
+          {selected.subtitle && <div className="text-text-muted text-xs truncate">{selected.subtitle}</div>}
+        </div>
+        <button type="button" onClick={() => onSelect(null)} className="text-text-muted hover:text-rose text-xs shrink-0">
+          Cambiar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <Input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          className="pl-9"
+        />
+      </div>
+      {open && (results.length > 0 || loading) && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
+          {loading && results.length === 0 ? (
+            <div className="px-3 py-2 text-text-muted text-xs">Buscando…</div>
+          ) : results.map((r) => (
+            <button key={r.id} type="button" onClick={() => { onSelect(r); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left text-sm transition-colors">
+              {renderAvatar?.(r)}
+              <div className="flex-1 min-w-0">
+                <div className="text-text-1 truncate">{r.label}</div>
+                {r.subtitle && <div className="text-text-muted text-xs truncate">{r.subtitle}</div>}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-const RELATION_OPTIONS = [
-  'Cónyuge',
-  'Padre/Madre',
-  'Hijo/Hija',
-  'Hermano/a',
-  'Persona responsable legal',
-  'Otro',
-];
+// ─── Segmented option ─────────────────────────────────────────────────────────
 
-interface ConsentState {
-  hipaa:                 boolean;
-  assignedParties:       boolean;
-  assignedPartiesCheck1: boolean;
-  assignedPartiesCheck2: boolean;
-  assignedPartiesCheck3: boolean;
-  treatment:             boolean;
-  financial:             boolean;
-  medicalHistory:        boolean;
-  signatureDataUrl:      string | null;
+function SegmentedOption({ selected, onClick, icon, label }: {
+  selected: boolean; onClick: () => void; icon: string; label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-2 px-3 py-2 rounded-md border text-sm transition-all
+        ${selected
+          ? 'border-brand bg-brand/10 text-brand font-medium'
+          : 'border-border bg-bg-2/40 text-text-muted hover:border-brand/40'}`}
+    >
+      <span>{icon}</span>
+      <span className="truncate">{label}</span>
+      {selected && <Check className="w-3 h-3 ml-auto shrink-0" />}
+    </button>
+  );
 }
 
-const EMPTY_CONSENTS: ConsentState = {
-  hipaa:                 false,
-  assignedParties:       false,
-  assignedPartiesCheck1: false,
-  assignedPartiesCheck2: false,
-  assignedPartiesCheck3: false,
-  treatment:             false,
-  financial:             false,
-  medicalHistory:        false,
-  signatureDataUrl:      null,
-};
+// ─── Note ─────────────────────────────────────────────────────────────────────
+
+function Note({ tone, children }: { tone: 'amber' | 'emerald' | 'rose' | 'cyan'; children: React.ReactNode }) {
+  const cls = {
+    amber:   'border-amber/30 bg-amber/10 text-amber',
+    emerald: 'border-emerald/30 bg-emerald/10 text-emerald',
+    rose:    'border-rose/30 bg-rose/10 text-rose',
+    cyan:    'border-cyan/30 bg-cyan/10 text-cyan',
+  }[tone];
+  return <p className={`rounded-md border px-3 py-2 text-[11px] ${cls}`}>{children}</p>;
+}
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 
-function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
-  const steps = [
-    { n: 1, icon: FileText },
-    { n: 2, icon: Shield },
-    { n: 3, icon: ClipboardList },
-  ];
+function StepIndicator({ current }: { current: 1 | 2 }) {
+  const steps = [{ n: 1, icon: FileText }, { n: 2, icon: Send }];
   return (
     <div className="flex items-center justify-center gap-0 mb-1">
       {steps.map(({ n, icon: Icon }, idx) => {
-        const done    = n < current;
-        const active  = n === current;
+        const done   = n < current;
+        const active = n === current;
         return (
           <div key={n} className="flex items-center">
             <div className={`
@@ -145,47 +167,11 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
               {done ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
             </div>
             {idx < steps.length - 1 && (
-              <div className={`w-16 h-0.5 ${n < current ? 'bg-brand' : 'bg-border'}`} />
+              <div className={`w-20 h-0.5 ${n < current ? 'bg-brand' : 'bg-border'}`} />
             )}
           </div>
         );
       })}
-    </div>
-  );
-}
-
-// ─── Consent block ────────────────────────────────────────────────────────────
-
-function ConsentBlock({
-  icon: Icon,
-  title, body, checked, onCheck, children,
-}: {
-  icon?: React.ComponentType<{ className?: string }>;
-  title: string;
-  body: string;
-  checked: boolean;
-  onCheck: (v: boolean) => void;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        {Icon && <Icon className="w-4 h-4 text-brand shrink-0" />}
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">{title}</h4>
-      </div>
-      <div className="rounded-md bg-bg-2/50 border border-border/40 px-3 py-3 text-[11.5px] text-text-muted leading-relaxed max-h-36 overflow-y-auto">
-        {body}
-      </div>
-      {children}
-      <label className="flex items-start gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onCheck(e.target.checked)}
-          className="mt-0.5 accent-brand"
-        />
-        <span className="text-[11px] text-text-1">Acepto todos los términos de este consentimiento.</span>
-      </label>
     </div>
   );
 }
@@ -198,45 +184,44 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
 
   const isEdit = !!editCaseId;
 
-  const [step,    setStep]    = useState<1 | 2 | 3>(1);
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState('');
+  const [step,   setStep]   = useState<1 | 2>(1);
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState('');
 
-  // Step 1 form
-  const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
+  // ── Step 1 fields ──────────────────────────────────────────────────────────
+  const [caseType,      setCaseType]      = useState<CaseType>('MVA');
   const isMVA = caseType === 'MVA';
-  const [accidentDate, setAccidentDate] = useState('');
-  const [description,  setDescription]  = useState('');
-  const [lawFirm,      setLawFirm]      = useState('');
-  const [lawFirmId,    setLawFirmId]    = useState<string | null>(null);
-  const [attorney,     setAttorney]     = useState('');
-  const [chiropractor, setChiropractor] = useState('');
+  const [accidentDate,  setAccidentDate]  = useState('');
+  const [accidentType,  setAccidentType]  = useState('AUTO');
+  const [accidentLocation, setAccidentLocation] = useState('');
+  const [description,   setDescription]   = useState('');
 
-  // Step 2 consents
-  const [consents,     setConsents]     = useState<ConsentState>(EMPTY_CONSENTS);
-  const [responsible,  setResponsible]  = useState<ResponsiblePerson[]>([]);
+  const [lawyerStatus,   setLawyerStatus]   = useState<LawyerStatus>('HAS');
+  const [lawFirm,        setLawFirm]        = useState<AutoResult | null>(null);
+  const [attorney,       setAttorney]       = useState<AutoResult | null>(null);
+  const [caseManagerName,  setCaseManagerName]  = useState('');
+  const [caseManagerEmail, setCaseManagerEmail] = useState('');
+  const [firmPhone,      setFirmPhone]      = useState('');
+  const [chiropractor,   setChiropractor]   = useState('');
 
-  function setConsent<K extends keyof ConsentState>(key: K, value: ConsentState[K]) {
-    setConsents(prev => ({ ...prev, [key]: value }));
-  }
+  const [insurance,    setInsurance]    = useState<AutoResult | null>(null);
+  const [policyNumber, setPolicyNumber] = useState('');
 
-  // Reset / pre-populate when dialog opens
+  // ── Step 2 fields ──────────────────────────────────────────────────────────
+  const [formDelivery, setFormDelivery] = useState<FormDelivery>('SEND_NOW');
+
+  // ── Reset on close ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) {
-      setStep(1);
-      setCaseType('MVA');
-      setAccidentDate('');
-      setDescription('');
-      setLawFirm('');
-      setLawFirmId(null);
-      setAttorney('');
-      setChiropractor('');
-      setConsents(EMPTY_CONSENTS);
-      setResponsible([]);
-      setError('');
+      setStep(1); setCaseType('MVA'); setAccidentDate(''); setAccidentType('AUTO');
+      setAccidentLocation(''); setDescription('');
+      setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null);
+      setCaseManagerName(''); setCaseManagerEmail(''); setFirmPhone(''); setChiropractor('');
+      setInsurance(null); setPolicyNumber('');
+      setFormDelivery('SEND_NOW'); setError('');
       return;
     }
-    // In edit mode, fetch existing data to pre-populate
+    // Edit: pre-populate
     if (isEdit && editCaseId) {
       fetch(`/api/admin/cases/${editCaseId}`)
         .then(r => r.json())
@@ -244,52 +229,21 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
           const c = j.case;
           if (!c) return;
           setCaseType(c.caseType === 'MVA' ? 'MVA' : 'GENERAL');
-          // Convert ISO date to YYYY-MM-DD for the date input
-          if (c.accidentDate) {
-            setAccidentDate(c.accidentDate.slice(0, 10));
-          }
+          if (c.accidentDate) setAccidentDate(c.accidentDate.slice(0, 10));
           setDescription(c.accidentNotes ?? '');
-          if (c.lawFirm) { setLawFirm(c.lawFirm.firmName); setLawFirmId(c.lawFirm.id); }
+          if (c.lawFirm) { setLawFirm({ id: c.lawFirm.id, label: c.lawFirm.firmName }); }
           const cd = (c.consentsData ?? {}) as Record<string, unknown>;
-          setAttorney((cd.attorney as string | undefined) ?? '');
+          setCaseManagerName((cd.attorney as string | undefined) ?? '');
           setChiropractor((cd.chiropractor as string | undefined) ?? '');
-          // Pre-populate consents if already signed
-          setConsents({
-            hipaa:                 !!(cd.hipaa),
-            assignedParties:       !!(cd.assignedParties),
-            assignedPartiesCheck1: !!(cd.assignedPartiesOpts && (cd.assignedPartiesOpts as Record<string,boolean>).check1),
-            assignedPartiesCheck2: !!(cd.assignedPartiesOpts && (cd.assignedPartiesOpts as Record<string,boolean>).check2),
-            assignedPartiesCheck3: !!(cd.assignedPartiesOpts && (cd.assignedPartiesOpts as Record<string,boolean>).check3),
-            treatment:             !!(cd.treatment),
-            financial:             !!(cd.financial),
-            medicalHistory:        !!(cd.medicalHistory),
-            signatureDataUrl:      (cd.signatureDataUrl as string | null) ?? null,
-          });
         })
         .catch(() => {});
     }
   }, [open, isEdit, editCaseId]);
 
-  // ── Validation ──────────────────────────────────────────────────────────────
+  // ── Validation ─────────────────────────────────────────────────────────────
+  const canGoStep2 = !isMVA || lawyerStatus !== 'HAS' || !!lawFirm;
 
-  function canGoStep2() {
-    return true; // Step 1 has no required fields beyond caseType (pre-selected)
-  }
-
-  function canGoStep3() {
-    return true; // Flexible: se puede avanzar sin completar todos los consentimientos
-  }
-
-  function handleNext() {
-    setError('');
-    if (step === 1) { setStep(2); return; }
-    if (step === 2) {
-      setStep(3);
-    }
-  }
-
-  // ── Submit ──────────────────────────────────────────────────────────────────
-
+  // ── Submit (create) ────────────────────────────────────────────────────────
   async function handleCreate() {
     setSaving(true);
     setError('');
@@ -299,47 +253,33 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           existingPatientId: patient.id,
-          patient: {
-            firstName: patient.firstName,
-            lastName:  patient.lastName,
-            phone:     '0000000000',
-          },
           accident: {
-            date:  accidentDate ? new Date(accidentDate).toISOString() : null,
-            type:  caseType === 'MVA' ? 'AUTO' : 'OTHER',
-            notes: description || null,
+            date:     accidentDate ? new Date(accidentDate + 'T12:00:00Z').toISOString() : null,
+            type:     accidentType,
+            location: accidentLocation.trim() || null,
+            notes:    description.trim() || null,
           },
           legal: {
-            lawyerStatus:    'HAS',
-            lawFirmId:       lawFirmId ?? null,
-            caseManagerName: attorney  || null,
+            lawyerStatus,
+            lawFirmId:       lawyerStatus === 'HAS' ? (lawFirm?.id ?? null)  : null,
+            attorneyId:      lawyerStatus === 'HAS' ? (attorney?.id ?? null)  : null,
+            caseManagerName: lawyerStatus === 'HAS' ? (caseManagerName.trim() || null) : null,
+            caseManagerEmail: lawyerStatus === 'HAS' ? (caseManagerEmail.trim() || null) : null,
+            firmPhone:       lawyerStatus === 'HAS' ? (firmPhone.trim() || null) : null,
+            chiropractor:    chiropractor.trim() || null,
           },
-          insurance:   { primaryInsuranceId: null },
-          caseType:    caseType === 'MVA' ? 'MVA' : 'GENERAL',
+          insurance: {
+            primaryInsuranceId:  insurance?.id ?? null,
+            primaryPolicyNumber: policyNumber.trim() || null,
+          },
+          caseType,
           source:      'WALK_IN',
-          consents: {
-            hipaa:                 consents.hipaa,
-            assignedParties:       consents.assignedParties,
-            assignedPartiesOpts: {
-              check1: consents.assignedPartiesCheck1,
-              check2: consents.assignedPartiesCheck2,
-              check3: consents.assignedPartiesCheck3,
-            },
-            treatment:       consents.treatment,
-            financial:       consents.financial,
-            medicalHistory:  consents.medicalHistory,
-            signatureDataUrl: consents.signatureDataUrl,
-            lawFirm,
-            chiropractor,
-            responsiblePersons: responsible,
-          },
+          formDelivery,
+          consents: {},
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(json.message ?? json.error ?? 'Error al crear el caso.');
-        return;
-      }
+      if (!res.ok) { setError(json.message ?? json.error ?? 'Error al crear el caso.'); return; }
       onOpenChange(false);
       if (onCreated) onCreated(json.case?.id ?? '');
       router.refresh();
@@ -350,8 +290,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
     }
   }
 
-  // ── Save (edit mode) ────────────────────────────────────────────────────────
-
+  // ── Save (edit) ────────────────────────────────────────────────────────────
   async function handleSave() {
     setSaving(true);
     setError('');
@@ -360,26 +299,18 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          caseType:    caseType === 'MVA' ? 'MVA' : 'GENERAL',
-          accidentDate: accidentDate || null,
-          accidentNotes: description || null,
-          lawFirmId:   lawFirmId ?? null,
-          lawFirmLabel: lawFirm || null,
-          chiropractor: chiropractor || null,
-          consents: {
-            hipaa:               consents.hipaa,
-            assignedParties:     consents.assignedParties,
-            assignedPartiesOpts: {
-              check1: consents.assignedPartiesCheck1,
-              check2: consents.assignedPartiesCheck2,
-              check3: consents.assignedPartiesCheck3,
-            },
-            treatment:        consents.treatment,
-            financial:        consents.financial,
-            medicalHistory:   consents.medicalHistory,
-            signatureDataUrl: consents.signatureDataUrl,
-            attorney,
-          },
+          caseType,
+          accidentDate:  accidentDate || null,
+          accidentNotes: description  || null,
+          lawFirmId:     lawFirm?.id  ?? null,
+          lawFirmLabel:  lawFirm?.label ?? null,
+          chiropractor:  chiropractor  || null,
+          lawyerStatus,
+          caseManagerName:  caseManagerName  || null,
+          caseManagerEmail: caseManagerEmail || null,
+          firmPhone:        firmPhone        || null,
+          primaryInsuranceId:  insurance?.id ?? null,
+          primaryPolicyNumber: policyNumber  || null,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -393,51 +324,46 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
     }
   }
 
-  // ── Step labels ─────────────────────────────────────────────────────────────
-
-  const stepLabels: Record<1 | 2 | 3, { title: string; sub: string }> = {
+  // ── Step labels ────────────────────────────────────────────────────────────
+  const stepLabels: Record<1 | 2, { title: string; sub: string }> = {
     1: { title: t('step1Title'), sub: t('step1Sub') },
     2: { title: t('step2Title'), sub: t('step2Sub') },
-    3: { title: t('step3Title'), sub: t('step3Sub') },
   };
 
-  const tc = useTranslations('caseWizard');
-
-  // ── Render ──────────────────────────────────────────────────────────────────
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0">
 
         {/* Header */}
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
+        <DialogHeader className="px-4 sm:px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
           <DialogTitle className="flex items-center gap-2 text-text-1 text-base">
             <FileText className="w-4 h-4 text-brand" />
-            {isEdit ? 'Formulario de caso médico' : t('title')}
+            {isEdit ? t('titleEdit') : t('title')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
-            {isEdit ? 'Complete toda la información requerida para el nuevo caso médico.' : t('subtitle')}
+            {patient.firstName} {patient.lastName}
           </DialogDescription>
-          <div className="pt-3">
-            <StepIndicator current={step} />
-            <div className="text-center mt-2">
-              <p className="text-sm font-semibold text-text-1">{stepLabels[step].title}</p>
-              <p className="text-[11px] text-text-muted">{stepLabels[step].sub}</p>
+          {!isEdit && (
+            <div className="pt-3">
+              <StepIndicator current={step} />
+              <div className="text-center mt-2">
+                <p className="text-sm font-semibold text-text-1">{stepLabels[step].title}</p>
+                <p className="text-[11px] text-text-muted">{stepLabels[step].sub}</p>
+              </div>
             </div>
-          </div>
+          )}
         </DialogHeader>
 
-        <div className="px-6 py-5 space-y-5">
+        <div className="px-4 sm:px-6 py-5 space-y-4">
 
-          {/* ══ STEP 1: Info básica ══ */}
-          {step === 1 && (
-            <div className="space-y-4">
-
+          {/* ══ STEP 1: Caso + Abogado + Seguro ══ */}
+          {(step === 1 || isEdit) && (
+            <>
               {/* Tipo de caso */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-text-muted uppercase tracking-wider">{t('caseType')}</label>
+              <InfoCard title={t('caseType')} icon={FileText} tone="brand">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {([['MVA', 'MVA (Accidente de vehículo a motor)', Car], ['GENERAL', 'GM (Medicina general)', Stethoscope]] as const).map(([val, label, Icon]) => (
+                  {([['MVA', t('caseTypeMVA'), Car], ['GENERAL', t('caseTypeGM'), Stethoscope]] as const).map(([val, label, Icon]) => (
                     <button
                       key={val}
                       type="button"
@@ -455,303 +381,219 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                     </button>
                   ))}
                 </div>
-              </div>
+              </InfoCard>
 
-              {/* Campos solo para MVA */}
+              {/* Datos del accidente — solo MVA */}
               {isMVA && (
-                <>
+                <InfoCard title={t('accidentSection')} icon={Car} tone="rose">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <FormField.Input label={t('accidentDate')} value={accidentDate} onChange={setAccidentDate} type="date" />
+                    <div>
+                      <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">
+                        {t('accidentType')}
+                      </label>
+                      <select
+                        value={accidentType}
+                        onChange={e => setAccidentType(e.target.value)}
+                        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand transition-colors appearance-none"
+                      >
+                        <option value="AUTO">{t('accidentTypeAuto')}</option>
+                        <option value="MOTORCYCLE">{t('accidentTypeMotorcycle')}</option>
+                        <option value="TRUCK">{t('accidentTypeTruck')}</option>
+                        <option value="PEDESTRIAN">{t('accidentTypePedestrian')}</option>
+                        <option value="OTHER">{t('accidentTypeOther')}</option>
+                      </select>
+                    </div>
+                  </div>
                   <FormField.Input
-                    label={t('accidentDate')}
-                    value={accidentDate}
-                    onChange={setAccidentDate}
-                    type="date"
+                    label={t('accidentLocation')}
+                    value={accidentLocation}
+                    onChange={setAccidentLocation}
+                    placeholder={t('accidentLocationPlaceholder')}
                   />
                   <FormField.Textarea
                     label={t('accidentDescription')}
                     value={description}
                     onChange={setDescription}
                     placeholder={t('accidentDescriptionPlaceholder')}
-                    rows={3}
+                    rows={2}
                   />
-                  <LawFirmSelect
-                    firmId={lawFirmId}
-                    onChange={(name, id) => { setLawFirm(name); setLawFirmId(id); }}
-                    placeholder={t('lawFirmPlaceholder')}
+                </InfoCard>
+              )}
+
+              {/* Notas para MG */}
+              {!isMVA && (
+                <FormField.Textarea
+                  label={t('accidentDescription')}
+                  value={description}
+                  onChange={setDescription}
+                  placeholder={t('accidentDescriptionPlaceholder')}
+                  rows={3}
+                />
+              )}
+
+              {/* Abogado — solo MVA */}
+              {isMVA && (
+                <InfoCard
+                  title={t('lawyerSection')}
+                  icon={Scale}
+                  tone="rose"
+                  rightSlot={<TagPill label={t('lawyerRequired')} colorClass="bg-rose/15 text-rose border-rose/30" />}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <SegmentedOption selected={lawyerStatus === 'HAS'}     onClick={() => setLawyerStatus('HAS')}     icon="✓" label={t('lawyerHas')} />
+                    <SegmentedOption selected={lawyerStatus === 'SEEKING'} onClick={() => setLawyerStatus('SEEKING')} icon="🔍" label={t('lawyerSeeking')} />
+                    <SegmentedOption selected={lawyerStatus === 'DECLINED'} onClick={() => setLawyerStatus('DECLINED')} icon="✗" label={t('lawyerDeclined')} />
+                  </div>
+
+                  {lawyerStatus === 'HAS' && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label>{t('lawFirmLabel')}</Label>
+                        <Autocomplete
+                          endpoint="/api/admin/lawyers/autocomplete"
+                          placeholder={t('lawFirmPlaceholder')}
+                          selected={lawFirm}
+                          onSelect={(r) => { setLawFirm(r); setAttorney(null); }}
+                        />
+                      </div>
+                      {lawFirm && (
+                        <>
+                          <div>
+                            <Label>{t('attorneyLabel')}</Label>
+                            <Autocomplete
+                              endpoint="/api/admin/lawyers/autocomplete"
+                              extraParams={{ firmId: lawFirm.id }}
+                              placeholder={t('attorneyPlaceholder')}
+                              selected={attorney}
+                              onSelect={setAttorney}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <FormField.Input label={t('caseManagerLabel')} value={caseManagerName} onChange={setCaseManagerName} />
+                            <FormField.Input label={t('caseManagerEmail')} value={caseManagerEmail} onChange={setCaseManagerEmail} type="email" />
+                          </div>
+                          <FormField.Phone label={t('firmPhone')} value={firmPhone} onChange={setFirmPhone} />
+                        </>
+                      )}
+                      <Note tone="emerald">{t('lawyerNoteHas')}</Note>
+                    </div>
+                  )}
+                  {lawyerStatus === 'SEEKING'  && <Note tone="amber">{t('lawyerNoteSeeking')}</Note>}
+                  {lawyerStatus === 'DECLINED' && <Note tone="rose">{t('lawyerNoteDeclined')}</Note>}
+
+                  <FormField.Input
+                    label={t('chiropractorLabel')}
+                    value={chiropractor}
+                    onChange={setChiropractor}
+                    placeholder={t('chiropractorPlaceholder')}
                   />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormField.Input
-                      label={t('attorney')}
-                      value={attorney}
-                      onChange={setAttorney}
-                      placeholder={t('attorneyPlaceholder')}
-                    />
-                    <FormField.Input
-                      label={t('chiropractor')}
-                      value={chiropractor}
-                      onChange={setChiropractor}
-                      placeholder={t('chiropractorPlaceholder')}
+                </InfoCard>
+              )}
+
+              {/* Seguro — solo MVA */}
+              {isMVA && (
+                <InfoCard title={t('insuranceSection')} icon={ShieldCheck} tone="cyan">
+                  <div>
+                    <Label>{t('insuranceLabel')}</Label>
+                    <Autocomplete
+                      endpoint="/api/admin/insurances/autocomplete"
+                      placeholder={t('insurancePlaceholder')}
+                      selected={insurance}
+                      onSelect={setInsurance}
+                      renderAvatar={(r) => r.color && r.shortCode ? (
+                        <div
+                          className="w-7 h-7 rounded flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                          style={{ background: r.color }}
+                        >
+                          {r.shortCode}
+                        </div>
+                      ) : null}
                     />
                   </div>
-                </>
+                  {insurance && (
+                    <FormField.Input
+                      label={t('policyNumber')}
+                      value={policyNumber}
+                      onChange={setPolicyNumber}
+                      placeholder="PIP-2026-0142"
+                      hint={t('policyHint')}
+                    />
+                  )}
+                </InfoCard>
               )}
-            </div>
+
+              {!canGoStep2 && isMVA && (
+                <Note tone="amber">{t('lawFirmRequired')}</Note>
+              )}
+            </>
           )}
 
-          {/* ══ STEP 2: Consentimientos ══ */}
-          {step === 2 && (
-            <div className="space-y-4">
-
-              {/* 1. HIPAA */}
-              <ConsentBlock
-                icon={Shield}
-                title={t('consents.hipaa.title')}
-                body={t('consents.hipaa.body')}
-                checked={consents.hipaa}
-                onCheck={(v) => setConsent('hipaa', v)}
-              />
-
-              {/* 2. Partes cesionadas */}
-              <ConsentBlock
-                icon={Shield}
-                title={t('consents.assignedParties.title')}
-                body={t('consents.assignedParties.body')}
-                checked={consents.assignedParties}
-                onCheck={(v) => setConsent('assignedParties', v)}
-              >
-                {/* Personas responsables */}
-                <div className="space-y-2 pt-1">
-                  {responsible.map((p, i) => (
-                    <div key={p.id} className="flex items-start gap-2 rounded-md border border-border/50 bg-bg-2/30 p-2.5">
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] text-text-muted block mb-1">Nombre completo</label>
-                          <input
-                            type="text"
-                            value={p.name}
-                            placeholder="Nombre del responsable"
-                            onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
-                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-text-muted block mb-1">Relación</label>
-                          <select
-                            value={p.relation}
-                            onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, relation: e.target.value } : x))}
-                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 outline-none focus:border-brand transition-colors appearance-none"
-                          >
-                            <option value="" disabled>Seleccione la relación</option>
-                            {RELATION_OPTIONS.map(r => (
-                              <option key={r} value={r}>{r}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setResponsible(prev => prev.filter((_, j) => j !== i))}
-                        className="mt-5 p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors shrink-0"
-                        title="Eliminar"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-
-                  {/* Botón agregar */}
+          {/* ══ STEP 2: Enviar formulario ══ */}
+          {step === 2 && !isEdit && (
+            <>
+              <InfoCard title={t('formDeliveryTitle')} icon={Send} tone="emerald">
+                <div className="text-text-2 text-xs">{t('formDeliveryDesc')}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setResponsible(prev => [...prev, { id: `r-${Date.now()}-${prev.length}`, name: '', relation: '' }])}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-dashed border-border/60 text-[12px] text-text-muted hover:border-brand/50 hover:text-brand transition-colors"
+                    onClick={() => setFormDelivery('SEND_NOW')}
+                    className={`
+                      flex flex-col gap-1 px-4 py-3 rounded-lg border text-left transition-all
+                      ${formDelivery === 'SEND_NOW'
+                        ? 'border-emerald bg-emerald/10 text-emerald'
+                        : 'border-border bg-bg-2/40 text-text-muted hover:border-emerald/40'}
+                    `}
                   >
-                    <span className="text-base leading-none">+</span>
-                    {t('addResponsible')}
+                    <span className="text-lg">📨</span>
+                    <span className="font-medium text-sm">{t('sendNowTitle')}</span>
+                    <span className="text-[11px] opacity-80">{t('sendNowDesc')}</span>
+                    {formDelivery === 'SEND_NOW' && <Check className="w-3.5 h-3.5 mt-1 text-emerald" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormDelivery('TABLET_AT_CLINIC')}
+                    className={`
+                      flex flex-col gap-1 px-4 py-3 rounded-lg border text-left transition-all
+                      ${formDelivery === 'TABLET_AT_CLINIC'
+                        ? 'border-emerald bg-emerald/10 text-emerald'
+                        : 'border-border bg-bg-2/40 text-text-muted hover:border-emerald/40'}
+                    `}
+                  >
+                    <span className="text-lg">📱</span>
+                    <span className="font-medium text-sm">{t('tabletTitle')}</span>
+                    <span className="text-[11px] opacity-80">{t('tabletDesc')}</span>
+                    {formDelivery === 'TABLET_AT_CLINIC' && <Check className="w-3.5 h-3.5 mt-1 text-emerald" />}
                   </button>
                 </div>
+              </InfoCard>
 
-                {/* Checkboxes específicos */}
-                <div className="space-y-2 pt-2 border-t border-border/30">
-                  {([
-                    ['assignedPartiesCheck1', t('consents.assignedParties.check1')],
-                    ['assignedPartiesCheck2', t('consents.assignedParties.check2')],
-                    ['assignedPartiesCheck3', t('consents.assignedParties.check3')],
-                  ] as const).map(([key, label]) => (
-                    <label key={key} className="flex items-start gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={consents[key]}
-                        onChange={(e) => setConsent(key, e.target.checked)}
-                        className="mt-0.5 accent-brand"
-                      />
-                      <span className="text-[10.5px] text-text-muted leading-snug">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              </ConsentBlock>
-
-              {/* 3. Consentimiento para tratamiento */}
-              <ConsentBlock
-                icon={Shield}
-                title={t('consents.treatment.title')}
-                body={t('consents.treatment.body')}
-                checked={consents.treatment}
-                onCheck={(v) => setConsent('treatment', v)}
-              />
-
-              {/* 4. Política financiera + firma */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-brand shrink-0" />
-                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">
-                    {t('consents.financial.title')}
-                  </h4>
-                </div>
-                <div className="rounded-md bg-bg-2/50 border border-border/40 px-3 py-3 text-[11.5px] text-text-muted leading-relaxed max-h-36 overflow-y-auto">
-                  {t('consents.financial.body')}
-                </div>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={consents.financial}
-                    onChange={(e) => setConsent('financial', e.target.checked)}
-                    className="mt-0.5 accent-brand"
-                  />
-                  <span className="text-[11px] text-text-1">Acepto todos los términos de este consentimiento</span>
-                </label>
-
-                {/* Firma digital — requerida */}
-                <div className="space-y-1 pt-1">
-                  <label className="text-xs font-medium text-text-muted">
-                    {t('signatureLabel')} <span className="text-rose">*</span>
-                  </label>
-                  <SignaturePad
-                    onChange={(dataUrl) => setConsent('signatureDataUrl', dataUrl)}
-                    initialValue={consents.signatureDataUrl}
-                    clearLabel={t('clear')}
-                    hintLabel={t('signHere')}
-                    height={140}
-                  />
-                  {!consents.signatureDataUrl && (
-                    <p className="text-[10px] text-text-muted/60">La firma es obligatoria para crear el caso.</p>
+              {/* Resumen */}
+              <InfoCard title={t('summaryTitle')} icon={Check} tone="cyan">
+                <ul className="space-y-1.5 text-xs text-text-2 list-none m-0 p-0">
+                  <li className="flex items-start gap-2">
+                    <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
+                    <span>{t('summaryPatient')}: <strong className="text-text-1">{patient.firstName} {patient.lastName}</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
+                    <span>{t('summaryCaseType')}: <strong className="text-text-1">{caseType}</strong>
+                      {isMVA && lawFirm && <> · {lawFirm.label}</>}
+                    </span>
+                  </li>
+                  {insurance && (
+                    <li className="flex items-start gap-2">
+                      <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
+                      <span>{t('summaryInsurance')}: <strong className="text-text-1">{insurance.label}</strong></span>
+                    </li>
                   )}
-                </div>
-              </div>
-
-              {/* 5. Autoridad historial médico */}
-              <ConsentBlock
-                icon={Shield}
-                title={t('consents.medicalHistory.title')}
-                body={t('consents.medicalHistory.body')}
-                checked={consents.medicalHistory}
-                onCheck={(v) => setConsent('medicalHistory', v)}
-              />
-            </div>
-          )}
-
-          {/* ══ STEP 3: Revisión ══ */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-3">
-                <h3 className="text-sm font-semibold text-text-1 pb-1 border-b border-border/60">
-                  Resumen del caso
-                </h3>
-
-                {([
-                  [t('reviewPatient'),      `${patient.firstName} ${patient.lastName}`],
-                  [t('reviewCaseType'),     caseType === 'MVA' ? t('caseTypeMVA') : t('caseTypeGM')],
-                  ...(isMVA ? [
-                    [t('reviewAccidentDate'), accidentDate || t('reviewNoDate')],
-                    [t('reviewLawFirm'),      lawFirm      || t('reviewNone')],
-                    [t('reviewAttorney'),     attorney     || t('reviewNone')],
-                    [t('reviewChiropractor'), chiropractor || t('reviewNone')],
-                  ] : []),
-                ] as [string, string][]).map(([label, value]) => (
-                  <div key={label} className="flex justify-between gap-4 text-sm">
-                    <span className="text-text-muted text-[11px] uppercase tracking-wider shrink-0">{label}</span>
-                    <span className="text-text-1 text-right">{value}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Consents summary */}
-              {(() => {
-                const items: { label: string; signed: boolean }[] = [
-                  { label: t('consents.hipaa.title'),           signed: consents.hipaa },
-                  { label: t('consents.assignedParties.title'), signed: consents.assignedParties },
-                  { label: t('consents.treatment.title'),       signed: consents.treatment },
-                  { label: t('consents.financial.title'),       signed: consents.financial },
-                  { label: t('consents.medicalHistory.title'),  signed: consents.medicalHistory },
-                ];
-                const signedCount = items.filter(i => i.signed).length;
-                const allSigned   = signedCount === items.length;
-                return (
-                  <div className={`rounded-lg border p-4 space-y-3 ${allSigned ? 'border-emerald/30 bg-emerald/5' : 'border-amber/30 bg-amber/5'}`}>
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[11px] font-semibold uppercase tracking-wider ${allSigned ? 'text-emerald' : 'text-amber'}`}>
-                        Estado de consentimientos
-                      </span>
-                      <span className={`text-[11px] font-medium ${allSigned ? 'text-emerald' : 'text-amber'}`}>
-                        {signedCount} / {items.length} firmados
-                      </span>
-                    </div>
-
-                    {/* Items */}
-                    <div className="space-y-1.5">
-                      {items.map(item => (
-                        <div key={item.label} className="flex items-center gap-2.5">
-                          <span className={`flex items-center justify-center w-5 h-5 rounded-full shrink-0 text-[11px] font-bold
-                            ${item.signed ? 'bg-emerald/15 text-emerald' : 'bg-rose/15 text-rose'}`}>
-                            {item.signed ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                          </span>
-                          <span className={`text-[12px] ${item.signed ? 'text-text-1' : 'text-text-muted'}`}>
-                            {item.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Firma digital */}
-                    <div className="flex items-center gap-2.5 pt-1 border-t border-border/30">
-                      <span className={`flex items-center justify-center w-5 h-5 rounded-full shrink-0
-                        ${consents.signatureDataUrl ? 'bg-emerald/15 text-emerald' : 'bg-rose/15 text-rose'}`}>
-                        {consents.signatureDataUrl ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                      </span>
-                      <span className={`text-[12px] ${consents.signatureDataUrl ? 'text-text-1' : 'text-text-muted'}`}>
-                        Firma digital
-                      </span>
-                      {consents.signatureDataUrl && (
-                        <img
-                          src={consents.signatureDataUrl}
-                          alt="Firma"
-                          className="ml-auto h-8 rounded border border-border/30 bg-bg-2/30 px-2"
-                        />
-                      )}
-                    </div>
-
-                    {/* Personas responsables — siempre visible */}
-                    <div className="pt-1 border-t border-border/30">
-                      <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1.5">
-                        Personas responsables autorizadas
-                      </p>
-                      {responsible.length === 0 ? (
-                        <p className="text-[12px] text-text-muted/60 italic">0 persona(s) responsable(s) registrada(s)</p>
-                      ) : (
-                        <div className="space-y-1">
-                          {responsible.map((p, i) => (
-                            <div key={i} className="flex items-center gap-2 text-[12px] text-text-1">
-                              <Check className="w-3 h-3 text-emerald shrink-0" />
-                              <span>{p.name || '—'}</span>
-                              {p.relation && <span className="text-text-muted">· {p.relation}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
+                  <li className="flex items-start gap-2">
+                    <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
+                    <span>{formDelivery === 'SEND_NOW' ? t('summaryFormSend') : t('summaryFormTablet')}</span>
+                  </li>
+                </ul>
+              </InfoCard>
+            </>
           )}
 
           {/* Error */}
@@ -763,56 +605,30 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
         </div>
 
         {/* Footer */}
-        <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 sticky bottom-0 bg-bg-1">
-          {step > 1 && (
-            <Button
-              variant="outline"
-              onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
-              disabled={saving}
-              className="w-full sm:w-auto"
-            >
+        <DialogFooter className="px-4 sm:px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 sticky bottom-0 bg-bg-1">
+          {step > 1 && !isEdit && (
+            <Button variant="outline" onClick={() => setStep(1)} disabled={saving} className="w-full sm:w-auto gap-1">
+              <ArrowLeft className="w-3.5 h-3.5" />
               {t('back')}
             </Button>
           )}
-          {step < 3 && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={saving}
-                className="w-full sm:w-auto sm:mr-auto"
-              >
-                {t('cancel')}
-              </Button>
-              <Button
-                onClick={handleNext}
-                disabled={saving || (step === 2 && !canGoStep3())}
-                className="w-full sm:w-auto flex items-center gap-1"
-              >
-                {t('next')} <ChevronRight className="w-3.5 h-3.5" />
-              </Button>
-            </>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="w-full sm:w-auto sm:mr-auto">
+            {t('cancel')}
+          </Button>
+          {(step === 1 && !isEdit) && (
+            <Button onClick={() => setStep(2)} disabled={!canGoStep2} className="w-full sm:w-auto gap-1">
+              {t('next')} <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
           )}
-          {step === 3 && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={saving}
-                className="w-full sm:w-auto sm:mr-auto"
-              >
-                {t('cancel')}
-              </Button>
-              <Button
-                onClick={isEdit ? handleSave : handleCreate}
-                disabled={saving}
-                className="w-full sm:w-auto"
-              >
-                {saving
-                  ? (isEdit ? 'Guardando...' : t('creating'))
-                  : (isEdit ? 'Guardar cambios' : t('createCase'))}
-              </Button>
-            </>
+          {(step === 2 && !isEdit) && (
+            <Button onClick={handleCreate} disabled={saving} className="w-full sm:w-auto">
+              {saving ? t('creating') : t('createCase')}
+            </Button>
+          )}
+          {isEdit && (
+            <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+              {saving ? t('saving') : t('saveChanges')}
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>

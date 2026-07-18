@@ -13,23 +13,33 @@ const PAGE_SIZE = 15;
 export default async function PatientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; showInactive?: string }>;
 }) {
   const t = await getTranslations('phoenix.patients');
-  const { q, page: pageParam } = await searchParams;
+  const { q, page: pageParam, showInactive } = await searchParams;
   const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
+  const inactiveOnly = showInactive === '1';
+
+  const statusFilter = inactiveOnly
+    ? { status: 'INACTIVE' as const }
+    : { NOT: { status: 'INACTIVE' as const } };
 
   const where = q
     ? {
-        OR: [
-          { firstName:   { contains: q, mode: 'insensitive' as const } },
-          { lastName:    { contains: q, mode: 'insensitive' as const } },
-          { email:       { contains: q, mode: 'insensitive' as const } },
-          { phone:       { contains: q, mode: 'insensitive' as const } },
-          { patientCode: { contains: q, mode: 'insensitive' as const } },
+        AND: [
+          statusFilter,
+          {
+            OR: [
+              { firstName:   { contains: q, mode: 'insensitive' as const } },
+              { lastName:    { contains: q, mode: 'insensitive' as const } },
+              { email:       { contains: q, mode: 'insensitive' as const } },
+              { phone:       { contains: q, mode: 'insensitive' as const } },
+              { patientCode: { contains: q, mode: 'insensitive' as const } },
+            ],
+          },
         ],
       }
-    : {};
+    : statusFilter;
 
   const [patients, total, specialties, clinics, providers] = await Promise.all([
     db.patient.findMany({
@@ -128,7 +138,7 @@ export default async function PatientsPage({
         subtitle={`${total} ${total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}${q ? ` · ${t('btnSearch').toLowerCase()}: "${q}"` : ''}`}
       />
 
-      <PatientsClient patients={rows} q={q} page={page} totalPages={totalPages} total={total} specialties={specialties} clinics={clinics} providers={providers} />
+      <PatientsClient patients={rows} q={q} page={page} totalPages={totalPages} total={total} specialties={specialties} clinics={clinics} providers={providers} inactiveOnly={inactiveOnly} />
     </div>
   );
 }

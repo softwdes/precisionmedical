@@ -137,21 +137,30 @@ export async function DELETE(
 
   const existing = await db.patient.findUnique({
     where: { id },
-    select: { id: true, patientCode: true, _count: { select: { cases: true } } },
+    select: {
+      id: true,
+      patientCode: true,
+      status: true,
+      cases: { select: { id: true } },
+    },
   });
   if (!existing) return NextResponse.json({ ok: false, error: 'NOT_FOUND' }, { status: 404 });
 
-  if (existing._count.cases > 0) {
-    return NextResponse.json(
-      { ok: false, error: 'HAS_CASES', message: 'No se puede eliminar un paciente con casos asociados.' },
-      { status: 409 },
-    );
-  }
-
-  await db.patient.update({
-    where: { id },
-    data: { status: 'INACTIVE' },
-  });
+  // Soft-delete en cascada: marcar paciente INACTIVE + deletedAt en todos sus casos
+  const now = new Date();
+  await db.$transaction([
+    db.patient.update({
+      where: { id },
+      data: { status: 'INACTIVE' },
+    }),
+    // Soft-delete de casos (deletedAt ya existe en el schema de Case)
+    ...(existing.cases.length > 0
+      ? [db.case.updateMany({
+          where: { patientId: id, deletedAt: null },
+          data: { deletedAt: now },
+        })]
+      : []),
+  ]);
 
   const actor = actorFromHeaders(req.headers);
   await writeAuditLog(db, {
@@ -160,9 +169,17 @@ export async function DELETE(
     action:      'DELETE_PATIENT',
     entityType:  'patients',
     entityId:    id,
-    metadata:    { patientCode: existing.patientCode },
+    metadata:    { patientCode: existing.patientCode, casesArchived: existing.cases.length },
     ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
   });
 
   return NextResponse.json({ ok: true });
 }
+
+/**
+ * POST /api/admin/patients/[id]/restore  — se llama desde un sub-path,
+ * pero aquí exponemos la lógica via un body action para evitar crear otro route file.
+ *
+ * En realidad creamos un endpoint separado en /restore/route.ts.
+ * Este comentario es solo referencia.
+ */

@@ -805,6 +805,7 @@ interface Props {
   specialties: Array<{ id: string; name: string; color: string }>;
   clinics: Array<{ id: string; name: string; address: string | null }>;
   providers: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
+  inactiveOnly?: boolean;
 }
 
 
@@ -1575,7 +1576,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   );
 }
 
-export function PatientsClient({ patients, q, page, totalPages, total, specialties, clinics, providers }: Props) {
+export function PatientsClient({ patients, q, page, totalPages, total, specialties, clinics, providers, inactiveOnly = false }: Props) {
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
 
@@ -1691,10 +1692,40 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
     }
   }
 
+  const [restoreTarget,  setRestoreTarget]  = useState<PatientRow | null>(null);
+  const [restoring,      setRestoring]      = useState(false);
+  const [restoreError,   setRestoreError]   = useState('');
+
+  async function handleRestore() {
+    if (!restoreTarget) return;
+    setRestoring(true);
+    setRestoreError('');
+    try {
+      const res = await fetch(`/api/admin/patients/${restoreTarget.id}/restore`, { method: 'POST' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setRestoreError(json.message ?? 'Error al restaurar.'); return; }
+      setRestoreTarget(null);
+      router.refresh();
+    } catch {
+      setRestoreError('Error de red. Intenta de nuevo.');
+    } finally {
+      setRestoring(false);
+    }
+  }
+
   function buildPageUrl(p: number) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (p > 0) params.set('page', String(p));
+    if (inactiveOnly) params.set('showInactive', '1');
+    const qs = params.toString();
+    return `/patients${qs ? `?${qs}` : ''}`;
+  }
+
+  function toggleInactiveUrl() {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (!inactiveOnly) params.set('showInactive', '1');
     const qs = params.toString();
     return `/patients${qs ? `?${qs}` : ''}`;
   }
@@ -1728,6 +1759,19 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
 
         {/* Acciones — derecha */}
         <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Toggle ver eliminados */}
+          <a
+            href={toggleInactiveUrl()}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm transition-colors whitespace-nowrap ${
+              inactiveOnly
+                ? 'border-amber/40 bg-amber/5 text-amber hover:bg-amber/10'
+                : 'border-border text-text-muted hover:border-amber/40 hover:text-amber'
+            }`}
+            title={inactiveOnly ? 'Ver pacientes activos' : 'Ver pacientes eliminados'}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{inactiveOnly ? 'Ver activos' : 'Eliminados'}</span>
+          </a>
           <button
             type="button"
             onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
@@ -2322,10 +2366,17 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
               <History className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuAuditHistory')}
             </button>
             <div className="my-1 border-t border-border/60" />
-            <button onClick={() => { setDeleteTarget(p); setDeleteError(''); setOpenMenuId(null); }}
-              className="flex items-center gap-2.5 w-full px-3 py-2 text-rose hover:bg-rose/10 transition-colors text-left">
-              <Trash2 className="w-3.5 h-3.5 shrink-0" /> {t('menuDelete')}
-            </button>
+            {p.status === 'INACTIVE' ? (
+              <button onClick={() => { setRestoreTarget(p); setRestoreError(''); setOpenMenuId(null); }}
+                className="flex items-center gap-2.5 w-full px-3 py-2 text-emerald hover:bg-emerald/10 transition-colors text-left">
+                <RefreshCw className="w-3.5 h-3.5 shrink-0" /> Restaurar paciente
+              </button>
+            ) : (
+              <button onClick={() => { setDeleteTarget(p); setDeleteError(''); setOpenMenuId(null); }}
+                className="flex items-center gap-2.5 w-full px-3 py-2 text-rose hover:bg-rose/10 transition-colors text-left">
+                <Trash2 className="w-3.5 h-3.5 shrink-0" /> {t('menuDelete')}
+              </button>
+            )}
           </div>
         );
       })()}
@@ -2431,13 +2482,13 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             <DialogTitle className="text-text-1">{t('deletePatientTitle')}</DialogTitle>
             <DialogDescription className="text-text-2 text-sm mt-1">
               {t('deletePatientBody', { name: `${deleteTarget?.firstName ?? ''} ${deleteTarget?.lastName ?? ''}` })}
-              {(deleteTarget?.caseCount ?? 0) > 0 && (
-                <span className="block mt-2 text-amber text-xs">
-                  ⚠ {t('deletePatientHasCases', { count: deleteTarget!.caseCount })}
-                </span>
-              )}
             </DialogDescription>
           </DialogHeader>
+          {(deleteTarget?.caseCount ?? 0) > 0 && (
+            <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-xs text-amber mt-2">
+              Este paciente tiene {deleteTarget!.caseCount} caso{deleteTarget!.caseCount !== 1 ? 's' : ''} asociado{deleteTarget!.caseCount !== 1 ? 's' : ''}. Al archivarlo, sus casos también quedarán ocultos. Los datos se conservan y se pueden restaurar.
+            </div>
+          )}
           {deleteError && (
             <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose mt-2">
               {deleteError}
@@ -2449,6 +2500,31 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             </Button>
             <Button variant="destructive" className="w-full sm:w-auto" onClick={handleDelete} disabled={deleting}>
               {deleting ? t('btnDeleting') : t('btnYesDelete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Restore confirm ─────────────────────────────────────────────────── */}
+      <Dialog open={!!restoreTarget} onOpenChange={(o) => { if (!o) setRestoreTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-text-1">Restaurar paciente</DialogTitle>
+            <DialogDescription className="text-text-2 text-sm mt-1">
+              ¿Restaurar a <strong>{restoreTarget?.firstName} {restoreTarget?.lastName}</strong>? El paciente y todos sus casos archivados volverán a estar visibles.
+            </DialogDescription>
+          </DialogHeader>
+          {restoreError && (
+            <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-xs text-rose mt-2">
+              {restoreError}
+            </div>
+          )}
+          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setRestoreTarget(null)} disabled={restoring}>
+              Cancelar
+            </Button>
+            <Button className="w-full sm:w-auto bg-emerald hover:bg-emerald/90 text-white" onClick={handleRestore} disabled={restoring}>
+              {restoring ? 'Restaurando...' : 'Sí, restaurar'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -27,7 +27,7 @@ export const pettyCashRouter = router({
     .query(async ({ input }) => {
       let query = supabaseAdmin
         .from('cash_boxes')
-        .select('id, name, currency, balance, lowBalanceThreshold, is_active, clinicId, responsibleUserId, updatedAt, qrDepositUrl')
+        .select('id, name, currency, balance, lowBalanceThreshold, is_active, clinicId, responsibleUserId, updatedAt')
         .order('name');
 
       // Default: only active. The management UI passes includeInactive

@@ -11,7 +11,6 @@ import {
 } from '@precision/ui';
 import {
   Wallet, Plus, Pencil, Power, PowerOff, Trash2, AlertTriangle, AlertCircle, Lock, ToggleRight,
-  QrCode, Upload, Loader2, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRole } from '@/contexts/role-context';
@@ -26,7 +25,6 @@ type BoxRow = {
   clinicId: string | null;
   responsibleUserId: string | null;
   updatedAt: string;
-  qrDepositUrl?: string | null;
 };
 
 const CURRENCY_FORMATTER: Record<string, Intl.NumberFormat> = {
@@ -72,7 +70,6 @@ export function CashBoxesClient(): React.ReactElement {
   const [editing, setEditing] = useState<BoxRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<BoxRow | null>(null);
   const [confirmToggle, setConfirmToggle] = useState<BoxRow | null>(null);
-  const [qrTarget, setQrTarget] = useState<BoxRow | null>(null);
 
   const toggleActive = trpc.pettyCash.toggleBoxActive.useMutation({
     onSuccess: () => {
@@ -203,58 +200,37 @@ export function CashBoxesClient(): React.ReactElement {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1.5 pt-2 border-t border-border/50">
-                  {/* QR — visible para todos */}
-                  <button
-                    onClick={() => setQrTarget(box)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-brand hover:bg-brand/10 transition-colors"
-                    title="Ver / subir QR de depósito"
-                  >
-                    <QrCode className="h-3 w-3" />
-                    QR
-                  </button>
-                  {canManage && (
-                    <>
-                      <button
-                        onClick={() => setEditing(box)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-text-1 hover:bg-surface/80 transition-colors"
-                        title="Editar caja"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => setConfirmToggle(box)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-text-1 hover:bg-surface/80 transition-colors"
-                        title={box.is_active ? 'Desactivar caja' : 'Activar caja'}
-                      >
-                        {box.is_active ? <PowerOff className="h-3 w-3" /> : <Power className="h-3 w-3" />}
-                        {box.is_active ? 'Desactivar' : 'Activar'}
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(box)}
-                        className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-tiny text-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        title="Eliminar (solo si no tiene transacciones)"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </>
-                  )}
-                </div>
+                {canManage && (
+                  <div className="flex items-center gap-1.5 pt-2 border-t border-border/50">
+                    <button
+                      onClick={() => setEditing(box)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-text-1 hover:bg-surface/80 transition-colors"
+                      title="Editar caja"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => setConfirmToggle(box)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-tiny text-text-3 hover:text-text-1 hover:bg-surface/80 transition-colors"
+                      title={box.is_active ? 'Desactivar caja' : 'Activar caja'}
+                    >
+                      {box.is_active ? <PowerOff className="h-3 w-3" /> : <Power className="h-3 w-3" />}
+                      {box.is_active ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(box)}
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-tiny text-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                      title="Eliminar (solo si no tiene transacciones)"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
-      )}
-
-      {/* QR Dialog */}
-      {qrTarget && (
-        <QrDepositDialog
-          box={qrTarget}
-          canManage={canManage}
-          onClose={() => setQrTarget(null)}
-          onUploaded={() => { void refetch(); }}
-        />
       )}
 
       {/* Dialogs */}
@@ -471,137 +447,6 @@ function CashBoxFormDialog({ mode, box, onClose, onSaved }: FormDialogProps): Re
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── QR Depósito dialog ──────────────────────────────────────────────
-
-function QrDepositDialog({
-  box, canManage, onClose, onUploaded,
-}: {
-  box: BoxRow;
-  canManage: boolean;
-  onClose: () => void;
-  onUploaded: () => void;
-}) {
-  const [uploading, setUploading]   = useState(false);
-  const [dragging,  setDragging]    = useState(false);
-  const [localUrl,  setLocalUrl]    = useState<string | null>(box.qrDepositUrl ?? null);
-
-  async function uploadFile(file: File) {
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res  = await fetch(`/api/admin/cash-boxes/${box.id}/qr`, { method: 'POST', body: fd });
-      const json = await res.json().catch(() => ({})) as { qrDepositUrl?: string };
-      if (!res.ok) throw new Error('upload failed');
-      setLocalUrl(json.qrDepositUrl ?? null);
-      toast.success('QR actualizado');
-      onUploaded();
-    } catch {
-      toast.error('Error al subir el QR');
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (file) void uploadFile(file);
-  }
-
-  function handleDrop(e: React.DragEvent<HTMLLabelElement>) {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && !uploading) void uploadFile(file);
-  }
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <QrCode className="h-4 w-4 text-brand" />
-            QR de depósito — {box.name}
-          </DialogTitle>
-          <DialogDescription className="text-xs text-text-3">
-            Muestra este QR para recibir depósitos en esta caja chica.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="py-2 space-y-3">
-          {localUrl ? (
-            <>
-              <div className="w-full rounded-xl border border-border overflow-hidden bg-white p-3">
-                <img src={localUrl} alt="QR depósito" className="w-full max-h-64 object-contain" />
-              </div>
-              {canManage && (
-                <label
-                  className={cn(
-                    'cursor-pointer w-full flex items-center justify-center gap-2 rounded-lg border border-dashed py-2.5 transition-colors',
-                    dragging
-                      ? 'border-brand bg-brand/10'
-                      : 'border-brand/30 bg-brand/5 hover:border-brand/60 hover:bg-brand/10',
-                    uploading && 'opacity-60 pointer-events-none',
-                  )}
-                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={handleDrop}
-                >
-                  {uploading
-                    ? <Loader2 className="h-3.5 w-3.5 text-brand animate-spin" />
-                    : <Upload className="h-3.5 w-3.5 text-brand" />
-                  }
-                  <span className="text-xs font-medium text-brand">
-                    {uploading ? 'Subiendo...' : 'Reemplazar QR'}
-                  </span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleInput} disabled={uploading} />
-                </label>
-              )}
-            </>
-          ) : (
-            canManage ? (
-              <label
-                className={cn(
-                  'cursor-pointer flex flex-col items-center justify-center w-full rounded-xl border-2 border-dashed py-10 gap-3 transition-colors',
-                  dragging
-                    ? 'border-brand bg-brand/10'
-                    : 'border-brand/30 bg-brand/5 hover:border-brand/60 hover:bg-brand/10',
-                  uploading && 'opacity-60 pointer-events-none',
-                )}
-                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={handleDrop}
-              >
-                {uploading
-                  ? <Loader2 className="h-8 w-8 text-brand animate-spin" />
-                  : <QrCode className="h-8 w-8 text-brand/50" />
-                }
-                <div className="text-center">
-                  <p className="text-sm font-medium text-brand">
-                    {uploading ? 'Subiendo...' : 'Subir QR de depósito'}
-                  </p>
-                  <p className="text-xs text-text-3 mt-0.5">Arrastra o haz clic para elegir</p>
-                </div>
-                <input type="file" accept="image/*" className="hidden" onChange={handleInput} disabled={uploading} />
-              </label>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-3">
-                <QrCode className="h-8 w-8 opacity-30" />
-                <p className="text-xs">No hay QR configurado para esta caja.</p>
-              </div>
-            )
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cerrar</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

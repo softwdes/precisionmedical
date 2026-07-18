@@ -78,12 +78,14 @@ interface PatientSearchResult {
 export function PreCallStep({
   onConfirm,
   onCancel,
+  initialMode,
 }: {
   onConfirm: (result: PreCallResult) => void;
   onCancel: () => void;
+  initialMode?: PreCallMode;
 }) {
   const t = useTranslations('phoenix.frontOffice.precall');
-  const [mode, setMode] = useState<PreCallMode | null>(null);
+  const [mode, setMode] = useState<PreCallMode | null>(initialMode ?? null);
 
   // Search state
   const [query, setQuery] = useState('');

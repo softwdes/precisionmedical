@@ -1952,7 +1952,9 @@
         "autocompleteChange": "Cambiar",
         "autocompleteSearching": "Buscando...",
         "titleSearch": "Nuevo caso · {name}",
-        "badgeSearch": "paciente existente"
+        "badgeSearch": "paciente existente",
+        "changePatient": "Cambiar paciente",
+        "changePatientHint": "Volver a la búsqueda"
       }
     },
     "billing": {

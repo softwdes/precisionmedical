@@ -87,6 +87,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
   // ─── Step state ────────────────────────────────────────────────────────
   const [step, setStep] = useState<'precall' | 'capturing'>('precall');
+  const [precallInitialMode, setPrecallInitialMode] = useState<PreCallMode | undefined>(undefined);
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [callMode, setCallMode] = useState<PreCallMode | null>(null);
   const [existingPatientId, setExistingPatientId] = useState<string | null>(null);
@@ -194,6 +195,15 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     }
     if (result.mode === 'manual') setReferralSource('LAW_FIRM_REFERRAL');
     setCallMode(result.mode); setCallElapsed(0); setStep('capturing');
+    setPrecallInitialMode(undefined);
+  };
+
+  const handleChangePatient = () => {
+    setStep('precall');
+    setPrecallInitialMode('search');
+    setFirstName(''); setLastName(''); setPhone(''); setEmail('');
+    setExistingPatientId(null); setCallMode(null); setCallElapsed(0);
+    setWizardStep(1);
   };
 
   // ─── Provider filtering ────────────────────────────────────────────────
@@ -403,7 +413,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto scroll-thin">
-            <PreCallStep onConfirm={handleStartCall} onCancel={() => onOpenChange(false)} />
+            <PreCallStep onConfirm={handleStartCall} onCancel={() => onOpenChange(false)} initialMode={precallInitialMode} />
           </div>
         </DialogContent>
       </Dialog>
@@ -621,6 +631,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 {lawFirm && <span className="truncate max-w-full">⚖ {lawFirm.label}</span>}
               </div>
             </div>
+            {isSearch && (
+              <button
+                type="button"
+                onClick={handleChangePatient}
+                title={t('changePatientHint')}
+                className="shrink-0 flex items-center gap-1 text-[11px] text-text-muted hover:text-brand transition-colors border border-border/60 hover:border-brand/40 rounded-md px-2 py-1"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                <span className="hidden sm:inline">{t('changePatient')}</span>
+              </button>
+            )}
           </div>
 
           {/* Step progress breadcrumb */}

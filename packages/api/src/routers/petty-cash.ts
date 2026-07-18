@@ -27,7 +27,7 @@ export const pettyCashRouter = router({
     .query(async ({ input }) => {
       let query = supabaseAdmin
         .from('cash_boxes')
-        .select('id, name, currency, balance, lowBalanceThreshold, is_active, clinicId, responsibleUserId, updatedAt, qrDepositUrl')
+        .select('id, name, currency, balance, lowBalanceThreshold, is_active, clinicId, responsibleUserId, updatedAt, qr_deposit_url')
         .order('name');
 
       // Default: only active. The management UI passes includeInactive
@@ -38,7 +38,10 @@ export const pettyCashRouter = router({
 
       const { data, error } = await query;
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
-      return data ?? [];
+      return (data ?? []).map((b: Record<string, unknown>) => ({
+        ...b,
+        qrDepositUrl: b.qr_deposit_url ?? null,
+      }));
     }),
 
   getBox: protectedProcedure

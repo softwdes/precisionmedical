@@ -48,7 +48,7 @@ export async function POST(
 
   const { error: updateError } = await admin
     .from('cash_boxes')
-    .update({ qrDepositUrl, updatedAt: new Date().toISOString() })
+    .update({ qr_deposit_url: qrDepositUrl, updatedAt: new Date().toISOString() })
     .eq('id', cashBoxId);
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
@@ -74,7 +74,7 @@ export async function DELETE(
 
   await admin
     .from('cash_boxes')
-    .update({ qrDepositUrl: null, updatedAt: new Date().toISOString() })
+    .update({ qr_deposit_url: null, updatedAt: new Date().toISOString() })
     .eq('id', cashBoxId);
 
   return NextResponse.json({ ok: true });

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Pill, FlaskConical, Plus, RefreshCw, Search, Loader2,
   ChevronLeft, ChevronRight, X, Calendar,
@@ -274,6 +275,8 @@ function PrescriptionModal({
   onClose: () => void;
   onSave: (data: Partial<Prescription>) => Promise<void>;
 }) {
+  const t  = useTranslations('phoenix.caseTabs.prescripciones');
+  const tc = useTranslations('phoenix.common');
   const providers = useProviders();
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<'IN_USE' | 'HISTORY'>('IN_USE');
@@ -387,7 +390,7 @@ function PrescriptionModal({
                   type="text"
                   value={drugQuery}
                   onChange={e => setDrugQuery(e.target.value)}
-                  placeholder="Selecciona un medicamento"
+                  placeholder={t('placeholderMed')}
                   className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {drugResults.length > 0 && (
@@ -416,7 +419,7 @@ function PrescriptionModal({
               type="text"
               value={dose}
               onChange={e => setDose(e.target.value)}
-              placeholder="Ej.: 5 mg, 20 mg, 10 ml"
+              placeholder={t('placeholderDose')}
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
             />
           </div>
@@ -428,7 +431,7 @@ function PrescriptionModal({
               value={instructions}
               onChange={e => setInstructions(e.target.value)}
               rows={3}
-              placeholder="Ej.: Tomar 1 tableta por vía oral dos veces al día con alimentos"
+              placeholder={t('placeholderSig')}
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand resize-none"
             />
           </div>
@@ -451,7 +454,7 @@ function PrescriptionModal({
                 onChange={e => setUnit(e.target.value)}
                 className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
               >
-                <option value="">Selecciona una opción</option>
+                <option value="">{tc('selectOption')}</option>
                 {UNIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
@@ -496,7 +499,7 @@ function PrescriptionModal({
               onChange={e => setPrescribedBy(e.target.value)}
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
             >
-              <option value="">Selecciona el médico que prescribe</option>
+              <option value="">{t('placeholderDoctor')}</option>
               {providers.map(p => <option key={p.id} value={p.label}>{p.label}</option>)}
             </select>
           </div>
@@ -515,7 +518,7 @@ function PrescriptionModal({
                   type="text"
                   value={diagnosisQuery}
                   onChange={e => setDiagnosisQuery(e.target.value)}
-                  placeholder="Selecciona un diagnóstico"
+                  placeholder={t('placeholderDiagnosis')}
                   className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {diagResults.length > 0 && (
@@ -540,7 +543,7 @@ function PrescriptionModal({
               type="text"
               value={pharmacy}
               onChange={e => setPharmacy(e.target.value)}
-              placeholder="Nombre de la farmacia"
+              placeholder={t('placeholderPharmacy')}
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
             />
           </div>
@@ -552,7 +555,7 @@ function PrescriptionModal({
               value={pharmacyNote}
               onChange={e => setPharmacyNote(e.target.value)}
               rows={2}
-              placeholder="Instrucciones especiales para la farmacia..."
+              placeholder={t('placeholderSigSpec')}
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand resize-none"
             />
           </div>
@@ -580,6 +583,8 @@ function LabModal({
   onClose: () => void;
   onSave: (data: Partial<Lab>) => Promise<void>;
 }) {
+  const t  = useTranslations('phoenix.caseTabs.prescripciones');
+  const tc = useTranslations('phoenix.common');
   const providers = useProviders();
   const [saving, setSaving] = useState(false);
 
@@ -645,7 +650,7 @@ function LabModal({
               }}
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
             >
-              <option value="">Selecciona un usuario</option>
+              <option value="">{t('placeholderUser')}</option>
               {providers.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
           </div>
@@ -668,7 +673,7 @@ function LabModal({
                 onChange={e => setBillingType(e.target.value)}
                 className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
               >
-                <option value="">Selecciona un tipo de facturación</option>
+                <option value="">{t('placeholderBilling')}</option>
                 {BILLING_TYPE_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
@@ -679,7 +684,7 @@ function LabModal({
             <div>
               <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Laboratorios</label>
               <MultiSelectSearch
-                placeholder="Seleccionar laboratorios..."
+                placeholder={t('placeholderLabs')}
                 selected={selectedLabs}
                 onAdd={item => setSelectedLabs(prev => [...prev, item])}
                 onRemove={id => setSelectedLabs(prev => prev.filter(l => l.id !== id))}
@@ -691,7 +696,7 @@ function LabModal({
             <div>
               <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">Diagnósticos</label>
               <MultiSelectSearch
-                placeholder="Seleccionar diagnósticos..."
+                placeholder={t('placeholderDiagnoses')}
                 selected={selectedDiags}
                 onAdd={item => setSelectedDiags(prev => [...prev, item])}
                 onRemove={id => setSelectedDiags(prev => prev.filter(d => d.id !== id))}
@@ -719,6 +724,8 @@ function LabModal({
 // ─── Prescription table ───────────────────────────────────────────────────────
 
 function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId: string }) {
+  const t  = useTranslations('phoenix.caseTabs.prescripciones');
+  const tc = useTranslations('phoenix.common');
   const [items, setItems] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -779,7 +786,7 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
           type="text"
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Presiona Enter para buscar"
+          placeholder={t('placeholderSearch')}
           className="flex-1 bg-transparent text-sm text-text-1 placeholder-text-muted outline-none"
         />
       </div>
@@ -791,7 +798,7 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
         </div>
       ) : paged.length === 0 ? (
         <div className="py-4">
-          <EmptyState.Rich icon={Pill} title="No se encontraron resultados" />
+          <EmptyState.Rich icon={Pill} title={t('emptyMeds')} />
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -847,6 +854,8 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
 // ─── Labs section ─────────────────────────────────────────────────────────────
 
 function LabsSection({ caseId }: { caseId: string }) {
+  const t  = useTranslations('phoenix.caseTabs.prescripciones');
+  const tc = useTranslations('phoenix.common');
   const providers = useProviders();
   const [items, setItems] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(true);
@@ -915,7 +924,7 @@ function LabsSection({ caseId }: { caseId: string }) {
             type="text"
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Presiona Intro para buscar..."
+            placeholder={t('placeholderSearchAlt')}
             className="flex-1 bg-transparent text-sm text-text-1 placeholder-text-muted outline-none min-w-0"
           />
         </div>
@@ -924,7 +933,7 @@ function LabsSection({ caseId }: { caseId: string }) {
           onChange={e => { setBillingFilter(e.target.value); setPage(1); }}
           className="rounded-md bg-bg-2 border border-border px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
         >
-          <option value="">Todos los tipos de facturación</option>
+          <option value="">{t('filterAllBilling')}</option>
           {BILLING_TYPE_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
         </select>
         <select
@@ -932,7 +941,7 @@ function LabsSection({ caseId }: { caseId: string }) {
           onChange={e => { setProviderFilter(e.target.value); setPage(1); }}
           className="rounded-md bg-bg-2 border border-border px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
         >
-          <option value="">Todos los médicos</option>
+          <option value="">{t('filterAllDoctors')}</option>
           {providers.map(p => <option key={p.id} value={p.label}>{p.label}</option>)}
         </select>
         <select
@@ -940,7 +949,7 @@ function LabsSection({ caseId }: { caseId: string }) {
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           className="rounded-md bg-bg-2 border border-border px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
         >
-          <option value="">Todos los estados</option>
+          <option value="">{t('filterAllStatuses')}</option>
           {LAB_STATUS_OPTIONS.map(s => <option key={s} value={s}>{LAB_STATUS_LABELS[s]}</option>)}
         </select>
       </div>
@@ -952,7 +961,7 @@ function LabsSection({ caseId }: { caseId: string }) {
         </div>
       ) : paged.length === 0 ? (
         <div className="py-4">
-          <EmptyState.Rich icon={FlaskConical} title="No se encontraron resultados" />
+          <EmptyState.Rich icon={FlaskConical} title={t('emptyLabs')} />
         </div>
       ) : (
         <div className="overflow-x-auto">

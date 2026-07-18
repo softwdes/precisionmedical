@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   DollarSign, ChevronRight, ChevronDown, Loader2, RefreshCw,
   Trash2, CreditCard, FileText, X, ChevronUp,
@@ -166,6 +167,8 @@ function KpiCard({ label, value, color }: { label: string; value: number; color:
 // ─── Main component ─────────────────────────────────────────────────────────────
 
 export function FinanzasTab({ caseId }: { caseId: string }) {
+  const t  = useTranslations('phoenix.caseTabs.finanzas');
+  const tc = useTranslations('phoenix.common');
   const [billings, setBillings]     = useState<BillingRecord[]>([]);
   const [kpis, setKpis]             = useState<Kpis>({ totalCost: 0, totalPaid: 0, totalBalance: 0 });
   const [insurances, setInsurances] = useState<CaseInsurance[]>([]);
@@ -244,7 +247,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
       .filter(([, v]) => parseFloat(v) > 0)
       .map(([billingId, v]) => ({ billingId, amount: parseFloat(v), notes: payNotes[billingId] || null }));
 
-    if (!entries.length) { alert('Ingresa al menos un monto mayor a 0.'); return; }
+    if (!entries.length) { alert(t('alertMinAmount')); return; }
 
     setPaying(true);
     try {
@@ -264,7 +267,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
       setPayOpen(false);
       load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al registrar pago');
+      alert(e instanceof Error ? e.message : t('alertErrorRegister'));
     } finally {
       setPaying(false);
     }
@@ -278,7 +281,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al cancelar pago');
+      alert(e instanceof Error ? e.message : t('alertErrorCancel'));
     } finally {
       setDeletingPay(null);
     }
@@ -344,8 +347,8 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
       ) : billings.length === 0 ? (
         <EmptyState.Rich
           icon={DollarSign}
-          title="Sin registros de facturación"
-          subtitle="Los registros aparecen al asignar servicios a las citas del caso."
+          title={t('emptyTitle')}
+          subtitle={t('emptySubtitle')}
         />
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">
@@ -447,7 +450,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                                             onClick={() => deletePayment(b.id, p.id)}
                                             disabled={deletingPay === p.id}
                                             className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50"
-                                            title="Cancelar pago"
+                                            title={tc('cancelPayment')}
                                           >
                                             {deletingPay === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                                           </button>
@@ -545,7 +548,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                             <button
                               onClick={() => setPayAmounts(prev => ({ ...prev, [b.id]: b.balanceDue.toFixed(2) }))}
                               className="text-[10px] text-brand hover:text-brand/70 transition-colors font-semibold flex-shrink-0"
-                              title="Máximo"
+                              title={t('colMax')}
                             >
                               MAX
                             </button>
@@ -589,7 +592,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                     value={payInsuranceId}
                     onChange={setPayInsuranceId}
                     options={insuranceOptions.length ? insuranceOptions : [{ label: 'Sin seguros en el caso', value: '' }]}
-                    placeholder="Seguro del caso…"
+                    placeholder={t('placeholderInsurance')}
                   />
                 ) : (
                   <SelectUp
@@ -618,7 +621,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                   placeholder="0"
                   onChange={e => autoDistribute(e.target.value)}
                   className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
-                  title="Escribe un monto total y se distribuye automáticamente del más reciente al más antiguo"
+                  title={t('tipAutoDistribute')}
                 />
                 <Button
                   size="sm"

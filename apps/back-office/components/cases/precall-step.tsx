@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Search as SearchIcon, PhoneOutgoing, Phone, ArrowRight, ArrowLeft,
-  User, ClipboardList,
+  User, ClipboardList, Lock,
 } from 'lucide-react';
 import { Button, Input, Label } from '@precision/ui';
 import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoenix';
@@ -166,7 +166,7 @@ export function PreCallStep({
   };
 
   const canStart: boolean =
-    (mode === 'search' && !!selectedPatient && !!selectedPatient.phone) ||
+    (mode === 'search' && !!selectedPatient) ||
     (mode === 'outgoing' && !!quickFirstName.trim() && !!quickPhone.trim()) ||
     (mode === 'manual' && !!quickFirstName.trim() && !!quickLastName.trim());
 
@@ -181,18 +181,20 @@ export function PreCallStep({
 
         <div className="space-y-2">
           <ModeCard
+            icon={PhoneOutgoing}
+            title={t('outgoingTitle')}
+            subtitle={t('outgoingSubtitle')}
+            tone="cyan"
+            disabled
+            disabledBadge={t('outgoingDisabled')}
+            onClick={() => {}}
+          />
+          <ModeCard
             icon={SearchIcon}
             title={t('searchTitle')}
             subtitle={t('searchSubtitle')}
             tone="brand"
             onClick={() => setMode('search')}
-          />
-          <ModeCard
-            icon={PhoneOutgoing}
-            title={t('outgoingTitle')}
-            subtitle={t('outgoingSubtitle')}
-            tone="cyan"
-            onClick={() => setMode('outgoing')}
           />
           <ModeCard
             icon={ClipboardList}
@@ -276,14 +278,16 @@ export function PreCallStep({
             )}
           </>
         ) : (
-          // Selected patient → show + actions
-          <InfoCard title={t('patientFoundTitle')} icon={User} tone="brand">
+          // Selected patient → verify + continue
+          <InfoCard title={t('patientVerifyTitle')} icon={User} tone="brand">
             <div className="flex items-center gap-3">
               <PersonAvatar firstName={selectedPatient.firstName} lastName={selectedPatient.lastName} size={12} gradientClass="bg-gradient-brand" />
               <div className="flex-1 min-w-0">
                 <div className="text-text-1 font-semibold text-sm">{selectedPatient.firstName} {selectedPatient.lastName}</div>
                 <div className="text-text-muted text-[11px] mt-0.5 flex items-center gap-x-2 flex-wrap">
                   <code className="font-mono">{selectedPatient.patientCode}</code>
+                  {selectedPatient.phone && <span className="font-mono">· {selectedPatient.phone}</span>}
+                  {selectedPatient.email && <span>· {selectedPatient.email}</span>}
                   {selectedPatient.casesCount > 0 && (
                     <span>· {selectedPatient.casesCount} caso{selectedPatient.casesCount > 1 ? 's' : ''} previo{selectedPatient.casesCount > 1 ? 's' : ''}</span>
                   )}
@@ -298,26 +302,15 @@ export function PreCallStep({
               </button>
             </div>
 
-            {selectedPatient.phone ? (
-              <a
-                href={`tel:${selectedPatient.phone}`}
-                className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-md border border-emerald/30 bg-emerald/10 text-emerald hover:bg-emerald/15 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  <span className="font-mono text-sm">{selectedPatient.phone}</span>
-                </div>
-                <span className="text-[10px] uppercase tracking-wider font-semibold">{t('tapToDial')}</span>
-              </a>
-            ) : (
-              <div className="text-rose text-xs italic">{t('noPhoneWarning')}</div>
-            )}
-
             {selectedPatient.lastCaseCode && (
               <div className="text-text-muted text-[11px]">
                 {t('lastCase')} <code className="font-mono text-text-2">{selectedPatient.lastCaseCode}</code> · {t('lastCaseStatus')} <code className="text-text-2">{selectedPatient.lastCaseStatus}</code>
               </div>
             )}
+
+            <div className="rounded-md border border-brand/20 bg-brand/5 px-3 py-2 text-[11px] text-brand">
+              {t('patientVerifyHint')}
+            </div>
           </InfoCard>
         )}
 
@@ -398,13 +391,15 @@ export function PreCallStep({
 // ═══ Atoms ═══════════════════════════════════════════════════════════════
 
 function ModeCard({
-  icon: Icon, title, subtitle, tone, onClick,
+  icon: Icon, title, subtitle, tone, onClick, disabled, disabledBadge,
 }: {
   icon: React.ElementType;
   title: string;
   subtitle: string;
   tone: 'brand' | 'emerald' | 'cyan' | 'amber';
   onClick: () => void;
+  disabled?: boolean;
+  disabledBadge?: string;
 }) {
   const toneClasses: Record<typeof tone, { border: string; bg: string; icon: string }> = {
     brand:   { border: 'border-border hover:border-brand/40',   bg: 'bg-bg-1',  icon: 'text-brand' },
@@ -412,6 +407,24 @@ function ModeCard({
     cyan:    { border: 'border-border hover:border-cyan/40',    bg: 'bg-bg-1',  icon: 'text-cyan' },
     amber:   { border: 'border-border hover:border-amber/40',   bg: 'bg-bg-1',  icon: 'text-amber' },
   };
+  if (disabled) {
+    return (
+      <div className="w-full rounded-lg border border-border/40 bg-bg-1/40 px-4 py-3 flex items-center gap-3 opacity-50 cursor-not-allowed">
+        <div className="w-10 h-10 rounded-md bg-bg-2/60 border border-border/40 flex items-center justify-center text-text-muted shrink-0">
+          <Icon className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-text-2 font-semibold text-sm">{title}</div>
+          <div className="text-text-muted text-[11px] mt-0.5">{subtitle}</div>
+        </div>
+        {disabledBadge && (
+          <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted border border-border/60 rounded px-1.5 py-0.5 shrink-0">
+            <Lock className="w-2.5 h-2.5" /> {disabledBadge}
+          </span>
+        )}
+      </div>
+    );
+  }
   return (
     <button
       type="button"
@@ -460,12 +473,12 @@ function FooterActions({
     ? t('startOutgoingBtn')
     : mode === 'manual'
       ? t('startManualBtn')
-      : t('startCallBtn');
+      : t('startSearchBtn');
   return (
     <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-border">
       <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">{t('cancel')}</Button>
       <Button onClick={onConfirm} disabled={!canConfirm} className="w-full sm:w-auto">
-        <Phone className="w-3.5 h-3.5 mr-1" /> {label}
+        {label}
         <ArrowRight className="w-3.5 h-3.5 ml-1" />
       </Button>
     </div>

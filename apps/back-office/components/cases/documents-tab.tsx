@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Folder, FolderOpen, File, FileText, FileImage, Upload,
   FolderPlus, Trash2, Download, ChevronRight, Home, Loader2,
@@ -230,6 +231,8 @@ function PreviewModal({ item, onClose, onDownload }: {
 // ─── Main component ─────────────────────────────────────────────────────────────
 
 export function DocumentsTab({ caseId }: { caseId: string }) {
+  const t  = useTranslations('phoenix.caseTabs.documents');
+  const tc = useTranslations('phoenix.common');
   const [items, setItems]           = useState<DocItem[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
@@ -305,7 +308,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
       setNewFolderName('');
       load(currentParentId);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al crear carpeta');
+      alert(e instanceof Error ? e.message : t('alertCreateFolder'));
     } finally {
       setCreatingFolder(false);
     }
@@ -329,7 +332,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
 
         if (!urlRes.ok) {
           if (urlData.error === 'S3_NOT_CONFIGURED') {
-            alert('La subida de archivos aún no está configurada. Las credenciales S3 están pendientes.\n\nPuedes crear carpetas mientras tanto.');
+            alert(t('alertS3NotConfigured'));
             break;
           }
           throw new Error(urlData.message ?? `HTTP ${urlRes.status}`);
@@ -357,7 +360,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
       setUploadOpen(false);
       load(currentParentId);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al subir archivo');
+      alert(e instanceof Error ? e.message : t('alertUploadError'));
     } finally {
       setUploading(false);
     }
@@ -365,7 +368,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
 
   async function handleDelete(item: DocItem) {
     if (item.isFolder && item._count.children > 0) {
-      alert(`La carpeta "${item.name}" tiene ${item._count.children} elemento(s). Vaciala antes de eliminarla.`);
+      alert(t('alertFolderNotEmpty', { name: item.name, count: item._count.children }));
       return;
     }
     if (!window.confirm(`¿Eliminar ${item.isFolder ? 'la carpeta' : 'el archivo'} "${item.name}"?`)) return;
@@ -378,7 +381,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
       }
       load(currentParentId);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al eliminar');
+      alert(e instanceof Error ? e.message : t('alertDeleteError'));
     } finally {
       setDeleting(null);
     }
@@ -389,10 +392,10 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
     const data = await res.json();
     if (!res.ok) {
       if (data.error === 'S3_NOT_CONFIGURED') {
-        alert('La descarga estará disponible cuando se configure el almacenamiento S3.');
+        alert(t('alertDownloadS3'));
         return;
       }
-      alert(data.message ?? 'Error al generar enlace de descarga');
+      alert(data.message ?? t('alertDownloadError'));
       return;
     }
     window.open(data.url, '_blank');
@@ -445,7 +448,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
           <div className="flex items-center gap-3 px-4 py-2 bg-brand/5 border-b border-brand/20 text-sm">
             <span className="text-brand font-medium text-xs">{selected.size} seleccionado{selected.size !== 1 ? 's' : ''}</span>
             <button
-              onClick={() => alert('La descarga masiva estará disponible cuando se configure el almacenamiento S3.')}
+              onClick={() => alert(t('alertBulkS3'))}
               className="flex items-center gap-1.5 text-text-2 hover:text-brand transition-colors text-xs"
             >
               <Download className="w-3.5 h-3.5" /> Descarga masiva
@@ -467,8 +470,8 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
           <div className="py-16">
             <EmptyState.Rich
               icon={FolderOpen}
-              title="Sin documentos"
-              subtitle={currentParentId ? 'Esta carpeta está vacía.' : 'No hay documentos en este caso. Crea una carpeta o sube un archivo.'}
+              title={t('emptyTitle')}
+              subtitle={currentParentId ? t('emptyFolderSubtitle') : t('emptyCaseSubtitle')}
             />
           </div>
         ) : (
@@ -481,7 +484,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                     checked={allSelected}
                     onChange={toggleAll}
                     className="accent-brand w-3.5 h-3.5 cursor-pointer"
-                    title="Seleccionar todo"
+                    title={tc('selectAll')}
                   />
                 </th>
                 <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Nombre</th>
@@ -536,7 +539,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                         onClick={() => handleDelete(item)}
                         disabled={deleting === item.id}
                         className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50"
-                        title="Eliminar"
+                        title={tc('delete')}
                       >
                         {deleting === item.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                       </button>
@@ -565,7 +568,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
                 if (e.key === 'Enter') createFolder();
                 if (e.key === 'Escape') { setNewFolderOpen(false); setNewFolderName(''); }
               }}
-              placeholder="Nombre de la carpeta"
+              placeholder={t('placeholderFolder')}
               autoFocus
               className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
             />

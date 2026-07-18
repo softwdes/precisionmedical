@@ -70,9 +70,9 @@ function fmtDate(d: Date): string {
   return new Date(d).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-const ENTITY_TYPE_LABEL: Record<string, { label: string; color: string }> = {
-  FIRM:        { label: 'Bufete',       color: 'bg-brand/10 text-brand border-brand/20' },
-  INDEPENDENT: { label: 'Independiente', color: 'bg-violet/10 text-violet border-violet/20' },
+const ENTITY_TYPE_COLOR: Record<string, string> = {
+  FIRM:        'bg-brand/10 text-brand border-brand/20',
+  INDEPENDENT: 'bg-violet/10 text-violet border-violet/20',
 };
 
 export function LawyersClient({ firms, stats }: Props) {
@@ -109,7 +109,7 @@ export function LawyersClient({ firms, stats }: Props) {
     <div className="space-y-6">
       <PageHeader
         title={t('title')}
-        subtitle={`${stats.active} activas · ${stats.totalMembers} miembros`}
+        subtitle={t('statsSummary', { active: stats.active, members: stats.totalMembers })}
         action={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="w-4 h-4 mr-1" /> {t('newButton')}
@@ -121,23 +121,23 @@ export function LawyersClient({ firms, stats }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* KPIs 2×3 */}
         <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <KpiCard compact label="Total"          value={stats.total}            sub="En catálogo"          color="text-text-1"   icon={Building2}     iconBg="bg-bg-2"         iconColor="text-text-muted" />
-          <KpiCard compact label="Activas"        value={stats.active}           sub="Recibiendo referidos"  color="text-emerald"  icon={CheckCircle2}  iconBg="bg-emerald/10"   iconColor="text-emerald" />
-          <KpiCard compact label="Independientes" value={stats.independentCount} sub="Sin bufete"            color="text-violet"   icon={User}          iconBg="bg-violet/10"    iconColor="text-violet" />
-          <KpiCard compact label="Nuevas 30 días" value={stats.newLast30}        sub="Recientemente"         color="text-cyan"     icon={CalendarPlus}  iconBg="bg-cyan/10"      iconColor="text-cyan" />
-          <KpiCard compact label="Slow payers"    value={stats.slowPayers}       sub=">150 días avg"         color="text-amber"    icon={Clock}         iconBg="bg-amber/10"     iconColor="text-amber" />
-          <KpiCard compact label="Miembros"       value={stats.totalMembers}     sub="Abogados + Mgrs"       color="text-brand"    icon={Users}         iconBg="bg-brand/10"     iconColor="text-brand" />
+          <KpiCard compact label={t('kpiTotal')}        value={stats.total}            sub={t('kpiTotalSub')}        color="text-text-1"   icon={Building2}     iconBg="bg-bg-2"         iconColor="text-text-muted" />
+          <KpiCard compact label={t('kpiActive')}       value={stats.active}           sub={t('kpiActiveSub')}       color="text-emerald"  icon={CheckCircle2}  iconBg="bg-emerald/10"   iconColor="text-emerald" />
+          <KpiCard compact label={t('kpiIndependent')}  value={stats.independentCount} sub={t('kpiIndependentSub')}  color="text-violet"   icon={User}          iconBg="bg-violet/10"    iconColor="text-violet" />
+          <KpiCard compact label={t('kpiNew30')}        value={stats.newLast30}        sub={t('kpiNew30Sub')}        color="text-cyan"     icon={CalendarPlus}  iconBg="bg-cyan/10"      iconColor="text-cyan" />
+          <KpiCard compact label={t('kpiSlowPayers')}   value={stats.slowPayers}       sub={t('kpiSlowPayersSub')}   color="text-amber"    icon={Clock}         iconBg="bg-amber/10"     iconColor="text-amber" />
+          <KpiCard compact label={t('kpiMembers')}      value={stats.totalMembers}     sub={t('kpiMembersSub')}      color="text-brand"    icon={Users}         iconBg="bg-brand/10"     iconColor="text-brand" />
         </div>
 
         {/* Panel distribución por tipo */}
         <div className="rounded-lg border border-border bg-bg-1 px-4 py-3 flex flex-col justify-between">
           <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold mb-3">
-            Distribución por tipo
+            {t('distTitle')}
           </div>
           <div className="space-y-3 flex-1">
             {[
-              { label: 'Bufetes (Firm)',      count: stats.total - stats.independentCount, color: 'bg-brand',  pct: stats.total > 0 ? Math.round((stats.total - stats.independentCount) / stats.total * 100) : 0 },
-              { label: 'Independientes',      count: stats.independentCount,               color: 'bg-violet', pct: stats.total > 0 ? Math.round(stats.independentCount / stats.total * 100) : 0 },
+              { label: t('distFirm'),        count: stats.total - stats.independentCount, color: 'bg-brand',  pct: stats.total > 0 ? Math.round((stats.total - stats.independentCount) / stats.total * 100) : 0 },
+              { label: t('distIndependent'), count: stats.independentCount,               color: 'bg-violet', pct: stats.total > 0 ? Math.round(stats.independentCount / stats.total * 100) : 0 },
             ].map((row) => (
               <div key={row.label}>
                 <div className="flex items-center justify-between mb-1">
@@ -154,7 +154,7 @@ export function LawyersClient({ firms, stats }: Props) {
             ))}
           </div>
           <div className="mt-3 pt-3 border-t border-row-sep text-[10px] text-text-muted">
-            {stats.active} activas · {stats.inactive} inactivas
+            {t('distFooter', { active: stats.active, inactive: stats.inactive })}
           </div>
         </div>
       </div>
@@ -179,15 +179,15 @@ export function LawyersClient({ firms, stats }: Props) {
         <DataTable.Scroll>
           <DataTable.Table>
             <DataTable.Head>
-              <DataTable.Th>Nombre</DataTable.Th>
-              <DataTable.Th>Tipo</DataTable.Th>
-              <DataTable.Th>Contacto</DataTable.Th>
-              <DataTable.Th>Dirección</DataTable.Th>
-              <DataTable.Th align="center">Miembros</DataTable.Th>
-              <DataTable.Th align="center">Pago</DataTable.Th>
-              <DataTable.Th>Flags</DataTable.Th>
+              <DataTable.Th>{t('columnName')}</DataTable.Th>
+              <DataTable.Th>{t('columnType')}</DataTable.Th>
+              <DataTable.Th>{t('columnContact')}</DataTable.Th>
+              <DataTable.Th>{t('columnAddress')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnMembers')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnPayment')}</DataTable.Th>
+              <DataTable.Th>{t('columnFlags')}</DataTable.Th>
               <DataTable.Th align="center">{tc('status')}</DataTable.Th>
-              <DataTable.Th>Creado</DataTable.Th>
+              <DataTable.Th>{t('columnCreated')}</DataTable.Th>
               <DataTable.Th align="right">{tc('actions')}</DataTable.Th>
             </DataTable.Head>
             <tbody>
@@ -195,13 +195,14 @@ export function LawyersClient({ firms, stats }: Props) {
                 <tr>
                   <DataTable.Td colSpan={7}>
                     <EmptyState.Inline
-                      message={search ? `No hay bufetes que coincidan con "${search}"` : 'No hay bufetes. Crea el primero arriba.'}
+                      message={search ? t('emptySearch', { search }) : t('emptyState')}
                     />
                   </DataTable.Td>
                 </tr>
               ) : (
                 paginated.map((f) => {
-                  const typeInfo = ENTITY_TYPE_LABEL[f.entityType] ?? { label: f.entityType, color: 'bg-bg-2 text-text-2 border-border' };
+                  const typeColor = ENTITY_TYPE_COLOR[f.entityType] ?? 'bg-bg-2 text-text-2 border-border';
+                  const typeLabel = f.entityType === 'FIRM' ? t('typeFirm') : f.entityType === 'INDEPENDENT' ? t('typeIndependent') : f.entityType;
                   return (
                     <DataTable.Row key={f.id} muted={f.status !== 'ACTIVE'}>
                       {/* Nombre + email icon */}
@@ -220,7 +221,7 @@ export function LawyersClient({ firms, stats }: Props) {
 
                       {/* Tipo */}
                       <DataTable.Td className="!py-1">
-                        <TagPill label={typeInfo.label} colorClass={typeInfo.color} compact />
+                        <TagPill label={typeLabel} colorClass={typeColor} compact />
                       </DataTable.Td>
 
                       {/* Contacto — solo teléfono, una línea */}
@@ -274,7 +275,7 @@ export function LawyersClient({ firms, stats }: Props) {
                       <DataTable.Td align="center" className="!py-1">
                         <StatusPill
                           state={f.status === 'ACTIVE' ? 'active' : 'inactive'}
-                          label={f.status === 'ACTIVE' ? 'Activo' : (f.status === 'INACTIVE' ? 'Inactivo' : f.status)}
+                          label={f.status === 'ACTIVE' ? tc('statusActive') : (f.status === 'INACTIVE' ? tc('statusInactive') : f.status)}
                         />
                       </DataTable.Td>
 
@@ -286,11 +287,11 @@ export function LawyersClient({ firms, stats }: Props) {
                       {/* Acciones */}
                       <DataTable.Td align="right" className="!py-1">
                         <div className="flex items-center justify-end gap-1">
-                          <Link href={`/admin/lawyers/${f.id}?tab=cases`} title="Ver casos">
-                            <IconAction icon={Eye} label="Ver detalle" />
+                          <Link href={`/admin/lawyers/${f.id}?tab=cases`} title={t('tooltipViewCases')}>
+                            <IconAction icon={Eye} label={t('btnViewDetail')} />
                           </Link>
-                          <IconAction onClick={() => setEditing(f)}  icon={Pencil}  label="Editar" />
-                          <IconAction onClick={() => setDeleting(f)} icon={Trash2}  label="Eliminar" variant="danger" />
+                          <IconAction onClick={() => setEditing(f)}  icon={Pencil}  label={tc('edit')} />
+                          <IconAction onClick={() => setDeleting(f)} icon={Trash2}  label={tc('delete')} variant="danger" />
                         </div>
                       </DataTable.Td>
                     </DataTable.Row>
@@ -301,7 +302,7 @@ export function LawyersClient({ firms, stats }: Props) {
           </DataTable.Table>
         </DataTable.Scroll>
         <TableFooter
-          left={`${filtered.length} bufete${filtered.length !== 1 ? 's' : ''} · página ${safePage} de ${totalPages}`}
+          left={t('footerLeft', { count: filtered.length, page: safePage, total: totalPages })}
           right={
             <div className="flex items-center gap-1">
               <button
@@ -348,9 +349,8 @@ export function LawyersClient({ firms, stats }: Props) {
 
 // ─── Domain pills ───────────────────────────────────────────────────────────
 
-/** PaymentSpeedPill — Pill custom para velocidad de pago del bufete.
- *  Usa TagPill del shared con color por dominio. */
 function PaymentSpeedPill({ speed }: { speed: string | null }) {
+  const t = useTranslations('phoenix.lawyers');
   if (!speed || speed === 'UNKNOWN') {
     return <span className="text-text-muted text-[10px] italic">—</span>;
   }
@@ -360,21 +360,14 @@ function PaymentSpeedPill({ speed }: { speed: string | null }) {
     SLOW:    'bg-amber/15 text-amber border-amber/30',
   };
   const labels: Record<string, string> = {
-    FAST:    '⚡ Rápido',
-    AVERAGE: '~ Promedio',
-    SLOW:    '⚠ Lento',
+    FAST:    t('speedFast'),
+    AVERAGE: t('speedAverage'),
+    SLOW:    t('speedSlow'),
   };
   return <TagPill label={labels[speed] ?? speed} colorClass={colors[speed] ?? 'bg-white/5 text-text-2 border-border'} />;
 }
 
 // ─── Modals ─────────────────────────────────────────────────────────────────
-
-const PAYMENT_SPEEDS = [
-  { value: 'UNKNOWN', label: 'Desconocido (sin data aún)' },
-  { value: 'FAST',    label: '⚡ Rápido (< 90 días)' },
-  { value: 'AVERAGE', label: '~ Promedio (90-150 días)' },
-  { value: 'SLOW',    label: '⚠ Lento (> 150 días)' },
-];
 
 function FirmDialog({
   open,
@@ -387,6 +380,16 @@ function FirmDialog({
   editing: Firm | null;
   onSaved: () => void;
 }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
+
+  const PAYMENT_SPEEDS = [
+    { value: 'UNKNOWN', label: t('speedUnknown') },
+    { value: 'FAST',    label: t('speedFastOption') },
+    { value: 'AVERAGE', label: t('speedAvgOption') },
+    { value: 'SLOW',    label: t('speedSlowOption') },
+  ];
+
   const [firmName, setFirmName] = useState(editing?.firmName ?? '');
   const [email, setEmail]       = useState(editing?.email ?? '');
   const [phone, setPhone]       = useState(editing?.phone ?? '');
@@ -419,7 +422,7 @@ function FirmDialog({
 
   const handleSave = async () => {
     setError(null);
-    if (!firmName.trim()) return setError('El nombre del bufete es obligatorio');
+    if (!firmName.trim()) return setError(t('errorFirmNameRequired'));
     setSaving(true);
     try {
       const flags = flagsInput.split(',').map((f) => f.trim()).filter(Boolean);
@@ -446,7 +449,7 @@ function FirmDialog({
       }
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar');
+      setError(e instanceof Error ? e.message : t('errorSave'));
     } finally {
       setSaving(false);
     }
@@ -456,47 +459,47 @@ function FirmDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>{editing ? `Editar — ${editing.firmName}` : 'Nuevo bufete'}</DialogTitle>
+          <DialogTitle>{editing ? t('dialogEditTitle', { name: editing.firmName }) : t('dialogCreateTitle')}</DialogTitle>
           <DialogDescription>
-            Los datos del bufete son consumidos en B.2 (autocomplete al crear caso) y B.22 (portal del abogado).
+            {t('dialogDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
           <div>
-            <Label htmlFor="firmName">Nombre del bufete <span className="text-rose">*</span></Label>
+            <Label htmlFor="firmName">{t('fieldFirmName')} <span className="text-rose">*</span></Label>
             <Input id="firmName" value={firmName} onChange={(e) => setFirmName(e.target.value)} placeholder="Ej: Smith & Johnson LLP" autoFocus />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="email">Email principal</Label>
+              <Label htmlFor="email">{t('fieldEmail')}</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@firm.com" />
             </div>
             <div>
-              <Label htmlFor="phone">Teléfono</Label>
+              <Label htmlFor="phone">{t('fieldPhone')}</Label>
               <Input id="phone" value={phone ?? ''} onChange={(e) => setPhone(e.target.value)} placeholder="+1-801-555-0000" />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="address">Dirección</Label>
+            <Label htmlFor="address">{t('fieldAddress')}</Label>
             <Input id="address" value={address ?? ''} onChange={(e) => setAddress(e.target.value)} placeholder="123 Center St, Suite 200" />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <Label htmlFor="city">Ciudad</Label>
+              <Label htmlFor="city">{t('fieldCity')}</Label>
               <Input id="city" value={city ?? ''} onChange={(e) => setCity(e.target.value)} placeholder="Provo" />
             </div>
             <div>
-              <Label htmlFor="state">Estado</Label>
+              <Label htmlFor="state">{t('fieldState')}</Label>
               <Input id="state" value={state ?? ''} onChange={(e) => setState(e.target.value)} placeholder="UT" maxLength={2} />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="paymentSpeed">Velocidad de pago</Label>
+            <Label htmlFor="paymentSpeed">{t('fieldPaymentSpeed')}</Label>
             <select
               id="paymentSpeed"
               value={paymentSpeed ?? 'UNKNOWN'}
@@ -511,26 +514,26 @@ function FirmDialog({
 
           <div>
             <Label htmlFor="flagsInput">
-              Caseflow flags
-              <span className="text-text-muted text-xs ml-1 font-normal">(coma · ej: PIP-COVERED, MED-PAY)</span>
+              {t('fieldFlags')}
+              <span className="text-text-muted text-xs ml-1 font-normal">{t('fieldFlagsHint')}</span>
             </Label>
             <Input id="flagsInput" value={flagsInput} onChange={(e) => setFlagsInput(e.target.value)} placeholder="PIP-COVERED, MED-PAY" />
           </div>
 
           <div>
-            <Label htmlFor="notes">Notas internas (Edson) — privadas</Label>
+            <Label htmlFor="notes">{t('fieldNotesLabel')}</Label>
             <textarea
               id="notes"
               value={notes ?? ''}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
-              placeholder="Notas privadas: paga lento, prefiere email, etc."
+              placeholder={t('placeholderNotes')}
             />
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 rounded accent-brand" />
-            <span className="text-sm text-text-2">Bufete activo (recibiendo referidos)</span>
+            <span className="text-sm text-text-2">{t('fieldActiveLabel')}</span>
           </label>
 
           {error && (
@@ -541,9 +544,9 @@ function FirmDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{tc('btnCancel')}</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear bufete'}
+            {saving ? tc('saving') : editing ? t('btnSaveChanges') : t('btnCreateFirm')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -560,6 +563,8 @@ function DeleteConfirmDialog({
   onClose: () => void;
   onConfirmed: () => void;
 }) {
+  const t  = useTranslations('phoenix.lawyers');
+  const tc = useTranslations('phoenix.common');
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -576,7 +581,7 @@ function DeleteConfirmDialog({
       }
       onConfirmed();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al eliminar');
+      setError(e instanceof Error ? e.message : t('errorDelete'));
     } finally {
       setDeleting(false);
     }
@@ -586,16 +591,16 @@ function DeleteConfirmDialog({
     <Dialog open={!!firm} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-rose">Eliminar bufete</DialogTitle>
+          <DialogTitle className="text-rose">{t('deleteTitle')}</DialogTitle>
           <DialogDescription>
-            ¿Seguro que querés eliminar <strong className="text-text-1">"{firm.firmName}"</strong>? Se hace soft-delete (queda inactivo).
+            {t('deleteDesc', { name: firm.firmName })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-3 text-sm text-text-2">
           {firm.memberCount > 0 && (
             <div className="bg-amber/10 border border-amber/30 rounded-md p-3 mb-3 text-amber text-xs">
-              ⚠ Tiene <strong>{firm.memberCount} miembro{firm.memberCount > 1 ? 's' : ''}</strong> (attorneys / case managers). Se marcarán como inactivos también.
+              ⚠ {t('deleteWarning', { count: firm.memberCount })}
             </div>
           )}
         </div>
@@ -607,9 +612,9 @@ function DeleteConfirmDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>{tc('btnCancel')}</Button>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Eliminando...' : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar</>)}
+            {deleting ? tc('deleting') : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> {tc('btnDelete')}</>)}
           </Button>
         </DialogFooter>
       </DialogContent>

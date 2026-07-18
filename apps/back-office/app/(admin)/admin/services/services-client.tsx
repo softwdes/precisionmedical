@@ -28,6 +28,12 @@ import {
 
 // B.33 — Servicios CPT/HCPCS/Custom
 
+const TYPE_OPTIONS = [
+  { value: 'CPT',       label: 'CPT (AMA · facturable)' },
+  { value: 'HCPCS',     label: 'HCPCS Level II (CMS · drugs/DME)' },
+  { value: 'CUSTOM_PM', label: 'Custom PM- (interno · NO facturable)' },
+];
+
 interface Service {
   id: string;
   code: string;
@@ -59,27 +65,6 @@ interface Props {
   };
 }
 
-const TYPE_OPTIONS = [
-  { value: 'CPT',       label: 'CPT (AMA · facturable)' },
-  { value: 'HCPCS',     label: 'HCPCS Level II (CMS · drugs/DME)' },
-  { value: 'CUSTOM_PM', label: 'Custom PM- (interno · NO facturable)' },
-];
-
-const CATEGORY_OPTIONS = [
-  { value: 'EM',                label: 'E&M (Evaluation & Mgmt)' },
-  { value: 'CHIROPRACTIC',      label: 'Chiropractic' },
-  { value: 'PHYSICAL_THERAPY',  label: 'Physical Therapy' },
-  { value: 'IMAGING',           label: 'Imaging' },
-  { value: 'INJECTIONS',        label: 'Injections' },
-  { value: 'SURGERY',           label: 'Surgery' },
-  { value: 'DME',               label: 'DME (Durable Medical Equipment)' },
-  { value: 'DRUGS',             label: 'Drugs (J-codes)' },
-  { value: 'LAB',               label: 'Laboratory' },
-  { value: 'REPORTS',           label: 'Reports / Legal narratives' },
-  { value: 'CUSTOM',            label: 'Custom Internal' },
-  { value: 'OTHER',             label: 'Other' },
-];
-
 export function ServicesClient({ services, stats }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.services');
@@ -94,21 +79,32 @@ export function ServicesClient({ services, stats }: Props) {
   const [viewing, setViewing] = useState<Service | null>(null);
   const [deleting, setDeleting] = useState<Service | null>(null);
 
+  const CATEGORY_OPTIONS = [
+    { value: 'EM',                label: t('cat_EM') },
+    { value: 'CHIROPRACTIC',      label: t('cat_CHIROPRACTIC') },
+    { value: 'PHYSICAL_THERAPY',  label: t('cat_PHYSICAL_THERAPY') },
+    { value: 'IMAGING',           label: t('cat_IMAGING') },
+    { value: 'INJECTIONS',        label: t('cat_INJECTIONS') },
+    { value: 'SURGERY',           label: t('cat_SURGERY') },
+    { value: 'DME',               label: t('cat_DME') },
+    { value: 'DRUGS',             label: t('cat_DRUGS') },
+    { value: 'LAB',               label: t('cat_LAB') },
+    { value: 'REPORTS',           label: t('cat_REPORTS') },
+    { value: 'CUSTOM',            label: t('cat_CUSTOM') },
+    { value: 'OTHER',             label: t('cat_OTHER') },
+  ];
+
   const filtered = services.filter((s) => {
-    // Tab filter
     if (tab === 'billable' && s.isInternalOnly) return false;
     if (tab === 'internal' && !s.isInternalOnly) return false;
-    // Search
     if (search) {
       const q = search.toLowerCase();
       if (!s.code.toLowerCase().includes(q) && !s.shortDescription.toLowerCase().includes(q)) return false;
     }
-    // Type/Favorites filter
     if (filter === 'favorites' && !s.isFavorite) return false;
     if (filter === 'CPT' && s.type !== 'CPT') return false;
     if (filter === 'HCPCS' && s.type !== 'HCPCS') return false;
     if (filter === 'CUSTOM_PM' && s.type !== 'CUSTOM_PM') return false;
-    // Category filter
     if (categoryFilter !== 'all' && s.category !== categoryFilter) return false;
     return true;
   });
@@ -134,7 +130,6 @@ export function ServicesClient({ services, stats }: Props) {
         }
       />
 
-      {/* Tabs */}
       <div className="flex gap-0 border-b border-border">
         <TabButton active={tab === 'billable'} onClick={() => setTab('billable')}>
           {t('tabBillable')} <span className="text-text-muted ml-1 font-mono">({stats.billable})</span>
@@ -144,7 +139,6 @@ export function ServicesClient({ services, stats }: Props) {
         </TabButton>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard label={t('kpiTotal')}       value={stats.total}     sub={`${stats.cpt} CPT · ${stats.hcpcs} HCPCS · ${stats.custom} PM`} color="text-text-1" />
         <KpiCard label={t('kpiActive')}      value={stats.active}    sub="2026" color="text-emerald" />
@@ -152,7 +146,6 @@ export function ServicesClient({ services, stats }: Props) {
         <KpiCard label={t('kpiFiscalYear')}  value={2026}            sub="AMA update Jan" color="text-brand" />
       </div>
 
-      {/* Filters */}
       <div className="space-y-2">
         <div className="flex gap-2 items-center flex-wrap">
           <div className="relative flex-1 max-w-xs">
@@ -174,13 +167,13 @@ export function ServicesClient({ services, stats }: Props) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Label className="text-xs text-text-muted">Categoría:</Label>
+          <Label className="text-xs text-text-muted">{t('filterCategoryLabel')}</Label>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="bg-bg-2 border border-border rounded-md px-3 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand"
           >
-            <option value="all">Todas las categorías</option>
+            <option value="all">{t('filterAllCategories')}</option>
             {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
@@ -191,20 +184,20 @@ export function ServicesClient({ services, stats }: Props) {
           <DataTable.Table>
             <DataTable.Head>
               <DataTable.Th align="center" width="40px">⭐</DataTable.Th>
-              <DataTable.Th>Código</DataTable.Th>
-              <DataTable.Th align="center">Tipo</DataTable.Th>
-              <DataTable.Th>Descripción</DataTable.Th>
-              <DataTable.Th align="center">Categoría</DataTable.Th>
-              <DataTable.Th align="right">Fee 2026</DataTable.Th>
-              <DataTable.Th align="center">Modifiers</DataTable.Th>
-              <DataTable.Th align="right">Acciones</DataTable.Th>
+              <DataTable.Th>{t('columnCode')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnType')}</DataTable.Th>
+              <DataTable.Th>{t('columnDescription')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnCategory')}</DataTable.Th>
+              <DataTable.Th align="right">{t('columnFee')}</DataTable.Th>
+              <DataTable.Th align="center">{t('columnModifiers')}</DataTable.Th>
+              <DataTable.Th align="right">{tc('actions')}</DataTable.Th>
             </DataTable.Head>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
                   <DataTable.Td colSpan={8}>
                     <EmptyState.Inline
-                      message={search ? `No hay servicios que coincidan con "${search}"` : 'No hay servicios. Crea el primero arriba.'}
+                      message={search ? t('emptySearch', { query: search }) : t('emptyDefault')}
                     />
                   </DataTable.Td>
                 </tr>
@@ -216,7 +209,7 @@ export function ServicesClient({ services, stats }: Props) {
                         type="button"
                         onClick={() => toggleFavorite(s)}
                         className="hover:scale-125 transition-transform"
-                        title={s.isFavorite ? 'Quitar de favoritos' : 'Marcar como favorito'}
+                        title={s.isFavorite ? t('removeFavorite') : t('addFavorite')}
                       >
                         <Star className={`w-4 h-4 ${s.isFavorite ? 'fill-amber text-amber' : 'text-text-muted/40'}`} />
                       </button>
@@ -244,9 +237,9 @@ export function ServicesClient({ services, stats }: Props) {
                     </DataTable.Td>
                     <DataTable.Td align="right">
                       <div className="flex items-center justify-end gap-1">
-                        <IconAction onClick={() => setViewing(s)}  icon={Eye}    label="Ver" />
-                        <IconAction onClick={() => setEditing(s)}  icon={Pencil} label="Editar" />
-                        <IconAction onClick={() => setDeleting(s)} icon={Trash2} label="Eliminar" variant="danger" />
+                        <IconAction onClick={() => setViewing(s)}  icon={Eye}    label={tc('view')} />
+                        <IconAction onClick={() => setEditing(s)}  icon={Pencil} label={tc('edit')} />
+                        <IconAction onClick={() => setDeleting(s)} icon={Trash2} label={tc('delete')} variant="danger" />
                       </div>
                     </DataTable.Td>
                   </DataTable.Row>
@@ -256,7 +249,7 @@ export function ServicesClient({ services, stats }: Props) {
           </DataTable.Table>
         </DataTable.Scroll>
         <TableFooter
-          left={`${filtered.length} servicios mostrados`}
+          left={t('footerShowing', { count: filtered.length })}
           right={<span className="font-mono">phoenix-dev · fiscal year 2026</span>}
         />
       </DataTable.Card>
@@ -298,7 +291,6 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-/** TypePill — Pill por tipo de servicio CPT/HCPCS/CUSTOM_PM */
 function TypePill({ type }: { type: string }) {
   const colors: Record<string, string> = {
     CPT:       'bg-brand/15 text-brand border-brand/30',
@@ -311,7 +303,6 @@ function TypePill({ type }: { type: string }) {
   return <TagPill label={labels[type] ?? type} colorClass={colors[type] ?? 'bg-white/5 text-text-2 border-border'} mono />;
 }
 
-/** CategoryPill — Pill compact por categoría AMA (E&M, Chiro, PT, etc.) */
 function CategoryPill({ cat }: { cat: string }) {
   const labels: Record<string, string> = {
     EM: 'E&M', CHIROPRACTIC: 'Chiro', PHYSICAL_THERAPY: 'PT',
@@ -332,6 +323,24 @@ function ServiceDialog({
   editing: Service | null;
   onSaved: () => void;
 }) {
+  const t = useTranslations('phoenix.services');
+  const tc = useTranslations('phoenix.common');
+
+  const CATEGORY_OPTIONS = [
+    { value: 'EM',                label: t('cat_EM') },
+    { value: 'CHIROPRACTIC',      label: t('cat_CHIROPRACTIC') },
+    { value: 'PHYSICAL_THERAPY',  label: t('cat_PHYSICAL_THERAPY') },
+    { value: 'IMAGING',           label: t('cat_IMAGING') },
+    { value: 'INJECTIONS',        label: t('cat_INJECTIONS') },
+    { value: 'SURGERY',           label: t('cat_SURGERY') },
+    { value: 'DME',               label: t('cat_DME') },
+    { value: 'DRUGS',             label: t('cat_DRUGS') },
+    { value: 'LAB',               label: t('cat_LAB') },
+    { value: 'REPORTS',           label: t('cat_REPORTS') },
+    { value: 'CUSTOM',            label: t('cat_CUSTOM') },
+    { value: 'OTHER',             label: t('cat_OTHER') },
+  ];
+
   const [code, setCode]         = useState(editing?.code ?? '');
   const [type, setType]         = useState(editing?.type ?? 'CPT');
   const [shortDesc, setShortDesc] = useState(editing?.shortDescription ?? '');
@@ -364,7 +373,6 @@ function ServiceDialog({
     setLastEditingId(editingId);
   }
 
-  // Auto-set internal-only when type changes to CUSTOM_PM
   const handleTypeChange = (newType: string) => {
     setType(newType);
     if (newType === 'CUSTOM_PM') setIsInternalOnly(true);
@@ -372,10 +380,10 @@ function ServiceDialog({
 
   const handleSave = async () => {
     setError(null);
-    if (!code.trim()) return setError('El código es obligatorio');
-    if (!shortDesc.trim()) return setError('La descripción corta es obligatoria');
+    if (!code.trim()) return setError(t('validCode'));
+    if (!shortDesc.trim()) return setError(t('validShortDesc'));
     if (type === 'CUSTOM_PM' && !code.startsWith('PM-')) {
-      return setError('Códigos CUSTOM_PM deben empezar con "PM-" (ej. PM-DIRECT)');
+      return setError(t('validCustomPm'));
     }
     setSaving(true);
     try {
@@ -404,7 +412,7 @@ function ServiceDialog({
       }
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar');
+      setError(e instanceof Error ? e.message : t('errorSave'));
     } finally {
       setSaving(false);
     }
@@ -414,37 +422,35 @@ function ServiceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editing ? `Editar — ${editing.code}` : 'Nuevo servicio'}</DialogTitle>
-          <DialogDescription>
-            Consumido en B.21 (CPT + firma del doctor), B.26 (HCFA submission Brunella), y como snapshot en B.18 Closing Case.
-          </DialogDescription>
+          <DialogTitle>{editing ? t('dialogEditTitle', { code: editing.code }) : t('dialogCreateTitle')}</DialogTitle>
+          <DialogDescription>{t('dialogDesc')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-2 scroll-thin">
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label htmlFor="code">Código <span className="text-rose">*</span></Label>
+              <Label htmlFor="code">{t('fieldCode')} <span className="text-rose">*</span></Label>
               <Input id="code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="99213, J3301, PM-NARRATIVE" autoFocus />
             </div>
             <div>
-              <Label htmlFor="type">Tipo</Label>
+              <Label htmlFor="type">{t('fieldType')}</Label>
               <select id="type" value={type} onChange={(e) => handleTypeChange(e.target.value)} className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
-                {TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div>
-              <Label htmlFor="currentFee">Fee <span className="text-rose">*</span></Label>
+              <Label htmlFor="currentFee">{t('fieldFee')} <span className="text-rose">*</span></Label>
               <Input id="currentFee" type="number" step="0.01" min="0" value={currentFee} onChange={(e) => setCurrentFee(e.target.value)} placeholder="300.00" />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="shortDesc">Descripción corta <span className="text-rose">*</span></Label>
+            <Label htmlFor="shortDesc">{t('fieldShortDesc')} <span className="text-rose">*</span></Label>
             <Input id="shortDesc" value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} placeholder="Office visit · 15 min" />
           </div>
 
           <div>
-            <Label htmlFor="longDesc">Descripción AMA completa</Label>
+            <Label htmlFor="longDesc">{t('fieldDescFull')}</Label>
             <textarea
               id="longDesc"
               value={longDesc ?? ''}
@@ -456,19 +462,19 @@ function ServiceDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="category">Categoría</Label>
+              <Label htmlFor="category">{t('fieldCategory')}</Label>
               <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
                 {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
             <div>
-              <Label htmlFor="modifiersInput">Modifiers permitidos <span className="text-text-muted text-xs font-normal">(coma)</span></Label>
+              <Label htmlFor="modifiersInput">{t('fieldModifiers')} <span className="text-text-muted text-xs font-normal">{t('fieldModifiersSub')}</span></Label>
               <Input id="modifiersInput" value={modifiersInput} onChange={(e) => setModifiersInput(e.target.value)} placeholder="-25, -59, -76" />
             </div>
           </div>
 
           <div>
-            <Label htmlFor="bundlingNotes">Notas de bundling</Label>
+            <Label htmlFor="bundlingNotes">{t('fieldBundlingNotes')}</Label>
             <textarea
               id="bundlingNotes"
               value={bundlingNotes ?? ''}
@@ -479,7 +485,7 @@ function ServiceDialog({
           </div>
 
           <div>
-            <Label htmlFor="notes">Notas internas</Label>
+            <Label htmlFor="notes">{t('fieldInternalNotes')}</Label>
             <textarea
               id="notes"
               value={notes ?? ''}
@@ -492,13 +498,13 @@ function ServiceDialog({
           <div className="space-y-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 rounded accent-brand" />
-              <span className="text-sm text-text-2">Servicio activo</span>
+              <span className="text-sm text-text-2">{t('checkboxActive')}</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={isInternalOnly} onChange={(e) => setIsInternalOnly(e.target.checked)} disabled={type === 'CUSTOM_PM'} className="w-4 h-4 rounded accent-brand" />
               <span className="text-sm text-text-2">
-                Solo interno (NO facturable a aseguradora)
-                {type === 'CUSTOM_PM' && <span className="text-text-muted ml-1">— automático para CUSTOM_PM</span>}
+                {t('checkboxInternalOnly')}
+                {type === 'CUSTOM_PM' && <span className="text-text-muted ml-1">{t('checkboxAutoCustomPm')}</span>}
               </span>
             </label>
           </div>
@@ -509,9 +515,9 @@ function ServiceDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{tc('cancel')}</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear servicio'}
+            {saving ? tc('saving') : editing ? tc('saveChanges') : t('dialogCreateBtn')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -520,6 +526,9 @@ function ServiceDialog({
 }
 
 function ViewDialog({ service, onClose, onEdit }: { service: Service | null; onClose: () => void; onEdit: () => void }) {
+  const t = useTranslations('phoenix.services');
+  const tc = useTranslations('phoenix.common');
+
   if (!service) return null;
   return (
     <Dialog open={!!service} onOpenChange={(open) => !open && onClose()}>
@@ -537,10 +546,10 @@ function ViewDialog({ service, onClose, onEdit }: { service: Service | null; onC
           {service.longDescription && (
             <div className="bg-bg-2 rounded-md p-3 text-text-2 text-xs leading-relaxed">{service.longDescription}</div>
           )}
-          <InfoRow label="Fee 2026"     value={<span className="text-emerald font-mono font-bold">${service.currentFee.toFixed(2)}</span>} />
-          <InfoRow label="Categoría"    value={<CategoryPill cat={service.category} />} />
-          <InfoRow label="Año fiscal"   value={<span className="font-mono">{service.fiscalYear}</span>} />
-          <InfoRow label="Modifiers"
+          <InfoRow label={t('infoFee')}       value={<span className="text-emerald font-mono font-bold">${service.currentFee.toFixed(2)}</span>} />
+          <InfoRow label={t('fieldCategory')} value={<CategoryPill cat={service.category} />} />
+          <InfoRow label={t('fieldFiscalYear')} value={<span className="font-mono">{service.fiscalYear}</span>} />
+          <InfoRow label={t('columnModifiers')}
             value={service.modifiersAllowed.length === 0 ? <Empty /> : (
               <div className="flex flex-wrap gap-1">
                 {service.modifiersAllowed.map((m) => (
@@ -549,18 +558,18 @@ function ViewDialog({ service, onClose, onEdit }: { service: Service | null; onC
               </div>
             )} />
           {service.bundlingNotes && (
-            <InfoRow label="Bundling" value={<div className="text-text-2 text-xs whitespace-pre-wrap">{service.bundlingNotes}</div>} />
+            <InfoRow label={t('infoBundling')} value={<div className="text-text-2 text-xs whitespace-pre-wrap">{service.bundlingNotes}</div>} />
           )}
-          <InfoRow label="Estado"       value={service.isActive ? <span className="text-emerald">Activo</span> : <span className="text-text-muted">Inactivo</span>} />
-          <InfoRow label="Facturable"   value={service.isInternalOnly ? <span className="text-amber">⚠ Solo interno (NO a seguro)</span> : <span className="text-emerald">Sí (a aseguradora)</span>} />
+          <InfoRow label={tc('status')}       value={service.isActive ? <span className="text-emerald">{t('statusActive')}</span> : <span className="text-text-muted">{t('statusInactive')}</span>} />
+          <InfoRow label={t('infoFacturable')} value={service.isInternalOnly ? <span className="text-amber">{t('infoInternalOnly')}</span> : <span className="text-emerald">{t('infoYesBillable')}</span>} />
           {service.notes && (
-            <InfoRow label="Notas" value={<div className="text-text-2 text-xs whitespace-pre-wrap">{service.notes}</div>} />
+            <InfoRow label={tc('notes')} value={<div className="text-text-2 text-xs whitespace-pre-wrap">{service.notes}</div>} />
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cerrar</Button>
-          <Button onClick={onEdit}><Pencil className="w-3.5 h-3.5 mr-1" /> Editar</Button>
+          <Button variant="outline" onClick={onClose}>{tc('close')}</Button>
+          <Button onClick={onEdit}><Pencil className="w-3.5 h-3.5 mr-1" /> {tc('edit')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -585,6 +594,8 @@ function DeleteConfirmDialog({
   onClose: () => void;
   onConfirmed: () => void;
 }) {
+  const t = useTranslations('phoenix.services');
+  const tc = useTranslations('phoenix.common');
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -601,7 +612,7 @@ function DeleteConfirmDialog({
       }
       onConfirmed();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al eliminar');
+      setError(e instanceof Error ? e.message : t('errorDelete'));
     } finally {
       setDeleting(false);
     }
@@ -611,16 +622,16 @@ function DeleteConfirmDialog({
     <Dialog open={!!service} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-rose">Eliminar servicio</DialogTitle>
+          <DialogTitle className="text-rose">{t('deleteTitle')}</DialogTitle>
           <DialogDescription>
-            ¿Seguro que querés eliminar <code className="text-text-1 font-mono">{service.code}</code> — {service.shortDescription}? Se hace soft-delete.
+            {t('deleteDesc', { code: service.code, description: service.shortDescription })}
           </DialogDescription>
         </DialogHeader>
         {error && <div className="text-rose text-sm bg-rose/10 border border-rose/30 rounded-md px-3 py-2">⚠ {error}</div>}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={deleting}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>{tc('cancel')}</Button>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Eliminando...' : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar</>)}
+            {deleting ? tc('deleting') : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> {tc('delete')}</>)}
           </Button>
         </DialogFooter>
       </DialogContent>

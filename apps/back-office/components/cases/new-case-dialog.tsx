@@ -95,7 +95,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [callElapsed, setCallElapsed] = useState(0);
   useEffect(() => {
     if (!open) { setCallElapsed(0); setStep('precall'); setCallMode(null); setExistingPatientId(null); return; }
-    if (step !== 'capturing' || callMode === 'manual') return;
+    if (step !== 'capturing' || callMode === 'manual' || callMode === 'search') return;
     const id = setInterval(() => setCallElapsed((p) => p + 1), 1000);
     return () => clearInterval(id);
   }, [open, step, callMode]);
@@ -366,6 +366,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   };
 
   const isManual = callMode === 'manual';
+  const isSearch = callMode === 'search';
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Paciente';
 
   // ─── Copy link ─────────────────────────────────────────────────────────
@@ -584,11 +585,11 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <div className="flex items-start justify-between gap-2 flex-wrap">
               <div className="min-w-0 flex-1">
                 <DialogTitle className="flex items-center gap-2 text-text-1 text-sm sm:text-base">
-                  {isManual
-                    ? <ClipboardList className="w-4 h-4 text-amber shrink-0" />
+                  {isManual || isSearch
+                    ? <ClipboardList className="w-4 h-4 text-brand shrink-0" />
                     : <PhoneCall className="w-4 h-4 text-emerald shrink-0" />}
                   <span className="truncate">
-                    {isManual ? t('titleManual', { name: fullName }) : t('titleCall', { name: fullName })}
+                    {isManual ? t('titleManual', { name: fullName }) : isSearch ? t('titleSearch', { name: fullName }) : t('titleCall', { name: fullName })}
                   </span>
                 </DialogTitle>
                 <DialogDescription className="mt-1 text-[11px] sm:text-xs flex items-center gap-1.5 flex-wrap">
@@ -599,6 +600,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                 {isManual
                   ? <TagPill label={t('badgeNoCall')} colorClass="bg-amber/15 text-amber border-amber/30" mono />
+                  : isSearch
+                  ? <TagPill label={t('badgeSearch')} colorClass="bg-brand/15 text-brand border-brand/30" mono />
                   : <TagPill
                       label={<><span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block mr-1 animate-pulse" />{elapsedLabel}</>}
                       colorClass="bg-emerald/15 text-emerald border-emerald/30"

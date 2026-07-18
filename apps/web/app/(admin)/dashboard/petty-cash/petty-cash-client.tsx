@@ -13,6 +13,7 @@ import {
 import {
   Wallet, TrendingDown, AlertTriangle, Plus, Download, FileText,
   ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight, BarChart2,
+  Pencil, Undo2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
@@ -65,6 +66,8 @@ function fmtDate(iso: string, locale: string) {
   return new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: 'short' });
 }
 
+type TxItem = { id: string; type: string; amount: unknown; description: string; category: string | null; performedAt: string; cashBoxId: string; country?: string; clinicName?: string };
+
 export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: Boxes; initialKpis: KPIs }) {
   const t = useTranslations();
   const locale = useLocale();
@@ -76,6 +79,8 @@ export function PettyCashClient({ initialBoxes, initialKpis }: { initialBoxes: B
   const [filterMonth,   setFilterMonth]   = useState(MONTH_OPTIONS[0].value);
   const [page,          setPage]          = useState(1);
   const [showModal,     setShowModal]     = useState(false);
+  const [editTx,        setEditTx]        = useState<TxItem | null>(null);
+  const [revertTx,      setRevertTx]      = useState<TxItem | null>(null);
 
   const { data: kpis, refetch: refetchKpis } = trpc.pettyCash.kpis.useQuery(undefined, { initialData: initialKpis });
 
@@ -371,6 +376,22 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                           );
                         })()}
                       </div>
+                      {!tx.description.startsWith('REVERSAL:') && (
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={() => setEditTx(tx as TxItem)}
+                            className="flex items-center gap-1 text-[10px] text-text-3 hover:text-brand transition-colors"
+                          >
+                            <Pencil className="h-3 w-3" /> Editar
+                          </button>
+                          <button
+                            onClick={() => setRevertTx(tx as TxItem)}
+                            className="flex items-center gap-1 text-[10px] text-text-3 hover:text-rose-500 transition-colors"
+                          >
+                            <Undo2 className="h-3 w-3" /> Revertir
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -392,6 +413,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                     <TableHead className="text-[11px]">{t('pettyCash.category')}</TableHead>
                     <TableHead className="text-right text-[11px]">{t('common.amount')}</TableHead>
                     <TableHead className="text-right text-[11px]">Saldo</TableHead>
+                    <TableHead className="text-[11px] w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -439,6 +461,26 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
                           </TableCell>
                         );
                       })()}
+                      <TableCell>
+                        {!tx.description.startsWith('REVERSAL:') && (
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={() => setEditTx(tx as TxItem)}
+                              className="p-1 rounded hover:bg-brand/10 text-text-3 hover:text-brand transition-colors"
+                              title="Editar"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setRevertTx(tx as TxItem)}
+                              className="p-1 rounded hover:bg-rose-500/10 text-text-3 hover:text-rose-500 transition-colors"
+                              title="Revertir"
+                            >
+                              <Undo2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -539,7 +581,7 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal — nuevo movimiento */}
       {showModal && (
         <NuevoMovimientoModal
           open={showModal}
@@ -548,12 +590,135 @@ td{padding:6px 5px;border-bottom:1px solid #f0f0f0}@media print{body{padding:0}}
           onSuccess={() => { setShowModal(false); refetchAll(); }}
         />
       )}
+
+      {/* Dialog — editar */}
+      {editTx && (
+        <EditarMovimientoDialog
+          tx={editTx}
+          onClose={() => setEditTx(null)}
+          onSuccess={() => { setEditTx(null); refetchAll(); }}
+        />
+      )}
+
+      {/* Dialog — revertir */}
+      {revertTx && (
+        <RevertirDialog
+          tx={revertTx}
+          onClose={() => setRevertTx(null)}
+          onSuccess={() => { setRevertTx(null); refetchAll(); }}
+        />
+      )}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────
-// Modal
+// Dialog — Editar movimiento
+// ─────────────────────────────────────────────────────
+function EditarMovimientoDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClose: () => void; onSuccess: () => void }) {
+  const [description, setDescription] = useState(tx.description);
+  const [category,    setCategory]    = useState(tx.category ?? '');
+  const [date,        setDate]        = useState(tx.performedAt.slice(0, 10));
+
+  const update = trpc.pettyCash.updateTransaction.useMutation({
+    onSuccess,
+    onError: (e) => toast.error(e.message),
+  });
+
+  const categoryOptions = CATEGORY_KEYS.map(key => ({ value: key, label: CATEGORY_LABELS_ES[key] ?? key }));
+  const isExpense = tx.type === 'EXPENSE';
+
+  return (
+    <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Editar movimiento</DialogTitle></DialogHeader>
+        <div className="space-y-4 pt-2 pb-1">
+          <div className="space-y-1.5">
+            <Label>Descripción</Label>
+            <Input value={description} onChange={e => setDescription(e.target.value)} />
+          </div>
+          {isExpense && (
+            <div className="space-y-1.5">
+              <Label>Categoría</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {categoryOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label>Fecha</Label>
+            <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button
+            disabled={update.isPending || !description.trim()}
+            onClick={() => update.mutate({ id: tx.id, description, category: isExpense ? category : undefined, performedAt: date })}
+          >
+            {update.isPending ? 'Guardando...' : 'Guardar cambios'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────────────────
+// Dialog — Revertir movimiento
+// ─────────────────────────────────────────────────────
+function RevertirDialog({ tx, onClose, onSuccess }: { tx: TxItem; onClose: () => void; onSuccess: () => void }) {
+  const [reason, setReason] = useState('');
+  const isDeposit = tx.type === 'DEPOSIT';
+
+  const reverse = trpc.pettyCash.reverse.useMutation({
+    onSuccess,
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Revertir movimiento</DialogTitle></DialogHeader>
+        <div className="space-y-4 pt-2 pb-1">
+          <div className={`rounded-lg border p-3 space-y-1 ${isDeposit ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-rose-500/25 bg-rose-500/5'}`}>
+            <p className="text-xs font-medium text-text-1 truncate">{tx.description}</p>
+            <p className={`text-sm font-bold font-mono ${Number(tx.amount) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {Number(tx.amount) >= 0 ? '+' : ''}${fmt(Number(tx.amount))}
+            </p>
+          </div>
+          <p className="text-xs text-text-3">
+            Esto crea un movimiento compensatorio que restaura el saldo de la caja. El movimiento original queda en el historial.
+          </p>
+          <div className="space-y-1.5">
+            <Label>Motivo de la reversión</Label>
+            <Input
+              placeholder="Ej: Error en el monto ingresado"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button
+            variant="destructive"
+            disabled={reverse.isPending || !reason.trim()}
+            onClick={() => reverse.mutate({ transactionId: tx.id, reason })}
+          >
+            {reverse.isPending ? 'Revirtiendo...' : 'Confirmar reversión'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────────────────
+// Modal — Nuevo movimiento
 // ─────────────────────────────────────────────────────
 function NuevoMovimientoModal({
   open, boxes, onClose, onSuccess,

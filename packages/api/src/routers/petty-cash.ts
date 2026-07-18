@@ -652,6 +652,39 @@ export const pettyCashRouter = router({
       };
     }),
 
+  updateTransaction: adminProcedure
+    .input(z.object({
+      id:          z.string(),
+      description: z.string().min(1).optional(),
+      category:    z.string().optional(),
+      performedAt: z.string().optional(), // ISO date string
+    }))
+    .mutation(async ({ input }) => {
+      const { id, ...patch } = input;
+
+      const { data: existing } = await supabaseAdmin
+        .from('cash_transactions')
+        .select('id')
+        .eq('id', id)
+        .single();
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      const updatePayload: Record<string, unknown> = {};
+      if (patch.description) updatePayload.description = patch.description;
+      if (patch.category)    updatePayload.category    = patch.category;
+      if (patch.performedAt) updatePayload.performedAt = new Date(patch.performedAt).toISOString();
+
+      const { data, error } = await supabaseAdmin
+        .from('cash_transactions')
+        .update(updatePayload)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
+      return data;
+    }),
+
   deleteBox: adminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {

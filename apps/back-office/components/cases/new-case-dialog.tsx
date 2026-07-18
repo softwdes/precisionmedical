@@ -63,7 +63,9 @@ interface AutoResult {
 type CaseType    = 'MVA' | 'GENERAL';
 type LawyerStatus = 'HAS' | 'SEEKING' | 'DECLINED';
 type ReferralSource =
-  | 'PHONE_CALL' | 'LAW_FIRM_REFERRAL' | 'PATIENT_REFERRAL' | 'WALK_IN' | 'WEB_FORM' | 'OTHER';
+  | 'LAW_FIRM' | 'PATIENT_REFERRAL' | 'CHIROPRACTOR' | 'REFERRAL' | 'PHONE_CALL' | 'WALK_IN'
+  | 'ACCIDENT_CENTER' | 'WEB_SEARCH' | 'GOOGLE' | 'GOOGLE_MAPS' | 'FACEBOOK' | 'INSTAGRAM'
+  | 'TIKTOK' | 'WEBSITE' | 'CLINIC_STAFF' | 'INSURANCE' | 'MEDICAL_INSURANCE' | 'FAMILY' | 'OTHER';
 type FormDelivery = 'SEND_NOW' | 'TABLET_AT_CLINIC';
 type WizardStep  = 1 | 2 | 3 | 4;
 
@@ -83,7 +85,8 @@ const SPECIALTY_ENUM_MAP: Record<string, string[]> = {
 
 export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState }: NewCaseDialogProps) {
   const router = useRouter();
-  const t = useTranslations('phoenix.frontOffice.newCase');
+  const t  = useTranslations('phoenix.frontOffice.newCase');
+  const tp = useTranslations('phoenix.patients');
 
   // ─── Step state ────────────────────────────────────────────────────────
   const [step, setStep] = useState<'precall' | 'capturing'>('precall');
@@ -108,7 +111,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [email, setEmail]         = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [language, setLanguage]   = useState<'es' | 'en'>('es');
-  const [referralSource, setReferralSource] = useState<ReferralSource>('LAW_FIRM_REFERRAL');
+  const [referralSource, setReferralSource] = useState<ReferralSource>('LAW_FIRM');
 
   // ─── Section 2: Case type + accident + lawyer + insurance ─────────────
   const [caseType, setCaseType] = useState<CaseType>('MVA');
@@ -181,7 +184,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       setCallElapsed(0); setStep('capturing');
     } else {
       setFirstName(''); setLastName(''); setPhone(''); setEmail('');
-      setDateOfBirth(''); setLanguage('es'); setReferralSource('LAW_FIRM_REFERRAL');
+      setDateOfBirth(''); setLanguage('es'); setReferralSource('LAW_FIRM');
       setStep('precall'); setCallMode(null); setExistingPatientId(null);
     }
   }, [open, specialties, clinics, initialState]);
@@ -193,7 +196,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       setExistingPatientId(result.existingPatient.id);
       setEmail(result.existingPatient.email ?? '');
     }
-    if (result.mode === 'manual') setReferralSource('LAW_FIRM_REFERRAL');
+    if (result.mode === 'manual') setReferralSource('LAW_FIRM');
     setCallMode(result.mode); setCallElapsed(0); setStep('capturing');
     setPrecallInitialMode(undefined);
   };
@@ -696,12 +699,25 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               </div>
               <FormField.Select label={t('referralSource')} value={referralSource} onChange={(v) => setReferralSource(v as ReferralSource)}
                 options={[
-                  { value: 'LAW_FIRM_REFERRAL', label: t('sourceFirearm') },
-                  { value: 'PATIENT_REFERRAL',  label: t('sourcePatient') },
-                  { value: 'PHONE_CALL',         label: t('sourcePhone') },
-                  { value: 'WALK_IN',            label: t('sourceWalkin') },
-                  { value: 'WEB_FORM',           label: t('sourceWeb') },
-                  { value: 'OTHER',              label: t('sourceOther') },
+                  { value: 'LAW_FIRM',          label: tp('referral.LAW_FIRM') },
+                  { value: 'PATIENT_REFERRAL',  label: tp('referral.PATIENT_REFERRAL') },
+                  { value: 'CHIROPRACTOR',       label: tp('referral.CHIROPRACTOR') },
+                  { value: 'REFERRAL',           label: tp('referral.REFERRAL') },
+                  { value: 'PHONE_CALL',         label: tp('referral.PHONE_CALL') },
+                  { value: 'WALK_IN',            label: tp('referral.WALK_IN') },
+                  { value: 'ACCIDENT_CENTER',    label: tp('referral.ACCIDENT_CENTER') },
+                  { value: 'WEB_SEARCH',         label: tp('referral.WEB_SEARCH') },
+                  { value: 'GOOGLE',             label: tp('referral.GOOGLE') },
+                  { value: 'GOOGLE_MAPS',        label: tp('referral.GOOGLE_MAPS') },
+                  { value: 'FACEBOOK',           label: tp('referral.FACEBOOK') },
+                  { value: 'INSTAGRAM',          label: tp('referral.INSTAGRAM') },
+                  { value: 'TIKTOK',             label: tp('referral.TIKTOK') },
+                  { value: 'WEBSITE',            label: tp('referral.WEBSITE') },
+                  { value: 'CLINIC_STAFF',       label: tp('referral.CLINIC_STAFF') },
+                  { value: 'INSURANCE',          label: tp('referral.INSURANCE') },
+                  { value: 'MEDICAL_INSURANCE',  label: tp('referral.MEDICAL_INSURANCE') },
+                  { value: 'FAMILY',             label: tp('referral.FAMILY') },
+                  { value: 'OTHER',              label: tp('referral.OTHER') },
                 ]}
                 hint={t('patientHint')}
               />

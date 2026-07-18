@@ -2743,7 +2743,9 @@
         "INSURANCE": "Seguro",
         "MEDICAL_INSURANCE": "Seguro médico",
         "TIKTOK": "TikTok",
-        "OTHER": "Otro"
+        "OTHER": "Otro",
+        "PHONE_CALL": "Llamada directa",
+        "WALK_IN": "Walk-in (sin cita)"
       },
       "btnNewPatient": "Nuevo paciente",
       "btnCreating": "Creando...",

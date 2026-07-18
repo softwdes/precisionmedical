@@ -412,7 +412,7 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
         </div>
       )}
 
-      <div className="flex min-h-[calc(100vh-45px)] overflow-x-hidden">
+      <div className="flex min-h-[calc(100vh-45px)] overflow-hidden w-full">
 
         {/* Desktop sidebar */}
         <aside className="hidden md:flex flex-col w-[210px] flex-shrink-0 bg-bg-1 border-r border-border p-4 gap-0">
@@ -424,7 +424,7 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
         </aside>
 
         {/* Main content */}
-        <div className="flex-1 min-w-0 p-4 sm:p-5 flex flex-col gap-4">
+        <div className="flex-1 min-w-0 overflow-hidden p-4 sm:p-5 flex flex-col gap-4">
 
           {/* Header */}
           <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -473,15 +473,17 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
           </div>
 
           {/* Charts — stacked on mobile, 2+1 grid on lg */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 min-w-0">
 
             {/* Line chart — full width on mobile, 2/3 on desktop */}
-            <div className="lg:col-span-2 rounded-xl border border-border bg-surface p-4 flex flex-col gap-2.5">
+            <div className="lg:col-span-2 min-w-0 overflow-hidden rounded-xl border border-border bg-surface p-4 flex flex-col gap-2.5">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">Evolución del saldo</p>
                 <p className="text-[10.5px] text-text-3 mt-0.5">Balance acumulado por día</p>
               </div>
-              <canvas ref={lineRef} className="w-full" style={{ height: 130 }} />
+              <div className="w-full overflow-hidden">
+                <canvas ref={lineRef} className="w-full" style={{ height: 130 }} />
+              </div>
               <div className="flex gap-4 flex-wrap">
                 <span className="flex items-center gap-1.5 text-[10.5px] text-text-3">
                   <span className="w-2 h-2 rounded-sm bg-brand flex-shrink-0" />Bolivia
@@ -493,12 +495,14 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
             </div>
 
             {/* Donut — full width on mobile, 1/3 on desktop */}
-            <div className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-2.5">
+            <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface p-4 flex flex-col gap-2.5">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">Por categoría</p>
                 <p className="text-[10.5px] text-text-3 mt-0.5">Distribución de gastos</p>
               </div>
-              <canvas ref={donutRef} className="w-full" style={{ height: 120 }} />
+              <div className="w-full overflow-hidden">
+                <canvas ref={donutRef} className="w-full" style={{ height: 120 }} />
+              </div>
               <div className="flex flex-col gap-1.5">
                 {report.byCategory.slice(0, 5).map(s => (
                   <span key={s.category} className="flex items-center gap-1.5 text-[10.5px] text-text-3">
@@ -511,12 +515,14 @@ export function ReportesClient({ initialBoxes }: { initialBoxes: Boxes }) {
           </div>
 
           {/* Bar chart */}
-          <div className="rounded-xl border border-border bg-surface p-4 flex flex-col gap-2.5">
+          <div className="overflow-hidden rounded-xl border border-border bg-surface p-4 flex flex-col gap-2.5">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-2">Gastos por sede / clínica</p>
               <p className="text-[10.5px] text-text-3 mt-0.5">Comparativa del período seleccionado</p>
             </div>
-            <canvas ref={barRef} className="w-full" style={{ height: 80 }} />
+            <div className="w-full overflow-hidden">
+              <canvas ref={barRef} className="w-full" style={{ height: 80 }} />
+            </div>
           </div>
 
           {/* Tabla desglose */}

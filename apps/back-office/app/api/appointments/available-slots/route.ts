@@ -34,7 +34,7 @@ const QuerySchema = z.object({
   fromDate:        z.string().datetime().optional(),
   toDate:          z.string().datetime().optional(),
   durationMinutes: z.coerce.number().int().min(15).max(240).default(45),
-  limit:           z.coerce.number().int().min(1).max(50).default(12),
+  limit:           z.coerce.number().int().min(1).max(200).default(12),
 });
 
 /** Devuelve el número de hora local en America/Denver para una fecha UTC */

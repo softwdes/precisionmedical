@@ -286,21 +286,21 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   }, [slotOptions]);
 
   // Week scaffold: always 5 weekday columns Mon–Fri
-  const todayMidnight = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }, []);
-  const minWeekStart  = useMemo(() => getMondayOf(new Date()).getTime(), []);
+  const todayDenver  = useMemo(() => toDenverDate(new Date()), []); // YYYY-MM-DD, computed once on mount
+  const minWeekStart = useMemo(() => getMondayOf(new Date()).getTime(), []);
 
   const weekDays = useMemo(() => Array.from({ length: 5 }, (_, i) => {
     const d   = addDays(weekStart, i);
     const iso = toDenverDate(d);
     return {
       iso,
-      isPast:   d.getTime() < todayMidnight,
+      isPast:   iso < todayDenver,
       slots:    slotsByDayIso.get(iso) ?? [],
       dayName:  d.toLocaleDateString('es-MX', { weekday: 'short', timeZone: 'America/Denver' }),
       dayNum:   d.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'America/Denver' }),
       monthShort: d.toLocaleDateString('es-MX', { month: 'short', timeZone: 'America/Denver' }),
     };
-  }), [weekStart, slotsByDayIso, todayMidnight]);
+  }), [weekStart, slotsByDayIso, todayDenver]);
 
   const selectedDaySlots = useMemo(() =>
     selectedDay ? (slotsByDayIso.get(selectedDay) ?? []) : [],
@@ -1323,18 +1323,24 @@ function formatElapsed(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function getMondayOf(d: Date): Date {
-  const date = new Date(d);
-  const day  = date.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  date.setDate(date.getDate() + diff);
-  date.setHours(0, 0, 0, 0);
-  return date;
+/** Returns Monday of the week containing `now` (in Denver timezone).
+ *  If today is Saturday or Sunday, returns NEXT Monday — the weekend is over. */
+function getMondayOf(now: Date): Date {
+  // Anchor to Denver date string to avoid local-timezone drift
+  const denverStr  = now.toLocaleDateString('en-CA', { timeZone: 'America/Denver' }); // YYYY-MM-DD
+  const denverDate = new Date(denverStr + 'T12:00:00Z'); // noon UTC = safe Denver day
+  const dow = denverDate.getUTCDay(); // 0=Sun 1=Mon … 6=Sat
+  // Weekend → advance to next Monday; weekday → go back to Monday of this week
+  const diff = dow === 0 ? 1 : dow === 6 ? 2 : 1 - dow;
+  const monday = new Date(denverDate);
+  monday.setUTCDate(denverDate.getUTCDate() + diff);
+  monday.setUTCHours(0, 0, 0, 0);
+  return monday;
 }
 
 function addDays(d: Date, n: number): Date {
   const r = new Date(d);
-  r.setDate(r.getDate() + n);
+  r.setUTCDate(r.getUTCDate() + n);
   return r;
 }
 

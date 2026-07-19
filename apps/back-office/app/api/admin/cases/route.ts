@@ -64,6 +64,7 @@ const InputSchema = z.object({
     scheduledFor: z.string().datetime(),
     durationMinutes: z.number().int().min(15).max(240).default(45),
     type: z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
+    notes: z.string().max(1000).nullable().optional(),
   }).nullable().optional(),
 
   // ─── Form delivery (opcional · si se elige durante la llamada) ──────
@@ -331,9 +332,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           durationMinutes: parsed.appointment.durationMinutes,
           type: parsed.appointment.type,
           status: 'SCHEDULED',
-          notes: parsed.legal.lawyerStatus === 'SEEKING'
-            ? '⚠ Paciente sin abogado · Edson debe contactar para asignar bufete antes de la cita'
-            : null,
+          notes: [
+            parsed.appointment.notes?.trim() || null,
+            parsed.legal.lawyerStatus === 'SEEKING'
+              ? '⚠ Paciente sin abogado · Edson debe contactar para asignar bufete antes de la cita'
+              : null,
+          ].filter(Boolean).join('\n') || null,
         },
       });
     }

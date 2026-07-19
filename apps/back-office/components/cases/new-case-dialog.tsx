@@ -231,12 +231,12 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     return providers.some((p) => enumTypes.includes(p.specialty));
   }, [providers, specialtyId, selectedSpecialtyName]);
 
-  // Auto-select first provider when specialty changes
+  // Al cambiar especialidad, limpiar selección de doctor si ya no está en la lista filtrada
   useEffect(() => {
-    if (scheduleNow && filteredProviders.length > 0 && !filteredProviders.some((p) => p.id === providerId)) {
-      setProviderId(filteredProviders[0].id);
+    if (providerId && !filteredProviders.some((p) => p.id === providerId)) {
+      setProviderId('');
     }
-  }, [specialtyId, filteredProviders, providerId, scheduleNow]);
+  }, [specialtyId, filteredProviders, providerId]);
 
   // ─── Slots ─────────────────────────────────────────────────────────────
   const [slotOptions, setSlotOptions]   = useState<Array<{ iso: string; label: string; dayLabel: string }>>([]);
@@ -247,8 +247,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     const controller = new AbortController();
     setSlotsLoading(true); setSlotIso(null);
     const fromDate = new Date().toISOString();
-    const toDate   = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString();
-    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '16' });
+    const toDate   = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '20' });
     fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
@@ -328,7 +328,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           caseType,
           source: referralSource,
           appointment: scheduleNow && slotIso ? {
-            clinicId, providerId,
+            clinicId,
+            providerId,
             scheduledFor: slotIso,
             durationMinutes: duration,
             type: caseType === 'MVA' ? 'AUTO_ACCIDENT' : 'FAMILY_PRACTICE',

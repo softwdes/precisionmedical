@@ -1323,25 +1323,24 @@ function formatElapsed(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** Returns Monday of the week containing `now` (in Denver timezone).
- *  If today is Saturday or Sunday, returns NEXT Monday — the weekend is over. */
+/** Returns Monday of the week containing `now` (in Denver timezone), at noon UTC.
+ *  Noon UTC = 6 AM MDT = same calendar day in Denver → toDenverDate() is stable.
+ *  Weekend (Sat/Sun) → advances to NEXT Monday. */
 function getMondayOf(now: Date): Date {
-  // Anchor to Denver date string to avoid local-timezone drift
-  const denverStr  = now.toLocaleDateString('en-CA', { timeZone: 'America/Denver' }); // YYYY-MM-DD
-  const denverDate = new Date(denverStr + 'T12:00:00Z'); // noon UTC = safe Denver day
-  const dow = denverDate.getUTCDay(); // 0=Sun 1=Mon … 6=Sat
-  // Weekend → advance to next Monday; weekday → go back to Monday of this week
+  // Step 1: find today's calendar date in Denver
+  const [y, m, d] = now.toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
+    .split('-').map(Number) as [number, number, number];
+  // Step 2: build a noon-UTC Date for that day (noon UTC is always the same Denver date)
+  const noonUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const dow = noonUtc.getUTCDay(); // 0=Sun 1=Mon … 6=Sat
+  // Step 3: offset to Monday; weekend → next Monday
   const diff = dow === 0 ? 1 : dow === 6 ? 2 : 1 - dow;
-  const monday = new Date(denverDate);
-  monday.setUTCDate(denverDate.getUTCDate() + diff);
-  monday.setUTCHours(0, 0, 0, 0);
-  return monday;
+  return new Date(Date.UTC(y, m - 1, d + diff, 12, 0, 0));
 }
 
+/** Add n calendar days to a Date that is stored at noon UTC. */
 function addDays(d: Date, n: number): Date {
-  const r = new Date(d);
-  r.setUTCDate(r.getUTCDate() + n);
-  return r;
+  return new Date(d.getTime() + n * 86_400_000);
 }
 
 function toDenverDate(d: Date): string {

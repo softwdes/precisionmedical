@@ -137,6 +137,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [duration, setDuration]       = useState(45);
   const [appointmentNotes, setAppointmentNotes] = useState('');
   const [showAllProviders, setShowAllProviders] = useState(false);
+  const [weekStart, setWeekStart]     = useState<Date>(() => getMondayOf(new Date()));
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   // ─── Section 3: Form delivery ──────────────────────────────────────────
   const [formDelivery, setFormDelivery] = useState<FormDelivery>('SEND_NOW');
@@ -171,6 +173,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setInsurance(null); setPolicyNumber('');
     setSpecialtyId(specialties[0]?.id ?? ''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
     setProviderId(''); setSlotIso(null); setDuration(45); setAppointmentNotes(''); setShowAllProviders(false);
+    setWeekStart(getMondayOf(new Date())); setSelectedDay(null);
     setFormDelivery('SEND_NOW');
     setSaving(false); setError(null); setSuccess(null); setCopied(false); setDuplicateId(null);
 
@@ -243,12 +246,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [slotsLoading, setSlotsLoading] = useState(false);
 
   useEffect(() => {
-    if (!providerId || !clinicId || !scheduleNow) { setSlotOptions([]); setSlotIso(null); return; }
+    if (!providerId || !clinicId || !scheduleNow) {
+      setSlotOptions([]); setSlotIso(null); setSelectedDay(null); return;
+    }
     const controller = new AbortController();
-    setSlotsLoading(true); setSlotIso(null);
-    const fromDate = new Date().toISOString();
-    const toDate   = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '20' });
+    setSlotsLoading(true); setSlotIso(null); setSelectedDay(null);
+    const fromDate = weekStart.toISOString();
+    const toDate   = addDays(weekStart, 5).toISOString();
+    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '100' });
     fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
@@ -267,18 +272,43 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       .catch(() => {})
       .finally(() => setSlotsLoading(false));
     return () => controller.abort();
-  }, [providerId, clinicId, duration, scheduleNow]);
+  }, [providerId, clinicId, duration, scheduleNow, weekStart]);
 
-  // Group slots by day
-  const slotsByDay = useMemo(() => {
+  // Group slots by Denver-date key (YYYY-MM-DD)
+  const slotsByDayIso = useMemo(() => {
     const map = new Map<string, typeof slotOptions>();
     for (const s of slotOptions) {
-      const day = s.dayLabel;
-      if (!map.has(day)) map.set(day, []);
-      map.get(day)!.push(s);
+      const key = toDenverDate(new Date(s.iso));
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
     }
-    return Array.from(map.entries());
+    return map;
   }, [slotOptions]);
+
+  // Week scaffold: always 5 weekday columns Mon–Fri
+  const todayMidnight = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }, []);
+  const minWeekStart  = useMemo(() => getMondayOf(new Date()).getTime(), []);
+
+  const weekDays = useMemo(() => Array.from({ length: 5 }, (_, i) => {
+    const d   = addDays(weekStart, i);
+    const iso = toDenverDate(d);
+    return {
+      iso,
+      isPast:   d.getTime() < todayMidnight,
+      slots:    slotsByDayIso.get(iso) ?? [],
+      dayName:  d.toLocaleDateString('es-MX', { weekday: 'short', timeZone: 'America/Denver' }),
+      dayNum:   d.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'America/Denver' }),
+      monthShort: d.toLocaleDateString('es-MX', { month: 'short', timeZone: 'America/Denver' }),
+    };
+  }), [weekStart, slotsByDayIso, todayMidnight]);
+
+  const selectedDaySlots = useMemo(() =>
+    selectedDay ? (slotsByDayIso.get(selectedDay) ?? []) : [],
+    [selectedDay, slotsByDayIso],
+  );
+
+  const isPrevWeekDisabled = weekStart.getTime() <= minWeekStart;
+  const isNextWeekDisabled = weekStart.getTime() >= minWeekStart + 28 * 24 * 60 * 60 * 1000;
 
   // ─── Step validation ───────────────────────────────────────────────────
   const canGoToStep2 = firstName.trim() !== '' && lastName.trim() !== '';
@@ -886,37 +916,89 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   <FormField.Select label={t('duration')} value={String(duration)} onChange={(v) => setDuration(parseInt(v, 10))}
                     options={[15, 30, 45, 60, 90, 120].map((m) => ({ value: String(m), label: t('durationMin', { m }) }))} />
 
-                  {/* Slots agrupados por día */}
+                  {/* Selector semanal de horarios */}
                   <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Label>
-                        {t('slotsLabel')}
-                        {slotsLoading && (
-                          <span className="ml-2 text-[10px] text-text-muted font-normal animate-pulse">{t('slotsLoading')}</span>
-                        )}
-                      </Label>
-                      {!slotsLoading && slotOptions.length > 0 && (
-                        <span className="text-[10px] text-text-muted">8 días hábiles</span>
+                    <Label className="mb-2 block">
+                      {t('slotsLabel')}
+                      {slotsLoading && (
+                        <span className="ml-2 text-[10px] text-text-muted font-normal animate-pulse">{t('slotsLoading')}</span>
                       )}
-                    </div>
+                    </Label>
 
                     {!providerId || !clinicId ? (
                       <p className="text-[11px] text-text-muted italic">{t('slotsSelectFirst')}</p>
-                    ) : slotsLoading ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                        {Array.from({ length: 8 }).map((_, i) => (
-                          <div key={i} className="h-9 rounded-md border border-border bg-bg-2 animate-pulse" />
-                        ))}
-                      </div>
-                    ) : slotsByDay.length === 0 ? (
-                      <Note tone="amber">{t('slotsNone')}</Note>
                     ) : (
-                      <div className="space-y-3">
-                        {slotsByDay.map(([day, daySlots]) => (
-                          <div key={day}>
-                            <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold mb-1.5">{day}</div>
+                      <>
+                        {/* ── Navegación de semana ── */}
+                        <div className="flex items-center justify-between mb-2 gap-2">
+                          <button
+                            type="button"
+                            disabled={isPrevWeekDisabled}
+                            onClick={() => { setWeekStart(addDays(weekStart, -7)); setSelectedDay(null); }}
+                            className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                          >
+                            <ArrowLeft className="w-3 h-3" /> Sem. ant.
+                          </button>
+                          <span className="text-[11px] text-text-muted font-medium">
+                            {weekDays[0]
+                              ? `${weekDays[0].dayNum} ${weekDays[0].monthShort} – ${weekDays[4].dayNum} ${weekDays[4].monthShort}`
+                              : ''}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isNextWeekDisabled}
+                            onClick={() => { setWeekStart(addDays(weekStart, 7)); setSelectedDay(null); }}
+                            className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                          >
+                            Sem. sig. <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* ── 5 columnas día ── */}
+                        <div className="grid grid-cols-5 gap-1.5 mb-3">
+                          {weekDays.map((wd) => {
+                            const isSelected = selectedDay === wd.iso;
+                            const hasSlots   = wd.slots.length > 0;
+                            return (
+                              <button
+                                key={wd.iso}
+                                type="button"
+                                disabled={slotsLoading || (!hasSlots && !wd.isPast)}
+                                onClick={() => !wd.isPast && hasSlots && setSelectedDay(isSelected ? null : wd.iso)}
+                                className={`flex flex-col items-center py-2 px-1 rounded-lg border text-[10px] font-medium transition-colors ${
+                                  isSelected
+                                    ? 'bg-emerald/15 border-emerald/50 text-emerald'
+                                    : wd.isPast
+                                    ? 'bg-bg-2/30 border-border/40 text-text-muted opacity-50 cursor-not-allowed'
+                                    : hasSlots
+                                    ? 'bg-bg-2 border-border text-text-2 hover:border-emerald/40 hover:bg-emerald/5 cursor-pointer'
+                                    : 'bg-bg-2/30 border-border/40 text-text-muted cursor-not-allowed'
+                                }`}
+                              >
+                                <span className="uppercase tracking-wide font-semibold">{wd.dayName}</span>
+                                <span className="text-sm font-bold mt-0.5">{wd.dayNum}</span>
+                                {slotsLoading ? (
+                                  <div className="mt-1 w-6 h-2 rounded bg-border animate-pulse" />
+                                ) : hasSlots ? (
+                                  <span className={`mt-1 text-[9px] ${isSelected ? 'text-emerald' : 'text-text-muted'}`}>
+                                    {wd.slots.length} hr{wd.slots.length !== 1 ? 's' : ''}
+                                  </span>
+                                ) : (
+                                  <span className="mt-1 text-[9px] text-text-muted/60">—</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* ── Slots del día seleccionado ── */}
+                        {selectedDay && selectedDaySlots.length > 0 && (
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold mb-1.5">
+                              {weekDays.find((d) => d.iso === selectedDay)?.dayName ?? ''} {weekDays.find((d) => d.iso === selectedDay)?.dayNum} · selecciona hora
+                            </div>
                             <div className="flex flex-wrap gap-1.5">
-                              {daySlots.map((s) => (
+                              {selectedDaySlots.map((s) => (
                                 <button
                                   key={s.iso}
                                   type="button"
@@ -932,8 +1014,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                               ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        )}
+
+                        {!selectedDay && !slotsLoading && (
+                          <p className="text-[11px] text-text-muted italic">
+                            Selecciona un día para ver los horarios disponibles.
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -1233,4 +1321,23 @@ function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function getMondayOf(d: Date): Date {
+  const date = new Date(d);
+  const day  = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+function toDenverDate(d: Date): string {
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
 }

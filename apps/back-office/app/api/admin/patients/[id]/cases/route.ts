@@ -22,6 +22,7 @@ export async function GET(
       accidentNotes: true,
       intakeFormCompletedAt: true,
       consentsData: true,
+      intakeSubmission: { select: { id: true } },
     },
   });
 
@@ -53,6 +54,7 @@ export async function GET(
       accidentNotes:        c.accidentNotes ?? null,
       intakeFormCompletedAt: c.intakeFormCompletedAt?.toISOString() ?? null,
       consentsData:         c.consentsData,
+      hasIntakeSubmission:  !!c.intakeSubmission,
       firstAppointment:     cAppts[0]                  ? { scheduledFor: cAppts[0].toISOString() }                  : null,
       lastAppointment:      cAppts.length > 1           ? { scheduledFor: cAppts[cAppts.length - 1].toISOString() } : null,
     };

@@ -33,6 +33,7 @@ interface CaseRow {
   accidentNotes: string | null;
   intakeFormCompletedAt: string | null;
   consentsData: Record<string, unknown> | null;
+  hasIntakeSubmission?: boolean;
   firstAppointment: { scheduledFor: string } | null;
   lastAppointment:  { scheduledFor: string } | null;
 }
@@ -46,7 +47,14 @@ const CASE_TYPE_LABEL: Record<string, string> = {
   NURSING_HOME: 'Nursing Home',
 };
 
-type MissingKey = 'missingAddress' | 'missingEmergency' | 'missingDemographics' | 'missingConsents' | 'missingSignature';
+type MissingKey =
+  | 'missingPersonal'
+  | 'missingEmergency'
+  | 'missingDemographics'
+  | 'missingAccident'
+  | 'missingInsurance'
+  | 'missingMedicalHistory'
+  | 'missingConsents';
 
 function calcIntakeProgress(c: CaseRow, p: PatientRow): {
   pct: number; missingKeys: MissingKey[]; colorClass: string; barClass: string;
@@ -57,21 +65,31 @@ function calcIntakeProgress(c: CaseRow, p: PatientRow): {
   const cd = (c.consentsData ?? {}) as Record<string, unknown>;
   const missingKeys: MissingKey[] = [];
 
-  if (!p.addressLine1 || !p.addressCity) missingKeys.push('missingAddress');
+  // 1. Info personal — dirección + fecha de nacimiento
+  if (!p.addressLine1 || !p.addressCity || !p.dateOfBirth) missingKeys.push('missingPersonal');
+  // 2. Contacto de emergencia
   if (!p.emergencyContactName) missingKeys.push('missingEmergency');
+  // 3. Demografía — raza, sexo, estado civil
   if (!p.race || !p.sex || !p.maritalStatus) missingKeys.push('missingDemographics');
-  const hasConsents = cd.hipaa && cd.treatment && cd.financial;
+  // 4. Info del accidente — fecha registrada en el caso
+  if (!c.accidentDate && !c.accidentType) missingKeys.push('missingAccident');
+  // 5. Seguros — array no vacío en consentsData
+  const ins = cd.insurances;
+  if (!ins || !Array.isArray(ins) || ins.length === 0) missingKeys.push('missingInsurance');
+  // 6. Historia médica — IntakeSubmission creado
+  if (!c.hasIntakeSubmission) missingKeys.push('missingMedicalHistory');
+  // 7. Consentimientos + firma
+  const hasConsents = cd.hipaa && cd.treatment && cd.financial && cd.financialSignatureSvg;
   if (!hasConsents) missingKeys.push('missingConsents');
-  if (!cd.financialSignatureSvg) missingKeys.push('missingSignature');
 
-  const total = 5;
+  const total = 7;
   const done  = total - missingKeys.length;
   const pct   = Math.round((done / total) * 100);
 
   const colorClass = pct === 100 ? 'bg-emerald/10 text-emerald border-emerald/20'
-    : pct >= 60  ? 'bg-amber/10 text-amber border-amber/20'
+    : pct >= 57  ? 'bg-amber/10 text-amber border-amber/20'
     : 'bg-rose/10 text-rose border-rose/20';
-  const barClass = pct === 100 ? 'bg-emerald' : pct >= 60 ? 'bg-amber' : 'bg-rose';
+  const barClass = pct === 100 ? 'bg-emerald' : pct >= 57 ? 'bg-amber' : 'bg-rose';
 
   return { pct, missingKeys, colorClass, barClass };
 }
@@ -80,12 +98,11 @@ type TFunc = ReturnType<typeof useTranslations<'phoenix.patients'>>;
 
 function formatProgress(prog: ReturnType<typeof calcIntakeProgress>, t: TFunc) {
   const { pct, missingKeys } = prog;
-  const badge = pct === 100 ? t('progressComplete')
-    : missingKeys.length === 1 && missingKeys[0] === 'missingConsents' ? t('progressConsentsMissing')
-    : missingKeys.length === 1 && missingKeys[0] === 'missingSignature' ? t('progressSignatureMissing')
+  const badge = pct === 100
+    ? t('progressComplete')
     : t('progressIncomplete', { pct });
   const sub = missingKeys.length > 0
-    ? `${t('progressMissingLabel')} ${missingKeys.map(k => t(k)).join(', ')}`
+    ? `${t('progressMissingLabel')} ${missingKeys.map(k => t(k as Parameters<typeof t>[0])).join(', ')}`
     : '';
   return { badge, sub };
 }
@@ -787,11 +804,13 @@ export interface PatientRow {
     id: string;
     caseCode: string;
     caseType: string;
+    accidentDate: string | null;
     status: string;
     portalToken: string | null;
     intakeFormSentAt: string | null;
     intakeFormCompletedAt: string | null;
     consentsData: Record<string, unknown> | null;
+    hasIntakeSubmission: boolean;
   } | null;
   caseCount: number;
 }
@@ -1901,9 +1920,10 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                       {
                         id: '', caseCode: '', status: p.latestCase.status,
                         caseType: p.latestCase.caseType, accidentType: null,
-                        accidentDate: null, accidentNotes: null,
+                        accidentDate: p.latestCase.accidentDate, accidentNotes: null,
                         intakeFormCompletedAt: p.latestCase.intakeFormCompletedAt,
                         consentsData: p.latestCase.consentsData,
+                        hasIntakeSubmission: p.latestCase.hasIntakeSubmission,
                         firstAppointment: null, lastAppointment: null,
                       },
                       p,

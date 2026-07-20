@@ -95,11 +95,13 @@ export default async function PatientsPage({
         id: true,
         caseCode: true,
         caseType: true,
+        accidentDate: true,
         status: true,
         portalToken: true,
         intakeFormSentAt: true,
         intakeFormCompletedAt: true,
         consentsData: true,
+        intakeSubmission: { select: { id: true } },
       },
     }),
   ]);
@@ -120,11 +122,13 @@ export default async function PatientsPage({
           id:                    latestCaseMap[p.id].id,
           caseCode:              latestCaseMap[p.id].caseCode,
           caseType:              latestCaseMap[p.id].caseType,
+          accidentDate:          latestCaseMap[p.id].accidentDate?.toISOString() ?? null,
           portalToken:           latestCaseMap[p.id].portalToken ?? null,
           status:                latestCaseMap[p.id].status,
           intakeFormSentAt:      latestCaseMap[p.id].intakeFormSentAt?.toISOString() ?? null,
           intakeFormCompletedAt: latestCaseMap[p.id].intakeFormCompletedAt?.toISOString() ?? null,
           consentsData:          latestCaseMap[p.id].consentsData as Record<string, unknown> | null,
+          hasIntakeSubmission:   !!latestCaseMap[p.id].intakeSubmission,
         }
       : null,
   }));

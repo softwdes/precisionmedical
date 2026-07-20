@@ -551,6 +551,21 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             )}
           </div>
 
+          {/* ── Duración ── */}
+          <div>
+            <Label htmlFor="appt-duration">Duración</Label>
+            <select
+              id="appt-duration"
+              value={String(duration)}
+              onChange={(e) => { setDuration(parseInt(e.target.value, 10)); setSlotIso(null); }}
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+            >
+              {DURATION_OPTIONS.map((d) => (
+                <option key={d} value={String(d)}>{d} min</option>
+              ))}
+            </select>
+          </div>
+
           {/* ── Horarios disponibles ── */}
           <div>
             <Label>
@@ -574,27 +589,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 />
               </div>
             )}
-          </div>
-
-          {/* ── Duración ── */}
-          <div>
-            <Label>Duración (minutos)</Label>
-            <div className="grid grid-cols-6 gap-1.5 mt-1.5">
-              {DURATION_OPTIONS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDuration(d)}
-                  className={`px-2 py-2 rounded-md border text-xs font-medium transition-colors ${
-                    duration === d
-                      ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                      : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                  }`}
-                >
-                  {d}m
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* ── Tipo de cita ── */}

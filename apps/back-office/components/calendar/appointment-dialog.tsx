@@ -173,7 +173,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setClinicId('');
     setProviderId('');
     setSlotIso(null);
-    setSlotOptions([]);
     setDuration(30);
     setType('AUTO_ACCIDENT');
     setNotes('');

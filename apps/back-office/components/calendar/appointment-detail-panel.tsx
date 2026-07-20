@@ -186,10 +186,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
           </div>
           <div className="flex items-center gap-2">
             <StatusPill label={statusCfg.label} state={statusCfg.state} />
-            <button type="button" onClick={onClose}
-              className="w-8 h-8 rounded-md hover:bg-white/5 flex items-center justify-center text-text-muted transition-colors">
-              <X className="w-4 h-4" />
-            </button>
           </div>
         </div>
 

@@ -304,7 +304,7 @@ function LegendStats({
         ))}
       </div>
       <div className="flex items-center gap-3 text-[10px] text-text-muted shrink-0">
-        <span><span className="text-text-2 font-semibold">{visibleAppointments.length}</span> {t('statAppointments')}{patientQuery ? ` · "${patientQuery}"` : ''}</span>
+        <span><span className="text-text-2 font-semibold">{appointments.length}</span> {t('statAppointments')}</span>
         {firstVisitCount > 0 && <span className="text-rose font-semibold">{firstVisitCount} {t('statFirstVisits')} 🆕</span>}
         {pendingConfirm  > 0 && <span className="text-amber">{pendingConfirm} {t('statUnconfirmed')}</span>}
       </div>

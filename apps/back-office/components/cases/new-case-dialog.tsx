@@ -356,7 +356,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           existingPatientId: existingPatientId ?? null,
           specialtyId: specialtyId || null,
           caseType,
-          source: referralSource,
+          source: (['PHONE_CALL','WALK_IN','LAW_FIRM_REFERRAL','PATIENT_REFERRAL','WEB_FORM','AI_AGENT'] as const).includes(referralSource as never)
+            ? referralSource
+            : referralSource === 'LAW_FIRM' ? 'LAW_FIRM_REFERRAL' : 'OTHER',
           appointment: scheduleNow && slotIso ? {
             clinicId,
             providerId,

@@ -384,8 +384,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       let qrDataUrl: string | null = null;
       try {
         const tokenRes = await fetch(`/api/admin/cases/${caseId}/generate-portal-token`, { method: 'POST' });
+        console.log('[NewCase] token status:', tokenRes.status);
         if (tokenRes.ok) {
           const tokenData = await tokenRes.json();
+          console.log('[NewCase] tokenData:', tokenData);
           portalUrl = tokenData.portalUrl ?? null;
           if (portalUrl) {
             qrDataUrl = await QRCode.toDataURL(portalUrl, {
@@ -394,8 +396,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             });
           }
         }
-      } catch { /* no interrumpir el flujo si falla el QR */ }
+      } catch (e) { console.error('[NewCase] token error:', e); }
 
+      console.log('[NewCase] setSuccess →', { caseCode: data.case.caseCode, portalUrl, hasQr: !!qrDataUrl });
       setSuccess({ caseCode: data.case.caseCode, caseId, appointmentScheduled: !!data.appointment, portalUrl, qrDataUrl });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al crear caso');
@@ -407,6 +410,11 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const isManual = callMode === 'manual';
   const isSearch = callMode === 'search';
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Paciente';
+
+  // Derived values for success panel
+  const successSlot     = success ? slotOptions.find((s) => s.iso === slotIso) : null;
+  const successProvider = success ? providers.find((p) => p.id === providerId) : null;
+  const successClinic   = success ? clinics.find((c) => c.id === clinicId) : null;
 
   // ─── Copy link ─────────────────────────────────────────────────────────
   async function copyLink() {
@@ -582,85 +590,80 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4 scroll-thin">
 
           {/* ══ ÉXITO — reemplaza todo el body cuando success está seteado ═ */}
-          {success ? (() => {
-            const selectedSlot     = slotOptions.find((s) => s.iso === slotIso);
-            const selectedProvider = providers.find((p) => p.id === providerId);
-            const selectedClinic   = clinics.find((c) => c.id === clinicId);
-            return (
-              <div className="space-y-4">
-                {/* Confirmación */}
-                <div className="rounded-lg border border-emerald/30 bg-emerald/10 p-4 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald/20 border border-emerald/30 flex items-center justify-center shrink-0">
-                    <Check className="w-4 h-4 text-emerald" />
+          {success ? (
+            <div className="space-y-4">
+              {/* Confirmación */}
+              <div className="rounded-lg border border-emerald/30 bg-emerald/10 p-4 flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald/20 border border-emerald/30 flex items-center justify-center shrink-0">
+                  <Check className="w-4 h-4 text-emerald" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-text-1 font-semibold text-sm">
+                    Caso <code className="text-emerald font-mono font-bold">{success.caseCode}</code> creado exitosamente
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-text-1 font-semibold text-sm">
-                      Caso <code className="text-emerald font-mono font-bold">{success.caseCode}</code> creado exitosamente
-                    </div>
-                    <div className="text-text-muted text-[11px] mt-1 space-y-0.5">
-                      {success.appointmentScheduled && selectedSlot && (
-                        <div className="flex items-center gap-1.5">
-                          <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
-                          <span>Cita: <strong className="text-text-2">{selectedSlot.dayLabel} · {selectedSlot.label}</strong>
-                            {selectedProvider && <> · Dr. {selectedProvider.firstName} {selectedProvider.lastName}</>}
-                            {selectedClinic && <> · {selectedClinic.name}</>}
-                          </span>
-                        </div>
-                      )}
-                      {caseType === 'MVA' && lawFirm && (
-                        <div className="flex items-center gap-1.5">
-                          <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
-                          <span>Bufete: <strong className="text-text-2">{lawFirm.label}</strong></span>
-                        </div>
-                      )}
-                    </div>
+                  <div className="text-text-muted text-[11px] mt-1 space-y-0.5">
+                    {success.appointmentScheduled && successSlot && (
+                      <div className="flex items-center gap-1.5">
+                        <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
+                        <span>Cita: <strong className="text-text-2">{successSlot.dayLabel} · {successSlot.label}</strong>
+                          {successProvider && <> · Dr. {successProvider.firstName} {successProvider.lastName}</>}
+                          {successClinic && <> · {successClinic.name}</>}
+                        </span>
+                      </div>
+                    )}
+                    {caseType === 'MVA' && lawFirm && (
+                      <div className="flex items-center gap-1.5">
+                        <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
+                        <span>Bufete: <strong className="text-text-2">{lawFirm.label}</strong></span>
+                      </div>
+                    )}
                   </div>
                 </div>
+              </div>
 
-                {/* QR + Link */}
-                {success.portalUrl ? (
-                  <div className="rounded-lg border border-border bg-bg-1 p-4">
-                    <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
-                      Enlace del formulario · compartir con el paciente
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+              {/* QR + Link */}
+              {success.portalUrl ? (
+                <div className="rounded-lg border border-border bg-bg-1 p-4">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
+                    Enlace del formulario · compartir con el paciente
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-4 items-start">
+                    {success.qrDataUrl && (
+                      <div className="shrink-0 rounded-lg overflow-hidden border border-border mx-auto sm:mx-0">
+                        <img src={success.qrDataUrl} alt="QR formulario" className="w-[160px] h-[160px] block" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="rounded-md bg-bg-2/40 border border-border/40 px-3 py-2">
+                        <div className="text-[10px] text-text-muted mb-1">URL del formulario</div>
+                        <div className="text-xs text-text-2 font-mono truncate">{success.portalUrl}</div>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={copyLink}>
+                        {copied ? <><Check className="w-3.5 h-3.5 text-emerald" /> ¡Copiado!</> : <><Copy className="w-3.5 h-3.5" /> Copiar enlace</>}
+                      </Button>
                       {success.qrDataUrl && (
-                        <div className="shrink-0 rounded-lg overflow-hidden border border-border mx-auto sm:mx-0">
-                          <img src={success.qrDataUrl} alt="QR formulario" className="w-[160px] h-[160px] block" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div className="rounded-md bg-bg-2/40 border border-border/40 px-3 py-2">
-                          <div className="text-[10px] text-text-muted mb-1">URL del formulario</div>
-                          <div className="text-xs text-text-2 font-mono truncate">{success.portalUrl}</div>
-                        </div>
-                        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={copyLink}>
-                          {copied ? <><Check className="w-3.5 h-3.5 text-emerald" /> ¡Copiado!</> : <><Copy className="w-3.5 h-3.5" /> Copiar enlace</>}
+                        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={downloadQr}>
+                          <Download className="w-3.5 h-3.5" /> Descargar QR
                         </Button>
-                        {success.qrDataUrl && (
-                          <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={downloadQr}>
-                            <Download className="w-3.5 h-3.5" /> Descargar QR
-                          </Button>
-                        )}
-                        <a
-                          href={`https://wa.me/?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
-                        >
-                          <span className="text-base leading-none">💬</span> Enviar por WhatsApp
-                        </a>
-                        <div className="text-[10px] text-text-muted italic pt-1">
-                          El enlace expira cuando el paciente complete el formulario.
-                        </div>
+                      )}
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
+                      >
+                        <span className="text-base leading-none">💬</span> Enviar por WhatsApp
+                      </a>
+                      <div className="text-[10px] text-text-muted italic pt-1">
+                        El enlace expira cuando el paciente complete el formulario.
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <Note tone="amber">No se pudo generar el enlace del formulario. Usa el botón "Enviar portal" desde el detalle del caso.</Note>
-                )}
-              </div>
-            );
-          })() : (<>
+                </div>
+              ) : (
+                <Note tone="amber">No se pudo generar el enlace del formulario. Usa el botón &quot;Enviar portal&quot; desde el detalle del caso.</Note>
+              )}
+            </div>
+          ) : (<>
 
           {/* ══ STEP 1 — PACIENTE ════════════════════════════════════════ */}
           {wizardStep === 1 && (

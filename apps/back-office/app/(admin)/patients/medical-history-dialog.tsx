@@ -2025,9 +2025,11 @@ function AddHistoryDialog({
   );
 }
 
-// ── Main dialog ────────────────────────────────────────────────────────────
+// ── Main content (reusable inline or inside dialog) ────────────────────────
 
-export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
+export interface MedicalHistoryContentProps { patient: PatientRow }
+
+export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
   const [editVisitInfo,  setEditVisitInfo]  = useState(false);
   const [editHealthInfo, setEditHealthInfo] = useState(false);
   const [addProblem,      setAddProblem]      = useState(false);
@@ -2066,25 +2068,8 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
 
   return (
     <>
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-[96vw] w-full max-h-[96vh] p-0 overflow-hidden flex flex-col">
-
-        {/* ── Dialog header ── */}
-        <DialogHeader className="px-6 py-3 border-b border-border bg-bg-1 shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-text-1 text-base font-semibold">
-                {patient.firstName} {patient.lastName}
-              </DialogTitle>
-              <DialogDescription className="text-text-muted text-xs">
-                Historial médico · {patient.patientCode ?? ''}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
         {/* ── Body: left panel + main ── */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex min-h-0 overflow-hidden w-full">
 
           {/* ════ Left sidebar ════ */}
           <div className="w-72 shrink-0 border-r border-border overflow-y-auto bg-bg-1">
@@ -2479,8 +2464,6 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
 
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
 
     {editVisitInfo && (
       <VisitInfoEditDialog
@@ -2619,5 +2602,29 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
       />
     )}
     </>
+  );
+}
+
+// ── Main dialog (thin wrapper around MedicalHistoryContent) ─────────────────
+
+export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-[96vw] w-full max-h-[96vh] p-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 py-3 border-b border-border bg-bg-1 shrink-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-text-1 text-base font-semibold">
+                {patient.firstName} {patient.lastName}
+              </DialogTitle>
+              <DialogDescription className="text-text-muted text-xs">
+                Historial médico · {patient.patientCode ?? ''}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <MedicalHistoryContent patient={patient} />
+      </DialogContent>
+    </Dialog>
   );
 }

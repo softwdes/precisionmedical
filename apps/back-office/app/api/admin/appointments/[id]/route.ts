@@ -11,6 +11,19 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const { id } = await params;
+  const appt = await db.appointment.findUnique({
+    where: { id },
+    select: { id: true, plannedServiceCodes: true },
+  });
+  if (!appt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+  return NextResponse.json(appt);
+}
+
 const PlannedServiceSchema = z.object({
   id:          z.string(),
   code:        z.string(),

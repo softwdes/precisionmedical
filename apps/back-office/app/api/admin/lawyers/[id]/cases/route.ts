@@ -5,6 +5,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 
+function fullNameOR(q: string) {
+  const parts = q.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return [];
+  const first = parts[0]!, last = parts[parts.length - 1]!;
+  return [
+    { patient: { firstName: { contains: first, mode: 'insensitive' as const }, lastName: { contains: last, mode: 'insensitive' as const } } },
+    { patient: { firstName: { contains: last,  mode: 'insensitive' as const }, lastName: { contains: first, mode: 'insensitive' as const } } },
+  ];
+}
+
 export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
@@ -27,6 +37,7 @@ export async function GET(
         ...(search
           ? {
               OR: [
+                ...fullNameOR(search),
                 { caseCode: { contains: search, mode: 'insensitive' } },
                 { patient: { firstName: { contains: search, mode: 'insensitive' } } },
                 { patient: { lastName: { contains: search, mode: 'insensitive' } } },

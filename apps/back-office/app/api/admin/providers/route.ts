@@ -8,6 +8,17 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
+
+/** Genera cláusulas OR para búsqueda por nombre completo (ej. "Juan Pérez") */
+function fullNameOR(q: string) {
+  const parts = q.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return [];
+  const first = parts[0]!, last = parts[parts.length - 1]!;
+  return [
+    { firstName: { contains: first, mode: 'insensitive' as const }, lastName: { contains: last, mode: 'insensitive' as const } },
+    { firstName: { contains: last,  mode: 'insensitive' as const }, lastName: { contains: first, mode: 'insensitive' as const } },
+  ];
+}
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
 
@@ -23,6 +34,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ...(status ? { status: status as 'ACTIVE' | 'INACTIVE' | 'PENDING_APPROVAL' | 'TERMINATED' } : {}),
       ...(q ? {
         OR: [
+          ...fullNameOR(q),
           { firstName: { contains: q, mode: 'insensitive' } },
           { lastName:  { contains: q, mode: 'insensitive' } },
         ],

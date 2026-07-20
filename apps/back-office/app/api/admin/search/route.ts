@@ -11,8 +11,17 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-
 import { db } from '@precision-medical/database';
+
+function fullNameOR(q: string) {
+  const parts = q.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return [];
+  const first = parts[0]!, last = parts[parts.length - 1]!;
+  return [
+    { firstName: { contains: first, mode: 'insensitive' as const }, lastName: { contains: last, mode: 'insensitive' as const } },
+    { firstName: { contains: last,  mode: 'insensitive' as const }, lastName: { contains: first, mode: 'insensitive' as const } },
+  ];
+}
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
@@ -38,6 +47,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       where: {
         deletedAt: null,
         OR: [
+          ...fullNameOR(q),
           { firmName: { contains: q, mode: 'insensitive' } },
           { firstName: { contains: q, mode: 'insensitive' } },
           { lastName: { contains: q, mode: 'insensitive' } },
@@ -96,6 +106,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     db.patient.findMany({
       where: {
         OR: [
+          ...fullNameOR(q),
           { firstName: { contains: q, mode: 'insensitive' } },
           { lastName: { contains: q, mode: 'insensitive' } },
           { patientCode: { contains: q, mode: 'insensitive' } },

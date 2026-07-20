@@ -21,11 +21,17 @@ export async function searchDrugs(q: string): Promise<Array<{ id: number; name: 
 }
 
 export async function searchDoctors(q: string): Promise<Array<{ id: string; name: string }>> {
+  const parts = q.trim().split(/\s+/).filter(Boolean);
+  const fullName = parts.length >= 2 ? [
+    { firstName: { contains: parts[0]!, mode: 'insensitive' as const }, lastName: { contains: parts[parts.length - 1]!, mode: 'insensitive' as const } },
+    { firstName: { contains: parts[parts.length - 1]!, mode: 'insensitive' as const }, lastName: { contains: parts[0]!, mode: 'insensitive' as const } },
+  ] : [];
   const rows = await db.provider.findMany({
     where: {
       status: 'ACTIVE',
       deletedAt: null,
       ...(q ? { OR: [
+        ...fullName,
         { firstName: { contains: q, mode: 'insensitive' } },
         { lastName:  { contains: q, mode: 'insensitive' } },
       ]} : {}),

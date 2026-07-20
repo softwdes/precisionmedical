@@ -564,6 +564,18 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 </div>
               );
             })}
+
+            {/* Back to mode selection — only on step 1, manual/search */}
+            {wizardStep === 1 && (isManual || isSearch) && (
+              <button
+                type="button"
+                onClick={() => setStep('precall')}
+                className="ml-auto flex items-center gap-1 text-[10px] text-text-muted hover:text-text-2 transition-colors shrink-0"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Cambiar opción
+              </button>
+            )}
           </div>
         </div>
 

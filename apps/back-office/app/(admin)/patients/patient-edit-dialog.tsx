@@ -99,11 +99,20 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const [error,        setError]        = useState('');
   const [confirmExit,  setConfirmExit]  = useState(false);
   const [emailError,   setEmailError]   = useState('');
+  const [phoneError,   setPhoneError]   = useState('');
 
   function validateEmail(v: string) {
     if (!v) { setEmailError(''); return true; }
     const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
     setEmailError(ok ? '' : t('errorEmailInvalid'));
+    return ok;
+  }
+
+  function validatePhone(v: string) {
+    if (!v) { setPhoneError(''); return true; }
+    const digits = v.replace(/\D/g, '');
+    const ok = digits.length === 10;
+    setPhoneError(ok ? '' : t('errorPhoneInvalid'));
     return ok;
   }
 
@@ -175,6 +184,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       return;
     }
     if (form.email && !validateEmail(form.email)) return;
+    if (form.phone && !validatePhone(form.phone)) return;
     if (form.dateOfBirth) {
       const a = calcAge(form.dateOfBirth);
       if (a === null || a < 0) { setError(t('errorDOBInvalid')); return; }
@@ -376,7 +386,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label={t('fieldPhone')}  value={form.phone}  onChange={setPhone('phone')}  placeholder="(305) 000-0000" type="tel" />
+                <FormField.Input label={t('fieldPhone')}  value={form.phone}  onChange={(v) => { setPhone('phone')(v); if (phoneError) validatePhone(v); }} onBlur={() => validatePhone(form.phone)} placeholder="(305) 000-0000" type="tel" error={phoneError} />
                 <FormField.Input label={t('fieldPhone2')} value={form.phone2} onChange={setPhone('phone2')} placeholder="(305) 000-0000" type="tel" />
               </div>
 

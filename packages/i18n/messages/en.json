@@ -2694,6 +2694,7 @@
       "placeholderSelectCity": "Select city",
       "placeholderSelectStateFirst": "First select a state",
       "errorEmailInvalid": "Invalid email address",
+      "errorPhoneInvalid": "Phone must be 10 digits, e.g. (305) 000-0000",
       "errorNameRequired": "First and last name are required.",
       "errorDOBInvalid": "Invalid date of birth.",
       "errorDOBYear": "Please verify the birth year.",

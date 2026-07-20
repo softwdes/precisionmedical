@@ -14,8 +14,8 @@
  * Accent del módulo: cyan (Regla #5 tabla)
  */
 
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
@@ -304,7 +304,7 @@ function LegendStats({
         ))}
       </div>
       <div className="flex items-center gap-3 text-[10px] text-text-muted shrink-0">
-        <span><span className="text-text-2 font-semibold">{appointments.length}</span> {t('statAppointments')}</span>
+        <span><span className="text-text-2 font-semibold">{visibleAppointments.length}</span> {t('statAppointments')}{patientQuery ? ` · "${patientQuery}"` : ''}</span>
         {firstVisitCount > 0 && <span className="text-rose font-semibold">{firstVisitCount} {t('statFirstVisits')} 🆕</span>}
         {pendingConfirm  > 0 && <span className="text-amber">{pendingConfirm} {t('statUnconfirmed')}</span>}
       </div>
@@ -330,6 +330,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const [filterClinic,   setFilterClinic]   = useState('');
   const [filterProvider, setFilterProvider] = useState('');
   const [filterType,     setFilterType]     = useState('');
+  const [patientSearch,  setPatientSearch]  = useState('');
+  const [patientQuery,   setPatientQuery]   = useState(''); // debounced
   const [calView, setCalView] = useState<CalendarView>('week');
 
   // ─── Data loading — AbortController pattern ──────────────────────────────
@@ -415,6 +417,32 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     // day: mantiene el weekStart actual como "día seleccionado"
   };
 
+  // ─── Debounce patient search ────────────────────────────────────────────────
+  useEffect(() => {
+    const t = setTimeout(() => setPatientQuery(patientSearch.trim()), 350);
+    return () => clearTimeout(t);
+  }, [patientSearch]);
+
+  // ─── Filter appointments by patient query (client-side) ──────────────────────
+  const visibleAppointments = useMemo(() => {
+    if (!patientQuery) return appointments;
+    const q = patientQuery.toLowerCase();
+    const parts = q.split(/\s+/).filter(Boolean);
+    return appointments.filter(a => {
+      const first = a.patient.firstName.toLowerCase();
+      const last  = a.patient.lastName.toLowerCase();
+      const full  = `${first} ${last}`;
+      const phone = a.patient.phone ?? '';
+      const email = a.patient.email ?? '';
+      if (parts.length >= 2) {
+        const p0 = parts[0]!, p1 = parts[parts.length - 1]!;
+        if ((first.includes(p0) && last.includes(p1)) || (first.includes(p1) && last.includes(p0))) return true;
+      }
+      return full.includes(q) || first.includes(q) || last.includes(q)
+        || phone.includes(q) || email.includes(q);
+    });
+  }, [appointments, patientQuery]);
+
   // ─── Derived state ───────────────────────────────────────────────────────────
   // 5-day header array (week view)
   const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
@@ -422,7 +450,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   // O(1) lookup: Denver-date → slot → appointments[]
   type ApptMap = Record<string, Record<string, CalendarAppointment[]>>;
   const apptMap: ApptMap = {};
-  for (const appt of appointments) {
+  for (const appt of visibleAppointments) {
     const day  = denverDateStr(new Date(appt.scheduledFor));
     const slot = slotOf(appt.scheduledFor);
     if (!apptMap[day]) apptMap[day] = {};
@@ -430,8 +458,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     apptMap[day][slot].push(appt);
   }
 
-  const firstVisitCount = appointments.filter(a => a.visitNumber === 0).length;
-  const pendingConfirm  = appointments.filter(a => a.status === 'SCHEDULED').length;
+  const firstVisitCount = visibleAppointments.filter(a => a.visitNumber === 0).length;
+  const pendingConfirm  = visibleAppointments.filter(a => a.status === 'SCHEDULED').length;
 
   // Labels en barra de título
   const viewEnd4   = addDays(weekStart, 4);
@@ -511,6 +539,27 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
               className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors"
             >
               ✕
+            </button>
+          )}
+        </div>
+
+        {/* Patient search */}
+        <div className="relative shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+          <input
+            type="text"
+            value={patientSearch}
+            onChange={e => setPatientSearch(e.target.value)}
+            placeholder="Buscar paciente..."
+            className="h-7 pl-7 pr-7 rounded border border-border bg-bg-2 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan w-44 transition-colors"
+          />
+          {patientSearch && (
+            <button
+              type="button"
+              onClick={() => setPatientSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1"
+            >
+              <X className="w-3 h-3" />
             </button>
           )}
         </div>
@@ -618,7 +667,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                   </div>
                 ))}
               </div>
-              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
+              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
             </>
           );
         })()}
@@ -682,7 +731,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                   );
                 })}
               </div>
-              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
+              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
             </>
           );
         })()}
@@ -750,13 +799,13 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                   </div>
                 ))}
               </div>
-              <LegendStats appointments={appointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
+              <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
             </>
           );
         })()}
 
         {/* Empty state */}
-        {!loading && appointments.length === 0 && (
+        {!loading && visibleAppointments.length === 0 && (
           <div className="mt-12 text-center">
             <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
             <p className="text-text-2 text-sm">{t('emptyTitle')}</p>

@@ -254,6 +254,12 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
     patchServices(next);
   }, [services, patchServices]);
 
+  const updateServiceFee = useCallback((id: string, fee: number) => {
+    const next = services.map(s => s.id === id ? { ...s, fee } : s);
+    setServices(next);
+    patchServices(next);
+  }, [services, patchServices]);
+
   const svcTotal = services.reduce((s, c) => s + c.fee, 0);
 
   // ── Detail handlers ───────────────────────────────────────────────────────
@@ -559,17 +565,27 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                 </div>
               ) : (
                 <div className="rounded-lg border border-border overflow-hidden">
-                  <div className="grid grid-cols-[60px_1fr_80px_36px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
+                  <div className="grid grid-cols-[60px_1fr_90px_36px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
                     <span>Código</span>
                     <span>Descripción</span>
                     <span className="text-right">Costo</span>
                     <span />
                   </div>
                   {services.map(svc => (
-                    <div key={svc.id} className="grid grid-cols-[60px_1fr_80px_36px] items-center px-3 py-2.5 border-b border-border/30 last:border-0 hover:bg-bg-2/30 transition-colors">
+                    <div key={svc.id} className="grid grid-cols-[60px_1fr_90px_36px] items-center px-3 py-2 border-b border-border/30 last:border-0 hover:bg-bg-2/30 transition-colors">
                       <span className="font-mono text-[11px] text-cyan">{svc.code}</span>
                       <span className="text-xs text-text-1 pr-2 truncate">{svc.description}</span>
-                      <span className="text-xs font-semibold text-text-1 text-right">{fmt$(svc.fee)}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        defaultValue={svc.fee}
+                        onBlur={e => {
+                          const v = parseFloat(e.target.value);
+                          if (!isNaN(v) && v !== svc.fee) updateServiceFee(svc.id, v);
+                        }}
+                        className="w-full text-right bg-transparent border border-transparent hover:border-border focus:border-cyan rounded px-1.5 py-0.5 text-xs font-semibold text-text-1 focus:outline-none focus:bg-bg-2 transition-colors"
+                      />
                       <button type="button" onClick={() => removeService(svc.id)}
                         className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors ml-auto">
                         <Trash2 className="w-3.5 h-3.5" />

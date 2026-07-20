@@ -8,14 +8,14 @@
  * Tab 3: Pagos — KPIs del caso + registrar pago inline
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Phone, MessageSquare, RefreshCw, Calendar,
-  CheckCircle2, AlertTriangle, ChevronRight,
+  CheckCircle2, AlertTriangle, ChevronRight, ChevronDown, ChevronUp,
   User, Scale, Shield, Headphones, Check, Edit2, Ban,
   AlertCircle, Search, X, Plus, Trash2, DollarSign,
-  Stethoscope, Loader2, Clock,
+  Stethoscope, Loader2, Clock, CreditCard, FileText,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
@@ -63,23 +63,105 @@ interface PlannedService {
   category: string;
 }
 
+interface BillingPayment {
+  id: string;
+  amount: number;
+  source: 'INSURANCE' | 'PATIENT' | 'LAWYER';
+  paymentType: string | null;
+  method: string;
+  status: 'COMPLETED' | 'PENDING' | 'CANCELLED';
+  insuranceCarrier: { id: string; name: string } | null;
+  notes: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
 interface BillingRecord {
   id: string;
   appointmentId: string | null;
   appointmentDate: string | null;
+  appointmentStatus: string | null;
   totalCost: number;
   discount: number;
+  insuranceCovered: number;
   amountPaid: number;
   balanceDue: number;
-  payments: Array<{
-    id: string;
-    amount: number;
-    source: string;
-    method: string;
-    paymentType: string | null;
-    paidAt: string | null;
-    notes: string | null;
-  }>;
+  payments: BillingPayment[];
+}
+
+interface CaseInsurance { id: string; name: string; label: string }
+
+// ─── Payment constants ────────────────────────────────────────────────────────
+
+const PAYMENT_TYPES: Record<string, { label: string; value: string }[]> = {
+  INSURANCE: [
+    { label: 'Pago de seguro (Ins)',                 value: 'direct_insurance' },
+    { label: 'Obligación contractual (CO)',           value: 'contractual_obligation' },
+    { label: 'Pérdida por presentación tardía (TF)', value: 'late_filing_penalty' },
+  ],
+  LAWYER: [
+    { label: 'Pago de abogado (Att)',          value: 'attorney_payment' },
+    { label: 'Acuerdo de reducción (Red AG)',  value: 'reduction_agreement' },
+  ],
+  PATIENT: [
+    { label: 'Copago (Cp)',                     value: 'copay' },
+    { label: 'Deducible (Ded)',                 value: 'deductible' },
+    { label: 'Coaseguro (Coins)',               value: 'coinsurance' },
+    { label: 'Pago directo (Self-Pay)',         value: 'patient_direct' },
+    { label: 'Cortesía profesional (Pro Cur)', value: 'professional_courtesy' },
+    { label: 'Cobranzas externas (Coll)',       value: 'external_collections' },
+  ],
+};
+
+const METHOD_LABELS: Record<string, string> = {
+  CHECK: 'Cheque', CARD: 'Tarjeta', CASH: 'Efectivo', TRANSFER: 'Transferencia', NONE: '—',
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  INSURANCE: 'Seguro', PATIENT: 'Paciente', LAWYER: 'Abogado',
+};
+
+// ─── SelectUp ────────────────────────────────────────────────────────────────
+
+interface SelectOption { label: string; value: string }
+
+function SelectUp({ value, onChange, options, placeholder, className = '' }: {
+  value: string; onChange: (v: string) => void;
+  options: SelectOption[]; placeholder?: string; className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find(o => o.value === value);
+
+  useEffect(() => {
+    function outside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', outside);
+    return () => document.removeEventListener('mousedown', outside);
+  }, []);
+
+  return (
+    <div ref={ref} className={`relative ${className}`}>
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors">
+        <span className={selected ? 'text-text-1' : 'text-text-muted'}>{selected?.label ?? placeholder ?? 'Seleccionar'}</span>
+        {open ? <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" /> : <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />}
+      </button>
+      {open && (
+        <div className="absolute bottom-full mb-1 left-0 right-0 z-50 bg-bg-1 border border-border rounded-md shadow-xl overflow-hidden">
+          {options.map(opt => (
+            <button key={opt.value} type="button"
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between gap-2 ${opt.value === value ? 'bg-brand/10 text-brand' : 'text-text-1 hover:bg-bg-2'}`}>
+              {opt.label}
+              {opt.value === value && <span className="text-brand text-xs">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface Props {
@@ -171,16 +253,22 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
   const [savedOk,        setSavedOk]        = useState(false);
 
   // ── Payments tab ──────────────────────────────────────────────────────────
-  const [billingData,    setBillingData]    = useState<{ kpis: { totalCost: number; totalPaid: number; totalBalance: number }; billings: BillingRecord[] } | null>(null);
+  const [billings,       setBillings]       = useState<BillingRecord[]>([]);
+  const [billKpis,       setBillKpis]       = useState<{ totalCost: number; totalPaid: number; totalBalance: number }>({ totalCost: 0, totalPaid: 0, totalBalance: 0 });
+  const [insurances,     setInsurances]     = useState<CaseInsurance[]>([]);
   const [loadingBill,    setLoadingBill]    = useState(false);
-  const [expandedPay,    setExpandedPay]    = useState<string | null>(null); // billingId with form open
-  const [expandedHist,   setExpandedHist]   = useState<string | null>(null); // billingId with history open
+  const [billLoaded,     setBillLoaded]     = useState(false);
+  const [expanded,       setExpanded]       = useState<Set<string>>(new Set());
+  // Modal
+  const [payOpen,        setPayOpen]        = useState(false);
+  const [payAmounts,     setPayAmounts]     = useState<Record<string, string>>({});
+  const [payNotes,       setPayNotes]       = useState<Record<string, string>>({});
   const [paySource,      setPaySource]      = useState<'INSURANCE'|'PATIENT'|'LAWYER'>('PATIENT');
-  const [payMethod,      setPayMethod]      = useState<'CHECK'|'CARD'|'CASH'|'TRANSFER'>('CHECK');
-  const [payType,        setPayType]        = useState('self_pay');
-  const [payAmount,      setPayAmount]      = useState('');
-  const [payNotes,       setPayNotes]       = useState('');
-  const [submittingPay,  setSubmittingPay]  = useState(false);
+  const [payMethod,      setPayMethod]      = useState<string>('CHECK');
+  const [payType,        setPayType]        = useState<string>('');
+  const [payInsuranceId, setPayInsuranceId] = useState<string>('');
+  const [paying,         setPaying]         = useState(false);
+  const [deletingPay,    setDeletingPay]    = useState<string | null>(null);
 
   const isFirst   = appt.visitNumber === 0;
   const dt        = formatDateTime(appt.scheduledFor);
@@ -202,15 +290,25 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
   }, [activeTab, appt.id, svcLoaded]);
 
   // ── Load billing when tab opens ───────────────────────────────────────────
-  useEffect(() => {
-    if (activeTab !== 'payments' || billingData || !appt.case?.id) return;
+  const loadBilling = useCallback(async () => {
+    if (!appt.case?.id) return;
     setLoadingBill(true);
-    fetch(`/api/admin/cases/${appt.case.id}/billing`)
-      .then(r => r.json())
-      .then(setBillingData)
-      .catch(() => {})
-      .finally(() => setLoadingBill(false));
-  }, [activeTab, appt.case?.id, billingData]);
+    try {
+      const res = await fetch(`/api/admin/cases/${appt.case.id}/billing`);
+      const data = await res.json();
+      setBillings(data.billings ?? []);
+      setBillKpis(data.kpis ?? { totalCost: 0, totalPaid: 0, totalBalance: 0 });
+      setInsurances(data.insurances ?? []);
+      setBillLoaded(true);
+    } catch { /* silent */ } finally {
+      setLoadingBill(false);
+    }
+  }, [appt.case?.id]);
+
+  useEffect(() => {
+    if (activeTab !== 'payments' || billLoaded) return;
+    loadBilling();
+  }, [activeTab, billLoaded, loadBilling]);
 
   // ── Service search debounce ───────────────────────────────────────────────
   useEffect(() => {
@@ -290,27 +388,81 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
     } finally { setCancelling(false); }
   };
 
-  // ── Payment handler ───────────────────────────────────────────────────────
-  const handleRegisterPayment = async (billingId: string) => {
-    if (!billingId || !payAmount || !appt.case?.id) return;
-    setSubmittingPay(true);
+  // ── Payment helpers ───────────────────────────────────────────────────────
+  function toggleExpanded(id: string) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function openPayModal() {
+    const pending = billings.filter(b => b.balanceDue > 0);
+    const init: Record<string, string> = {};
+    pending.forEach(b => { init[b.id] = ''; });
+    setPayAmounts(init);
+    setPayNotes({});
+    setPaySource('PATIENT');
+    setPayMethod('CHECK');
+    setPayType(PAYMENT_TYPES['PATIENT'][0].value);
+    setPayInsuranceId(insurances[0]?.id ?? '');
+    setPayOpen(true);
+  }
+
+  function autoDistribute(totalStr: string) {
+    const total = parseFloat(totalStr);
+    if (!total || total <= 0) return;
+    const pending = billings.filter(b => b.balanceDue > 0);
+    const newAmounts: Record<string, string> = {};
+    let remaining = total;
+    for (const b of pending) {
+      if (remaining <= 0) { newAmounts[b.id] = ''; continue; }
+      const apply = Math.min(remaining, b.balanceDue);
+      newAmounts[b.id] = apply.toFixed(2);
+      remaining -= apply;
+    }
+    setPayAmounts(prev => ({ ...prev, ...newAmounts }));
+  }
+
+  const submitPayment = async () => {
+    if (!appt.case?.id) return;
+    const entries = Object.entries(payAmounts)
+      .filter(([, v]) => parseFloat(v) > 0)
+      .map(([billingId, v]) => ({ billingId, amount: parseFloat(v), notes: payNotes[billingId] || null }));
+    if (!entries.length) return;
+    setPaying(true);
     try {
       const res = await fetch(`/api/admin/cases/${appt.case.id}/billing/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          payments: [{ billingId, amount: parseFloat(payAmount), notes: payNotes.trim() || null }],
+          payments: entries,
           source: paySource, method: payMethod,
-          paymentType: payType, insuranceCarrierId: null, paidAt: null,
+          paymentType: payType || null,
+          insuranceCarrierId: paySource === 'INSURANCE' ? (payInsuranceId || null) : null,
+          paidAt: new Date().toISOString(),
         }),
       });
-      if (res.ok) {
-        setBillingData(null);
-        setExpandedPay(null);
-        setPayAmount('');
-        setPayNotes('');
-      }
-    } finally { setSubmittingPay(false); }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
+      setPayOpen(false);
+      setBillLoaded(false);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Error al registrar pago');
+    } finally { setPaying(false); }
+  };
+
+  const deletePayment = async (billingId: string, payId: string) => {
+    if (!appt.case?.id) return;
+    if (!confirm('¿Cancelar este pago? El balance se revertirá.')) return;
+    setDeletingPay(payId);
+    try {
+      const res = await fetch(`/api/admin/cases/${appt.case.id}/billing/${billingId}/payments/${payId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setBillLoaded(false);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Error al cancelar pago');
+    } finally { setDeletingPay(null); }
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -610,227 +762,315 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
           )}
 
           {/* ─── Tab: Pagos ──────────────────────────────────────── */}
-          {activeTab === 'payments' && (
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {!appt.case ? (
-                <div className="text-text-muted text-sm text-center py-8">Sin caso asociado a esta cita.</div>
-              ) : loadingBill ? (
-                <div className="flex items-center justify-center py-10 text-text-muted text-xs gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Cargando datos de facturación...
-                </div>
-              ) : billingData ? (
-                <>
-                  {/* KPIs */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { label: 'Total facturado', value: billingData.kpis.totalCost,    color: 'text-text-1' },
-                      { label: 'Pagado',           value: billingData.kpis.totalPaid,    color: 'text-emerald' },
-                      { label: 'Balance',          value: billingData.kpis.totalBalance, color: billingData.kpis.totalBalance > 0 ? 'text-amber' : 'text-text-muted' },
-                    ].map(k => (
-                      <div key={k.label} className="rounded-lg border border-border bg-bg-2/40 p-3 text-center">
-                        <div className="text-[10px] uppercase tracking-wider text-text-muted mb-1">{k.label}</div>
-                        <div className={`text-sm font-bold ${k.color}`}>{fmt$(k.value)}</div>
-                      </div>
-                    ))}
+          {activeTab === 'payments' && (() => {
+            const pending      = billings.filter(b => b.balanceDue > 0);
+            const totalPending = pending.reduce((s, b) => s + b.balanceDue, 0);
+            const payTotal     = Object.values(payAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+            const sourceOpts   = [{ label: 'Paciente', value: 'PATIENT' }, { label: 'Seguro', value: 'INSURANCE' }, { label: 'Abogado', value: 'LAWYER' }];
+            const methodOpts   = [{ label: 'Cheque', value: 'CHECK' }, { label: 'Tarjeta', value: 'CARD' }, { label: 'Efectivo', value: 'CASH' }, { label: 'Transferencia', value: 'TRANSFER' }, { label: '— Sin especificar', value: 'NONE' }];
+            const typeOpts     = PAYMENT_TYPES[paySource] ?? [];
+            const insuranceOpts = insurances.map(i => ({ label: i.label, value: i.id }));
+
+            return (
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {!appt.case ? (
+                  <div className="text-text-muted text-sm text-center py-8">Sin caso asociado a esta cita.</div>
+                ) : loadingBill ? (
+                  <div className="flex items-center justify-center py-10 text-text-muted text-xs gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Cargando datos de facturación...
                   </div>
-
-                  {/* Table */}
-                  {billingData.billings.length === 0 ? (
-                    <div className="flex flex-col items-center py-8 text-center">
-                      <DollarSign className="w-8 h-8 text-text-muted/40 mb-3" />
-                      <div className="text-text-muted text-sm">Sin registros de facturación aún</div>
-                      <div className="text-text-muted/60 text-xs mt-1">Se generan al completar la visita</div>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-border overflow-hidden">
-                      {/* Table header */}
-                      <div className="grid grid-cols-[1fr_68px_64px_64px_72px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/60 border-b border-border">
-                        <span>Fecha</span>
-                        <span className="text-right">Costo</span>
-                        <span className="text-right">Pagado</span>
-                        <span className="text-right">Balance</span>
-                        <span />
+                ) : (
+                  <>
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-amber" />
+                        <span className="text-text-1 font-semibold text-sm uppercase tracking-wider">Resumen financiero</span>
                       </div>
-
-                      {billingData.billings.map(b => {
-                        const isThisAppt = b.appointmentId === appt.id;
-                        const isPaying   = expandedPay  === b.id;
-                        const showHist   = expandedHist === b.id;
-                        const discPct    = b.totalCost > 0 && b.discount > 0
-                          ? Math.round((b.discount / b.totalCost) * 100) : 0;
-
-                        return (
-                          <div key={b.id} className="border-b border-border/40 last:border-0">
-                            {/* Main row */}
-                            <div className={`grid grid-cols-[1fr_68px_64px_64px_72px] items-center px-3 py-2.5 transition-colors ${isThisAppt ? 'bg-cyan/5' : 'hover:bg-bg-2/20'}`}>
-                              {/* Fecha + badge */}
-                              <button
-                                type="button"
-                                onClick={() => setExpandedHist(showHist ? null : b.id)}
-                                className="flex items-center gap-1.5 text-left"
-                              >
-                                {b.payments.length > 0
-                                  ? <ChevronRight className={`w-3 h-3 text-text-muted shrink-0 transition-transform ${showHist ? 'rotate-90' : ''}`} />
-                                  : <span className="w-3 shrink-0" />
-                                }
-                                <span className="text-xs text-text-1">
-                                  {b.appointmentDate
-                                    ? new Date(b.appointmentDate).toLocaleDateString('es-US', { month: 'short', day: 'numeric' })
-                                    : '—'}
-                                </span>
-                                {isThisAppt && (
-                                  <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">Esta</span>
-                                )}
-                                {discPct > 0 && (
-                                  <span className="text-[9px] text-violet bg-violet/10 px-1 rounded leading-4">-{discPct}%</span>
-                                )}
-                              </button>
-
-                              <span className="text-xs text-text-2 text-right">{fmt$(b.totalCost)}</span>
-                              <span className="text-xs text-emerald text-right">{fmt$(b.amountPaid)}</span>
-                              <span className={`text-xs font-semibold text-right ${b.balanceDue > 0 ? 'text-amber' : 'text-text-muted'}`}>
-                                {fmt$(b.balanceDue)}
-                              </span>
-
-                              {/* Action */}
-                              <div className="flex justify-end">
-                                {b.balanceDue > 0 ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setExpandedPay(isPaying ? null : b.id);
-                                      if (!isPaying) setPayAmount(String(b.balanceDue));
-                                    }}
-                                    className={`text-[10px] px-2 py-1 rounded border font-medium transition-colors ${
-                                      isPaying
-                                        ? 'bg-brand/20 border-brand/50 text-brand'
-                                        : 'bg-bg-2 border-border text-text-2 hover:border-brand/40 hover:text-brand'
-                                    }`}
-                                  >
-                                    {isPaying ? 'Cerrar' : '+ Pagar'}
-                                  </button>
-                                ) : (
-                                  <span className="text-[10px] text-emerald flex items-center gap-0.5">
-                                    <Check className="w-3 h-3" /> Saldado
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Payment history (expanded) */}
-                            {showHist && b.payments.length > 0 && (
-                              <div className="px-4 py-2 bg-bg-2/30 border-t border-border/30 space-y-1.5">
-                                {b.payments.map(p => (
-                                  <div key={p.id} className="flex items-center justify-between text-[11px]">
-                                    <span className="flex items-center gap-1.5 text-text-muted">
-                                      <Check className="w-3 h-3 text-emerald shrink-0" />
-                                      <span className="capitalize">{p.source.toLowerCase()}</span>
-                                      {' · '}
-                                      <span className="capitalize">{p.method.toLowerCase()}</span>
-                                      {p.paymentType && (
-                                        <span className="text-text-muted/60">· {p.paymentType.replace(/_/g, ' ')}</span>
-                                      )}
-                                      {p.paidAt && (
-                                        <span>· {new Date(p.paidAt).toLocaleDateString('es-US', { dateStyle: 'short' })}</span>
-                                      )}
-                                      {p.notes && <span className="italic text-text-muted/60">· {p.notes}</span>}
-                                    </span>
-                                    <span className="text-emerald font-semibold ml-3">{fmt$(p.amount)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Inline payment form */}
-                            {isPaying && (
-                              <div className="px-4 py-3 bg-brand/5 border-t border-brand/20 space-y-3">
-                                <div className="text-[10px] uppercase tracking-wider font-semibold text-brand">Registrar pago</div>
-
-                                {/* Row 1: Fuente / Método / Tipo */}
-                                <div className="grid grid-cols-3 gap-2">
-                                  <div>
-                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Fuente</label>
-                                    <select value={paySource} onChange={e => setPaySource(e.target.value as typeof paySource)}
-                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand">
-                                      <option value="PATIENT">Paciente</option>
-                                      <option value="INSURANCE">Seguro</option>
-                                      <option value="LAWYER">Abogado</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Método</label>
-                                    <select value={payMethod} onChange={e => setPayMethod(e.target.value as typeof payMethod)}
-                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand">
-                                      <option value="CHECK">Cheque</option>
-                                      <option value="CARD">Tarjeta</option>
-                                      <option value="CASH">Efectivo</option>
-                                      <option value="TRANSFER">Transferencia</option>
-                                    </select>
-                                  </div>
-                                  <div>
-                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Tipo</label>
-                                    <select value={payType} onChange={e => setPayType(e.target.value)}
-                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand">
-                                      <option value="self_pay">Self-Pay</option>
-                                      <option value="copay">Copago (Cp)</option>
-                                      <option value="deductible">Deducible (Ded)</option>
-                                      <option value="coinsurance">Coaseguro (Coins)</option>
-                                      <option value="no_show">No Show (NS)</option>
-                                      <option value="professional_courtesy">Cortesía (Pro Cur)</option>
-                                      <option value="collections">Cobranzas (Coll)</option>
-                                    </select>
-                                  </div>
-                                </div>
-
-                                {/* Row 2: Monto / Notas */}
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">
-                                      Monto (USD) <span className="text-amber normal-case">· pendiente: {fmt$(b.balanceDue)}</span>
-                                    </label>
-                                    <input
-                                      type="number" min="0.01" step="0.01"
-                                      value={payAmount}
-                                      onChange={e => setPayAmount(e.target.value)}
-                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-sm font-semibold text-text-1 focus:outline-none focus:border-brand"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Notas (opcional)</label>
-                                    <input
-                                      type="text"
-                                      value={payNotes}
-                                      onChange={e => setPayNotes(e.target.value)}
-                                      placeholder="Referencia, cheque #, etc."
-                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
-                                    />
-                                  </div>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleRegisterPayment(b.id)}
-                                  disabled={submittingPay || !payAmount || parseFloat(payAmount) <= 0}
-                                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-md bg-brand/20 border border-brand/40 text-brand text-xs font-semibold hover:bg-brand/25 transition-colors disabled:opacity-50"
-                                >
-                                  {submittingPay
-                                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Registrando...</>
-                                    : <><Check className="w-3.5 h-3.5" /> Confirmar pago</>
-                                  }
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => { setBillLoaded(false); }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
+                          <RefreshCw className={`w-3 h-3 ${loadingBill ? 'animate-spin' : ''}`} /> Actualizar
+                        </button>
+                        {billKpis.totalBalance > 0 && (
+                          <button type="button" onClick={openPayModal}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors">
+                            <CreditCard className="w-3.5 h-3.5" /> Pagar deuda
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-text-muted text-xs text-center py-8">Error al cargar facturación.</div>
-              )}
-            </div>
-          )}
+
+                    {/* KPIs */}
+                    <div className="flex gap-3 flex-wrap">
+                      {[
+                        { label: 'Costo Total',  value: billKpis.totalCost,    color: 'text-text-1' },
+                        { label: 'Total Pagado', value: billKpis.totalPaid,    color: 'text-emerald' },
+                        { label: 'Deuda Total',  value: billKpis.totalBalance, color: billKpis.totalBalance > 0 ? 'text-rose' : 'text-text-1' },
+                      ].map(k => (
+                        <div key={k.label} className="rounded-lg border border-border bg-bg-1 p-4 flex-1 min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{k.label}</div>
+                          <div className={`text-xl font-bold font-mono ${k.color}`}>{fmt$(k.value)}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Table */}
+                    {billings.length === 0 ? (
+                      <div className="flex flex-col items-center py-10 text-center">
+                        <DollarSign className="w-8 h-8 text-text-muted/40 mb-3" />
+                        <div className="text-text-muted text-sm">Sin registros de facturación aún</div>
+                        <div className="text-text-muted/60 text-xs mt-1">Se generan al completar la visita</div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-border overflow-hidden">
+                        <div className="px-4 py-2 bg-bg-2/60 border-b border-border">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Detalle por cita</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-border/60 bg-bg-2/40">
+                                <th className="w-6 px-2" />
+                                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Desc.%</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
+                                <th className="w-10 px-3 py-2.5" />
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {billings.map(b => {
+                                const isThisAppt = b.appointmentId === appt.id;
+                                const isExp      = expanded.has(b.id);
+                                const discPct    = b.totalCost > 0 && b.discount > 0
+                                  ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
+
+                                return (
+                                  <>
+                                    <tr key={b.id}
+                                      className={`border-b border-border/40 hover:bg-white/[0.02] cursor-pointer ${b.balanceDue <= 0 ? 'opacity-75' : ''} ${isThisAppt ? 'bg-cyan/5' : ''}`}
+                                      onClick={() => toggleExpanded(b.id)}
+                                    >
+                                      <td className="px-2 py-3 text-text-muted">
+                                        {isExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                      </td>
+                                      <td className="px-3 py-3 text-text-1 font-mono text-xs whitespace-nowrap">
+                                        <span className="flex items-center gap-1.5">
+                                          {b.appointmentDate
+                                            ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+                                            : '—'}
+                                          {isThisAppt && <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">Esta</span>}
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-3 text-right font-semibold font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
+                                      <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">{discPct}%</td>
+                                      <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
+                                        <span className={b.amountPaid > 0 ? 'text-emerald font-semibold' : 'text-text-muted'}>{fmt$(b.amountPaid)}</span>
+                                      </td>
+                                      <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
+                                        {b.balanceDue > 0
+                                          ? <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold">{fmt$(b.balanceDue)}</span>
+                                          : <span className="text-emerald font-semibold text-xs">{fmt$(0)}</span>}
+                                      </td>
+                                      <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                                        <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Nota">
+                                          <FileText className="w-3.5 h-3.5" />
+                                        </button>
+                                      </td>
+                                    </tr>
+
+                                    {/* Sub-filas de pagos */}
+                                    {isExp && (
+                                      <tr key={`${b.id}-pays`} className="border-b border-border/40 bg-bg-2/30">
+                                        <td colSpan={7} className="px-6 py-0">
+                                          {b.payments.length === 0 ? (
+                                            <div className="py-3 text-text-muted text-xs italic">Sin pagos registrados.</div>
+                                          ) : (
+                                            <table className="w-full text-xs my-2">
+                                              <thead>
+                                                <tr className="text-text-muted">
+                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">Fecha pago</th>
+                                                  <th className="text-right py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">Monto</th>
+                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">Método</th>
+                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">Pagado por</th>
+                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden md:table-cell">Estado</th>
+                                                  <th className="w-8" />
+                                                </tr>
+                                              </thead>
+                                              <tbody className="divide-y divide-border/20">
+                                                {b.payments.map(p => (
+                                                  <tr key={p.id} className={p.status === 'CANCELLED' ? 'opacity-40' : ''}>
+                                                    <td className="py-1.5 pr-4 font-mono text-text-2">{p.paidAt ? new Date(p.paidAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}</td>
+                                                    <td className="py-1.5 pr-4 text-right font-mono font-semibold text-emerald whitespace-nowrap">{fmt$(p.amount)}</td>
+                                                    <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">{METHOD_LABELS[p.method] ?? p.method}</td>
+                                                    <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">
+                                                      {SOURCE_LABELS[p.source] ?? p.source}
+                                                      {p.insuranceCarrier && <span className="text-text-muted"> · {p.insuranceCarrier.name}</span>}
+                                                    </td>
+                                                    <td className="py-1.5 pr-4 hidden md:table-cell">
+                                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                                        p.status === 'COMPLETED' ? 'bg-emerald/10 text-emerald' :
+                                                        p.status === 'CANCELLED' ? 'bg-rose/10 text-rose' : 'bg-amber/10 text-amber'
+                                                      }`}>
+                                                        {p.status === 'COMPLETED' ? 'Completado' : p.status === 'CANCELLED' ? 'Cancelado' : 'Pendiente'}
+                                                      </span>
+                                                    </td>
+                                                    <td className="py-1.5">
+                                                      {p.status !== 'CANCELLED' && (
+                                                        <button onClick={() => deletePayment(b.id, p.id)} disabled={deletingPay === p.id}
+                                                          className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50" title="Cancelar pago">
+                                                          {deletingPay === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                                        </button>
+                                                      )}
+                                                    </td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Modal: Pagar deuda ──────────────────────────────── */}
+                    {payOpen && (
+                      <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/70 p-4 overflow-y-auto" onClick={() => setPayOpen(false)}>
+                        <div className="bg-bg-1 border border-border rounded-xl w-full max-w-3xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+
+                          {/* Modal header */}
+                          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                            <div>
+                              <h2 className="text-text-1 font-semibold text-base flex items-center gap-2">
+                                <CreditCard className="w-4 h-4 text-amber" /> Pago del caso
+                              </h2>
+                              <p className="text-text-muted text-xs mt-0.5">Complete el pago para el caso seleccionado abajo.</p>
+                            </div>
+                            <button onClick={() => setPayOpen(false)} className="text-text-muted hover:text-text-1 transition-colors p-1">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          {/* Summary bar */}
+                          <div className="grid grid-cols-2 border-b border-border">
+                            <div className="px-5 py-3 border-r border-border">
+                              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Total pendiente</div>
+                              <div className="text-xl font-bold font-mono text-rose mt-0.5">{fmt$(totalPending)}</div>
+                            </div>
+                            <div className="px-5 py-3">
+                              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagos pendientes</div>
+                              <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{pending.length}</div>
+                            </div>
+                          </div>
+
+                          {/* Distribution table */}
+                          <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                            <table className="w-full text-sm">
+                              <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
+                                <tr>
+                                  <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha</th>
+                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
+                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Desc.%</th>
+                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
+                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
+                                  <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28">Pagar</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-border/40">
+                                {pending.map(b => {
+                                  const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
+                                  const isThisAppt = b.appointmentId === appt.id;
+                                  return (
+                                    <tr key={b.id} className={`hover:bg-white/[0.02] ${isThisAppt ? 'bg-cyan/5' : ''}`}>
+                                      <td className="px-4 py-3 text-text-1 font-mono text-xs whitespace-nowrap">
+                                        <span className="flex items-center gap-1.5">
+                                          {b.appointmentDate ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
+                                          {isThisAppt && <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">Esta</span>}
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-3 text-right font-mono text-xs">{fmt$(b.totalCost)}</td>
+                                      <td className="px-3 py-3 text-right text-text-muted font-mono text-xs hidden md:table-cell">{discPct}%</td>
+                                      <td className="px-3 py-3 text-right text-emerald font-mono text-xs">{fmt$(b.amountPaid)}</td>
+                                      <td className="px-3 py-3 text-right">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold">{fmt$(b.balanceDue)}</span>
+                                      </td>
+                                      <td className="px-3 py-3">
+                                        <div className="flex items-center gap-1">
+                                          <input type="number" min="0" max={b.balanceDue} step="0.01"
+                                            value={payAmounts[b.id] ?? ''}
+                                            onChange={e => setPayAmounts(prev => ({ ...prev, [b.id]: e.target.value }))}
+                                            className="w-full rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
+                                            placeholder="0.00"
+                                          />
+                                          <button type="button"
+                                            onClick={() => setPayAmounts(prev => ({ ...prev, [b.id]: b.balanceDue.toFixed(2) }))}
+                                            className="text-[10px] text-brand hover:text-brand/70 transition-colors font-semibold flex-shrink-0">
+                                            MAX
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Footer */}
+                          <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registrar pago</div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <SelectUp value={paySource} onChange={v => {
+                                const src = v as typeof paySource;
+                                setPaySource(src);
+                                setPayType(PAYMENT_TYPES[src]?.[0]?.value ?? '');
+                                if (src === 'INSURANCE') setPayInsuranceId(insurances[0]?.id ?? '');
+                              }} options={sourceOpts} />
+                              <SelectUp value={payMethod} onChange={setPayMethod} options={methodOpts} />
+                              {paySource === 'INSURANCE' ? (
+                                <SelectUp value={payInsuranceId} onChange={setPayInsuranceId}
+                                  options={insuranceOpts.length ? insuranceOpts : [{ label: 'Sin seguros en el caso', value: '' }]}
+                                  placeholder="Seleccionar seguro" />
+                              ) : (
+                                <SelectUp value={payType} onChange={setPayType} options={typeOpts} />
+                              )}
+                            </div>
+                            {paySource === 'INSURANCE' && (
+                              <SelectUp value={payType} onChange={setPayType} options={typeOpts} />
+                            )}
+                            <div className="flex items-center gap-2">
+                              <input type="number" min="0" step="0.01" placeholder="0"
+                                onChange={e => autoDistribute(e.target.value)}
+                                className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
+                                title="Ingresa un total y se distribuye automáticamente" />
+                              <button type="button" onClick={submitPayment}
+                                disabled={paying || payTotal <= 0}
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-amber text-black text-sm font-semibold hover:bg-amber/90 transition-colors disabled:opacity-50 whitespace-nowrap">
+                                {paying
+                                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Procesando…</>
+                                  : <>+ Pagar{payTotal > 0 ? ` ${fmt$(payTotal)}` : '…'}</>
+                                }
+                              </button>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ─── Footer ──────────────────────────────────────────── */}
           {activeTab === 'detail' && (

@@ -397,7 +397,6 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       } catch { /* no interrumpir el flujo si falla el QR */ }
 
       setSuccess({ caseCode: data.case.caseCode, caseId, appointmentScheduled: !!data.appointment, portalUrl, qrDataUrl });
-      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al crear caso');
     } finally {
@@ -1101,10 +1100,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         <DialogFooter className="border-t border-border px-4 sm:px-6 py-3 shrink-0 gap-2 flex-col-reverse sm:flex-row items-stretch sm:items-center">
           {success ? (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={() => { router.refresh(); onOpenChange(false); }} className="w-full sm:w-auto">
                 Cerrar
               </Button>
-              <Button onClick={() => { onOpenChange(false); router.push(`/front-office/${success.caseId}`); }} className="w-full sm:w-auto gap-1">
+              <Button onClick={() => { router.refresh(); onOpenChange(false); router.push(`/front-office/${success.caseId}`); }} className="w-full sm:w-auto gap-1">
                 Ver caso <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </>

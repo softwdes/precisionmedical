@@ -1076,8 +1076,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 </div>
               </InfoCard>
 
+
               {/* Resumen final */}
-              <InfoCard title={t('summaryTitle')} icon={Check} tone="cyan">
+              <InfoCard title={isManual || isSearch ? t('summaryTitle') : t('summaryTitleCall')} icon={Check} tone="cyan">
                 <ul className="space-y-1.5 text-xs text-text-2 list-none m-0 p-0">
                   <li className="flex items-start gap-2">
                     <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
@@ -1115,7 +1116,11 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   )}
                   <li className="flex items-start gap-2">
                     <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                    <span>{t('summaryAudit', { elapsed: formatElapsed(callElapsed) })}</span>
+                    <span>
+                      {isManual || isSearch
+                        ? 'Resumen completo registrado en historial del caso'
+                        : t('summaryAudit', { elapsed: formatElapsed(callElapsed) })}
+                    </span>
                   </li>
                 </ul>
               </InfoCard>
@@ -1151,7 +1156,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 <span className="hidden sm:inline">Atrás</span>
               </Button>
             )}
-            {wizardStep === 4 && (
+            {wizardStep === 4 && !isManual && !isSearch && (
               <Button variant="outline" onClick={() => handleSubmit('pause')}
                 disabled={saving || !firstName || !lastName}
                 className="flex-1 sm:flex-none sm:w-auto gap-1">
@@ -1169,8 +1174,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             </Button>
           ) : (
             <Button onClick={() => handleSubmit('finalize')} disabled={!canSubmit || saving} className="w-full sm:w-auto gap-1">
-              {saving ? 'Creando caso…' : (
-                <><Check className="w-3.5 h-3.5" /> {t('btnFinalize')} <ArrowRight className="w-3.5 h-3.5" /></>
+              {saving ? 'Guardando…' : (
+                <><Check className="w-3.5 h-3.5" /> {isManual || isSearch ? t('btnSave') : t('btnFinalize')} <ArrowRight className="w-3.5 h-3.5" /></>
               )}
             </Button>
           )}

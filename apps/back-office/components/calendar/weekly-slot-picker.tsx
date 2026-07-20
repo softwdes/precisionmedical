@@ -40,28 +40,44 @@ export interface Slot {
 }
 
 interface Props {
-  clinicId:  string;
+  clinicId:   string;
   providerId: string;
-  duration:  number;
-  value:     string | null;          // ISO seleccionado
-  onChange:  (iso: string) => void;
+  duration:   number;
+  value:      string | null;          // ISO seleccionado
+  onChange:   (iso: string) => void;
   /** Semanas hacia adelante permitidas (default 4) */
-  maxWeeks?: number;
+  maxWeeks?:    number;
+  /** Fecha YYYY-MM-DD clickeada en el calendario → pre-selecciona semana y día */
+  initialDate?: string;
+  /** Hora HH:MM clickeada en el calendario → auto-selecciona slot más cercano al cargar */
+  initialTime?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4 }: Props) {
-  const [weekStart,   setWeekStart]   = useState<Date>(() => getMondayOf(new Date()));
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime }: Props) {
+  const [weekStart,   setWeekStart]   = useState<Date>(() => {
+    if (initialDate) {
+      const [y, m, d] = initialDate.split('-').map(Number) as [number, number, number];
+      return getMondayOf(new Date(Date.UTC(y, m - 1, d, 12, 0, 0)));
+    }
+    return getMondayOf(new Date());
+  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(initialDate ?? null);
   const [slots,       setSlots]       = useState<Slot[]>([]);
   const [loading,     setLoading]     = useState(false);
 
-  // Reset when provider/clinic/duration changes
+  // Reset when provider/clinic/duration changes (keep initialDate if still valid)
   useEffect(() => {
-    setWeekStart(getMondayOf(new Date()));
-    setSelectedDay(null);
-  }, [providerId, clinicId, duration]);
+    if (initialDate) {
+      const [y, m, d] = initialDate.split('-').map(Number) as [number, number, number];
+      setWeekStart(getMondayOf(new Date(Date.UTC(y, m - 1, d, 12, 0, 0))));
+      setSelectedDay(initialDate);
+    } else {
+      setWeekStart(getMondayOf(new Date()));
+      setSelectedDay(null);
+    }
+  }, [providerId, clinicId, duration, initialDate]);
 
   // Fetch slots for current week
   useEffect(() => {
@@ -93,6 +109,25 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
 
     return () => controller.abort();
   }, [providerId, clinicId, duration, weekStart]);
+
+  // Auto-seleccionar slot más cercano a initialTime cuando cargan los slots
+  useEffect(() => {
+    if (!initialDate || !initialTime || !slots.length || value) return;
+    const [hh, mm] = initialTime.split(':').map(Number) as [number, number];
+    const targetMs = hh * 60 + mm;
+    const daySlots = slots.filter(s => toDenverDate(new Date(s.iso)) === initialDate);
+    if (!daySlots.length) return;
+    let closest = daySlots[0]!;
+    let minDiff = Infinity;
+    for (const s of daySlots) {
+      const d = new Date(s.iso);
+      const slotMs = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false, timeZone: 'America/Denver' })
+        .split(':').reduce((acc, v, i) => acc + (i === 0 ? Number(v) * 60 : Number(v)), 0);
+      const diff = Math.abs(slotMs - targetMs);
+      if (diff < minDiff) { minDiff = diff; closest = s; }
+    }
+    onChange(closest.iso);
+  }, [slots, initialDate, initialTime, value]);
 
   // Group slots by Denver date key
   const slotsByDay = useMemo(() => {

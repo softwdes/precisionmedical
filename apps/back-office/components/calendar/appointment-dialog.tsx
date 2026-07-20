@@ -87,7 +87,7 @@ const TYPE_OPTIONS: Array<{ value: AppointmentType; label: string }> = [
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AppointmentDialog(props: AppointmentDialogProps) {
-  const { open, onOpenChange, onSuccess } = props;
+  const { open, onOpenChange, onSuccess, initialDate, initialTime } = props;
   const router = useRouter();
 
   // Resources
@@ -586,6 +586,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   value={slotIso}
                   onChange={setSlotIso}
                   maxWeeks={4}
+                  initialDate={initialDate}
+                  initialTime={initialTime}
                 />
               </div>
             )}

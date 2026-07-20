@@ -21,9 +21,10 @@ export async function searchDrugs(q: string): Promise<Array<{ id: number; name: 
 }
 
 export async function searchDoctors(q: string): Promise<Array<{ id: string; name: string }>> {
-  const rows = await db.employee.findMany({
+  const rows = await db.provider.findMany({
     where: {
-      position: { contains: 'DOCTOR', mode: 'insensitive' },
+      status: 'ACTIVE',
+      deletedAt: null,
       ...(q ? { OR: [
         { firstName: { contains: q, mode: 'insensitive' } },
         { lastName:  { contains: q, mode: 'insensitive' } },

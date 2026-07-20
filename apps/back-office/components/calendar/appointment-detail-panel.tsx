@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
+import { Dialog, DialogContent } from '@precision/ui';
 import { AppointmentSecondaryModals, type SecondaryModalType } from './appointment-secondary-modals';
 import { AppointmentDialog, type EditAppointmentData } from './appointment-dialog';
 
@@ -171,11 +172,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
 
   return (
     <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-
-      {/* Panel */}
-      <aside className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[540px] bg-bg-1 border-l border-border flex flex-col shadow-2xl overflow-hidden">
+      <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+        <DialogContent className="max-w-xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
 
         {/* ─── Header ────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
@@ -380,7 +378,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
             </div>
           )}
         </div>
-      </aside>
+        </DialogContent>
+      </Dialog>
 
       {/* Secondary modals */}
       {activeModal && (

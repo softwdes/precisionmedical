@@ -60,13 +60,17 @@ export async function POST(
   const createdPayments: string[] = [];
 
   for (const entry of parsed.payments) {
-    // Verify billing belongs to this case
+    // Verify billing belongs to this case (caseId may be null on migrated records — fall back to appointment.caseId)
     const billing = await db.appointmentBilling.findUnique({
       where: { id: entry.billingId },
-      select: { id: true, caseId: true, balanceDue: true, amountPaid: true },
+      select: {
+        id: true, caseId: true, balanceDue: true, amountPaid: true,
+        appointment: { select: { caseId: true } },
+      },
     });
 
-    if (!billing || billing.caseId !== caseId) {
+    const effectiveCaseId = billing?.caseId ?? billing?.appointment?.caseId ?? null;
+    if (!billing || effectiveCaseId !== caseId) {
       return NextResponse.json(
         { error: 'BILLING_NOT_FOUND', billingId: entry.billingId },
         { status: 404 },

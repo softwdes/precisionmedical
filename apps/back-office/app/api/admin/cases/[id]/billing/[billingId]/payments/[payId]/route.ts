@@ -27,9 +27,13 @@ export async function DELETE(
 
   const billing = await db.appointmentBilling.findUnique({
     where: { id: billingId },
-    select: { id: true, caseId: true, amountPaid: true, balanceDue: true, totalCost: true, discount: true },
+    select: {
+      id: true, caseId: true, amountPaid: true, balanceDue: true, totalCost: true, discount: true,
+      appointment: { select: { caseId: true } },
+    },
   });
-  if (!billing || billing.caseId !== caseId) {
+  const effectiveCaseId = billing?.caseId ?? billing?.appointment?.caseId ?? null;
+  if (!billing || effectiveCaseId !== caseId) {
     return NextResponse.json({ error: 'BILLING_NOT_FOUND' }, { status: 404 });
   }
 

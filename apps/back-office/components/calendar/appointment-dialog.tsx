@@ -128,10 +128,26 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   // Slot picker — slots reales desde la DB
   const [slotOptions,   setSlotOptions]   = useState<Array<{ iso: string; label: string }>>([]);
   const [slotsLoading,  setSlotsLoading]  = useState(false);
+  const [slotDays,      setSlotDays]      = useState(14); // días a buscar slots
 
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState<string | null>(null);
   const [success, setSuccess] = useState<{ clinicName: string; providerName: string; scheduledFor: string } | null>(null);
+
+  // ─── Auto-inferir tipo de cita desde el caso seleccionado ─────────────────
+
+  useEffect(() => {
+    if (props.mode !== 'free' || !caseId) return;
+    const found = patientCases.find((c) => c.id === caseId);
+    if (!found) return;
+    if (found.accidentType === 'AUTO' || found.accidentType === 'MVA') {
+      setType('AUTO_ACCIDENT');
+    } else if (found.accidentType === 'GENERAL' || found.accidentType === 'GP') {
+      setType('FAMILY_PRACTICE');
+    }
+    // Si el caso tiene accidentType no reconocido, dejamos el tipo actual sin tocar
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseId, patientCases]);
 
   // ─── Derived: effective specialty ──────────────────────────────────────────
 
@@ -178,6 +194,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setType('AUTO_ACCIDENT');
     setNotes('');
     setShowAll(false);
+    setSlotDays(14);
     setPatientQuery('');
     setPatientResults([]);
     setSelectedPatient(null);
@@ -245,7 +262,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setSlotIso(null);
 
     const fromDate = new Date().toISOString();
-    const toDate   = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString();
+    const toDate   = new Date(Date.now() + slotDays * 24 * 60 * 60 * 1000).toISOString();
     const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '16' });
 
     fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
@@ -272,7 +289,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       .finally(() => setSlotsLoading(false));
 
     return () => controller.abort();
-  }, [providerId, clinicId, duration, initialDate, initialTime]);
+  }, [providerId, clinicId, duration, slotDays, initialDate, initialTime]);
 
   // ─── Computed: scheduledFor ──────────────────────────────────────────────────
 
@@ -483,16 +500,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             </div>
           )}
 
-          {/* ── CASE MODE: specialty badge ── */}
-          {props.mode === 'case' && effectiveSpecialty && (
-            <div className="flex items-center gap-2 rounded-md border border-border/40 bg-bg-2/40 px-3 py-2">
-              <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">Especialidad:</span>
-              <span
-                className="inline-flex items-center px-2 py-0.5 rounded border text-[11px] font-medium"
-                style={{ backgroundColor: `${effectiveSpecialty.color}20`, borderColor: `${effectiveSpecialty.color}50`, color: effectiveSpecialty.color }}
-              >
-                {effectiveSpecialty.name}
-              </span>
+          {/* ── CASE MODE: caso + specialty badge ── */}
+          {props.mode === 'case' && props.caseInfo && (
+            <div className="flex items-center gap-2 rounded-md border border-border/40 bg-bg-2/40 px-3 py-2 flex-wrap">
+              <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">Caso:</span>
+              <span className="text-text-1 font-mono text-xs font-semibold">{props.caseInfo.caseCode}</span>
+              {effectiveSpecialty && (
+                <>
+                  <span className="text-border">·</span>
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 rounded border text-[11px] font-medium"
+                    style={{ backgroundColor: `${effectiveSpecialty.color}20`, borderColor: `${effectiveSpecialty.color}50`, color: effectiveSpecialty.color }}
+                  >
+                    {effectiveSpecialty.name}
+                  </span>
+                </>
+              )}
             </div>
           )}
 
@@ -588,26 +611,46 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 ))}
               </div>
             ) : slotOptions.length === 0 ? (
-              <div className="mt-1.5 rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-[11px] text-amber">
-                Sin disponibilidad en los próximos 8 días para este doctor y clínica. Cambia el doctor o la clínica.
+              <div className="mt-1.5 rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-[11px] text-amber flex items-center justify-between gap-3">
+                <span>Sin disponibilidad en los próximos {slotDays} días para este doctor y clínica.</span>
+                {slotDays < 42 && (
+                  <button
+                    type="button"
+                    onClick={() => setSlotDays(d => d + 14)}
+                    className="shrink-0 text-brand text-[11px] font-medium hover:underline"
+                  >
+                    Ver +14 días
+                  </button>
+                )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
-                {slotOptions.map((s) => (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
+                  {slotOptions.map((s) => (
+                    <button
+                      key={s.iso}
+                      type="button"
+                      onClick={() => setSlotIso(s.iso)}
+                      className={`px-2 py-2 rounded-md border text-[11px] font-medium transition-colors capitalize ${
+                        slotIso === s.iso
+                          ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
+                          : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                {slotOptions.length >= 16 && slotDays < 42 && (
                   <button
-                    key={s.iso}
                     type="button"
-                    onClick={() => setSlotIso(s.iso)}
-                    className={`px-2 py-2 rounded-md border text-[11px] font-medium transition-colors capitalize ${
-                      slotIso === s.iso
-                        ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                        : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                    }`}
+                    onClick={() => setSlotDays(d => d + 14)}
+                    className="mt-2 w-full text-center text-[11px] text-brand hover:underline py-1"
                   >
-                    {s.label}
+                    Ver más fechas (+14 días)
                   </button>
-                ))}
-              </div>
+                )}
+              </>
             )}
 
             {scheduledLabel && !slotsLoading && (

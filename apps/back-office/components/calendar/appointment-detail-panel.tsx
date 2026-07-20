@@ -68,6 +68,7 @@ interface BillingRecord {
   appointmentId: string | null;
   appointmentDate: string | null;
   totalCost: number;
+  discount: number;
   amountPaid: number;
   balanceDue: number;
   payments: Array<{
@@ -75,6 +76,7 @@ interface BillingRecord {
     amount: number;
     source: string;
     method: string;
+    paymentType: string | null;
     paidAt: string | null;
     notes: string | null;
   }>;
@@ -169,14 +171,16 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
   const [savedOk,        setSavedOk]        = useState(false);
 
   // ── Payments tab ──────────────────────────────────────────────────────────
-  const [billingData,   setBillingData]   = useState<{ kpis: { totalCost: number; totalPaid: number; totalBalance: number }; billings: BillingRecord[] } | null>(null);
-  const [loadingBill,   setLoadingBill]   = useState(false);
-  const [payOpen,       setPayOpen]       = useState(false);
-  const [paySource,     setPaySource]     = useState<'INSURANCE'|'PATIENT'|'LAWYER'>('INSURANCE');
-  const [payMethod,     setPayMethod]     = useState<'CHECK'|'CARD'|'CASH'|'TRANSFER'>('CHECK');
-  const [payAmount,     setPayAmount]     = useState('');
-  const [payBillingId,  setPayBillingId]  = useState('');
-  const [submittingPay, setSubmittingPay] = useState(false);
+  const [billingData,    setBillingData]    = useState<{ kpis: { totalCost: number; totalPaid: number; totalBalance: number }; billings: BillingRecord[] } | null>(null);
+  const [loadingBill,    setLoadingBill]    = useState(false);
+  const [expandedPay,    setExpandedPay]    = useState<string | null>(null); // billingId with form open
+  const [expandedHist,   setExpandedHist]   = useState<string | null>(null); // billingId with history open
+  const [paySource,      setPaySource]      = useState<'INSURANCE'|'PATIENT'|'LAWYER'>('PATIENT');
+  const [payMethod,      setPayMethod]      = useState<'CHECK'|'CARD'|'CASH'|'TRANSFER'>('CHECK');
+  const [payType,        setPayType]        = useState('self_pay');
+  const [payAmount,      setPayAmount]      = useState('');
+  const [payNotes,       setPayNotes]       = useState('');
+  const [submittingPay,  setSubmittingPay]  = useState(false);
 
   const isFirst   = appt.visitNumber === 0;
   const dt        = formatDateTime(appt.scheduledFor);
@@ -287,21 +291,25 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
   };
 
   // ── Payment handler ───────────────────────────────────────────────────────
-  const handleRegisterPayment = async () => {
-    if (!payBillingId || !payAmount || !appt.case?.id) return;
+  const handleRegisterPayment = async (billingId: string) => {
+    if (!billingId || !payAmount || !appt.case?.id) return;
     setSubmittingPay(true);
     try {
-      await fetch(`/api/admin/cases/${appt.case.id}/billing/pay`, {
+      const res = await fetch(`/api/admin/cases/${appt.case.id}/billing/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          payments: [{ billingId: payBillingId, amount: parseFloat(payAmount), notes: null }],
+          payments: [{ billingId, amount: parseFloat(payAmount), notes: payNotes.trim() || null }],
           source: paySource, method: payMethod,
-          paymentType: null, insuranceCarrierId: null, paidAt: null,
+          paymentType: payType, insuranceCarrierId: null, paidAt: null,
         }),
       });
-      setBillingData(null); // reload
-      setPayOpen(false); setPayAmount('');
+      if (res.ok) {
+        setBillingData(null);
+        setExpandedPay(null);
+        setPayAmount('');
+        setPayNotes('');
+      }
     } finally { setSubmittingPay(false); }
   };
 
@@ -613,123 +621,213 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
               ) : billingData ? (
                 <>
                   {/* KPIs */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {[
                       { label: 'Total facturado', value: billingData.kpis.totalCost,    color: 'text-text-1' },
                       { label: 'Pagado',           value: billingData.kpis.totalPaid,    color: 'text-emerald' },
-                      { label: 'Balance pendiente',value: billingData.kpis.totalBalance, color: billingData.kpis.totalBalance > 0 ? 'text-amber' : 'text-text-muted' },
+                      { label: 'Balance',          value: billingData.kpis.totalBalance, color: billingData.kpis.totalBalance > 0 ? 'text-amber' : 'text-text-muted' },
                     ].map(k => (
                       <div key={k.label} className="rounded-lg border border-border bg-bg-2/40 p-3 text-center">
                         <div className="text-[10px] uppercase tracking-wider text-text-muted mb-1">{k.label}</div>
-                        <div className={`text-base font-bold ${k.color}`}>{fmt$(k.value)}</div>
+                        <div className={`text-sm font-bold ${k.color}`}>{fmt$(k.value)}</div>
                       </div>
                     ))}
                   </div>
 
-                  {/* Billing records */}
+                  {/* Table */}
                   {billingData.billings.length === 0 ? (
                     <div className="flex flex-col items-center py-8 text-center">
                       <DollarSign className="w-8 h-8 text-text-muted/40 mb-3" />
                       <div className="text-text-muted text-sm">Sin registros de facturación aún</div>
-                      <div className="text-text-muted/60 text-xs mt-1">Se crean automáticamente al completar la visita</div>
+                      <div className="text-text-muted/60 text-xs mt-1">Se generan al completar la visita</div>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registros del caso</div>
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      {/* Table header */}
+                      <div className="grid grid-cols-[1fr_68px_64px_64px_72px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/60 border-b border-border">
+                        <span>Fecha</span>
+                        <span className="text-right">Costo</span>
+                        <span className="text-right">Pagado</span>
+                        <span className="text-right">Balance</span>
+                        <span />
+                      </div>
+
                       {billingData.billings.map(b => {
                         const isThisAppt = b.appointmentId === appt.id;
+                        const isPaying   = expandedPay  === b.id;
+                        const showHist   = expandedHist === b.id;
+                        const discPct    = b.totalCost > 0 && b.discount > 0
+                          ? Math.round((b.discount / b.totalCost) * 100) : 0;
+
                         return (
-                          <div key={b.id} className={`rounded-lg border p-3 space-y-2 ${isThisAppt ? 'border-cyan/30 bg-cyan/5' : 'border-border bg-bg-1'}`}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {isThisAppt && <span className="text-[10px] font-bold text-cyan bg-cyan/15 px-1.5 py-0.5 rounded">Esta cita</span>}
-                                <span className="text-[11px] text-text-muted">
-                                  {b.appointmentDate ? new Date(b.appointmentDate).toLocaleDateString('es-US', { dateStyle: 'medium' }) : '—'}
+                          <div key={b.id} className="border-b border-border/40 last:border-0">
+                            {/* Main row */}
+                            <div className={`grid grid-cols-[1fr_68px_64px_64px_72px] items-center px-3 py-2.5 transition-colors ${isThisAppt ? 'bg-cyan/5' : 'hover:bg-bg-2/20'}`}>
+                              {/* Fecha + badge */}
+                              <button
+                                type="button"
+                                onClick={() => setExpandedHist(showHist ? null : b.id)}
+                                className="flex items-center gap-1.5 text-left"
+                              >
+                                {b.payments.length > 0
+                                  ? <ChevronRight className={`w-3 h-3 text-text-muted shrink-0 transition-transform ${showHist ? 'rotate-90' : ''}`} />
+                                  : <span className="w-3 shrink-0" />
+                                }
+                                <span className="text-xs text-text-1">
+                                  {b.appointmentDate
+                                    ? new Date(b.appointmentDate).toLocaleDateString('es-US', { month: 'short', day: 'numeric' })
+                                    : '—'}
                                 </span>
-                              </div>
-                              <div className="flex items-center gap-3 text-xs">
-                                <span className="text-text-muted">Total: <strong className="text-text-1">{fmt$(b.totalCost)}</strong></span>
-                                <span className="text-emerald">Pagado: <strong>{fmt$(b.amountPaid)}</strong></span>
-                                {b.balanceDue > 0 && <span className="text-amber">Balance: <strong>{fmt$(b.balanceDue)}</strong></span>}
+                                {isThisAppt && (
+                                  <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">Esta</span>
+                                )}
+                                {discPct > 0 && (
+                                  <span className="text-[9px] text-violet bg-violet/10 px-1 rounded leading-4">-{discPct}%</span>
+                                )}
+                              </button>
+
+                              <span className="text-xs text-text-2 text-right">{fmt$(b.totalCost)}</span>
+                              <span className="text-xs text-emerald text-right">{fmt$(b.amountPaid)}</span>
+                              <span className={`text-xs font-semibold text-right ${b.balanceDue > 0 ? 'text-amber' : 'text-text-muted'}`}>
+                                {fmt$(b.balanceDue)}
+                              </span>
+
+                              {/* Action */}
+                              <div className="flex justify-end">
+                                {b.balanceDue > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setExpandedPay(isPaying ? null : b.id);
+                                      if (!isPaying) setPayAmount(String(b.balanceDue));
+                                    }}
+                                    className={`text-[10px] px-2 py-1 rounded border font-medium transition-colors ${
+                                      isPaying
+                                        ? 'bg-brand/20 border-brand/50 text-brand'
+                                        : 'bg-bg-2 border-border text-text-2 hover:border-brand/40 hover:text-brand'
+                                    }`}
+                                  >
+                                    {isPaying ? 'Cerrar' : '+ Pagar'}
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] text-emerald flex items-center gap-0.5">
+                                    <Check className="w-3 h-3" /> Saldado
+                                  </span>
+                                )}
                               </div>
                             </div>
-                            {/* Payments list */}
-                            {b.payments.length > 0 && (
-                              <div className="space-y-1 pt-1 border-t border-border/40">
+
+                            {/* Payment history (expanded) */}
+                            {showHist && b.payments.length > 0 && (
+                              <div className="px-4 py-2 bg-bg-2/30 border-t border-border/30 space-y-1.5">
                                 {b.payments.map(p => (
-                                  <div key={p.id} className="flex items-center justify-between text-[11px] text-text-muted">
-                                    <span className="flex items-center gap-1.5">
-                                      <Check className="w-3 h-3 text-emerald" />
-                                      {p.source} · {p.method}
-                                      {p.paidAt && <span>· {new Date(p.paidAt).toLocaleDateString('es-US', {dateStyle:'short'})}</span>}
+                                  <div key={p.id} className="flex items-center justify-between text-[11px]">
+                                    <span className="flex items-center gap-1.5 text-text-muted">
+                                      <Check className="w-3 h-3 text-emerald shrink-0" />
+                                      <span className="capitalize">{p.source.toLowerCase()}</span>
+                                      {' · '}
+                                      <span className="capitalize">{p.method.toLowerCase()}</span>
+                                      {p.paymentType && (
+                                        <span className="text-text-muted/60">· {p.paymentType.replace(/_/g, ' ')}</span>
+                                      )}
+                                      {p.paidAt && (
+                                        <span>· {new Date(p.paidAt).toLocaleDateString('es-US', { dateStyle: 'short' })}</span>
+                                      )}
+                                      {p.notes && <span className="italic text-text-muted/60">· {p.notes}</span>}
                                     </span>
-                                    <span className="text-emerald font-semibold">{fmt$(p.amount)}</span>
+                                    <span className="text-emerald font-semibold ml-3">{fmt$(p.amount)}</span>
                                   </div>
                                 ))}
                               </div>
                             )}
-                            {/* Quick pay button */}
-                            {b.balanceDue > 0 && !payOpen && (
-                              <button type="button"
-                                onClick={() => { setPayBillingId(b.id); setPayOpen(true); }}
-                                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md border border-brand/30 text-brand text-[11px] font-medium hover:bg-brand/10 transition-colors">
-                                <Plus className="w-3 h-3" /> Registrar pago
-                              </button>
+
+                            {/* Inline payment form */}
+                            {isPaying && (
+                              <div className="px-4 py-3 bg-brand/5 border-t border-brand/20 space-y-3">
+                                <div className="text-[10px] uppercase tracking-wider font-semibold text-brand">Registrar pago</div>
+
+                                {/* Row 1: Fuente / Método / Tipo */}
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div>
+                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Fuente</label>
+                                    <select value={paySource} onChange={e => setPaySource(e.target.value as typeof paySource)}
+                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand">
+                                      <option value="PATIENT">Paciente</option>
+                                      <option value="INSURANCE">Seguro</option>
+                                      <option value="LAWYER">Abogado</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Método</label>
+                                    <select value={payMethod} onChange={e => setPayMethod(e.target.value as typeof payMethod)}
+                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand">
+                                      <option value="CHECK">Cheque</option>
+                                      <option value="CARD">Tarjeta</option>
+                                      <option value="CASH">Efectivo</option>
+                                      <option value="TRANSFER">Transferencia</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Tipo</label>
+                                    <select value={payType} onChange={e => setPayType(e.target.value)}
+                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand">
+                                      <option value="self_pay">Self-Pay</option>
+                                      <option value="copay">Copago (Cp)</option>
+                                      <option value="deductible">Deducible (Ded)</option>
+                                      <option value="coinsurance">Coaseguro (Coins)</option>
+                                      <option value="no_show">No Show (NS)</option>
+                                      <option value="professional_courtesy">Cortesía (Pro Cur)</option>
+                                      <option value="collections">Cobranzas (Coll)</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                {/* Row 2: Monto / Notas */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">
+                                      Monto (USD) <span className="text-amber normal-case">· pendiente: {fmt$(b.balanceDue)}</span>
+                                    </label>
+                                    <input
+                                      type="number" min="0.01" step="0.01"
+                                      value={payAmount}
+                                      onChange={e => setPayAmount(e.target.value)}
+                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-sm font-semibold text-text-1 focus:outline-none focus:border-brand"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Notas (opcional)</label>
+                                    <input
+                                      type="text"
+                                      value={payNotes}
+                                      onChange={e => setPayNotes(e.target.value)}
+                                      placeholder="Referencia, cheque #, etc."
+                                      className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                                    />
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRegisterPayment(b.id)}
+                                  disabled={submittingPay || !payAmount || parseFloat(payAmount) <= 0}
+                                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-md bg-brand/20 border border-brand/40 text-brand text-xs font-semibold hover:bg-brand/25 transition-colors disabled:opacity-50"
+                                >
+                                  {submittingPay
+                                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Registrando...</>
+                                    : <><Check className="w-3.5 h-3.5" /> Confirmar pago</>
+                                  }
+                                </button>
+                              </div>
                             )}
                           </div>
                         );
                       })}
                     </div>
                   )}
-
-                  {/* Payment form (inline) */}
-                  {payOpen && (
-                    <div className="rounded-lg border border-brand/30 bg-brand/5 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="text-[10px] uppercase tracking-wider font-semibold text-brand">Registrar pago</div>
-                        <button type="button" onClick={() => setPayOpen(false)} className="text-text-muted hover:text-text-1">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Fuente</label>
-                          <select value={paySource} onChange={e => setPaySource(e.target.value as typeof paySource)}
-                            className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand">
-                            <option value="INSURANCE">Seguro</option>
-                            <option value="PATIENT">Paciente</option>
-                            <option value="LAWYER">Abogado</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Método</label>
-                          <select value={payMethod} onChange={e => setPayMethod(e.target.value as typeof payMethod)}
-                            className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand">
-                            <option value="CHECK">Cheque</option>
-                            <option value="CARD">Tarjeta</option>
-                            <option value="CASH">Efectivo</option>
-                            <option value="TRANSFER">Transferencia</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-text-muted uppercase tracking-wider mb-1 block">Monto (USD)</label>
-                        <input type="number" min="0.01" step="0.01" value={payAmount}
-                          onChange={e => setPayAmount(e.target.value)}
-                          placeholder="0.00"
-                          className="w-full bg-bg-2 border border-border rounded px-2 py-1.5 text-sm text-text-1 focus:outline-none focus:border-brand" />
-                      </div>
-                      <button type="button" onClick={handleRegisterPayment}
-                        disabled={submittingPay || !payAmount || parseFloat(payAmount) <= 0}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-md bg-brand/20 border border-brand/40 text-brand text-xs font-semibold hover:bg-brand/25 transition-colors disabled:opacity-50">
-                        {submittingPay ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                        {submittingPay ? 'Registrando...' : 'Confirmar pago'}
-                      </button>
-                    </div>
-                  )}
                 </>
               ) : (
-                <div className="text-text-muted text-xs text-center py-8">Error al cargar datos de facturación.</div>
+                <div className="text-text-muted text-xs text-center py-8">Error al cargar facturación.</div>
               )}
             </div>
           )}

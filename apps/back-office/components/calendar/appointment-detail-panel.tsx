@@ -12,12 +12,12 @@ import {
   X, Phone, MessageSquare, RefreshCw, Calendar,
   CheckCircle2, Clock, AlertTriangle, ChevronRight,
   User, Scale, Shield, Headphones, Check, Edit2, Ban,
-  AlertCircle, Save,
+  AlertCircle,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 import { AppointmentSecondaryModals, type SecondaryModalType } from './appointment-secondary-modals';
-import { AppointmentDialog } from './appointment-dialog';
+import { AppointmentDialog, type EditAppointmentData } from './appointment-dialog';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -120,15 +120,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
   const [cancelling,    setCancelling]    = useState(false);
   const [cancelError,   setCancelError]   = useState<string | null>(null);
 
-  // Reagendar
+  // Reagendar / Editar — ambos abren AppointmentDialog
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
-
-  // Editar (notas + duración)
-  const [editOpen,      setEditOpen]      = useState(false);
-  const [editNotes,     setEditNotes]     = useState(appt.notes ?? '');
-  const [editDuration,  setEditDuration]  = useState(appt.durationMinutes);
-  const [saving,        setSaving]        = useState(false);
-  const [saveError,     setSaveError]     = useState<string | null>(null);
+  const [editOpen,       setEditOpen]       = useState(false);
 
   const isFirst   = appt.visitNumber === 0;
   const dt        = formatDateTime(appt.scheduledFor);
@@ -172,31 +166,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
     }
   };
 
-  const handleSaveEdit = async () => {
-    setSaveError(null);
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/admin/appointments/${appt.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          notes: editNotes.trim() || null,
-          durationMinutes: editDuration,
-        }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.message ?? d.error ?? `HTTP ${res.status}`);
-      }
-      router.refresh();
-      onRefresh();
-      setEditOpen(false);
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Error al guardar');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -309,70 +278,18 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
           </div>
 
           {/* Notas */}
-          {!editOpen ? (
-            <div className="rounded-lg border border-border bg-bg-1 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">📝 Notas de la cita</div>
-                <button type="button" onClick={() => { setEditNotes(appt.notes ?? ''); setEditDuration(appt.durationMinutes); setEditOpen(true); }}
-                  className="text-[10px] text-brand hover:underline flex items-center gap-1">
-                  <Edit2 className="w-3 h-3" /> Editar
-                </button>
-              </div>
-              <p className="text-text-2 text-[12.5px] leading-relaxed min-h-[40px]">
-                {appt.notes || <span className="text-text-muted italic">Sin notas.</span>}
-              </p>
+          <div className="rounded-lg border border-border bg-bg-1 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">📝 Notas de la cita</div>
+              <button type="button" onClick={() => setEditOpen(true)}
+                className="text-[10px] text-brand hover:underline flex items-center gap-1">
+                <Edit2 className="w-3 h-3" /> Editar
+              </button>
             </div>
-          ) : (
-            /* ── Panel de edición inline ── */
-            <div className="rounded-lg border border-brand/30 bg-brand/5 p-4 space-y-3">
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-brand">✏️ Editar cita</div>
-
-              <div>
-                <label className="text-text-muted text-[11px] mb-1 block">Duración (min)</label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {[15, 30, 45, 60, 90, 120].map((d) => (
-                    <button key={d} type="button" onClick={() => setEditDuration(d)}
-                      className={`px-2.5 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                        editDuration === d
-                          ? 'bg-brand/20 border-brand/50 text-brand'
-                          : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                      }`}>
-                      {d}m
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-text-muted text-[11px] mb-1 block">Notas</label>
-                <textarea
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[72px]"
-                  placeholder="Notas para el doctor..."
-                  maxLength={2000}
-                />
-              </div>
-
-              {saveError && (
-                <div className="text-rose text-xs flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {saveError}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setEditOpen(false)} disabled={saving}
-                  className="flex-1 px-3 py-2 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
-                  Cancelar
-                </button>
-                <button type="button" onClick={handleSaveEdit} disabled={saving}
-                  className="flex-1 px-3 py-2 rounded-md bg-brand/15 border border-brand/40 text-brand text-xs font-semibold hover:bg-brand/20 transition-colors flex items-center justify-center gap-1.5">
-                  {saving ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  {saving ? 'Guardando...' : 'Guardar cambios'}
-                </button>
-              </div>
-            </div>
-          )}
+            <p className="text-text-2 text-[12.5px] leading-relaxed min-h-[40px]">
+              {appt.notes || <span className="text-text-muted italic">Sin notas.</span>}
+            </p>
+          </div>
 
           {/* Acciones rápidas */}
           <div className="rounded-lg border border-border bg-bg-1 p-4">
@@ -448,7 +365,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                 Cancelar cita
               </button>
               <button type="button"
-                onClick={() => { setEditNotes(appt.notes ?? ''); setEditDuration(appt.durationMinutes); setEditOpen(true); }}
+                onClick={() => setEditOpen(true)}
                 className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
                 <Edit2 className="w-3.5 h-3.5" />
                 Editar
@@ -474,7 +391,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
         />
       )}
 
-      {/* Reagendar — AppointmentDialog pre-llenado con fecha+hora actual */}
+      {/* Reagendar — AppointmentDialog modo free con fecha+hora actual */}
       <AppointmentDialog
         mode="free"
         open={rescheduleOpen}
@@ -483,6 +400,32 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
         initialTime={dt.timeInput}
         onSuccess={() => { onRefresh(); onClose(); }}
       />
+
+      {/* Editar — AppointmentDialog en modo edición */}
+      {appt.case && (
+        <AppointmentDialog
+          mode="free"
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          editAppointment={{
+            id:              appt.id,
+            scheduledFor:    appt.scheduledFor,
+            durationMinutes: appt.durationMinutes,
+            type:            appt.type,
+            notes:           appt.notes,
+            clinicId:        appt.clinic.id,
+            providerId:      appt.provider?.id ?? null,
+            caseId:          appt.case.id,
+            caseCode:        appt.case.caseCode,
+            patient: {
+              id:        appt.patient.id,
+              firstName: appt.patient.firstName,
+              lastName:  appt.patient.lastName,
+            },
+          }}
+          onSuccess={() => { onRefresh(); setEditOpen(false); }}
+        />
+      )}
     </>
   );
 }

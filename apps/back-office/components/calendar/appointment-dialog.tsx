@@ -64,12 +64,27 @@ interface FreeModeProps {
   caseInfo?: never;
 }
 
+// Datos de cita existente para modo edición
+export interface EditAppointmentData {
+  id: string;
+  scheduledFor: string;
+  durationMinutes: number;
+  type: string;
+  notes: string | null;
+  clinicId: string;
+  providerId: string | null;
+  caseId: string;
+  caseCode: string;
+  patient: { id: string; firstName: string; lastName: string };
+}
+
 type AppointmentDialogProps = (CaseModeProps | FreeModeProps) & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   initialDate?: string; // YYYY-MM-DD
   initialTime?: string; // HH:MM
+  editAppointment?: EditAppointmentData; // si viene, abre en modo edición
 };
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -87,7 +102,8 @@ const TYPE_OPTIONS: Array<{ value: AppointmentType; label: string }> = [
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AppointmentDialog(props: AppointmentDialogProps) {
-  const { open, onOpenChange, onSuccess, initialDate, initialTime } = props;
+  const { open, onOpenChange, onSuccess, initialDate, initialTime, editAppointment } = props;
+  const isEditMode = !!editAppointment;
   const router = useRouter();
 
   // Resources
@@ -170,18 +186,41 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     if (!open) return;
     setError(null);
     setSuccess(null);
-    setCaseId(props.mode === 'case' ? (props.caseInfo?.id ?? '') : '');
-    setClinicId('');
-    setProviderId('');
-    setSlotIso(null);
-    setDuration(15);
-    setType('AUTO_ACCIDENT');
-    setNotes('');
     setShowAll(false);
     setPatientQuery('');
     setPatientResults([]);
-    setSelectedPatient(null);
     setPatientCases([]);
+
+    if (editAppointment) {
+      // Modo edición: pre-llenar con datos existentes
+      setCaseId(editAppointment.caseId);
+      setClinicId(editAppointment.clinicId);
+      setProviderId(editAppointment.providerId ?? '');
+      setSlotIso(editAppointment.scheduledFor);
+      setDuration(editAppointment.durationMinutes);
+      setType(editAppointment.type as AppointmentType);
+      setNotes(editAppointment.notes ?? '');
+      setSelectedPatient({
+        id: editAppointment.patient.id,
+        firstName: editAppointment.patient.firstName,
+        lastName: editAppointment.patient.lastName,
+        patientCode: null,
+        phone: null,
+        casesCount: 0,
+        lastCaseCode: null,
+        lastCaseStatus: null,
+      });
+    } else {
+      // Modo crear: limpiar todo
+      setCaseId(props.mode === 'case' ? (props.caseInfo?.id ?? '') : '');
+      setClinicId('');
+      setProviderId('');
+      setSlotIso(null);
+      setDuration(15);
+      setType('AUTO_ACCIDENT');
+      setNotes('');
+      setSelectedPatient(null);
+    }
 
     setLoadingRes(true);
     fetch('/api/admin/scheduling/resources')
@@ -193,6 +232,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       })
       .catch(() => setError('No se pudieron cargar clínicas/doctores'))
       .finally(() => setLoadingRes(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // ─── Patient search (free mode) ─────────────────────────────────────────────
@@ -255,9 +295,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const selectedProvider = allProviders.find((p) => p.id === providerId);
 
   const canSubmit = useMemo(() => {
-    const hasCase = props.mode === 'case' ? !!props.caseInfo?.id : !!caseId;
-    return hasCase && !!clinicId && !!providerId && !!scheduledForIso && isFuture && !saving;
-  }, [props.mode, caseId, clinicId, providerId, scheduledForIso, isFuture, saving]);
+    const hasCase = isEditMode ? true : (props.mode === 'case' ? !!props.caseInfo?.id : !!caseId);
+    const slotOk = isEditMode ? !!scheduledForIso : (!!scheduledForIso && isFuture);
+    return hasCase && !!clinicId && !!providerId && slotOk && !saving;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, props.mode, caseId, clinicId, providerId, scheduledForIso, isFuture, saving]);
 
   // ─── Submit ──────────────────────────────────────────────────────────────────
 
@@ -265,36 +307,60 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setError(null);
     if (!canSubmit) return setError('Completá todos los campos requeridos');
 
-    const targetCaseId = props.mode === 'case' ? props.caseInfo!.id : caseId;
     setSaving(true);
     try {
-      const res = await fetch('/api/admin/appointments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          caseId: targetCaseId,
-          clinicId,
-          providerId,
-          scheduledFor: scheduledForIso,
-          durationMinutes: duration,
-          type,
-          notes: notes.trim() || undefined,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+      if (isEditMode) {
+        // PATCH — editar cita existente
+        const res = await fetch(`/api/admin/appointments/${editAppointment!.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clinicId,
+            providerId,
+            scheduledFor: scheduledForIso,
+            durationMinutes: duration,
+            type,
+            notes: notes.trim() || null,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        }
+        router.refresh();
+        onSuccess?.();
+        onOpenChange(false);
+      } else {
+        // POST — crear nueva cita
+        const targetCaseId = props.mode === 'case' ? props.caseInfo!.id : caseId;
+        const res = await fetch('/api/admin/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            caseId: targetCaseId,
+            clinicId,
+            providerId,
+            scheduledFor: scheduledForIso,
+            durationMinutes: duration,
+            type,
+            notes: notes.trim() || undefined,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        setSuccess({
+          scheduledFor: data.appointment.scheduledFor,
+          clinicName:   data.appointment.clinic.name,
+          providerName: `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`,
+        });
+        router.refresh();
+        onSuccess?.();
       }
-      const data = await res.json();
-      setSuccess({
-        scheduledFor: data.appointment.scheduledFor,
-        clinicName:   data.appointment.clinic.name,
-        providerName: `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`,
-      });
-      router.refresh();
-      onSuccess?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al agendar');
+      setError(e instanceof Error ? e.message : isEditMode ? 'Error al guardar' : 'Error al agendar');
     } finally {
       setSaving(false);
     }
@@ -337,9 +403,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarCheck className="w-5 h-5 text-emerald" />
-            {props.mode === 'case' ? 'Agendar primera cita' : 'Nueva cita'}
+            {isEditMode ? 'Editar cita' : props.mode === 'case' ? 'Agendar primera cita' : 'Nueva cita'}
           </DialogTitle>
-          {props.mode === 'case' && props.caseInfo && (
+          {isEditMode && editAppointment && (
+            <DialogDescription>
+              Paciente <strong className="text-text-1">{editAppointment.patient.firstName} {editAppointment.patient.lastName}</strong>
+              {' '}· caso <code className="text-text-1 font-mono">{editAppointment.caseCode}</code>.
+            </DialogDescription>
+          )}
+          {!isEditMode && props.mode === 'case' && props.caseInfo && (
             <DialogDescription>
               Paciente <strong className="text-text-1">{props.caseInfo.patient.firstName} {props.caseInfo.patient.lastName}</strong>
               {' '}· caso <code className="text-text-1 font-mono">{props.caseInfo.caseCode}</code>.
@@ -350,8 +422,20 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
         <div className="space-y-4 py-2 max-h-[68vh] overflow-y-auto pr-1">
 
+          {/* ── EDIT MODE: Patient badge read-only ── */}
+          {isEditMode && editAppointment && (
+            <div className="flex items-center gap-2 rounded-md border border-border/40 bg-bg-2/40 px-3 py-2 flex-wrap">
+              <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">Caso:</span>
+              <span className="text-text-1 font-mono text-xs font-semibold">{editAppointment.caseCode}</span>
+              <span className="text-border">·</span>
+              <span className="text-text-muted text-[10px]">
+                {editAppointment.patient.firstName} {editAppointment.patient.lastName}
+              </span>
+            </div>
+          )}
+
           {/* ── FREE MODE: Patient search ── */}
-          {props.mode === 'free' && (
+          {!isEditMode && props.mode === 'free' && (
             <div className="space-y-3">
               <div>
                 <Label>
@@ -447,7 +531,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           )}
 
           {/* ── CASE MODE: caso + specialty badge ── */}
-          {props.mode === 'case' && props.caseInfo && (
+          {!isEditMode && props.mode === 'case' && props.caseInfo && (
             <div className="flex items-center gap-2 rounded-md border border-border/40 bg-bg-2/40 px-3 py-2 flex-wrap">
               <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">Caso:</span>
               <span className="text-text-1 font-mono text-xs font-semibold">{props.caseInfo.caseCode}</span>
@@ -585,9 +669,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   duration={duration}
                   value={slotIso}
                   onChange={setSlotIso}
-                  maxWeeks={4}
-                  initialDate={initialDate}
-                  initialTime={initialTime}
+                  maxWeeks={8}
+                  initialDate={isEditMode && editAppointment
+                    ? new Date(editAppointment.scheduledFor).toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
+                    : initialDate}
+                  initialTime={isEditMode && editAppointment
+                    ? new Date(editAppointment.scheduledFor).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' })
+                    : initialTime}
                 />
               </div>
             )}
@@ -650,7 +738,12 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             Cancelar
           </Button>
           <Button onClick={handleSchedule} disabled={!canSubmit} className="w-full sm:w-auto">
-            {saving ? 'Agendando...' : <><CalendarCheck className="w-3.5 h-3.5 mr-1" /> Agendar cita</>}
+            {saving
+              ? (isEditMode ? 'Guardando...' : 'Agendando...')
+              : isEditMode
+                ? <><Check className="w-3.5 h-3.5 mr-1" /> Guardar cambios</>
+                : <><CalendarCheck className="w-3.5 h-3.5 mr-1" /> Agendar cita</>
+            }
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1048,13 +1048,30 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
   };
 
   const SOURCE_LABELS: Record<string, string> = {
-    LAW_FIRM_REFERRAL: t('sourceLabelLawFirm'),
-    PATIENT_REFERRAL:  t('sourceLabelPatient'),
-    PHONE_CALL:        t('sourceLabelPhoneCall'),
-    WALK_IN:           t('sourceLabelWalkIn'),
-    WEB_FORM:          t('sourceLabelWebForm'),
-    AI_AGENT:          t('sourceLabelAiAgent'),
-    OTHER:             t('sourceLabelOther'),
+    // Legacy / sistema interno
+    LAW_FIRM_REFERRAL:  t('sourceLabelLawFirm'),
+    WEB_FORM:           t('sourceLabelWebForm'),
+    AI_AGENT:           t('sourceLabelAiAgent'),
+    // Valores actuales del wizard
+    LAW_FIRM:           t('sourceLabelLawFirm'),
+    PATIENT_REFERRAL:   t('sourceLabelPatient'),
+    CHIROPRACTOR:       t('sourceLabelChiropractor'),
+    REFERRAL:           t('sourceLabelReferral'),
+    PHONE_CALL:         t('sourceLabelPhoneCall'),
+    WALK_IN:            t('sourceLabelWalkIn'),
+    ACCIDENT_CENTER:    t('sourceLabelAccidentCenter'),
+    WEB_SEARCH:         t('sourceLabelWebSearch'),
+    GOOGLE:             t('sourceLabelGoogle'),
+    GOOGLE_MAPS:        t('sourceLabelGoogleMaps'),
+    FACEBOOK:           t('sourceLabelFacebook'),
+    INSTAGRAM:          t('sourceLabelInstagram'),
+    TIKTOK:             t('sourceLabelTikTok'),
+    WEBSITE:            t('sourceLabelWebsite'),
+    CLINIC_STAFF:       t('sourceLabelClinicStaff'),
+    INSURANCE:          t('sourceLabelInsurance'),
+    MEDICAL_INSURANCE:  t('sourceLabelMedicalInsurance'),
+    FAMILY:             t('sourceLabelFamily'),
+    OTHER:              t('sourceLabelOther'),
   };
 
   const events: Event[] = [];

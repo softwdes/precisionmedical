@@ -171,7 +171,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setAccidentDate(''); setAccidentType('AUTO'); setAccidentLocation(''); setAccidentNotes('');
     setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setChiropractor('');
     setInsurance(null); setPolicyNumber('');
-    setSpecialtyId(specialties[0]?.id ?? ''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
+    setSpecialtyId(''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
     setProviderId(''); setSlotIso(null); setDuration(45); setAppointmentNotes(''); setShowAllProviders(false);
     setWeekStart(getMondayOf(new Date())); setSelectedDay(null);
     setFormDelivery('SEND_NOW');

@@ -1611,6 +1611,16 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
+  const [searchValue, setSearchValue] = useState(q ?? '');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams();
+      if (searchValue.trim()) params.set('q', searchValue.trim());
+      if (inactiveOnly) params.set('inactive', '1');
+      router.push(`/patients${params.toString() ? '?' + params.toString() : ''}`);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchValue]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!openMenuId) return;
     const handler = (e: MouseEvent) => {
@@ -1735,27 +1745,28 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
       {/* Toolbar: búsqueda + acciones en una sola fila */}
       <div className="flex flex-wrap items-center gap-2 mb-1">
         {/* Search form — izquierda, ocupa el espacio disponible */}
-        <form method="GET" action="/patients" className="flex items-center gap-1.5 flex-1 min-w-[180px]">
+        <div className="flex items-center gap-1.5 flex-1 min-w-[180px]">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
             <input
-              name="q"
-              defaultValue={q}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
               placeholder={t('searchPlaceholder')}
               className="w-full pl-8 pr-3 py-2 bg-bg-2 border border-border rounded-md text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
               autoComplete="off"
             />
           </div>
-          {q && (
-            <a
-              href="/patients"
+          {searchValue && (
+            <button
+              type="button"
+              onClick={() => setSearchValue('')}
               className="p-2 rounded-md border border-border text-text-muted hover:text-text-1 hover:border-border-strong transition-colors"
               title={t('btnClear')}
             >
               <XIcon className="w-3.5 h-3.5" />
-            </a>
+            </button>
           )}
-        </form>
+        </div>
 
         {/* Acciones — derecha */}
         <div className="flex items-center gap-1.5 flex-wrap">

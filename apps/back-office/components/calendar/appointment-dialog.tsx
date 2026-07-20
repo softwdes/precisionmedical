@@ -20,6 +20,7 @@ import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter, Label,
 } from '@precision/ui';
+import { PersonAvatar } from '@/components/ui-phoenix';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -510,20 +511,37 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               </div>
             )}
 
-            <select
-              id="appt-provider"
-              value={providerId}
-              onChange={(e) => setProviderId(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-              disabled={loadingRes}
-            >
-              <option value="">{loadingRes ? 'Cargando...' : `Seleccionar doctor${effectiveSpecialty && !showAll ? ` (${effectiveSpecialty.name})` : ''}...`}</option>
-              {filteredProviders.map((p) => (
-                <option key={p.id} value={p.id}>
-                  Dr. {p.firstName} {p.lastName}{p.specialty ? ` — ${p.specialty}` : ''}
-                </option>
-              ))}
-            </select>
+            {loadingRes ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-12 rounded-md border border-border bg-bg-2 animate-pulse" />
+                ))}
+              </div>
+            ) : filteredProviders.length === 0 ? (
+              <p className="text-[11px] text-text-muted italic mt-1">No hay doctores disponibles.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                {filteredProviders.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setProviderId(p.id)}
+                    className={`text-left p-2.5 rounded-md border text-xs transition-colors flex items-center gap-2 ${
+                      providerId === p.id
+                        ? 'bg-cyan/10 border-cyan/40 text-text-1'
+                        : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
+                    }`}
+                  >
+                    <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">Dr. {p.firstName} {p.lastName}</div>
+                      <div className="text-[10px] text-text-muted capitalize">{p.specialty.toLowerCase().replace(/_/g, ' ')}</div>
+                    </div>
+                    {providerId === p.id && <Check className="w-3.5 h-3.5 text-cyan shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {hasSpecialtyMismatch && (
               <div className="mt-1.5 text-[11px] text-amber flex items-start gap-1">

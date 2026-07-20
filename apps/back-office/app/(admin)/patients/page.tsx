@@ -24,12 +24,21 @@ export default async function PatientsPage({
     ? { status: 'INACTIVE' as const }
     : { NOT: { status: 'INACTIVE' as const } };
 
+  const qParts = q ? q.trim().split(/\s+/).filter(Boolean) : [];
+  const fullNameClauses = qParts.length >= 2
+    ? [
+        { firstName: { contains: qParts[0]!, mode: 'insensitive' as const }, lastName: { contains: qParts[qParts.length - 1]!, mode: 'insensitive' as const } },
+        { firstName: { contains: qParts[qParts.length - 1]!, mode: 'insensitive' as const }, lastName: { contains: qParts[0]!, mode: 'insensitive' as const } },
+      ]
+    : [];
+
   const where = q
     ? {
         AND: [
           statusFilter,
           {
             OR: [
+              ...fullNameClauses,
               { firstName:   { contains: q, mode: 'insensitive' as const } },
               { lastName:    { contains: q, mode: 'insensitive' as const } },
               { email:       { contains: q, mode: 'insensitive' as const } },

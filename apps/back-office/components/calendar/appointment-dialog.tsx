@@ -109,7 +109,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [clinicId,   setClinicId]   = useState('');
   const [providerId, setProviderId] = useState('');
   const [slotIso,    setSlotIso]    = useState<string | null>(null);
-  const [duration,   setDuration]   = useState(30);
+  const [duration,   setDuration]   = useState(15);
   const [type,       setType]       = useState<AppointmentType>('AUTO_ACCIDENT');
   const [notes,      setNotes]      = useState('');
   const [showAll,    setShowAll]    = useState(false); // override specialty filter
@@ -174,7 +174,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setClinicId('');
     setProviderId('');
     setSlotIso(null);
-    setDuration(30);
+    setDuration(15);
     setType('AUTO_ACCIDENT');
     setNotes('');
     setShowAll(false);

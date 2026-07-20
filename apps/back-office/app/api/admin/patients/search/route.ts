@@ -21,9 +21,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ results: [] });
   }
 
+  const parts = q.split(/\s+/).filter(Boolean);
+  const fullNameClauses = parts.length >= 2
+    ? [
+        // "Sandra Lopez" → firstName:Sandra AND lastName:Lopez
+        { firstName: { contains: parts[0]!, mode: 'insensitive' as const }, lastName: { contains: parts[parts.length - 1]!, mode: 'insensitive' as const } },
+        // "Lopez Sandra" → firstName:Lopez AND lastName:Sandra
+        { firstName: { contains: parts[parts.length - 1]!, mode: 'insensitive' as const }, lastName: { contains: parts[0]!, mode: 'insensitive' as const } },
+      ]
+    : [];
+
   const patients = await db.patient.findMany({
     where: {
       OR: [
+        ...fullNameClauses,
         { firstName: { contains: q, mode: 'insensitive' } },
         { lastName: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q } },

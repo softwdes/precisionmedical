@@ -15,11 +15,11 @@ import {
   CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
   FileText, ChevronRight, Calendar as CalendarIcon, User, Search, X,
 } from 'lucide-react';
+import { WeeklySlotPicker } from './weekly-slot-picker';
 import {
   Button, Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter, Label,
 } from '@precision/ui';
-import { TagPill } from '@/components/ui-phoenix';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -83,22 +83,10 @@ const TYPE_OPTIONS: Array<{ value: AppointmentType; label: string }> = [
   { value: 'URGENT_CARE',     label: 'Urgencias' },
 ];
 
-const SPECIALTY_COLORS: Record<string, string> = {
-  CHIROPRACTIC:     'bg-rose/15 text-rose border-rose/30',
-  PHYSICAL_THERAPY: 'bg-cyan/15 text-cyan border-cyan/30',
-  PAIN_MANAGEMENT:  'bg-violet/15 text-violet border-violet/30',
-  ORTHOPEDICS:      'bg-amber/15 text-amber border-amber/30',
-  NEUROLOGY:        'bg-pink/15 text-pink border-pink/30',
-  RADIOLOGY:        'bg-emerald/15 text-emerald border-emerald/30',
-  PSYCHOLOGY:       'bg-brand/15 text-brand border-brand/30',
-  GENERAL:          'bg-bg-2 text-text-2 border-border',
-  OTHER:            'bg-bg-2 text-text-2 border-border',
-};
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AppointmentDialog(props: AppointmentDialogProps) {
-  const { open, onOpenChange, onSuccess, initialDate, initialTime } = props;
+  const { open, onOpenChange, onSuccess } = props;
   const router = useRouter();
 
   // Resources
@@ -125,10 +113,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [notes,      setNotes]      = useState('');
   const [showAll,    setShowAll]    = useState(false); // override specialty filter
 
-  // Slot picker — slots reales desde la DB
-  const [slotOptions,   setSlotOptions]   = useState<Array<{ iso: string; label: string }>>([]);
-  const [slotsLoading,  setSlotsLoading]  = useState(false);
-  const [slotDays,      setSlotDays]      = useState(14); // días a buscar slots
 
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -194,7 +178,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setType('AUTO_ACCIDENT');
     setNotes('');
     setShowAll(false);
-    setSlotDays(14);
     setPatientQuery('');
     setPatientResults([]);
     setSelectedPatient(null);
@@ -249,47 +232,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setProviderId('');
   }, []);
 
-  // ─── Slots reales: carga disponibilidad cuando cambia provider/clinic/duration ──
-
+  // Reset slot cuando cambia provider/clinic para forzar nueva selección
   useEffect(() => {
-    if (!providerId || !clinicId) {
-      setSlotOptions([]);
-      setSlotIso(null);
-      return;
-    }
-    const controller = new AbortController();
-    setSlotsLoading(true);
     setSlotIso(null);
-
-    const fromDate = new Date().toISOString();
-    const toDate   = new Date(Date.now() + slotDays * 24 * 60 * 60 * 1000).toISOString();
-    const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '16' });
-
-    fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.ok) return;
-        const slots = (data.slots as Array<{ startAt: string }>).map((s) => ({
-          iso: s.startAt,
-          label: new Date(s.startAt).toLocaleString('es-US', {
-            weekday: 'short', day: 'numeric', month: 'short',
-            hour: 'numeric', minute: '2-digit',
-            timeZone: 'America/Denver',
-          }),
-        }));
-        setSlotOptions(slots);
-        // Si había initialDate+initialTime, pre-seleccionar el slot más cercano
-        if (initialDate && initialTime) {
-          const target = new Date(`${initialDate}T${initialTime}:00`).getTime();
-          const closest = slots.find((s) => Math.abs(new Date(s.iso).getTime() - target) < 30 * 60 * 1000);
-          if (closest) setSlotIso(closest.iso);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setSlotsLoading(false));
-
-    return () => controller.abort();
-  }, [providerId, clinicId, duration, slotDays, initialDate, initialTime]);
+  }, [providerId, clinicId, duration]);
 
   // ─── Computed: scheduledFor ──────────────────────────────────────────────────
 
@@ -593,69 +539,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             <Label>
               <CalendarIcon className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
               Horario disponible <span className="text-rose">*</span>
-              {slotsLoading && (
-                <span className="ml-2 text-[10px] text-text-muted font-normal animate-pulse">
-                  verificando disponibilidad…
-                </span>
-              )}
             </Label>
 
             {!providerId || !clinicId ? (
               <p className="mt-1.5 text-[11px] text-text-muted italic">
                 Selecciona clínica y doctor para ver los horarios disponibles.
               </p>
-            ) : slotsLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="h-9 rounded-md border border-border bg-bg-2 animate-pulse" />
-                ))}
-              </div>
-            ) : slotOptions.length === 0 ? (
-              <div className="mt-1.5 rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-[11px] text-amber flex items-center justify-between gap-3">
-                <span>Sin disponibilidad en los próximos {slotDays} días para este doctor y clínica.</span>
-                {slotDays < 42 && (
-                  <button
-                    type="button"
-                    onClick={() => setSlotDays(d => d + 14)}
-                    className="shrink-0 text-brand text-[11px] font-medium hover:underline"
-                  >
-                    Ver +14 días
-                  </button>
-                )}
-              </div>
             ) : (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-1.5">
-                  {slotOptions.map((s) => (
-                    <button
-                      key={s.iso}
-                      type="button"
-                      onClick={() => setSlotIso(s.iso)}
-                      className={`px-2 py-2 rounded-md border text-[11px] font-medium transition-colors capitalize ${
-                        slotIso === s.iso
-                          ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                          : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-                {slotOptions.length >= 16 && slotDays < 42 && (
-                  <button
-                    type="button"
-                    onClick={() => setSlotDays(d => d + 14)}
-                    className="mt-2 w-full text-center text-[11px] text-brand hover:underline py-1"
-                  >
-                    Ver más fechas (+14 días)
-                  </button>
-                )}
-              </>
-            )}
-
-            {scheduledLabel && !slotsLoading && (
-              <div className="mt-2 rounded-md border border-brand/20 bg-brand/5 px-3 py-2 text-xs text-brand">
-                <strong className="capitalize">{scheduledLabel}</strong>
+              <div className="mt-1.5">
+                <WeeklySlotPicker
+                  clinicId={clinicId}
+                  providerId={providerId}
+                  duration={duration}
+                  value={slotIso}
+                  onChange={setSlotIso}
+                  maxWeeks={4}
+                />
               </div>
             )}
           </div>

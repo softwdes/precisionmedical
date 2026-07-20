@@ -451,148 +451,6 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  // RENDER · Success panel (dentro del mismo dialog)
-  // ══════════════════════════════════════════════════════════════════════
-  if (success) {
-    const selectedSlot = slotOptions.find((s) => s.iso === slotIso);
-    const selectedProvider = providers.find((p) => p.id === providerId);
-    const selectedClinic   = clinics.find((c) => c.id === clinicId);
-
-    return (
-      <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[92vh] overflow-hidden flex flex-col p-0">
-          {/* Header */}
-          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-emerald/15 border border-emerald/30 flex items-center justify-center">
-                <Check className="w-3.5 h-3.5 text-emerald" />
-              </div>
-              <div>
-                <div className="text-text-1 font-semibold text-sm">
-                  {isManual ? t('successTitleManual') : t('successTitleCall')}
-                </div>
-                <div className="text-text-muted text-[11px] mt-0.5">
-                  {firstName} {lastName} · <code className="text-emerald font-mono font-bold">{success.caseCode}</code>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 scroll-thin">
-
-            {/* Resumen de lo creado */}
-            <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-2">
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">Resumen del caso</div>
-              <div className="space-y-1.5 text-xs text-text-2">
-                <div className="flex items-start gap-2">
-                  <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                  <span>Caso <strong className="text-text-1 font-mono">{success.caseCode}</strong> creado · {caseType}</span>
-                </div>
-                {success.appointmentScheduled && selectedSlot && (
-                  <div className="flex items-start gap-2">
-                    <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                    <span>
-                      Cita agendada: <strong className="text-text-1">{selectedSlot.dayLabel} · {selectedSlot.label}</strong>
-                      {selectedProvider && <> · Dr. {selectedProvider.firstName} {selectedProvider.lastName}</>}
-                      {selectedClinic && <> · {selectedClinic.name}</>}
-                    </span>
-                  </div>
-                )}
-                {formDelivery === 'SEND_NOW' && (
-                  <div className="flex items-start gap-2">
-                    <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                    <span>Formulario enviado por {email ? 'email + SMS' : 'SMS'}</span>
-                  </div>
-                )}
-                {caseType === 'MVA' && lawFirm && (
-                  <div className="flex items-start gap-2">
-                    <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                    <span>Vinculado a bufete: <strong className="text-text-1">{lawFirm.label}</strong></span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* QR + link · compartir por otros medios */}
-            {success.portalUrl && (
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
-                  Enlace del formulario · compartir por otros medios
-                </div>
-                <div className="flex flex-col sm:flex-row gap-4 items-start">
-                  {/* QR code */}
-                  {success.qrDataUrl && (
-                    <div className="shrink-0 rounded-lg overflow-hidden border border-border">
-                      <img src={success.qrDataUrl} alt="QR formulario" className="w-[140px] h-[140px] block" />
-                    </div>
-                  )}
-                  {/* Link + botones */}
-                  <div className="flex-1 min-w-0 space-y-3">
-                    <div className="rounded-md bg-bg-2/40 border border-border/40 px-3 py-2">
-                      <div className="text-[10px] text-text-muted mb-1">URL del formulario</div>
-                      <div className="text-xs text-text-2 font-mono truncate">{success.portalUrl}</div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-start gap-2"
-                        onClick={copyLink}
-                      >
-                        {copied
-                          ? <><Check className="w-3.5 h-3.5 text-emerald" /> ¡Copiado!</>
-                          : <><Copy className="w-3.5 h-3.5" /> Copiar enlace</>}
-                      </Button>
-                      {success.qrDataUrl && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-start gap-2"
-                          onClick={downloadQr}
-                        >
-                          <Download className="w-3.5 h-3.5" /> Descargar QR
-                        </Button>
-                      )}
-                      <a
-                        href={`https://wa.me/?text=${encodeURIComponent(`Hola ${firstName}, aquí está el enlace para completar tu formulario médico: ${success.portalUrl}`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
-                      >
-                        <span className="text-base leading-none">💬</span> Enviar por WhatsApp
-                      </a>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-3 text-[11px] text-text-muted italic">
-                  El enlace es único para este caso y expira cuando el paciente complete el formulario.
-                </div>
-              </div>
-            )}
-
-          </div>
-
-          {/* Footer */}
-          <DialogFooter className="border-t border-border px-4 sm:px-6 py-3 shrink-0 gap-2 flex-col-reverse sm:flex-row">
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
-              Cerrar
-            </Button>
-            <Button onClick={() => {
-              onOpenChange(false);
-              router.push(`/front-office/${success.caseId}`);
-            }} className="w-full sm:w-auto">
-              Ver caso <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      </>
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════════
   // RENDER · Wizard capturing (4 pasos)
   // ══════════════════════════════════════════════════════════════════════
   const elapsedLabel = formatElapsed(callElapsed);
@@ -1062,8 +920,89 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             </InfoCard>
           )}
 
+          {/* ══ STEP 4 — ÉXITO (morph inline tras guardar) ══════════════ */}
+          {wizardStep === 4 && success && (() => {
+            const selectedSlot     = slotOptions.find((s) => s.iso === slotIso);
+            const selectedProvider = providers.find((p) => p.id === providerId);
+            const selectedClinic   = clinics.find((c) => c.id === clinicId);
+            return (
+              <div className="space-y-4">
+                {/* Confirmación */}
+                <div className="rounded-lg border border-emerald/30 bg-emerald/10 p-4 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald/20 border border-emerald/30 flex items-center justify-center shrink-0">
+                    <Check className="w-4 h-4 text-emerald" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-text-1 font-semibold text-sm">
+                      Caso <code className="text-emerald font-mono font-bold">{success.caseCode}</code> creado exitosamente
+                    </div>
+                    <div className="text-text-muted text-[11px] mt-1 space-y-0.5">
+                      {success.appointmentScheduled && selectedSlot && (
+                        <div className="flex items-center gap-1.5">
+                          <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
+                          <span>Cita: <strong className="text-text-2">{selectedSlot.dayLabel} · {selectedSlot.label}</strong>
+                            {selectedProvider && <> · Dr. {selectedProvider.firstName} {selectedProvider.lastName}</>}
+                            {selectedClinic && <> · {selectedClinic.name}</>}
+                          </span>
+                        </div>
+                      )}
+                      {caseType === 'MVA' && lawFirm && (
+                        <div className="flex items-center gap-1.5">
+                          <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
+                          <span>Bufete: <strong className="text-text-2">{lawFirm.label}</strong></span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* QR + Link */}
+                {success.portalUrl ? (
+                  <div className="rounded-lg border border-border bg-bg-1 p-4">
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
+                      Enlace del formulario · compartir con el paciente
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                      {success.qrDataUrl && (
+                        <div className="shrink-0 rounded-lg overflow-hidden border border-border mx-auto sm:mx-0">
+                          <img src={success.qrDataUrl} alt="QR formulario" className="w-[160px] h-[160px] block" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="rounded-md bg-bg-2/40 border border-border/40 px-3 py-2">
+                          <div className="text-[10px] text-text-muted mb-1">URL del formulario</div>
+                          <div className="text-xs text-text-2 font-mono truncate">{success.portalUrl}</div>
+                        </div>
+                        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={copyLink}>
+                          {copied ? <><Check className="w-3.5 h-3.5 text-emerald" /> ¡Copiado!</> : <><Copy className="w-3.5 h-3.5" /> Copiar enlace</>}
+                        </Button>
+                        {success.qrDataUrl && (
+                          <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={downloadQr}>
+                            <Download className="w-3.5 h-3.5" /> Descargar QR
+                          </Button>
+                        )}
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
+                        >
+                          <span className="text-base leading-none">💬</span> Enviar por WhatsApp
+                        </a>
+                        <div className="text-[10px] text-text-muted italic pt-1">
+                          El enlace expira cuando el paciente complete el formulario.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Note tone="amber">No se pudo generar el enlace del formulario. Usa el botón "Enviar portal" desde el detalle del caso.</Note>
+                )}
+              </div>
+            );
+          })()}
+
           {/* ══ STEP 4 — FORMULARIO ══════════════════════════════════════ */}
-          {wizardStep === 4 && (
+          {wizardStep === 4 && !success && (
             <>
               {/* Delivery options */}
               <InfoCard title={t('sectionFormDelivery')} icon={Send} tone="emerald">
@@ -1148,36 +1087,49 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
         {/* ─── Footer ──────────────────────────────────────────────────── */}
         <DialogFooter className="border-t border-border px-4 sm:px-6 py-3 shrink-0 gap-2 flex-col-reverse sm:flex-row items-stretch sm:items-center">
-          {/* Left side: Back + Pause */}
-          <div className="flex gap-2 w-full sm:w-auto">
-            {wizardStep > 1 && (
-              <Button variant="outline" onClick={prevStep} className="flex-1 sm:flex-none sm:w-auto gap-1">
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Atrás</span>
+          {success ? (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+                Cerrar
               </Button>
-            )}
-            {wizardStep === 4 && !isManual && !isSearch && (
-              <Button variant="outline" onClick={() => handleSubmit('pause')}
-                disabled={saving || !firstName || !lastName}
-                className="flex-1 sm:flex-none sm:w-auto gap-1">
-                <Pause className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{t('btnPause')}</span>
+              <Button onClick={() => { onOpenChange(false); router.push(`/front-office/${success.caseId}`); }} className="w-full sm:w-auto gap-1">
+                Ver caso <ArrowRight className="w-3.5 h-3.5" />
               </Button>
-            )}
-          </div>
-
-          {/* Right side: Next or Finalize */}
-          {wizardStep < 4 ? (
-            <Button onClick={nextStep} disabled={!canNext} className="w-full sm:w-auto gap-1">
-              Siguiente
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Button>
+            </>
           ) : (
-            <Button onClick={() => handleSubmit('finalize')} disabled={!canSubmit || saving} className="w-full sm:w-auto gap-1">
-              {saving ? 'Guardando…' : (
-                <><Check className="w-3.5 h-3.5" /> {isManual || isSearch ? t('btnSave') : t('btnFinalize')} <ArrowRight className="w-3.5 h-3.5" /></>
+            <>
+              {/* Left side: Back + Pause */}
+              <div className="flex gap-2 w-full sm:w-auto">
+                {wizardStep > 1 && (
+                  <Button variant="outline" onClick={prevStep} className="flex-1 sm:flex-none sm:w-auto gap-1">
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Atrás</span>
+                  </Button>
+                )}
+                {wizardStep === 4 && !isManual && !isSearch && (
+                  <Button variant="outline" onClick={() => handleSubmit('pause')}
+                    disabled={saving || !firstName || !lastName}
+                    className="flex-1 sm:flex-none sm:w-auto gap-1">
+                    <Pause className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{t('btnPause')}</span>
+                  </Button>
+                )}
+              </div>
+
+              {/* Right side: Next or Finalize */}
+              {wizardStep < 4 ? (
+                <Button onClick={nextStep} disabled={!canNext} className="w-full sm:w-auto gap-1">
+                  Siguiente
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              ) : (
+                <Button onClick={() => handleSubmit('finalize')} disabled={!canSubmit || saving} className="w-full sm:w-auto gap-1">
+                  {saving ? 'Guardando…' : (
+                    <><Check className="w-3.5 h-3.5" /> {isManual || isSearch ? t('btnSave') : t('btnFinalize')} <ArrowRight className="w-3.5 h-3.5" /></>
+                  )}
+                </Button>
               )}
-            </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

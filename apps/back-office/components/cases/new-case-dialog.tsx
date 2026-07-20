@@ -649,7 +649,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                         </Button>
                       )}
                       <a
-                        href={`https://wa.me/?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`}
+                        href={phone.trim()
+                          ? `https://wa.me/${phone.trim().replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`
+                          : `https://wa.me/?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`}
                         target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
                       >

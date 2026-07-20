@@ -1007,7 +1007,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                                         <div className="flex items-center gap-1">
                                           <input type="number" min="0" max={b.balanceDue} step="0.01"
                                             value={payAmounts[b.id] ?? ''}
-                                            onChange={e => setPayAmounts(prev => ({ ...prev, [b.id]: e.target.value }))}
+                                            onChange={e => {
+                                              const raw = parseFloat(e.target.value);
+                                              const val = isNaN(raw) ? '' : Math.min(raw, b.balanceDue).toFixed(2);
+                                              setPayAmounts(prev => ({ ...prev, [b.id]: val }));
+                                            }}
                                             className="w-full rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
                                             placeholder="0.00"
                                           />

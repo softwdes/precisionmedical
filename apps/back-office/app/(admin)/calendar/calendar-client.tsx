@@ -330,8 +330,13 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const [filterClinic,   setFilterClinic]   = useState('');
   const [filterProvider, setFilterProvider] = useState('');
   const [filterType,     setFilterType]     = useState('');
-  const [patientSearch,  setPatientSearch]  = useState('');
-  const [patientQuery,   setPatientQuery]   = useState(''); // debounced
+
+  // Patient search with dropdown
+  const [patientSearch,   setPatientSearch]   = useState('');
+  const [patientResults,  setPatientResults]  = useState<Array<{ id: string; firstName: string; lastName: string; phone: string | null }>>([]);
+  const [searchingPt,     setSearchingPt]     = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
+  const [patientQuery,    setPatientQuery]     = useState(''); // for client-side filter (selected patient id)
   const [calView, setCalView] = useState<CalendarView>('week');
 
   // ─── Data loading — AbortController pattern ──────────────────────────────
@@ -417,30 +422,39 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     // day: mantiene el weekStart actual como "día seleccionado"
   };
 
-  // ─── Debounce patient search ────────────────────────────────────────────────
+  // ─── Patient search dropdown ─────────────────────────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => setPatientQuery(patientSearch.trim()), 350);
-    return () => clearTimeout(t);
-  }, [patientSearch]);
+    if (selectedPatient) return; // ya hay selección, no buscar
+    if (patientSearch.length < 2) { setPatientResults([]); return; }
+    const timer = setTimeout(() => {
+      setSearchingPt(true);
+      fetch(`/api/admin/patients/search?q=${encodeURIComponent(patientSearch)}`)
+        .then(r => r.json())
+        .then(d => setPatientResults(d.results ?? []))
+        .catch(() => {})
+        .finally(() => setSearchingPt(false));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [patientSearch, selectedPatient]);
 
-  // ─── Filter appointments by patient query (client-side) ──────────────────────
+  const selectPatient = (p: { id: string; firstName: string; lastName: string; phone: string | null }) => {
+    setSelectedPatient(p);
+    setPatientSearch('');
+    setPatientResults([]);
+    setPatientQuery(p.id);
+  };
+
+  const clearPatient = () => {
+    setSelectedPatient(null);
+    setPatientSearch('');
+    setPatientResults([]);
+    setPatientQuery('');
+  };
+
+  // ─── Filter appointments by selected patient (client-side) ───────────────────
   const visibleAppointments = useMemo(() => {
     if (!patientQuery) return appointments;
-    const q = patientQuery.toLowerCase();
-    const parts = q.split(/\s+/).filter(Boolean);
-    return appointments.filter(a => {
-      const first = a.patient.firstName.toLowerCase();
-      const last  = a.patient.lastName.toLowerCase();
-      const full  = `${first} ${last}`;
-      const phone = a.patient.phone ?? '';
-      const email = a.patient.email ?? '';
-      if (parts.length >= 2) {
-        const p0 = parts[0]!, p1 = parts[parts.length - 1]!;
-        if ((first.includes(p0) && last.includes(p1)) || (first.includes(p1) && last.includes(p0))) return true;
-      }
-      return full.includes(q) || first.includes(q) || last.includes(q)
-        || phone.includes(q) || email.includes(q);
-    });
+    return appointments.filter(a => a.patient.id === patientQuery);
   }, [appointments, patientQuery]);
 
   // ─── Derived state ───────────────────────────────────────────────────────────
@@ -543,24 +557,46 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           )}
         </div>
 
-        {/* Patient search */}
+        {/* Patient search with dropdown */}
         <div className="relative shrink-0">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
-          <input
-            type="text"
-            value={patientSearch}
-            onChange={e => setPatientSearch(e.target.value)}
-            placeholder="Buscar paciente..."
-            className="h-7 pl-7 pr-7 rounded border border-border bg-bg-2 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan w-44 transition-colors"
-          />
-          {patientSearch && (
-            <button
-              type="button"
-              onClick={() => setPatientSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1"
-            >
-              <X className="w-3 h-3" />
-            </button>
+          {selectedPatient ? (
+            <div className="h-7 pl-2.5 pr-7 flex items-center rounded border border-cyan/40 bg-cyan/10 text-cyan text-xs font-medium gap-1.5 w-44">
+              <Search className="w-3 h-3 shrink-0" />
+              <span className="truncate">{selectedPatient.firstName} {selectedPatient.lastName}</span>
+              <button type="button" onClick={clearPatient} className="absolute right-2 top-1/2 -translate-y-1/2 text-cyan/60 hover:text-cyan">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+              <input
+                type="text"
+                value={patientSearch}
+                onChange={e => setPatientSearch(e.target.value)}
+                placeholder="Buscar paciente..."
+                className="h-7 pl-7 pr-2 rounded border border-border bg-bg-2 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan w-44 transition-colors"
+              />
+              {(searchingPt || patientResults.length > 0) && (
+                <div className="absolute top-full left-0 mt-1 w-64 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden">
+                  {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">Buscando...</div>}
+                  {patientResults.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => selectPatient(p)}
+                      className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-border/50 last:border-0"
+                    >
+                      <div className="text-text-1 text-xs font-medium">{p.firstName} {p.lastName}</div>
+                      {p.phone && <div className="text-text-muted text-[10px]">{p.phone}</div>}
+                    </button>
+                  ))}
+                  {!searchingPt && patientResults.length === 0 && patientSearch.length >= 2 && (
+                    <div className="px-3 py-2 text-text-muted text-xs">Sin resultados</div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
 

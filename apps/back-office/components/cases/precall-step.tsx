@@ -157,20 +157,11 @@ export function PreCallStep({
         phone: quickPhone.trim(),
       });
     }
-    if (mode === 'manual' && quickFirstName.trim() && quickLastName.trim()) {
-      return onConfirm({
-        mode,
-        firstName: quickFirstName.trim(),
-        lastName: quickLastName.trim(),
-        phone: quickPhone.trim(),
-      });
-    }
   };
 
   const canStart: boolean =
     (mode === 'search' && !!selectedPatient) ||
-    (mode === 'outgoing' && !!quickFirstName.trim() && !!quickPhone.trim()) ||
-    (mode === 'manual' && !!quickFirstName.trim() && !!quickLastName.trim());
+    (mode === 'outgoing' && !!quickFirstName.trim() && !!quickPhone.trim());
 
   // ─── Mode selection (primera vista) ────────────────────────────────────
   if (!mode) {
@@ -203,7 +194,7 @@ export function PreCallStep({
             title={t('manualTitle')}
             subtitle={t('manualSubtitle')}
             tone="amber"
-            onClick={() => setMode('manual')}
+            onClick={() => onConfirm({ mode: 'manual', firstName: '', lastName: '', phone: '' })}
           />
         </div>
 
@@ -315,34 +306,6 @@ export function PreCallStep({
             </div>
           </InfoCard>
         )}
-
-        <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} t={t} />
-      </div>
-    );
-  }
-
-  // ─── Manual mode (ingreso sin llamada) ───────────────────────────────
-  if (mode === 'manual') {
-    return (
-      <div className="px-4 sm:px-6 py-5 space-y-4">
-        <BackButton onClick={() => setMode(null)} label={t('backManual')} />
-
-        <InfoCard title={t('manualCardTitle')} icon={ClipboardList} tone="amber">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} autoFocus />
-            <FormField.Input label={t('manualLastName')} required value={quickLastName} onChange={setQuickLastName} />
-          </div>
-          <FormField.Phone
-            label={t('manualPhone')}
-            value={quickPhone}
-            onChange={(v) => setQuickPhone(v)}
-            hint={t('manualPhoneHint')}
-          />
-        </InfoCard>
-
-        <div className="rounded-md border border-amber/20 bg-amber/5 px-3 py-2 text-[11px] text-amber">
-          {t('manualNote')}
-        </div>
 
         <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} t={t} />
       </div>

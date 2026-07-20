@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -1774,14 +1774,6 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
           </a>
           <button
             type="button"
-            onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-brand/40 bg-brand/5 text-sm text-brand hover:bg-brand/10 hover:border-brand/60 transition-colors whitespace-nowrap"
-          >
-            <PhoneCall className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Nueva llamada / </span>Crear caso
-          </button>
-          <button
-            type="button"
             onClick={() => setQuickRegister(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors whitespace-nowrap"
           >
@@ -1790,6 +1782,15 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             <span className="md:hidden">Rápido</span>
           </button>
           <PatientCreateDialog />
+          <button
+            type="button"
+            onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors whitespace-nowrap"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Crear Paciente / Crear Caso</span>
+            <span className="sm:hidden">Crear</span>
+          </button>
         </div>
       </div>
 

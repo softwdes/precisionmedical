@@ -24,7 +24,6 @@ import { z } from 'zod';
 import { db } from '@precision-medical/database';
 
 const TIMEZONE = 'America/Denver';
-const SLOT_INTERVAL_MIN = 30;
 const WORK_HOUR_START = 8;   // 8:00 AM MT
 const WORK_HOUR_END   = 17;  // 5:00 PM MT (último slot puede terminar a las 17:30)
 
@@ -62,19 +61,18 @@ function isBusinessSlot(date: Date, durationMinutes: number): boolean {
   return h >= WORK_HOUR_START && h + durationMinutes / 60 <= WORK_HOUR_END;
 }
 
-/** Genera candidatos cada SLOT_INTERVAL_MIN minutos en el rango dado */
-function generateCandidates(from: Date, to: Date): Date[] {
+/** Genera candidatos cada `intervalMin` minutos en el rango dado */
+function generateCandidates(from: Date, to: Date, intervalMin: number): Date[] {
   const candidates: Date[] = [];
-  // Redondea 'from' al siguiente múltiplo de SLOT_INTERVAL_MIN
   const start = new Date(from);
   start.setSeconds(0, 0);
-  const rem = start.getMinutes() % SLOT_INTERVAL_MIN;
-  if (rem !== 0) start.setMinutes(start.getMinutes() + (SLOT_INTERVAL_MIN - rem));
+  const rem = start.getMinutes() % intervalMin;
+  if (rem !== 0) start.setMinutes(start.getMinutes() + (intervalMin - rem));
 
   const cursor = new Date(start);
   while (cursor < to) {
     candidates.push(new Date(cursor));
-    cursor.setMinutes(cursor.getMinutes() + SLOT_INTERVAL_MIN);
+    cursor.setMinutes(cursor.getMinutes() + intervalMin);
   }
   return candidates;
 }
@@ -121,7 +119,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   });
 
   // ─── Genera candidatos y filtra conflictos ─────────────────────────────
-  const candidates = generateCandidates(fromDate, toDate);
+  const candidates = generateCandidates(fromDate, toDate, query.durationMinutes);
   const durationMs = query.durationMinutes * 60 * 1000;
 
   const available = candidates

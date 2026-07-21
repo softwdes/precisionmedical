@@ -23,6 +23,7 @@ import {
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
+import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TriageRecord {
@@ -262,6 +263,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const [detail,    setDetail]    = useState<ApptDetail | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [admitting, setAdmitting] = useState(false);
+  const [portalOpen, setPortalOpen] = useState(false);
   const [confirm1,  setConfirm1]  = useState(false);
   const [confirm2,  setConfirm2]  = useState(false);
   const [vitals,    setVitals]    = useState<VitalsState>(EMPTY_VITALS);
@@ -448,7 +450,11 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 <div className="font-bold text-rose text-[13px]">{t('gateBlockedTitle')}</div>
                 <div className="text-[11px] text-text-2 mt-0.5">{t('gateBlockedSub')}</div>
               </div>
-              <button className="px-3 py-1.5 bg-rose text-white text-[11px] font-semibold rounded-md shrink-0">
+              <button
+                type="button"
+                onClick={() => setPortalOpen(true)}
+                className="px-3 py-1.5 bg-rose text-white text-[11px] font-semibold rounded-md shrink-0 hover:bg-rose/90 transition-colors"
+              >
                 ✉ {t('resendFormBtn')}
               </button>
             </div>
@@ -767,6 +773,25 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
         )}
 
       </div>
+
+      {/* Portal link dialog — se abre desde el banner de consentimientos pendientes */}
+      {d.case && (
+        <SendPortalDialog
+          open={portalOpen}
+          onOpenChange={setPortalOpen}
+          caseInfo={{
+            id:        d.case.id,
+            caseCode:  d.case.caseCode,
+            patient: {
+              firstName:         d.patient.firstName,
+              lastName:          d.patient.lastName,
+              phone:             d.patient.phone,
+              email:             d.patient.email,
+              preferredLanguage: 'es',
+            },
+          }}
+        />
+      )}
     </div>
   );
 }

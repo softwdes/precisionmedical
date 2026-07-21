@@ -565,7 +565,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
         )}
 
         {/* ── Step 3: In Room (Doctor) — en construcción ── */}
-        {isAlreadyInRoom && d.status !== 'COMPLETED' && (
+        {isAlreadyInRoom && d.status !== 'COMPLETED' && !showServices && (
           <div className="rounded-lg border border-violet/30 bg-violet/5 overflow-hidden">
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-violet/20">

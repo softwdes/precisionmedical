@@ -597,7 +597,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 </button>
                 <button
                   type="button"
-                  onClick={() => router.push(`/cases/${d.case?.id}`)}
+                  onClick={() => router.push(`/billing/${d.case?.id}`)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-[11px] font-semibold hover:bg-emerald/90 transition-colors"
                 >
                   Ir a Servicios y Pagos <ChevronRight className="w-3 h-3" />

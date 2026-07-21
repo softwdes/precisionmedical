@@ -166,49 +166,90 @@ function Toggle({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
 
 // ─── Vitals state type ────────────────────────────────────────────────────────
 interface VitalsState {
-  heightFt: string; heightIn: string;
-  weightLbs: string; weightOz: string;
+  heightFt: string; heightIn: string; heightCm: string;
+  weightLbs: string; weightOz: string; weightKg: string;
   systolicMmhg: string; diastolicMmhg: string;
   pulseBpm: string; respiratoryRate: string;
-  tempFahrenheit: string;
+  tempFahrenheit: string; tempCelsius: string;
   painScale: string;
   o2Saturation: string; o2Comment: string; onRoomAir: boolean;
   systolicMmhg2: string; diastolicMmhg2: string;
   pulseBpm2: string; respiratoryRate2: string;
-  tempFahrenheit2: string;
+  tempFahrenheit2: string; tempCelsius2: string;
   visualAcuityRight: string; visualAcuityLeft: string; visualAcuityBoth: string;
   visionCorrected: boolean;
   chiefComplaint: string;
 }
 
 const EMPTY_VITALS: VitalsState = {
-  heightFt: '', heightIn: '',
-  weightLbs: '', weightOz: '',
+  heightFt: '', heightIn: '', heightCm: '',
+  weightLbs: '', weightOz: '', weightKg: '',
   systolicMmhg: '', diastolicMmhg: '',
   pulseBpm: '', respiratoryRate: '',
-  tempFahrenheit: '',
+  tempFahrenheit: '', tempCelsius: '',
   painScale: '',
   o2Saturation: '', o2Comment: '', onRoomAir: true,
   systolicMmhg2: '', diastolicMmhg2: '',
   pulseBpm2: '', respiratoryRate2: '',
-  tempFahrenheit2: '',
+  tempFahrenheit2: '', tempCelsius2: '',
   visualAcuityRight: '', visualAcuityLeft: '', visualAcuityBoth: '',
   visionCorrected: false,
   chiefComplaint: '',
 };
 
+// ─── Unit conversion helpers ──────────────────────────────────────────────────
+function ftInToCm(ft: string, inches: string): string {
+  const f = parseFloat(ft) || 0, i = parseFloat(inches) || 0;
+  if (!f && !i) return '';
+  return String(Math.round((f * 12 + i) * 2.54 * 10) / 10);
+}
+function cmToFtIn(cm: string): { ft: string; inches: string } {
+  const c = parseFloat(cm);
+  if (!c || c <= 0) return { ft: '', inches: '' };
+  const totalIn = c / 2.54;
+  return { ft: String(Math.floor(totalIn / 12)), inches: String(Math.round(totalIn % 12)) };
+}
+function lbsOzToKg(lbs: string, oz: string): string {
+  const l = parseFloat(lbs) || 0, o = parseFloat(oz) || 0;
+  if (!l && !o) return '';
+  return String(Math.round((l * 16 + o) * 28.3495 / 1000 * 10) / 10);
+}
+function kgToLbs(kg: string): { lbs: string; oz: string } {
+  const k = parseFloat(kg);
+  if (!k || k <= 0) return { lbs: '', oz: '0' };
+  const totalOz = k * 1000 / 28.3495;
+  return { lbs: String(Math.floor(totalOz / 16)), oz: '0' };
+}
+function fToC(f: string): string {
+  const v = parseFloat(f);
+  if (isNaN(v)) return '';
+  return String(Math.round(((v - 32) * 5 / 9) * 10) / 10);
+}
+function cToF(c: string): string {
+  const v = parseFloat(c);
+  if (isNaN(v)) return '';
+  return String(Math.round((v * 9 / 5 + 32) * 10) / 10);
+}
+
 function triageToState(tr: TriageRecord | null): VitalsState {
   if (!tr) return EMPTY_VITALS;
+  const heightCm = ftInToCm(tr.heightFt?.toString() ?? '', tr.heightIn?.toString() ?? '');
+  const weightKg = lbsOzToKg(tr.weightLbs?.toString() ?? '', tr.weightOz?.toString() ?? '');
+  const tempC    = fToC(tr.tempFahrenheit?.toString() ?? '');
+  const tempC2   = fToC(tr.tempFahrenheit2?.toString() ?? '');
   return {
     heightFt:         tr.heightFt?.toString()         ?? '',
     heightIn:         tr.heightIn?.toString()         ?? '',
+    heightCm:         tr.heightCm?.toString()         ?? heightCm,
     weightLbs:        tr.weightLbs?.toString()        ?? '',
     weightOz:         tr.weightOz?.toString()         ?? '',
+    weightKg:         tr.weightKg?.toString()         ?? weightKg,
     systolicMmhg:     tr.systolicMmhg?.toString()     ?? '',
     diastolicMmhg:    tr.diastolicMmhg?.toString()    ?? '',
     pulseBpm:         tr.pulseBpm?.toString()         ?? '',
     respiratoryRate:  tr.respiratoryRate?.toString()  ?? '',
     tempFahrenheit:   tr.tempFahrenheit?.toString()   ?? '',
+    tempCelsius:      tr.tempCelsius?.toString()      ?? tempC,
     painScale:        tr.painScale?.toString()        ?? '',
     o2Saturation:     tr.o2Saturation?.toString()     ?? '',
     o2Comment:        tr.o2Comment                    ?? '',
@@ -218,6 +259,7 @@ function triageToState(tr: TriageRecord | null): VitalsState {
     pulseBpm2:        tr.pulseBpm2?.toString()        ?? '',
     respiratoryRate2: tr.respiratoryRate2?.toString() ?? '',
     tempFahrenheit2:  tr.tempFahrenheit2?.toString()  ?? '',
+    tempCelsius2:     tr.tempCelsius2?.toString()     ?? tempC2,
     visualAcuityRight:tr.visualAcuityRight            ?? '',
     visualAcuityLeft: tr.visualAcuityLeft             ?? '',
     visualAcuityBoth: tr.visualAcuityBoth             ?? '',
@@ -294,10 +336,55 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
 
   useEffect(() => { void load(); }, [load]);
 
+  function dirty() { setVitalsDirty(true); setVitalsSaved(false); }
+
   function setV<K extends keyof VitalsState>(key: K, val: VitalsState[K]) {
     setVitals(prev => ({ ...prev, [key]: val }));
-    setVitalsDirty(true);
-    setVitalsSaved(false);
+    dirty();
+  }
+
+  // ── Bidirectional setters ──────────────────────────────────────────────────
+  function setHeightFt(val: string) {
+    setVitals(prev => ({ ...prev, heightFt: val, heightCm: ftInToCm(val, prev.heightIn) }));
+    dirty();
+  }
+  function setHeightIn(val: string) {
+    setVitals(prev => ({ ...prev, heightIn: val, heightCm: ftInToCm(prev.heightFt, val) }));
+    dirty();
+  }
+  function setHeightCm(val: string) {
+    const { ft, inches } = cmToFtIn(val);
+    setVitals(prev => ({ ...prev, heightCm: val, heightFt: ft, heightIn: inches }));
+    dirty();
+  }
+  function setWeightLbs(val: string) {
+    setVitals(prev => ({ ...prev, weightLbs: val, weightKg: lbsOzToKg(val, prev.weightOz) }));
+    dirty();
+  }
+  function setWeightOz(val: string) {
+    setVitals(prev => ({ ...prev, weightOz: val, weightKg: lbsOzToKg(prev.weightLbs, val) }));
+    dirty();
+  }
+  function setWeightKg(val: string) {
+    const { lbs } = kgToLbs(val);
+    setVitals(prev => ({ ...prev, weightKg: val, weightLbs: lbs, weightOz: '0' }));
+    dirty();
+  }
+  function setTempF(val: string) {
+    setVitals(prev => ({ ...prev, tempFahrenheit: val, tempCelsius: fToC(val) }));
+    dirty();
+  }
+  function setTempC(val: string) {
+    setVitals(prev => ({ ...prev, tempCelsius: val, tempFahrenheit: cToF(val) }));
+    dirty();
+  }
+  function setTempF2(val: string) {
+    setVitals(prev => ({ ...prev, tempFahrenheit2: val, tempCelsius2: fToC(val) }));
+    dirty();
+  }
+  function setTempC2(val: string) {
+    setVitals(prev => ({ ...prev, tempCelsius2: val, tempFahrenheit2: cToF(val) }));
+    dirty();
   }
 
   async function saveVitals() {
@@ -563,15 +650,16 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                   <VitalGroup icon={<span>📏</span>} title={t('vitHeight')}>
                     <div className="grid grid-cols-3 gap-2">
-                      <VField label={t('vitFeet')}><VInput value={vitals.heightFt} onChange={v => setV('heightFt', v)} placeholder="5" /></VField>
-                      <VField label={t('vitInches')}><VInput value={vitals.heightIn} onChange={v => setV('heightIn', v)} placeholder="6" /></VField>
-                      <VField label={t('vitCms')}><VInput value={''} onChange={() => {}} placeholder={vitals.heightFt && vitals.heightIn ? String(Math.round(((parseInt(vitals.heightFt)*12+parseInt(vitals.heightIn))*2.54))) : '—'} /></VField>
+                      <VField label={t('vitFeet')}><VInput value={vitals.heightFt} onChange={setHeightFt} placeholder="5" /></VField>
+                      <VField label={t('vitInches')}><VInput value={vitals.heightIn} onChange={setHeightIn} placeholder="6" /></VField>
+                      <VField label={t('vitCms')}><VInput value={vitals.heightCm} onChange={setHeightCm} placeholder="—" /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>⚖️</span>} title={t('vitWeight')}>
-                    <div className="grid grid-cols-2 gap-2">
-                      <VField label={t('vitLbs')}><VInput value={vitals.weightLbs} onChange={v => setV('weightLbs', v)} placeholder="150" /></VField>
-                      <VField label={t('vitOz')}><VInput value={vitals.weightOz} onChange={v => setV('weightOz', v)} placeholder="0" /></VField>
+                    <div className="grid grid-cols-3 gap-2">
+                      <VField label={t('vitLbs')}><VInput value={vitals.weightLbs} onChange={setWeightLbs} placeholder="150" /></VField>
+                      <VField label={t('vitOz')}><VInput value={vitals.weightOz} onChange={setWeightOz} placeholder="0" /></VField>
+                      <VField label="kg"><VInput value={vitals.weightKg} onChange={setWeightKg} placeholder="—" step="0.1" /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>💓</span>} title={t('vitBloodPressure')}>
@@ -588,8 +676,8 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   </VitalGroup>
                   <VitalGroup icon={<span>🌡️</span>} title={t('vitTempPain')}>
                     <div className="grid grid-cols-3 gap-2">
-                      <VField label={t('vitTempF')}><VInput value={vitals.tempFahrenheit} onChange={v => setV('tempFahrenheit', v)} placeholder="98.6" step="0.1" /></VField>
-                      <VField label={t('vitTempC')}><VInput value={vitals.tempFahrenheit ? String(Math.round(((parseFloat(vitals.tempFahrenheit)-32)*5/9)*10)/10) : ''} onChange={() => {}} placeholder="37.0" /></VField>
+                      <VField label={t('vitTempF')}><VInput value={vitals.tempFahrenheit} onChange={setTempF} placeholder="98.6" step="0.1" /></VField>
+                      <VField label={t('vitTempC')}><VInput value={vitals.tempCelsius} onChange={setTempC} placeholder="37.0" step="0.1" /></VField>
                       <VField label={t('vitPain')}><VInput value={vitals.painScale} onChange={v => setV('painScale', v)} placeholder="0" /></VField>
                     </div>
                   </VitalGroup>
@@ -621,8 +709,8 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   </VitalGroup>
                   <VitalGroup icon={<span>🌡️</span>} title={`${t('vitTempPain')} (2)`}>
                     <div className="grid grid-cols-2 gap-2">
-                      <VField label={t('vitTempF')}><VInput value={vitals.tempFahrenheit2} onChange={v => setV('tempFahrenheit2', v)} placeholder="0.0" step="0.1" /></VField>
-                      <VField label={t('vitTempC')}><VInput value={vitals.tempFahrenheit2 ? String(Math.round(((parseFloat(vitals.tempFahrenheit2)-32)*5/9)*10)/10) : ''} onChange={() => {}} placeholder="0.0" /></VField>
+                      <VField label={t('vitTempF')}><VInput value={vitals.tempFahrenheit2} onChange={setTempF2} placeholder="0.0" step="0.1" /></VField>
+                      <VField label={t('vitTempC')}><VInput value={vitals.tempCelsius2} onChange={setTempC2} placeholder="0.0" step="0.1" /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>👁️</span>} title={t('vitVision')}>

@@ -942,18 +942,31 @@ model TriageRecord {
   weightOz       Int?
   weightKg       Float?      // kgs auto-calculado
 
-  // ─── Blood Pressure ───────────────────────────────────────────────────────
+  // ─── Blood Pressure (1st) ────────────────────────────────────────────────
   systolicMmhg   Int?
   diastolicMmhg  Int?
 
-  // ─── Pulse & Temperature ─────────────────────────────────────────────────
-  pulseBpm       Int?
-  tempFahrenheit Float?
-  tempCelsius    Float?      // auto-calculado
+  // ─── Pulse, Resp Rate & Temperature (1st) ────────────────────────────────
+  pulseBpm           Int?
+  respiratoryRate    Int?    // respiraciones/min
+  tempFahrenheit     Float?
+  tempCelsius        Float?  // auto-calculado
+
+  // ─── Pain ─────────────────────────────────────────────────────────────────
+  painScale      Int?        // 0-10
 
   // ─── Oxygen ───────────────────────────────────────────────────────────────
   o2Saturation   Int?        // porcentaje (e.g., 98)
+  o2Comment      String?     // texto libre
   onRoomAir      Boolean     @default(true)
+
+  // ─── 2nd Reading ──────────────────────────────────────────────────────────
+  systolicMmhg2   Int?
+  diastolicMmhg2  Int?
+  pulseBpm2       Int?
+  respiratoryRate2 Int?
+  tempFahrenheit2  Float?
+  tempCelsius2     Float?
 
   // ─── Vision Acuity ────────────────────────────────────────────────────────
   visualAcuityRight String?  // "20" (denominator de 20/X)

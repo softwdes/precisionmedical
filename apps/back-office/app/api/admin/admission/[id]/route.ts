@@ -30,6 +30,7 @@ export async function GET(
         clinic: {
           select: { id: true, name: true },
         },
+        triageRecord: true,
         case: {
           select: {
             id:                    true,
@@ -114,13 +115,16 @@ export async function GET(
           specialty: appt.provider.specialty,
         } : null,
         clinic: { id: appt.clinic.id, name: appt.clinic.name },
+        triageRecord: appt.triageRecord ?? null,
         case: c ? {
           id:                    c.id,
           caseCode:              c.caseCode,
           caseType:              c.caseType,
           accidentDate:          c.accidentDate?.toISOString() ?? null,
+          accidentType:          (c as { accidentType?: string | null }).accidentType ?? null,
           pipVerifiedAt:         c.pipVerifiedAt?.toISOString() ?? null,
           intakeFormCompletedAt: c.intakeFormCompletedAt?.toISOString() ?? null,
+          consentsData:          c.consentsData ?? null,
           primaryPolicyNumber:   c.primaryPolicyNumber,
           pipActive,
           consentsCompleted,

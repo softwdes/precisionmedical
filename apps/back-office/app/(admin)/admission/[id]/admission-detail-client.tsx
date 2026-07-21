@@ -272,6 +272,11 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
 
   const load = useCallback(async () => {
     setLoading(true);
+    setVitals(EMPTY_VITALS);   // clear immediately so old patient's values never bleed through
+    setVitalsDirty(false);
+    setVitalsSaved(false);
+    setConfirm1(false);
+    setConfirm2(false);
     try {
       const res  = await fetch(`/api/admin/admission/${appointmentId}`);
       const data = await res.json();

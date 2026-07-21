@@ -24,5 +24,5 @@ export default async function AdmissionDetailPage({ params }: Props) {
   const { id } = await params;
   const exists = await db.appointment.findUnique({ where: { id }, select: { id: true } });
   if (!exists) notFound();
-  return <AdmissionDetailClient appointmentId={id} />;
+  return <AdmissionDetailClient key={id} appointmentId={id} />;
 }

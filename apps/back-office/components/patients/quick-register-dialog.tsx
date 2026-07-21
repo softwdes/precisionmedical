@@ -123,77 +123,101 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
   }
 
   return (
-    <div className="flex flex-col items-center gap-5 py-6 px-4">
-      {/* Success badge */}
-      <div className="flex items-center gap-2 rounded-full border border-emerald/30 bg-emerald/10 px-4 py-1.5">
-        <Check className="w-3.5 h-3.5 text-emerald" />
-        <span className="text-[12px] font-medium text-emerald">Paciente registrado exitosamente</span>
-      </div>
+    <div className="flex flex-col sm:flex-row gap-0 min-h-[420px]">
 
-      {/* Info row */}
-      <div className="flex gap-6 text-center">
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-text-muted mb-0.5">Paciente</p>
-          <p className="text-sm font-semibold text-text-1">{info.patientName}</p>
-          <p className="text-[11px] text-brand font-mono">{info.patientCode}</p>
+      {/* ── Columna izquierda: QR ─────────────────────────────────── */}
+      <div className="flex flex-col items-center justify-center gap-4 px-8 py-8 sm:w-72 shrink-0 bg-bg-2/40 border-b sm:border-b-0 sm:border-r border-border">
+        {/* Badge */}
+        <div className="flex items-center gap-2 rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1">
+          <Check className="w-3 h-3 text-emerald" />
+          <span className="text-[11px] font-medium text-emerald">Registrado exitosamente</span>
         </div>
-        <div className="w-px bg-border" />
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-text-muted mb-0.5">Código del caso</p>
-          <p className="text-sm font-semibold text-text-1 font-mono">{info.caseCode}</p>
-        </div>
-      </div>
 
-      {/* QR real */}
-      <div className="rounded-xl border border-border p-3 bg-[#12141f] flex flex-col items-center gap-2">
-        {qrDataUrl
-          ? <img src={qrDataUrl} alt="QR del portal" width={188} height={188} className="rounded-lg" />
-          : <div className="w-[188px] h-[188px] rounded-lg bg-bg-2 animate-pulse" />
-        }
-        <p className="text-[10px] text-text-muted text-center">Escanea para completar el formulario</p>
-      </div>
-
-      {/* Portal link + copiar */}
-      <div className="w-full max-w-sm space-y-2">
-        <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2 px-3 py-2">
-          <span className="flex-1 text-[11px] text-text-muted truncate font-mono">{info.portalUrl}</span>
-          <button
-            type="button"
-            onClick={copyLink}
-            className="text-text-muted hover:text-brand transition-colors shrink-0"
-            title="Copiar link"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
-          </button>
+        {/* QR */}
+        <div className="rounded-xl border border-border p-3 bg-[#12141f] flex flex-col items-center gap-2">
+          {qrDataUrl
+            ? <img src={qrDataUrl} alt="QR del portal" width={200} height={200} className="rounded-lg" />
+            : <div className="w-[200px] h-[200px] rounded-lg bg-bg-1 animate-pulse" />
+          }
+          <p className="text-[10px] text-text-muted text-center">Escanear para completar formulario</p>
         </div>
+
+        {/* Descargar */}
         <button
           type="button"
           onClick={downloadQr}
           disabled={!qrDataUrl}
-          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-border bg-bg-2 px-3 py-2 text-[12px] text-text-2 hover:border-border-strong transition-colors disabled:opacity-40"
+          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-40"
         >
           <QrCode className="w-3.5 h-3.5" />
           Descargar QR
         </button>
       </div>
 
-      {/* Actions */}
-      <div className="flex flex-col sm:flex-row gap-2 w-full max-w-sm">
-        <Button variant="outline" onClick={onNewPatient} className="flex-1 flex items-center justify-center gap-1.5">
-          <RotateCcw className="w-3.5 h-3.5" />
-          Nuevo registro
-        </Button>
-        <Button
-          onClick={() => window.open(`/patients/${info.patientId}`, '_blank')}
-          className="flex-1 flex items-center justify-center gap-1.5"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          Ver paciente
-        </Button>
+      {/* ── Columna derecha: info + acciones ──────────────────────── */}
+      <div className="flex-1 flex flex-col gap-5 px-6 py-8">
+
+        {/* Patient + case info */}
+        <div className="space-y-3">
+          <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1">Paciente</p>
+              <p className="text-base font-bold text-text-1">{info.patientName}</p>
+              <p className="text-[11px] text-brand font-mono mt-0.5">{info.patientCode}</p>
+            </div>
+            <div className="h-px bg-border" />
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1">Código del caso</p>
+              <p className="text-lg font-bold text-text-1 font-mono tracking-wide">{info.caseCode}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Portal link */}
+        <div className="space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-text-muted">Link del portal</p>
+          <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2 px-3 py-2">
+            <span className="flex-1 text-[11px] text-text-muted truncate font-mono">{info.portalUrl}</span>
+            <button
+              type="button"
+              onClick={copyLink}
+              className="text-text-muted hover:text-brand transition-colors shrink-0"
+              title="Copiar link"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          {copied && <p className="text-[10px] text-emerald">✓ Link copiado</p>}
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Actions */}
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={onNewPatient} className="flex items-center justify-center gap-1.5 text-xs">
+              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+              Nuevo registro
+            </Button>
+            <Button
+              onClick={() => window.open(`/patients/${info.patientId}`, '_blank')}
+              className="flex items-center justify-center gap-1.5 text-xs"
+            >
+              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+              Ver paciente
+            </Button>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full text-[11px] text-text-muted hover:text-text-1 transition-colors py-1"
+          >
+            Cerrar
+          </button>
+        </div>
+
       </div>
-      <button type="button" onClick={onClose} className="text-[12px] text-text-muted hover:text-text-1 transition-colors">
-        Cerrar
-      </button>
     </div>
   );
 }

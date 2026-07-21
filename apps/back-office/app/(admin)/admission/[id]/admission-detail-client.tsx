@@ -562,27 +562,67 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
           </div>
         )}
 
-        {/* ── Ya en sala banner ── */}
-        {isAlreadyInRoom && (
-          <div className="rounded-lg border border-violet/40 bg-violet/10 p-4 flex items-center gap-3">
-            <Stethoscope className="w-5 h-5 text-violet shrink-0" />
-            <div>
-              <div className="text-violet font-bold text-sm">
-                {d.status === 'COMPLETED' ? t('visitCompleted') : t('patientPassedToRoom')}
+        {/* ── Step 3: In Room (Doctor) — en construcción ── */}
+        {isAlreadyInRoom && d.status !== 'COMPLETED' && (
+          <div className="rounded-lg border border-violet/30 bg-violet/5 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-violet/20">
+              <div className="w-7 h-7 rounded-full bg-violet flex items-center justify-center text-white font-bold text-[11px] shrink-0">3</div>
+              <div className="flex-1">
+                <div className="text-violet font-bold text-[13px]">{t('flowStep3')}</div>
+                <div className="text-violet/60 text-[10px]">{t('flowStep3Desc')}</div>
               </div>
-              <div className="text-violet/70 text-[11px]">
-                {d.provider ? t('withDoctorName', { firstName: d.provider.firstName, lastName: d.provider.lastName }) : t('noProviderAssigned')}
+              <div className="text-[10px] font-semibold text-violet bg-violet/15 border border-violet/25 px-2 py-0.5 rounded-full">
+                {d.provider ? `Dr. ${d.provider.lastName}` : t('noProviderAssigned')}
               </div>
             </div>
-            {d.status === 'IN_PROGRESS' && (
-              <button
-                type="button"
-                onClick={() => router.push('/calendar')}
-                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet text-white text-xs font-semibold hover:bg-violet/90 shrink-0"
-              >
-                {t('viewCalendar')} <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            )}
+            {/* Body */}
+            <div className="px-4 py-5 flex flex-col items-center gap-3 text-center">
+              <div className="text-3xl">🏗️</div>
+              <div>
+                <div className="font-semibold text-text-1 text-[13px] mb-1">Módulo del doctor — en construcción</div>
+                <div className="text-[11px] text-text-muted max-w-sm">
+                  La nota clínica SOAP, prescripciones y órdenes de laboratorio estarán disponibles en la siguiente fase del proyecto.
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => router.push('/calendar')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-violet/30 text-violet text-[11px] font-semibold hover:bg-violet/10 transition-colors"
+                >
+                  <Stethoscope className="w-3 h-3" />
+                  {t('viewCalendar')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/cases/${d.case?.id}`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-[11px] font-semibold hover:bg-emerald/90 transition-colors"
+                >
+                  Ir a Servicios y Pagos <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Visita completada ── */}
+        {d.status === 'COMPLETED' && (
+          <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald shrink-0" />
+            <div className="flex-1">
+              <div className="text-emerald font-bold text-sm">{t('visitCompleted')}</div>
+              <div className="text-emerald/70 text-[11px]">
+                {d.provider ? t('withDoctorName', { firstName: d.provider.firstName, lastName: d.provider.lastName }) : ''}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push(`/cases/${d.case?.id}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-xs font-semibold hover:bg-emerald/90 shrink-0"
+            >
+              Servicios y Pagos <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 

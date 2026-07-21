@@ -146,7 +146,7 @@ function SelectUp({ value, onChange, options, placeholder, className = '' }: {
     <div ref={ref} className={`relative ${className}`}>
       <button type="button" onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors">
-        <span className={selected ? 'text-text-1' : 'text-text-muted'}>{selected?.label ?? placeholder ?? t('selectDefault')}</span>
+        <span className={selected ? 'text-text-1' : 'text-text-muted'}>{selected?.label ?? placeholder ?? '—'}</span>
         {open ? <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" /> : <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />}
       </button>
       {open && (

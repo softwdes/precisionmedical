@@ -98,7 +98,7 @@ function fmtDate(iso: string | null) {
 // ─── Small reusable pieces ────────────────────────────────────────────────────
 function ChecklistCard({ done, label, meta }: { done: boolean; label: string; meta?: string }) {
   return (
-    <div className={`rounded-lg border p-3 flex items-start gap-2.5 ${done ? 'bg-emerald/5 border-emerald/25' : 'bg-bg-2/30 border-border'}`}>
+    <div className={`rounded-lg border p-3 flex items-start gap-2.5 ${done ? 'bg-emerald/5 border-emerald/25' : 'bg-bg-2/30 border-border/20'}`}>
       {done
         ? <CheckCircle2 className="w-4 h-4 text-emerald shrink-0 mt-0.5" />
         : <Clock className="w-4 h-4 text-amber shrink-0 mt-0.5" />
@@ -113,7 +113,7 @@ function ChecklistCard({ done, label, meta }: { done: boolean; label: string; me
 
 function VitalGroup({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-md bg-bg-2/50 border border-border p-3">
+    <div className="rounded-md bg-bg-2/40 p-3">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-cyan">{icon}</span>
         <span className="text-[10px] font-bold uppercase tracking-wider text-cyan">{title}</span>
@@ -142,7 +142,7 @@ function VInput({ value, onChange, placeholder, type = 'number', step }: {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder ?? '0'}
-      className="w-full bg-bg-3 border border-border/80 rounded-md px-2.5 py-1.5 text-center text-[13px] font-semibold text-text-1 placeholder:text-text-muted placeholder:font-normal outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-all"
+      className="w-full bg-bg-2 border border-border/25 rounded-md px-2.5 py-1.5 text-center text-[13px] font-semibold text-text-1 placeholder:text-text-muted placeholder:font-normal outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-all"
     />
   );
 }
@@ -661,7 +661,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             <div className="space-y-4">
 
               {/* Patient info (read-only from intake) */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg bg-bg-2/30 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <User className="w-4 h-4 text-emerald" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionPatientInfo')}</span>
@@ -698,7 +698,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               </div>
 
               {/* Vitals form */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg bg-bg-2/30 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Activity className="w-4 h-4 text-cyan" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionVitals')}</span>
@@ -810,7 +810,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             <div className="space-y-4">
 
               {/* Appointment summary */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg bg-bg-2/30 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Stethoscope className="w-4 h-4 text-emerald" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionAppointment')}</span>
@@ -832,7 +832,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               </div>
 
               {/* Coverage */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg bg-bg-2/30 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <ShieldCheck className="w-4 h-4 text-emerald" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionCoverage')}</span>
@@ -851,7 +851,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               </div>
 
               {/* Confirmations + CTA */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg bg-bg-2/30 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
                   {t('confirmBeforeRoom')}
                 </div>

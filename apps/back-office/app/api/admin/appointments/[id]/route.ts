@@ -77,6 +77,34 @@ export async function PATCH(
     select: { id: true, status: true, notes: true, durationMinutes: true },
   });
 
+  // Sync AppointmentBilling when services change
+  if (parsed.plannedServiceCodes !== undefined && existing.caseId) {
+    const totalCost = parsed.plannedServiceCodes.reduce((s, svc) => s + svc.fee, 0);
+    const existing_billing = await db.appointmentBilling.findFirst({
+      where: { appointmentId: id },
+      select: { id: true, amountPaid: true },
+    });
+    if (existing_billing) {
+      const balanceDue = Math.max(0, totalCost - Number(existing_billing.amountPaid));
+      await db.appointmentBilling.update({
+        where: { id: existing_billing.id },
+        data: { totalCost, balanceDue },
+      });
+    } else if (totalCost > 0) {
+      await db.appointmentBilling.create({
+        data: {
+          appointmentId: id,
+          caseId:        existing.caseId,
+          totalCost,
+          discount:      0,
+          insuranceCovered: 0,
+          amountPaid:    0,
+          balanceDue:    totalCost,
+        },
+      });
+    }
+  }
+
   await writeAuditLog(db, {
     actorType:   actor.actorType,
     actorUserId: actor.actorUserId,

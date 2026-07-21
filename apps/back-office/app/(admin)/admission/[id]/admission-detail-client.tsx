@@ -23,7 +23,7 @@ import {
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
-import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
+import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TriageRecord {
@@ -774,20 +774,19 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
 
       </div>
 
-      {/* Portal link dialog — se abre desde el banner de consentimientos pendientes */}
+      {/* QR + link dialog — se abre desde el banner de consentimientos pendientes */}
       {d.case && (
-        <SendPortalDialog
+        <IntakeFormLinkDialog
           open={portalOpen}
           onOpenChange={setPortalOpen}
           caseInfo={{
-            id:        d.case.id,
-            caseCode:  d.case.caseCode,
+            id:       d.case.id,
+            caseCode: d.case.caseCode,
             patient: {
-              firstName:         d.patient.firstName,
-              lastName:          d.patient.lastName,
-              phone:             d.patient.phone,
-              email:             d.patient.email,
-              preferredLanguage: 'es',
+              firstName: d.patient.firstName,
+              lastName:  d.patient.lastName,
+              phone:     d.patient.phone,
+              email:     d.patient.email,
             },
           }}
         />

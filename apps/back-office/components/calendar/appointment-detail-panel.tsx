@@ -301,14 +301,29 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     try {
       const res = await fetch(`/api/admin/cases/${appt.case.id}/billing`);
       const data = await res.json();
-      setBillings(data.billings ?? []);
-      setBillKpis(data.kpis ?? { totalCost: 0, totalPaid: 0, totalBalance: 0 });
-      setInsurances(data.insurances ?? []);
+      let billingList: BillingRecord[] = data.billings ?? [];
+
+      // If no billing record exists but appointment has services, sync it now
+      if (billingList.length === 0 && appt.id) {
+        const sync = await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, { method: 'POST' });
+        if (sync.ok) {
+          const res2 = await fetch(`/api/admin/cases/${appt.case.id}/billing`);
+          const data2 = await res2.json();
+          billingList = data2.billings ?? [];
+          setBillKpis(data2.kpis ?? { totalCost: 0, totalPaid: 0, totalBalance: 0 });
+          setInsurances(data2.insurances ?? []);
+        }
+      } else {
+        setBillKpis(data.kpis ?? { totalCost: 0, totalPaid: 0, totalBalance: 0 });
+        setInsurances(data.insurances ?? []);
+      }
+
+      setBillings(billingList);
       setBillLoaded(true);
     } catch { /* silent */ } finally {
       setLoadingBill(false);
     }
-  }, [appt.case?.id]);
+  }, [appt.case?.id, appt.id]);
 
   useEffect(() => {
     if (activeTab !== 'payments' || billLoaded) return;
@@ -334,13 +349,16 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     setSavingSvc(true);
     setSavedOk(false);
     try {
-      await fetch(`/api/admin/appointments/${appt.id}`, {
+      const res = await fetch(`/api/admin/appointments/${appt.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plannedServiceCodes: list }),
       });
-      setSavedOk(true);
-      setTimeout(() => setSavedOk(false), 2000);
+      if (res.ok) {
+        setSavedOk(true);
+        setBillLoaded(false); // force billing reload so Payments tab reflects new totals
+        setTimeout(() => setSavedOk(false), 2000);
+      }
     } finally {
       setSavingSvc(false);
     }

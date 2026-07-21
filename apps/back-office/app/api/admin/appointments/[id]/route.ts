@@ -62,8 +62,13 @@ export async function PATCH(
   });
   if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
+  // COMPLETED appointments: only plannedServiceCodes may be updated (Step 4 billing happens post-visit)
   if (existing.status === 'COMPLETED') {
-    return NextResponse.json({ error: 'IMMUTABLE', message: 'No se puede modificar una cita completada' }, { status: 422 });
+    const keys = Object.keys(parsed);
+    const onlyServices = keys.length === 1 && keys[0] === 'plannedServiceCodes';
+    if (!onlyServices) {
+      return NextResponse.json({ error: 'IMMUTABLE', message: 'No se puede modificar una cita completada' }, { status: 422 });
+    }
   }
 
   const updated = await db.appointment.update({

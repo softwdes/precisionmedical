@@ -829,7 +829,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       </div>
                     ) : (
                       <div className="rounded-lg border border-border overflow-hidden">
-                        <div className="px-4 py-2 bg-bg-2/60 border-b border-border">
+                        <div className="px-4 py-2 bg-bg-2/60 border-b border-border/40">
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('billingDetailByVisit')}</span>
                         </div>
                         <div className="overflow-x-auto">
@@ -1172,7 +1172,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
   if (inline) {
     return (
-      <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-bg-1 max-h-[600px]">
+      <div className="flex flex-col overflow-hidden rounded-lg border border-border/30 bg-bg-1 max-h-[600px]">
         {panelContent}
       </div>
     );

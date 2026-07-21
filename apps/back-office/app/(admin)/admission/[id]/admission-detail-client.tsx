@@ -480,7 +480,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
       <div className="px-4 sm:px-6 pb-8 space-y-4">
 
         {/* ── Flow diagram ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border rounded-lg overflow-hidden border border-border">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/20 rounded-lg overflow-hidden border border-border/30">
           {[
             { num: 1, done: true,             active: false,                                          title: t('flowStep1'), desc: t('flowStep1Desc') },
             { num: 2, done: isAlreadyInRoom, active: !isAlreadyInRoom,                              title: t('flowStep2'), desc: t('flowStep2Desc') },
@@ -517,7 +517,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   {step.label}
                 </span>
               </div>
-              {i < arr.length - 1 && <div className="flex-1 h-px bg-border" />}
+              {i < arr.length - 1 && <div className="flex-1 h-px bg-border/30" />}
             </div>
           ))}
         </div>
@@ -661,7 +661,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             <div className="space-y-4">
 
               {/* Patient info (read-only from intake) */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
+              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <User className="w-4 h-4 text-emerald" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionPatientInfo')}</span>
@@ -698,7 +698,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               </div>
 
               {/* Vitals form */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
+              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Activity className="w-4 h-4 text-cyan" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionVitals')}</span>
@@ -810,7 +810,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             <div className="space-y-4">
 
               {/* Appointment summary */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
+              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Stethoscope className="w-4 h-4 text-emerald" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionAppointment')}</span>
@@ -832,7 +832,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               </div>
 
               {/* Coverage */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
+              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <ShieldCheck className="w-4 h-4 text-emerald" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionCoverage')}</span>
@@ -851,7 +851,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               </div>
 
               {/* Confirmations + CTA */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
+              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
                   {t('confirmBeforeRoom')}
                 </div>

@@ -39,6 +39,7 @@ export async function GET(
             accidentType:          true,
             pipVerifiedAt:         true,
             intakeFormCompletedAt: true,
+            consentsData:          true,
             primaryPolicyNumber:   true,
             lawFirmId:             true,
             attorneyId:            true,
@@ -71,8 +72,9 @@ export async function GET(
     const c = appt.case;
     const isMVA      = c?.caseType === 'MVA';
     const pipActive  = isMVA && !!c?.pipVerifiedAt;
-    const lienSigned = !!(c?.lawFirmId || c?.attorneyId);
     const hasSecondary = !!c?.secondaryInsurance;
+    const cd = (c?.consentsData ?? {}) as Record<string, unknown>;
+    const consentsCompleted = !!(cd.treatment && cd.financial && cd.financialSignatureSvg);
 
     // Cálculo financiero simplificado (Phase 1)
     // MVA + PIP activo + sin seguro secundario → $0 para el paciente
@@ -121,7 +123,7 @@ export async function GET(
           intakeFormCompletedAt: c.intakeFormCompletedAt?.toISOString() ?? null,
           primaryPolicyNumber:   c.primaryPolicyNumber,
           pipActive,
-          lienSigned,
+          consentsCompleted,
           isMVA,
           lawFirm: c.lawFirm ? {
             id: c.lawFirm.id, firmName: c.lawFirm.firmName,

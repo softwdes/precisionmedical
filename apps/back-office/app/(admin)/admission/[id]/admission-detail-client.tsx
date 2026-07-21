@@ -52,7 +52,7 @@ interface ApptDetail {
     id: string; caseCode: string; caseType: string;
     accidentDate: string | null; pipVerifiedAt: string | null;
     intakeFormCompletedAt: string | null; primaryPolicyNumber: string | null;
-    pipActive: boolean; lienSigned: boolean; isMVA: boolean;
+    pipActive: boolean; consentsCompleted: boolean; isMVA: boolean;
     lawFirm: { id: string; firmName: string | null; phone: string | null; email: string | null } | null;
     attorney: { id: string; firstName: string | null; lastName: string | null; email: string | null } | null;
     primaryInsurance: {
@@ -216,27 +216,27 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const d = detail;
   const patientName = `${d.patient.firstName} ${d.patient.lastName}`;
   const isAlreadyInRoom = d.status === 'IN_PROGRESS' || d.status === 'COMPLETED';
-  const canAdmit = confirm1 && confirm2 && !isAlreadyInRoom;
+  const canAdmit = confirm1 && confirm2 && !!d.case?.consentsCompleted && !isAlreadyInRoom;
   const overallState: StatusState = isAlreadyInRoom ? 'success'
-    : d.case?.pipActive && d.case?.lienSigned ? 'success'
+    : d.case?.pipActive && d.case?.consentsCompleted ? 'success'
     : 'warning';
 
   // Checklists
   const docItems = [
     {
       done:  !!d.case?.intakeFormCompletedAt,
-      label: t('docIntakeForm'),
+      label: t('docHealthForm'),
       meta:  d.case?.intakeFormCompletedAt ? t('docIntakeFormCompleted', { date: fmtDate(d.case.intakeFormCompletedAt) }) : undefined,
+    },
+    {
+      done:  !!d.case?.consentsCompleted,
+      label: t('docConsentsSigned'),
+      meta:  d.case?.consentsCompleted ? t('docConsentsSignedMeta') : t('docConsentsPending'),
     },
     {
       done:  !!d.case?.pipActive,
       label: t('docPipVerified'),
       meta:  d.case?.pipVerifiedAt ? t('docPipVerifiedOn', { date: fmtDate(d.case.pipVerifiedAt) }) : t('docPipNotVerified'),
-    },
-    {
-      done:  !!d.case?.lienSigned,
-      label: t('docLienSigned'),
-      meta:  d.case?.lienSigned ? t('docLienSignedMeta') : t('docLienPending'),
     },
   ];
 

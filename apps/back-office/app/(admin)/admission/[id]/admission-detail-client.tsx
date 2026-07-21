@@ -24,6 +24,7 @@ import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
+import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TriageRecord {
@@ -606,23 +607,56 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
           </div>
         )}
 
-        {/* ── Visita completada ── */}
+        {/* ── Step 4: Servicios y Pagos (visita completada) ── */}
         {d.status === 'COMPLETED' && (
-          <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald shrink-0" />
-            <div className="flex-1">
-              <div className="text-emerald font-bold text-sm">{t('visitCompleted')}</div>
-              <div className="text-emerald/70 text-[11px]">
-                {d.provider ? t('withDoctorName', { firstName: d.provider.firstName, lastName: d.provider.lastName }) : ''}
+          <div className="space-y-3">
+            {/* Banner visita completada */}
+            <div className="rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-3 flex items-center gap-3">
+              <CheckCircle2 className="w-4 h-4 text-emerald shrink-0" />
+              <div className="flex-1">
+                <div className="text-emerald font-bold text-[13px]">{t('visitCompleted')}</div>
+                <div className="text-emerald/70 text-[11px]">
+                  {d.provider ? t('withDoctorName', { firstName: d.provider.firstName, lastName: d.provider.lastName }) : ''}
+                </div>
               </div>
+              <div className="w-6 h-6 rounded-full bg-amber flex items-center justify-center text-black font-bold text-[11px] shrink-0">4</div>
             </div>
-            <button
-              type="button"
-              onClick={() => router.push(`/cases/${d.case?.id}`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-xs font-semibold hover:bg-emerald/90 shrink-0"
-            >
-              Servicios y Pagos <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            {/* Panel de servicios y pagos inline */}
+            <AppointmentDetailPanel
+              inline
+              initialTab="services"
+              appointment={{
+                id:              d.id,
+                scheduledFor:    d.scheduledFor,
+                durationMinutes: d.durationMinutes,
+                type:            d.type,
+                status:          d.status,
+                notes:           d.notes,
+                visitNumber:     0,
+                patient:         d.patient,
+                provider:        d.provider,
+                clinic:          d.clinic,
+                case: d.case ? {
+                  id:                    d.case.id,
+                  caseCode:              d.case.caseCode,
+                  accidentType:          d.case.accidentType,
+                  accidentDate:          d.case.accidentDate,
+                  status:                'ACTIVE',
+                  intakeFormCompletedAt: d.case.intakeFormCompletedAt,
+                  attorney:              d.case.attorney ? {
+                    id: d.case.attorney.id,
+                    firmName:  d.case.lawFirm?.firmName ?? null,
+                    firstName: d.case.attorney.firstName ?? '',
+                    lastName:  d.case.attorney.lastName ?? '',
+                    phone:     null,
+                    email:     d.case.attorney.email,
+                  } : null,
+                  primaryInsurance: d.case.primaryInsurance ?? null,
+                } : null,
+              }}
+              onClose={() => {}}
+              onRefresh={load}
+            />
           </div>
         )}
 

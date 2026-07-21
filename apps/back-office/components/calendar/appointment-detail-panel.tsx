@@ -169,6 +169,8 @@ interface Props {
   appointment: CalendarAppointment;
   onClose: () => void;
   onRefresh: () => void;
+  initialTab?: Tab;
+  inline?: boolean;
 }
 
 type Tab = 'detail' | 'services' | 'payments';
@@ -229,12 +231,12 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<Tab>('detail');
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   // ── Detail tab ────────────────────────────────────────────────────────────
   const [activeModal,   setActiveModal]   = useState<SecondaryModalType | null>(null);
@@ -476,10 +478,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
     { id: 'payments', label: t('tabPayments'), icon: <DollarSign className="w-3.5 h-3.5" /> },
   ];
 
-  return (
+  const panelContent = (
     <>
-      <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-        <DialogContent className="max-w-xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
 
           {/* ─── Header ──────────────────────────────────────────── */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
@@ -1121,9 +1121,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
             </div>
           )}
 
-        </DialogContent>
-      </Dialog>
-
       {/* Secondary modals */}
       {activeModal && (
         <AppointmentSecondaryModals
@@ -1169,6 +1166,22 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
         />
       )}
     </>
+  );
+
+  if (inline) {
+    return (
+      <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-bg-1 max-h-[600px]">
+        {panelContent}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+        {panelContent}
+      </DialogContent>
+    </Dialog>
   );
 }
 

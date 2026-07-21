@@ -482,10 +482,10 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
         {/* ── Flow diagram ── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border rounded-lg overflow-hidden border border-border">
           {[
-            { num: 1, done: true,  active: false, title: t('flowStep1'), desc: t('flowStep1Desc') },
-            { num: 2, done: false, active: true,  title: t('flowStep2'), desc: t('flowStep2Desc') },
-            { num: 3, done: false, active: false, title: t('flowStep3'), desc: t('flowStep3Desc') },
-            { num: 4, done: false, active: false, title: t('flowStep4'), desc: t('flowStep4Desc') },
+            { num: 1, done: true,             active: false,                                          title: t('flowStep1'), desc: t('flowStep1Desc') },
+            { num: 2, done: isAlreadyInRoom, active: !isAlreadyInRoom,                              title: t('flowStep2'), desc: t('flowStep2Desc') },
+            { num: 3, done: d.status === 'COMPLETED', active: isAlreadyInRoom && !showServices && d.status !== 'COMPLETED', title: t('flowStep3'), desc: t('flowStep3Desc') },
+            { num: 4, done: false,           active: showServices || d.status === 'COMPLETED',      title: t('flowStep4'), desc: t('flowStep4Desc') },
           ].map(step => (
             <div
               key={step.num}
@@ -503,10 +503,10 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
         {/* ── Stepper ── */}
         <div className="flex items-center gap-2">
           {[
-            { label: t('flowStep1'), done: true,  active: false },
-            { label: t('flowStep2'), done: false, active: true  },
-            { label: t('flowStep3'), done: false, active: false },
-            { label: t('flowStep4'), done: false, active: false },
+            { label: t('flowStep1'), done: true,             active: false },
+            { label: t('flowStep2'), done: isAlreadyInRoom, active: !isAlreadyInRoom },
+            { label: t('flowStep3'), done: d.status === 'COMPLETED', active: isAlreadyInRoom && !showServices && d.status !== 'COMPLETED' },
+            { label: t('flowStep4'), done: false,           active: showServices || d.status === 'COMPLETED' },
           ].map((step, i, arr) => (
             <div key={i} className="flex items-center gap-2 flex-1 min-w-0">
               <div className="flex items-center gap-1.5 shrink-0">

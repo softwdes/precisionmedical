@@ -481,21 +481,23 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const panelContent = (
     <>
 
-          {/* ─── Header ──────────────────────────────────────────── */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-            <div className="flex items-center gap-3">
-              <Calendar className="w-4 h-4 text-cyan" />
-              <div>
-                <div className="text-text-1 font-semibold text-sm">{dt.dayName} {dt.date}</div>
-                <div className="text-text-muted text-xs">{dt.time} · {appt.durationMinutes} min</div>
+          {/* ─── Header (solo en modal, no inline) ──────────────── */}
+          {!inline && (
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+              <div className="flex items-center gap-3">
+                <Calendar className="w-4 h-4 text-cyan" />
+                <div>
+                  <div className="text-text-1 font-semibold text-sm">{dt.dayName} {dt.date}</div>
+                  <div className="text-text-muted text-xs">{dt.time} · {appt.durationMinutes} min</div>
+                </div>
               </div>
+              <StatusPill label={statusCfg.label} state={statusCfg.state} />
             </div>
-            <StatusPill label={statusCfg.label} state={statusCfg.state} />
-          </div>
+          )}
 
-          {/* ─── Tabs ────────────────────────────────────────────── */}
+          {/* ─── Tabs (inline: solo services y payments) ─────────── */}
           <div className="flex border-b border-border shrink-0">
-            {TABS.map(tab => (
+            {TABS.filter(tab => !inline || tab.id !== 'detail').map(tab => (
               <button
                 key={tab.id}
                 type="button"

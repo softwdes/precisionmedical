@@ -236,8 +236,9 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   const [phone,      setPhone]      = useState('');
   const [email,      setEmail]      = useState('');
   const [language,   setLanguage]   = useState('es');
-  const [howFound,   setHowFound]   = useState('');
-  const [referredBy, setReferredBy] = useState('');
+  const [howFound,      setHowFound]      = useState('');
+  const [referredBy,    setReferredBy]    = useState('');
+  const [referredByFreeText, setReferredByFreeText] = useState('');
 
   // Case info
   const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
@@ -257,7 +258,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
 
   function reset() {
     setFirstName(''); setLastName(''); setDob(''); setDobDisplay(''); setPhone('');
-    setEmail(''); setLanguage('es'); setHowFound(''); setReferredBy('');
+    setEmail(''); setLanguage('es'); setHowFound(''); setReferredBy(''); setReferredByFreeText('');
     setCaseType('MVA'); setAccidentDate(''); setAccDisplay(''); setLawFirm('');
     setAttorney(''); setChiropractor(''); setDescription('');
     setError(''); setSuccessInfo(null);
@@ -287,7 +288,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
           patient: {
             firstName:         firstName.trim(),
             lastName:          lastName.trim(),
-            phone:             phone.trim() || '0000000000',
+            phone:             phone.replace(/\D/g, '') || null,
             email:             email.trim() || null,
             dateOfBirth:       dobIso,
             preferredLanguage: language as 'es' | 'en',
@@ -416,7 +417,21 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                     <input type="date" className={`${INPUT} [color-scheme:dark]`} value={dob} onChange={e => { setDob(e.target.value); setDobDisplay(''); }} />
                   </Field>
                   <Field label="Teléfono">
-                    <input className={INPUT} value={phone} onChange={e => setPhone(e.target.value)} placeholder="(000) 000-0000" />
+                    <input
+                      className={INPUT}
+                      value={phone}
+                      onChange={e => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        let fmt = digits;
+                        if (digits.length > 6) fmt = `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+                        else if (digits.length > 3) fmt = `(${digits.slice(0,3)}) ${digits.slice(3)}`;
+                        else if (digits.length > 0) fmt = `(${digits}`;
+                        setPhone(fmt);
+                      }}
+                      placeholder="(000) 000-0000"
+                      maxLength={14}
+                      inputMode="numeric"
+                    />
                   </Field>
                   <Field label="Correo electrónico">
                     <input type="email" className={INPUT} value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
@@ -436,12 +451,13 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                     </select>
                   </Field>
                   <Field label="¿Quién lo refirió?">
-                    <ReferredBySelect value={referredBy} onChange={setReferredBy} />
+                    <ReferredBySelect value={referredBy} onChange={v => { setReferredBy(v); if (v !== '__otro__') setReferredByFreeText(''); }} />
                     {referredBy === '__otro__' && (
                       <input
                         className={`${INPUT} mt-1.5`}
                         placeholder="Escribe el nombre..."
-                        onChange={e => setReferredBy(e.target.value)}
+                        value={referredByFreeText}
+                        onChange={e => setReferredByFreeText(e.target.value)}
                         autoFocus
                       />
                     )}

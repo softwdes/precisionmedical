@@ -10,6 +10,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog } from '@precision-medical/database';
+import { decryptFieldOrOriginal } from '@/lib/decrypt';
 
 type Ctx = { params: Promise<{ token: string }> };
 
@@ -90,8 +91,8 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       addressZip:               rec.patient.addressZip ?? null,
       referralSource:           rec.patient.referralSource ?? null,
       communicationPreference:  rec.patient.communicationPreference ?? null,
-      preferredPharmacy:        rec.patient.preferredPharmacy ?? null,
-      employer:                 rec.patient.employer ?? null,
+      preferredPharmacy:        decryptFieldOrOriginal(rec.patient.preferredPharmacy),
+      employer:                 decryptFieldOrOriginal(rec.patient.employer),
       race:                     rec.patient.race ?? null,
       ethnicity:                rec.patient.ethnicity ?? null,
       sex:                      rec.patient.sex ?? null,

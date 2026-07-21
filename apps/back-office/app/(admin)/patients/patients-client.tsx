@@ -15,6 +15,14 @@ import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import QRCode from 'qrcode';
 
+function fmtPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 10);
+  if (digits.length > 6) return `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+  if (digits.length > 3) return `(${digits.slice(0,3)}) ${digits.slice(3)}`;
+  if (digits.length > 0) return `(${digits}`;
+  return '';
+}
+
 function fmtLocalDate(d: Date | string | null | undefined, locale = 'en-US'): string {
   if (!d) return '—';
   const iso = typeof d === 'string' ? d : (d as Date).toISOString();
@@ -965,11 +973,11 @@ function NuevoSeguroDialog({ onClose, onSave }: {
               <div><label className={insLabel}>{t('segurosClaimNum')}</label><input className={insInput} value={entry.claimNum} onChange={e => set('claimNum', e.target.value)} /></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className={insLabel}>{t('segurosAdjusterName')}</label><input className={insInput} value={entry.adjusterName} onChange={e => set('adjusterName', e.target.value)} /></div>
-                <div><label className={insLabel}>{t('segurosAdjusterPhone')}</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterPhone} onChange={e => set('adjusterPhone', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosAdjusterPhone')}</label><input className={insInput} placeholder="(000) 000-0000" inputMode="numeric" maxLength={14} value={entry.adjusterPhone} onChange={e => set('adjusterPhone', fmtPhone(e.target.value))} /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>{t('segurosAdjusterFax')}</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterFax} onChange={e => set('adjusterFax', e.target.value)} /></div>
-                <div><label className={insLabel}>{t('segurosAdjusterPhone2')}</label><input className={insInput} placeholder="(XXX) XXX-XXXX" value={entry.adjusterPhone2} onChange={e => set('adjusterPhone2', e.target.value)} /></div>
+                <div><label className={insLabel}>{t('segurosAdjusterFax')}</label><input className={insInput} placeholder="(000) 000-0000" inputMode="numeric" maxLength={14} value={entry.adjusterFax} onChange={e => set('adjusterFax', fmtPhone(e.target.value))} /></div>
+                <div><label className={insLabel}>{t('segurosAdjusterPhone2')}</label><input className={insInput} placeholder="(000) 000-0000" inputMode="numeric" maxLength={14} value={entry.adjusterPhone2} onChange={e => set('adjusterPhone2', fmtPhone(e.target.value))} /></div>
               </div>
               <div><label className={insLabel}>{t('segurosAdjusterEmail')}</label><input type="email" className={insInput} value={entry.adjusterEmail} onChange={e => set('adjusterEmail', e.target.value)} /></div>
               <div><label className={insLabel}>{t('segurosComments')}</label><textarea className={`${insInput} resize-none`} rows={3} value={entry.comments} onChange={e => set('comments', e.target.value)} /></div>

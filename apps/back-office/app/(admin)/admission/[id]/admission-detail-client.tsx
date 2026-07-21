@@ -519,7 +519,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   <Scale className="w-4 h-4 text-emerald" />
                   <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionLien')}</span>
                 </div>
-                {d.case?.lienSigned ? (
+                {d.case?.attorney || d.case?.lawFirm ? (
                   <div className="rounded-md border border-emerald/30 bg-emerald/5 p-3 text-[11px] text-emerald space-y-0.5">
                     <div>{t('lienSignedByPatient')}</div>
                     {d.case.attorney && (

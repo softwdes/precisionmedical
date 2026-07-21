@@ -1808,7 +1808,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             title={inactiveOnly ? 'Ver pacientes activos' : 'Ver pacientes eliminados'}
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{inactiveOnly ? 'Ver activos' : 'Eliminados'}</span>
+            <span className="hidden sm:inline">{inactiveOnly ? t('btnActive') : t('btnInactive')}</span>
           </a>
           <button
             type="button"
@@ -1817,7 +1817,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
           >
             <Plus className="w-3.5 h-3.5" />
             <span className="hidden md:inline">{t('btnQuickRegister')}</span>
-            <span className="md:hidden">Rápido</span>
+            <span className="md:hidden">{t('btnQuickRegisterShort')}</span>
           </button>
           <PatientCreateDialog />
           <button
@@ -1826,8 +1826,8 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors whitespace-nowrap"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Crear Paciente / Crear Caso</span>
-            <span className="sm:hidden">Crear</span>
+            <span className="hidden sm:inline">{t('btnCreatePatientCase')}</span>
+            <span className="sm:hidden">{t('btnCreateShort')}</span>
           </button>
         </div>
       </div>

@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   ClipboardList, Phone, Mail, CheckCircle2, AlertTriangle,
   Clock, Building2, Shield, FileText, TrendingUp, ChevronRight,
@@ -72,14 +73,14 @@ function fmtTime(d: Date | string): string {
   return new Date(d).toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  NEW_REFERRAL:      'Nueva ref.',
-  INTAKE_PENDING:    'Intake pend.',
-  INTAKE_COMPLETED:  'Intake OK',
-  CONFIRMED:         'Confirmado',
-  ACTIVE:            'Activo',
-  MMI:               'MMI',
-  CLOSED:            'Cerrado',
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  NEW_REFERRAL:      'statusLabels.NEW_REFERRAL',
+  INTAKE_PENDING:    'statusLabels.INTAKE_PENDING',
+  INTAKE_COMPLETED:  'statusLabels.INTAKE_COMPLETED',
+  CONFIRMED:         'statusLabels.CONFIRMED',
+  ACTIVE:            'statusLabels.ACTIVE',
+  MMI:               'statusLabels.MMI',
+  CLOSED:            'statusLabels.CLOSED',
 };
 
 const STATUS_COLOR: Record<string, string> = {
@@ -95,11 +96,11 @@ const STATUS_COLOR: Record<string, string> = {
 // ─── Task checklist for pre-visit ─────────────────────────────────────────────
 
 interface Task {
-  id:    string;
-  label: string;
-  done:  boolean;
-  urgent?: boolean;
-  action?: string;
+  id:         string;
+  labelKey:   string;
+  actionKey?: string;
+  done:       boolean;
+  urgent?:    boolean;
 }
 
 function getPreVisitTasks(c: PreVisitCase): Task[] {
@@ -109,51 +110,51 @@ function getPreVisitTasks(c: PreVisitCase): Task[] {
   return [
     {
       id: 'firm',
-      label: 'Bufete legal asignado',
+      labelKey: 'taskFirm',
       done: !!c.lawFirm,
       urgent: !c.lawFirm,
-      action: 'Asignar bufete en detalle del caso',
+      actionKey: 'taskFirmAction',
     },
     {
       id: 'insurance',
-      label: 'Seguro primario (PIP) registrado',
+      labelKey: 'taskInsurance',
       done: !!c.primaryInsurance,
       urgent: !c.primaryInsurance,
-      action: 'Registrar seguro en detalle del caso',
+      actionKey: 'taskInsuranceAction',
     },
     {
       id: 'pip',
-      label: 'PIP verificado',
+      labelKey: 'taskPip',
       done: !!c.pipVerifiedAt,
       urgent: !c.pipVerifiedAt && !!c.primaryInsurance,
-      action: 'Llamar a aseguradora para confirmar cobertura PIP',
+      actionKey: 'taskPipAction',
     },
     {
       id: 'intake',
-      label: 'Portal intake completado',
+      labelKey: 'taskIntake',
       done: !!c.intakeFormCompletedAt || !!c.intakeSubmission,
       urgent: !c.intakeFormSentAt,
-      action: !c.intakeFormSentAt ? 'Enviar magic link al paciente' : 'Recordar al paciente completar el portal',
+      actionKey: !c.intakeFormSentAt ? 'taskIntakeSendAction' : 'taskIntakeRemindAction',
     },
     {
       id: 'lien_patient',
-      label: 'Lien firmado — paciente',
+      labelKey: 'taskLienPatient',
       done: lienPatient,
       urgent: !lienPatient,
-      action: 'Enviar link de firma al paciente',
+      actionKey: 'taskLienPatientAction',
     },
     {
       id: 'lien_attorney',
-      label: 'Lien firmado — abogado',
+      labelKey: 'taskLienAttorney',
       done: lienAttorney,
       urgent: !lienAttorney && !!c.lawFirm,
-      action: 'Contactar abogado para firma del lien',
+      actionKey: 'taskLienAttorneyAction',
     },
     {
       id: 'confirm',
-      label: 'Primera cita confirmada (24h)',
+      labelKey: 'taskConfirm',
       done: !!c.firstAppointmentConfirmedAt,
-      action: 'Llamar paciente para confirmar asistencia',
+      actionKey: 'taskConfirmAction',
     },
   ];
 }
@@ -163,6 +164,7 @@ function getPreVisitTasks(c: PreVisitCase): Task[] {
 function PreVisitRow({ c }: { c: PreVisitCase }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const t = useTranslations('phoenix.edson');
   const tasks  = getPreVisitTasks(c);
   const done   = tasks.filter(t => t.done).length;
   const total  = tasks.length;
@@ -205,7 +207,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
             <span className="font-mono text-[10px] text-text-muted">{c.caseCode}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
               style={{ background: `${STATUS_COLOR[c.status]}18`, color: STATUS_COLOR[c.status] }}>
-              {STATUS_LABELS[c.status] ?? c.status}
+              {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status] as Parameters<typeof t>[0]) : c.status}
             </span>
           </div>
           <div className="flex gap-3 mt-0.5 text-[11px] text-text-muted flex-wrap">
@@ -218,7 +220,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
           {appt && (
             <div className="text-right">
               <div className={`text-[11px] font-semibold ${days !== null && days <= 2 ? 'text-rose' : days !== null && days <= 5 ? 'text-amber' : 'text-text-1'}`}>
-                {days !== null && days <= 0 ? 'Hoy' : days !== null && days === 1 ? 'Mañana' : `En ${days} días`}
+                {days !== null && days <= 0 ? t('today') : days !== null && days === 1 ? t('tomorrow') : t('inDays', { n: days })}
               </div>
               <div className="text-[10px] text-text-muted">{fmtDate(appt.scheduledFor)} {fmtTime(appt.scheduledFor)}</div>
             </div>
@@ -250,10 +252,10 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className={`text-[12px] ${task.done ? 'line-through text-text-muted' : 'text-text-1'}`}>
-                  {task.label}
+                  {t(task.labelKey as Parameters<typeof t>[0])}
                 </div>
-                {!task.done && task.action && (
-                  <div className="text-[10px] text-text-muted mt-0.5">{task.action}</div>
+                {!task.done && task.actionKey && (
+                  <div className="text-[10px] text-text-muted mt-0.5">{t(task.actionKey as Parameters<typeof t>[0])}</div>
                 )}
               </div>
             </div>
@@ -266,7 +268,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
               onClick={() => router.push(`/front-office/${c.id}`)}
               className="flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/8 px-3 py-1.5 text-[11px] font-semibold text-brand hover:bg-brand/12 transition-colors"
             >
-              <FileText className="w-3 h-3" /> Ver caso
+              <FileText className="w-3 h-3" /> {t('actionViewCase')}
             </button>
             {c.patient?.phone && (
               <a
@@ -281,7 +283,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
                 href={`mailto:${c.lawFirm.email}?subject=Caso ${c.caseCode} — ${patientName}`}
                 className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
               >
-                <Mail className="w-3 h-3" /> Email bufete
+                <Mail className="w-3 h-3" /> {t('actionEmailFirm')}
               </a>
             )}
           </div>
@@ -296,6 +298,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
 function CollectionsRow({ c }: { c: CollectionsCase }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const t = useTranslations('phoenix.edson');
 
   const patientName = c.patient ? `${c.patient.lastName.toUpperCase()}, ${c.patient.firstName}` : '—';
   const daysSinceContact = c.notes[0] ? daysAgo(c.notes[0].createdAt) : daysAgo(c.updatedAt);
@@ -324,7 +327,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
           <div className="text-[18px] font-black" style={{ color: urgencyColor, lineHeight: 1 }}>
             {daysSinceContact}
           </div>
-          <div className="text-[8px] text-text-muted uppercase tracking-wider">días</div>
+          <div className="text-[8px] text-text-muted uppercase tracking-wider">{t('daysLabel')}</div>
         </div>
 
         <div className="flex-1 min-w-0">
@@ -333,7 +336,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
             <span className="font-mono text-[10px] text-text-muted">{c.caseCode}</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
               style={{ background: `${STATUS_COLOR[c.status]}18`, color: STATUS_COLOR[c.status] }}>
-              {STATUS_LABELS[c.status] ?? c.status}
+              {STATUS_LABEL_KEYS[c.status] ? t(STATUS_LABEL_KEYS[c.status] as Parameters<typeof t>[0]) : c.status}
             </span>
           </div>
           <div className="flex gap-3 mt-0.5 text-[11px] text-text-muted flex-wrap">
@@ -343,7 +346,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
           </div>
           {c.notes[0] && (
             <div className="mt-0.5 text-[10px] text-text-muted truncate">
-              Último contacto: {fmtDate(c.notes[0].createdAt)} — {c.notes[0].content.slice(0, 80)}
+              {t('lastContact', { date: fmtDate(c.notes[0].createdAt) })} — {c.notes[0].content.slice(0, 80)}
             </div>
           )}
         </div>
@@ -351,7 +354,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
         <div className="flex items-center gap-2 shrink-0">
           {!lienFull && (
             <span className="text-[10px] text-amber font-semibold flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" /> Lien incompleto
+              <AlertTriangle className="w-3 h-3" /> {t('lienIncomplete')}
             </span>
           )}
           <ChevronRight className={`w-4 h-4 text-text-muted transition-transform ${open ? 'rotate-90' : ''}`} />
@@ -362,15 +365,15 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
         <div className="border-t border-border px-4 py-3 space-y-3">
           {/* Status del lien */}
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">Estado del Lien</div>
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">{t('lienStatus')}</div>
             <div className="flex gap-3 text-[11px]">
               <span className={`flex items-center gap-1 ${lienPatient ? 'text-emerald' : 'text-text-muted'}`}>
                 {lienPatient ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                Paciente
+                {t('lienPatient')}
               </span>
               <span className={`flex items-center gap-1 ${lienAttorney ? 'text-emerald' : 'text-text-muted'}`}>
                 {lienAttorney ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                Abogado
+                {t('lienAttorney')}
               </span>
             </div>
           </div>
@@ -382,7 +385,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
               onClick={() => router.push(`/billing/${c.id}`)}
               className="flex items-center gap-1.5 rounded-lg border border-amber/30 bg-amber/8 px-3 py-1.5 text-[11px] font-semibold text-amber hover:bg-amber/12 transition-colors"
             >
-              <TrendingUp className="w-3 h-3" /> Ir a billing
+              <TrendingUp className="w-3 h-3" /> {t('actionGoBilling')}
             </button>
             {c.patient?.phone && (
               <a
@@ -405,7 +408,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
                 href={`mailto:${c.lawFirm.email}?subject=Settlement pendiente – ${c.caseCode}`}
                 className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
               >
-                <Mail className="w-3 h-3" /> Email bufete
+                <Mail className="w-3 h-3" /> {t('actionEmailFirm')}
               </a>
             )}
           </div>
@@ -425,39 +428,40 @@ export function EdsonClient({
   collectionsCases: CollectionsCase[];
 }) {
   const [tab, setTab] = useState<'previsita' | 'cobranzas'>('previsita');
+  const t = useTranslations('phoenix.edson');
 
-  const urgentPre      = preVisitCases.filter(c => getPreVisitTasks(c).some(t => t.urgent)).length;
+  const urgentPre      = preVisitCases.filter(c => getPreVisitTasks(c).some(task => task.urgent)).length;
   const overdue60      = collectionsCases.filter(c => daysAgo(c.notes[0]?.createdAt ?? c.updatedAt) > 60).length;
 
   return (
     <div className="flex flex-col gap-5 p-5 pb-10">
       <PageHeader
-        title="Bandeja Edson"
-        subtitle="Cola de trabajo: pre-visita y cobranzas de settlements pendientes"
+        title={t('title')}
+        subtitle={t('subtitle')}
       />
 
       {/* Tabs */}
       <div className="flex gap-2 p-1 rounded-xl bg-bg-1 border border-border w-full sm:w-auto self-start">
         {([
-          { key: 'previsita',  label: 'Pre-visita',  badge: urgentPre,    color: 'amber' },
-          { key: 'cobranzas',  label: 'Cobranzas',   badge: overdue60,    color: 'rose'  },
-        ] as const).map(t => (
+          { key: 'previsita',  label: t('tabPrevisita'),  badge: urgentPre,    color: 'amber' },
+          { key: 'cobranzas',  label: t('tabCobranzas'),  badge: overdue60,    color: 'rose'  },
+        ] as const).map(item => (
           <button
-            key={t.key}
+            key={item.key}
             type="button"
-            onClick={() => setTab(t.key)}
+            onClick={() => setTab(item.key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold transition-all ${
-              tab === t.key
+              tab === item.key
                 ? 'bg-bg-0 text-text-1 shadow-sm border border-border'
                 : 'text-text-muted hover:text-text-1'
             }`}
           >
-            {t.label}
-            {t.badge > 0 && (
+            {item.label}
+            {item.badge > 0 && (
               <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
-                t.color === 'amber' ? 'bg-amber/15 text-amber' : 'bg-rose/15 text-rose'
+                item.color === 'amber' ? 'bg-amber/15 text-amber' : 'bg-rose/15 text-rose'
               }`}>
-                {t.badge}
+                {item.badge}
               </span>
             )}
           </button>
@@ -470,10 +474,10 @@ export function EdsonClient({
           {/* KPIs */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Total',           value: preVisitCases.length,    color: '#a78bfa' },
-              { label: 'Con alertas',     value: urgentPre,               color: '#f59e0b' },
-              { label: 'Listos',          value: preVisitCases.filter(c => getPreVisitTasks(c).every(t => t.done)).length, color: '#34d399' },
-              { label: 'Lien incompleto', value: preVisitCases.filter(c => !c.lienSignatures.some(s => s.signerType === 'PATIENT') || !c.lienSignatures.some(s => s.signerType === 'ATTORNEY')).length, color: '#f87171' },
+              { label: t('kpiTotal'),           value: preVisitCases.length,    color: '#a78bfa' },
+              { label: t('kpiAlerts'),           value: urgentPre,               color: '#f59e0b' },
+              { label: t('kpiReady'),            value: preVisitCases.filter(c => getPreVisitTasks(c).every(task => task.done)).length, color: '#34d399' },
+              { label: t('kpiLienIncomplete'),   value: preVisitCases.filter(c => !c.lienSignatures.some(s => s.signerType === 'PATIENT') || !c.lienSignatures.some(s => s.signerType === 'ATTORNEY')).length, color: '#f87171' },
             ].map(k => (
               <div key={k.label} className="rounded-lg border border-border bg-bg-1 p-3">
                 <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{k.label}</div>
@@ -485,7 +489,7 @@ export function EdsonClient({
           {preVisitCases.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-3 rounded-xl border border-border bg-bg-1">
               <CheckCircle2 className="w-10 h-10 text-emerald opacity-50" />
-              <div className="text-text-muted text-[13px]">Sin casos con citas próximas pendientes</div>
+              <div className="text-text-muted text-[13px]">{t('emptyPrevisita')}</div>
             </div>
           ) : (
             <>
@@ -513,10 +517,10 @@ export function EdsonClient({
           {/* KPIs */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: 'Total',       value: collectionsCases.length, color: '#a78bfa' },
-              { label: '+60 días',    value: overdue60,                color: '#f87171' },
-              { label: '+30 días',    value: collectionsCases.filter(c => daysAgo(c.notes[0]?.createdAt ?? c.updatedAt) > 30).length, color: '#f59e0b' },
-              { label: 'MMI cerrado', value: collectionsCases.filter(c => c.status === 'CLOSED').length, color: '#6366f1' },
+              { label: t('kpiTotal'),      value: collectionsCases.length, color: '#a78bfa' },
+              { label: t('kpiOverdue60'),  value: overdue60,                color: '#f87171' },
+              { label: t('kpiOverdue30'),  value: collectionsCases.filter(c => daysAgo(c.notes[0]?.createdAt ?? c.updatedAt) > 30).length, color: '#f59e0b' },
+              { label: t('kpiMmiClosed'), value: collectionsCases.filter(c => c.status === 'CLOSED').length, color: '#6366f1' },
             ].map(k => (
               <div key={k.label} className="rounded-lg border border-border bg-bg-1 p-3">
                 <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{k.label}</div>
@@ -528,7 +532,7 @@ export function EdsonClient({
           {collectionsCases.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-3 rounded-xl border border-border bg-bg-1">
               <CheckCircle2 className="w-10 h-10 text-emerald opacity-50" />
-              <div className="text-text-muted text-[13px]">Sin casos pendientes de settlement</div>
+              <div className="text-text-muted text-[13px]">{t('emptyCobranzas')}</div>
             </div>
           ) : (
             collectionsCases
@@ -544,8 +548,7 @@ export function EdsonClient({
 
       {/* Note on B.12/B.13 */}
       <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-[11px] text-text-muted">
-        <span className="font-semibold text-brand">B.12/B.13/B.23/B.24</span> · Pre-visita muestra citas próximas (14 días) con tareas incompletas.
-        Cobranzas muestra casos ACTIVO/MMI/CERRADO sin settlement, ordenados por días sin contacto.
+        <span className="font-semibold text-brand">B.12/B.13/B.23/B.24</span> · {t('noteB')}
       </div>
     </div>
   );

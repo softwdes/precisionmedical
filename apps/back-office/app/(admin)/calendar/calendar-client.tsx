@@ -574,12 +574,12 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                 type="text"
                 value={patientSearch}
                 onChange={e => setPatientSearch(e.target.value)}
-                placeholder="Buscar paciente..."
+                placeholder={t('searchPatientPlaceholder')}
                 className="h-7 pl-7 pr-2 rounded border border-border bg-bg-2 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan w-44 transition-colors"
               />
               {(searchingPt || patientResults.length > 0) && (
                 <div className="absolute top-full left-0 mt-1 w-64 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden">
-                  {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">Buscando...</div>}
+                  {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">{t('searching')}</div>}
                   {patientResults.map(p => (
                     <button
                       key={p.id}
@@ -592,7 +592,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                     </button>
                   ))}
                   {!searchingPt && patientResults.length === 0 && patientSearch.length >= 2 && (
-                    <div className="px-3 py-2 text-text-muted text-xs">Sin resultados</div>
+                    <div className="px-3 py-2 text-text-muted text-xs">{t('noResults')}</div>
                   )}
                 </div>
               )}
@@ -608,7 +608,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
             className="flex items-center gap-1.5 h-7 px-3 rounded border border-cyan/40 bg-cyan/10 text-cyan text-xs font-medium hover:bg-cyan/20 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
-            Nueva cita
+            {t('actionNewAppointment')}
           </button>
         </div>
 

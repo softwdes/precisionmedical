@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
   FileText, ChevronRight, Calendar as CalendarIcon, User, Search, X,
@@ -92,12 +93,7 @@ type AppointmentDialogProps = (CaseModeProps | FreeModeProps) & {
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120];
 
 type AppointmentType = 'AUTO_ACCIDENT' | 'FAMILY_PRACTICE' | 'URGENT_CARE' | 'FOLLOW_UP';
-const TYPE_OPTIONS: Array<{ value: AppointmentType; label: string }> = [
-  { value: 'AUTO_ACCIDENT',   label: 'Auto Accident (MVA)' },
-  { value: 'FOLLOW_UP',       label: 'Seguimiento' },
-  { value: 'FAMILY_PRACTICE', label: 'Medicina general' },
-  { value: 'URGENT_CARE',     label: 'Urgencias' },
-];
+// TYPE_OPTIONS is built inside the component to use translations
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -105,6 +101,14 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const { open, onOpenChange, onSuccess, initialDate, initialTime, editAppointment } = props;
   const isEditMode = !!editAppointment;
   const router = useRouter();
+  const t = useTranslations('phoenix.calendar');
+
+  const TYPE_OPTIONS: Array<{ value: AppointmentType; label: string }> = [
+    { value: 'AUTO_ACCIDENT',   label: 'Auto Accident (MVA)' },
+    { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
+    { value: 'FAMILY_PRACTICE', label: t('typeFamilyPractice') },
+    { value: 'URGENT_CARE',     label: t('typeUrgentCare') },
+  ];
 
   // Resources
   const [clinics,     setClinics]     = useState<Clinic[]>([]);
@@ -230,7 +234,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         setAllProviders(d.providers ?? []);
         setSpecialties(d.specialties ?? []);
       })
-      .catch(() => setError('No se pudieron cargar clínicas/doctores'))
+      .catch(() => setError(t('errorLoadResources')))
       .finally(() => setLoadingRes(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -305,7 +309,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   const handleSchedule = async () => {
     setError(null);
-    if (!canSubmit) return setError('Completá todos los campos requeridos');
+    if (!canSubmit) return setError(t('errorRequiredFields'));
 
     setSaving(true);
     try {
@@ -360,7 +364,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         onSuccess?.();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : isEditMode ? 'Error al guardar' : 'Error al agendar');
+      setError(e instanceof Error ? e.message : isEditMode ? t('errorSaveAppointment') : t('errorScheduleAppointment'));
     } finally {
       setSaving(false);
     }
@@ -380,15 +384,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             <div className="w-16 h-16 rounded-full bg-emerald/20 border-2 border-emerald flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-emerald" />
             </div>
-            <h2 className="text-xl font-bold text-text-1 mb-2">Cita agendada</h2>
+            <h2 className="text-xl font-bold text-text-1 mb-2">{t('successTitle')}</h2>
             <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4 text-left text-xs space-y-1 mb-6">
-              <div className="text-emerald font-semibold uppercase tracking-wider text-[10px] mb-2">Detalles</div>
-              <div><strong className="text-text-1">Paciente:</strong> {patientName}</div>
-              <div><strong className="text-text-1">Doctor:</strong> Dr. {success.providerName}</div>
-              <div><strong className="text-text-1">Clínica:</strong> {success.clinicName}</div>
-              <div><strong className="text-text-1">Cuándo:</strong> {new Date(success.scheduledFor).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+              <div className="text-emerald font-semibold uppercase tracking-wider text-[10px] mb-2">{t('successDetailsLabel')}</div>
+              <div><strong className="text-text-1">{t('successPatient')}</strong> {patientName}</div>
+              <div><strong className="text-text-1">{t('successDoctor')}</strong> {t('drPrefix')} {success.providerName}</div>
+              <div><strong className="text-text-1">{t('successClinic')}</strong> {success.clinicName}</div>
+              <div><strong className="text-text-1">{t('successWhen')}</strong> {new Date(success.scheduledFor).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
             </div>
-            <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
+            <Button onClick={() => onOpenChange(false)}>{t('actionClose')}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -403,7 +407,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarCheck className="w-5 h-5 text-emerald" />
-            {isEditMode ? 'Editar cita' : props.mode === 'case' ? 'Agendar primera cita' : 'Nueva cita'}
+            {isEditMode ? t('dialogTitleEdit') : props.mode === 'case' ? t('dialogTitleScheduleFirst') : t('dialogTitleNew')}
           </DialogTitle>
           {isEditMode && editAppointment && (
             <DialogDescription>
@@ -415,7 +419,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             <DialogDescription>
               Paciente <strong className="text-text-1">{props.caseInfo.patient.firstName} {props.caseInfo.patient.lastName}</strong>
               {' '}· caso <code className="text-text-1 font-mono">{props.caseInfo.caseCode}</code>.
-              Al agendar, el status pasa a <code className="text-brand">ACTIVE</code>.
+              {t('dialogDescStatusChange')} <code className="text-brand">ACTIVE</code>.
             </DialogDescription>
           )}
         </DialogHeader>
@@ -425,7 +429,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           {/* ── EDIT MODE: Patient badge read-only ── */}
           {isEditMode && editAppointment && (
             <div className="flex items-center gap-2 rounded-md border border-border/40 bg-bg-2/40 px-3 py-2 flex-wrap">
-              <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">Caso:</span>
+              <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('caseLabel')}</span>
               <span className="text-text-1 font-mono text-xs font-semibold">{editAppointment.caseCode}</span>
               <span className="text-border">·</span>
               <span className="text-text-muted text-[10px]">
@@ -440,7 +444,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               <div>
                 <Label>
                   <User className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                  Paciente <span className="text-rose">*</span>
+                  {t('fieldPatient')} <span className="text-rose">*</span>
                 </Label>
                 {selectedPatient ? (
                   <div className="flex items-center justify-between rounded-md border border-emerald/40 bg-emerald/5 px-3 py-2 text-sm">
@@ -462,7 +466,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                       type="text"
                       value={patientQuery}
                       onChange={(e) => setPatientQuery(e.target.value)}
-                      placeholder="Buscar por nombre, teléfono o código..."
+                      placeholder={t('searchPatientPlaceholder2')}
                       className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                     />
                     {(searchingPt || patientResults.length > 0) && (
@@ -478,7 +482,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                             <div className="text-text-muted text-[11px]">
                               {pt.patientCode && <span className="font-mono mr-2">{pt.patientCode}</span>}
                               {pt.phone && <span>{pt.phone}</span>}
-                              {pt.casesCount > 0 && <span className="ml-2">{pt.casesCount} caso{pt.casesCount !== 1 ? 's' : ''} · último: {pt.lastCaseCode}</span>}
+                              {pt.casesCount > 0 && <span className="ml-2">{t('patientCasesCount', { n: pt.casesCount, code: pt.lastCaseCode })}</span>}
                             </div>
                           </button>
                         ))}
@@ -494,18 +498,18 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               {/* Case selector (after patient selected) */}
               {selectedPatient && (
                 <div>
-                  <Label>Caso <span className="text-rose">*</span></Label>
+                  <Label>{t('fieldCase')} <span className="text-rose">*</span></Label>
                   {loadingCases ? (
-                    <div className="text-text-muted text-xs py-2">Cargando casos...</div>
+                    <div className="text-text-muted text-xs py-2">{t('loadingCases')}</div>
                   ) : patientCases.length === 0 ? (
-                    <div className="text-amber text-xs py-2">Este paciente no tiene casos registrados</div>
+                    <div className="text-amber text-xs py-2">{t('patientNoCases')}</div>
                   ) : (
                     <select
                       value={caseId}
                       onChange={(e) => { setCaseId(e.target.value); setProviderId(''); }}
                       className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
                     >
-                      <option value="">Seleccionar caso...</option>
+                      <option value="">{t('selectCasePlaceholder')}</option>
                       {patientCases.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.caseCode} · {c.status}{c.specialty ? ` · ${c.specialty.name}` : ''}{c.accidentType ? ` (${c.accidentType})` : ''}
@@ -516,7 +520,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   {/* Specialty badge from selected case */}
                   {effectiveSpecialty && (
                     <div className="mt-1.5 flex items-center gap-2">
-                      <span className="text-text-muted text-[10px] uppercase tracking-wider">Especialidad del caso:</span>
+                      <span className="text-text-muted text-[10px] uppercase tracking-wider">{t('caseSpecialtyLabel')}</span>
                       <span
                         className="inline-flex items-center px-2 py-0.5 rounded border text-[11px] font-medium"
                         style={{ backgroundColor: `${effectiveSpecialty.color}20`, borderColor: `${effectiveSpecialty.color}50`, color: effectiveSpecialty.color }}
@@ -533,7 +537,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           {/* ── CASE MODE: caso + specialty badge ── */}
           {!isEditMode && props.mode === 'case' && props.caseInfo && (
             <div className="flex items-center gap-2 rounded-md border border-border/40 bg-bg-2/40 px-3 py-2 flex-wrap">
-              <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">Caso:</span>
+              <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('caseLabel')}</span>
               <span className="text-text-1 font-mono text-xs font-semibold">{props.caseInfo.caseCode}</span>
               {effectiveSpecialty && (
                 <>
@@ -553,7 +557,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           <div>
             <Label htmlFor="appt-clinic">
               <Building2 className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-              Clínica <span className="text-rose">*</span>
+              {t('fieldClinic')} <span className="text-rose">*</span>
             </Label>
             <select
               id="appt-clinic"
@@ -562,7 +566,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               disabled={loadingRes}
             >
-              <option value="">{loadingRes ? 'Cargando...' : 'Seleccionar clínica...'}</option>
+              <option value="">{loadingRes ? 'Cargando...' : t('selectClinicPlaceholder')}</option>
               {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             {selectedClinic?.address && (
@@ -575,7 +579,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             <div className="flex items-center justify-between mb-1">
               <Label htmlFor="appt-provider">
                 <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                Doctor <span className="text-rose">*</span>
+                {t('fieldDoctor')} <span className="text-rose">*</span>
               </Label>
               {effectiveSpecialty && (
                 <button
@@ -583,15 +587,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   onClick={() => { setShowAll((v) => !v); setProviderId(''); }}
                   className="text-[10px] text-brand hover:underline"
                 >
-                  {showAll ? `Filtrar por ${effectiveSpecialty.name}` : 'Ver todos los doctores'}
+                  {showAll ? t('filterBySpecialty', { specialty: effectiveSpecialty.name }) : t('showAllDoctors')}
                 </button>
               )}
             </div>
 
             {noProvidersForSpecialty && !showAll && (
               <div className="mb-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
-                No hay doctores asignados a <strong>{effectiveSpecialty?.name}</strong>.
-                {' '}<button onClick={() => setShowAll(true)} className="underline">Ver todos.</button>
+                {t('noProvidersForSpecialty', { specialty: effectiveSpecialty?.name })}
+                {' '}<button onClick={() => setShowAll(true)} className="underline">{t('showAll')}</button>
               </div>
             )}
 
@@ -602,7 +606,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 ))}
               </div>
             ) : filteredProviders.length === 0 ? (
-              <p className="text-[11px] text-text-muted italic mt-1">No hay doctores disponibles.</p>
+              <p className="text-[11px] text-text-muted italic mt-1">{t('noProvidersAvailable')}</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                 {filteredProviders.map((p) => (
@@ -618,7 +622,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   >
                     <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">Dr. {p.firstName} {p.lastName}</div>
+                      <div className="font-medium truncate">{t('drPrefix')} {p.firstName} {p.lastName}</div>
                       <div className="text-[10px] text-text-muted capitalize">{p.specialty.toLowerCase().replace(/_/g, ' ')}</div>
                     </div>
                     {providerId === p.id && <Check className="w-3.5 h-3.5 text-cyan shrink-0" />}
@@ -630,14 +634,14 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             {hasSpecialtyMismatch && (
               <div className="mt-1.5 text-[11px] text-amber flex items-start gap-1">
                 <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
-                <span>Doctor de especialidad distinta a <strong>{effectiveSpecialty?.name}</strong>. Confirmá antes de agendar.</span>
+                <span>{t('specialtyMismatchWarning', { specialty: effectiveSpecialty?.name })}</span>
               </div>
             )}
           </div>
 
           {/* ── Duración ── */}
           <div>
-            <Label htmlFor="appt-duration">Duración</Label>
+            <Label htmlFor="appt-duration">{t('fieldDuration')}</Label>
             <select
               id="appt-duration"
               value={String(duration)}
@@ -654,12 +658,12 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           <div>
             <Label>
               <CalendarIcon className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-              Horario disponible <span className="text-rose">*</span>
+              {t('fieldAvailableSchedule')} <span className="text-rose">*</span>
             </Label>
 
             {!providerId || !clinicId ? (
               <p className="mt-1.5 text-[11px] text-text-muted italic">
-                Selecciona clínica y doctor para ver los horarios disponibles.
+                {t('selectClinicAndDoctorHint')}
               </p>
             ) : (
               <div className="mt-1.5">
@@ -683,7 +687,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
           {/* ── Tipo de cita ── */}
           <div>
-            <Label htmlFor="appt-type">Tipo de cita</Label>
+            <Label htmlFor="appt-type">{t('fieldAppointmentType')}</Label>
             <select
               id="appt-type"
               value={type}
@@ -698,14 +702,14 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           <div>
             <Label htmlFor="appt-notes">
               <FileText className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-              Notas para el doctor (opcional)
+              {t('fieldNotes')}
             </Label>
             <textarea
               id="appt-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
-              placeholder="Ej: paciente reporta dolor lumbar severo · primera evaluación..."
+              placeholder={t('notesPlaceholder')}
               maxLength={2000}
             />
           </div>
@@ -714,13 +718,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           {selectedClinic && selectedProvider && scheduledForIso && isFuture && (
             <div className="rounded-lg border border-brand/30 bg-brand/5 p-3 text-xs">
               <div className="text-brand font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
-                <ChevronRight className="w-3 h-3" /> Resumen
+                <ChevronRight className="w-3 h-3" /> {t('summaryTitle')}
               </div>
               <div className="space-y-0.5 text-text-2">
-                <div>Dr. <strong className="text-text-1">{selectedProvider.firstName} {selectedProvider.lastName}</strong></div>
-                <div>en <strong className="text-text-1">{selectedClinic.name}</strong></div>
+                <div>{t('drPrefix')} <strong className="text-text-1">{selectedProvider.firstName} {selectedProvider.lastName}</strong></div>
+                <div>{t('summaryAtClinic')} <strong className="text-text-1">{selectedClinic.name}</strong></div>
                 <div className="capitalize">📅 <strong className="text-text-1">{scheduledLabel}</strong></div>
-                <div>Duración: <strong className="text-text-1">{duration} min</strong> · Tipo: <strong className="text-text-1">{TYPE_OPTIONS.find((o) => o.value === type)?.label}</strong></div>
+                <div>{t('summaryDuration')} <strong className="text-text-1">{duration} min</strong> · {t('summaryType')} <strong className="text-text-1">{TYPE_OPTIONS.find((o) => o.value === type)?.label}</strong></div>
               </div>
             </div>
           )}
@@ -735,14 +739,14 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="w-full sm:w-auto">
-            Cancelar
+            {t('actionCancel')}
           </Button>
           <Button onClick={handleSchedule} disabled={!canSubmit} className="w-full sm:w-auto">
             {saving
-              ? (isEditMode ? 'Guardando...' : 'Agendando...')
+              ? (isEditMode ? t('savingInProgress') : t('schedulingInProgress'))
               : isEditMode
-                ? <><Check className="w-3.5 h-3.5 mr-1" /> Guardar cambios</>
-                : <><CalendarCheck className="w-3.5 h-3.5 mr-1" /> Agendar cita</>
+                ? <><Check className="w-3.5 h-3.5 mr-1" /> {t('actionSaveChanges')}</>
+                : <><CalendarCheck className="w-3.5 h-3.5 mr-1" /> {t('actionScheduleAppointment')}</>
             }
           </Button>
         </DialogFooter>

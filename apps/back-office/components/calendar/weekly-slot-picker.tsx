@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 // ─── Date helpers (noon-UTC trick para estabilidad con Denver TZ) ─────────────
 
@@ -56,6 +57,7 @@ interface Props {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime }: Props) {
+  const t = useTranslations('phoenix.calendar');
   const [weekStart,   setWeekStart]   = useState<Date>(() => {
     if (initialDate) {
       const [y, m, d] = initialDate.split('-').map(Number) as [number, number, number];
@@ -181,7 +183,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           onClick={prevWeek}
           className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
         >
-          <ArrowLeft className="w-3 h-3" /> Sem. ant.
+          <ArrowLeft className="w-3 h-3" /> {t('prevWeek')}
         </button>
         <span className="text-[11px] text-text-muted font-medium">
           {weekDays[0] ? `${weekDays[0].dayNum} ${weekDays[0].monthShort} – ${weekDays[4]!.dayNum} ${weekDays[4]!.monthShort}` : ''}
@@ -192,7 +194,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           onClick={nextWeek}
           className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
         >
-          Sem. sig. <ArrowRight className="w-3 h-3" />
+          {t('nextWeek')} <ArrowRight className="w-3 h-3" />
         </button>
       </div>
 
@@ -237,7 +239,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
       {selectedDay && selectedDaySlots.length > 0 && (
         <div>
           <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold mb-1.5">
-            {weekDays.find(d => d.iso === selectedDay)?.dayName} {weekDays.find(d => d.iso === selectedDay)?.dayNum} · selecciona hora
+            {weekDays.find(d => d.iso === selectedDay)?.dayName} {weekDays.find(d => d.iso === selectedDay)?.dayNum} · {t('selectHour')}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {selectedDaySlots.map(s => (
@@ -260,7 +262,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
 
       {!selectedDay && !loading && providerId && clinicId && (
         <p className="text-[11px] text-text-muted italic">
-          Selecciona un día para ver los horarios disponibles.
+          {t('selectDayHint')}
         </p>
       )}
 

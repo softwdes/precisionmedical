@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   Phone, MessageSquare, RefreshCw, Calendar,
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown, ChevronUp,
@@ -93,32 +94,32 @@ interface CaseInsurance { id: string; name: string; label: string }
 
 // ─── Payment constants ────────────────────────────────────────────────────────
 
-const PAYMENT_TYPES: Record<string, { label: string; value: string }[]> = {
+const PAYMENT_TYPE_KEYS: Record<string, { tKey: string; value: string }[]> = {
   INSURANCE: [
-    { label: 'Pago de seguro (Ins)',                 value: 'direct_insurance' },
-    { label: 'Obligación contractual (CO)',           value: 'contractual_obligation' },
-    { label: 'Pérdida por presentación tardía (TF)', value: 'late_filing_penalty' },
+    { tKey: 'paymentTypeDirectInsurance',         value: 'direct_insurance' },
+    { tKey: 'paymentTypeContractualObligation',   value: 'contractual_obligation' },
+    { tKey: 'paymentTypeLateFilingPenalty',       value: 'late_filing_penalty' },
   ],
   LAWYER: [
-    { label: 'Pago de abogado (Att)',          value: 'attorney_payment' },
-    { label: 'Acuerdo de reducción (Red AG)',  value: 'reduction_agreement' },
+    { tKey: 'paymentTypeAttorneyPayment',   value: 'attorney_payment' },
+    { tKey: 'paymentTypeReductionAgreement', value: 'reduction_agreement' },
   ],
   PATIENT: [
-    { label: 'Copago (Cp)',                     value: 'copay' },
-    { label: 'Deducible (Ded)',                 value: 'deductible' },
-    { label: 'Coaseguro (Coins)',               value: 'coinsurance' },
-    { label: 'Pago directo (Self-Pay)',         value: 'patient_direct' },
-    { label: 'Cortesía profesional (Pro Cur)', value: 'professional_courtesy' },
-    { label: 'Cobranzas externas (Coll)',       value: 'external_collections' },
+    { tKey: 'paymentTypeCopay',                 value: 'copay' },
+    { tKey: 'paymentTypeDeductible',            value: 'deductible' },
+    { tKey: 'paymentTypeCoinsurance',           value: 'coinsurance' },
+    { tKey: 'paymentTypePatientDirect',         value: 'patient_direct' },
+    { tKey: 'paymentTypeProfessionalCourtesy',  value: 'professional_courtesy' },
+    { tKey: 'paymentTypeExternalCollections',   value: 'external_collections' },
   ],
 };
 
-const METHOD_LABELS: Record<string, string> = {
-  CHECK: 'Cheque', CARD: 'Tarjeta', CASH: 'Efectivo', TRANSFER: 'Transferencia', NONE: '—',
+const METHOD_TKEYS: Record<string, string> = {
+  CHECK: 'methodCheck', CARD: 'methodCard', CASH: 'methodCash', TRANSFER: 'methodTransfer', NONE: 'methodNone',
 };
 
-const SOURCE_LABELS: Record<string, string> = {
-  INSURANCE: 'Seguro', PATIENT: 'Paciente', LAWYER: 'Abogado',
+const SOURCE_TKEYS: Record<string, string> = {
+  INSURANCE: 'sourceInsurance', PATIENT: 'sourcePatient', LAWYER: 'sourceLawyer',
 };
 
 // ─── SelectUp ────────────────────────────────────────────────────────────────
@@ -145,7 +146,7 @@ function SelectUp({ value, onChange, options, placeholder, className = '' }: {
     <div ref={ref} className={`relative ${className}`}>
       <button type="button" onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors">
-        <span className={selected ? 'text-text-1' : 'text-text-muted'}>{selected?.label ?? placeholder ?? 'Seleccionar'}</span>
+        <span className={selected ? 'text-text-1' : 'text-text-muted'}>{selected?.label ?? placeholder ?? t('selectDefault')}</span>
         {open ? <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" /> : <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />}
       </button>
       {open && (
@@ -214,13 +215,13 @@ const SPECIALTY_LABEL: Record<string, string> = {
   OTHER:            'Other',
 };
 
-const STATUS_CONFIG: Record<string, { label: string; state: StatusState }> = {
-  SCHEDULED:   { label: 'Agendada',       state: 'info'    },
-  CONFIRMED:   { label: 'Confirmada',     state: 'success' },
-  IN_PROGRESS: { label: 'En curso',       state: 'active'  },
-  COMPLETED:   { label: 'Atendida',       state: 'success' },
-  PENDING:     { label: 'Pendiente',      state: 'warning' },
-  NO_SHOW:     { label: 'No se presentó', state: 'danger'  },
+const STATUS_CONFIG: Record<string, { tKey: string; state: StatusState }> = {
+  SCHEDULED:   { tKey: 'statusScheduled',   state: 'info'    },
+  CONFIRMED:   { tKey: 'statusConfirmed',   state: 'success' },
+  IN_PROGRESS: { tKey: 'statusInProgress',  state: 'active'  },
+  COMPLETED:   { tKey: 'statusCompleted',   state: 'success' },
+  PENDING:     { tKey: 'statusPending',     state: 'warning' },
+  NO_SHOW:     { tKey: 'statusNoShow',      state: 'danger'  },
 };
 
 const fmt$ = (n: number) =>
@@ -230,6 +231,7 @@ const fmt$ = (n: number) =>
 
 export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }: Props) {
   const router = useRouter();
+  const t = useTranslations('phoenix.calendar');
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<Tab>('detail');
@@ -272,7 +274,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
 
   const isFirst   = appt.visitNumber === 0;
   const dt        = formatDateTime(appt.scheduledFor);
-  const statusCfg = STATUS_CONFIG[appt.status] ?? { label: appt.status, state: 'info' as StatusState };
+  const statusCfgRaw = STATUS_CONFIG[appt.status];
+  const statusCfg = { label: statusCfgRaw ? t(statusCfgRaw.tKey as Parameters<typeof t>[0]) : appt.status, state: (statusCfgRaw?.state ?? 'info') as StatusState };
   const intakeDone    = !!appt.case?.intakeFormCompletedAt;
   const lawyerDone    = !!appt.case?.attorney;
   const insuranceDone = !!appt.case?.primaryInsurance;
@@ -384,7 +387,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
       router.refresh(); onRefresh(); onClose();
     } catch (e) {
-      setCancelError(e instanceof Error ? e.message : 'Error al cancelar');
+      setCancelError(e instanceof Error ? e.message : t('errorCancelAppointment'));
     } finally { setCancelling(false); }
   };
 
@@ -405,7 +408,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
     setPayNotes({});
     setPaySource('PATIENT');
     setPayMethod('CHECK');
-    setPayType(PAYMENT_TYPES['PATIENT'][0].value);
+    setPayType(PAYMENT_TYPE_KEYS['PATIENT'][0].value);
     setPayInsuranceId(insurances[0]?.id ?? '');
     setPayOpen(true);
   }
@@ -448,29 +451,29 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
       setPayOpen(false);
       setBillLoaded(false);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al registrar pago');
+      alert(e instanceof Error ? e.message : t('errorRegisterPayment'));
     } finally { setPaying(false); }
   };
 
   const deletePayment = async (billingId: string, payId: string) => {
     if (!appt.case?.id) return;
-    if (!confirm('¿Cancelar este pago? El balance se revertirá.')) return;
+    if (!confirm(t('confirmCancelPayment'))) return;
     setDeletingPay(payId);
     try {
       const res = await fetch(`/api/admin/cases/${appt.case.id}/billing/${billingId}/payments/${payId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setBillLoaded(false);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error al cancelar pago');
+      alert(e instanceof Error ? e.message : t('errorCancelPayment'));
     } finally { setDeletingPay(null); }
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
   const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
-    { id: 'detail',   label: 'Detalle',   icon: <Calendar className="w-3.5 h-3.5" /> },
-    { id: 'services', label: 'Servicios', icon: <Stethoscope className="w-3.5 h-3.5" /> },
-    { id: 'payments', label: 'Pagos',     icon: <DollarSign className="w-3.5 h-3.5" /> },
+    { id: 'detail',   label: t('tabDetail'),   icon: <Calendar className="w-3.5 h-3.5" /> },
+    { id: 'services', label: t('tabServices'), icon: <Stethoscope className="w-3.5 h-3.5" /> },
+    { id: 'payments', label: t('tabPayments'), icon: <DollarSign className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -524,14 +527,14 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                   <div className="flex items-start gap-3">
                     <span className="text-2xl shrink-0">🆕</span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-white font-bold text-sm">PRIMERA CITA — llamar al paciente para confirmar</div>
-                      <div className="text-text-2 text-xs mt-1 leading-relaxed">Verificar antes de la fecha: DOL · abogado · seguro · formulario completado.</div>
+                      <div className="text-white font-bold text-sm">{t('firstVisitBannerTitle')}</div>
+                      <div className="text-text-2 text-xs mt-1 leading-relaxed">{t('firstVisitBannerSubtitle')}</div>
                     </div>
                     {appt.patient.phone && (
                       <a href={`tel:${appt.patient.phone}`}
                         className="shrink-0 px-3 py-2 rounded-lg text-white text-xs font-bold transition-opacity hover:opacity-90"
                         style={{ background: 'linear-gradient(135deg,#ec4899,#f43f5e)', boxShadow: '0 4px 14px rgba(236,72,153,0.35)' }}>
-                        📞 Llamar
+                        📞 {t('actionCallPatient')}
                       </a>
                     )}
                   </div>
@@ -547,14 +550,14 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                       {appt.patient.firstName} {appt.patient.lastName}
                       {appt.case && <span className="ml-2 text-rose font-mono text-[11px]">#{appt.case.caseCode}</span>}
                     </div>
-                    <div className="text-text-muted text-xs mt-0.5">{ageFromISO(appt.patient.dateOfBirth)} años</div>
+                    <div className="text-text-muted text-xs mt-0.5">{t('ageSuffix', { age: ageFromISO(appt.patient.dateOfBirth) })}</div>
                   </div>
                   {isFirst ? (
                     <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full text-white"
-                      style={{ background: 'linear-gradient(135deg,#ec4899,#f43f5e)' }}>🆕 1ra cita</span>
+                      style={{ background: 'linear-gradient(135deg,#ec4899,#f43f5e)' }}>🆕 {t('firstVisitBadge')}</span>
                   ) : (
                     <span className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full bg-bg-2 text-text-muted border border-border">
-                      Visita {appt.visitNumber + 1}
+                      {t('visitNumberLabel', { n: appt.visitNumber + 1 })}
                     </span>
                   )}
                 </div>
@@ -562,16 +565,16 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
 
               {/* Info de la cita */}
               <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📅 Información de la cita</div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📅 {t('sectionAppointmentInfo')}</div>
                 <div className="space-y-2 text-[12.5px]">
-                  <Row label="Fecha y hora"  value={`${dt.dayName} ${dt.date} · ${dt.time}`} highlight />
-                  <Row label="Duración"      value={`${appt.durationMinutes} min`} />
-                  <Row label="Clínica"       value={appt.clinic.name} />
-                  {appt.provider && <Row label="Doctor" value={`Dr. ${appt.provider.firstName} ${appt.provider.lastName}`} />}
-                  {appt.provider?.specialty && <Row label="Especialidad" value={SPECIALTY_LABEL[appt.provider.specialty] ?? appt.provider.specialty} />}
-                  <Row label="Tipo" value={TYPE_LABEL[appt.type] ?? appt.type} chip chipColor={appt.type === 'AUTO_ACCIDENT' ? 'rose' : 'emerald'} />
+                  <Row label={t('rowDateAndTime')}  value={`${dt.dayName} ${dt.date} · ${dt.time}`} highlight />
+                  <Row label={t('rowDuration')}      value={`${appt.durationMinutes} min`} />
+                  <Row label={t('rowClinic')}        value={appt.clinic.name} />
+                  {appt.provider && <Row label={t('rowDoctor')} value={`${t('drPrefix')} ${appt.provider.firstName} ${appt.provider.lastName}`} />}
+                  {appt.provider?.specialty && <Row label={t('rowSpecialty')} value={SPECIALTY_LABEL[appt.provider.specialty] ?? appt.provider.specialty} />}
+                  <Row label={t('rowType')} value={TYPE_LABEL[appt.type] ?? appt.type} chip chipColor={appt.type === 'AUTO_ACCIDENT' ? 'rose' : 'emerald'} />
                   {appt.case?.accidentDate && (
-                    <Row label="Fecha accidente (DOL)"
+                    <Row label={t('rowAccidentDate')}
                       value={new Date(appt.case.accidentDate).toLocaleDateString('es-US', { dateStyle: 'medium' })} highlight />
                   )}
                 </div>
@@ -579,64 +582,64 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
 
               {/* Checklist pre-cita */}
               <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">🎯 Estado pre-cita</div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">🎯 {t('sectionPreVisitStatus')}</div>
                 <div className="space-y-2">
-                  <CheckItem done={intakeDone}    label="Formulario del paciente"             sublabel={intakeDone ? 'Completado' : 'Pendiente — reenviar si necesario'} />
-                  <CheckItem done={lawyerDone}    label="Abogado verificado"                  sublabel={lawyerDone ? (appt.case?.attorney?.firmName ?? (`${appt.case?.attorney?.firstName ?? ''} ${appt.case?.attorney?.lastName ?? ''}`.trim() || '—')) : 'Sin abogado asignado'} />
-                  <CheckItem done={insuranceDone} label="PIP / Seguro verificado"             sublabel={insuranceDone ? (appt.case?.primaryInsurance?.name ?? '—') : 'Pendiente de verificar'} />
-                  <CheckItem done={appt.status === 'CONFIRMED'} label="Llamada de confirmación (24h antes)" sublabel={appt.status === 'CONFIRMED' ? 'Confirmada' : 'No realizada'} />
+                  <CheckItem done={intakeDone}    label={t('checklistIntakeForm')}             sublabel={intakeDone ? t('checklistCompleted') : t('checklistIntakePending')} />
+                  <CheckItem done={lawyerDone}    label={t('checklistLawyerVerified')}         sublabel={lawyerDone ? (appt.case?.attorney?.firmName ?? (`${appt.case?.attorney?.firstName ?? ''} ${appt.case?.attorney?.lastName ?? ''}`.trim() || '—')) : t('checklistNoLawyer')} />
+                  <CheckItem done={insuranceDone} label={t('checklistInsuranceVerified')}      sublabel={insuranceDone ? (appt.case?.primaryInsurance?.name ?? '—') : t('checklistInsurancePending')} />
+                  <CheckItem done={appt.status === 'CONFIRMED'} label={t('checklistConfirmationCall')} sublabel={appt.status === 'CONFIRMED' ? t('checklistCallConfirmed') : t('checklistCallNotDone')} />
                 </div>
               </div>
 
               {/* Notas */}
               <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">📝 Notas de la cita</div>
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">📝 {t('sectionNotes')}</div>
                   <button type="button" onClick={() => setEditOpen(true)}
                     className="text-[10px] text-brand hover:underline flex items-center gap-1">
-                    <Edit2 className="w-3 h-3" /> Editar
+                    <Edit2 className="w-3 h-3" /> {t('actionEdit')}
                   </button>
                 </div>
                 <p className="text-text-2 text-[12.5px] leading-relaxed min-h-[40px]">
-                  {appt.notes || <span className="text-text-muted italic">Sin notas.</span>}
+                  {appt.notes || <span className="text-text-muted italic">{t('notesEmpty')}</span>}
                 </p>
               </div>
 
               {/* Acciones rápidas */}
               <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📞 Acciones rápidas</div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📞 {t('sectionQuickActions')}</div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {appt.patient.phone && (
                     <a href={`tel:${appt.patient.phone}`}
                       className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
-                      <Phone className="w-4 h-4" /> Llamar
+                      <Phone className="w-4 h-4" /> {t('actionCall')}
                     </a>
                   )}
                   {appt.patient.phone && (
                     <a href={`sms:${appt.patient.phone}`}
                       className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
-                      <MessageSquare className="w-4 h-4" /> SMS
+                      <MessageSquare className="w-4 h-4" /> {t('actionSms')}
                     </a>
                   )}
                   <button type="button" onClick={() => setRescheduleOpen(true)}
                     className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
-                    <RefreshCw className="w-4 h-4" /> Reagendar
+                    <RefreshCw className="w-4 h-4" /> {t('actionReschedule')}
                   </button>
                   <button type="button" onClick={() => setActiveModal('intake')}
                     className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
-                    <MessageSquare className="w-4 h-4" /> Reenviar form
+                    <MessageSquare className="w-4 h-4" /> {t('actionResendForm')}
                   </button>
                 </div>
               </div>
 
               {/* Info detallada */}
               <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📂 Ver información detallada</div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📂 {t('sectionDetailedInfo')}</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <SecondaryBtn icon={<User className="w-4 h-4" />}       label="Datos personales"      color="brand"   onClick={() => setActiveModal('personal')} />
-                  <SecondaryBtn icon={<Scale className="w-4 h-4" />}      label="Abogado & bufete"      color="rose"    done={lawyerDone}    onClick={() => setActiveModal('lawyer')} />
-                  <SecondaryBtn icon={<Shield className="w-4 h-4" />}     label="Seguro (PIP)"          color="emerald" done={insuranceDone} onClick={() => setActiveModal('insurance')} />
-                  <SecondaryBtn icon={<Headphones className="w-4 h-4" />} label="Quién atendió llamada" color="cyan"    onClick={() => setActiveModal('callHandler')} />
+                  <SecondaryBtn icon={<User className="w-4 h-4" />}       label={t('secondaryBtnPersonal')}    color="brand"   onClick={() => setActiveModal('personal')} />
+                  <SecondaryBtn icon={<Scale className="w-4 h-4" />}      label={t('secondaryBtnLawyer')}      color="rose"    done={lawyerDone}    onClick={() => setActiveModal('lawyer')} />
+                  <SecondaryBtn icon={<Shield className="w-4 h-4" />}     label={t('secondaryBtnInsurance')}   color="emerald" done={insuranceDone} onClick={() => setActiveModal('insurance')} />
+                  <SecondaryBtn icon={<Headphones className="w-4 h-4" />} label={t('secondaryBtnCallHandler')} color="cyan"    onClick={() => setActiveModal('callHandler')} />
                 </div>
               </div>
             </div>
@@ -648,10 +651,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
 
               {/* Header con total */}
               <div className="flex items-center justify-between">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">CPT / Servicios planificados</div>
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionCptServices')}</div>
                 <div className="flex items-center gap-2">
                   {savingSvc && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
-                  {savedOk   && <span className="text-[10px] text-emerald">✓ Guardado</span>}
+                  {savedOk   && <span className="text-[10px] text-emerald">{t('savedOk')}</span>}
                   <span className="text-sm font-bold text-cyan">{fmt$(svcTotal)}</span>
                 </div>
               </div>
@@ -668,7 +671,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                     type="text"
                     value={serviceSearch}
                     onChange={e => setServiceSearch(e.target.value)}
-                    placeholder="Buscar por código o descripción (ej: 98941, manipulation...)"
+                    placeholder={t('searchServicePlaceholder')}
                     className="w-full bg-bg-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan transition-colors"
                   />
                   {serviceSearch && (
@@ -683,7 +686,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                     <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-lg shadow-xl z-20 overflow-hidden">
                       {searchingSvc && (
                         <div className="px-3 py-2 text-text-muted text-xs flex items-center gap-1.5">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Buscando...
+                          <Loader2 className="w-3 h-3 animate-spin" /> {t('searching')}
                         </div>
                       )}
                       {serviceResults.map(svc => {
@@ -709,7 +712,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                         );
                       })}
                       {!searchingSvc && serviceResults.length === 0 && serviceSearch.length >= 2 && (
-                        <div className="px-3 py-2 text-text-muted text-xs">Sin resultados para "{serviceSearch}"</div>
+                        <div className="px-3 py-2 text-text-muted text-xs">{t('noResultsFor', { query: serviceSearch })}</div>
                       )}
                     </div>
                   )}
@@ -720,15 +723,15 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
               {services.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                   <Stethoscope className="w-8 h-8 text-text-muted/40 mb-3" />
-                  <div className="text-text-muted text-sm">Sin servicios planificados</div>
-                  <div className="text-text-muted/60 text-xs mt-1">Busca un código CPT arriba para agregar</div>
+                  <div className="text-text-muted text-sm">{t('emptyServicesTitle')}</div>
+                  <div className="text-text-muted/60 text-xs mt-1">{t('emptyServicesHint')}</div>
                 </div>
               ) : (
                 <div className="rounded-lg border border-border overflow-hidden">
                   <div className="grid grid-cols-[60px_1fr_90px_36px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
-                    <span>Código</span>
-                    <span>Descripción</span>
-                    <span className="text-right">Costo</span>
+                    <span>{t('colCode')}</span>
+                    <span>{t('colDescription')}</span>
+                    <span className="text-right">{t('colCost')}</span>
                     <span />
                   </div>
                   {services.map(svc => (
@@ -753,7 +756,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                     </div>
                   ))}
                   <div className="px-3 py-2.5 bg-bg-2/50 flex justify-between items-center">
-                    <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">Total estimado</span>
+                    <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('totalEstimated')}</span>
                     <span className="text-sm font-bold text-cyan">{fmt$(svcTotal)}</span>
                   </div>
                 </div>
@@ -766,18 +769,18 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
             const pending      = billings.filter(b => b.balanceDue > 0);
             const totalPending = pending.reduce((s, b) => s + b.balanceDue, 0);
             const payTotal     = Object.values(payAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-            const sourceOpts   = [{ label: 'Paciente', value: 'PATIENT' }, { label: 'Seguro', value: 'INSURANCE' }, { label: 'Abogado', value: 'LAWYER' }];
-            const methodOpts   = [{ label: 'Cheque', value: 'CHECK' }, { label: 'Tarjeta', value: 'CARD' }, { label: 'Efectivo', value: 'CASH' }, { label: 'Transferencia', value: 'TRANSFER' }, { label: '— Sin especificar', value: 'NONE' }];
-            const typeOpts     = PAYMENT_TYPES[paySource] ?? [];
+            const sourceOpts   = [{ label: t('sourcePatient'), value: 'PATIENT' }, { label: t('sourceInsurance'), value: 'INSURANCE' }, { label: t('sourceLawyer'), value: 'LAWYER' }];
+            const methodOpts   = [{ label: t('methodCheck'), value: 'CHECK' }, { label: t('methodCard'), value: 'CARD' }, { label: t('methodCash'), value: 'CASH' }, { label: t('methodTransfer'), value: 'TRANSFER' }, { label: t('methodNone'), value: 'NONE' }];
+            const typeOpts     = (PAYMENT_TYPE_KEYS[paySource] ?? []).map(o => ({ label: t(o.tKey as Parameters<typeof t>[0]), value: o.value }));
             const insuranceOpts = insurances.map(i => ({ label: i.label, value: i.id }));
 
             return (
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
                 {!appt.case ? (
-                  <div className="text-text-muted text-sm text-center py-8">Sin caso asociado a esta cita.</div>
+                  <div className="text-text-muted text-sm text-center py-8">{t('noCaseAssociated')}</div>
                 ) : loadingBill ? (
                   <div className="flex items-center justify-center py-10 text-text-muted text-xs gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Cargando datos de facturación...
+                    <Loader2 className="w-4 h-4 animate-spin" /> {t('loadingBillingData')}
                   </div>
                 ) : (
                   <>
@@ -785,17 +788,17 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-amber" />
-                        <span className="text-text-1 font-semibold text-sm uppercase tracking-wider">Resumen financiero</span>
+                        <span className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('sectionFinancialSummary')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button type="button" onClick={() => { setBillLoaded(false); }}
                           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
-                          <RefreshCw className={`w-3 h-3 ${loadingBill ? 'animate-spin' : ''}`} /> Actualizar
+                          <RefreshCw className={`w-3 h-3 ${loadingBill ? 'animate-spin' : ''}`} /> {t('actionRefresh')}
                         </button>
                         {billKpis.totalBalance > 0 && (
                           <button type="button" onClick={openPayModal}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors">
-                            <CreditCard className="w-3.5 h-3.5" /> Pagar deuda
+                            <CreditCard className="w-3.5 h-3.5" /> {t('actionPayDebt')}
                           </button>
                         )}
                       </div>
@@ -804,9 +807,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                     {/* KPIs */}
                     <div className="flex gap-3 flex-wrap">
                       {[
-                        { label: 'Costo Total',  value: billKpis.totalCost,    color: 'text-text-1' },
-                        { label: 'Total Pagado', value: billKpis.totalPaid,    color: 'text-emerald' },
-                        { label: 'Deuda Total',  value: billKpis.totalBalance, color: billKpis.totalBalance > 0 ? 'text-rose' : 'text-text-1' },
+                        { label: t('kpiTotalCost'),    value: billKpis.totalCost,    color: 'text-text-1' },
+                        { label: t('kpiTotalPaid'),    value: billKpis.totalPaid,    color: 'text-emerald' },
+                        { label: t('kpiTotalBalance'), value: billKpis.totalBalance, color: billKpis.totalBalance > 0 ? 'text-rose' : 'text-text-1' },
                       ].map(k => (
                         <div key={k.label} className="rounded-lg border border-border bg-bg-1 p-4 flex-1 min-w-0">
                           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{k.label}</div>
@@ -819,24 +822,24 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                     {billings.length === 0 ? (
                       <div className="flex flex-col items-center py-10 text-center">
                         <DollarSign className="w-8 h-8 text-text-muted/40 mb-3" />
-                        <div className="text-text-muted text-sm">Sin registros de facturación aún</div>
-                        <div className="text-text-muted/60 text-xs mt-1">Se generan al completar la visita</div>
+                        <div className="text-text-muted text-sm">{t('emptyBillingTitle')}</div>
+                        <div className="text-text-muted/60 text-xs mt-1">{t('emptyBillingHint')}</div>
                       </div>
                     ) : (
                       <div className="rounded-lg border border-border overflow-hidden">
                         <div className="px-4 py-2 bg-bg-2/60 border-b border-border">
-                          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Detalle por cita</span>
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('billingDetailByVisit')}</span>
                         </div>
                         <div className="overflow-x-auto">
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b border-border/60 bg-bg-2/40">
                                 <th className="w-6 px-2" />
-                                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha</th>
-                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
-                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Desc.%</th>
-                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
-                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
+                                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colDate')}</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colCost')}</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colDiscount')}</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPaid')}</th>
+                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPending')}</th>
                                 <th className="w-10 px-3 py-2.5" />
                               </tr>
                             </thead>
@@ -861,7 +864,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                                           {b.appointmentDate
                                             ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
                                             : '—'}
-                                          {isThisAppt && <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">Esta</span>}
+                                          {isThisAppt && <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">{t('billingThisVisitBadge')}</span>}
                                         </span>
                                       </td>
                                       <td className="px-3 py-3 text-right font-semibold font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
@@ -875,7 +878,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                                           : <span className="text-emerald font-semibold text-xs">{fmt$(0)}</span>}
                                       </td>
                                       <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                                        <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Nota">
+                                        <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title={t('tooltipNote')}>
                                           <FileText className="w-3.5 h-3.5" />
                                         </button>
                                       </td>
@@ -886,16 +889,16 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                                       <tr key={`${b.id}-pays`} className="border-b border-border/40 bg-bg-2/30">
                                         <td colSpan={7} className="px-6 py-0">
                                           {b.payments.length === 0 ? (
-                                            <div className="py-3 text-text-muted text-xs italic">Sin pagos registrados.</div>
+                                            <div className="py-3 text-text-muted text-xs italic">{t('emptyPayments')}</div>
                                           ) : (
                                             <table className="w-full text-xs my-2">
                                               <thead>
                                                 <tr className="text-text-muted">
-                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">Fecha pago</th>
-                                                  <th className="text-right py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">Monto</th>
-                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">Método</th>
-                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">Pagado por</th>
-                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden md:table-cell">Estado</th>
+                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">{t('colPaymentDate')}</th>
+                                                  <th className="text-right py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">{t('colAmount')}</th>
+                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">{t('colMethod')}</th>
+                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">{t('colPaidBy')}</th>
+                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden md:table-cell">{t('colStatus')}</th>
                                                   <th className="w-8" />
                                                 </tr>
                                               </thead>
@@ -904,9 +907,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                                                   <tr key={p.id} className={p.status === 'CANCELLED' ? 'opacity-40' : ''}>
                                                     <td className="py-1.5 pr-4 font-mono text-text-2">{p.paidAt ? new Date(p.paidAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}</td>
                                                     <td className="py-1.5 pr-4 text-right font-mono font-semibold text-emerald whitespace-nowrap">{fmt$(p.amount)}</td>
-                                                    <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">{METHOD_LABELS[p.method] ?? p.method}</td>
+                                                    <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">{METHOD_TKEYS[p.method] ? t(METHOD_TKEYS[p.method] as Parameters<typeof t>[0]) : p.method}</td>
                                                     <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">
-                                                      {SOURCE_LABELS[p.source] ?? p.source}
+                                                      {SOURCE_TKEYS[p.source] ? t(SOURCE_TKEYS[p.source] as Parameters<typeof t>[0]) : p.source}
                                                       {p.insuranceCarrier && <span className="text-text-muted"> · {p.insuranceCarrier.name}</span>}
                                                     </td>
                                                     <td className="py-1.5 pr-4 hidden md:table-cell">
@@ -914,13 +917,13 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                                                         p.status === 'COMPLETED' ? 'bg-emerald/10 text-emerald' :
                                                         p.status === 'CANCELLED' ? 'bg-rose/10 text-rose' : 'bg-amber/10 text-amber'
                                                       }`}>
-                                                        {p.status === 'COMPLETED' ? 'Completado' : p.status === 'CANCELLED' ? 'Cancelado' : 'Pendiente'}
+                                                        {p.status === 'COMPLETED' ? t('paymentStatusCompleted') : p.status === 'CANCELLED' ? t('paymentStatusCancelled') : t('paymentStatusPending')}
                                                       </span>
                                                     </td>
                                                     <td className="py-1.5">
                                                       {p.status !== 'CANCELLED' && (
                                                         <button onClick={() => deletePayment(b.id, p.id)} disabled={deletingPay === p.id}
-                                                          className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50" title="Cancelar pago">
+                                                          className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50" title={t('tooltipCancelPayment')}>
                                                           {deletingPay === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                                                         </button>
                                                       )}
@@ -951,9 +954,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                             <div>
                               <h2 className="text-text-1 font-semibold text-base flex items-center gap-2">
-                                <CreditCard className="w-4 h-4 text-amber" /> Pago del caso
+                                <CreditCard className="w-4 h-4 text-amber" /> {t('payModalTitle')}
                               </h2>
-                              <p className="text-text-muted text-xs mt-0.5">Complete el pago para el caso seleccionado abajo.</p>
+                              <p className="text-text-muted text-xs mt-0.5">{t('payModalSubtitle')}</p>
                             </div>
                             <button onClick={() => setPayOpen(false)} className="text-text-muted hover:text-text-1 transition-colors p-1">
                               <X className="w-5 h-5" />
@@ -963,11 +966,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                           {/* Summary bar */}
                           <div className="grid grid-cols-2 border-b border-border">
                             <div className="px-5 py-3 border-r border-border">
-                              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Total pendiente</div>
+                              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payModalTotalPending')}</div>
                               <div className="text-xl font-bold font-mono text-rose mt-0.5">{fmt$(totalPending)}</div>
                             </div>
                             <div className="px-5 py-3">
-                              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagos pendientes</div>
+                              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payModalPendingCount')}</div>
                               <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{pending.length}</div>
                             </div>
                           </div>
@@ -977,12 +980,12 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                             <table className="w-full text-sm">
                               <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
                                 <tr>
-                                  <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha</th>
-                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
-                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Desc.%</th>
-                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
-                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
-                                  <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28">Pagar</th>
+                                  <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colDate')}</th>
+                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colCost')}</th>
+                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colDiscount')}</th>
+                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPaid')}</th>
+                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPending')}</th>
+                                  <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28">{t('colPayAction')}</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-border/40">
@@ -994,7 +997,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                                       <td className="px-4 py-3 text-text-1 font-mono text-xs whitespace-nowrap">
                                         <span className="flex items-center gap-1.5">
                                           {b.appointmentDate ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
-                                          {isThisAppt && <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">Esta</span>}
+                                          {isThisAppt && <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">{t('billingThisVisitBadge')}</span>}
                                         </span>
                                       </td>
                                       <td className="px-3 py-3 text-right font-mono text-xs">{fmt$(b.totalCost)}</td>
@@ -1031,19 +1034,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
 
                           {/* Footer */}
                           <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
-                            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registrar pago</div>
+                            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payFooterTitle')}</div>
                             <div className="grid grid-cols-3 gap-2">
                               <SelectUp value={paySource} onChange={v => {
                                 const src = v as typeof paySource;
                                 setPaySource(src);
-                                setPayType(PAYMENT_TYPES[src]?.[0]?.value ?? '');
+                                setPayType(PAYMENT_TYPE_KEYS[src]?.[0]?.value ?? '');
                                 if (src === 'INSURANCE') setPayInsuranceId(insurances[0]?.id ?? '');
                               }} options={sourceOpts} />
                               <SelectUp value={payMethod} onChange={setPayMethod} options={methodOpts} />
                               {paySource === 'INSURANCE' ? (
                                 <SelectUp value={payInsuranceId} onChange={setPayInsuranceId}
-                                  options={insuranceOpts.length ? insuranceOpts : [{ label: 'Sin seguros en el caso', value: '' }]}
-                                  placeholder="Seleccionar seguro" />
+                                  options={insuranceOpts.length ? insuranceOpts : [{ label: t('noInsurancesInCase'), value: '' }]}
+                                  placeholder={t('selectInsurancePlaceholder')} />
                               ) : (
                                 <SelectUp value={payType} onChange={setPayType} options={typeOpts} />
                               )}
@@ -1055,13 +1058,13 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                               <input type="number" min="0" step="0.01" placeholder="0"
                                 onChange={e => autoDistribute(e.target.value)}
                                 className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
-                                title="Ingresa un total y se distribuye automáticamente" />
+                                title={t('autoDistributeTooltip')} />
                               <button type="button" onClick={submitPayment}
                                 disabled={paying || payTotal <= 0}
                                 className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-amber text-black text-sm font-semibold hover:bg-amber/90 transition-colors disabled:opacity-50 whitespace-nowrap">
                                 {paying
-                                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Procesando…</>
-                                  : <>+ Pagar{payTotal > 0 ? ` ${fmt$(payTotal)}` : '…'}</>
+                                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('payProcessing')}</>
+                                  : <>{t('actionPay')}{payTotal > 0 ? ` ${fmt$(payTotal)}` : '…'}</>
                                 }
                               </button>
                             </div>
@@ -1081,18 +1084,18 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
             <div className="shrink-0 px-5 py-4 border-t border-border flex flex-col gap-2">
               {cancelOpen ? (
                 <div className="rounded-lg border border-rose/30 bg-rose/5 p-3 space-y-2">
-                  <p className="text-rose text-xs font-semibold">¿Cancelar esta cita?</p>
-                  <p className="text-text-muted text-[11px]">Esta acción no se puede deshacer.</p>
+                  <p className="text-rose text-xs font-semibold">{t('cancelConfirmTitle')}</p>
+                  <p className="text-text-muted text-[11px]">{t('cancelConfirmWarning')}</p>
                   {cancelError && <p className="text-rose text-[11px] flex items-center gap-1"><AlertCircle className="w-3 h-3" />{cancelError}</p>}
                   <div className="flex gap-2">
                     <button type="button" onClick={() => { setCancelOpen(false); setCancelError(null); }} disabled={cancelling}
                       className="flex-1 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
-                      Volver
+                      {t('actionBack')}
                     </button>
                     <button type="button" onClick={handleCancel} disabled={cancelling}
                       className="flex-1 px-3 py-1.5 rounded-md bg-rose/15 border border-rose/40 text-rose text-xs font-semibold hover:bg-rose/20 transition-colors flex items-center justify-center gap-1.5">
                       {cancelling ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
-                      {cancelling ? 'Cancelando...' : 'Sí, cancelar'}
+                      {cancelling ? t('cancellingInProgress') : t('confirmCancelYes')}
                     </button>
                   </div>
                 </div>
@@ -1100,17 +1103,17 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh }
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <button type="button" onClick={() => setCancelOpen(true)}
                     className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-rose/30 text-rose hover:bg-rose/10 text-xs font-medium transition-colors sm:mr-auto">
-                    <Ban className="w-3.5 h-3.5" /> Cancelar cita
+                    <Ban className="w-3.5 h-3.5" /> {t('actionCancelAppointment')}
                   </button>
                   <button type="button" onClick={() => setEditOpen(true)}
                     className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
-                    <Edit2 className="w-3.5 h-3.5" /> Editar
+                    <Edit2 className="w-3.5 h-3.5" /> {t('actionEdit')}
                   </button>
                   {appt.status !== 'CONFIRMED' && appt.status !== 'COMPLETED' && (
                     <button type="button" onClick={handleConfirm} disabled={confirming}
                       className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-emerald/15 border border-emerald/40 text-emerald hover:bg-emerald/20 text-xs font-semibold transition-colors disabled:opacity-50">
                       {confirming ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                      Marcar confirmada
+                      {t('actionMarkConfirmed')}
                     </button>
                   )}
                 </div>

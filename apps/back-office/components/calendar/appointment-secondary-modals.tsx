@@ -12,6 +12,7 @@
  */
 
 import { X, User, Scale, Shield, Headphones, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -158,10 +159,11 @@ function ActionBtn({ href, label, color, tel }: { href?: string; label: string; 
 // ─── 1. Personal ─────────────────────────────────────────────────────────────
 
 function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: () => void }) {
+  const t = useTranslations('phoenix.calendar');
   const p = appt.patient;
   return (
     <ModalShell
-      title="Datos personales"
+      title={t('secondaryBtnPersonal')}
       icon={<User className="w-4 h-4" />}
       accentColor="#6366f1"
       onClose={onClose}
@@ -177,16 +179,16 @@ function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: 
         </>
       }
     >
-      <DataRow label="Nombre completo"  value={`${p.firstName} ${p.lastName}`} highlight />
-      <DataRow label="Fecha de nacimiento" value={`${formatDOB(p.dateOfBirth)} (${ageFromISO(p.dateOfBirth)} años)`} />
-      <DataRow label="Teléfono"   value={p.phone} />
-      <DataRow label="Email"      value={p.email} />
-      <DataRow label="Idioma"     value="Verificar en formulario del paciente" />
+      <DataRow label={t('rowFullName')}      value={`${p.firstName} ${p.lastName}`} highlight />
+      <DataRow label={t('rowDateOfBirth')}   value={`${formatDOB(p.dateOfBirth)} (${ageFromISO(p.dateOfBirth)} años)`} />
+      <DataRow label={t('rowPhone')}         value={p.phone} />
+      <DataRow label={t('rowEmail')}         value={p.email} />
+      <DataRow label={t('rowLanguage')}      value={t('rowLanguageHint')} />
       {appt.case && (
-        <DataRow label="Caso"     value={appt.case.caseCode} mono />
+        <DataRow label={t('rowCase')}        value={appt.case.caseCode} mono />
       )}
       <div className="pt-2 text-[11px] text-text-muted">
-        ℹ️ Dirección y contacto de emergencia disponibles después de completar intake (B.6)
+        ℹ️ {t('personalInfoNote')}
       </div>
     </ModalShell>
   );
@@ -195,22 +197,23 @@ function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: 
 // ─── 2. Lawyer ───────────────────────────────────────────────────────────────
 
 function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: () => void }) {
+  const t = useTranslations('phoenix.calendar');
   const lawyer = appt.case?.attorney;
   if (!lawyer) {
     return (
-      <ModalShell title="Abogado & bufete" icon={<Scale className="w-4 h-4" />} accentColor="#f43f5e" onClose={onClose}>
+      <ModalShell title={t('modalLawyerTitle')} icon={<Scale className="w-4 h-4" />} accentColor="#f43f5e" onClose={onClose}>
         <p className="text-text-muted text-sm text-center py-4">
-          Sin abogado asignado a este caso.
+          {t('lawyerEmptyTitle')}
         </p>
         <p className="text-[11px] text-text-muted text-center">
-          Asignar desde el detalle del caso en Front Office.
+          {t('lawyerEmptyHint')}
         </p>
       </ModalShell>
     );
   }
   return (
     <ModalShell
-      title="Abogado & bufete"
+      title={t('modalLawyerTitle')}
       icon={<Scale className="w-4 h-4" />}
       accentColor="#f43f5e"
       onClose={onClose}
@@ -225,19 +228,19 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
         <div className="rounded-lg p-3 border border-rose/20 mb-3"
           style={{ background: 'rgba(244,63,94,0.07)' }}>
           <div className="text-text-1 font-bold text-sm">{lawyer.firmName}</div>
-          <div className="text-text-muted text-xs mt-0.5">Bufete legal</div>
+          <div className="text-text-muted text-xs mt-0.5">{t('lawyerFirmLabel')}</div>
         </div>
       )}
-      <DataRow label="Abogado"   value={`${lawyer.firstName} ${lawyer.lastName}`} highlight />
-      <DataRow label="Teléfono"  value={lawyer.phone} />
-      <DataRow label="Email"     value={lawyer.email} />
+      <DataRow label={t('rowLawyer')}   value={`${lawyer.firstName} ${lawyer.lastName}`} highlight />
+      <DataRow label={t('rowPhone')}    value={lawyer.phone} />
+      <DataRow label={t('rowEmail')}    value={lawyer.email} />
       {appt.case?.accidentDate && (
-        <DataRow label="DOL"
+        <DataRow label={t('rowDol')}
           value={new Date(appt.case.accidentDate).toLocaleDateString('es-US', { dateStyle: 'medium' })}
           highlight />
       )}
       <div className="pt-1 flex items-center gap-1.5 text-[11px] text-emerald">
-        <span>✓</span> Referido por este bufete
+        {t('lawyerReferredBy')}
       </div>
     </ModalShell>
   );
@@ -246,22 +249,23 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
 // ─── 3. Insurance / PIP ──────────────────────────────────────────────────────
 
 function InsuranceModal({ appt, onClose }: { appt: CalendarAppointment; onClose: () => void }) {
+  const t = useTranslations('phoenix.calendar');
   const insurance = appt.case?.primaryInsurance;
   if (!insurance) {
     return (
-      <ModalShell title="Seguro PIP" icon={<Shield className="w-4 h-4" />} accentColor="#10b981" onClose={onClose}>
+      <ModalShell title={t('modalInsuranceTitle')} icon={<Shield className="w-4 h-4" />} accentColor="#10b981" onClose={onClose}>
         <p className="text-text-muted text-sm text-center py-4">
-          Sin seguro asignado a este caso.
+          {t('insuranceEmptyTitle')}
         </p>
         <p className="text-[11px] text-text-muted text-center">
-          Edson debe verificar el PIP antes de la primera cita.
+          {t('insuranceEmptyHint')}
         </p>
       </ModalShell>
     );
   }
   return (
     <ModalShell
-      title="Seguro PIP (auto)"
+      title={t('modalInsuranceTitleAuto')}
       icon={<Shield className="w-4 h-4" />}
       accentColor="#10b981"
       onClose={onClose}
@@ -269,14 +273,14 @@ function InsuranceModal({ appt, onClose }: { appt: CalendarAppointment; onClose:
       <div className="rounded-lg p-3 border border-emerald/20 mb-3"
         style={{ background: 'rgba(16,185,129,0.07)' }}>
         <div className="text-text-1 font-bold text-sm">{insurance.name}</div>
-        <div className="text-text-muted text-xs mt-0.5">Aseguradora · Personal Injury Protection (PIP)</div>
+        <div className="text-text-muted text-xs mt-0.5">{t('insuranceCarrierLabel')}</div>
       </div>
       <div className="rounded-md px-3 py-2 text-[11px] border border-amber/30 text-amber"
         style={{ background: 'rgba(245,158,11,0.08)' }}>
-        ⏳ Verificación PIP pendiente — Edson debe llamar a la aseguradora
+        ⏳ {t('insurancePipPending')}
       </div>
       <div className="pt-2 text-[11px] text-text-muted">
-        Número de reclamo, póliza y detalles de beneficios disponibles después de la verificación.
+        {t('insuranceVerificationPending')}
       </div>
     </ModalShell>
   );
@@ -285,11 +289,12 @@ function InsuranceModal({ appt, onClose }: { appt: CalendarAppointment; onClose:
 // ─── 4. Call Handler ─────────────────────────────────────────────────────────
 
 function CallHandlerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: () => void }) {
+  const t = useTranslations('phoenix.calendar');
   const createdAt = new Date(appt.scheduledFor);
   createdAt.setDate(createdAt.getDate() - 1); // aproximado — la cita fue agendada antes
   return (
     <ModalShell
-      title="Llamada inicial · quién atendió"
+      title={t('modalCallHandlerTitle')}
       icon={<Headphones className="w-4 h-4" />}
       onClose={onClose}
       accentColor="#06b6d4"
@@ -302,12 +307,12 @@ function CallHandlerModal({ appt, onClose }: { appt: CalendarAppointment; onClos
         </div>
         <div>
           <div className="text-text-1 font-bold text-sm">Front Office</div>
-          <div className="text-text-muted text-xs">Encargado de clínica · {appt.clinic.name}</div>
+          <div className="text-text-muted text-xs">{t('callHandlerRoleLabel')} · {appt.clinic.name}</div>
         </div>
       </div>
-      <DataRow label="Clínica"     value={appt.clinic.name} />
-      <DataRow label="Canal"       value="📞 Llamada entrante del paciente" />
-      <DataRow label="Cita agendada" value="✓ En la misma llamada" highlight />
+      <DataRow label="Clínica"              value={appt.clinic.name} />
+      <DataRow label={t('rowChannel')}      value={`📞 ${t('channelInboundCall')}`} />
+      <DataRow label={t('rowAppointmentScheduled')} value={t('scheduledOnSameCall')} highlight />
       <div className="pt-2 text-[11px] text-text-muted rounded-md px-3 py-2 border border-border"
         style={{ background: 'rgba(255,255,255,0.02)' }}>
         📜 Información detallada del audit log disponible en Phase 1B (requiere tabla de audit de llamadas).
@@ -319,15 +324,16 @@ function CallHandlerModal({ appt, onClose }: { appt: CalendarAppointment; onClos
 // ─── 5. Intake resend ────────────────────────────────────────────────────────
 
 function IntakeModal({ appt, onClose }: { appt: CalendarAppointment; onClose: () => void }) {
+  const t = useTranslations('phoenix.calendar');
   const intakeDone = !!appt.case?.intakeFormCompletedAt;
   if (intakeDone) {
     return (
-      <ModalShell title="Formulario del paciente" icon={<Mail className="w-4 h-4" />} accentColor="#10b981" onClose={onClose}>
+      <ModalShell title={t('modalIntakeTitle')} icon={<Mail className="w-4 h-4" />} accentColor="#10b981" onClose={onClose}>
         <div className="text-center py-4 space-y-2">
           <div className="text-3xl">✅</div>
-          <div className="text-text-1 font-semibold">Formulario ya completado</div>
+          <div className="text-text-1 font-semibold">{t('intakeAlreadyDone')}</div>
           <div className="text-text-muted text-xs">
-            {appt.patient.firstName} ya envió su intake form.
+            {appt.patient.firstName} {t('intakeAlreadySentBy')}
           </div>
         </div>
       </ModalShell>
@@ -335,21 +341,21 @@ function IntakeModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
   }
   return (
     <ModalShell
-      title="Reenviar formulario portal"
+      title={t('modalResendTitle')}
       onClose={onClose}
       icon={<Mail className="w-4 h-4" />}
       accentColor="#06b6d4"
     >
       <p className="text-text-2 text-sm">
-        Reenviar el magic link del portal a {appt.patient.firstName} para que complete su intake.
+        {t('intakeResendDescription', { name: appt.patient.firstName })}
       </p>
       <div className="rounded-lg p-3 border border-border bg-bg-2/30 space-y-1 text-[12.5px]">
-        <DataRow label="Paciente" value={`${appt.patient.firstName} ${appt.patient.lastName}`} highlight />
-        {appt.patient.phone && <DataRow label="SMS a" value={appt.patient.phone} />}
-        {appt.patient.email && <DataRow label="Email a" value={appt.patient.email} />}
+        <DataRow label={t('rowPatient')} value={`${appt.patient.firstName} ${appt.patient.lastName}`} highlight />
+        {appt.patient.phone && <DataRow label={t('rowSmsTo')} value={appt.patient.phone} />}
+        {appt.patient.email && <DataRow label={t('rowEmailTo')} value={appt.patient.email} />}
       </div>
       <p className="text-[11px] text-amber">
-        ⚠️ El reenvío de formularios se hace desde el detalle del caso en Front Office (B.3).
+        ⚠️ {t('intakeResendNote')}
       </p>
     </ModalShell>
   );

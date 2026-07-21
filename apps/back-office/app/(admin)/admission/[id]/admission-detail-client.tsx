@@ -307,6 +307,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const [loading,   setLoading]   = useState(true);
   const [admitting, setAdmitting] = useState(false);
   const [portalOpen, setPortalOpen] = useState(false);
+  const [showServices, setShowServices] = useState(false);
   const [confirm1,  setConfirm1]  = useState(false);
   const [confirm2,  setConfirm2]  = useState(false);
   const [vitals,    setVitals]    = useState<VitalsState>(EMPTY_VITALS);
@@ -589,26 +590,18 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               <div className="flex items-center gap-2 mt-1">
                 <button
                   type="button"
-                  onClick={() => router.push('/calendar')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-violet/30 text-violet text-[11px] font-semibold hover:bg-violet/10 transition-colors"
-                >
-                  <Stethoscope className="w-3 h-3" />
-                  {t('viewCalendar')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/billing/${d.case?.id}`)}
+                  onClick={() => setShowServices(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-[11px] font-semibold hover:bg-emerald/90 transition-colors"
                 >
-                  Ir a Servicios y Pagos <ChevronRight className="w-3 h-3" />
+                  Servicios y Pagos <ChevronRight className="w-3 h-3" />
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── Step 4: Servicios y Pagos (visita completada) ── */}
-        {d.status === 'COMPLETED' && (
+        {/* ── Step 4: Servicios y Pagos ── */}
+        {(d.status === 'COMPLETED' || showServices) && (
           <div className="space-y-3">
             {/* Banner visita completada */}
             <div className="rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-3 flex items-center gap-3">

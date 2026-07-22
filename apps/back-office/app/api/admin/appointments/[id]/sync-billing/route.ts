@@ -10,16 +10,23 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const { id } = await params;
+
+  // Client may pass caseId explicitly (panel already has it) to avoid null caseId in DB
+  let bodyJson: { caseId?: string } = {};
+  try { bodyJson = await req.json(); } catch { /* no body */ }
 
   const appt = await db.appointment.findUnique({
     where: { id },
     select: { id: true, caseId: true, plannedServiceCodes: true },
   });
-  if (!appt || !appt.caseId) return NextResponse.json({ ok: false });
+  if (!appt) return NextResponse.json({ ok: false });
+
+  const caseId = appt.caseId ?? bodyJson.caseId ?? null;
+  if (!caseId) return NextResponse.json({ ok: false, reason: 'no_case' });
 
   const codes = (appt.plannedServiceCodes ?? []) as { id?: string; code: string; description: string; fee: number }[];
   if (codes.length === 0) return NextResponse.json({ ok: false, reason: 'no_services' });
@@ -62,7 +69,7 @@ export async function POST(
       await db.appointmentBilling.create({
         data: {
           appointmentId: id,
-          caseId: appt.caseId,
+          caseId,
           serviceCode: svc.code,
           serviceDescription: svc.description,
           totalCost: fee,

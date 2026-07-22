@@ -206,7 +206,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         setSavedOk(true);
         setTimeout(() => setSavedOk(false), 2000);
         // Sync billing records (one per CPT service)
-        fetch(`/api/admin/appointments/${appt.id}/sync-billing`, { method: 'POST' }).catch(() => {});
+        fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caseId: appt.case?.id }),
+        }).catch(() => {});
       }
     } finally {
       setSavingSvc(false);
@@ -451,7 +455,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     <button
                       type="button"
                       onClick={async () => {
-                        await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, { method: 'POST' });
+                        await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ caseId: appt.case?.id }),
+                        });
                         finanzasRef.current?.reloadAndOpen();
                       }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors">

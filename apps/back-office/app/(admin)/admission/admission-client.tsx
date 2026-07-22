@@ -15,7 +15,7 @@ import { useTranslations } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, UserCheck, AlertTriangle,
-  Stethoscope, Building2, ChevronLeft,
+  Stethoscope, Building2, ChevronLeft, Tv2,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -374,6 +374,17 @@ export function AdmissionClient() {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
+            {/* Lobby TV */}
+            <a
+              href={`${process.env.NEXT_PUBLIC_FORMS_URL ?? 'http://localhost:3001'}/lobby${clinicFilter !== 'all' ? `/${clinicFilter}` : ''}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-muted text-xs hover:border-cyan/40 hover:text-cyan transition-all whitespace-nowrap"
+              title="Abrir sala de espera en TV"
+            >
+              <Tv2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Lobby TV</span>
+            </a>
           </div>
         }
       />

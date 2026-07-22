@@ -21,7 +21,7 @@ import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 
-type CalendarView = 'day' | 'week' | 'month';
+type CalendarView = 'day' | 'week' | 'month' | 'agenda';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -344,9 +344,17 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   // El cleanup cancela la petición anterior a nivel de red (AbortController),
   // imposibilitando que una respuesta stale sobreescriba datos frescos.
   const [refreshKey, setRefreshKey] = useState(0);
-  const [newApptOpen, setNewApptOpen]   = useState(false);
-  const [slotDate,    setSlotDate]      = useState('');
-  const [slotTime,    setSlotTime]      = useState('');
+  const [newApptOpen, setNewApptOpen]     = useState(false);
+  const [slotDate,    setSlotDate]        = useState('');
+  const [slotTime,    setSlotTime]        = useState('');
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  // Auto-select agenda view on mobile
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setCalView('agenda');
+    }
+  }, []);
 
   const openSlot = (date: string, time: string) => {
     setSlotDate(date);
@@ -399,18 +407,18 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
   const goToPrev = () => {
-    if (calView === 'day')        setWeekStart(w => addDays(w, -1));
+    if (calView === 'day' || calView === 'agenda') setWeekStart(w => addDays(w, -1));
     else if (calView === 'week')  setWeekStart(w => addDays(w, -7));
     else setWeekStart(w => getFirstDayOfMonth(new Date(w.getFullYear(), w.getMonth() - 1, 1)));
   };
   const goToNext = () => {
-    if (calView === 'day')        setWeekStart(w => addDays(w, 1));
+    if (calView === 'day' || calView === 'agenda') setWeekStart(w => addDays(w, 1));
     else if (calView === 'week')  setWeekStart(w => addDays(w, 7));
     else setWeekStart(w => getFirstDayOfMonth(new Date(w.getFullYear(), w.getMonth() + 1, 1)));
   };
   const goToToday = () => {
     const now = new Date();
-    if (calView === 'day')        setWeekStart(now);
+    if (calView === 'day' || calView === 'agenda') setWeekStart(now);
     else if (calView === 'week')  setWeekStart(getMondayOf(now));
     else                          setWeekStart(getFirstDayOfMonth(now));
   };
@@ -495,8 +503,60 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         subtitle={weekLabel}
       />
 
-      {/* ─── Toolbar ─────────────────────────────────────────── */}
-      <div className="px-6 pb-3 flex flex-wrap items-center gap-2">
+      {/* ─── Mobile toolbar (md:hidden) ──────────────────────── */}
+      <div className="md:hidden px-4 pb-2 flex items-center gap-2">
+        {/* Nav */}
+        <button type="button" onClick={goToPrev}
+          className="w-8 h-8 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <span className="flex-1 text-text-1 font-bold text-sm text-center">{monthLabel}</span>
+        <button type="button" onClick={goToNext}
+          className="w-8 h-8 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
+          <ChevronRight className="w-4 h-4" />
+        </button>
+        <button type="button" onClick={goToToday}
+          className="px-2.5 h-8 rounded border border-border hover:bg-white/5 text-text-2 text-xs transition-colors">
+          {t('today')}
+        </button>
+        {/* Filters toggle */}
+        <button type="button" onClick={() => setMobileFiltersOpen(v => !v)}
+          className={`px-2.5 h-8 rounded border text-xs transition-colors ${mobileFiltersOpen ? 'border-cyan/40 bg-cyan/10 text-cyan' : 'border-border text-text-2 hover:bg-white/5'}`}>
+          {t('agendaFilters')}
+        </button>
+        {/* New appt */}
+        <button type="button"
+          onClick={() => { setSlotDate(''); setSlotTime(''); setNewApptOpen(true); }}
+          className="w-8 h-8 rounded border border-cyan/40 bg-cyan/10 text-cyan flex items-center justify-center hover:bg-cyan/20 transition-colors">
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Mobile collapsible filters */}
+      {mobileFiltersOpen && (
+        <div className="md:hidden px-4 pb-2 flex flex-wrap gap-1.5">
+          <FilterChip emoji="🏥" placeholder={t('filterAllClinics')} value={filterClinic}
+            options={clinics.map(c => ({ value: c.id, label: c.name }))} onChange={setFilterClinic} />
+          <FilterChip emoji="👨‍⚕️" placeholder={t('filterAllDoctors')} value={filterProvider}
+            options={providers.map(p => ({ value: p.id, label: `Dr. ${p.lastName}` }))} onChange={setFilterProvider} />
+          <FilterChip emoji="🚗" placeholder={t('filterAllTypes')} value={filterType}
+            options={[
+              { value: 'AUTO_ACCIDENT',   label: t('typeAutoAccident') },
+              { value: 'FAMILY_PRACTICE', label: t('typeFamilyPractice') },
+              { value: 'URGENT_CARE',     label: t('typeUrgentCare') },
+              { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
+            ]}
+            onChange={setFilterType} />
+          {(filterClinic || filterProvider || filterType) && (
+            <button type="button"
+              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); }}
+              className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors">✕</button>
+          )}
+        </div>
+      )}
+
+      {/* ─── Desktop toolbar (hidden on mobile) ──────────────── */}
+      <div className="hidden md:flex px-6 pb-3 flex-wrap items-center gap-2">
 
         {/* Week nav */}
         <div className="flex items-center gap-1 shrink-0">
@@ -614,12 +674,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
         {/* View toggle Día / Semana / Mes */}
         <div className="flex items-center shrink-0 rounded overflow-hidden border border-white/[0.10]">
-          {(['day', 'week', 'month'] as CalendarView[]).map((v) => {
-            const labels: Record<CalendarView, string> = {
-              day:   t('viewDay'),
-              week:  t('viewWeek'),
-              month: t('viewMonth'),
-            };
+          {(['day', 'week', 'month'] as const).map((v) => {
+            const labels = { day: t('viewDay'), week: t('viewWeek'), month: t('viewMonth') };
             const isActive = calView === v;
             return (
               <button
@@ -840,8 +896,59 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           );
         })()}
 
-        {/* Empty state */}
-        {!loading && visibleAppointments.length === 0 && (
+        {/* ══════════════════════════ AGENDA VIEW (mobile) ════════════════════ */}
+        {calView === 'agenda' && (() => {
+          const dayKey = denverDateStr(weekStart);
+          const dayAppts = visibleAppointments
+            .filter(a => denverDateStr(new Date(a.scheduledFor)) === dayKey)
+            .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());
+          if (dayAppts.length === 0) {
+            return (
+              <div className="mt-12 text-center">
+                <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
+                <p className="text-text-2 text-sm">{t('agendaNoAppts')}</p>
+              </div>
+            );
+          }
+          return (
+            <div className="flex flex-col gap-2">
+              {dayAppts.map(appt => {
+                const s = getEventStyle(appt);
+                const time = new Date(appt.scheduledFor).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver' });
+                const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
+                const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                return (
+                  <button
+                    key={appt.id}
+                    type="button"
+                    onClick={() => setSelectedAppt(appt)}
+                    className="w-full text-left rounded-xl p-3 transition-all hover:brightness-110 active:scale-[0.99]"
+                    style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined }}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-xs font-bold" style={{ color: s.text }}>{time}</span>
+                      {visitLabel && <span className="text-[10px] font-semibold opacity-80" style={{ color: s.text }}>{visitLabel}</span>}
+                    </div>
+                    <div className="text-sm font-semibold" style={{ color: s.text }}>
+                      {appt.patient.firstName} {appt.patient.lastName}
+                    </div>
+                    {(drName || appt.clinic.name) && (
+                      <div className="text-[11px] mt-0.5 opacity-75" style={{ color: s.text }}>
+                        {[drName, appt.clinic.name].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                    {appt.case?.caseCode && (
+                      <div className="text-[10px] mt-1 opacity-60 font-mono" style={{ color: s.text }}>{appt.case.caseCode}</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+
+        {/* Empty state (non-agenda views) */}
+        {!loading && calView !== 'agenda' && visibleAppointments.length === 0 && (
           <div className="mt-12 text-center">
             <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
             <p className="text-text-2 text-sm">{t('emptyTitle')}</p>

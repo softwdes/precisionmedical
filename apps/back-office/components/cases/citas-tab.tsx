@@ -143,15 +143,18 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-bg-2/50">
-            {colHeaders.map(h => (
-              <th key={h} className="px-3 py-2.5 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{h}</th>
+            {colHeaders.map((h, i) => (
+              <th
+                key={h}
+                className={`px-3 py-2.5 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap${i === 0 ? ' sticky left-0 z-10 bg-bg-2' : i === colHeaders.length - 1 ? ' sticky right-0 z-10 bg-bg-2' : ''}`}
+              >{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {appointments.map((a, i) => (
             <tr key={a.id} className={`border-b border-border/40 hover:bg-white/[0.02] transition-colors ${i % 2 === 0 ? '' : 'bg-bg-2/20'}`}>
-              <td className="px-3 py-2.5 text-text-1 whitespace-nowrap font-mono text-xs">{fmtDate(a.scheduledFor)}</td>
+              <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2.5 text-text-1 whitespace-nowrap font-mono text-xs">{fmtDate(a.scheduledFor)}</td>
               <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">{fmtTime(a.scheduledFor)}</td>
               <td className="px-3 py-2.5 text-text-1 whitespace-nowrap">{typeLabels[a.type] ?? a.type}</td>
               <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{a.clinic?.name ?? '—'}</td>
@@ -159,7 +162,7 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
                 {a.provider ? `Dr. ${a.provider.firstName} ${a.provider.lastName}` : '—'}
               </td>
               <td className="px-3 py-2.5 text-text-muted whitespace-nowrap">{a.durationMinutes} min</td>
-              <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={a.status} labels={statusLabels} /></td>
+              <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2.5 whitespace-nowrap"><StatusPill status={a.status} labels={statusLabels} /></td>
             </tr>
           ))}
         </tbody>

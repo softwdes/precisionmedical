@@ -2115,14 +2115,14 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                           <table className="w-full min-w-[640px] border-collapse">
                             <thead>
                               <tr className="border-b border-white/[0.06]">
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
+                                <th className="sticky left-0 z-10 bg-bg-0 text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">{t('colType')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('colDescription')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[100px]">{t('colAccidentDate')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">{t('colFirstAppt')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">{t('colLastAppt')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[160px]">{t('colProgress')}</th>
-                                <th className="text-right px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px]">{t('colActions')}</th>
+                                <th className="sticky right-0 z-10 bg-bg-0 text-right px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px]">{t('colActions')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2135,7 +2135,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                     className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03] transition-colors"
                                   >
                                     {/* Código caso */}
-                                    <td className="px-3 py-2">
+                                    <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2">
                                       <div className="flex items-center gap-1.5">
                                         <Car className="w-3 h-3 text-text-muted shrink-0" />
                                         <span className="text-[11px] font-mono text-text-1">{c.caseCode}</span>
@@ -2203,7 +2203,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                     </td>
 
                                     {/* Acciones */}
-                                    <td className="px-3 py-2">
+                                    <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2">
                                       <div className="flex items-center justify-end gap-0.5">
                                         <button
                                           onClick={() => router.push(`/front-office/${c.id}`)}

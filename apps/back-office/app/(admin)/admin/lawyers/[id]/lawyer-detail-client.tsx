@@ -743,7 +743,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-row-sep bg-bg-2/50 text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                  <th className="px-4 py-2.5 text-left">Caso</th>
+                  <th className="sticky left-0 z-10 bg-bg-2 px-4 py-2.5 text-left">Caso</th>
                   <th className="px-4 py-2.5 text-left">Tipo</th>
                   <th className="px-4 py-2.5 text-left">Fecha</th>
                   <th className="px-4 py-2.5 text-left">Paciente</th>
@@ -751,7 +751,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                   <th className="px-4 py-2.5 text-left">Paralegal / Gestor</th>
                   <th className="px-4 py-2.5 text-left">Asistente legal</th>
                   <th className="px-4 py-2.5 text-left">Firma</th>
-                  <th className="px-4 py-2.5" />
+                  <th className="sticky right-0 z-10 bg-bg-2 px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-row-sep">
@@ -933,7 +933,7 @@ function CaseTableRow({
 
   return (
     <tr className="hover:bg-white/[0.02] transition-colors">
-      <td className="px-4 py-1.5">
+      <td className="sticky left-0 z-10 bg-bg-0 px-4 py-1.5">
         <span className="font-mono text-xs text-text-1">{row.caseCode}</span>
       </td>
       <td className="px-4 py-1.5">
@@ -980,7 +980,7 @@ function CaseTableRow({
           <span className="text-[10px] text-text-muted">Pendiente</span>
         )}
       </td>
-      <td className="px-4 py-1.5">
+      <td className="sticky right-0 z-10 bg-bg-0 px-4 py-1.5">
         <button
           ref={btnRef}
           onClick={onMenuToggle}

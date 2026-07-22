@@ -294,12 +294,12 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border/30">
-                  <th className="text-left px-4 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold whitespace-nowrap">Fecha</th>
+                  <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold whitespace-nowrap">Fecha</th>
                   <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Actor</th>
                   <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Acción</th>
                   <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold">Entidad</th>
                   <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold hidden lg:table-cell">IP</th>
-                  <th className="text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold hidden xl:table-cell">Metadata</th>
+                  <th className="sticky right-0 z-10 bg-bg-2 text-left px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted font-semibold hidden xl:table-cell">Metadata</th>
                 </tr>
               </thead>
               <tbody>
@@ -309,7 +309,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
                     className={`border-b border-border/40 hover:bg-white/[0.02] transition-colors ${i % 2 === 0 ? '' : 'bg-bg-2/20'}`}
                   >
                     {/* Fecha */}
-                    <td className="px-4 py-2.5 whitespace-nowrap text-text-muted font-mono text-[11px]">
+                    <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2.5 whitespace-nowrap text-text-muted font-mono text-[11px]">
                       {fmtDate(log.createdAt)}
                     </td>
 
@@ -349,7 +349,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
                     </td>
 
                     {/* Metadata */}
-                    <td className="px-3 py-2.5 hidden xl:table-cell">
+                    <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2.5 hidden xl:table-cell">
                       {log.metadata && Object.keys(log.metadata).length > 0 ? (
                         <span className="text-[10px] text-text-muted italic line-clamp-1">
                           {Object.entries(log.metadata).slice(0, 2).map(([k, v]) => `${k}: ${v}`).join(' · ')}

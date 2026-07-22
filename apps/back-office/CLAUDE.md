@@ -164,6 +164,25 @@ teléfono. Si una pantalla se ve mal en mobile, **no está terminada**.
 pero en mobile preferir layout de cards (ver `apps/web/dashboard/users` desktop vs
 mobile cards).
 
+**Sticky columns (OBLIGATORIO en tablas de 5+ columnas):** la primera columna
+(entidad principal) debe ser sticky izquierda y la columna de acciones sticky derecha,
+para que ambas anclas siempre sean visibles cuando el contenido del medio se desplaza
+horizontalmente en laptops o pantallas pequeñas.
+
+```tsx
+// th / td de la primera columna
+<th className="sticky left-0 z-10 bg-bg-2 ...">  {/* thead */}
+<td className="sticky left-0 z-10 bg-bg-0 ...">  {/* tbody */}
+
+// th / td de la columna de acciones (última)
+<th className="sticky right-0 z-10 bg-bg-2 ...">
+<td className="sticky right-0 z-10 bg-bg-0 ...">
+```
+
+Usar `bg-bg-2` en `thead` y `bg-bg-0` en `tbody` para que la celda sticky tape
+correctamente al hacer scroll. El `min-w` de la tabla debe ser lo más ajustado posible
+(máximo el ancho real del contenido sin sticky) para minimizar el scroll necesario.
+
 ### Breakpoints estándar (Tailwind)
 
 | Breakpoint | Tamaño mínimo | Uso típico |

@@ -398,14 +398,14 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/60 bg-bg-2/40">
-                  <th className="w-6 px-2" />
+                  <th className="sticky left-0 z-10 bg-bg-2 w-6 px-2" />
                   <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Desc. %</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Monto desc.</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
-                  <th className="w-16 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
+                  <th className="sticky right-0 z-10 bg-bg-2 w-16 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
                 </tr>
               </thead>
               <tbody>
@@ -418,7 +418,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                         className={`border-b border-border/40 hover:bg-white/[0.02] cursor-pointer ${st === 'paid' ? 'opacity-75' : ''}`}
                         onClick={() => toggleExpanded(b.id)}
                       >
-                        <td className="px-2 py-3 text-text-muted">
+                        <td className="sticky left-0 z-10 bg-bg-0 px-2 py-3 text-text-muted">
                           {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
                         <td className="px-3 py-3 text-xs">
@@ -447,7 +447,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                             <span className="text-emerald font-semibold text-xs">{fmt$(0)}</span>
                           )}
                         </td>
-                        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                        <td className="sticky right-0 z-10 bg-bg-0 px-3 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end">
                             <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Nota de cita">
                               <FileText className="w-3.5 h-3.5" />
@@ -556,14 +556,14 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
                   <tr>
-                    <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</th>
+                    <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Descuento %</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Monto desc.</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
                     <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28">Pagar</th>
-                    <th className="px-3 py-2.5 w-12 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
+                    <th className="sticky right-0 z-10 bg-bg-2 px-3 py-2.5 w-12 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
@@ -571,7 +571,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                     const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
                     return (
                       <tr key={b.id} className="hover:bg-white/[0.02]">
-                        <td className="px-4 py-3 text-xs">
+                        <td className="sticky left-0 z-10 bg-bg-0 px-4 py-3 text-xs">
                           {b.serviceCode ? (
                             <div>
                               <span className="font-mono font-semibold text-cyan">{b.serviceCode}</span>
@@ -626,7 +626,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                             </button>
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="sticky right-0 z-10 bg-bg-0 px-3 py-3">
                           <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Agregar nota">
                             <FileText className="w-3.5 h-3.5" />
                           </button>

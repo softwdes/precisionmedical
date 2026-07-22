@@ -689,7 +689,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                     { key: t('infoAllergies'),      val: (cd as Record<string, unknown>).allergies as string | null ?? t('infoNoAllergies') },
                     { key: t('infoPip'),            val: d.case?.pipActive ? t('pipActive') : t('pipNotVerified') },
                   ].map(row => row.val ? (
-                    <div key={row.key} className="flex justify-between items-start py-1.5 border-b border-border/50 last:border-0 gap-2">
+                    <div key={row.key} className="flex justify-between items-start py-1.5 border-b border-bg-3 last:border-0 gap-2">
                       <span className="text-[10.5px] text-text-muted shrink-0">{row.key}</span>
                       <span className="text-[11px] text-text-1 font-medium text-right">{row.val}</span>
                     </div>
@@ -862,7 +862,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   <label
                     key={item.id}
                     onClick={item.onToggle}
-                    className="flex items-center gap-3 rounded-md border border-border/50 px-3 py-2.5 cursor-pointer hover:border-emerald/30 transition-colors group mb-2"
+                    className="flex items-center gap-3 rounded-md border border-border px-3 py-2.5 cursor-pointer hover:border-emerald/30 transition-colors group mb-2"
                   >
                     <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${item.checked ? 'bg-emerald border-emerald' : 'border border-border bg-bg-2 group-hover:border-emerald/40'}`}>
                       {item.checked && <CheckCircle2 className="w-3 h-3 text-white" />}

@@ -752,7 +752,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
         {/* ══════════════════════════ WEEK VIEW ══════════════════════════════ */}
         {calView === 'week' && (() => {
-          const todayStr = denverDateStr(new Date());
+          const todayLocalStr = localDateStr(new Date());
           return (
             <>
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
@@ -760,7 +760,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                 <div className="grid grid-cols-[52px_repeat(5,1fr)] border-b border-white/[0.07]">
                   <div className="border-r border-white/[0.07]" />
                   {days.map((day, i) => {
-                    const isToday = denverDateStr(day) === todayStr;
+                    const isToday = localDateStr(day) === todayLocalStr;
                     return (
                       <div key={i} className={`py-3 text-center border-r border-white/[0.07] last:border-r-0 ${isToday ? 'bg-cyan/[0.06]' : ''}`}>
                         <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>{WEEKDAYS[i]}</div>
@@ -781,7 +781,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                     </div>
                     {days.map((day, di) => {
                       const dayKey = denverDateStr(day);
-                      const isToday = dayKey === todayStr;
+                      const isToday = localDateStr(day) === todayLocalStr;
                       const cellAppts = apptMap[dayKey]?.[slot] ?? [];
                       return (
                         <div key={di}

@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
-  RefreshCw, Search, UserCheck, AlertTriangle,
+  RefreshCw, UserCheck, AlertTriangle,
   Stethoscope, Building2,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
@@ -247,9 +247,10 @@ export function AdmissionClient() {
   const [done,        setDone]        = useState<AdmissionAppt[]>([]);
   const [totals,      setTotals]      = useState<Totals>({ total: 0, checkedIn: 0, pending: 0, inRoom: 0 });
   const [displayDate, setDisplayDate] = useState('');
-  const [loading,     setLoading]     = useState(true);
-  const [checkingIn,  setCheckingIn]  = useState<string | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [checkingIn,   setCheckingIn]   = useState<string | null>(null);
   const [clinicFilter, setClinicFilter] = useState<string>('all');
+  const [allClinics,   setAllClinics]   = useState<{ id: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -270,6 +271,12 @@ export function AdmissionClient() {
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => {
+    fetch('/api/admin/clinics')
+      .then(r => r.json())
+      .then(d => setAllClinics(d.clinics ?? []));
+  }, []);
+
   async function handleCheckIn(apptId: string) {
     setCheckingIn(apptId);
     try {
@@ -280,10 +287,7 @@ export function AdmissionClient() {
     }
   }
 
-  // Clínicas únicas de todas las citas del día
   const allAppts = [...pending, ...active, ...done];
-  const clinics = Array.from(new Map(allAppts.map(a => [a.clinic.id, a.clinic])).values())
-    .sort((a, b) => a.name.localeCompare(b.name));
 
   // Filtro por clínica
   const filterAppts = <T extends AdmissionAppt>(list: T[]) =>
@@ -303,37 +307,19 @@ export function AdmissionClient() {
         title={t('pageTitle')}
         subtitle={displayDate || t('pageSubtitle')}
         action={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => router.push('/front-office')}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all"
-            >
-              <Search className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('searchPatient')}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push('/calendar')}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all"
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{t('viewAgenda')}</span>
-            </button>
-            <button
-              type="button"
-              onClick={load}
-              disabled={loading}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         }
       />
 
       {/* Filtro de clínica */}
-      {clinics.length > 1 && (
+      {allClinics.length > 0 && (
         <div className="px-4 sm:px-6 pt-1 pb-2 flex items-center gap-2 flex-wrap">
           <Building2 className="w-3.5 h-3.5 text-text-muted shrink-0" />
           <button
@@ -346,7 +332,7 @@ export function AdmissionClient() {
           >
             Todas ({allAppts.length})
           </button>
-          {clinics.map(c => {
+          {allClinics.map(c => {
             const count = allAppts.filter(a => a.clinic.id === c.id).length;
             return (
               <button
@@ -355,8 +341,11 @@ export function AdmissionClient() {
                 className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors ${
                   clinicFilter === c.id
                     ? 'bg-emerald text-white'
-                    : 'bg-bg-2 text-text-muted hover:text-text-1 border border-border'
+                    : count === 0
+                      ? 'bg-bg-2 text-text-muted/40 border border-border/40 cursor-default'
+                      : 'bg-bg-2 text-text-muted hover:text-text-1 border border-border'
                 }`}
+                disabled={count === 0}
               >
                 {c.name} ({count})
               </button>

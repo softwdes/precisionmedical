@@ -318,6 +318,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
   const pending     = billings.filter(b => b.balanceDue > 0);
   const totalPending = pending.reduce((s, b) => s + b.balanceDue, 0);
   const payTotal    = Object.values(payAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const hasOverpay  = pending.some(b => (parseFloat(payAmounts[b.id] ?? '0') || 0) > b.balanceDue);
 
   // Options for custom selects
   const sourceOptions: SelectOption[] = [
@@ -402,9 +403,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                   const st = billingStatus(b);
                   const isExpanded = expanded.has(b.id);
                   return (
-                    <>
+                    <React.Fragment key={b.id}>
                       <tr
-                        key={b.id}
                         className={`border-b border-border/40 hover:bg-white/[0.02] cursor-pointer ${st === 'paid' ? 'opacity-75' : ''}`}
                         onClick={() => toggleExpanded(b.id)}
                       >
@@ -502,7 +502,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -590,11 +590,21 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                               step="0.01"
                               value={payAmounts[b.id] ?? ''}
                               onChange={e => {
-                                const raw = parseFloat(e.target.value);
-                                const val = isNaN(raw) ? '' : Math.min(raw, b.balanceDue).toFixed(2);
-                                setPayAmounts(prev => ({ ...prev, [b.id]: val }));
+                                const raw = e.target.value;
+                                setPayAmounts(prev => ({ ...prev, [b.id]: raw }));
                               }}
-                              className="w-full rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
+                              onBlur={e => {
+                                const raw = parseFloat(e.target.value);
+                                if (!isNaN(raw)) {
+                                  const clamped = Math.min(Math.max(0, raw), b.balanceDue);
+                                  setPayAmounts(prev => ({ ...prev, [b.id]: clamped.toFixed(2) }));
+                                }
+                              }}
+                              className={`w-full rounded-md bg-bg-2 border px-2 py-1 text-xs font-mono text-right outline-none transition-colors ${
+                                parseFloat(payAmounts[b.id] ?? '0') > b.balanceDue
+                                  ? 'border-rose text-rose focus:border-rose'
+                                  : 'border-border text-text-1 focus:border-brand'
+                              }`}
                               placeholder="0.00"
                             />
                             <button
@@ -678,7 +688,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                 <Button
                   size="sm"
                   onClick={submitPayment}
-                  disabled={paying || payTotal <= 0}
+                  disabled={paying || payTotal <= 0 || hasOverpay}
                   className="gap-1.5 bg-amber hover:bg-amber/90 text-black border-0 whitespace-nowrap"
                 >
                   {paying

@@ -63,13 +63,13 @@ function KpiCard({
   icon: React.ElementType;
 }) {
   const colors = {
-    emerald: 'text-emerald border-emerald/30 bg-emerald/5',
-    amber:   'text-amber   border-amber/30   bg-amber/5',
-    cyan:    'text-cyan    border-cyan/30    bg-cyan/5',
-    violet:  'text-violet  border-violet/30  bg-violet/5',
+    emerald: 'text-emerald bg-emerald/[0.07]',
+    amber:   'text-amber   bg-amber/[0.07]',
+    cyan:    'text-cyan    bg-cyan/[0.07]',
+    violet:  'text-violet  bg-violet/[0.07]',
   };
   return (
-    <div className={`rounded-lg border p-4 ${colors[tone]}`}>
+    <div className={`rounded-lg p-4 ${colors[tone]}`}>
       <div className="flex items-center gap-2 mb-1">
         <Icon className="w-3.5 h-3.5 opacity-70" />
         <span className="text-[10px] uppercase tracking-wider font-semibold opacity-70">{label}</span>
@@ -102,15 +102,15 @@ function ApptCard({
   const isPending   = !isDone && !isCheckedIn && !isInRoom;
 
   const borderClass = isCheckedIn
-    ? 'border-amber/50 bg-amber/[0.04] ring-1 ring-amber/20'
+    ? 'bg-amber/[0.07]'
     : isInRoom
-      ? 'border-violet/30 bg-violet/[0.03]'
+      ? 'bg-violet/[0.05]'
       : appt.case?.hasPending
-        ? 'border-amber/30 bg-amber/[0.02]'
-        : 'border-border bg-bg-1';
+        ? 'bg-bg-2/40'
+        : 'bg-bg-2/20';
 
   return (
-    <div className={`rounded-lg border p-4 transition-all ${borderClass}`}>
+    <div className={`rounded-lg p-4 transition-all ${borderClass}`}>
       <div className="flex items-start gap-3">
         <PersonAvatar
           firstName={appt.patient.firstName}

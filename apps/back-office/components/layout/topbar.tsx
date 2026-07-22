@@ -152,9 +152,9 @@ export function Topbar({
   const copyPassword = (): void => { void navigator.clipboard.writeText(newPw); };
 
   const handlePasswordChange = async (): Promise<void> => {
-    if (!newPw)              return setPwError('Ingresa una nueva contraseña');
-    if (newPw.length < 8)    return setPwError('Mínimo 8 caracteres');
-    if (newPw !== confirmPw) return setPwError('Las contraseñas no coinciden');
+    if (!newPw)              return setPwError('Enter a new password');
+    if (newPw.length < 8)    return setPwError('Minimum 8 characters');
+    if (newPw !== confirmPw) return setPwError('Passwords do not match');
     setPwLoading(true); setPwError('');
     const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password: newPw });
@@ -168,7 +168,7 @@ export function Topbar({
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-2 sm:gap-4 border-b border-border bg-bg-0/80 backdrop-blur-md px-3 sm:px-6">
+      <header className="sticky top-0 z-20 flex h-12 items-center gap-2 sm:gap-4 border-b border-border bg-bg-0/80 backdrop-blur-md px-3 sm:px-6">
         {/* Mobile menu */}
         <button
           type="button"
@@ -195,7 +195,6 @@ export function Topbar({
         >
           <Search className="w-4 h-4 shrink-0" />
           <span className="flex-1 text-left truncate">{t('search')}</span>
-          <kbd className="text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded">⌘K</kbd>
         </button>
 
         <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
@@ -307,7 +306,7 @@ export function Topbar({
                     onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
                   >
                     <User className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
-                    Ver perfil
+                    View profile
                   </button>
                   <button
                     type="button"
@@ -315,7 +314,7 @@ export function Topbar({
                     onClick={openPwModal}
                   >
                     <KeyRound className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
-                    Cambiar contraseña
+                    Change password
                   </button>
                 </div>
                 <div className="border-t border-border py-1">
@@ -325,7 +324,7 @@ export function Topbar({
                     onClick={() => { setMenuOpen(false); void handleLogout(); }}
                   >
                     <LogOut className="w-3.5 h-3.5 shrink-0" />
-                    Cerrar sesión
+                    Log out
                   </button>
                 </div>
               </div>
@@ -342,7 +341,7 @@ export function Topbar({
         >
           <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-1 shadow-2xl overflow-hidden">
             <div className="px-6 pt-5 pb-4 border-b border-border">
-              <h2 className="text-[15px] font-bold text-text-1">Mi perfil</h2>
+              <h2 className="text-[15px] font-bold text-text-1">My profile</h2>
             </div>
             <div className="flex flex-col items-center gap-4 px-6 py-6">
               <div
@@ -368,7 +367,7 @@ export function Topbar({
                 </span>
               </div>
               <div className="w-full rounded-xl border border-border bg-surface px-4 py-3">
-                <p className="text-xs text-text-3 mb-0.5">Correo electrónico</p>
+                <p className="text-xs text-text-3 mb-0.5">Email</p>
                 <p className="text-sm text-text-1 font-medium">{userEmail || '—'}</p>
               </div>
             </div>
@@ -378,7 +377,7 @@ export function Topbar({
                 onClick={() => setProfileOpen(false)}
                 className="px-4 py-2 rounded-lg border border-border text-sm text-text-2 hover:bg-surface transition-colors"
               >
-                Cerrar
+                Close
               </button>
             </div>
           </div>
@@ -393,7 +392,7 @@ export function Topbar({
         >
           <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-1 shadow-2xl overflow-hidden">
             <div className="px-6 pt-5 pb-4 border-b border-border">
-              <h2 className="text-[15px] font-bold text-text-1">Cambiar contraseña</h2>
+              <h2 className="text-[15px] font-bold text-text-1">Change password</h2>
             </div>
             <div className="px-6 py-5 space-y-4">
               {/* Sugerir contraseña */}
@@ -408,12 +407,12 @@ export function Topbar({
                 }}
               >
                 <Zap className="w-3.5 h-3.5" />
-                Sugerir contraseña segura
+                Suggest secure password
               </button>
 
               {/* Nueva contraseña */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-2">Nueva contraseña</label>
+                <label className="text-xs font-medium text-text-2">New password</label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <input
@@ -437,7 +436,7 @@ export function Topbar({
                       type="button"
                       onClick={copyPassword}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-3 hover:text-text-1 transition-colors"
-                      title="Copiar"
+                      title="Copy"
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
@@ -447,7 +446,7 @@ export function Topbar({
 
               {/* Confirmar */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-2">Confirmar contraseña</label>
+                <label className="text-xs font-medium text-text-2">Confirm password</label>
                 <div className="relative">
                   <input
                     type={showConf ? 'text' : 'password'}
@@ -467,7 +466,7 @@ export function Topbar({
               </div>
 
               {pwError   && <p className="text-xs text-rose">{pwError}</p>}
-              {pwSuccess  && <p className="text-xs text-emerald font-medium">✓ Contraseña actualizada correctamente</p>}
+              {pwSuccess  && <p className="text-xs text-emerald font-medium">✓ Password updated successfully</p>}
             </div>
 
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
@@ -476,7 +475,7 @@ export function Topbar({
                 onClick={() => setPwOpen(false)}
                 className="px-4 py-2 rounded-lg border border-border text-sm text-text-2 hover:bg-surface transition-colors"
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 type="button"
@@ -488,7 +487,7 @@ export function Topbar({
                   color: '#0a0a0a',
                 }}
               >
-                {pwLoading ? 'Guardando…' : 'Guardar contraseña'}
+                {pwLoading ? 'Saving…' : 'Save password'}
               </button>
             </div>
           </div>

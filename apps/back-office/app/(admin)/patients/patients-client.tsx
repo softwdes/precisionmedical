@@ -827,6 +827,7 @@ interface Props {
   patients: PatientRow[];
   q?: string;
   page: number;
+  pageSize: number;
   totalPages: number;
   total: number;
   specialties: Array<{ id: string; name: string; color: string }>;
@@ -1604,7 +1605,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   );
 }
 
-export function PatientsClient({ patients, q, page, totalPages, total, inactiveTotal = 0, specialties, clinics, providers, inactiveOnly = false }: Props) {
+export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, total, inactiveTotal = 0, specialties, clinics, providers, inactiveOnly = false }: Props) {
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
 
@@ -1788,11 +1789,12 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
     }
   }
 
-  function buildPageUrl(p: number) {
+  function buildPageUrl(p: number, size = pageSize) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (p > 0) params.set('page', String(p));
     if (inactiveOnly) params.set('showInactive', '1');
+    if (size !== 15) params.set('size', String(size));
     const qs = params.toString();
     return `/patients${qs ? `?${qs}` : ''}`;
   }
@@ -1917,7 +1919,8 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
           <thead className="bg-bg-2 border-b border-border">
             <tr>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colContact')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Phone</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Email</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colCases')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colAdmission')}</th>
@@ -1930,7 +1933,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
           <tbody>
             {patients.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-text-muted text-sm">
+                <td colSpan={10} className="px-4 py-10 text-center text-text-muted text-sm">
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   {q ? t('noResultsFor', { q }) : t('noPatients')}
                 </td>
@@ -1971,15 +1974,24 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
                   </div>
                 </td>
 
-                {/* Contacto */}
+                {/* Phone */}
                 <td className="px-4 py-3.5 hidden sm:table-cell">
                   <div className="text-text-2 text-xs space-y-0.5">
-                    {p.phone && <div className="font-mono">{p.phone}</div>}
-                    {p.email && <div className="text-text-muted truncate max-w-[180px]">{p.email}</div>}
+                    {p.phone
+                      ? <span className="font-mono">{p.phone}</span>
+                      : <span className="text-text-muted">—</span>}
+                    {p.phone2 && <div className="text-text-muted font-mono text-[10px]">{p.phone2}</div>}
                     {p.preferredLanguage && (
-                      <div className="text-[10px] text-text-muted">{p.preferredLanguage === 'es' ? '🇪🇸 Español' : '🇺🇸 English'}</div>
+                      <div className="text-[10px] text-text-muted">{p.preferredLanguage === 'es' ? '🇪🇸 ES' : '🇺🇸 EN'}</div>
                     )}
                   </div>
+                </td>
+
+                {/* Email */}
+                <td className="px-4 py-3.5 hidden lg:table-cell max-w-[200px]">
+                  {p.email
+                    ? <span className="text-text-2 text-xs truncate block">{p.email}</span>
+                    : <span className="text-text-muted text-xs">—</span>}
                 </td>
 
                 {/* Casos */}
@@ -2021,11 +2033,13 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <TagPill label={badge} colorClass={prog.colorClass} />
-                          <span className="text-[10px] text-text-muted tabular-nums">{prog.pct}%</span>
+                          {prog.pct < 100 && <span className="text-[10px] text-text-muted tabular-nums">{prog.pct}%</span>}
                         </div>
-                        <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
-                          <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
-                        </div>
+                        {prog.pct < 100 && (
+                          <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
+                            <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
+                          </div>
+                        )}
                         {sub && <p className="text-[10px] text-text-muted mt-0.5 truncate">{sub}</p>}
                       </div>
                     );
@@ -2192,13 +2206,16 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
                                     <td className="px-3 py-2 min-w-[140px]">
                                       <div className="flex items-center gap-2 mb-1">
                                         <TagPill label={progBadge} colorClass={prog.colorClass} />
+                                        {prog.pct < 100 && <span className="text-[10px] text-text-muted tabular-nums">{prog.pct}%</span>}
                                       </div>
-                                      <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
-                                        <div
-                                          className={`h-full rounded-full transition-all ${prog.barClass}`}
-                                          style={{ width: `${prog.pct}%` }}
-                                        />
-                                      </div>
+                                      {prog.pct < 100 && (
+                                        <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
+                                          <div
+                                            className={`h-full rounded-full transition-all ${prog.barClass}`}
+                                            style={{ width: `${prog.pct}%` }}
+                                          />
+                                        </div>
+                                      )}
                                       {progSub && (
                                         <p className="text-[10px] text-text-muted mt-0.5 truncate">{progSub}</p>
                                       )}
@@ -2271,11 +2288,23 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
       </div>
 
       {/* ─── Paginación ─────────────────────────────────────────────────────── */}
-      {localPages > 1 && (
-        <div className="flex items-center justify-between px-1">
-          <span className="text-[11px] text-text-muted">
-            {t('pageInfo', { page: page + 1, total: localPages })} · {localTotal} {localTotal === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}
-          </span>
+      <div className="flex items-center justify-between px-1 pt-1">
+        <div className="flex items-center gap-2 text-[11px] text-text-muted">
+          <span>Rows per page</span>
+          <select
+            value={pageSize}
+            onChange={(e) => router.push(buildPageUrl(0, Number(e.target.value)))}
+            className="bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none focus:border-brand cursor-pointer"
+          >
+            {[10, 15, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+          {localPages > 0 && (
+            <span className="ml-2">
+              {t('pageInfo', { page: page + 1, total: localPages })} · {localTotal} {localTotal === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}
+            </span>
+          )}
+        </div>
+        {localPages > 1 && (
           <div className="flex gap-1">
             <button
               onClick={() => router.push(buildPageUrl(page - 1))}
@@ -2294,8 +2323,8 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ─── View modal ─────────────────────────────────────────────────────── */}
       <Dialog open={!!viewTarget} onOpenChange={(o) => { if (!o) setViewTarget(null); }}>

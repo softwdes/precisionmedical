@@ -9,17 +9,16 @@ import { PageHeader } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
 import { decryptField } from '@/lib/decrypt';
 
-const PAGE_SIZE = 15;
-
 export default async function PatientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; showInactive?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; showInactive?: string; size?: string }>;
 }) {
   const t = await getTranslations('phoenix.patients');
-  const { q, page: pageParam, showInactive } = await searchParams;
+  const { q, page: pageParam, showInactive, size: sizeParam } = await searchParams;
   const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
   const inactiveOnly = showInactive === '1';
+  const PAGE_SIZE = Math.min(50, Math.max(5, parseInt(sizeParam ?? '15', 10) || 15));
 
   const statusFilter = inactiveOnly
     ? { status: 'INACTIVE' as const }
@@ -127,7 +126,14 @@ export default async function PatientsPage({
 
   const rows = patients.map(p => ({
     ...p,
-    employer: decryptField(p.employer),
+    phone:                    decryptField(p.phone) ?? p.phone,
+    addressCity:              decryptField(p.addressCity) ?? p.addressCity,
+    addressState:             decryptField(p.addressState) ?? p.addressState,
+    addressZip:               decryptField(p.addressZip) ?? p.addressZip,
+    emergencyContactName:     decryptField(p.emergencyContactName) ?? p.emergencyContactName,
+    emergencyContactPhone:    decryptField(p.emergencyContactPhone) ?? p.emergencyContactPhone,
+    emergencyContactRelation: decryptField(p.emergencyContactRelation) ?? p.emergencyContactRelation,
+    employer:                 decryptField(p.employer),
     caseCount: caseCountMap[p.id] ?? 0,
     latestCase: latestCaseMap[p.id]
       ? {
@@ -154,7 +160,7 @@ export default async function PatientsPage({
         subtitle={`${total} ${total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}${q ? ` · ${t('btnSearch').toLowerCase()}: "${q}"` : ''}`}
       />
 
-      <PatientsClient patients={rows} q={q} page={page} totalPages={totalPages} total={total} inactiveTotal={inactiveTotal} specialties={specialties} clinics={clinics} providers={providers} inactiveOnly={inactiveOnly} />
+      <PatientsClient patients={rows} q={q} page={page} pageSize={PAGE_SIZE} totalPages={totalPages} total={total} inactiveTotal={inactiveTotal} specialties={specialties} clinics={clinics} providers={providers} inactiveOnly={inactiveOnly} />
     </div>
   );
 }

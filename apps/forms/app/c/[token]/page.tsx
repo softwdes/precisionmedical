@@ -7,6 +7,7 @@
  */
 
 import { db } from '@precision-medical/database';
+import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { IntakeWizard } from './intake-wizard';
 
 type Props = { params: Promise<{ token: string }>; searchParams: Promise<{ reopen?: string }> };
@@ -113,30 +114,30 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
         firstName:                rec.patient.firstName,
         lastName:                 rec.patient.lastName,
         dateOfBirth:              rec.patient.dateOfBirth?.toISOString() ?? null,
-        phone:                    rec.patient.phone ?? null,
+        phone:                    decryptFieldOrOriginal(rec.patient.phone),
         cellPhone:                rec.patient.phone2 ?? null,
         email:                    rec.patient.email ?? null,
         addressLine1:             rec.patient.addressLine1 ?? null,
-        addressCity:              rec.patient.addressCity ?? null,
-        addressState:             rec.patient.addressState ?? null,
-        addressZip:               rec.patient.addressZip ?? null,
+        addressCity:              decryptFieldOrOriginal(rec.patient.addressCity),
+        addressState:             decryptFieldOrOriginal(rec.patient.addressState),
+        addressZip:               decryptFieldOrOriginal(rec.patient.addressZip),
         referralSource:           rec.patient.referralSource ?? null,
         communicationPreference:  rec.patient.communicationPreference ?? null,
-        preferredPharmacy:        rec.patient.preferredPharmacy ?? null,
-        employer:                 rec.patient.employer ?? null,
+        preferredPharmacy:        decryptFieldOrOriginal(rec.patient.preferredPharmacy),
+        employer:                 decryptFieldOrOriginal(rec.patient.employer),
         race:                     rec.patient.race ?? null,
         ethnicity:                rec.patient.ethnicity ?? null,
         sex:                      rec.patient.sex ?? null,
         maritalStatus:            rec.patient.maritalStatus ?? null,
-        emergencyContactName:     rec.patient.emergencyContactName ?? null,
-        emergencyContactPhone:    rec.patient.emergencyContactPhone ?? null,
-        emergencyContactRelation: rec.patient.emergencyContactRelation ?? null,
+        emergencyContactName:     decryptFieldOrOriginal(rec.patient.emergencyContactName),
+        emergencyContactPhone:    decryptFieldOrOriginal(rec.patient.emergencyContactPhone),
+        emergencyContactRelation: decryptFieldOrOriginal(rec.patient.emergencyContactRelation),
         emergency2Name:           rec.patient.emergency2Name ?? null,
         emergency2Phone:          rec.patient.emergency2Phone ?? null,
-        emergency2Relation:       rec.patient.emergency2Relation ?? null,
+        emergency2Relation:       decryptFieldOrOriginal(rec.patient.emergency2Relation),
         guardianName:             rec.patient.guardianName ?? null,
         guardianPhone:            rec.patient.guardianPhone ?? null,
-        guardianRelation:         rec.patient.guardianRelation ?? null,
+        guardianRelation:         decryptFieldOrOriginal(rec.patient.guardianRelation),
         insuranceCarrier:         rec.patient.insuranceCarrier ?? null,
         policyNumber:             rec.patient.policyNumber ?? null,
       }}

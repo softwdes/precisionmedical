@@ -30,12 +30,18 @@ export function AdminShell({
   userEmail    = '',
 }: AdminShellProps): React.ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <BootAnimation>
       <NavigationProgressProvider>
         <div className="min-h-screen bg-bg-0">
-          <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+          <Sidebar
+            mobileOpen={mobileOpen}
+            onMobileClose={() => setMobileOpen(false)}
+            collapsed={collapsed}
+            onCollapsedChange={setCollapsed}
+          />
 
           {/* Backdrop mobile */}
           {mobileOpen && (
@@ -46,7 +52,7 @@ export function AdminShell({
             />
           )}
 
-          <div className="md:ml-[240px] flex flex-col min-h-screen">
+          <div className={collapsed ? 'md:ml-[60px] flex flex-col min-h-screen transition-all duration-300' : 'md:ml-[240px] flex flex-col min-h-screen transition-all duration-300'}>
             <Topbar
               userName={userName}
               userRole={userRole}

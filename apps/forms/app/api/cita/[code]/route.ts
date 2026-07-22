@@ -31,7 +31,7 @@ export async function GET(
   const appt = await db.appointment.findFirst({
     where: {
       OR: [
-        { case: { caseCode: { equals: normalized, mode: 'insensitive' } } },
+        { case: { caseCode: { contains: normalized, mode: 'insensitive' } } },
         { id: normalized },
       ],
       scheduledFor: { gte: new Date(now.getTime() - 2 * 60 * 60 * 1000) }, // no mostrar citas de hace más de 2h

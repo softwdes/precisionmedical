@@ -235,11 +235,10 @@ export default function CitaPage() {
         .days-lbl  { color: rgba(255,255,255,.4); font-size: 11px; line-height: 1.35; }
 
         /* new search btn */
-        .new-btn { background: none; border: 1px solid rgba(255,255,255,.1);
-          border-radius: 9px; width: 44px; height: 44px; flex-shrink: 0;
-          color: rgba(255,255,255,.45); font-size: 18px; cursor: pointer;
-          transition: all .18s; display: flex; align-items: center; justify-content: center; }
-        .new-btn:hover { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.8); background: rgba(255,255,255,.05); }
+        .new-btn { background: none; border: none; padding: 0; margin-top: 8px;
+          color: rgba(255,255,255,.35); font-size: 11px; cursor: pointer;
+          transition: color .18s; text-decoration: underline; text-underline-offset: 3px; }
+        .new-btn:hover { color: rgba(255,255,255,.65); }
 
         /* footer */
         .hipaa { color: rgba(255,255,255,.15); font-size: 10px; text-align: center;
@@ -294,11 +293,11 @@ export default function CitaPage() {
                 <button className="go" onClick={search} disabled={loading}>
                   {loading ? '…' : t.search}
                 </button>
-                {result && (
-                  <button className="new-btn" onClick={reset}>{t.newSearch}</button>
-                )}
               </div>
-              {!result && <div className="hint">{t.hint}</div>}
+              {result
+                ? <button className="new-btn" onClick={reset}>{t.newSearch}</button>
+                : <div className="hint">{t.hint}</div>
+              }
               {error && <div className="err">{t.notFound}</div>}
             </div>
           </div>

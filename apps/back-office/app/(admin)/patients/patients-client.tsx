@@ -1913,7 +1913,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
           </div>
         )}
         <div className="overflow-x-auto rounded-lg">
-        <table className={`w-full min-w-[900px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
+        <table className={`w-full min-w-[700px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
           <thead className="bg-bg-2 border-b border-border">
             <tr>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
@@ -1922,8 +1922,8 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colAdmission')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colForm')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">{t('colCreated')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell">{t('colUpdated')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden 2xl:table-cell">{t('colCreated')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden 2xl:table-cell">{t('colUpdated')}</th>
               <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
@@ -2067,12 +2067,12 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
                 </td>
 
                 {/* Creado */}
-                <td className="px-4 py-3.5 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
+                <td className="px-4 py-3.5 hidden 2xl:table-cell text-[11px] text-text-muted tabular-nums">
                   {fmtLocalDate(p.createdAt)}
                 </td>
 
                 {/* Actualizado */}
-                <td className="px-4 py-3.5 hidden xl:table-cell text-[11px] text-text-muted tabular-nums">
+                <td className="px-4 py-3.5 hidden 2xl:table-cell text-[11px] text-text-muted tabular-nums">
                   {fmtLocalDate(p.updatedAt)}
                 </td>
 

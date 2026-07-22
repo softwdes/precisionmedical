@@ -334,6 +334,7 @@ export function AdmissionClient() {
           </button>
           {allClinics.map(c => {
             const count = allAppts.filter(a => a.clinic.id === c.id).length;
+            if (count === 0) return null;
             return (
               <button
                 key={c.id}
@@ -341,11 +342,8 @@ export function AdmissionClient() {
                 className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors ${
                   clinicFilter === c.id
                     ? 'bg-emerald text-white'
-                    : count === 0
-                      ? 'bg-bg-2 text-text-muted/40 border border-border/40 cursor-default'
-                      : 'bg-bg-2 text-text-muted hover:text-text-1 border border-border'
+                    : 'bg-bg-2 text-text-muted hover:text-text-1 border border-border'
                 }`}
-                disabled={count === 0}
               >
                 {c.name} ({count})
               </button>

@@ -456,12 +456,13 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   {appt.case && (
                     <button
                       type="button"
-                      onClick={async () => {
-                        await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
+                      onClick={() => {
+                        // sync-billing en background — no bloqueamos apertura del modal
+                        fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ caseId: appt.case?.id }),
-                        });
+                        }).catch(() => {});
                         finanzasRef.current?.reloadAndOpen();
                       }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors">

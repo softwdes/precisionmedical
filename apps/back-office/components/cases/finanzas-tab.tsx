@@ -256,8 +256,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
   }
 
   function autoDistribute(totalStr: string) {
-    const total = parseFloat(totalStr);
-    if (!total || total <= 0) return;
+    const raw = parseFloat(totalStr);
+    if (isNaN(raw) || raw <= 0) {
+      const pending = billings.filter(b => b.balanceDue > 0);
+      setPayAmounts(prev => { const n = { ...prev }; pending.forEach(b => { n[b.id] = ''; }); return n; });
+      return;
+    }
+    const total = Math.min(raw, totalPending);
     const pending = billings.filter(b => b.balanceDue > 0);
     const newAmounts: Record<string, string> = {};
     let remaining = total;
@@ -679,9 +684,17 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                 <input
                   type="number"
                   min="0"
+                  max={totalPending}
                   step="0.01"
-                  placeholder="0"
+                  placeholder={`Distribuir hasta ${fmt$(totalPending)}`}
                   onChange={e => autoDistribute(e.target.value)}
+                  onBlur={e => {
+                    const v = parseFloat(e.target.value);
+                    if (!isNaN(v) && v > totalPending) {
+                      e.target.value = totalPending.toFixed(2);
+                      autoDistribute(totalPending.toFixed(2));
+                    }
+                  }}
                   className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
                   title={t('tipAutoDistribute')}
                 />

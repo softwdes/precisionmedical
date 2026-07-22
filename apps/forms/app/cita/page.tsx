@@ -38,7 +38,7 @@ const T = {
     alertFuture: <><strong>Llega 30 min antes</strong> de tu cita. Trae tu ID y tarjeta de seguro médico.</>,
     daysLabel: (n: number) => n === 1 ? 'día para tu cita' : 'días para tu cita',
     hipaa: 'Solo información básica de tu cita. Ningún dato médico visible.',
-    newSearch: 'Nueva búsqueda',
+    newSearch: '↩',
     status: { PENDING:'Pendiente', SCHEDULED:'Confirmada', CONFIRMED:'Confirmada', CHECKED_IN:'Check-in', IN_PROGRESS:'En consulta', COMPLETED:'Completada' } as Record<string,string>,
   },
   en: {
@@ -235,10 +235,11 @@ export default function CitaPage() {
         .days-lbl  { color: rgba(255,255,255,.4); font-size: 11px; line-height: 1.35; }
 
         /* new search btn */
-        .new-btn { margin-top: 10px; background: none; border: 1px solid rgba(255,255,255,.1);
-          border-radius: 8px; padding: 6px 16px; color: rgba(255,255,255,.4);
-          font-size: 12px; cursor: pointer; transition: all .18s; align-self: flex-start; }
-        .new-btn:hover { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.7); }
+        .new-btn { background: none; border: 1px solid rgba(255,255,255,.1);
+          border-radius: 9px; width: 44px; height: 44px; flex-shrink: 0;
+          color: rgba(255,255,255,.45); font-size: 18px; cursor: pointer;
+          transition: all .18s; display: flex; align-items: center; justify-content: center; }
+        .new-btn:hover { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.8); background: rgba(255,255,255,.05); }
 
         /* footer */
         .hipaa { color: rgba(255,255,255,.15); font-size: 10px; text-align: center;

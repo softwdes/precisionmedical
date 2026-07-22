@@ -36,6 +36,7 @@ interface CalendarAppointment {
   status: string;
   notes: string | null;
   visitNumber: number;
+  plannedServiceCodes?: PlannedService[];
   patient: {
     id: string;
     firstName: string;
@@ -171,6 +172,12 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   // ── Load services when tab opens ──────────────────────────────────────────
   useEffect(() => {
     if (activeTab !== 'services' || svcLoaded) return;
+    // Si el appointment ya trae los servicios en el prop, usarlos directamente
+    if (appt.plannedServiceCodes) {
+      setServices(appt.plannedServiceCodes);
+      setSvcLoaded(true);
+      return;
+    }
     fetch(`/api/admin/appointments/${appt.id}`)
       .then(r => r.json())
       .then(d => {
@@ -178,7 +185,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         setSvcLoaded(true);
       })
       .catch(() => setSvcLoaded(true));
-  }, [activeTab, appt.id, svcLoaded]);
+  }, [activeTab, appt.id, svcLoaded, appt.plannedServiceCodes]);
 
   // ── Service search debounce ───────────────────────────────────────────────
   useEffect(() => {

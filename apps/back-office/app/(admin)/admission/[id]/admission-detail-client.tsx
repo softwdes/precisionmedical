@@ -619,13 +619,14 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               inline
               initialTab="services"
               appointment={{
-                id:              d.id,
-                scheduledFor:    d.scheduledFor,
-                durationMinutes: d.durationMinutes,
-                type:            d.type,
-                status:          d.status,
-                notes:           d.notes,
-                visitNumber:     0,
+                id:                  d.id,
+                scheduledFor:        d.scheduledFor,
+                durationMinutes:     d.durationMinutes,
+                type:                d.type,
+                status:              d.status,
+                notes:               d.notes,
+                visitNumber:         0,
+                plannedServiceCodes: d.plannedServiceCodes ?? [],
                 patient:         d.patient,
                 provider:        d.provider,
                 clinic:          d.clinic,

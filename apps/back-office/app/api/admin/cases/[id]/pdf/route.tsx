@@ -587,7 +587,7 @@ export async function GET(
 
   const filename = `intake-${caseRecord.caseCode}.pdf`;
 
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type':        'application/pdf',

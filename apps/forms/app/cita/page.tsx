@@ -16,22 +16,78 @@ interface ApptResult {
   daysUntil: number;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING:    'Pendiente · Pending',
-  SCHEDULED:  'Confirmada · Confirmed',
-  CONFIRMED:  'Confirmada · Confirmed',
-  CHECKED_IN: 'Check-in · Checked in',
-  IN_PROGRESS:'En consulta · In consultation',
-  COMPLETED:  'Completada · Completed',
+const T = {
+  es: {
+    title:       'Consulta tu cita',
+    sub:         'Ingresa el código de tu caso o número de cita',
+    tabCase:     'Código de caso',
+    tabAppt:     'N.° de cita',
+    phCase:      'Ej: CASE-1127 · MVA-2865',
+    phAppt:      'Ej: APT-00342',
+    search:      'Buscar →',
+    hint:        'El código lo encontrarás en tu mensaje de confirmación.',
+    notFound:    'Código no encontrado. Verifica e intenta de nuevo.',
+    today:       'Hoy',
+    apptToday:   'Tu cita es hoy',
+    inDays:      (n: number) => `En ${n} día${n !== 1 ? 's' : ''}`,
+    doctor:      'Doctor',
+    address:     'Dirección',
+    visitType:   'Tipo de visita',
+    duration:    'Duración estimada',
+    alertToday:  <><strong>Llega 30 minutos antes</strong> para completar tu registro. Trae un ID válido y tu tarjeta de seguro.</>,
+    alertFuture: <><strong>Recuerda llegar 30 minutos antes</strong> de tu cita. Trae tu ID válido y tarjeta de seguro médico.</>,
+    daysLabel:   (n: number) => n === 1 ? 'día para tu cita' : 'días para tu cita',
+    hipaa:       'Esta página solo muestra información básica de tu cita. Ningún dato médico es visible.',
+    status: {
+      PENDING:    'Pendiente',
+      SCHEDULED:  'Confirmada',
+      CONFIRMED:  'Confirmada',
+      CHECKED_IN: 'Check-in completado',
+      IN_PROGRESS:'En consulta',
+      COMPLETED:  'Completada',
+    } as Record<string, string>,
+  },
+  en: {
+    title:       'Check your appointment',
+    sub:         'Enter your case code or appointment number',
+    tabCase:     'Case code',
+    tabAppt:     'Appt. number',
+    phCase:      'E.g. CASE-1127 · MVA-2865',
+    phAppt:      'E.g. APT-00342',
+    search:      'Search →',
+    hint:        "You'll find the code in your confirmation message.",
+    notFound:    'Code not found. Please verify and try again.',
+    today:       'Today',
+    apptToday:   'Your appointment is today',
+    inDays:      (n: number) => `In ${n} day${n !== 1 ? 's' : ''}`,
+    doctor:      'Doctor',
+    address:     'Address',
+    visitType:   'Visit type',
+    duration:    'Est. duration',
+    alertToday:  <><strong>Arrive 30 minutes early</strong> to complete your check-in. Bring a valid ID and your insurance card.</>,
+    alertFuture: <><strong>Remember to arrive 30 minutes early</strong>. Bring your valid ID and health insurance card.</>,
+    daysLabel:   (n: number) => n === 1 ? 'day until your appointment' : 'days until your appointment',
+    hipaa:       'This page only shows basic appointment info. No medical data is displayed.',
+    status: {
+      PENDING:    'Pending',
+      SCHEDULED:  'Confirmed',
+      CONFIRMED:  'Confirmed',
+      CHECKED_IN: 'Checked in',
+      IN_PROGRESS:'In consultation',
+      COMPLETED:  'Completed',
+    } as Record<string, string>,
+  },
 };
 
 export default function CitaPage() {
+  const [lang, setLang]     = useState<'es'|'en'>('es');
   const [query, setQuery]   = useState('');
   const [tab, setTab]       = useState<'case'|'appt'>('case');
   const [result, setResult] = useState<ApptResult | null>(null);
   const [error, setError]   = useState(false);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const t = T[lang];
 
   async function search() {
     const code = query.trim().toUpperCase();
@@ -49,14 +105,12 @@ export default function CitaPage() {
     finally { setLoading(false); }
   }
 
+  const locale = lang === 'es' ? 'es-US' : 'en-US';
   const scheduled = result ? new Date(result.scheduledFor) : null;
-  const dateStrEs = scheduled?.toLocaleDateString('es-US', {
+  const dateStr = scheduled?.toLocaleDateString(locale, {
     weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Denver',
   });
-  const dateStrEn = scheduled?.toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver',
-  });
-  const timeStr = scheduled?.toLocaleTimeString('es-US', {
+  const timeStr = scheduled?.toLocaleTimeString(locale, {
     hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver',
   });
 
@@ -65,7 +119,11 @@ export default function CitaPage() {
       <style>{`
         *{box-sizing:border-box;margin:0;padding:0}
         body{background:#07101f;min-height:100vh}
-        .page{min-height:100vh;background:#07101f;display:flex;flex-direction:column;align-items:center;padding:40px 20px 60px;font-family:system-ui,sans-serif}
+        .page{min-height:100vh;background:#07101f;display:flex;flex-direction:column;align-items:center;padding:40px 20px 60px;font-family:system-ui,sans-serif;position:relative}
+        .lang-toggle{position:absolute;top:20px;right:20px;display:flex;gap:6px}
+        .lang-btn{background:none;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 13px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;color:rgba(255,255,255,.4)}
+        .lang-btn:hover{border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.06)}
+        .lang-btn.active{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35);color:#fff}
         .logo{display:flex;align-items:center;gap:10px;margin-bottom:36px}
         .logo-mark{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#06B6D4,#6366F1);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;color:#fff;letter-spacing:-.5px;flex-shrink:0}
         .logo-text{color:#fff;font-size:15px;font-weight:600}
@@ -87,7 +145,6 @@ export default function CitaPage() {
         .btn-search:disabled{opacity:.5;cursor:not-allowed}
         .hint{color:rgba(255,255,255,.28);font-size:12px;margin-top:10px}
         .error-msg{color:#F87171;font-size:13px;margin-top:10px}
-
         .result-card{background:#0d1b2e;border:1px solid rgba(255,255,255,.08);border-radius:20px;width:100%;max-width:460px;overflow:hidden;margin-top:16px}
         .appt-header{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(99,102,241,.12));padding:24px 28px;border-bottom:1px solid rgba(255,255,255,.06)}
         .status-badge{display:inline-flex;align-items:center;gap:6px;border-radius:20px;padding:4px 12px;margin-bottom:14px}
@@ -105,7 +162,7 @@ export default function CitaPage() {
         .clinic-name{color:rgba(255,255,255,.6);font-size:14px}
         .details-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:20px 0}
         .detail-box{background:rgba(255,255,255,.04);border-radius:10px;padding:14px}
-        .detail-label{color:rgba(255,255,255,.35);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+        .detail-label{color:rgba(255,255,255,.35);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
         .detail-value{color:#fff;font-size:14px;font-weight:600}
         .alert-box{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start}
         .alert-text{color:rgba(255,255,255,.7);font-size:12px;line-height:1.6}
@@ -118,6 +175,12 @@ export default function CitaPage() {
       `}</style>
 
       <div className="page">
+        {/* Language toggle */}
+        <div className="lang-toggle">
+          <button className={`lang-btn ${lang === 'es' ? 'active' : ''}`} onClick={() => setLang('es')}>ES</button>
+          <button className={`lang-btn ${lang === 'en' ? 'active' : ''}`} onClick={() => setLang('en')}>EN</button>
+        </div>
+
         <div className="logo">
           <div className="logo-mark">PM</div>
           <div>
@@ -128,29 +191,29 @@ export default function CitaPage() {
 
         <div className="card">
           <div className="card-header">
-            <div className="card-title">Consulta tu cita · Check your appointment</div>
-            <div className="card-sub">Ingresa el código de tu caso o número de cita · Enter your case code or appointment number</div>
+            <div className="card-title">{t.title}</div>
+            <div className="card-sub">{t.sub}</div>
           </div>
           <div className="card-body">
             <div className="tabs">
-              <div className={`tab ${tab === 'case' ? 'active' : ''}`} onClick={() => setTab('case')}>Código de caso</div>
-              <div className={`tab ${tab === 'appt' ? 'active' : ''}`} onClick={() => setTab('appt')}>N.° de cita</div>
+              <div className={`tab ${tab === 'case' ? 'active' : ''}`} onClick={() => setTab('case')}>{t.tabCase}</div>
+              <div className={`tab ${tab === 'appt' ? 'active' : ''}`} onClick={() => setTab('appt')}>{t.tabAppt}</div>
             </div>
             <div className="input-group">
               <input
                 ref={inputRef}
                 className="input-code"
-                placeholder={tab === 'case' ? 'Ej: CASE-1127 · MVA-2865' : 'Ej: APT-00342'}
+                placeholder={tab === 'case' ? t.phCase : t.phAppt}
                 value={query}
                 onChange={e => setQuery(e.target.value.toUpperCase())}
                 onKeyDown={e => e.key === 'Enter' && search()}
               />
               <button className="btn-search" onClick={search} disabled={loading}>
-                {loading ? '...' : 'Buscar →'}
+                {loading ? '...' : t.search}
               </button>
             </div>
-            <div className="hint">El código lo encontrarás en tu mensaje de confirmación · You'll find it in your confirmation message.</div>
-            {error && <div className="error-msg">Código no encontrado · Code not found. Verifica e intenta de nuevo · Please verify and try again.</div>}
+            <div className="hint">{t.hint}</div>
+            {error && <div className="error-msg">{t.notFound}</div>}
           </div>
         </div>
 
@@ -166,20 +229,19 @@ export default function CitaPage() {
               >
                 <div className="status-dot" style={{ background: result.isToday ? '#10B981' : '#06B6D4' }} />
                 <div className="status-text" style={{ color: result.isToday ? '#10B981' : '#06B6D4' }}>
-                  {result.isToday ? 'Hoy · Today' : STATUS_LABELS[result.status] ?? 'Confirmada'}
+                  {result.isToday ? t.today : (t.status[result.status] ?? t.status.CONFIRMED)}
                 </div>
               </div>
               <div className="appt-patient">{result.firstName}</div>
-              <div className="appt-case">{result.caseCode ?? 'Cita confirmada'} · {result.apptType}</div>
+              <div className="appt-case">{result.caseCode ?? '—'} · {result.apptType}</div>
             </div>
 
             <div className="appt-body">
               <div className="big-date">
                 <div className="when-label">
-                  {result.isToday ? 'Tu cita es hoy · Your appointment is today' : `En ${result.daysUntil} día${result.daysUntil !== 1 ? 's' : ''} · In ${result.daysUntil} day${result.daysUntil !== 1 ? 's' : ''}`}
+                  {result.isToday ? t.apptToday : t.inDays(result.daysUntil)}
                 </div>
-                <div className="day-text">{dateStrEs}</div>
-                <div style={{ color: 'rgba(255,255,255,.3)', fontSize: '13px', marginTop: '2px', fontWeight: 500 }}>{dateStrEn}</div>
+                <div className="day-text">{dateStr}</div>
                 <div className="time-row">
                   <div className="time-text">{timeStr}</div>
                   <div className="sep">·</div>
@@ -189,19 +251,19 @@ export default function CitaPage() {
 
               <div className="details-grid">
                 <div className="detail-box">
-                  <div className="detail-label">Doctor</div>
+                  <div className="detail-label">{t.doctor}</div>
                   <div className="detail-value">{result.doctorName ?? '—'}</div>
                 </div>
                 <div className="detail-box">
-                  <div className="detail-label">Dirección · Address</div>
+                  <div className="detail-label">{t.address}</div>
                   <div className="detail-value" style={{ fontSize: '12px' }}>{result.clinicAddr ?? result.clinicName}</div>
                 </div>
                 <div className="detail-box">
-                  <div className="detail-label">Tipo de visita · Visit type</div>
+                  <div className="detail-label">{t.visitType}</div>
                   <div className="detail-value">{result.apptType}</div>
                 </div>
                 <div className="detail-box">
-                  <div className="detail-label">Duración est. · Est. duration</div>
+                  <div className="detail-label">{t.duration}</div>
                   <div className="detail-value">~15 min</div>
                 </div>
               </div>
@@ -209,10 +271,7 @@ export default function CitaPage() {
               <div className="alert-box">
                 <div style={{ fontSize: '16px', marginTop: '1px' }}>⏰</div>
                 <div className="alert-text">
-                  {result.isToday
-                    ? <><strong>Llega 30 minutos antes</strong> para completar tu registro. Trae un ID válido y tu tarjeta de seguro.</>
-                    : <><strong>Recuerda llegar 30 minutos antes</strong> de tu cita. Trae tu ID válido y tarjeta de seguro médico.</>
-                  }
+                  {result.isToday ? t.alertToday : t.alertFuture}
                 </div>
               </div>
             </div>
@@ -221,18 +280,14 @@ export default function CitaPage() {
               <div className="footer-box">
                 <div className="days-badge">
                   <div className="days-num">{result.daysUntil}</div>
-                  <div className="days-label">
-                    {result.daysUntil === 1 ? 'día para tu cita · day until your appointment' : 'días para tu cita · days until your appointment'}
-                  </div>
+                  <div className="days-label">{t.daysLabel(result.daysUntil)}</div>
                 </div>
               </div>
             )}
           </div>
         )}
 
-        <div className="hipaa-note">
-          HIPAA · Esta página solo muestra información básica de tu cita · This page only shows basic appointment info. Ningún dato médico es visible · No medical data is displayed.
-        </div>
+        <div className="hipaa-note">HIPAA · {t.hipaa}</div>
       </div>
     </>
   );

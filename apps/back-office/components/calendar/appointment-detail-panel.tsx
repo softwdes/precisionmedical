@@ -156,6 +156,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const [searchingSvc,   setSearchingSvc]   = useState(false);
   const [savingSvc,      setSavingSvc]      = useState(false);
   const [savedOk,        setSavedOk]        = useState(false);
+  const [confirmDeleteSvc, setConfirmDeleteSvc] = useState<string | null>(null);
 
 
   const isFirst   = appt.visitNumber === 0;
@@ -559,10 +560,26 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                         }}
                         className="w-full text-right bg-transparent border border-transparent hover:border-border focus:border-cyan rounded px-1.5 py-0.5 text-xs font-semibold text-text-1 focus:outline-none focus:bg-bg-2 transition-colors"
                       />
-                      <button type="button" onClick={() => removeService(svc.id)}
-                        className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors ml-auto">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {confirmDeleteSvc === svc.id ? (
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <span className="text-[10px] text-rose font-medium">¿Eliminar?</span>
+                          <button type="button"
+                            onClick={() => { removeService(svc.id); setConfirmDeleteSvc(null); }}
+                            className="px-2 py-0.5 rounded bg-rose text-white text-[10px] font-semibold hover:bg-rose/90 transition-colors">
+                            Sí
+                          </button>
+                          <button type="button"
+                            onClick={() => setConfirmDeleteSvc(null)}
+                            className="px-2 py-0.5 rounded bg-bg-2 text-text-muted text-[10px] font-semibold hover:bg-bg-3 transition-colors">
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setConfirmDeleteSvc(svc.id)}
+                          className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors ml-auto">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   ))}
                   <div className="px-3 py-2.5 bg-bg-2/50 flex justify-between items-center">

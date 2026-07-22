@@ -687,12 +687,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                   max={totalPending}
                   step="0.01"
                   placeholder={`Distribuir hasta ${fmt$(totalPending)}`}
-                  onChange={e => autoDistribute(e.target.value)}
-                  onBlur={e => {
-                    const v = parseFloat(e.target.value);
-                    if (!isNaN(v) && v > totalPending) {
+                  onChange={e => {
+                    const raw = parseFloat(e.target.value);
+                    if (!isNaN(raw) && raw > totalPending) {
                       e.target.value = totalPending.toFixed(2);
                       autoDistribute(totalPending.toFixed(2));
+                    } else {
+                      autoDistribute(e.target.value);
                     }
                   }}
                   className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"

@@ -72,16 +72,12 @@ function anonymize(
   return `${fi}.${li} - ${suffix}`;
 }
 
-function todayRangeDenver(): { start: Date; end: Date } {
+function todayRangeUTC(): { start: Date; end: Date } {
   const tz    = 'America/Denver';
   const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
-  const utcRef    = new Date(`${today}T12:00:00Z`);
-  const locStr    = utcRef.toLocaleString('en-US', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit' });
-  const localHour = parseInt(locStr.split(':')[0]!, 10);
-  const offsetMs  = -(localHour - 12) * 60 * 60 * 1000;
   return {
-    start: new Date(new Date(`${today}T00:00:00Z`).getTime() + offsetMs),
-    end:   new Date(new Date(`${today}T23:59:59.999Z`).getTime() + offsetMs),
+    start: new Date(`${today}T00:00:00Z`),
+    end:   new Date(`${today}T23:59:59.999Z`),
   };
 }
 
@@ -102,7 +98,7 @@ export async function GET(
     return NextResponse.json({ ok: false, error: 'Clinic not found' }, { status: 404 });
   }
 
-  const { start, end } = todayRangeDenver();
+  const { start, end } = todayRangeUTC();
   const now = new Date();
   const threeMinAgo = new Date(now.getTime() - 3 * 60 * 1000);
 

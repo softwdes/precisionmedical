@@ -2,92 +2,91 @@
  * POST /api/admin/appointments/:id/sync-billing
  *
  * Creates one AppointmentBilling record per CPT service.
- * Called when the Servicios tab saves services. Existing records for
- * this appointment are deleted and recreated to stay in sync.
+ * Uses raw SQL to bypass Prisma client type issues with new columns.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { randomUUID } from 'crypto';
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const { id } = await params;
+  try {
+    const { id } = await params;
 
-  // Client may pass caseId explicitly (panel already has it) to avoid null caseId in DB
-  let bodyJson: { caseId?: string } = {};
-  try { bodyJson = await req.json(); } catch { /* no body */ }
+    let bodyJson: { caseId?: string } = {};
+    try { bodyJson = await req.json(); } catch { /* no body */ }
 
-  const appt = await db.appointment.findUnique({
-    where: { id },
-    select: { id: true, caseId: true, plannedServiceCodes: true },
-  });
-  if (!appt) return NextResponse.json({ ok: false });
+    const appt = await db.appointment.findUnique({
+      where: { id },
+      select: { id: true, caseId: true, plannedServiceCodes: true },
+    });
 
-  const caseId = appt.caseId ?? bodyJson.caseId ?? null;
-  if (!caseId) return NextResponse.json({ ok: false, reason: 'no_case' });
+    if (!appt) return NextResponse.json({ ok: false, reason: 'no_appt' });
 
-  const codes = (appt.plannedServiceCodes ?? []) as { id?: string; code: string; description: string; fee: number }[];
-  if (codes.length === 0) return NextResponse.json({ ok: false, reason: 'no_services' });
+    const caseId = appt.caseId ?? bodyJson.caseId ?? null;
+    if (!caseId) return NextResponse.json({ ok: false, reason: 'no_case' });
 
-  // Get existing billing records for this appointment (with their payments)
-  const existing = await db.appointmentBilling.findMany({
-    where: { appointmentId: id },
-    include: { payments: { where: { status: { not: 'CANCELLED' } } } },
-  });
+    const codes = (appt.plannedServiceCodes ?? []) as { id?: string; code: string; description: string; fee: number }[];
+    if (codes.length === 0) return NextResponse.json({ ok: false, reason: 'no_services' });
 
-  // Delete old aggregate records (serviceCode=null) that have no payments
-  for (const b of existing) {
-    if (!b.serviceCode && b.payments.length === 0) {
-      await db.appointmentBilling.delete({ where: { id: b.id } });
+    // Get existing billing rows + sum of active payments via raw SQL
+    type BillingRow = { id: string; serviceCode: string | null; amountPaid: bigint | number };
+    const existing = await db.$queryRaw<BillingRow[]>`
+      SELECT ab.id, ab."serviceCode", COALESCE(SUM(p.amount), 0) as "amountPaid"
+      FROM appointment_billing ab
+      LEFT JOIN billing_payments p ON p."billingId" = ab.id AND p.status != 'CANCELLED'
+      WHERE ab."appointmentId" = ${id}
+      GROUP BY ab.id, ab."serviceCode"
+    `;
+
+    // Delete aggregate records (serviceCode IS NULL) with no payments
+    for (const b of existing) {
+      if (!b.serviceCode && Number(b.amountPaid) === 0) {
+        await db.$executeRaw`DELETE FROM appointment_billing WHERE id = ${b.id}`;
+      }
     }
-  }
-  const perService = existing.filter(b => b.serviceCode);
 
-  // Build a map: serviceCode → existing billing record
-  const existingByCode = new Map(perService.map(b => [b.serviceCode!, b]));
+    const perService = existing.filter(b => b.serviceCode);
+    const existingByCode = new Map(perService.map(b => [b.serviceCode!, b]));
 
-  for (const svc of codes) {
-    const fee = svc.fee ?? 0;
-    if (fee <= 0) continue;
+    for (const svc of codes) {
+      const fee = svc.fee ?? 0;
+      if (fee <= 0) continue;
 
-    const prev = existingByCode.get(svc.code);
-    if (prev) {
-      // Update cost but preserve payments
-      const paid = prev.payments.reduce((s, p) => s + Number(p.amount), 0);
-      await db.appointmentBilling.update({
-        where: { id: prev.id },
-        data: {
-          totalCost: fee,
-          balanceDue: Math.max(0, fee - paid),
-          serviceDescription: svc.description,
-        },
-      });
-      existingByCode.delete(svc.code);
-    } else {
-      await db.appointmentBilling.create({
-        data: {
-          appointmentId: id,
-          caseId,
-          serviceCode: svc.code,
-          serviceDescription: svc.description,
-          totalCost: fee,
-          discount: 0,
-          insuranceCovered: 0,
-          amountPaid: 0,
-          balanceDue: fee,
-        },
-      });
+      const prev = existingByCode.get(svc.code);
+      if (prev) {
+        const paid = Number(prev.amountPaid);
+        const balance = Math.max(0, fee - paid);
+        await db.$executeRaw`
+          UPDATE appointment_billing
+          SET "totalCost" = ${fee}, "balanceDue" = ${balance}, "serviceDescription" = ${svc.description}, "updatedAt" = NOW()
+          WHERE id = ${prev.id}
+        `;
+        existingByCode.delete(svc.code);
+      } else {
+        const newId = randomUUID();
+        await db.$executeRaw`
+          INSERT INTO appointment_billing
+            (id, "appointmentId", "caseId", "serviceCode", "serviceDescription", "totalCost", discount, "insuranceCovered", "amountPaid", "balanceDue", "createdAt", "updatedAt")
+          VALUES
+            (${newId}, ${id}, ${caseId}, ${svc.code}, ${svc.description}, ${fee}, 0, 0, 0, ${fee}, NOW(), NOW())
+        `;
+      }
     }
-  }
 
-  // Delete billing records for CPT codes that were removed (only if no payments)
-  for (const stale of existingByCode.values()) {
-    if (stale.payments.length === 0) {
-      await db.appointmentBilling.delete({ where: { id: stale.id } });
+    // Delete billing for removed CPT codes (only if no payments)
+    for (const stale of existingByCode.values()) {
+      if (Number(stale.amountPaid) === 0) {
+        await db.$executeRaw`DELETE FROM appointment_billing WHERE id = ${stale.id}`;
+      }
     }
-  }
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('[sync-billing] error:', err);
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+  }
 }

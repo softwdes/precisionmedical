@@ -1,4 +1,5 @@
 // @ts-check
+// build trigger: 2026-07-21
 import createNextIntlPlugin from 'next-intl/plugin';
 import path from 'path';
 import { fileURLToPath } from 'url';

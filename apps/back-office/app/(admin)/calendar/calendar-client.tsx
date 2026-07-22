@@ -348,6 +348,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const [slotDate,    setSlotDate]        = useState('');
   const [slotTime,    setSlotTime]        = useState('');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  // Mobile agenda has its own date (starts at TODAY, not Monday of week)
+  const [mobileDate, setMobileDate] = useState<Date>(() => new Date());
 
   const openSlot = (date: string, time: string) => {
     setSlotDate(date);
@@ -374,6 +376,11 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
       const lastWeek = grid[grid.length - 1];
       to = new Date(lastWeek[lastWeek.length - 1]); to.setHours(23, 59, 59, 999);
     }
+    // Expand range to cover mobileDate if it's outside the desktop range
+    const mobStart = new Date(mobileDate); mobStart.setHours(0, 0, 0, 0);
+    const mobEnd   = new Date(mobileDate); mobEnd.setHours(23, 59, 59, 999);
+    if (mobStart < from) from = mobStart;
+    if (mobEnd   > to)   to   = mobEnd;
 
     const params = new URLSearchParams({
       from: from.toISOString(),
@@ -396,7 +403,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
     // Cleanup: cancela la petición en vuelo si el efecto se re-dispara
     return () => controller.abort();
-  }, [weekStart, calView, filterClinic, filterProvider, filterType, refreshKey]);
+  }, [weekStart, calView, mobileDate, filterClinic, filterProvider, filterType, refreshKey]);
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
   const goToPrev = () => {
@@ -415,10 +422,10 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     else if (calView === 'week')  setWeekStart(getMondayOf(now));
     else                          setWeekStart(getFirstDayOfMonth(now));
   };
-  // Mobile agenda always navigates 1 day at a time
-  const mobileGoToPrev = () => setWeekStart(w => addDays(w, -1));
-  const mobileGoToNext = () => setWeekStart(w => addDays(w, 1));
-  const mobileGoToToday = () => setWeekStart(new Date());
+  // Mobile agenda always navigates 1 day at a time (independent of weekStart)
+  const mobileGoToPrev = () => setMobileDate(d => addDays(d, -1));
+  const mobileGoToNext = () => setMobileDate(d => addDays(d, 1));
+  const mobileGoToToday = () => setMobileDate(new Date());
   /** Cambia de vista ajustando weekStart al ancla correcta para esa vista. */
   const switchView = (v: CalendarView) => {
     setCalView(v);
@@ -486,6 +493,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     calView === 'day'
       ? `${weekStart.getDate()} ${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`
       : `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
+  // Mobile agenda label — shows the mobileDate day
+  const mobileDateLabel = `${mobileDate.getDate()} ${MONTHS[mobileDate.getMonth()]} ${mobileDate.getFullYear()}`;
   const weekLabel =
     calView === 'day'
       ? `${WEEKDAYS_ALL[(weekStart.getDay() + 6) % 7]} · ${t('viewDailySuffix')}`
@@ -507,7 +516,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           className="w-8 h-8 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="flex-1 text-text-1 font-bold text-sm text-center">{monthLabel}</span>
+        <span className="flex-1 text-text-1 font-bold text-sm text-center">{mobileDateLabel}</span>
         <button type="button" onClick={mobileGoToNext}
           className="w-8 h-8 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
           <ChevronRight className="w-4 h-4" />
@@ -695,7 +704,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
       {/* ─── Mobile: Agenda (always shown on mobile) ─────────── */}
       <div className="md:hidden flex-1 overflow-auto px-4 pb-6 min-h-0">
         {(() => {
-          const dayKey = denverDateStr(weekStart);
+          const dayKey = denverDateStr(mobileDate);
           const dayAppts = visibleAppointments
             .filter(a => denverDateStr(new Date(a.scheduledFor)) === dayKey)
             .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());

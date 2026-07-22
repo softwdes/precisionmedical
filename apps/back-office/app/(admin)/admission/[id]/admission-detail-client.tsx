@@ -76,6 +76,7 @@ interface ApptDetail {
     attorney: { id: string; firstName: string | null; lastName: string | null; email: string | null } | null;
     primaryInsurance: { id: string; name: string; shortCode: string; color: string; claimsPhone: string | null } | null;
   } | null;
+  plannedServiceCodes: { id?: string; code: string; description: string; fee: number; category?: string }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

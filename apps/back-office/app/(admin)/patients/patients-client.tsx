@@ -1915,25 +1915,22 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           </div>
         )}
         <div className="overflow-x-auto rounded-lg">
-        <table className={`w-full min-w-[1000px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
+        <table className={`w-full min-w-[680px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
           <thead className="bg-bg-2 border-b border-border">
             <tr>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Phone</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Email</th>
+              <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Contact</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colCases')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colAdmission')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colForm')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colCreated')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colUpdated')}</th>
-              <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
+              <th className="sticky right-0 z-10 bg-bg-2 w-16 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
           <tbody>
             {patients.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-10 text-center text-text-muted text-sm">
+                <td colSpan={7} className="px-4 py-10 text-center text-text-muted text-sm">
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   {q ? t('noResultsFor', { q }) : t('noPatients')}
                 </td>
@@ -1943,7 +1940,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               <Fragment key={p.id}>
               <tr className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
                 {/* Chevron expand */}
-                <td className="px-4 py-3.5">
+                <td className="sticky left-0 z-10 bg-bg-0 px-4 py-3.5">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleExpand(p.id)}
@@ -1974,24 +1971,18 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                   </div>
                 </td>
 
-                {/* Phone */}
+                {/* Contact */}
                 <td className="px-4 py-3.5 hidden sm:table-cell">
                   <div className="text-text-2 text-xs space-y-0.5">
                     {p.phone
                       ? <span className="font-mono">{p.phone}</span>
                       : <span className="text-text-muted">—</span>}
                     {p.phone2 && <div className="text-text-muted font-mono text-[10px]">{p.phone2}</div>}
+                    {p.email && <div className="text-text-muted text-[10px] truncate max-w-[160px]">{p.email}</div>}
                     {p.preferredLanguage && (
                       <div className="text-[10px] text-text-muted">{p.preferredLanguage === 'es' ? '🇪🇸 ES' : '🇺🇸 EN'}</div>
                     )}
                   </div>
-                </td>
-
-                {/* Email */}
-                <td className="px-4 py-3.5 hidden lg:table-cell max-w-[200px]">
-                  {p.email
-                    ? <span className="text-text-2 text-xs truncate block">{p.email}</span>
-                    : <span className="text-text-muted text-xs">—</span>}
                 </td>
 
                 {/* Casos */}
@@ -2080,18 +2071,8 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                   </div>
                 </td>
 
-                {/* Creado */}
-                <td className="px-4 py-3.5 table-cell text-[11px] text-text-muted tabular-nums">
-                  {fmtLocalDate(p.createdAt)}
-                </td>
-
-                {/* Actualizado */}
-                <td className="px-4 py-3.5 table-cell text-[11px] text-text-muted tabular-nums">
-                  {fmtLocalDate(p.updatedAt)}
-                </td>
-
                 {/* Acciones */}
-                <td className="px-4 py-3.5">
+                <td className="sticky right-0 z-10 bg-bg-0 px-4 py-3.5">
                   <div className="flex justify-end">
                     <button
                       onClick={(e) => openMenu(p.id, e.currentTarget)}
@@ -2107,7 +2088,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
                 <tr key={`${p.id}-cases`} className="bg-white/[0.03] border-b border-white/[0.06]">
-                  <td colSpan={9} className="px-6 py-2" style={{ maxWidth: 0, width: '100%' }}>
+                  <td colSpan={6} className="px-6 py-2" style={{ maxWidth: 0, width: '100%' }}>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5">
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">

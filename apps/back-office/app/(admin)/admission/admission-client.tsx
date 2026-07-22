@@ -15,7 +15,7 @@ import { useTranslations } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, Search, UserCheck, AlertTriangle,
-  Stethoscope,
+  Stethoscope, Building2,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -249,6 +249,7 @@ export function AdmissionClient() {
   const [displayDate, setDisplayDate] = useState('');
   const [loading,     setLoading]     = useState(true);
   const [checkingIn,  setCheckingIn]  = useState<string | null>(null);
+  const [clinicFilter, setClinicFilter] = useState<string>('all');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -279,10 +280,22 @@ export function AdmissionClient() {
     }
   }
 
-  // Derivados de `active`: separar los que esperan admisión (CHECKED_IN)
-  // de los que ya pasaron a sala (IN_PROGRESS) para priorizar el orden visual.
+  // Clínicas únicas de todas las citas del día
+  const allAppts = [...pending, ...active, ...done];
+  const clinics = Array.from(new Map(allAppts.map(a => [a.clinic.id, a.clinic])).values())
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Filtro por clínica
+  const filterAppts = <T extends AdmissionAppt>(list: T[]) =>
+    clinicFilter === 'all' ? list : list.filter(a => a.clinic.id === clinicFilter);
+
   const awaitingAdmission = active.filter(a => a.status === 'CHECKED_IN');
   const inRoom            = active.filter(a => a.status === 'IN_PROGRESS');
+
+  const filteredPending  = filterAppts(pending);
+  const filteredAwaiting = filterAppts(awaitingAdmission);
+  const filteredInRoom   = filterAppts(inRoom);
+  const filteredDone     = filterAppts(done);
 
   return (
     <div className="flex flex-col">
@@ -319,6 +332,39 @@ export function AdmissionClient() {
         }
       />
 
+      {/* Filtro de clínica */}
+      {clinics.length > 1 && (
+        <div className="px-4 sm:px-6 pt-1 pb-2 flex items-center gap-2 flex-wrap">
+          <Building2 className="w-3.5 h-3.5 text-text-muted shrink-0" />
+          <button
+            onClick={() => setClinicFilter('all')}
+            className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+              clinicFilter === 'all'
+                ? 'bg-emerald text-white'
+                : 'bg-bg-2 text-text-muted hover:text-text-1 border border-border'
+            }`}
+          >
+            Todas ({allAppts.length})
+          </button>
+          {clinics.map(c => {
+            const count = allAppts.filter(a => a.clinic.id === c.id).length;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setClinicFilter(c.id)}
+                className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-colors ${
+                  clinicFilter === c.id
+                    ? 'bg-emerald text-white'
+                    : 'bg-bg-2 text-text-muted hover:text-text-1 border border-border'
+                }`}
+              >
+                {c.name} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="px-4 sm:px-6 pb-8 space-y-5">
         {/* KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -343,7 +389,7 @@ export function AdmissionClient() {
         ) : (
           <>
             {/* ── 1. Esperando admisión (CHECKED_IN) — ARRIBA, acción urgente ── */}
-            {awaitingAdmission.length > 0 && (
+            {filteredAwaiting.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="relative flex h-2 w-2">
@@ -351,11 +397,11 @@ export function AdmissionClient() {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-amber" />
                   </span>
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-amber">
-                    {t('sectionAwaitingAdmission', { count: awaitingAdmission.length })}
+                    {t('sectionAwaitingAdmission', { count: filteredAwaiting.length })}
                   </h2>
                 </div>
                 <div className="space-y-2.5">
-                  {awaitingAdmission.map(a => (
+                  {filteredAwaiting.map(a => (
                     <ApptCard
                       key={a.id}
                       appt={a}
@@ -368,16 +414,16 @@ export function AdmissionClient() {
             )}
 
             {/* ── 2. Próximos en llegar (SCHEDULED / CONFIRMED) ── */}
-            {pending.length > 0 && (
+            {filteredPending.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="w-4 h-4 text-text-muted" />
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                    {t('sectionUpcoming', { count: pending.length })}
+                    {t('sectionUpcoming', { count: filteredPending.length })}
                   </h2>
                 </div>
                 <div className="space-y-2.5">
-                  {pending.map(a => (
+                  {filteredPending.map(a => (
                     <ApptCard
                       key={a.id}
                       appt={a}
@@ -390,16 +436,16 @@ export function AdmissionClient() {
             )}
 
             {/* ── 3. En sala con el doctor (IN_PROGRESS) ── */}
-            {inRoom.length > 0 && (
+            {filteredInRoom.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <Stethoscope className="w-4 h-4 text-violet" />
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-violet">
-                    {t('sectionInRoom', { count: inRoom.length })}
+                    {t('sectionInRoom', { count: filteredInRoom.length })}
                   </h2>
                 </div>
                 <div className="space-y-2.5">
-                  {inRoom.map(a => (
+                  {filteredInRoom.map(a => (
                     <ApptCard
                       key={a.id}
                       appt={a}
@@ -412,16 +458,16 @@ export function AdmissionClient() {
             )}
 
             {/* ── 4. Completados — fondo, opacidad reducida ── */}
-            {done.length > 0 && (
+            {filteredDone.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-4 h-4 text-text-muted" />
                   <h2 className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                    {t('sectionCompleted', { count: done.length })}
+                    {t('sectionCompleted', { count: filteredDone.length })}
                   </h2>
                 </div>
                 <div className="space-y-2 opacity-60">
-                  {done.map(a => (
+                  {filteredDone.map(a => (
                     <ApptCard
                       key={a.id}
                       appt={a}

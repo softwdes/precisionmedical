@@ -8,7 +8,7 @@
  * Tab 3: Pagos — KPIs del caso + registrar pago inline
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -23,7 +23,7 @@ import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pil
 import { Dialog, DialogContent } from '@precision/ui';
 import { AppointmentSecondaryModals, type SecondaryModalType } from './appointment-secondary-modals';
 import { AppointmentDialog, type EditAppointmentData } from './appointment-dialog';
-import { FinanzasTab } from '@/components/cases/finanzas-tab';
+import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ interface Props {
   inline?: boolean;
 }
 
-type Tab = 'detail' | 'services' | 'payments';
+type Tab = 'detail' | 'services';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -137,6 +137,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const finanzasRef = useRef<FinanzasTabHandle>(null);
 
   // ── Detail tab ────────────────────────────────────────────────────────────
   const [activeModal,   setActiveModal]   = useState<SecondaryModalType | null>(null);
@@ -262,7 +263,6 @@ setTimeout(() => setSavedOk(false), 2000);
   const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
     { id: 'detail',   label: t('tabDetail'),   icon: <Calendar className="w-3.5 h-3.5" /> },
     { id: 'services', label: t('tabServices'), icon: <Stethoscope className="w-3.5 h-3.5" /> },
-    { id: 'payments', label: t('tabPayments'), icon: <DollarSign className="w-3.5 h-3.5" /> },
   ];
 
   const panelContent = (
@@ -438,13 +438,21 @@ setTimeout(() => setSavedOk(false), 2000);
           {activeTab === 'services' && (
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
 
-              {/* Header con total */}
+              {/* Header con total + Pagar deuda */}
               <div className="flex items-center justify-between">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionCptServices')}</div>
                 <div className="flex items-center gap-2">
                   {savingSvc && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
                   {savedOk   && <span className="text-[10px] text-emerald">{t('savedOk')}</span>}
                   <span className="text-sm font-bold text-cyan">{fmt$(svcTotal)}</span>
+                  {appt.case && (
+                    <button
+                      type="button"
+                      onClick={() => finanzasRef.current?.openPayModal()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors">
+                      <DollarSign className="w-3.5 h-3.5" /> {t('actionPayDebt')}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -553,15 +561,11 @@ setTimeout(() => setSavedOk(false), 2000);
             </div>
           )}
 
-          {/* ─── Tab: Pagos ──────────────────────────────────────── */}
-          {activeTab === 'payments' && (
-              <div className="flex-1 overflow-y-auto">
-                {!appt.case ? (
-                  <div className="text-text-muted text-sm text-center py-8">{t('noCaseAssociated')}</div>
-                ) : (
-                  <FinanzasTab caseId={appt.case.id} />
-                )}
-              </div>
+          {/* FinanzasTab oculto — expone modal "Pagar deuda" al botón del header */}
+          {appt.case && (
+            <div className="h-0 overflow-hidden">
+              <FinanzasTab ref={finanzasRef} caseId={appt.case.id} />
+            </div>
           )}
 
           {/* ─── Footer ──────────────────────────────────────────── */}

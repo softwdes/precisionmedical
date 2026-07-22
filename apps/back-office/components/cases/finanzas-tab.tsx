@@ -5,7 +5,7 @@
  * KPIs · tabla expandible por cita · modal pago con distribución
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   DollarSign, ChevronRight, ChevronDown, Loader2, RefreshCw,
@@ -166,7 +166,9 @@ function KpiCard({ label, value, color }: { label: string; value: number; color:
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export function FinanzasTab({ caseId }: { caseId: string }) {
+export interface FinanzasTabHandle { openPayModal: () => void }
+
+export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(function FinanzasTab({ caseId }, ref) {
   const t  = useTranslations('phoenix.caseTabs.finanzas');
   const tc = useTranslations('phoenix.common');
   const [billings, setBillings]     = useState<BillingRecord[]>([]);
@@ -218,6 +220,8 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
     setPayInsuranceId(insurances[0]?.id ?? '');
     setPayOpen(true);
   }
+
+  useImperativeHandle(ref, () => ({ openPayModal }));
 
   function toggleExpanded(id: string) {
     setExpanded(prev => {
@@ -646,4 +650,4 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
       )}
     </div>
   );
-}
+});

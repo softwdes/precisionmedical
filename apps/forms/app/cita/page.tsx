@@ -18,64 +18,52 @@ interface ApptResult {
 
 const T = {
   es: {
-    title:       'Consulta tu cita',
-    sub:         'Ingresa el código de tu caso o número de cita',
-    tabCase:     'Código de caso',
-    tabAppt:     'N.° de cita',
-    phCase:      'Ej: CASE-1127 · MVA-2865',
-    phAppt:      'Ej: APT-00342',
-    search:      'Buscar →',
-    hint:        'El código lo encontrarás en tu mensaje de confirmación.',
-    notFound:    'Código no encontrado. Verifica e intenta de nuevo.',
-    today:       'Hoy',
-    apptToday:   'Tu cita es hoy',
-    inDays:      (n: number) => `En ${n} día${n !== 1 ? 's' : ''}`,
-    doctor:      'Doctor',
-    address:     'Dirección',
-    visitType:   'Tipo de visita',
-    duration:    'Duración estimada',
-    alertToday:  <><strong>Llega 30 minutos antes</strong> para completar tu registro. Trae un ID válido y tu tarjeta de seguro.</>,
-    alertFuture: <><strong>Recuerda llegar 30 minutos antes</strong> de tu cita. Trae tu ID válido y tarjeta de seguro médico.</>,
-    daysLabel:   (n: number) => n === 1 ? 'día para tu cita' : 'días para tu cita',
-    hipaa:       'Esta página solo muestra información básica de tu cita. Ningún dato médico es visible.',
-    status: {
-      PENDING:    'Pendiente',
-      SCHEDULED:  'Confirmada',
-      CONFIRMED:  'Confirmada',
-      CHECKED_IN: 'Check-in completado',
-      IN_PROGRESS:'En consulta',
-      COMPLETED:  'Completada',
-    } as Record<string, string>,
+    title: 'Consulta tu cita',
+    sub: 'Ingresa el código de tu caso para ver tu próxima cita',
+    tabCase: 'Código de caso',
+    tabAppt: 'N.° de cita',
+    phCase: 'Ej: CASE-1127',
+    phAppt: 'Ej: APT-00342',
+    search: 'Buscar',
+    hint: 'Encuéntralo en tu mensaje de confirmación.',
+    notFound: 'Código no encontrado. Verifica e intenta de nuevo.',
+    today: 'Hoy',
+    apptToday: 'Tu cita es hoy',
+    inDays: (n: number) => `En ${n} día${n !== 1 ? 's' : ''}`,
+    doctor: 'Doctor',
+    address: 'Dirección',
+    visitType: 'Tipo de visita',
+    duration: 'Duración est.',
+    alertToday: <><strong>Llega 30 min antes</strong> para tu registro. Trae ID válido y tarjeta de seguro.</>,
+    alertFuture: <><strong>Llega 30 min antes</strong> de tu cita. Trae tu ID y tarjeta de seguro médico.</>,
+    daysLabel: (n: number) => n === 1 ? 'día para tu cita' : 'días para tu cita',
+    hipaa: 'Solo información básica de tu cita. Ningún dato médico visible.',
+    newSearch: 'Nueva búsqueda',
+    status: { PENDING:'Pendiente', SCHEDULED:'Confirmada', CONFIRMED:'Confirmada', CHECKED_IN:'Check-in', IN_PROGRESS:'En consulta', COMPLETED:'Completada' } as Record<string,string>,
   },
   en: {
-    title:       'Check your appointment',
-    sub:         'Enter your case code or appointment number',
-    tabCase:     'Case code',
-    tabAppt:     'Appt. number',
-    phCase:      'E.g. CASE-1127 · MVA-2865',
-    phAppt:      'E.g. APT-00342',
-    search:      'Search →',
-    hint:        "You'll find the code in your confirmation message.",
-    notFound:    'Code not found. Please verify and try again.',
-    today:       'Today',
-    apptToday:   'Your appointment is today',
-    inDays:      (n: number) => `In ${n} day${n !== 1 ? 's' : ''}`,
-    doctor:      'Doctor',
-    address:     'Address',
-    visitType:   'Visit type',
-    duration:    'Est. duration',
-    alertToday:  <><strong>Arrive 30 minutes early</strong> to complete your check-in. Bring a valid ID and your insurance card.</>,
-    alertFuture: <><strong>Remember to arrive 30 minutes early</strong>. Bring your valid ID and health insurance card.</>,
-    daysLabel:   (n: number) => n === 1 ? 'day until your appointment' : 'days until your appointment',
-    hipaa:       'This page only shows basic appointment info. No medical data is displayed.',
-    status: {
-      PENDING:    'Pending',
-      SCHEDULED:  'Confirmed',
-      CONFIRMED:  'Confirmed',
-      CHECKED_IN: 'Checked in',
-      IN_PROGRESS:'In consultation',
-      COMPLETED:  'Completed',
-    } as Record<string, string>,
+    title: 'Check your appointment',
+    sub: 'Enter your case code to see your upcoming appointment',
+    tabCase: 'Case code',
+    tabAppt: 'Appt. number',
+    phCase: 'E.g. CASE-1127',
+    phAppt: 'E.g. APT-00342',
+    search: 'Search',
+    hint: "You'll find it in your confirmation message.",
+    notFound: 'Code not found. Please verify and try again.',
+    today: 'Today',
+    apptToday: 'Your appointment is today',
+    inDays: (n: number) => `In ${n} day${n !== 1 ? 's' : ''}`,
+    doctor: 'Doctor',
+    address: 'Address',
+    visitType: 'Visit type',
+    duration: 'Est. duration',
+    alertToday: <><strong>Arrive 30 min early</strong> to check in. Bring a valid ID and your insurance card.</>,
+    alertFuture: <><strong>Arrive 30 min early</strong>. Bring your valid ID and health insurance card.</>,
+    daysLabel: (n: number) => n === 1 ? 'day until your appointment' : 'days until your appointment',
+    hipaa: 'Basic appointment info only. No medical data is displayed.',
+    newSearch: 'New search',
+    status: { PENDING:'Pending', SCHEDULED:'Confirmed', CONFIRMED:'Confirmed', CHECKED_IN:'Checked in', IN_PROGRESS:'In consultation', COMPLETED:'Completed' } as Record<string,string>,
   },
 };
 
@@ -92,9 +80,7 @@ export default function CitaPage() {
   async function search() {
     const code = query.trim().toUpperCase();
     if (!code) return;
-    setLoading(true);
-    setError(false);
-    setResult(null);
+    setLoading(true); setError(false); setResult(null);
     try {
       const res = await fetch(`/api/cita/${encodeURIComponent(code)}`);
       if (!res.ok) { setError(true); return; }
@@ -105,189 +91,278 @@ export default function CitaPage() {
     finally { setLoading(false); }
   }
 
+  function reset() { setResult(null); setQuery(''); setError(false); setTimeout(() => inputRef.current?.focus(), 100); }
+
   const locale = lang === 'es' ? 'es-US' : 'en-US';
   const scheduled = result ? new Date(result.scheduledFor) : null;
-  const dateStr = scheduled?.toLocaleDateString(locale, {
-    weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Denver',
-  });
-  const timeStr = scheduled?.toLocaleTimeString(locale, {
-    hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver',
-  });
+  const dateStr = scheduled?.toLocaleDateString(locale, { weekday:'long', day:'numeric', month:'long', timeZone:'America/Denver' });
+  const timeStr = scheduled?.toLocaleTimeString(locale, { hour:'numeric', minute:'2-digit', hour12:true, timeZone:'America/Denver' });
+
+  const statusColor = result?.isToday ? '#10B981' : '#06B6D4';
+  const statusBg    = result?.isToday ? 'rgba(16,185,129,.15)' : 'rgba(6,182,212,.1)';
+  const statusBorder= result?.isToday ? 'rgba(16,185,129,.3)' : 'rgba(6,182,212,.25)';
 
   return (
     <>
       <style>{`
-        *{box-sizing:border-box;margin:0;padding:0}
-        body{background:#07101f;min-height:100vh}
-        .page{min-height:100vh;background:#07101f;display:flex;flex-direction:column;align-items:center;padding:40px 20px 60px;font-family:system-ui,sans-serif;position:relative}
-        .lang-toggle{position:absolute;top:20px;right:20px;display:flex;gap:6px}
-        .lang-btn{background:none;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 13px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;color:rgba(255,255,255,.4)}
-        .lang-btn:hover{border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.06)}
-        .lang-btn.active{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35);color:#fff}
-        .logo{display:flex;align-items:center;gap:10px;margin-bottom:36px}
-        .logo-mark{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#06B6D4,#6366F1);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;color:#fff;letter-spacing:-.5px;flex-shrink:0}
-        .logo-text{color:#fff;font-size:15px;font-weight:600}
-        .logo-sub{color:rgba(255,255,255,.4);font-size:11px;margin-top:1px}
-        .card{background:#0d1b2e;border:1px solid rgba(255,255,255,.08);border-radius:20px;width:100%;max-width:460px}
-        .card-header{padding:28px 28px 20px;border-bottom:1px solid rgba(255,255,255,.06)}
-        .card-title{color:#fff;font-size:20px;font-weight:700;letter-spacing:-.02em}
-        .card-sub{color:rgba(255,255,255,.4);font-size:13px;margin-top:6px}
-        .card-body{padding:24px 28px}
-        .tabs{display:flex;gap:8px;margin-bottom:16px}
-        .tab{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 14px;color:rgba(255,255,255,.4);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
-        .tab.active{background:rgba(6,182,212,.1);border-color:rgba(6,182,212,.3);color:#06B6D4}
-        .input-group{display:flex;gap:10px}
-        .input-code{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:0 16px;height:46px;color:#fff;font-size:15px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;outline:none;transition:border-color .2s}
-        .input-code::placeholder{color:rgba(255,255,255,.25);font-weight:400;letter-spacing:0;text-transform:none;font-size:14px}
-        .input-code:focus{border-color:#06B6D4}
-        .btn-search{background:#06B6D4;border:none;border-radius:10px;padding:0 20px;height:46px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .2s;flex-shrink:0}
-        .btn-search:hover{background:#0891B2}
-        .btn-search:disabled{opacity:.5;cursor:not-allowed}
-        .hint{color:rgba(255,255,255,.28);font-size:12px;margin-top:10px}
-        .error-msg{color:#F87171;font-size:13px;margin-top:10px}
-        .result-card{background:#0d1b2e;border:1px solid rgba(255,255,255,.08);border-radius:20px;width:100%;max-width:460px;overflow:hidden;margin-top:16px}
-        .appt-header{background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(99,102,241,.12));padding:24px 28px;border-bottom:1px solid rgba(255,255,255,.06)}
-        .status-badge{display:inline-flex;align-items:center;gap:6px;border-radius:20px;padding:4px 12px;margin-bottom:14px}
-        .status-dot{width:7px;height:7px;border-radius:50%}
-        .status-text{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-        .appt-patient{color:#fff;font-size:22px;font-weight:800;letter-spacing:-.02em}
-        .appt-case{color:rgba(255,255,255,.4);font-size:13px;margin-top:4px}
-        .appt-body{padding:24px 28px}
-        .big-date{text-align:center;padding:20px 0 24px;border-bottom:1px solid rgba(255,255,255,.06)}
-        .when-label{color:rgba(255,255,255,.4);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
-        .day-text{color:#fff;font-size:28px;font-weight:900;letter-spacing:-.02em;text-transform:capitalize}
-        .time-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px}
-        .time-text{color:#06B6D4;font-size:22px;font-weight:700}
-        .sep{color:rgba(255,255,255,.2);font-size:18px}
-        .clinic-name{color:rgba(255,255,255,.6);font-size:14px}
-        .details-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:20px 0}
-        .detail-box{background:rgba(255,255,255,.04);border-radius:10px;padding:14px}
-        .detail-label{color:rgba(255,255,255,.35);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-        .detail-value{color:#fff;font-size:14px;font-weight:600}
-        .alert-box{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start}
-        .alert-text{color:rgba(255,255,255,.7);font-size:12px;line-height:1.6}
-        .alert-text strong{color:#F59E0B}
-        .footer-box{padding:0 28px 24px}
-        .days-badge{background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.25);border-radius:12px;padding:14px 20px;text-align:center}
-        .days-num{color:#818CF8;font-size:32px;font-weight:900}
-        .days-label{color:rgba(255,255,255,.4);font-size:12px;margin-top:4px}
-        .hipaa-note{color:rgba(255,255,255,.18);font-size:11px;text-align:center;margin-top:24px;max-width:400px}
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body { background: #07101f; font-family: system-ui, -apple-system, sans-serif; }
+
+        .shell {
+          min-height: 100vh; display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          padding: 24px 20px; background: #07101f; position: relative;
+        }
+
+        /* ── Lang toggle ── */
+        .lang-row { position: absolute; top: 20px; right: 20px; display: flex; gap: 6px; }
+        .lbtn { background: none; border: 1px solid rgba(255,255,255,.14); border-radius: 7px;
+          padding: 4px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+          color: rgba(255,255,255,.35); transition: all .18s; }
+        .lbtn:hover { border-color: rgba(255,255,255,.35); color: rgba(255,255,255,.7); }
+        .lbtn.on { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.3); color: #fff; }
+
+        /* ── Logo ── */
+        .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 28px;
+          transition: all .35s; }
+        .logo.shrink { margin-bottom: 0; transform: scale(.85); opacity: .7; }
+        .mark { width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+          background: linear-gradient(135deg, #06B6D4, #6366F1);
+          display: flex; align-items: center; justify-content: center;
+          font-weight: 900; font-size: 14px; color: #fff; letter-spacing: -.4px; }
+        .logo-text { color: #fff; font-size: 14px; font-weight: 600; }
+        .logo-sub  { color: rgba(255,255,255,.38); font-size: 10px; margin-top: 1px; }
+
+        /* ── Search card ── */
+        .search-wrap { width: 100%; max-width: 440px; transition: all .35s; }
+        .search-wrap.collapsed { max-width: 100%; }
+
+        .search-card {
+          background: #0d1b2e; border: 1px solid rgba(255,255,255,.07);
+          border-radius: 18px; overflow: hidden;
+          transition: all .35s;
+        }
+        .search-card.full .s-head { display: block; }
+        .search-card.slim .s-head { display: none; }
+        .search-card.slim { border-radius: 12px; }
+
+        .s-head { padding: 24px 24px 18px; border-bottom: 1px solid rgba(255,255,255,.05); }
+        .s-title { color: #fff; font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+        .s-sub   { color: rgba(255,255,255,.38); font-size: 13px; margin-top: 5px; line-height: 1.4; }
+
+        .s-body { padding: 18px 20px; }
+        .search-card.full .s-body { padding: 20px 24px 22px; }
+
+        .tabs { display: flex; gap: 7px; margin-bottom: 14px; }
+        .tab  { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+          border-radius: 7px; padding: 5px 12px; color: rgba(255,255,255,.38);
+          font-size: 12px; font-weight: 600; cursor: pointer; transition: all .18s; }
+        .tab.on { background: rgba(6,182,212,.1); border-color: rgba(6,182,212,.3); color: #06B6D4; }
+        .search-card.slim .tabs { display: none; }
+
+        .row { display: flex; gap: 8px; }
+        .inp { flex: 1; height: 44px; background: rgba(255,255,255,.05);
+          border: 1px solid rgba(255,255,255,.11); border-radius: 9px;
+          padding: 0 14px; color: #fff; font-size: 14px; font-weight: 600;
+          letter-spacing: .05em; text-transform: uppercase; outline: none;
+          transition: border-color .18s; }
+        .inp::placeholder { color: rgba(255,255,255,.22); font-weight: 400;
+          letter-spacing: 0; text-transform: none; font-size: 13px; }
+        .inp:focus { border-color: #06B6D4; }
+        .go { height: 44px; padding: 0 18px; background: #06B6D4; border: none;
+          border-radius: 9px; color: #fff; font-size: 13px; font-weight: 700;
+          cursor: pointer; white-space: nowrap; transition: background .18s; flex-shrink: 0; }
+        .go:hover { background: #0891B2; }
+        .go:disabled { opacity: .45; cursor: not-allowed; }
+        .hint { color: rgba(255,255,255,.25); font-size: 11px; margin-top: 9px; }
+        .search-card.slim .hint { display: none; }
+        .err  { color: #F87171; font-size: 12px; margin-top: 8px; }
+
+        /* ── Result layout ── */
+        .result-area {
+          width: 100%; max-width: 840px;
+          display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+          margin-top: 14px;
+          animation: fadeUp .35s ease;
+        }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+        .r-left, .r-right {
+          background: #0d1b2e; border: 1px solid rgba(255,255,255,.07);
+          border-radius: 16px; overflow: hidden;
+        }
+
+        /* left panel */
+        .r-hero {
+          background: linear-gradient(150deg, rgba(6,182,212,.1), rgba(99,102,241,.08));
+          padding: 22px 22px 18px; border-bottom: 1px solid rgba(255,255,255,.05);
+        }
+        .sbadge { display: inline-flex; align-items: center; gap: 5px;
+          border-radius: 20px; padding: 3px 10px; margin-bottom: 12px; }
+        .sdot { width: 6px; height: 6px; border-radius: 50%; }
+        .slabel { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+        .patient-name { color: #fff; font-size: 26px; font-weight: 900; letter-spacing: -.03em; }
+        .case-line { color: rgba(255,255,255,.35); font-size: 12px; margin-top: 3px; }
+
+        .date-block { padding: 20px 22px; text-align: center; }
+        .when-lbl { color: rgba(255,255,255,.35); font-size: 10px; font-weight: 600;
+          text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+        .day-big { color: #fff; font-size: 22px; font-weight: 900; letter-spacing: -.02em;
+          text-transform: capitalize; line-height: 1.15; }
+        .time-big { color: #06B6D4; font-size: 32px; font-weight: 900; letter-spacing: -.02em;
+          margin-top: 6px; }
+        .clinic-lbl { color: rgba(255,255,255,.45); font-size: 13px; margin-top: 4px; font-weight: 500; }
+
+        /* right panel */
+        .r-right { display: flex; flex-direction: column; }
+        .det-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 18px 18px 14px; flex: 1; }
+        .dbox { background: rgba(255,255,255,.04); border-radius: 9px; padding: 12px; }
+        .dlbl { color: rgba(255,255,255,.32); font-size: 9px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: .09em; margin-bottom: 5px; }
+        .dval { color: #fff; font-size: 13px; font-weight: 600; line-height: 1.3; }
+
+        .alert { background: rgba(245,158,11,.07); border-top: 1px solid rgba(245,158,11,.18);
+          padding: 13px 18px; display: flex; gap: 8px; align-items: flex-start; }
+        .alert-txt { color: rgba(255,255,255,.65); font-size: 11px; line-height: 1.55; }
+        .alert-txt strong { color: #F59E0B; }
+
+        .days-strip {
+          background: rgba(99,102,241,.08); border-top: 1px solid rgba(99,102,241,.15);
+          padding: 12px 18px; display: flex; align-items: center; gap: 10px;
+        }
+        .days-num  { color: #818CF8; font-size: 28px; font-weight: 900; }
+        .days-lbl  { color: rgba(255,255,255,.4); font-size: 11px; line-height: 1.35; }
+
+        /* new search btn */
+        .new-btn { margin-top: 10px; background: none; border: 1px solid rgba(255,255,255,.1);
+          border-radius: 8px; padding: 6px 16px; color: rgba(255,255,255,.4);
+          font-size: 12px; cursor: pointer; transition: all .18s; align-self: flex-start; }
+        .new-btn:hover { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.7); }
+
+        /* footer */
+        .hipaa { color: rgba(255,255,255,.15); font-size: 10px; text-align: center;
+          margin-top: 18px; max-width: 500px; }
+
+        /* mobile */
+        @media (max-width: 600px) {
+          .result-area { grid-template-columns: 1fr; max-width: 440px; }
+          .time-big { font-size: 26px; }
+        }
       `}</style>
 
-      <div className="page">
-        {/* Language toggle */}
-        <div className="lang-toggle">
-          <button className={`lang-btn ${lang === 'es' ? 'active' : ''}`} onClick={() => setLang('es')}>ES</button>
-          <button className={`lang-btn ${lang === 'en' ? 'active' : ''}`} onClick={() => setLang('en')}>EN</button>
+      <div className="shell">
+        {/* Lang */}
+        <div className="lang-row">
+          <button className={`lbtn ${lang==='es'?'on':''}`} onClick={()=>setLang('es')}>ES</button>
+          <button className={`lbtn ${lang==='en'?'on':''}`} onClick={()=>setLang('en')}>EN</button>
         </div>
 
-        <div className="logo">
-          <div className="logo-mark">PM</div>
+        {/* Logo */}
+        <div className={`logo ${result ? 'shrink' : ''}`}>
+          <div className="mark">PM</div>
           <div>
             <div className="logo-text">Precision Medical</div>
             <div className="logo-sub">Patient Portal</div>
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">{t.title}</div>
-            <div className="card-sub">{t.sub}</div>
-          </div>
-          <div className="card-body">
-            <div className="tabs">
-              <div className={`tab ${tab === 'case' ? 'active' : ''}`} onClick={() => setTab('case')}>{t.tabCase}</div>
-              <div className={`tab ${tab === 'appt' ? 'active' : ''}`} onClick={() => setTab('appt')}>{t.tabAppt}</div>
+        {/* Search */}
+        <div className={`search-wrap ${result ? 'collapsed' : ''}`} style={{ maxWidth: result ? 840 : 440 }}>
+          <div className={`search-card ${result ? 'slim' : 'full'}`}>
+            <div className="s-head">
+              <div className="s-title">{t.title}</div>
+              <div className="s-sub">{t.sub}</div>
             </div>
-            <div className="input-group">
-              <input
-                ref={inputRef}
-                className="input-code"
-                placeholder={tab === 'case' ? t.phCase : t.phAppt}
-                value={query}
-                onChange={e => setQuery(e.target.value.toUpperCase())}
-                onKeyDown={e => e.key === 'Enter' && search()}
-              />
-              <button className="btn-search" onClick={search} disabled={loading}>
-                {loading ? '...' : t.search}
-              </button>
+            <div className="s-body">
+              {!result && (
+                <div className="tabs">
+                  <div className={`tab ${tab==='case'?'on':''}`} onClick={()=>setTab('case')}>{t.tabCase}</div>
+                  <div className={`tab ${tab==='appt'?'on':''}`} onClick={()=>setTab('appt')}>{t.tabAppt}</div>
+                </div>
+              )}
+              <div className="row">
+                <input
+                  ref={inputRef}
+                  className="inp"
+                  placeholder={tab==='case' ? t.phCase : t.phAppt}
+                  value={query}
+                  onChange={e => setQuery(e.target.value.toUpperCase())}
+                  onKeyDown={e => e.key==='Enter' && search()}
+                />
+                <button className="go" onClick={search} disabled={loading}>
+                  {loading ? '…' : t.search}
+                </button>
+                {result && (
+                  <button className="new-btn" onClick={reset}>{t.newSearch}</button>
+                )}
+              </div>
+              {!result && <div className="hint">{t.hint}</div>}
+              {error && <div className="err">{t.notFound}</div>}
             </div>
-            <div className="hint">{t.hint}</div>
-            {error && <div className="error-msg">{t.notFound}</div>}
           </div>
         </div>
 
+        {/* Result */}
         {result && (
-          <div className="result-card">
-            <div className="appt-header">
-              <div
-                className="status-badge"
-                style={{
-                  background: result.isToday ? 'rgba(16,185,129,.15)' : 'rgba(6,182,212,.1)',
-                  border: `1px solid ${result.isToday ? 'rgba(16,185,129,.3)' : 'rgba(6,182,212,.25)'}`,
-                }}
-              >
-                <div className="status-dot" style={{ background: result.isToday ? '#10B981' : '#06B6D4' }} />
-                <div className="status-text" style={{ color: result.isToday ? '#10B981' : '#06B6D4' }}>
-                  {result.isToday ? t.today : (t.status[result.status] ?? t.status.CONFIRMED)}
+          <div className="result-area">
+            {/* Left */}
+            <div className="r-left">
+              <div className="r-hero">
+                <div className="sbadge" style={{ background: statusBg, border: `1px solid ${statusBorder}` }}>
+                  <div className="sdot" style={{ background: statusColor }} />
+                  <div className="slabel" style={{ color: statusColor }}>
+                    {result.isToday ? t.today : (t.status[result.status] ?? t.status.CONFIRMED)}
+                  </div>
                 </div>
+                <div className="patient-name">{result.firstName}</div>
+                <div className="case-line">{result.caseCode ?? '—'} · {result.apptType}</div>
               </div>
-              <div className="appt-patient">{result.firstName}</div>
-              <div className="appt-case">{result.caseCode ?? '—'} · {result.apptType}</div>
-            </div>
-
-            <div className="appt-body">
-              <div className="big-date">
-                <div className="when-label">
-                  {result.isToday ? t.apptToday : t.inDays(result.daysUntil)}
-                </div>
-                <div className="day-text">{dateStr}</div>
-                <div className="time-row">
-                  <div className="time-text">{timeStr}</div>
-                  <div className="sep">·</div>
-                  <div className="clinic-name">{result.clinicName}</div>
-                </div>
-              </div>
-
-              <div className="details-grid">
-                <div className="detail-box">
-                  <div className="detail-label">{t.doctor}</div>
-                  <div className="detail-value">{result.doctorName ?? '—'}</div>
-                </div>
-                <div className="detail-box">
-                  <div className="detail-label">{t.address}</div>
-                  <div className="detail-value" style={{ fontSize: '12px' }}>{result.clinicAddr ?? result.clinicName}</div>
-                </div>
-                <div className="detail-box">
-                  <div className="detail-label">{t.visitType}</div>
-                  <div className="detail-value">{result.apptType}</div>
-                </div>
-                <div className="detail-box">
-                  <div className="detail-label">{t.duration}</div>
-                  <div className="detail-value">~15 min</div>
-                </div>
-              </div>
-
-              <div className="alert-box">
-                <div style={{ fontSize: '16px', marginTop: '1px' }}>⏰</div>
-                <div className="alert-text">
-                  {result.isToday ? t.alertToday : t.alertFuture}
-                </div>
+              <div className="date-block">
+                <div className="when-lbl">{result.isToday ? t.apptToday : t.inDays(result.daysUntil)}</div>
+                <div className="day-big">{dateStr}</div>
+                <div className="time-big">{timeStr}</div>
+                <div className="clinic-lbl">{result.clinicName}</div>
               </div>
             </div>
 
-            {!result.isToday && result.daysUntil > 0 && (
-              <div className="footer-box">
-                <div className="days-badge">
+            {/* Right */}
+            <div className="r-right">
+              <div className="det-grid">
+                <div className="dbox">
+                  <div className="dlbl">{t.doctor}</div>
+                  <div className="dval">{result.doctorName ?? '—'}</div>
+                </div>
+                <div className="dbox">
+                  <div className="dlbl">{t.address}</div>
+                  <div className="dval" style={{fontSize:'11px'}}>{result.clinicAddr ?? result.clinicName}</div>
+                </div>
+                <div className="dbox">
+                  <div className="dlbl">{t.visitType}</div>
+                  <div className="dval">{result.apptType}</div>
+                </div>
+                <div className="dbox">
+                  <div className="dlbl">{t.duration}</div>
+                  <div className="dval">~15 min</div>
+                </div>
+              </div>
+
+              <div className="alert">
+                <div style={{fontSize:'15px', marginTop:'1px'}}>⏰</div>
+                <div className="alert-txt">{result.isToday ? t.alertToday : t.alertFuture}</div>
+              </div>
+
+              {!result.isToday && result.daysUntil > 0 && (
+                <div className="days-strip">
                   <div className="days-num">{result.daysUntil}</div>
-                  <div className="days-label">{t.daysLabel(result.daysUntil)}</div>
+                  <div className="days-lbl">{t.daysLabel(result.daysUntil)}</div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
-        <div className="hipaa-note">HIPAA · {t.hipaa}</div>
+        <div className="hipaa">HIPAA · {t.hipaa}</div>
       </div>
     </>
   );

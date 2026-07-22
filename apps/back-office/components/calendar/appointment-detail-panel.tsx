@@ -8,21 +8,22 @@
  * Tab 3: Pagos — KPIs del caso + registrar pago inline
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   Phone, MessageSquare, RefreshCw, Calendar,
-  CheckCircle2, AlertTriangle, ChevronRight, ChevronDown, ChevronUp,
+  CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
   User, Scale, Shield, Headphones, Check, Edit2, Ban,
   AlertCircle, Search, X, Plus, Trash2, DollarSign,
-  Stethoscope, Loader2, Clock, CreditCard, FileText,
+  Stethoscope, Loader2, Clock,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 import { Dialog, DialogContent } from '@precision/ui';
 import { AppointmentSecondaryModals, type SecondaryModalType } from './appointment-secondary-modals';
 import { AppointmentDialog, type EditAppointmentData } from './appointment-dialog';
+import { FinanzasTab } from '@/components/cases/finanzas-tab';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -62,107 +63,6 @@ interface PlannedService {
   description: string;
   fee: number;
   category: string;
-}
-
-interface BillingPayment {
-  id: string;
-  amount: number;
-  source: 'INSURANCE' | 'PATIENT' | 'LAWYER';
-  paymentType: string | null;
-  method: string;
-  status: 'COMPLETED' | 'PENDING' | 'CANCELLED';
-  insuranceCarrier: { id: string; name: string } | null;
-  notes: string | null;
-  paidAt: string | null;
-  createdAt: string;
-}
-
-interface BillingRecord {
-  id: string;
-  appointmentId: string | null;
-  appointmentDate: string | null;
-  appointmentStatus: string | null;
-  totalCost: number;
-  discount: number;
-  insuranceCovered: number;
-  amountPaid: number;
-  balanceDue: number;
-  payments: BillingPayment[];
-}
-
-interface CaseInsurance { id: string; name: string; label: string }
-
-// ─── Payment constants ────────────────────────────────────────────────────────
-
-const PAYMENT_TYPE_KEYS: Record<string, { tKey: string; value: string }[]> = {
-  INSURANCE: [
-    { tKey: 'paymentTypeDirectInsurance',         value: 'direct_insurance' },
-    { tKey: 'paymentTypeContractualObligation',   value: 'contractual_obligation' },
-    { tKey: 'paymentTypeLateFilingPenalty',       value: 'late_filing_penalty' },
-  ],
-  LAWYER: [
-    { tKey: 'paymentTypeAttorneyPayment',   value: 'attorney_payment' },
-    { tKey: 'paymentTypeReductionAgreement', value: 'reduction_agreement' },
-  ],
-  PATIENT: [
-    { tKey: 'paymentTypeCopay',                 value: 'copay' },
-    { tKey: 'paymentTypeDeductible',            value: 'deductible' },
-    { tKey: 'paymentTypeCoinsurance',           value: 'coinsurance' },
-    { tKey: 'paymentTypePatientDirect',         value: 'patient_direct' },
-    { tKey: 'paymentTypeProfessionalCourtesy',  value: 'professional_courtesy' },
-    { tKey: 'paymentTypeExternalCollections',   value: 'external_collections' },
-  ],
-};
-
-const METHOD_TKEYS: Record<string, string> = {
-  CHECK: 'methodCheck', CARD: 'methodCard', CASH: 'methodCash', TRANSFER: 'methodTransfer', NONE: 'methodNone',
-};
-
-const SOURCE_TKEYS: Record<string, string> = {
-  INSURANCE: 'sourceInsurance', PATIENT: 'sourcePatient', LAWYER: 'sourceLawyer',
-};
-
-// ─── SelectUp ────────────────────────────────────────────────────────────────
-
-interface SelectOption { label: string; value: string }
-
-function SelectUp({ value, onChange, options, placeholder, className = '' }: {
-  value: string; onChange: (v: string) => void;
-  options: SelectOption[]; placeholder?: string; className?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const selected = options.find(o => o.value === value);
-
-  useEffect(() => {
-    function outside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', outside);
-    return () => document.removeEventListener('mousedown', outside);
-  }, []);
-
-  return (
-    <div ref={ref} className={`relative ${className}`}>
-      <button type="button" onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors">
-        <span className={selected ? 'text-text-1' : 'text-text-muted'}>{selected?.label ?? placeholder ?? '—'}</span>
-        {open ? <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" /> : <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />}
-      </button>
-      {open && (
-        <div className="absolute bottom-full mb-1 left-0 right-0 z-50 bg-bg-1 border border-border rounded-md shadow-xl overflow-hidden">
-          {options.map(opt => (
-            <button key={opt.value} type="button"
-              onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between gap-2 ${opt.value === value ? 'bg-brand/10 text-brand' : 'text-text-1 hover:bg-bg-2'}`}>
-              {opt.label}
-              {opt.value === value && <span className="text-brand text-xs">✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 interface Props {
@@ -256,23 +156,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const [savingSvc,      setSavingSvc]      = useState(false);
   const [savedOk,        setSavedOk]        = useState(false);
 
-  // ── Payments tab ──────────────────────────────────────────────────────────
-  const [billings,       setBillings]       = useState<BillingRecord[]>([]);
-  const [billKpis,       setBillKpis]       = useState<{ totalCost: number; totalPaid: number; totalBalance: number }>({ totalCost: 0, totalPaid: 0, totalBalance: 0 });
-  const [insurances,     setInsurances]     = useState<CaseInsurance[]>([]);
-  const [loadingBill,    setLoadingBill]    = useState(false);
-  const [billLoaded,     setBillLoaded]     = useState(false);
-  const [expanded,       setExpanded]       = useState<Set<string>>(new Set());
-  // Modal
-  const [payOpen,        setPayOpen]        = useState(false);
-  const [payAmounts,     setPayAmounts]     = useState<Record<string, string>>({});
-  const [payNotes,       setPayNotes]       = useState<Record<string, string>>({});
-  const [paySource,      setPaySource]      = useState<'INSURANCE'|'PATIENT'|'LAWYER'>('PATIENT');
-  const [payMethod,      setPayMethod]      = useState<string>('CHECK');
-  const [payType,        setPayType]        = useState<string>('');
-  const [payInsuranceId, setPayInsuranceId] = useState<string>('');
-  const [paying,         setPaying]         = useState(false);
-  const [deletingPay,    setDeletingPay]    = useState<string | null>(null);
 
   const isFirst   = appt.visitNumber === 0;
   const dt        = formatDateTime(appt.scheduledFor);
@@ -293,43 +176,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       })
       .catch(() => setSvcLoaded(true));
   }, [activeTab, appt.id, svcLoaded]);
-
-  // ── Load billing when tab opens ───────────────────────────────────────────
-  const loadBilling = useCallback(async () => {
-    if (!appt.case?.id) return;
-    setLoadingBill(true);
-    try {
-      const res = await fetch(`/api/admin/cases/${appt.case.id}/billing`);
-      const data = await res.json();
-      let billingList: BillingRecord[] = data.billings ?? [];
-
-      // If THIS appointment has no billing record but has services, sync it now
-      const hasThisApptBilling = billingList.some(b => b.appointmentId === appt.id);
-      if (!hasThisApptBilling && appt.id) {
-        const sync = await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, { method: 'POST' });
-        if (sync.ok) {
-          const res2 = await fetch(`/api/admin/cases/${appt.case.id}/billing`);
-          const data2 = await res2.json();
-          billingList = data2.billings ?? [];
-          setBillKpis(data2.kpis ?? { totalCost: 0, totalPaid: 0, totalBalance: 0 });
-          setInsurances(data2.insurances ?? []);
-        }
-      } else {
-        setBillKpis(data.kpis ?? { totalCost: 0, totalPaid: 0, totalBalance: 0 });
-        setInsurances(data.insurances ?? []);
-      }
-
-      setBillings(billingList);
-      setBillLoaded(true);
-    } catch { /* silent */ } finally {
-      setLoadingBill(false);
-    }
-  }, [appt.case?.id, appt.id]);
-
-  useEffect(() => {
-    if (activeTab !== 'payments' || billLoaded) return;
-    loadBilling();
-  }, [activeTab, billLoaded, loadBilling]);
 
   // ── Service search debounce ───────────────────────────────────────────────
   useEffect(() => {
@@ -357,8 +203,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       });
       if (res.ok) {
         setSavedOk(true);
-        setBillLoaded(false); // force billing reload so Payments tab reflects new totals
-        setTimeout(() => setSavedOk(false), 2000);
+setTimeout(() => setSavedOk(false), 2000);
       }
     } finally {
       setSavingSvc(false);
@@ -410,83 +255,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     } catch (e) {
       setCancelError(e instanceof Error ? e.message : t('errorCancelAppointment'));
     } finally { setCancelling(false); }
-  };
-
-  // ── Payment helpers ───────────────────────────────────────────────────────
-  function toggleExpanded(id: string) {
-    setExpanded(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-
-  function openPayModal() {
-    const pending = billings.filter(b => b.balanceDue > 0);
-    const init: Record<string, string> = {};
-    pending.forEach(b => { init[b.id] = ''; });
-    setPayAmounts(init);
-    setPayNotes({});
-    setPaySource('PATIENT');
-    setPayMethod('CHECK');
-    setPayType(PAYMENT_TYPE_KEYS['PATIENT'][0].value);
-    setPayInsuranceId(insurances[0]?.id ?? '');
-    setPayOpen(true);
-  }
-
-  function autoDistribute(totalStr: string) {
-    const total = parseFloat(totalStr);
-    if (!total || total <= 0) return;
-    const pending = billings.filter(b => b.balanceDue > 0);
-    const newAmounts: Record<string, string> = {};
-    let remaining = total;
-    for (const b of pending) {
-      if (remaining <= 0) { newAmounts[b.id] = ''; continue; }
-      const apply = Math.min(remaining, b.balanceDue);
-      newAmounts[b.id] = apply.toFixed(2);
-      remaining -= apply;
-    }
-    setPayAmounts(prev => ({ ...prev, ...newAmounts }));
-  }
-
-  const submitPayment = async () => {
-    if (!appt.case?.id) return;
-    const entries = Object.entries(payAmounts)
-      .filter(([, v]) => parseFloat(v) > 0)
-      .map(([billingId, v]) => ({ billingId, amount: parseFloat(v), notes: payNotes[billingId] || null }));
-    if (!entries.length) return;
-    setPaying(true);
-    try {
-      const res = await fetch(`/api/admin/cases/${appt.case.id}/billing/pay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payments: entries,
-          source: paySource, method: payMethod,
-          paymentType: payType || null,
-          insuranceCarrierId: paySource === 'INSURANCE' ? (payInsuranceId || null) : null,
-          paidAt: new Date().toISOString(),
-        }),
-      });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.message ?? `HTTP ${res.status}`); }
-      setPayOpen(false);
-      setBillLoaded(false);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : t('errorRegisterPayment'));
-    } finally { setPaying(false); }
-  };
-
-  const deletePayment = async (billingId: string, payId: string) => {
-    if (!appt.case?.id) return;
-    if (!confirm(t('confirmCancelPayment'))) return;
-    setDeletingPay(payId);
-    try {
-      const res = await fetch(`/api/admin/cases/${appt.case.id}/billing/${billingId}/payments/${payId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setBillLoaded(false);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : t('errorCancelPayment'));
-    } finally { setDeletingPay(null); }
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -786,319 +554,15 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           )}
 
           {/* ─── Tab: Pagos ──────────────────────────────────────── */}
-          {activeTab === 'payments' && (() => {
-            const pending      = billings.filter(b => b.balanceDue > 0);
-            const totalPending = pending.reduce((s, b) => s + b.balanceDue, 0);
-            const payTotal     = Object.values(payAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-            const sourceOpts   = [{ label: t('sourcePatient'), value: 'PATIENT' }, { label: t('sourceInsurance'), value: 'INSURANCE' }, { label: t('sourceLawyer'), value: 'LAWYER' }];
-            const methodOpts   = [{ label: t('methodCheck'), value: 'CHECK' }, { label: t('methodCard'), value: 'CARD' }, { label: t('methodCash'), value: 'CASH' }, { label: t('methodTransfer'), value: 'TRANSFER' }, { label: t('methodNone'), value: 'NONE' }];
-            const typeOpts     = (PAYMENT_TYPE_KEYS[paySource] ?? []).map(o => ({ label: t(o.tKey as Parameters<typeof t>[0]), value: o.value }));
-            const insuranceOpts = insurances.map(i => ({ label: i.label, value: i.id }));
-
-            return (
-              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {activeTab === 'payments' && (
+              <div className="flex-1 overflow-y-auto">
                 {!appt.case ? (
                   <div className="text-text-muted text-sm text-center py-8">{t('noCaseAssociated')}</div>
-                ) : loadingBill ? (
-                  <div className="flex items-center justify-center py-10 text-text-muted text-xs gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> {t('loadingBillingData')}
-                  </div>
                 ) : (
-                  <>
-                    {/* Header */}
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-amber" />
-                        <span className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('sectionFinancialSummary')}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => { setBillLoaded(false); }}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
-                          <RefreshCw className={`w-3 h-3 ${loadingBill ? 'animate-spin' : ''}`} /> {t('actionRefresh')}
-                        </button>
-                        {billKpis.totalBalance > 0 && (
-                          <button type="button" onClick={openPayModal}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors">
-                            <CreditCard className="w-3.5 h-3.5" /> {t('actionPayDebt')}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* KPIs */}
-                    <div className="flex gap-3 flex-wrap">
-                      {[
-                        { label: t('kpiTotalCost'),    value: billKpis.totalCost,    color: 'text-text-1' },
-                        { label: t('kpiTotalPaid'),    value: billKpis.totalPaid,    color: 'text-emerald' },
-                        { label: t('kpiTotalBalance'), value: billKpis.totalBalance, color: billKpis.totalBalance > 0 ? 'text-rose' : 'text-text-1' },
-                      ].map(k => (
-                        <div key={k.label} className="rounded-lg border border-border bg-bg-1 p-4 flex-1 min-w-0">
-                          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{k.label}</div>
-                          <div className={`text-xl font-bold font-mono ${k.color}`}>{fmt$(k.value)}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Table */}
-                    {billings.length === 0 ? (
-                      <div className="flex flex-col items-center py-10 text-center">
-                        <DollarSign className="w-8 h-8 text-text-muted/40 mb-3" />
-                        <div className="text-text-muted text-sm">{t('emptyBillingTitle')}</div>
-                        <div className="text-text-muted/60 text-xs mt-1">{t('emptyBillingHint')}</div>
-                      </div>
-                    ) : (
-                      <div className="rounded-lg border border-border overflow-hidden">
-                        <div className="px-4 py-2 bg-bg-2/60 border-b border-border">
-                          <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('billingDetailByVisit')}</span>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-border/60 bg-bg-2/40">
-                                <th className="w-6 px-2" />
-                                <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colDate')}</th>
-                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colCost')}</th>
-                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colDiscount')}</th>
-                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPaid')}</th>
-                                <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPending')}</th>
-                                <th className="w-10 px-3 py-2.5" />
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {billings.map(b => {
-                                const isThisAppt = b.appointmentId === appt.id;
-                                const isExp      = expanded.has(b.id);
-                                const discPct    = b.totalCost > 0 && b.discount > 0
-                                  ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
-
-                                return (
-                                  <React.Fragment key={b.id}>
-                                    <tr
-                                      className={`border-b border-border hover:bg-white/[0.02] cursor-pointer ${b.balanceDue <= 0 ? 'opacity-75' : ''} ${isThisAppt ? 'bg-cyan/5' : ''}`}
-                                      onClick={() => toggleExpanded(b.id)}
-                                    >
-                                      <td className="px-2 py-3 text-text-muted">
-                                        {isExp ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                                      </td>
-                                      <td className="px-3 py-3 text-text-1 font-mono text-xs whitespace-nowrap">
-                                        <span className="flex items-center gap-1.5">
-                                          {b.appointmentDate
-                                            ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-                                            : '—'}
-                                          {isThisAppt && <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">{t('billingThisVisitBadge')}</span>}
-                                        </span>
-                                      </td>
-                                      <td className="px-3 py-3 text-right font-semibold font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
-                                      <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">{discPct}%</td>
-                                      <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
-                                        <span className={b.amountPaid > 0 ? 'text-emerald font-semibold' : 'text-text-muted'}>{fmt$(b.amountPaid)}</span>
-                                      </td>
-                                      <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
-                                        {b.balanceDue > 0
-                                          ? <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold">{fmt$(b.balanceDue)}</span>
-                                          : <span className="text-emerald font-semibold text-xs">{fmt$(0)}</span>}
-                                      </td>
-                                      <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                                        <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title={t('tooltipNote')}>
-                                          <FileText className="w-3.5 h-3.5" />
-                                        </button>
-                                      </td>
-                                    </tr>
-
-                                    {/* Sub-filas de pagos */}
-                                    {isExp && (
-                                      <tr key={`${b.id}-pays`} className="border-b border-border bg-bg-2/30">
-                                        <td colSpan={7} className="px-6 py-0">
-                                          {b.payments.length === 0 ? (
-                                            <div className="py-3 text-text-muted text-xs italic">{t('emptyPayments')}</div>
-                                          ) : (
-                                            <table className="w-full text-xs my-2">
-                                              <thead>
-                                                <tr className="text-text-muted">
-                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">{t('colPaymentDate')}</th>
-                                                  <th className="text-right py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider">{t('colAmount')}</th>
-                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">{t('colMethod')}</th>
-                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden sm:table-cell">{t('colPaidBy')}</th>
-                                                  <th className="text-left py-1.5 pr-4 font-semibold text-[10px] uppercase tracking-wider hidden md:table-cell">{t('colStatus')}</th>
-                                                  <th className="w-8" />
-                                                </tr>
-                                              </thead>
-                                              <tbody className="divide-y divide-border/20">
-                                                {b.payments.map(p => (
-                                                  <tr key={p.id} className={p.status === 'CANCELLED' ? 'opacity-40' : ''}>
-                                                    <td className="py-1.5 pr-4 font-mono text-text-2">{p.paidAt ? new Date(p.paidAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}</td>
-                                                    <td className="py-1.5 pr-4 text-right font-mono font-semibold text-emerald whitespace-nowrap">{fmt$(p.amount)}</td>
-                                                    <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">{METHOD_TKEYS[p.method] ? t(METHOD_TKEYS[p.method] as Parameters<typeof t>[0]) : p.method}</td>
-                                                    <td className="py-1.5 pr-4 text-text-2 hidden sm:table-cell">
-                                                      {SOURCE_TKEYS[p.source] ? t(SOURCE_TKEYS[p.source] as Parameters<typeof t>[0]) : p.source}
-                                                      {p.insuranceCarrier && <span className="text-text-muted"> · {p.insuranceCarrier.name}</span>}
-                                                    </td>
-                                                    <td className="py-1.5 pr-4 hidden md:table-cell">
-                                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                                        p.status === 'COMPLETED' ? 'bg-emerald/10 text-emerald' :
-                                                        p.status === 'CANCELLED' ? 'bg-rose/10 text-rose' : 'bg-amber/10 text-amber'
-                                                      }`}>
-                                                        {p.status === 'COMPLETED' ? t('paymentStatusCompleted') : p.status === 'CANCELLED' ? t('paymentStatusCancelled') : t('paymentStatusPending')}
-                                                      </span>
-                                                    </td>
-                                                    <td className="py-1.5">
-                                                      {p.status !== 'CANCELLED' && (
-                                                        <button onClick={() => deletePayment(b.id, p.id)} disabled={deletingPay === p.id}
-                                                          className="p-1 rounded text-text-muted hover:text-rose transition-colors disabled:opacity-50" title={t('tooltipCancelPayment')}>
-                                                          {deletingPay === p.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                                                        </button>
-                                                      )}
-                                                    </td>
-                                                  </tr>
-                                                ))}
-                                              </tbody>
-                                            </table>
-                                          )}
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </React.Fragment>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ── Modal: Pagar deuda ──────────────────────────────── */}
-                    {payOpen && (
-                      <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/70 p-4 overflow-y-auto" onClick={() => setPayOpen(false)}>
-                        <div className="bg-bg-1 border border-border rounded-xl w-full max-w-3xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
-
-                          {/* Modal header */}
-                          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                            <div>
-                              <h2 className="text-text-1 font-semibold text-base flex items-center gap-2">
-                                <CreditCard className="w-4 h-4 text-amber" /> {t('payModalTitle')}
-                              </h2>
-                              <p className="text-text-muted text-xs mt-0.5">{t('payModalSubtitle')}</p>
-                            </div>
-                            <button onClick={() => setPayOpen(false)} className="text-text-muted hover:text-text-1 transition-colors p-1">
-                              <X className="w-5 h-5" />
-                            </button>
-                          </div>
-
-                          {/* Summary bar */}
-                          <div className="grid grid-cols-2 border-b border-border">
-                            <div className="px-5 py-3 border-r border-border">
-                              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payModalTotalPending')}</div>
-                              <div className="text-xl font-bold font-mono text-rose mt-0.5">{fmt$(totalPending)}</div>
-                            </div>
-                            <div className="px-5 py-3">
-                              <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payModalPendingCount')}</div>
-                              <div className="text-xl font-bold font-mono text-text-1 mt-0.5">{pending.length}</div>
-                            </div>
-                          </div>
-
-                          {/* Distribution table */}
-                          <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                            <table className="w-full text-sm">
-                              <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
-                                <tr>
-                                  <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colDate')}</th>
-                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colCost')}</th>
-                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colDiscount')}</th>
-                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPaid')}</th>
-                                  <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPending')}</th>
-                                  <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28">{t('colPayAction')}</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-border/40">
-                                {pending.map(b => {
-                                  const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
-                                  const isThisAppt = b.appointmentId === appt.id;
-                                  return (
-                                    <tr key={b.id} className={`hover:bg-white/[0.02] ${isThisAppt ? 'bg-cyan/5' : ''}`}>
-                                      <td className="px-4 py-3 text-text-1 font-mono text-xs whitespace-nowrap">
-                                        <span className="flex items-center gap-1.5">
-                                          {b.appointmentDate ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '—'}
-                                          {isThisAppt && <span className="text-[9px] font-bold text-cyan bg-cyan/15 px-1 rounded leading-4">{t('billingThisVisitBadge')}</span>}
-                                        </span>
-                                      </td>
-                                      <td className="px-3 py-3 text-right font-mono text-xs">{fmt$(b.totalCost)}</td>
-                                      <td className="px-3 py-3 text-right text-text-muted font-mono text-xs hidden md:table-cell">{discPct}%</td>
-                                      <td className="px-3 py-3 text-right text-emerald font-mono text-xs">{fmt$(b.amountPaid)}</td>
-                                      <td className="px-3 py-3 text-right">
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold">{fmt$(b.balanceDue)}</span>
-                                      </td>
-                                      <td className="px-3 py-3">
-                                        <div className="flex items-center gap-1">
-                                          <input type="number" min="0" max={b.balanceDue} step="0.01"
-                                            value={payAmounts[b.id] ?? ''}
-                                            onChange={e => {
-                                              const raw = parseFloat(e.target.value);
-                                              const val = isNaN(raw) ? '' : Math.min(raw, b.balanceDue).toFixed(2);
-                                              setPayAmounts(prev => ({ ...prev, [b.id]: val }));
-                                            }}
-                                            className="w-full rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
-                                            placeholder="0.00"
-                                          />
-                                          <button type="button"
-                                            onClick={() => setPayAmounts(prev => ({ ...prev, [b.id]: b.balanceDue.toFixed(2) }))}
-                                            className="text-[10px] text-brand hover:text-brand/70 transition-colors font-semibold flex-shrink-0">
-                                            MAX
-                                          </button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-
-                          {/* Footer */}
-                          <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
-                            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payFooterTitle')}</div>
-                            <div className="grid grid-cols-3 gap-2">
-                              <SelectUp value={paySource} onChange={v => {
-                                const src = v as typeof paySource;
-                                setPaySource(src);
-                                setPayType(PAYMENT_TYPE_KEYS[src]?.[0]?.value ?? '');
-                                if (src === 'INSURANCE') setPayInsuranceId(insurances[0]?.id ?? '');
-                              }} options={sourceOpts} />
-                              <SelectUp value={payMethod} onChange={setPayMethod} options={methodOpts} />
-                              {paySource === 'INSURANCE' ? (
-                                <SelectUp value={payInsuranceId} onChange={setPayInsuranceId}
-                                  options={insuranceOpts.length ? insuranceOpts : [{ label: t('noInsurancesInCase'), value: '' }]}
-                                  placeholder={t('selectInsurancePlaceholder')} />
-                              ) : (
-                                <SelectUp value={payType} onChange={setPayType} options={typeOpts} />
-                              )}
-                            </div>
-                            {paySource === 'INSURANCE' && (
-                              <SelectUp value={payType} onChange={setPayType} options={typeOpts} />
-                            )}
-                            <div className="flex items-center gap-2">
-                              <input type="number" min="0" step="0.01" placeholder="0"
-                                onChange={e => autoDistribute(e.target.value)}
-                                className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
-                                title={t('autoDistributeTooltip')} />
-                              <button type="button" onClick={submitPayment}
-                                disabled={paying || payTotal <= 0}
-                                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-amber text-black text-sm font-semibold hover:bg-amber/90 transition-colors disabled:opacity-50 whitespace-nowrap">
-                                {paying
-                                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('payProcessing')}</>
-                                  : <>{t('actionPay')}{payTotal > 0 ? ` ${fmt$(payTotal)}` : '…'}</>
-                                }
-                              </button>
-                            </div>
-                          </div>
-
-                        </div>
-                      </div>
-                    )}
-                  </>
+                  <FinanzasTab caseId={appt.case.id} />
                 )}
               </div>
-            );
-          })()}
+          )}
 
           {/* ─── Footer ──────────────────────────────────────────── */}
           {activeTab === 'detail' && (

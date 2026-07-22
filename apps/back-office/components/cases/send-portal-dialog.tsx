@@ -181,7 +181,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
 
         <div className="space-y-4 py-4">
           {/* Patient info */}
-          <div className="rounded-md border border-border/30 bg-bg-2/30 p-3 text-xs space-y-1">
+          <div className="rounded-md border border-border bg-bg-2/30 p-3 text-xs space-y-1">
             <div className="flex items-center gap-2 text-text-1 font-semibold">
               {caseInfo.patient.firstName} {caseInfo.patient.lastName}
               <code className="text-text-muted text-[10px] font-mono">{caseInfo.caseCode}</code>
@@ -208,10 +208,10 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                 onClick={() => setVia('SMS')}
                 className={`flex items-center justify-center gap-2 px-3 py-3 rounded-md border transition-all text-sm ${
                   !canSendSms
-                    ? 'bg-bg-2 border-border/30 opacity-40 cursor-not-allowed text-text-muted'
+                    ? 'bg-bg-2 border-border opacity-40 cursor-not-allowed text-text-muted'
                     : via === 'SMS'
                       ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                      : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
+                      : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                 }`}
               >
                 <MessageSquare className="w-4 h-4" />
@@ -224,10 +224,10 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                 onClick={() => setVia('EMAIL')}
                 className={`flex items-center justify-center gap-2 px-3 py-3 rounded-md border transition-all text-sm ${
                   !canSendEmail
-                    ? 'bg-bg-2 border-border/30 opacity-40 cursor-not-allowed text-text-muted'
+                    ? 'bg-bg-2 border-border opacity-40 cursor-not-allowed text-text-muted'
                     : via === 'EMAIL'
                       ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                      : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
+                      : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                 }`}
               >
                 <Mail className="w-4 h-4" />
@@ -247,7 +247,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                 className={`px-3 py-2 rounded-md border text-sm ${
                   language === 'es'
                     ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                    : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
+                    : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                 }`}
               >
                 🇪🇸 Español
@@ -258,7 +258,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                 className={`px-3 py-2 rounded-md border text-sm ${
                   language === 'en'
                     ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                    : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
+                    : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                 }`}
               >
                 🇺🇸 English
@@ -269,7 +269,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
           {/* Template preview */}
           <div>
             <Label>Preview del mensaje</Label>
-            <div className="mt-1.5 rounded-md border border-border/30 bg-bg-2/50 p-3 text-xs text-text-2 font-mono whitespace-pre-wrap">
+            <div className="mt-1.5 rounded-md border border-border bg-bg-2/50 p-3 text-xs text-text-2 font-mono whitespace-pre-wrap">
               {previewTemplate}
             </div>
             <div className="text-[10px] text-text-muted mt-1.5">

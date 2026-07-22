@@ -145,12 +145,12 @@ function SelectUp({ value, onChange, options, placeholder, className = '' }: {
   return (
     <div ref={ref} className={`relative ${className}`}>
       <button type="button" onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors">
+        className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors">
         <span className={selected ? 'text-text-1' : 'text-text-muted'}>{selected?.label ?? placeholder ?? '—'}</span>
         {open ? <ChevronDown className="w-3.5 h-3.5 text-text-muted flex-shrink-0" /> : <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />}
       </button>
       {open && (
-        <div className="absolute bottom-full mb-1 left-0 right-0 z-50 bg-bg-1 border border-border/30 rounded-md shadow-xl overflow-hidden">
+        <div className="absolute bottom-full mb-1 left-0 right-0 z-50 bg-bg-1 border border-border rounded-md shadow-xl overflow-hidden">
           {options.map(opt => (
             <button key={opt.value} type="button"
               onClick={() => { onChange(opt.value); setOpen(false); }}
@@ -501,7 +501,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
           {/* ─── Header (solo en modal, no inline) ──────────────── */}
           {!inline && (
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border/30 shrink-0">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <div className="flex items-center gap-3">
                 <Calendar className="w-4 h-4 text-cyan" />
                 <div>
@@ -514,7 +514,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           )}
 
           {/* ─── Tabs (inline: solo services y payments) ─────────── */}
-          <div className="flex border-b border-border/30 shrink-0">
+          <div className="flex border-b border-border shrink-0">
             {TABS.filter(tab => !inline || tab.id !== 'detail').map(tab => (
               <button
                 key={tab.id}
@@ -562,7 +562,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               )}
 
               {/* Paciente */}
-              <div className="rounded-lg border border-border/30 bg-bg-2/30 p-4">
+              <div className="rounded-lg border border-border bg-bg-2/30 p-4">
                 <div className="flex items-center gap-3">
                   <PersonAvatar firstName={appt.patient.firstName} lastName={appt.patient.lastName} size={10} />
                   <div className="flex-1 min-w-0">
@@ -576,7 +576,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full text-white"
                       style={{ background: 'linear-gradient(135deg,#ec4899,#f43f5e)' }}>🆕 {t('firstVisitBadge')}</span>
                   ) : (
-                    <span className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full bg-bg-2 text-text-muted border border-border/30">
+                    <span className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full bg-bg-2 text-text-muted border border-border">
                       {t('visitNumberLabel', { n: appt.visitNumber + 1 })}
                     </span>
                   )}
@@ -584,7 +584,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               </div>
 
               {/* Info de la cita */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📅 {t('sectionAppointmentInfo')}</div>
                 <div className="space-y-2 text-[12.5px]">
                   <Row label={t('rowDateAndTime')}  value={`${dt.dayName} ${dt.date} · ${dt.time}`} highlight />
@@ -601,7 +601,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               </div>
 
               {/* Checklist pre-cita */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">🎯 {t('sectionPreVisitStatus')}</div>
                 <div className="space-y-2">
                   <CheckItem done={intakeDone}    label={t('checklistIntakeForm')}             sublabel={intakeDone ? t('checklistCompleted') : t('checklistIntakePending')} />
@@ -612,7 +612,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               </div>
 
               {/* Notas */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">📝 {t('sectionNotes')}</div>
                   <button type="button" onClick={() => setEditOpen(true)}
@@ -626,34 +626,34 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               </div>
 
               {/* Acciones rápidas */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📞 {t('sectionQuickActions')}</div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {appt.patient.phone && (
                     <a href={`tel:${appt.patient.phone}`}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border/30 hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
                       <Phone className="w-4 h-4" /> {t('actionCall')}
                     </a>
                   )}
                   {appt.patient.phone && (
                     <a href={`sms:${appt.patient.phone}`}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border/30 hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
                       <MessageSquare className="w-4 h-4" /> {t('actionSms')}
                     </a>
                   )}
                   <button type="button" onClick={() => setRescheduleOpen(true)}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border/30 hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
                     <RefreshCw className="w-4 h-4" /> {t('actionReschedule')}
                   </button>
                   <button type="button" onClick={() => setActiveModal('intake')}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border/30 hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
                     <MessageSquare className="w-4 h-4" /> {t('actionResendForm')}
                   </button>
                 </div>
               </div>
 
               {/* Info detallada */}
-              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+              <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📂 {t('sectionDetailedInfo')}</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <SecondaryBtn icon={<User className="w-4 h-4" />}       label={t('secondaryBtnPersonal')}    color="brand"   onClick={() => setActiveModal('personal')} />
@@ -692,7 +692,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     value={serviceSearch}
                     onChange={e => setServiceSearch(e.target.value)}
                     placeholder={t('searchServicePlaceholder')}
-                    className="w-full bg-bg-2 border border-border/30 rounded-lg pl-9 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan transition-colors"
+                    className="w-full bg-bg-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan transition-colors"
                   />
                   {serviceSearch && (
                     <button type="button" onClick={() => { setServiceSearch(''); setServiceResults([]); }}
@@ -703,7 +703,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
                   {/* Resultados dropdown */}
                   {(searchingSvc || serviceResults.length > 0) && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border/30 rounded-lg shadow-xl z-20 overflow-hidden">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-lg shadow-xl z-20 overflow-hidden">
                       {searchingSvc && (
                         <div className="px-3 py-2 text-text-muted text-xs flex items-center gap-1.5">
                           <Loader2 className="w-3 h-3 animate-spin" /> {t('searching')}
@@ -747,7 +747,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   <div className="text-text-muted/60 text-xs mt-1">{t('emptyServicesHint')}</div>
                 </div>
               ) : (
-                <div className="rounded-lg border border-border/30 overflow-hidden">
+                <div className="rounded-lg border border-border overflow-hidden">
                   <div className="grid grid-cols-[60px_1fr_90px_36px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
                     <span>{t('colCode')}</span>
                     <span>{t('colDescription')}</span>
@@ -767,7 +767,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                           const v = parseFloat(e.target.value);
                           if (!isNaN(v) && v !== svc.fee) updateServiceFee(svc.id, v);
                         }}
-                        className="w-full text-right bg-transparent border border-transparent hover:border-border/30 focus:border-cyan rounded px-1.5 py-0.5 text-xs font-semibold text-text-1 focus:outline-none focus:bg-bg-2 transition-colors"
+                        className="w-full text-right bg-transparent border border-transparent hover:border-border focus:border-cyan rounded px-1.5 py-0.5 text-xs font-semibold text-text-1 focus:outline-none focus:bg-bg-2 transition-colors"
                       />
                       <button type="button" onClick={() => removeService(svc.id)}
                         className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors ml-auto">
@@ -812,7 +812,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       </div>
                       <div className="flex items-center gap-2">
                         <button type="button" onClick={() => { setBillLoaded(false); }}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border/30 text-text-2 text-xs hover:bg-white/5 transition-colors">
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
                           <RefreshCw className={`w-3 h-3 ${loadingBill ? 'animate-spin' : ''}`} /> {t('actionRefresh')}
                         </button>
                         {billKpis.totalBalance > 0 && (
@@ -831,7 +831,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                         { label: t('kpiTotalPaid'),    value: billKpis.totalPaid,    color: 'text-emerald' },
                         { label: t('kpiTotalBalance'), value: billKpis.totalBalance, color: billKpis.totalBalance > 0 ? 'text-rose' : 'text-text-1' },
                       ].map(k => (
-                        <div key={k.label} className="rounded-lg border border-border/30 bg-bg-1 p-4 flex-1 min-w-0">
+                        <div key={k.label} className="rounded-lg border border-border bg-bg-1 p-4 flex-1 min-w-0">
                           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{k.label}</div>
                           <div className={`text-xl font-bold font-mono ${k.color}`}>{fmt$(k.value)}</div>
                         </div>
@@ -846,7 +846,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                         <div className="text-text-muted/60 text-xs mt-1">{t('emptyBillingHint')}</div>
                       </div>
                     ) : (
-                      <div className="rounded-lg border border-border/30 overflow-hidden">
+                      <div className="rounded-lg border border-border overflow-hidden">
                         <div className="px-4 py-2 bg-bg-2/60 border-b border-border/40">
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('billingDetailByVisit')}</span>
                         </div>
@@ -968,10 +968,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     {/* ── Modal: Pagar deuda ──────────────────────────────── */}
                     {payOpen && (
                       <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/70 p-4 overflow-y-auto" onClick={() => setPayOpen(false)}>
-                        <div className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-3xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="bg-bg-1 border border-border rounded-xl w-full max-w-3xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
 
                           {/* Modal header */}
-                          <div className="flex items-center justify-between px-5 py-4 border-b border-border/30">
+                          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                             <div>
                               <h2 className="text-text-1 font-semibold text-base flex items-center gap-2">
                                 <CreditCard className="w-4 h-4 text-amber" /> {t('payModalTitle')}
@@ -984,8 +984,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                           </div>
 
                           {/* Summary bar */}
-                          <div className="grid grid-cols-2 border-b border-border/30">
-                            <div className="px-5 py-3 border-r border-border/30">
+                          <div className="grid grid-cols-2 border-b border-border">
+                            <div className="px-5 py-3 border-r border-border">
                               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payModalTotalPending')}</div>
                               <div className="text-xl font-bold font-mono text-rose mt-0.5">{fmt$(totalPending)}</div>
                             </div>
@@ -998,7 +998,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                           {/* Distribution table */}
                           <div className="overflow-x-auto max-h-64 overflow-y-auto">
                             <table className="w-full text-sm">
-                              <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border/30">
+                              <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
                                 <tr>
                                   <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colDate')}</th>
                                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colCost')}</th>
@@ -1035,7 +1035,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                                               const val = isNaN(raw) ? '' : Math.min(raw, b.balanceDue).toFixed(2);
                                               setPayAmounts(prev => ({ ...prev, [b.id]: val }));
                                             }}
-                                            className="w-full rounded-md bg-bg-2 border border-border/30 px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
+                                            className="w-full rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
                                             placeholder="0.00"
                                           />
                                           <button type="button"
@@ -1053,7 +1053,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                           </div>
 
                           {/* Footer */}
-                          <div className="px-5 py-4 border-t border-border/30 bg-bg-2/30 space-y-3">
+                          <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
                             <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('payFooterTitle')}</div>
                             <div className="grid grid-cols-3 gap-2">
                               <SelectUp value={paySource} onChange={v => {
@@ -1077,7 +1077,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                             <div className="flex items-center gap-2">
                               <input type="number" min="0" step="0.01" placeholder="0"
                                 onChange={e => autoDistribute(e.target.value)}
-                                className="flex-1 rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
+                                className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
                                 title={t('autoDistributeTooltip')} />
                               <button type="button" onClick={submitPayment}
                                 disabled={paying || payTotal <= 0}
@@ -1101,7 +1101,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
           {/* ─── Footer ──────────────────────────────────────────── */}
           {activeTab === 'detail' && (
-            <div className="shrink-0 px-5 py-4 border-t border-border/30 flex flex-col gap-2">
+            <div className="shrink-0 px-5 py-4 border-t border-border flex flex-col gap-2">
               {cancelOpen ? (
                 <div className="rounded-lg border border-rose/30 bg-rose/5 p-3 space-y-2">
                   <p className="text-rose text-xs font-semibold">{t('cancelConfirmTitle')}</p>
@@ -1109,7 +1109,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   {cancelError && <p className="text-rose text-[11px] flex items-center gap-1"><AlertCircle className="w-3 h-3" />{cancelError}</p>}
                   <div className="flex gap-2">
                     <button type="button" onClick={() => { setCancelOpen(false); setCancelError(null); }} disabled={cancelling}
-                      className="flex-1 px-3 py-1.5 rounded-md border border-border/30 text-text-2 text-xs hover:bg-white/5 transition-colors">
+                      className="flex-1 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
                       {t('actionBack')}
                     </button>
                     <button type="button" onClick={handleCancel} disabled={cancelling}
@@ -1126,7 +1126,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     <Ban className="w-3.5 h-3.5" /> {t('actionCancelAppointment')}
                   </button>
                   <button type="button" onClick={() => setEditOpen(true)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border/30 text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
                     <Edit2 className="w-3.5 h-3.5" /> {t('actionEdit')}
                   </button>
                   {appt.status !== 'CONFIRMED' && appt.status !== 'COMPLETED' && (

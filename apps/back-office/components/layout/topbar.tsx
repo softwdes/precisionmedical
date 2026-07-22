@@ -168,7 +168,7 @@ export function Topbar({
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-2 sm:gap-4 border-b border-border/30 bg-bg-0/80 backdrop-blur-md px-3 sm:px-6">
+      <header className="sticky top-0 z-20 flex h-14 items-center gap-2 sm:gap-4 border-b border-border bg-bg-0/80 backdrop-blur-md px-3 sm:px-6">
         {/* Mobile menu */}
         <button
           type="button"
@@ -191,11 +191,11 @@ export function Topbar({
         <button
           type="button"
           onClick={() => setCmdOpen(true)}
-          className="hidden sm:flex items-center gap-2 flex-1 max-w-md bg-bg-2 border border-border/30 rounded-lg px-3 py-2 text-text-muted text-sm hover:border-border-strong transition-colors group"
+          className="hidden sm:flex items-center gap-2 flex-1 max-w-md bg-bg-2 border border-border rounded-lg px-3 py-2 text-text-muted text-sm hover:border-border-strong transition-colors group"
         >
           <Search className="w-4 h-4 shrink-0" />
           <span className="flex-1 text-left truncate">{t('search')}</span>
-          <kbd className="text-[10px] font-mono bg-bg-3 border border-border/30 px-1.5 py-0.5 rounded">⌘K</kbd>
+          <kbd className="text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded">⌘K</kbd>
         </button>
 
         <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
@@ -205,14 +205,14 @@ export function Topbar({
 
         <div className="flex items-center gap-1 sm:gap-2">
           {/* Reloj */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-md bg-bg-2 border border-border/30">
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-md bg-bg-2 border border-border">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
             <span className="font-mono text-xs text-text-2 tabular-nums">{time}</span>
           </div>
 
           {/* Language toggle — usa AMBER inline para el estado activo */}
           <div
-            className="inline-flex items-center h-9 p-0.5 rounded-md bg-bg-2 border border-border/30"
+            className="inline-flex items-center h-9 p-0.5 rounded-md bg-bg-2 border border-border"
             role="group"
             aria-label={t('switchLanguage')}
             aria-busy={switchingLocale}
@@ -263,7 +263,7 @@ export function Topbar({
           </button>
 
           {/* Avatar + dropdown */}
-          <div ref={menuRef} className="relative pl-2 sm:pl-3 ml-1 border-l border-border/30">
+          <div ref={menuRef} className="relative pl-2 sm:pl-3 ml-1 border-l border-border">
             <button
               type="button"
               onClick={() => setMenuOpen(v => !v)}
@@ -293,9 +293,9 @@ export function Topbar({
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-56 rounded-xl border border-border/30 bg-bg-1 shadow-xl overflow-hidden animate-fade-in">
+              <div className="absolute right-0 top-[calc(100%+6px)] z-50 w-56 rounded-xl border border-border bg-bg-1 shadow-xl overflow-hidden animate-fade-in">
                 {/* Header */}
-                <div className="px-3 py-2.5 border-b border-border/30">
+                <div className="px-3 py-2.5 border-b border-border">
                   <p className="text-sm font-semibold text-text-1 truncate">{userName}</p>
                   <p className="text-xs text-text-3 truncate">{userEmail}</p>
                 </div>
@@ -318,7 +318,7 @@ export function Topbar({
                     Cambiar contraseña
                   </button>
                 </div>
-                <div className="border-t border-border/30 py-1">
+                <div className="border-t border-border py-1">
                   <button
                     type="button"
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-rose hover:bg-rose/[0.08] transition-colors text-left"
@@ -340,8 +340,8 @@ export function Topbar({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           onClick={e => { if (e.target === e.currentTarget) setProfileOpen(false); }}
         >
-          <div className="w-full max-w-sm rounded-2xl border border-border/30 bg-bg-1 shadow-2xl overflow-hidden">
-            <div className="px-6 pt-5 pb-4 border-b border-border/30">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-1 shadow-2xl overflow-hidden">
+            <div className="px-6 pt-5 pb-4 border-b border-border">
               <h2 className="text-[15px] font-bold text-text-1">Mi perfil</h2>
             </div>
             <div className="flex flex-col items-center gap-4 px-6 py-6">
@@ -367,16 +367,16 @@ export function Topbar({
                   {userRole}
                 </span>
               </div>
-              <div className="w-full rounded-xl border border-border/30 bg-surface px-4 py-3">
+              <div className="w-full rounded-xl border border-border bg-surface px-4 py-3">
                 <p className="text-xs text-text-3 mb-0.5">Correo electrónico</p>
                 <p className="text-sm text-text-1 font-medium">{userEmail || '—'}</p>
               </div>
             </div>
-            <div className="flex justify-end px-6 py-4 border-t border-border/30">
+            <div className="flex justify-end px-6 py-4 border-t border-border">
               <button
                 type="button"
                 onClick={() => setProfileOpen(false)}
-                className="px-4 py-2 rounded-lg border border-border/30 text-sm text-text-2 hover:bg-surface transition-colors"
+                className="px-4 py-2 rounded-lg border border-border text-sm text-text-2 hover:bg-surface transition-colors"
               >
                 Cerrar
               </button>
@@ -391,8 +391,8 @@ export function Topbar({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           onClick={e => { if (e.target === e.currentTarget) setPwOpen(false); }}
         >
-          <div className="w-full max-w-sm rounded-2xl border border-border/30 bg-bg-1 shadow-2xl overflow-hidden">
-            <div className="px-6 pt-5 pb-4 border-b border-border/30">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-1 shadow-2xl overflow-hidden">
+            <div className="px-6 pt-5 pb-4 border-b border-border">
               <h2 className="text-[15px] font-bold text-text-1">Cambiar contraseña</h2>
             </div>
             <div className="px-6 py-5 space-y-4">
@@ -421,7 +421,7 @@ export function Topbar({
                       value={newPw}
                       onChange={e => { setNewPw(e.target.value); setPwError(''); }}
                       placeholder="••••••••••••••••"
-                      className="w-full rounded-lg border border-border/30 bg-surface px-3 py-2 pr-9 text-sm text-text-1 placeholder:text-text-muted font-mono focus:outline-none"
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-9 text-sm text-text-1 placeholder:text-text-muted font-mono focus:outline-none"
                       style={{ '--tw-ring-color': AMBER } as React.CSSProperties}
                     />
                     <button
@@ -436,7 +436,7 @@ export function Topbar({
                     <button
                       type="button"
                       onClick={copyPassword}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/30 bg-surface text-text-3 hover:text-text-1 transition-colors"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-3 hover:text-text-1 transition-colors"
                       title="Copiar"
                     >
                       <Copy className="w-3.5 h-3.5" />
@@ -454,7 +454,7 @@ export function Topbar({
                     value={confirmPw}
                     onChange={e => { setConfirmPw(e.target.value); setPwError(''); }}
                     placeholder="••••••••••••••••"
-                    className="w-full rounded-lg border border-border/30 bg-surface px-3 py-2 pr-9 text-sm text-text-1 placeholder:text-text-muted font-mono focus:outline-none"
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-9 text-sm text-text-1 placeholder:text-text-muted font-mono focus:outline-none"
                   />
                   <button
                     type="button"
@@ -470,11 +470,11 @@ export function Topbar({
               {pwSuccess  && <p className="text-xs text-emerald font-medium">✓ Contraseña actualizada correctamente</p>}
             </div>
 
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border/30">
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
               <button
                 type="button"
                 onClick={() => setPwOpen(false)}
-                className="px-4 py-2 rounded-lg border border-border/30 text-sm text-text-2 hover:bg-surface transition-colors"
+                className="px-4 py-2 rounded-lg border border-border text-sm text-text-2 hover:bg-surface transition-colors"
               >
                 Cancelar
               </button>

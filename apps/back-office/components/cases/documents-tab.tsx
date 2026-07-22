@@ -98,7 +98,7 @@ function UploadModal({ onClose, onUpload, uploading }: {
       onClick={onClose}
     >
       <div
-        className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-lg p-6 space-y-5"
+        className="bg-bg-1 border border-border rounded-xl w-full max-w-lg p-6 space-y-5"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -192,8 +192,8 @@ function PreviewModal({ item, onClose, onDownload }: {
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border/30">
+      <div className="bg-bg-1 border border-border rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
           <div className="flex items-center gap-3 min-w-0">
             <FileIcon mimeType={item.mimeType} size={5} />
             <div className="min-w-0">
@@ -209,7 +209,7 @@ function PreviewModal({ item, onClose, onDownload }: {
           </button>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12 px-5">
-          <div className="w-16 h-16 rounded-xl bg-bg-2 border border-border/30 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-xl bg-bg-2 border border-border flex items-center justify-center">
             <FileIcon mimeType={item.mimeType} size={8} />
           </div>
           <div className="text-center space-y-1">
@@ -217,7 +217,7 @@ function PreviewModal({ item, onClose, onDownload }: {
             <p className="text-text-muted text-xs">La vista previa estará disponible cuando se configure el almacenamiento S3.</p>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border/30">
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
           <Button variant="outline" size="sm" onClick={onClose}>Cerrar</Button>
           <Button size="sm" onClick={() => { onDownload(item); onClose(); }} className="gap-1.5">
             <Download className="w-3.5 h-3.5" /> Descargar
@@ -403,9 +403,9 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
 
   return (
     <>
-      <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
+      <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
         {/* Toolbar */}
-        <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-border/30 bg-bg-2/40">
+        <div className="flex items-center justify-between gap-3 flex-wrap px-4 py-3 border-b border-border bg-bg-2/40">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-1 text-xs text-text-muted overflow-x-auto scroll-thin min-w-0">
             {breadcrumb.map((item, i) => (
@@ -477,7 +477,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border/30 bg-bg-2/60">
+              <tr className="border-b border-border bg-bg-2/60">
                 <th className="px-4 py-2.5 w-9">
                   <input
                     type="checkbox"
@@ -555,7 +555,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
       {/* New Folder Modal */}
       {newFolderOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }}>
-          <div className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2">
               <FolderPlus className="w-4 h-4 text-brand" />
               <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Nueva carpeta</h2>
@@ -570,7 +570,7 @@ export function DocumentsTab({ caseId }: { caseId: string }) {
               }}
               placeholder={t('placeholderFolder')}
               autoFocus
-              className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
+              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
             />
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => { setNewFolderOpen(false); setNewFolderName(''); }} disabled={creatingFolder} className="flex-1">Cancelar</Button>

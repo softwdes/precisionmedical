@@ -22,7 +22,7 @@ import * as React from 'react';
 type Tone = 'default' | 'brand' | 'cyan' | 'emerald' | 'amber' | 'rose' | 'violet';
 
 const TONE_BORDER: Record<Tone, string> = {
-  default: 'border-border/30',
+  default: 'border-border',
   brand:   'border-brand/25',
   cyan:    'border-cyan/25',
   emerald: 'border-emerald/25',
@@ -97,7 +97,7 @@ export function InfoCard({
     <div className={`rounded-lg border ${TONE_BORDER[tone]} ${TONE_BG[tone]} ${PADDING[padding]}`}>
       <div className="flex items-center gap-2 mb-3">
         {number !== undefined && (
-          <div className="w-6 h-6 rounded-full bg-bg-2 border border-border/30 text-text-muted flex items-center justify-center text-[10px] font-bold shrink-0">
+          <div className="w-6 h-6 rounded-full bg-bg-2 border border-border text-text-muted flex items-center justify-center text-[10px] font-bold shrink-0">
             {number}
           </div>
         )}

@@ -44,7 +44,7 @@ export default function AdminLoading() {
 
       {/* DataTable skeleton */}
       <Skeleton.Card className="p-0 overflow-hidden">
-        <div className="border-b border-border/30 bg-bg-2/50 px-5 py-3 flex items-center gap-4">
+        <div className="border-b border-border bg-bg-2/50 px-5 py-3 flex items-center gap-4">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-3 w-32" />
           <Skeleton className="h-3 w-20" />
@@ -70,7 +70,7 @@ export default function AdminLoading() {
             </div>
           </div>
         ))}
-        <div className="px-5 py-3 bg-bg-2/30 border-t border-border/30 flex items-center justify-between">
+        <div className="px-5 py-3 bg-bg-2/30 border-t border-border flex items-center justify-between">
           <Skeleton className="h-3 w-32" />
           <Skeleton className="h-3 w-24" />
         </div>

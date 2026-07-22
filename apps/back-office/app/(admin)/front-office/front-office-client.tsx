@@ -266,7 +266,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-7 pr-6 py-1.5 text-xs bg-bg-2 border border-border/30 rounded-lg text-text-1 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/40 transition-colors w-36 focus:w-52 transition-[width]"
+            className="pl-7 pr-6 py-1.5 text-xs bg-bg-2 border border-border rounded-lg text-text-1 placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/40 transition-colors w-36 focus:w-52 transition-[width]"
           />
           {search && (
             <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1">
@@ -281,7 +281,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="py-1.5 pl-1.5 pr-5 text-xs bg-bg-2 border border-border/30 rounded-lg text-text-1 focus:outline-none focus:ring-1 focus:ring-brand/40 appearance-none cursor-pointer"
+            className="py-1.5 pl-1.5 pr-5 text-xs bg-bg-2 border border-border rounded-lg text-text-1 focus:outline-none focus:ring-1 focus:ring-brand/40 appearance-none cursor-pointer"
           >
             <option value="urgency">{t('sortUrgency')}</option>
             <option value="dol">{t('sortDOL')}</option>
@@ -302,7 +302,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
       </div>
 
       {/* Case list — filas compactas */}
-      <div className="rounded-lg border border-border/30 overflow-hidden divide-y divide-border/60">
+      <div className="rounded-lg border border-border overflow-hidden divide-y divide-border/60">
         {filtered.length === 0 && !search && filter === 'all' ? (
           <div className="p-6">
             <EmptyState.Rich
@@ -352,7 +352,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
               className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
                 pagination.page <= 1
                   ? 'border-border/40 text-text-muted/40 pointer-events-none'
-                  : 'border-border/30 text-text-2 hover:border-border-strong hover:text-text-1'
+                  : 'border-border text-text-2 hover:border-border-strong hover:text-text-1'
               }`}
             >
               ← Anterior
@@ -365,7 +365,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
               className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
                 pagination.page >= Math.ceil(pagination.total / pagination.pageSize)
                   ? 'border-border/40 text-text-muted/40 pointer-events-none'
-                  : 'border-border/30 text-text-2 hover:border-border-strong hover:text-text-1'
+                  : 'border-border text-text-2 hover:border-border-strong hover:text-text-1'
               }`}
             >
               Siguiente →
@@ -475,9 +475,9 @@ function CaseCard({
     CONFIRMED:        { label: t('statusConfirmed'),      colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
     ACTIVE:           { label: t('statusActive'),         colorClass: 'bg-brand/10 text-brand border-brand/30' },
     MMI:              { label: t('statusMMI'),            colorClass: 'bg-violet/10 text-violet border-violet/30' },
-    CLOSED:           { label: t('statusClosed'),         colorClass: 'bg-text-muted/10 text-text-muted border-border/30' },
+    CLOSED:           { label: t('statusClosed'),         colorClass: 'bg-text-muted/10 text-text-muted border-border' },
     SETTLED:          { label: t('statusSettled'),        colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
-    ARCHIVED:         { label: t('statusArchived'),       colorClass: 'bg-text-muted/10 text-text-muted border-border/30' },
+    ARCHIVED:         { label: t('statusArchived'),       colorClass: 'bg-text-muted/10 text-text-muted border-border' },
     CANCELLED:        { label: t('statusCancelled'),      colorClass: 'bg-rose/10 text-rose border-rose/30' },
   };
   const st = statusMeta[c.status];

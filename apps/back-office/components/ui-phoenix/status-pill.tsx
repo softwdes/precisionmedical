@@ -32,11 +32,11 @@ export interface StatusPillProps {
 const STATE_STYLES: Record<StatusState, { bg: string; dot: string }> = {
   active:   { bg: 'bg-emerald/15 text-emerald border-emerald/30',  dot: 'bg-emerald' },
   success:  { bg: 'bg-emerald/15 text-emerald border-emerald/30',  dot: 'bg-emerald' },
-  inactive: { bg: 'bg-white/5 text-text-muted border-border/30',      dot: 'bg-text-muted' },
+  inactive: { bg: 'bg-white/5 text-text-muted border-border',      dot: 'bg-text-muted' },
   warning:  { bg: 'bg-amber/15 text-amber border-amber/30',        dot: 'bg-amber' },
   info:     { bg: 'bg-cyan/15 text-cyan border-cyan/30',           dot: 'bg-cyan' },
   danger:   { bg: 'bg-rose/15 text-rose border-rose/30',           dot: 'bg-rose' },
-  neutral:  { bg: 'bg-white/5 text-text-2 border-border/30',          dot: 'bg-text-muted' },
+  neutral:  { bg: 'bg-white/5 text-text-2 border-border',          dot: 'bg-text-muted' },
 };
 
 export function StatusPill({ state, label, showDot, icon }: StatusPillProps) {

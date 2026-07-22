@@ -255,7 +255,7 @@ function WorkflowPill({ type }: { type: string }) {
     SELFPAY:       'bg-pink/15 text-pink border-pink/30',
     NURSING_HOME:  'bg-amber/15 text-amber border-amber/30',
   };
-  return <TagPill label={type} colorClass={colors[type] ?? 'bg-white/5 text-text-2 border-border/30'} mono />;
+  return <TagPill label={type} colorClass={colors[type] ?? 'bg-white/5 text-text-2 border-border'} mono />;
 }
 
 // ─── Modals ──────────────────────────────────────────────────────────────────
@@ -358,7 +358,7 @@ function SpecialtyDialog({
               id="description"
               value={description ?? ''}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder="Descripción opcional del service line..."
             />
           </div>
@@ -388,7 +388,7 @@ function SpecialtyDialog({
                 id="workflowType"
                 value={workflowType}
                 onChange={(e) => setWorkflowType(e.target.value)}
-                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
               >
                 {WORKFLOW_TYPES.map((w) => (
                   <option key={w.value} value={w.value}>{w.label}</option>
@@ -401,7 +401,7 @@ function SpecialtyDialog({
                 id="caseType"
                 value={caseType}
                 onChange={(e) => setCaseType(e.target.value)}
-                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
               >
                 {CASE_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -486,7 +486,7 @@ function ViewDialog({
             specialty.cptSuggested.length > 0 ? (
               <div className="flex flex-wrap gap-1">
                 {specialty.cptSuggested.map((c) => (
-                  <code key={c} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-2 border border-border/30 text-text-2">{c}</code>
+                  <code key={c} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-2 border border-border text-text-2">{c}</code>
                 ))}
               </div>
             ) : (

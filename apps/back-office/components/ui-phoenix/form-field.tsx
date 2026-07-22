@@ -1,7 +1,7 @@
 /**
  * FormField — wrappers consistentes para inputs/selects/textareas en modales.
  *
- * Usa el estilo del sistema (border-border/30, bg-bg-2, text-text-1, focus brand).
+ * Usa el estilo del sistema (border-border, bg-bg-2, text-text-1, focus brand).
  * Reemplaza inputs custom ad-hoc en cada pantalla.
  *
  * Uso:
@@ -44,7 +44,7 @@ function DateInputField({
           'w-full bg-bg-2 border rounded-md px-3 py-2 text-sm text-text-1',
           'focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand',
           '[color-scheme:dark]',
-          error ? 'border-rose focus:ring-rose/30 focus:border-rose' : 'border-border/30',
+          error ? 'border-rose focus:ring-rose/30 focus:border-rose' : 'border-border',
         ].join(' ')}
       />
       {error && <p className="text-[10px] text-rose mt-1">{error}</p>}
@@ -104,7 +104,7 @@ function SelectField({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>
@@ -134,7 +134,7 @@ function TextareaField({
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         maxLength={maxLength}
-        className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
         placeholder={placeholder}
       />
       {hint && <div className="text-text-muted text-[10px] mt-1">{hint}</div>}

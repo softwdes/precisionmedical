@@ -107,7 +107,7 @@ function ApptCard({
       ? 'border-violet/30 bg-violet/[0.03]'
       : appt.case?.hasPending
         ? 'border-amber/30 bg-amber/[0.02]'
-        : 'border-border/30 bg-bg-1';
+        : 'border-border bg-bg-1';
 
   return (
     <div className={`rounded-lg border p-4 transition-all ${borderClass}`}>
@@ -294,7 +294,7 @@ export function AdmissionClient() {
             <button
               type="button"
               onClick={() => router.push('/front-office')}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all"
             >
               <Search className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t('searchPatient')}</span>
@@ -302,7 +302,7 @@ export function AdmissionClient() {
             <button
               type="button"
               onClick={() => router.push('/calendar')}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all"
             >
               <CalendarDays className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{t('viewAgenda')}</span>
@@ -311,7 +311,7 @@ export function AdmissionClient() {
               type="button"
               onClick={load}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>

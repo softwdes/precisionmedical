@@ -442,7 +442,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg max-h-[92vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border/30 shrink-0">
+          <DialogHeader className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
             <DialogTitle className="flex items-center gap-2 text-text-1 text-sm sm:text-base">
               <PhoneCall className="w-4 h-4 text-emerald" />
               {t('dialogTitle')}
@@ -487,7 +487,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         onEscapeKeyDown={(e) => { if (hasData && !success) { e.preventDefault(); setShowExitConfirm(true); } }}
       >
         {/* ─── Header ──────────────────────────────────────────────────── */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border/30 shrink-0">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
           <DialogHeader>
             <div className="flex items-start justify-between gap-2 flex-wrap">
               <div className="min-w-0 flex-1">
@@ -518,7 +518,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           </DialogHeader>
 
           {/* Patient hero */}
-          <div className="mt-3 rounded-lg border border-border/30 bg-bg-1 px-3 sm:px-4 py-2.5 flex items-center gap-3">
+          <div className="mt-3 rounded-lg border border-border bg-bg-1 px-3 sm:px-4 py-2.5 flex items-center gap-3">
             <PersonAvatar firstName={firstName || '?'} lastName={lastName || ''} size={10} gradientClass="bg-gradient-brand" />
             <div className="flex-1 min-w-0">
               <div className="text-text-1 font-semibold text-sm truncate">{fullName}</div>
@@ -625,13 +625,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
               {/* QR + Link */}
               {success.portalUrl ? (
-                <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+                <div className="rounded-lg border border-border bg-bg-1 p-4">
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
                     Enlace del formulario · compartir con el paciente
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 items-start">
                     {success.qrDataUrl && (
-                      <div className="shrink-0 rounded-lg overflow-hidden border border-border/30 mx-auto sm:mx-0">
+                      <div className="shrink-0 rounded-lg overflow-hidden border border-border mx-auto sm:mx-0">
                         <img src={success.qrDataUrl} alt="QR formulario" className="w-[160px] h-[160px] block" />
                       </div>
                     )}
@@ -653,7 +653,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                           ? `https://wa.me/${phone.trim().replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`
                           : `https://wa.me/?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`}
                         target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border/30 text-text-2 text-xs hover:bg-white/5 transition-colors"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
                       >
                         <span className="text-base leading-none">💬</span> Enviar por WhatsApp
                       </a>
@@ -847,7 +847,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                           className={`text-left p-2.5 rounded-md border text-xs transition-colors flex items-center gap-2 ${
                             providerId === p.id
                               ? 'bg-emerald/10 border-emerald/40 text-text-1'
-                              : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
+                              : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                           }`}
                         >
                           <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
@@ -892,7 +892,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                             type="button"
                             disabled={isPrevWeekDisabled}
                             onClick={() => { setWeekStart(addDays(weekStart, -7)); setSelectedDay(null); }}
-                            className="px-2 py-1 rounded-md border border-border/30 text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                            className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                           >
                             <ArrowLeft className="w-3 h-3" /> Sem. ant.
                           </button>
@@ -905,7 +905,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                             type="button"
                             disabled={isNextWeekDisabled}
                             onClick={() => { setWeekStart(addDays(weekStart, 7)); setSelectedDay(null); }}
-                            className="px-2 py-1 rounded-md border border-border/30 text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                            className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                           >
                             Sem. sig. <ArrowRight className="w-3 h-3" />
                           </button>
@@ -928,7 +928,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                                     : wd.isPast
                                     ? 'bg-bg-2/30 border-border/40 text-text-muted opacity-50 cursor-not-allowed'
                                     : hasSlots
-                                    ? 'bg-bg-2 border-border/30 text-text-2 hover:border-emerald/40 hover:bg-emerald/5 cursor-pointer'
+                                    ? 'bg-bg-2 border-border text-text-2 hover:border-emerald/40 hover:bg-emerald/5 cursor-pointer'
                                     : 'bg-bg-2/30 border-border/40 text-text-muted cursor-not-allowed'
                                 }`}
                               >
@@ -963,7 +963,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                                   className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
                                     slotIso === s.iso
                                       ? 'bg-emerald/15 border-emerald/40 text-emerald font-semibold'
-                                      : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
+                                      : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                                   }`}
                                 >
                                   {s.label}
@@ -1106,7 +1106,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         </div>
 
         {/* ─── Footer ──────────────────────────────────────────────────── */}
-        <DialogFooter className="border-t border-border/30 px-4 sm:px-6 py-3 shrink-0 gap-2 flex-col-reverse sm:flex-row items-stretch sm:items-center">
+        <DialogFooter className="border-t border-border px-4 sm:px-6 py-3 shrink-0 gap-2 flex-col-reverse sm:flex-row items-stretch sm:items-center">
           {success ? (
             <>
               <Button variant="outline" onClick={() => { router.refresh(); onOpenChange(false); }} className="w-full sm:w-auto">
@@ -1186,7 +1186,7 @@ function SelectableCard({ selected, onClick, icon, title, subtitle }: {
   return (
     <button type="button" onClick={onClick}
       className={`text-left p-3 rounded-lg border transition-colors flex items-start gap-3 ${
-        selected ? 'bg-brand/10 border-brand/40' : 'bg-bg-2 border-border/30 hover:border-border-strong'
+        selected ? 'bg-brand/10 border-brand/40' : 'bg-bg-2 border-border hover:border-border-strong'
       }`}
     >
       <div className="text-xl shrink-0">{icon}</div>
@@ -1205,7 +1205,7 @@ function SegmentedOption({ selected, onClick, icon, label }: {
   return (
     <button type="button" onClick={onClick}
       className={`px-3 py-2 rounded-md border text-[11px] font-medium transition-colors ${
-        selected ? 'bg-brand/10 border-brand/40 text-brand font-semibold' : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
+        selected ? 'bg-brand/10 border-brand/40 text-brand font-semibold' : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
       }`}
     >
       <span className="mr-1">{icon}</span> {label}
@@ -1215,11 +1215,11 @@ function SegmentedOption({ selected, onClick, icon, label }: {
 
 function Note({ children, tone = 'default' }: { children: React.ReactNode; tone?: 'default' | 'emerald' | 'amber' | 'rose' | 'muted' }) {
   const toneClasses: Record<string, string> = {
-    default: 'bg-bg-2/40 border-border/30 text-text-2',
+    default: 'bg-bg-2/40 border-border text-text-2',
     emerald: 'bg-emerald/10 border-emerald/30 text-emerald',
     amber:   'bg-amber/10 border-amber/30 text-amber',
     rose:    'bg-rose/10 border-rose/30 text-rose',
-    muted:   'bg-bg-2/40 border-border/30 text-text-muted',
+    muted:   'bg-bg-2/40 border-border text-text-muted',
   };
   return (
     <div className={`rounded-md border px-3 py-2 text-[11px] ${toneClasses[tone]}`}>{children}</div>

@@ -342,7 +342,7 @@ export function HcfaClient() {
     <div className="min-h-screen bg-bg-0 pb-10">
 
       {/* ── Topbar ──────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 border-b border-border/30 bg-bg-0/90 backdrop-blur-sm px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-30 border-b border-border bg-bg-0/90 backdrop-blur-sm px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
         <button
           type="button"
           onClick={() => router.push(`/billing/${caseId}`)}
@@ -405,7 +405,7 @@ export function HcfaClient() {
           <div className="space-y-5">
 
             {/* ── Configuration ─────────────────────────────────────── */}
-            <div className="rounded-xl border border-border/30 bg-bg-1 p-4">
+            <div className="rounded-xl border border-border bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider text-amber font-bold mb-3 flex items-center gap-1.5">
                 <span>⚙️</span> Configuración
               </div>
@@ -415,7 +415,7 @@ export function HcfaClient() {
                   <label className="text-[10px] uppercase tracking-wider text-text-muted block mb-1">
                     Aseguradora destino
                   </label>
-                  <div className="rounded-lg border border-border/30 bg-bg-2/40 px-3 py-2 text-[13px] text-text-1">
+                  <div className="rounded-lg border border-border bg-bg-2/40 px-3 py-2 text-[13px] text-text-1">
                     {d.insurerName}
                     {d.insurerLegal && (
                       <span className="text-text-muted text-[11px] ml-2">({d.insurerLegal})</span>
@@ -429,7 +429,7 @@ export function HcfaClient() {
                   </label>
                   <div className="space-y-2">
                     <label className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition-all ${
-                      sendFax ? 'border-amber/40 bg-amber/5' : 'border-border/30 bg-bg-2/30'
+                      sendFax ? 'border-amber/40 bg-amber/5' : 'border-border bg-bg-2/30'
                     }`}>
                       <input
                         type="checkbox"
@@ -448,7 +448,7 @@ export function HcfaClient() {
                       </span>
                     </label>
                     <label className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition-all ${
-                      sendEmail ? 'border-amber/40 bg-amber/5' : 'border-border/30 bg-bg-2/30'
+                      sendEmail ? 'border-amber/40 bg-amber/5' : 'border-border bg-bg-2/30'
                     }`}>
                       <input
                         type="checkbox"
@@ -472,7 +472,7 @@ export function HcfaClient() {
             </div>
 
             {/* ── Validations ──────────────────────────────────────── */}
-            <div className="rounded-xl border border-border/30 bg-bg-1 p-4">
+            <div className="rounded-xl border border-border bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider text-amber font-bold mb-3 flex items-center gap-1.5">
                 <span>✓</span> Validaciones
               </div>
@@ -490,7 +490,7 @@ export function HcfaClient() {
             </div>
 
             {/* ── Post-generation checklist ──────────────────────── */}
-            <div className="rounded-xl border border-border/30 bg-bg-1 p-4">
+            <div className="rounded-xl border border-border bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider text-amber font-bold mb-3 flex items-center gap-1.5">
                 <span>📤</span> Después de generar
               </div>
@@ -540,7 +540,7 @@ export function HcfaClient() {
             </button>
 
             {/* Total display */}
-            <div className="flex items-center justify-between rounded-lg border border-border/30 bg-bg-1 px-4 py-3">
+            <div className="flex items-center justify-between rounded-lg border border-border bg-bg-1 px-4 py-3">
               <span className="text-[11px] text-text-muted uppercase tracking-wider">Total facturado</span>
               <span className="font-mono font-black text-amber text-lg">{d.totalChargeFmt}</span>
             </div>

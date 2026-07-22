@@ -97,7 +97,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         className="relative w-full max-w-2xl bg-bg-1 border border-border-strong rounded-xl shadow-2xl overflow-hidden"
         shouldFilter={false}
       >
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border/30">
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
           <Search className="w-4 h-4 text-text-muted shrink-0" />
           <Command.Input
             autoFocus
@@ -109,7 +109,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           {loading && (
             <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
           )}
-          <kbd className="text-[10px] font-mono bg-bg-3 border border-border/30 px-1.5 py-0.5 rounded text-text-muted">ESC</kbd>
+          <kbd className="text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded text-text-muted">ESC</kbd>
         </div>
 
         <Command.List className="max-h-[60vh] overflow-y-auto p-2">
@@ -120,11 +120,11 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 Busca transversal en todos los catálogos del back-office
               </div>
               <div className="mt-6 flex flex-wrap gap-2 justify-center text-xs text-text-muted">
-                <kbd className="bg-bg-2 border border-border/30 px-2 py-0.5 rounded">Stethoscope</kbd>
-                <kbd className="bg-bg-2 border border-border/30 px-2 py-0.5 rounded">Bufetes</kbd>
-                <kbd className="bg-bg-2 border border-border/30 px-2 py-0.5 rounded">GEICO</kbd>
-                <kbd className="bg-bg-2 border border-border/30 px-2 py-0.5 rounded">99213</kbd>
-                <kbd className="bg-bg-2 border border-border/30 px-2 py-0.5 rounded">cervicalgia</kbd>
+                <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">Stethoscope</kbd>
+                <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">Bufetes</kbd>
+                <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">GEICO</kbd>
+                <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">99213</kbd>
+                <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">cervicalgia</kbd>
               </div>
             </div>
           )}
@@ -252,10 +252,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           )}
         </Command.List>
 
-        <div className="border-t border-border/30 px-4 py-2 text-[10px] text-text-muted flex items-center justify-between">
+        <div className="border-t border-border px-4 py-2 text-[10px] text-text-muted flex items-center justify-between">
           <span>
-            <kbd className="bg-bg-2 border border-border/30 px-1 py-0.5 rounded font-mono">↑↓</kbd> navegar
-            <kbd className="bg-bg-2 border border-border/30 px-1 py-0.5 rounded font-mono ml-2">↵</kbd> abrir
+            <kbd className="bg-bg-2 border border-border px-1 py-0.5 rounded font-mono">↑↓</kbd> navegar
+            <kbd className="bg-bg-2 border border-border px-1 py-0.5 rounded font-mono ml-2">↵</kbd> abrir
           </span>
           <span>Phoenix Global Search · B.34</span>
         </div>

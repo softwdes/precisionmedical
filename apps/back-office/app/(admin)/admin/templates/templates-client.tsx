@@ -421,7 +421,7 @@ export function TemplatesClient({ templates, stats }: Props) {
                       colorClass={
                         t.scope === 'SHARED'    ? 'bg-cyan/15 text-cyan border-cyan/30' :
                         t.scope === 'SPECIALTY' ? 'bg-amber/15 text-amber border-amber/30' :
-                                                  'bg-white/5 text-text-2 border-border/30'
+                                                  'bg-white/5 text-text-2 border-border'
                       }
                       label={SCOPE_LABELS[t.scope] ?? t.scope}
                     />

@@ -46,7 +46,7 @@ function Text({ lines = 1, className = '' }: { lines?: number; className?: strin
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg border border-border/30 bg-bg-1 p-5 ${className}`}>
+    <div className={`rounded-lg border border-border bg-bg-1 p-5 ${className}`}>
       {children}
     </div>
   );

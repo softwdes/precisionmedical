@@ -88,7 +88,7 @@ function statusBadge(status: string) {
   const cfg: Record<string, string> = {
     ACTIVE:   'bg-emerald/15 text-emerald border-emerald/25',
     SETTLED:  'bg-brand/15 text-brand border-brand/25',
-    CLOSED:   'bg-text-muted/15 text-text-muted border-border/30',
+    CLOSED:   'bg-text-muted/15 text-text-muted border-border',
     DEFAULT:  'bg-amber/15 text-amber border-amber/25',
   };
   return (cfg[status] ?? cfg.DEFAULT) + ' rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider';
@@ -388,7 +388,7 @@ export function LedgerClient() {
       `}</style>
 
       {/* ── Topbar ── */}
-      <div className="no-print sticky top-0 z-30 flex items-center gap-3 border-b border-border/30 bg-bg-0/95 px-5 py-3 backdrop-blur-sm">
+      <div className="no-print sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-bg-0/95 px-5 py-3 backdrop-blur-sm">
         <button
           type="button"
           onClick={() => router.push(`/billing/${caseId}`)}
@@ -486,7 +486,7 @@ export function LedgerClient() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="flex items-center gap-1 border-b border-border/30 pb-0">
+        <div className="flex items-center gap-1 border-b border-border pb-0">
           {(['movimientos', 'account-overview'] as const).map(tabKey => (
             <button
               key={tabKey}
@@ -517,10 +517,10 @@ export function LedgerClient() {
                 subtitle={t('emptyTransactionsSub')}
               />
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-border/30 bg-bg-1">
+              <div className="overflow-x-auto rounded-xl border border-border bg-bg-1">
                 <table className="w-full text-[12.5px] min-w-[600px]">
                   <thead>
-                    <tr className="border-b border-border/30 bg-bg-2/40">
+                    <tr className="border-b border-border bg-bg-2/40">
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colDate')}</th>
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colType')}</th>
                       <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('colDescription')}</th>
@@ -576,7 +576,7 @@ export function LedgerClient() {
                   </tbody>
                   {/* Totals footer */}
                   <tfoot>
-                    <tr className="border-t-2 border-border/30 bg-bg-2/60">
+                    <tr className="border-t-2 border-border bg-bg-2/60">
                       <td colSpan={3} className="px-4 py-3 text-[10px] uppercase tracking-wider text-text-muted font-semibold">
                         {t('tableTotal', { mov: transactions.length, visits: d.visitCount })}
                       </td>
@@ -602,7 +602,7 @@ export function LedgerClient() {
               {d.firmEmail && (
                 <a
                   href={`mailto:${d.firmEmail}?subject=Account Overview – ${d.caseCode}&body=Adjunto el estado de cuenta para el caso ${d.caseCode}.`}
-                  className="flex items-center gap-2 rounded-lg border border-border/30 bg-bg-1 px-4 py-2 text-[12px] text-text-muted hover:text-text-1 hover:border-amber/30 transition-colors"
+                  className="flex items-center gap-2 rounded-lg border border-border bg-bg-1 px-4 py-2 text-[12px] text-text-muted hover:text-text-1 hover:border-amber/30 transition-colors"
                 >
                   <Mail className="w-3.5 h-3.5" />
                   {t('sendToFirm', { firm: d.firmName ?? t('defaultFirm') })}
@@ -611,7 +611,7 @@ export function LedgerClient() {
               <button
                 type="button"
                 onClick={() => router.push('/billing/report')}
-                className="flex items-center gap-2 rounded-lg border border-border/30 bg-bg-1 px-4 py-2 text-[12px] text-text-muted hover:text-text-1 hover:border-brand/30 transition-colors"
+                className="flex items-center gap-2 rounded-lg border border-border bg-bg-1 px-4 py-2 text-[12px] text-text-muted hover:text-text-1 hover:border-brand/30 transition-colors"
               >
                 <BarChart3 className="w-3.5 h-3.5" />
                 {t('monthlyReportConsolidated')}
@@ -636,7 +636,7 @@ export function LedgerClient() {
               {d.firmEmail && (
                 <a
                   href={`mailto:${d.firmEmail}?subject=Account Overview – ${d.caseCode}`}
-                  className="flex items-center gap-2 rounded-lg border border-border/30 bg-bg-1 px-4 py-2 text-[12px] text-text-muted hover:text-text-1 transition-colors"
+                  className="flex items-center gap-2 rounded-lg border border-border bg-bg-1 px-4 py-2 text-[12px] text-text-muted hover:text-text-1 transition-colors"
                 >
                   <Mail className="w-3.5 h-3.5" />
                   {t('sendToFirm', { firm: d.firmName ?? t('defaultFirm') })}
@@ -645,7 +645,7 @@ export function LedgerClient() {
             </div>
 
             {/* White document preview */}
-            <div className="rounded-xl border border-border/30 overflow-hidden shadow-xl">
+            <div className="rounded-xl border border-border overflow-hidden shadow-xl">
               <div ref={printRef}>
                 <AccountOverview d={d} financial={financial} transactions={transactions} />
               </div>

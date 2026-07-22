@@ -28,7 +28,7 @@ export function FilterPill({ active, onClick, label, count }: FilterPillProps) {
       className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
         active
           ? 'bg-gradient-brand text-white'
-          : 'bg-bg-2 border border-border/30 text-text-2 hover:text-text-1 hover:border-border-strong'
+          : 'bg-bg-2 border border-border text-text-2 hover:text-text-1 hover:border-border-strong'
       }`}
     >
       {label}

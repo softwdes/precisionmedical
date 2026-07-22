@@ -81,7 +81,7 @@ function CaseRow({ item, onHcfa, t }: {
   const isReady = isNew;
 
   const borderCls = item.hcfaGeneratedAt
-    ? 'border-border/30 hover:border-border-strong'
+    ? 'border-border hover:border-border-strong'
     : 'border-brand/20 hover:border-brand/35';
   const bgCls = item.hcfaGeneratedAt ? 'bg-bg-1' : 'bg-brand/[0.03]';
 
@@ -159,7 +159,7 @@ function CaseRow({ item, onHcfa, t }: {
           <button
             type="button"
             onClick={() => router.push(`/billing/${item.caseId}`)}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-amber/35 hover:text-amber transition-all"
+            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/35 hover:text-amber transition-all"
           >
             {t('btnViewNote')}
           </button>
@@ -175,7 +175,7 @@ function CaseRow({ item, onHcfa, t }: {
           ) : item.primaryInsurance?.['claimsPhone' as keyof typeof item.primaryInsurance] && (
             <a
               href={`tel:${(item.primaryInsurance as Record<string, string>)['claimsPhone']}`}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-cyan/35 hover:text-cyan transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-cyan/35 hover:text-cyan transition-all"
             >
               <Phone className="w-3 h-3" />
               {t('btnCallInsurer')}
@@ -245,7 +245,7 @@ export function BillingClient() {
             type="button"
             onClick={() => load(tab)}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             {t('btnRefresh')}
@@ -274,10 +274,10 @@ export function BillingClient() {
               className={[
                 'flex items-center gap-1.5 px-3 h-8 rounded-md text-xs transition-all',
                 t.locked
-                  ? 'border border-border/30 text-text-muted cursor-not-allowed opacity-50'
+                  ? 'border border-border text-text-muted cursor-not-allowed opacity-50'
                   : tab === t.key
                     ? 'bg-amber/10 border border-amber/40 text-amber font-semibold'
-                    : 'border border-border/30 text-text-2 hover:border-border-strong',
+                    : 'border border-border text-text-2 hover:border-border-strong',
               ].join(' ')}
             >
               {t.label}
@@ -295,7 +295,7 @@ export function BillingClient() {
 
         {/* Content */}
         {!isActiveContent ? (
-          <div className="rounded-lg border border-dashed border-border/30 p-12 text-center text-text-muted text-sm">
+          <div className="rounded-lg border border-dashed border-border p-12 text-center text-text-muted text-sm">
             {t('phase2Locked')}
           </div>
         ) : loading ? (

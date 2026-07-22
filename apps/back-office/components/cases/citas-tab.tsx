@@ -48,7 +48,7 @@ function getYearList(appointments: Appointment[]) {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatusPill({ status, labels }: { status: string; labels: Record<string, { label: string; colorClass: string; icon: React.ElementType }> }) {
-  const cfg = labels[status] ?? { label: status, colorClass: 'bg-bg-2 text-text-2 border-border/30', icon: Calendar };
+  const cfg = labels[status] ?? { label: status, colorClass: 'bg-bg-2 text-text-2 border-border', icon: Calendar };
   const Icon = cfg.icon;
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cfg.colorClass}`}>
@@ -83,7 +83,7 @@ function TimelineView({ appointments, statusLabels, typeLabels, emptyTitle, empt
             {appts.map(a => {
               const isPast = new Date(a.scheduledFor) < new Date();
               return (
-                <div key={a.id} className={`flex gap-4 items-start rounded-lg border border-border/30 bg-bg-1 p-4 ${isPast ? 'opacity-70' : ''}`}>
+                <div key={a.id} className={`flex gap-4 items-start rounded-lg border border-border bg-bg-1 p-4 ${isPast ? 'opacity-70' : ''}`}>
                   <div className="shrink-0 w-14 text-center">
                     <div className="text-[11px] text-text-muted uppercase font-semibold">
                       {new Date(a.scheduledFor).toLocaleDateString('es-US', { weekday: 'short' })}
@@ -139,10 +139,10 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
     return <EmptyState.Rich icon={Calendar} title={emptyTitle} subtitle={emptySubtitle} />;
   }
   return (
-    <div className="overflow-x-auto rounded-lg border border-border/30">
+    <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border/30 bg-bg-2/50">
+          <tr className="border-b border-border bg-bg-2/50">
             {colHeaders.map(h => (
               <th key={h} className="px-3 py-2.5 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{h}</th>
             ))}
@@ -252,7 +252,7 @@ export function CitasTab({ caseId, caseCode, patient, specialty }: Props) {
           { label: t('statCompleted'), value: stats.completed, color: 'text-emerald' },
           { label: t('statUpcoming'),  value: stats.upcoming,  color: 'text-cyan'    },
         ].map(k => (
-          <div key={k.label} className="rounded-lg border border-border/30 bg-bg-1 p-3 text-center">
+          <div key={k.label} className="rounded-lg border border-border bg-bg-1 p-3 text-center">
             <div className={`text-2xl font-bold ${k.color}`}>{k.value}</div>
             <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mt-0.5">{k.label}</div>
           </div>
@@ -260,8 +260,8 @@ export function CitasTab({ caseId, caseCode, patient, specialty }: Props) {
       </div>
 
       {/* Controls */}
-      <div className="rounded-lg border border-border/30 bg-bg-1 p-3 flex flex-wrap items-center gap-3">
-        <div className="flex rounded-md overflow-hidden border border-border/30 bg-bg-2">
+      <div className="rounded-lg border border-border bg-bg-1 p-3 flex flex-wrap items-center gap-3">
+        <div className="flex rounded-md overflow-hidden border border-border bg-bg-2">
           {([
             { id: 'timeline', icon: LayoutList },
             { id: 'table',    icon: Table2 },
@@ -284,7 +284,7 @@ export function CitasTab({ caseId, caseCode, patient, specialty }: Props) {
             <input
               type="date" value={dateFrom}
               onChange={e => { setDateFrom(e.target.value); setYearFilter(''); }}
-              className="rounded-md bg-bg-2 border border-border/30 px-2 py-1 text-xs text-text-1 outline-none focus:border-brand"
+              className="rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 outline-none focus:border-brand"
             />
           </div>
           <div className="flex items-center gap-1.5">
@@ -292,13 +292,13 @@ export function CitasTab({ caseId, caseCode, patient, specialty }: Props) {
             <input
               type="date" value={dateTo}
               onChange={e => { setDateTo(e.target.value); setYearFilter(''); }}
-              className="rounded-md bg-bg-2 border border-border/30 px-2 py-1 text-xs text-text-1 outline-none focus:border-brand"
+              className="rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 outline-none focus:border-brand"
             />
           </div>
           {years.length > 0 && (
             <select
               value={yearFilter} onChange={e => setYearFilter(e.target.value)}
-              className="rounded-md bg-bg-2 border border-border/30 px-2 py-1 text-xs text-text-1 outline-none focus:border-brand"
+              className="rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 outline-none focus:border-brand"
             >
               <option value="">{tc('selectYear')}</option>
               {years.map(y => <option key={y} value={y}>{y}</option>)}

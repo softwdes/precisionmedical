@@ -213,7 +213,7 @@ export function ReportClient() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-lg border border-border/30 bg-bg-1 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-1 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
             >
               <Mail className="w-3.5 h-3.5" />
               {t('btnEmailManagement')}
@@ -233,7 +233,7 @@ export function ReportClient() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
         {/* Total facturado */}
-        <div className="rounded-xl border border-border/30 bg-bg-1 p-4">
+        <div className="rounded-xl border border-border bg-bg-1 p-4">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">{t('kpiTotalBilled')}</div>
           <div className="text-2xl font-bold font-mono text-text-1">{kpis.totalBilledFmt}</div>
           <div className="mt-2 flex items-center gap-1.5">
@@ -281,7 +281,7 @@ export function ReportClient() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Provider billing breakdown */}
-        <div className="rounded-xl border border-border/30 bg-bg-1 p-5">
+        <div className="rounded-xl border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="w-4 h-4 text-brand" />
             <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionByProvider')}</span>
@@ -317,7 +317,7 @@ export function ReportClient() {
         </div>
 
         {/* Facility breakdown */}
-        <div className="rounded-xl border border-border/30 bg-bg-1 p-5">
+        <div className="rounded-xl border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Building2 className="w-4 h-4 text-brand" />
             <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionByClinic')}</span>
@@ -347,7 +347,7 @@ export function ReportClient() {
       </div>
 
       {/* ── Lien aging ── */}
-      <div className="rounded-xl border border-border/30 bg-bg-1 p-5">
+      <div className="rounded-xl border border-border bg-bg-1 p-5">
         <div className="flex items-center gap-2 mb-4">
           <Scale className="w-4 h-4 text-brand" />
           <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionLienAging')}</span>
@@ -402,7 +402,7 @@ export function ReportClient() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Top 5 bufetes */}
-        <div className="rounded-xl border border-border/30 bg-bg-1 p-5">
+        <div className="rounded-xl border border-border bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Users className="w-4 h-4 text-brand" />
             <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionTopFirms')}</span>
@@ -487,7 +487,7 @@ export function ReportClient() {
               </button>
               <button
                 type="button"
-                className="flex items-center gap-1.5 rounded-lg border border-border/30 bg-bg-1 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-bg-1 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
                 {t('btnDownloadList')}
@@ -509,7 +509,7 @@ export function ReportClient() {
       </div>
 
       {/* ── Bottom schedule note ── */}
-      <div className="rounded-lg border border-border/30 bg-bg-2/30 p-3 flex items-center justify-between flex-wrap gap-2">
+      <div className="rounded-lg border border-border bg-bg-2/30 p-3 flex items-center justify-between flex-wrap gap-2">
         <div className="text-[11px] text-text-muted">
           {t('scheduleNote')}
         </div>

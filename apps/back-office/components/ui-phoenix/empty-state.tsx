@@ -36,7 +36,7 @@ function Rich({
   subtitle?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-dashed border-border/30 bg-bg-1/50 p-12 text-center">
+    <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-12 text-center">
       <Icon className="w-12 h-12 text-text-muted mx-auto mb-3" />
       <div className="text-text-1 font-semibold">{title}</div>
       {subtitle && (

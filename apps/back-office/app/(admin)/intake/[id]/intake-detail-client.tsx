@@ -120,8 +120,8 @@ function LogContactModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl border border-border/30 bg-bg-1 shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/30">
+      <div className="w-full max-w-md rounded-xl border border-border bg-bg-1 shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="font-semibold text-text-1 text-sm">{t('logContactTitle')}</div>
           <button onClick={onClose} className="text-text-muted hover:text-text-1 text-lg leading-none">×</button>
         </div>
@@ -136,7 +136,7 @@ function LogContactModal({
                 className={`flex items-center gap-1.5 flex-1 justify-center py-2 rounded-md border text-xs font-semibold transition-all ${
                   type === contactType
                     ? 'border-amber/40 bg-amber/10 text-amber'
-                    : 'border-border/30 text-text-2 hover:border-border-strong'
+                    : 'border-border text-text-2 hover:border-border-strong'
                 }`}
               >
                 {contactType === 'call' ? <Phone className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
@@ -153,7 +153,7 @@ function LogContactModal({
               value={contactName}
               onChange={e => setContactName(e.target.value)}
               placeholder="Bob Jones (Smith & Johnson)"
-              className="w-full rounded-md border border-border/30 bg-bg-2 px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:border-amber/50 focus:outline-none"
+              className="w-full rounded-md border border-border bg-bg-2 px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:border-amber/50 focus:outline-none"
             />
           </div>
           {/* Description */}
@@ -166,14 +166,14 @@ function LogContactModal({
               onChange={e => setDescription(e.target.value)}
               placeholder="Confirmó representación del caso · respondió por email..."
               rows={3}
-              className="w-full rounded-md border border-border/30 bg-bg-2 px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:border-amber/50 focus:outline-none resize-none"
+              className="w-full rounded-md border border-border bg-bg-2 px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:border-amber/50 focus:outline-none resize-none"
             />
           </div>
         </div>
         <div className="flex gap-2 px-5 pb-4">
           <button
             onClick={onClose}
-            className="flex-1 py-2 rounded-md border border-border/30 text-text-2 text-sm hover:bg-white/5 transition-colors"
+            className="flex-1 py-2 rounded-md border border-border text-text-2 text-sm hover:bg-white/5 transition-colors"
           >
             {t('actionCancel')}
           </button>
@@ -274,7 +274,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
             <button
               type="button"
               onClick={() => router.back()}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               {t('actionInbox')}
@@ -363,7 +363,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                   {d.attorney?.email && (
                     <a
                       href={`mailto:${d.attorney.email}`}
-                      className="flex items-center justify-center gap-2 py-2 rounded-md border border-border/30 text-text-2 text-xs hover:border-amber/30 hover:text-amber transition-colors"
+                      className="flex items-center justify-center gap-2 py-2 rounded-md border border-border text-text-2 text-xs hover:border-amber/30 hover:text-amber transition-colors"
                     >
                       <Mail className="w-3.5 h-3.5" />
                       {t('actionResendSignLink')}
@@ -427,7 +427,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
                   {d.primaryInsurance?.claimsEmail && (
                     <a
                       href={`mailto:${d.primaryInsurance.claimsEmail}`}
-                      className="flex items-center justify-center gap-2 py-2 rounded-md border border-border/30 text-text-2 text-xs hover:border-rose/30 hover:text-rose transition-colors"
+                      className="flex items-center justify-center gap-2 py-2 rounded-md border border-border text-text-2 text-xs hover:border-rose/30 hover:text-rose transition-colors"
                     >
                       <Mail className="w-3.5 h-3.5" />
                       {t('actionEmailInsurer')}
@@ -470,7 +470,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
 
           {/* Próximas citas */}
           {d.appointments.length > 0 && (
-            <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+            <div className="rounded-lg border border-border bg-bg-1 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <CalendarDays className="w-4 h-4 text-amber" />
                 <span className="text-sm font-semibold text-text-1 uppercase tracking-wider">{t('sectionAppointments')}</span>
@@ -488,7 +488,7 @@ export function IntakeDetailClient({ caseId }: { caseId: string }) {
           )}
 
           {/* Communication history */}
-          <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
+          <div className="rounded-lg border border-border bg-bg-1 p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-amber" />

@@ -184,7 +184,7 @@ export function SettingsClient({
         <PageHeader title="Configuración" subtitle="Clínicas, catálogos y configuración global del sistema" />
 
         {/* ── Tab bar ── */}
-        <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar border-b border-border/30 mt-4">
+        <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar border-b border-border mt-4">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -220,7 +220,7 @@ export function SettingsClient({
               {/* Mobile: cards */}
               <div className="sm:hidden space-y-2">
                 {clinics.map((c) => (
-                  <div key={c.id} className="rounded-lg border border-border/30 bg-bg-1 p-3 flex items-start justify-between gap-3">
+                  <div key={c.id} className="rounded-lg border border-border bg-bg-1 p-3 flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2.5 min-w-0">
                       <div className="w-3 h-3 rounded-full mt-0.5 shrink-0" style={{ backgroundColor: c.color || '#6366F1' }} />
                       <div className="min-w-0">
@@ -239,10 +239,10 @@ export function SettingsClient({
               </div>
 
               {/* Desktop: table */}
-              <div className="hidden sm:block rounded-lg border border-border/30 overflow-x-auto">
+              <div className="hidden sm:block rounded-lg border border-border overflow-x-auto">
                 <table className="w-full text-sm min-w-[800px]">
                   <thead>
-                    <tr className="border-b border-border/30 bg-bg-2/40">
+                    <tr className="border-b border-border bg-bg-2/40">
                       {['Color','Nombre','Teléfono','Celular','Correo','Estado','Ciudad','Código postal','Acciones'].map((h) => (
                         <th key={h} className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{h}</th>
                       ))}
@@ -324,7 +324,7 @@ export function SettingsClient({
                   <div className="relative" ref={pickerRef}>
                     <button type="button" onClick={() => setPickerOpen((o) => !o)}
                       title="Color personalizado"
-                      className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center bg-bg-2 border-border/30 hover:border-text-muted"
+                      className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110 flex items-center justify-center bg-bg-2 border-border hover:border-text-muted"
                       style={!COLOR_SWATCHES.includes(form.color) ? {
                         borderColor: 'white',
                         boxShadow: `0 0 0 1px ${form.color}`,
@@ -335,7 +335,7 @@ export function SettingsClient({
                       )}
                     </button>
                     {pickerOpen && (
-                      <div className="absolute left-0 top-9 z-50 rounded-lg border border-border/30 bg-bg-1 p-3 shadow-xl">
+                      <div className="absolute left-0 top-9 z-50 rounded-lg border border-border bg-bg-1 p-3 shadow-xl">
                         <HexColorPicker
                           color={form.color}
                           onChange={(c) => setForm((p) => ({ ...p, color: c }))}
@@ -372,7 +372,7 @@ export function SettingsClient({
                 <div>
                   <Label>Estado</Label>
                   <select value={form.state} onChange={set('state')}
-                    className="w-full rounded-md border border-border/30 bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand">
+                    className="w-full rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand">
                     <option value="">Seleccionar estado</option>
                     {US_STATES.map((s) => (
                       <option key={s.code} value={s.code}>{s.name}</option>
@@ -382,7 +382,7 @@ export function SettingsClient({
                 <div>
                   <Label>Ciudad</Label>
                   <select value={form.city} onChange={set('city')} disabled={!form.state}
-                    className="w-full rounded-md border border-border/30 bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-40">
+                    className="w-full rounded-md border border-border bg-bg-1 px-3 py-2 text-sm text-text-1 focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-40">
                     <option value="">Seleccionar ciudad</option>
                     {cities.map((c) => (
                       <option key={c} value={c}>{c}</option>

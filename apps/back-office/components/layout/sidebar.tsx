@@ -60,14 +60,14 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps): Re
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-40 flex h-full w-[240px] flex-col bg-bg-1 border-r border-border/30',
+        'fixed left-0 top-0 z-40 flex h-full w-[240px] flex-col bg-bg-1 border-r border-border',
         'transition-transform duration-300 ease-out',
         'md:translate-x-0',
         mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
       )}
     >
       {/* Brand */}
-      <div className="flex items-center justify-between px-5 py-5 border-b border-border/30">
+      <div className="flex items-center justify-between px-5 py-5 border-b border-border">
         <Link href="/dashboard" onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <div className="flex h-9 w-9 items-center justify-center rounded bg-gradient-brand shadow-glow">
             <span className="text-white font-bold text-sm">LM</span>
@@ -116,7 +116,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps): Re
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-border/30">
+      <div className="px-5 py-4 border-t border-border">
         <div className="text-text-muted text-[10px] leading-relaxed">
           <div className="text-text-2 font-semibold mb-1">{t('footerStatus')}</div>
           <div className="mt-2 text-emerald flex items-center gap-1">

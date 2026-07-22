@@ -66,7 +66,7 @@ export function LocationSelect({ label, value, onChange, options, placeholder = 
         onClick={() => { if (!disabled) setOpen(v => !v); }}
         className={`
           w-full flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm text-left transition-colors
-          ${open ? 'border-brand ring-1 ring-brand/20' : 'border-border/30'}
+          ${open ? 'border-brand ring-1 ring-brand/20' : 'border-border'}
           ${disabled ? 'opacity-40 cursor-not-allowed bg-bg-2/30' : 'bg-bg-2 hover:border-border-strong cursor-pointer'}
         `}
       >
@@ -89,9 +89,9 @@ export function LocationSelect({ label, value, onChange, options, placeholder = 
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 mt-0.5 w-full min-w-[180px] rounded-md border border-border/30 bg-bg-1 shadow-xl">
+        <div className="absolute z-50 mt-0.5 w-full min-w-[180px] rounded-md border border-border bg-bg-1 shadow-xl">
           {/* Search */}
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
             <input
               ref={inputRef}

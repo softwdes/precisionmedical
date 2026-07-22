@@ -467,10 +467,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                       value={patientQuery}
                       onChange={(e) => setPatientQuery(e.target.value)}
                       placeholder={t('searchPatientPlaceholder2')}
-                      className="w-full bg-bg-2 border border-border/30 rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                      className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                     />
                     {(searchingPt || patientResults.length > 0) && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border/30 rounded-md shadow-lg z-50 overflow-hidden">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden">
                         {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">Buscando...</div>}
                         {patientResults.map((pt) => (
                           <button
@@ -507,7 +507,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                     <select
                       value={caseId}
                       onChange={(e) => { setCaseId(e.target.value); setProviderId(''); }}
-                      className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
                     >
                       <option value="">{t('selectCasePlaceholder')}</option>
                       {patientCases.map((c) => (
@@ -563,7 +563,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-clinic"
               value={clinicId}
               onChange={(e) => setClinicId(e.target.value)}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               disabled={loadingRes}
             >
               <option value="">{loadingRes ? 'Cargando...' : t('selectClinicPlaceholder')}</option>
@@ -602,7 +602,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             {loadingRes ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-12 rounded-md border border-border/30 bg-bg-2 animate-pulse" />
+                  <div key={i} className="h-12 rounded-md border border-border bg-bg-2 animate-pulse" />
                 ))}
               </div>
             ) : filteredProviders.length === 0 ? (
@@ -617,7 +617,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                     className={`text-left p-2.5 rounded-md border text-xs transition-colors flex items-center gap-2 ${
                       providerId === p.id
                         ? 'bg-cyan/10 border-cyan/40 text-text-1'
-                        : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
+                        : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
                     }`}
                   >
                     <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
@@ -646,7 +646,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-duration"
               value={String(duration)}
               onChange={(e) => { setDuration(parseInt(e.target.value, 10)); setSlotIso(null); }}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {DURATION_OPTIONS.map((d) => (
                 <option key={d} value={String(d)}>{d} min</option>
@@ -692,7 +692,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-type"
               value={type}
               onChange={(e) => setType(e.target.value as AppointmentType)}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
@@ -708,7 +708,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder={t('notesPlaceholder')}
               maxLength={2000}
             />

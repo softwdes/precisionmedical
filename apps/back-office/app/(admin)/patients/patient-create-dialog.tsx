@@ -251,7 +251,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
           className="max-w-3xl max-h-[92vh] overflow-y-auto p-0"
           onInteractOutside={(e) => { e.preventDefault(); handleClose(); }}
         >
-          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/30 sticky top-0 bg-bg-1 z-10">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
             <DialogTitle className="flex items-center gap-2 text-text-1 text-base">
               <UserPlus className="w-4 h-4 text-brand" />
               {t('btnNewPatient')}
@@ -264,7 +264,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
           <div className="px-6 py-5 space-y-5">
 
             {/* ══ Personal info ══ */}
-            <div className="rounded-lg border border-border/30 bg-bg-1 p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
                 <User className="w-4 h-4 text-brand" />
                 <h3 className="text-sm font-semibold text-text-1">{t('sectionPersonal')}</h3>
@@ -325,7 +325,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
             </div>
 
             {/* ══ Clinical info ══ */}
-            <div className="rounded-lg border border-border/30 bg-bg-1 p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
                 <Stethoscope className="w-4 h-4 text-brand" />
                 <h3 className="text-sm font-semibold text-text-1">{t('sectionClinical')}</h3>
@@ -373,7 +373,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
             )}
 
             {/* ══ Emergency contacts ══ */}
-            <div className="rounded-lg border border-border/30 bg-bg-1 p-5 space-y-4">
+            <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-4">
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
                 <PhoneCall className="w-4 h-4 text-brand" />
                 <h3 className="text-sm font-semibold text-text-1">{t('sectionEmergencyContacts')}</h3>
@@ -399,7 +399,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
             )}
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t border-border/30 flex-col sm:flex-row gap-2 sticky bottom-0 bg-bg-1">
+          <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 sticky bottom-0 bg-bg-1">
             <Button variant="outline" onClick={() => handleClose()} disabled={saving} className="w-full sm:w-auto">
               {tc('cancel')}
             </Button>

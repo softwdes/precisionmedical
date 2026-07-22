@@ -130,7 +130,7 @@ export function LawyersClient({ firms, stats }: Props) {
         </div>
 
         {/* Panel distribución por tipo */}
-        <div className="rounded-lg border border-border/30 bg-bg-1 px-4 py-3 flex flex-col justify-between">
+        <div className="rounded-lg border border-border bg-bg-1 px-4 py-3 flex flex-col justify-between">
           <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold mb-3">
             {t('distTitle')}
           </div>
@@ -201,7 +201,7 @@ export function LawyersClient({ firms, stats }: Props) {
                 </tr>
               ) : (
                 paginated.map((f) => {
-                  const typeColor = ENTITY_TYPE_COLOR[f.entityType] ?? 'bg-bg-2 text-text-2 border-border/30';
+                  const typeColor = ENTITY_TYPE_COLOR[f.entityType] ?? 'bg-bg-2 text-text-2 border-border';
                   const typeLabel = f.entityType === 'FIRM' ? t('typeFirm') : f.entityType === 'INDEPENDENT' ? t('typeIndependent') : f.entityType;
                   return (
                     <DataTable.Row key={f.id} muted={f.status !== 'ACTIVE'}>
@@ -308,23 +308,23 @@ export function LawyersClient({ firms, stats }: Props) {
               <button
                 onClick={() => setPage(1)}
                 disabled={safePage <= 1}
-                className="px-2 py-1 text-xs rounded border border-border/30 text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-2 py-1 text-xs rounded border border-border text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
               >«</button>
               <button
                 onClick={() => setPage(safePage - 1)}
                 disabled={safePage <= 1}
-                className="px-2 py-1 text-xs rounded border border-border/30 text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-2 py-1 text-xs rounded border border-border text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
               >‹</button>
               <span className="px-2 text-xs text-text-muted font-mono">{safePage}/{totalPages}</span>
               <button
                 onClick={() => setPage(safePage + 1)}
                 disabled={safePage >= totalPages}
-                className="px-2 py-1 text-xs rounded border border-border/30 text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-2 py-1 text-xs rounded border border-border text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
               >›</button>
               <button
                 onClick={() => setPage(totalPages)}
                 disabled={safePage >= totalPages}
-                className="px-2 py-1 text-xs rounded border border-border/30 text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-2 py-1 text-xs rounded border border-border text-text-2 hover:bg-bg-2 disabled:opacity-30 disabled:cursor-not-allowed"
               >»</button>
             </div>
           }
@@ -364,7 +364,7 @@ function PaymentSpeedPill({ speed }: { speed: string | null }) {
     AVERAGE: t('speedAverage'),
     SLOW:    t('speedSlow'),
   };
-  return <TagPill label={labels[speed] ?? speed} colorClass={colors[speed] ?? 'bg-white/5 text-text-2 border-border/30'} />;
+  return <TagPill label={labels[speed] ?? speed} colorClass={colors[speed] ?? 'bg-white/5 text-text-2 border-border'} />;
 }
 
 // ─── Modals ─────────────────────────────────────────────────────────────────
@@ -504,7 +504,7 @@ function FirmDialog({
               id="paymentSpeed"
               value={paymentSpeed ?? 'UNKNOWN'}
               onChange={(e) => setPaymentSpeed(e.target.value)}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {PAYMENT_SPEEDS.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
@@ -526,7 +526,7 @@ function FirmDialog({
               id="notes"
               value={notes ?? ''}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder={t('placeholderNotes')}
             />
           </div>

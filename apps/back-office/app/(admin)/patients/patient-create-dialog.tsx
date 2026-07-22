@@ -110,6 +110,10 @@ export function PatientCreateDialog({ onCreated }: Props) {
       if (a === null || a < 0) { setError(t('errorDOBInvalid')); return; }
       if (a > 120) { setError(t('errorDOBYear')); return; }
     }
+    if (form.addressZip && !/^\d{5}(-\d{4})?$/.test(form.addressZip.trim())) {
+      setError('Zip code must be 5 digits (e.g. 84606).');
+      return;
+    }
     if (isMinor && !form.guardianName.trim()) {
       setError(t('errorGuardianRequired'));
       return;
@@ -133,7 +137,13 @@ export function PatientCreateDialog({ onCreated }: Props) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(json.message ?? json.error ?? t('editError'));
+        if (json.error === 'INVALID_PAYLOAD' && json.details?.fieldErrors) {
+          const fields = json.details.fieldErrors as Record<string, string[]>;
+          const msgs = Object.entries(fields).flatMap(([p, e]) => e.map(m => `${p}: ${m}`));
+          setError(msgs.length ? msgs.join(' · ') : (json.message ?? t('editError')));
+        } else {
+          setError(json.message ?? t('editError'));
+        }
         return;
       }
       handleClose(true);
@@ -222,6 +232,15 @@ export function PatientCreateDialog({ onCreated }: Props) {
     { value: 'MOTHER',         label: t('guardianRelation.MOTHER') },
     { value: 'LEGAL_GUARDIAN', label: t('guardianRelation.LEGAL_GUARDIAN') },
     { value: 'OTHER',          label: t('guardianRelation.OTHER') },
+  ];
+  const RELATION_OPTIONS = [
+    { value: '', label: '—' },
+    { value: 'Spouse',  label: 'Spouse' },
+    { value: 'Parent',  label: 'Parent' },
+    { value: 'Sibling', label: 'Sibling' },
+    { value: 'Child',   label: 'Child' },
+    { value: 'Friend',  label: 'Friend' },
+    { value: 'Other',   label: 'Other' },
   ];
 
   return (
@@ -382,13 +401,13 @@ export function PatientCreateDialog({ onCreated }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField.Input label={t('fieldName')}     value={form.emergencyContactName}     onChange={set('emergencyContactName')}       placeholder={t('fieldName')} />
                 <FormField.Input label={t('fieldPhone')}    value={form.emergencyContactPhone}    onChange={setPhone('emergencyContactPhone')} placeholder="(305) 000-0000" type="tel" />
-                <FormField.Input label={t('fieldRelation')} value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')}   placeholder="e.g. Spouse, Mother..." />
+                <FormField.Select label={t('fieldRelation')} value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')} options={RELATION_OPTIONS} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField.Input label={t('fieldName')}     value={form.emergency2Name}     onChange={set('emergency2Name')}       placeholder={t('fieldName')} />
                 <FormField.Input label={t('fieldPhone')}    value={form.emergency2Phone}    onChange={setPhone('emergency2Phone')} placeholder="(305) 000-0000" type="tel" />
-                <FormField.Input label={t('fieldRelation')} value={form.emergency2Relation} onChange={set('emergency2Relation')}   placeholder="e.g. Sibling..." />
+                <FormField.Select label={t('fieldRelation')} value={form.emergency2Relation} onChange={set('emergency2Relation')} options={RELATION_OPTIONS} />
               </div>
             </div>
 

@@ -403,7 +403,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       console.log('[NewCase] setSuccess →', { caseCode: data.case.caseCode, portalUrl, hasQr: !!qrDataUrl });
       setSuccess({ caseCode: data.case.caseCode, caseId, appointmentScheduled: !!data.appointment, portalUrl, qrDataUrl });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al crear caso');
+      setError(e instanceof Error ? e.message : 'Error creating case');
     } finally {
       setSaving(false);
     }
@@ -411,7 +411,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
   const isManual = callMode === 'manual';
   const isSearch = callMode === 'search';
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Paciente';
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Patient';
 
   // Derived values for success panel
   const successSlot     = success ? slotOptions.find((s) => s.iso === slotIso) : null;
@@ -469,10 +469,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     : t('modeOutbound');
 
   const STEPS = [
-    { n: 1 as WizardStep, label: 'Paciente',  labelShort: '1', icon: User },
-    { n: 2 as WizardStep, label: 'Caso',      labelShort: '2', icon: Car },
-    { n: 3 as WizardStep, label: 'Cita',      labelShort: '3', icon: CalendarCheck },
-    { n: 4 as WizardStep, label: 'Formulario',labelShort: '4', icon: Send },
+    { n: 1 as WizardStep, label: 'Patient',     labelShort: '1', icon: User },
+    { n: 2 as WizardStep, label: 'Case',        labelShort: '2', icon: Car },
+    { n: 3 as WizardStep, label: 'Appointment', labelShort: '3', icon: CalendarCheck },
+    { n: 4 as WizardStep, label: 'Form',        labelShort: '4', icon: Send },
   ];
 
   const stepCanProceed = [true, canGoToStep2, canGoToStep3, canGoToStep4];
@@ -601,13 +601,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 </div>
                 <div className="min-w-0">
                   <div className="text-text-1 font-semibold text-sm">
-                    Caso <code className="text-emerald font-mono font-bold">{success.caseCode}</code> creado exitosamente
+                    Case <code className="text-emerald font-mono font-bold">{success.caseCode}</code> created successfully
                   </div>
                   <div className="text-text-muted text-[11px] mt-1 space-y-0.5">
                     {success.appointmentScheduled && successSlot && (
                       <div className="flex items-center gap-1.5">
                         <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
-                        <span>Cita: <strong className="text-text-2">{successSlot.dayLabel} · {successSlot.label}</strong>
+                        <span>Appointment: <strong className="text-text-2">{successSlot.dayLabel} · {successSlot.label}</strong>
                           {successProvider && <> · Dr. {successProvider.firstName} {successProvider.lastName}</>}
                           {successClinic && <> · {successClinic.name}</>}
                         </span>
@@ -616,7 +616,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     {caseType === 'MVA' && lawFirm && (
                       <div className="flex items-center gap-1.5">
                         <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
-                        <span>Bufete: <strong className="text-text-2">{lawFirm.label}</strong></span>
+                        <span>Law firm: <strong className="text-text-2">{lawFirm.label}</strong></span>
                       </div>
                     )}
                   </div>
@@ -627,44 +627,44 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               {success.portalUrl ? (
                 <div className="rounded-lg border border-border bg-bg-1 p-4">
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
-                    Enlace del formulario · compartir con el paciente
+                    Forms link · share with patient
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 items-start">
                     {success.qrDataUrl && (
                       <div className="shrink-0 rounded-lg overflow-hidden border border-border mx-auto sm:mx-0">
-                        <img src={success.qrDataUrl} alt="QR formulario" className="w-[160px] h-[160px] block" />
+                        <img src={success.qrDataUrl} alt="QR forms" className="w-[160px] h-[160px] block" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="rounded-md bg-bg-2/40 border border-border/40 px-3 py-2">
-                        <div className="text-[10px] text-text-muted mb-1">URL del formulario</div>
+                        <div className="text-[10px] text-text-muted mb-1">Forms URL</div>
                         <div className="text-xs text-text-2 font-mono truncate">{success.portalUrl}</div>
                       </div>
                       <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={copyLink}>
-                        {copied ? <><Check className="w-3.5 h-3.5 text-emerald" /> ¡Copiado!</> : <><Copy className="w-3.5 h-3.5" /> Copiar enlace</>}
+                        {copied ? <><Check className="w-3.5 h-3.5 text-emerald" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy link</>}
                       </Button>
                       {success.qrDataUrl && (
                         <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={downloadQr}>
-                          <Download className="w-3.5 h-3.5" /> Descargar QR
+                          <Download className="w-3.5 h-3.5" /> Download QR
                         </Button>
                       )}
                       <a
                         href={phone.trim()
-                          ? `https://wa.me/${phone.trim().replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`
-                          : `https://wa.me/?text=${encodeURIComponent(`Hola ${firstName}, aquí está tu formulario médico de Precision Medical: ${success.portalUrl}`)}`}
+                          ? `https://wa.me/${phone.trim().replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${firstName}, here is your medical forms link from Precision Medical: ${success.portalUrl}`)}`
+                          : `https://wa.me/?text=${encodeURIComponent(`Hi ${firstName}, here is your medical forms link from Precision Medical: ${success.portalUrl}`)}`}
                         target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
                       >
-                        <span className="text-base leading-none">💬</span> Enviar por WhatsApp
+                        <span className="text-base leading-none">💬</span> Send via WhatsApp
                       </a>
                       <div className="text-[10px] text-text-muted italic pt-1">
-                        El enlace expira cuando el paciente complete el formulario.
+                        Link expires once the patient completes the form.
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <Note tone="amber">No se pudo generar el enlace del formulario. Usa el botón &quot;Enviar portal&quot; desde el detalle del caso.</Note>
+                <Note tone="amber">Could not generate the forms link. Use the &quot;Send portal&quot; button from the case detail.</Note>
               )}
             </div>
           ) : (<>
@@ -792,7 +792,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               )}
 
               {!canGoToStep3 && caseType === 'MVA' && lawyerStatus === 'HAS' && !lawFirm && (
-                <Note tone="amber">Selecciona el bufete de abogados para continuar.</Note>
+                <Note tone="amber">Select the law firm to continue.</Note>
               )}
             </>
           )}
@@ -818,7 +818,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     <FormField.Select label={t('clinic')} value={clinicId} onChange={setClinicId}
                       options={clinics.map((c) => ({ value: c.id, label: c.name }))} />
                     <FormField.Select label={t('specialty')} value={specialtyId} onChange={(v) => { setSpecialtyId(v); setShowAllProviders(false); }}
-                      options={[{ value: '', label: 'Sin especialidad' }, ...specialties.map((s) => ({ value: s.id, label: s.name }))]} />
+                      options={[{ value: '', label: 'No specialty' }, ...specialties.map((s) => ({ value: s.id, label: s.name }))]} />
                   </div>
 
                   {/* Doctor */}
@@ -975,7 +975,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
                         {!selectedDay && !slotsLoading && (
                           <p className="text-[11px] text-text-muted italic">
-                            Selecciona un día para ver los horarios disponibles.
+                            Select a day to see available time slots.
                           </p>
                         )}
                       </>
@@ -1002,15 +1002,15 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
                   {/* Notas para el doctor */}
                   <FormField.Textarea
-                    label="Notas para el doctor"
+                    label="Notes for the doctor"
                     value={appointmentNotes}
                     onChange={setAppointmentNotes}
-                    placeholder="Ej: paciente reporta dolor lumbar desde el accidente…"
-                    hint="Opcional · visible solo para el doctor asignado"
+                    placeholder="E.g. patient reports lower back pain since accident…"
+                    hint="Optional · visible only to the assigned doctor"
                   />
 
                   {scheduleNow && !slotIso && (
-                    <Note tone="amber">Selecciona un horario disponible para continuar.</Note>
+                    <Note tone="amber">Select an available time slot to continue.</Note>
                   )}
                 </>
               ) : (
@@ -1039,11 +1039,11 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 <ul className="space-y-1.5 text-xs text-text-2 list-none m-0 p-0">
                   <li className="flex items-start gap-2">
                     <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                    <span>Paciente: <strong className="text-text-1">{firstName} {lastName}</strong></span>
+                    <span>Patient: <strong className="text-text-1">{firstName} {lastName}</strong></span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                    <span>Caso tipo: <strong className="text-text-1">{caseType}</strong>
+                    <span>Case type: <strong className="text-text-1">{caseType}</strong>
                       {caseType === 'MVA' && lawFirm && <> · {lawFirm.label}</>}
                     </span>
                   </li>
@@ -1075,7 +1075,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
                     <span>
                       {isManual || isSearch
-                        ? 'Resumen completo registrado en historial del caso'
+                        ? 'Full summary recorded in case history'
                         : t('summaryAudit', { elapsed: formatElapsed(callElapsed) })}
                     </span>
                   </li>
@@ -1091,10 +1091,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
               {duplicateId && (
                 <div className="text-amber text-sm bg-amber/10 border border-amber/30 rounded-md px-3 py-2 flex flex-col gap-2">
-                  <p className="font-medium">¿Deseas crear el caso para el paciente existente en lugar de registrar uno nuevo?</p>
+                  <p className="font-medium">Would you like to create the case for the existing patient instead of registering a new one?</p>
                   <Button size="sm" variant="outline" className="self-start border-amber/50 text-amber hover:bg-amber/10"
                     onClick={() => { setExistingPatientId(duplicateId); setDuplicateId(null); setError(null); }}>
-                    Usar paciente existente
+                    Use existing patient
                   </Button>
                 </div>
               )}
@@ -1110,10 +1110,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           {success ? (
             <>
               <Button variant="outline" onClick={() => { router.refresh(); onOpenChange(false); }} className="w-full sm:w-auto">
-                Cerrar
+                Close
               </Button>
               <Button onClick={() => { router.refresh(); onOpenChange(false); router.push(`/front-office/${success.caseId}`); }} className="w-full sm:w-auto gap-1">
-                Ver caso <ArrowRight className="w-3.5 h-3.5" />
+                View case <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </>
           ) : (
@@ -1123,7 +1123,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 {wizardStep > 1 && (
                   <Button variant="outline" onClick={prevStep} className="flex-1 sm:flex-none sm:w-auto gap-1">
                     <ArrowLeft className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Atrás</span>
+                    <span className="hidden sm:inline">Back</span>
                   </Button>
                 )}
                 {wizardStep === 4 && !isManual && !isSearch && (
@@ -1139,12 +1139,12 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               {/* Right side: Next or Finalize */}
               {wizardStep < 4 ? (
                 <Button onClick={nextStep} disabled={!canNext} className="w-full sm:w-auto gap-1">
-                  Siguiente
+                  Next
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               ) : (
                 <Button onClick={() => handleSubmit('finalize')} disabled={!canSubmit || saving} className="w-full sm:w-auto gap-1">
-                  {saving ? 'Guardando…' : (
+                  {saving ? 'Saving…' : (
                     <><Check className="w-3.5 h-3.5" /> {isManual || isSearch ? t('btnSave') : t('btnFinalize')} <ArrowRight className="w-3.5 h-3.5" /></>
                   )}
                 </Button>
@@ -1159,17 +1159,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle className="text-text-1">¿Salir del formulario?</DialogTitle>
+          <DialogTitle className="text-text-1">Leave the form?</DialogTitle>
           <DialogDescription className="text-text-2 text-sm mt-1">
-            Tienes datos ingresados que se perderán si sales ahora.
+            You have entered data that will be lost if you leave now.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2 mt-4">
           <Button variant="destructive" className="w-full" onClick={() => { setShowExitConfirm(false); onOpenChange(false); }}>
-            Salir y perder datos
+            Leave and discard data
           </Button>
           <Button variant="outline" className="w-full" onClick={() => setShowExitConfirm(false)}>
-            Quedarme · seguir llenando
+            Stay · keep filling
           </Button>
         </div>
       </DialogContent>

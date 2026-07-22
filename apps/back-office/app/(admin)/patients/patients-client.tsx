@@ -551,16 +551,16 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
         <DialogHeader>
           <DialogTitle className="text-text-1 flex items-center gap-2">
             <QrCode className="w-4 h-4 text-brand" />
-            Acceso de paciente
+            Patient Access
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs font-mono">
-            Caso #{caseCode}
+            Case #{caseCode}
           </DialogDescription>
         </DialogHeader>
 
         <p className="text-[11px] text-text-muted leading-relaxed -mt-1">
-          Comparte este código QR o enlace con el paciente para que pueda completar
-          o actualizar su información de registro de manera segura.
+          Share this QR code or link with the patient so they can securely complete
+          or update their registration information.
         </p>
 
         {loading && (
@@ -576,7 +576,7 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
               <button
                 onClick={handleCopy}
                 className="p-1 rounded text-text-muted hover:text-brand transition-colors shrink-0"
-                title="Copiar enlace"
+                title="Copy link"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
@@ -591,14 +591,14 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
         )}
 
         {!loading && !portalUrl && (
-          <div className="text-[11px] text-rose text-center py-4">No se pudo generar el enlace.</div>
+          <div className="text-[11px] text-rose text-center py-4">Could not generate the link.</div>
         )}
 
         <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
-          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Cerrar</Button>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>Close</Button>
           {qrDataUrl && (
             <Button className="w-full sm:w-auto" onClick={handleDownload}>
-              <Download className="w-3.5 h-3.5 mr-1" /> Descargar QR
+              <Download className="w-3.5 h-3.5 mr-1" /> Download QR
             </Button>
           )}
         </DialogFooter>
@@ -641,10 +641,10 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
           <DialogTitle className="text-text-1 flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-brand" />
-            Citas programadas
+            Scheduled Appointments
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
-            Puedes revisar los detalles acerca de tus citas programadas.
+            Review the details of all scheduled appointments for this case.
           </DialogDescription>
         </DialogHeader>
 
@@ -658,7 +658,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
           {!loading && appointments.length === 0 && (
             <div className="text-center py-12 text-text-muted">
               <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-20" />
-              <p className="text-sm">No se encontraron resultados</p>
+              <p className="text-sm">No appointments found</p>
             </div>
           )}
 
@@ -667,7 +667,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
               <table className="w-full text-sm">
                 <thead className="bg-bg-2 border-b border-border">
                   <tr>
-                    {['Fecha','Hora de inicio','Hora de conclusión','Estado','Firmado por el paciente','Registro','Salida','Doctor','Especialidad','Acciones'].map(h => (
+                    {['Date','Start time','End time','Status','Patient signed','Check-in','Check-out','Doctor','Specialty','Actions'].map(h => (
                       <th key={h} className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -679,10 +679,10 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
                       <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{fmtTime(a.scheduledFor)}</td>
                       <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{addMinutes(a.scheduledFor, a.durationMinutes)}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <TagPill label={a.status === 'SCHEDULED' ? 'Pendiente' : a.status} colorClass={APPT_STATUS_COLOR[a.status] ?? 'bg-bg-2 text-text-2 border-border'} />
+                        <TagPill label={a.status === 'SCHEDULED' ? 'Pending' : a.status} colorClass={APPT_STATUS_COLOR[a.status] ?? 'bg-bg-2 text-text-2 border-border'} />
                       </td>
                       <td className="px-3 py-2.5 text-[12px] text-text-muted whitespace-nowrap">
-                        {a.attendanceSignedAt ? <span className="text-emerald">✓ Firmado</span> : '—'}
+                        {a.attendanceSignedAt ? <span className="text-emerald">✓ Signed</span> : '—'}
                       </td>
                       <td className="px-3 py-2.5 text-[12px] whitespace-nowrap">
                         {a.checkedInAt ? <span className="text-emerald text-[10px]">✓</span> : <span className="text-text-muted">—</span>}
@@ -699,26 +699,26 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
                           <button
                             onClick={() => { onClose(); router.push(`/triage/${a.id}`); }}
                             className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
-                            title="Ver detalle"
+                            title="View detail"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => { onClose(); router.push(`/triage/${a.id}`); }}
                             className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
-                            title="Editar / Triaje"
+                            title="Edit / Triage"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
-                            title="Formularios"
+                            title="Forms"
                           >
                             <CalendarDays className="w-3.5 h-3.5" />
                           </button>
                           <button
                             className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
-                            title="Descargar"
+                            title="Download"
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
@@ -735,14 +735,14 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
         {/* Pagination footer */}
         <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-bg-1">
           <div className="flex items-center gap-2 text-[11px] text-text-muted">
-            <span>Filas por página</span>
+            <span>Rows per page</span>
             <select className="bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none">
               <option>10</option>
               <option>25</option>
             </select>
           </div>
           <div className="flex items-center gap-1 text-[11px] text-text-muted">
-            <span>Página 1 de 1</span>
+            <span>Page 1 of 1</span>
             <div className="flex gap-1 ml-2">
               {['«','‹','›','»'].map(s => (
                 <button key={s} disabled className="w-7 h-7 rounded border border-border text-text-muted disabled:opacity-30 hover:border-brand hover:text-brand transition-colors text-xs">
@@ -2280,6 +2280,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
             <button
               onClick={() => router.push(buildPageUrl(page - 1))}
               disabled={page === 0}
+              aria-label="Previous page"
               className="p-1.5 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -2287,6 +2288,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
             <button
               onClick={() => router.push(buildPageUrl(page + 1))}
               disabled={page >= localPages - 1}
+              aria-label="Next page"
               className="p-1.5 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" />

@@ -29,6 +29,7 @@ const nextConfig = {
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '*.supabase.co' }],
   },
+  allowedDevOrigins: ['*.ngrok-free.dev', '*.ngrok.io'],
 };
 
 // Sentry wrapper — solo activo en CI/prod (DSN requerido).

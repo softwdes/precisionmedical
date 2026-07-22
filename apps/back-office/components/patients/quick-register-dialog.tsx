@@ -344,7 +344,14 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
 
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(json.message ?? json.error ?? 'Error al crear el registro.');
+        if (json.error === 'INVALID_PAYLOAD' && json.details?.fieldErrors) {
+          const fields = json.details.fieldErrors as Record<string, string[]>;
+          const msgs = Object.entries(fields)
+            .flatMap(([path, errs]) => errs.map(e => `${path}: ${e}`));
+          setError(msgs.length ? msgs.join(' · ') : (json.message ?? 'Please check all required fields.'));
+        } else {
+          setError(json.message ?? 'An error occurred. Please try again.');
+        }
         return;
       }
 
@@ -372,7 +379,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
         onOpenChange(false);
       }
     } catch {
-      setError('Error de red. Intenta de nuevo.');
+      setError('Network error. Please try again.');
     } finally {
       setSaving(false);
     }

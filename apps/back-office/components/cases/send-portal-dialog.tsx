@@ -110,10 +110,10 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-emerald">
               <Check className="w-5 h-5" />
-              Forms enviado · mock Phase 1A
+              Forms sent · mock Phase 1A
             </DialogTitle>
             <DialogDescription>
-              Phoenix Phase 1A — el SMS NO se envió de verdad (Weave BAA pendiente). Phase 2 con BAA firmado activa el envío real.
+              Phoenix Phase 1A — SMS was NOT actually sent (Weave BAA pending). Phase 2 with signed BAA activates real delivery.
             </DialogDescription>
           </DialogHeader>
 
@@ -121,7 +121,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
             <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4">
               <div className="flex items-center gap-2 text-xs text-emerald font-semibold uppercase tracking-wider mb-2">
                 {result.via === 'SMS' ? <MessageSquare className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
-                {result.via} simulado enviado a {result.to}
+                {result.via} simulated — sent to {result.to}
               </div>
               <div className="text-xs text-text-2 bg-bg-1 rounded-md p-3 font-mono whitespace-pre-wrap">
                 {result.messageBody}
@@ -129,7 +129,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
             </div>
 
             <div className="rounded-lg border border-brand/30 bg-brand/5 p-4">
-              <div className="text-xs text-brand font-semibold uppercase tracking-wider mb-2">Magic link generado</div>
+              <div className="text-xs text-brand font-semibold uppercase tracking-wider mb-2">Magic link generated</div>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-text-1 text-[11px] font-mono bg-bg-2 rounded px-3 py-2 break-all" title={result.portalUrl}>
                   {result.portalUrl}
@@ -140,22 +140,22 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
                   className="px-3 py-2 rounded-md bg-bg-2 hover:bg-bg-3 text-text-2 hover:text-text-1 text-xs flex items-center gap-1"
                 >
                   {copied ? <Check className="w-3 h-3 text-emerald" /> : <Copy className="w-3 h-3" />}
-                  {copied ? 'Copiado' : 'Copy'}
+                  {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
               <div className="mt-2 text-[10px] text-text-muted">
-                ⏱ Expira: {new Date(result.expiresAt).toLocaleString('es-US', { dateStyle: 'short', timeStyle: 'short' })}
+                ⏱ Expires: {new Date(result.expiresAt).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
               </div>
             </div>
 
             <div className="text-xs text-text-muted text-center pt-2">
-              ✓ Status del caso actualizado a <code className="text-amber">INTAKE_PENDING</code><br />
-              Próximo: paciente completa Forms (B.5-B.9) · 24h antes de cita confirmás (B.4)
+              ✓ Case status updated to <code className="text-amber">INTAKE_PENDING</code><br />
+              Next: patient completes Forms (B.5-B.9) · confirm 24h before appointment (B.4)
             </div>
           </div>
 
           <DialogFooter>
-            <Button onClick={() => handleCloseSuccess(false)}>Cerrar</Button>
+            <Button onClick={() => handleCloseSuccess(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -172,10 +172,10 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Send className="w-5 h-5 text-brand" />
-            Enviar Forms al paciente
+            Send Forms to Patient
           </DialogTitle>
           <DialogDescription>
-            Magic link a los Forms (B.5-B.9) para que <strong className="text-text-1">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> complete su intake. Expira en 24h.
+            Magic link to Forms (B.5-B.9) for <strong className="text-text-1">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> to complete their intake. Expires in 24h.
           </DialogDescription>
         </DialogHeader>
 
@@ -200,7 +200,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
 
           {/* Via selector */}
           <div>
-            <Label>Enviar vía</Label>
+            <Label>Send via</Label>
             <div className="grid grid-cols-2 gap-2 mt-1.5">
               <button
                 type="button"
@@ -216,7 +216,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
               >
                 <MessageSquare className="w-4 h-4" />
                 SMS via Weave
-                {!canSendSms && <span className="text-[10px]">(sin teléfono)</span>}
+                {!canSendSms && <span className="text-[10px]">(no phone)</span>}
               </button>
               <button
                 type="button"
@@ -232,14 +232,14 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
               >
                 <Mail className="w-4 h-4" />
                 Email via Resend
-                {!canSendEmail && <span className="text-[10px]">(sin email)</span>}
+                {!canSendEmail && <span className="text-[10px]">(no email)</span>}
               </button>
             </div>
           </div>
 
           {/* Language */}
           <div>
-            <Label>Idioma del mensaje</Label>
+            <Label>Message language</Label>
             <div className="grid grid-cols-2 gap-2 mt-1.5">
               <button
                 type="button"
@@ -268,12 +268,12 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
 
           {/* Template preview */}
           <div>
-            <Label>Preview del mensaje</Label>
+            <Label>Message preview</Label>
             <div className="mt-1.5 rounded-md border border-border bg-bg-2/50 p-3 text-xs text-text-2 font-mono whitespace-pre-wrap">
               {previewTemplate}
             </div>
             <div className="text-[10px] text-text-muted mt-1.5">
-              ⓘ <code>[magic-link]</code> se reemplaza con el link real al hacer click en enviar.
+              ⓘ <code>[magic-link]</code> is replaced with the real link when you click Send.
             </div>
           </div>
 
@@ -281,7 +281,7 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
           <div className="rounded-md border border-amber/30 bg-amber/5 p-3 flex items-start gap-2 text-xs text-amber">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
-              <strong>Phase 1A · Mock mode:</strong> el SMS NO se envía de verdad. Weave wire activo después de firmar BAA Weave. Por ahora simula el flujo + actualiza status.
+              <strong>Phase 1A · Mock mode:</strong> SMS is NOT actually sent. Weave integration activates after signing Weave BAA. For now it simulates the flow and updates status.
             </div>
           </div>
 
@@ -294,9 +294,9 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>Cancelar</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>Cancel</Button>
           <Button onClick={handleSend} disabled={sending || (!canSendSms && !canSendEmail)}>
-            {sending ? 'Enviando...' : <><Send className="w-3.5 h-3.5 mr-1" /> Enviar portal ahora</>}
+            {sending ? 'Sending...' : <><Send className="w-3.5 h-3.5 mr-1" /> Send portal now</>}
           </Button>
         </DialogFooter>
       </DialogContent>

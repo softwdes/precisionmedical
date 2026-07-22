@@ -9,13 +9,13 @@
  * Color de identidad: emerald (Regla #5)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   CalendarDays, CheckCircle2, Clock, ChevronRight,
   RefreshCw, UserCheck, AlertTriangle,
-  Stethoscope, Building2,
+  Stethoscope, Building2, ChevronLeft,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -251,11 +251,18 @@ export function AdmissionClient() {
   const [checkingIn,   setCheckingIn]   = useState<string | null>(null);
   const [clinicFilter, setClinicFilter] = useState<string>('all');
   const [allClinics,   setAllClinics]   = useState<{ id: string; name: string }[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const now = new Date();
+    // YYYY-MM-DD in local timezone
+    return now.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD
+  });
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (date?: string) => {
     setLoading(true);
     try {
-      const res  = await fetch('/api/admin/admission');
+      const d = date ?? selectedDate;
+      const res  = await fetch(`/api/admin/admission?date=${d}`);
       const data = await res.json();
       if (data.ok) {
         setPending(data.pending);
@@ -269,7 +276,15 @@ export function AdmissionClient() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(selectedDate); }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function shiftDate(days: number) {
+    const d = new Date(selectedDate + 'T12:00:00');
+    d.setDate(d.getDate() + days);
+    setSelectedDate(d.toLocaleDateString('en-CA'));
+  }
+
+  const isToday = selectedDate === new Date().toLocaleDateString('en-CA');
 
   useEffect(() => {
     fetch('/api/admin/clinics')
@@ -307,14 +322,59 @@ export function AdmissionClient() {
         title={t('pageTitle')}
         subtitle={displayDate || t('pageSubtitle')}
         action={
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Date navigator */}
+            <div className="flex items-center gap-1 rounded-md border border-border bg-bg-2/40 h-8 px-1">
+              <button
+                type="button"
+                onClick={() => shiftDate(-1)}
+                className="p-1 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors"
+                title="Día anterior"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => dateInputRef.current?.showPicker?.()}
+                className={`text-[11px] font-semibold px-1.5 min-w-[82px] text-center transition-colors ${isToday ? 'text-emerald' : 'text-text-1'}`}
+              >
+                {isToday ? 'Hoy' : new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-US', { month: 'short', day: 'numeric' })}
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => e.target.value && setSelectedDate(e.target.value)}
+                  className="sr-only"
+                  tabIndex={-1}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={() => shiftDate(1)}
+                className="p-1 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors"
+                title="Día siguiente"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {!isToday && (
+              <button
+                type="button"
+                onClick={() => setSelectedDate(new Date().toLocaleDateString('en-CA'))}
+                className="h-8 px-2.5 rounded-md border border-emerald/40 text-emerald text-[11px] font-semibold hover:bg-emerald/10 transition-colors"
+              >
+                Hoy
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => load(selectedDate)}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-emerald/40 hover:text-emerald transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         }
       />
 
@@ -355,7 +415,7 @@ export function AdmissionClient() {
       <div className="px-4 sm:px-6 pb-8 space-y-5">
         {/* KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <KpiCard label={t('kpiAppointmentsToday')} value={totals.total}     tone="cyan"    icon={CalendarDays} />
+          <KpiCard label={isToday ? t('kpiAppointmentsToday') : 'Citas del día'} value={totals.total}     tone="cyan"    icon={CalendarDays} />
           <KpiCard label={t('kpiCheckedIn')}          value={totals.checkedIn} tone="emerald" icon={CheckCircle2} />
           <KpiCard label={t('kpiInRoom')}              value={totals.inRoom}    tone="violet"  icon={Stethoscope} />
           <KpiCard label={t('kpiPending')}             value={totals.pending}   tone="amber"   icon={Clock} />

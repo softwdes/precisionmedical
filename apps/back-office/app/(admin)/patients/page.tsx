@@ -7,6 +7,7 @@ import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { PageHeader } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
+import { decryptField } from '@/lib/decrypt';
 
 const PAGE_SIZE = 15;
 
@@ -126,6 +127,7 @@ export default async function PatientsPage({
 
   const rows = patients.map(p => ({
     ...p,
+    employer: decryptField(p.employer),
     caseCount: caseCountMap[p.id] ?? 0,
     latestCase: latestCaseMap[p.id]
       ? {

@@ -1659,7 +1659,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
       setLocalPatients(patients);
       setLocalTotal(total);
       setLocalPages(totalPages);
-      history.replaceState(null, '', `/patients${inactiveOnly ? '?inactive=1' : ''}`);
+      history.replaceState(null, '', `/patients${inactiveOnly ? '?showInactive=1' : ''}`);
       return;
     }
 
@@ -1669,7 +1669,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
     const timer = setTimeout(async () => {
       try {
         const params = new URLSearchParams({ q: val });
-        if (inactiveOnly) params.set('inactive', '1');
+        if (inactiveOnly) params.set('showInactive', '1');
         const res  = await fetch(`/api/admin/patients/list?${params}`);
         const data = await res.json();
         startTransition(() => {
@@ -1913,7 +1913,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
           </div>
         )}
         <div className="overflow-x-auto rounded-lg">
-        <table className={`w-full min-w-[700px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
+        <table className={`w-full min-w-[1000px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
           <thead className="bg-bg-2 border-b border-border">
             <tr>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
@@ -1922,8 +1922,8 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colAdmission')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colForm')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden 2xl:table-cell">{t('colCreated')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden 2xl:table-cell">{t('colUpdated')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colCreated')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colUpdated')}</th>
               <th className="w-24 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
@@ -2067,12 +2067,12 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
                 </td>
 
                 {/* Creado */}
-                <td className="px-4 py-3.5 hidden 2xl:table-cell text-[11px] text-text-muted tabular-nums">
+                <td className="px-4 py-3.5 table-cell text-[11px] text-text-muted tabular-nums">
                   {fmtLocalDate(p.createdAt)}
                 </td>
 
                 {/* Actualizado */}
-                <td className="px-4 py-3.5 hidden 2xl:table-cell text-[11px] text-text-muted tabular-nums">
+                <td className="px-4 py-3.5 table-cell text-[11px] text-text-muted tabular-nums">
                   {fmtLocalDate(p.updatedAt)}
                 </td>
 
@@ -2093,7 +2093,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
                 <tr key={`${p.id}-cases`} className="bg-white/[0.03] border-b border-white/[0.06]">
-                  <td colSpan={9} className="px-6 py-2">
+                  <td colSpan={9} className="px-6 py-2" style={{ maxWidth: 0, width: '100%' }}>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5">
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">

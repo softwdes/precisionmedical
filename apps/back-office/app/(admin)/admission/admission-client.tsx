@@ -102,11 +102,11 @@ function ApptCard({
   const isPending   = !isDone && !isCheckedIn && !isInRoom;
 
   const borderClass = isCheckedIn
-    ? 'bg-amber/[0.07]'
+    ? 'border border-amber/50 bg-amber/[0.04] ring-1 ring-amber/20'
     : isInRoom
       ? 'bg-violet/[0.05]'
       : appt.case?.hasPending
-        ? 'bg-bg-2/40'
+        ? 'border border-amber/30 bg-amber/[0.02]'
         : 'bg-bg-2/20';
 
   return (

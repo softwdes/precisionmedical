@@ -168,7 +168,7 @@ function KpiCard({ label, value, color }: { label: string; value: number; color:
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export interface FinanzasTabHandle { openPayModal: () => void; reload: () => void }
+export interface FinanzasTabHandle { openPayModal: () => void; reload: () => void; reloadAndOpen: () => void }
 
 export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(function FinanzasTab({ caseId }, ref) {
   const t  = useTranslations('phoenix.caseTabs.finanzas');
@@ -190,6 +190,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
   const [payInsuranceId, setPayInsuranceId] = useState<string>('');
   const [paying, setPaying]           = useState(false);
   const [deletingPay, setDeletingPay] = useState<string | null>(null);
+  const openAfterLoad = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -198,9 +199,26 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
       const res = await fetch(`/api/admin/cases/${caseId}/billing`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setBillings(data.billings ?? []);
+      const freshBillings: BillingRecord[] = data.billings ?? [];
+      const freshInsurances: CaseInsurance[] = data.insurances ?? [];
+      setBillings(freshBillings);
       setKpis(data.kpis ?? { totalCost: 0, totalPaid: 0, totalBalance: 0 });
-      setInsurances(data.insurances ?? []);
+      setInsurances(freshInsurances);
+
+      // Open pay modal with fresh data if flagged
+      if (openAfterLoad.current) {
+        openAfterLoad.current = false;
+        const pending = freshBillings.filter(b => b.balanceDue > 0);
+        const init: Record<string, string> = {};
+        pending.forEach(b => { init[b.id] = ''; });
+        setPayAmounts(init);
+        setPayNotes({});
+        setPaySource('PATIENT');
+        setPayMethod('CHECK');
+        setPayType(PAYMENT_TYPES['PATIENT'][0].value);
+        setPayInsuranceId(freshInsurances[0]?.id ?? '');
+        setPayOpen(true);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar finanzas');
     } finally {
@@ -223,7 +241,11 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
     setPayOpen(true);
   }
 
-  useImperativeHandle(ref, () => ({ openPayModal, reload: load }));
+  useImperativeHandle(ref, () => ({
+    openPayModal,
+    reload: load,
+    reloadAndOpen: () => { openAfterLoad.current = true; load(); },
+  }));
 
   function toggleExpanded(id: string) {
     setExpanded(prev => {

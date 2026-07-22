@@ -452,8 +452,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       type="button"
                       onClick={async () => {
                         await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, { method: 'POST' });
-                        await finanzasRef.current?.reload();
-                        finanzasRef.current?.openPayModal();
+                        finanzasRef.current?.reloadAndOpen();
                       }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors">
                       <DollarSign className="w-3.5 h-3.5" /> {t('actionPayDebt')}

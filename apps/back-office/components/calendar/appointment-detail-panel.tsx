@@ -8,7 +8,7 @@
  * Tab 3: Pagos — KPIs del caso + registrar pago inline
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -303,8 +303,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       const data = await res.json();
       let billingList: BillingRecord[] = data.billings ?? [];
 
-      // If no billing record exists but appointment has services, sync it now
-      if (billingList.length === 0 && appt.id) {
+      // If THIS appointment has no billing record but has services, sync it now
+      const hasThisApptBilling = billingList.some(b => b.appointmentId === appt.id);
+      if (!hasThisApptBilling && appt.id) {
         const sync = await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, { method: 'POST' });
         if (sync.ok) {
           const res2 = await fetch(`/api/admin/cases/${appt.case.id}/billing`);
@@ -871,8 +872,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                                   ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
 
                                 return (
-                                  <>
-                                    <tr key={b.id}
+                                  <React.Fragment key={b.id}>
+                                    <tr
                                       className={`border-b border-border hover:bg-white/[0.02] cursor-pointer ${b.balanceDue <= 0 ? 'opacity-75' : ''} ${isThisAppt ? 'bg-cyan/5' : ''}`}
                                       onClick={() => toggleExpanded(b.id)}
                                     >
@@ -956,7 +957,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                                         </td>
                                       </tr>
                                     )}
-                                  </>
+                                  </React.Fragment>
                                 );
                               })}
                             </tbody>

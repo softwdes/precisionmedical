@@ -104,7 +104,7 @@ function ApptCard({
   const borderClass = isCheckedIn
     ? 'border border-amber/50 bg-amber/[0.04] ring-1 ring-amber/20'
     : isInRoom
-      ? 'border border-violet/30 bg-violet/[0.05]'
+      ? 'border border-border bg-violet/[0.05]'
       : appt.case?.hasPending
         ? 'border border-amber/30 bg-amber/[0.02]'
         : 'border border-border bg-bg-2/20';

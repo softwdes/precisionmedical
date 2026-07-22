@@ -168,7 +168,7 @@ function KpiCard({ label, value, color }: { label: string; value: number; color:
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 
-export interface FinanzasTabHandle { openPayModal: () => void }
+export interface FinanzasTabHandle { openPayModal: () => void; reload: () => void }
 
 export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(function FinanzasTab({ caseId }, ref) {
   const t  = useTranslations('phoenix.caseTabs.finanzas');
@@ -223,7 +223,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
     setPayOpen(true);
   }
 
-  useImperativeHandle(ref, () => ({ openPayModal }));
+  useImperativeHandle(ref, () => ({ openPayModal, reload: load }));
 
   function toggleExpanded(id: string) {
     setExpanded(prev => {

@@ -30,10 +30,16 @@ export async function POST(
     include: { payments: { where: { status: { not: 'CANCELLED' } } } },
   });
 
+  // Delete old aggregate records (serviceCode=null) that have no payments
+  for (const b of existing) {
+    if (!b.serviceCode && b.payments.length === 0) {
+      await db.appointmentBilling.delete({ where: { id: b.id } });
+    }
+  }
+  const perService = existing.filter(b => b.serviceCode);
+
   // Build a map: serviceCode → existing billing record
-  const existingByCode = new Map(
-    existing.map(b => [(b as Record<string, unknown>).serviceCode as string ?? '', b])
-  );
+  const existingByCode = new Map(perService.map(b => [b.serviceCode!, b]));
 
   for (const svc of codes) {
     const fee = svc.fee ?? 0;

@@ -430,6 +430,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const switchView = (v: CalendarView) => {
     setCalView(v);
     if (v === 'week')       setWeekStart(w => getMondayOf(w));
+    else if (v === 'day')   setWeekStart(new Date()); // siempre muestra HOY al cambiar a día
     else if (v === 'month') setWeekStart(w => getFirstDayOfMonth(w));
     // day: mantiene el weekStart actual como "día seleccionado"
   };
@@ -751,7 +752,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
         {/* ══════════════════════════ WEEK VIEW ══════════════════════════════ */}
         {calView === 'week' && (() => {
-          const todayStr = localDateStr(new Date());
+          const todayStr = denverDateStr(new Date());
           return (
             <>
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
@@ -779,7 +780,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                       <span className="text-[9px] text-white/30 font-mono tabular-nums">{slot}</span>
                     </div>
                     {days.map((day, di) => {
-                      const dayKey = localDateStr(day);
+                      const dayKey = denverDateStr(day);
                       const isToday = dayKey === todayStr;
                       const cellAppts = apptMap[dayKey]?.[slot] ?? [];
                       return (

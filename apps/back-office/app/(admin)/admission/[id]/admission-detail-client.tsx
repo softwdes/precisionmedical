@@ -142,7 +142,7 @@ function VInput({ value, onChange, placeholder, type = 'number', step }: {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder ?? '0'}
-      className="w-full bg-bg-2 border border-border/25 rounded-md px-2.5 py-1.5 text-center text-[13px] font-semibold text-text-1 placeholder:text-text-muted placeholder:font-normal outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-all"
+      className="w-full bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-center text-[13px] font-semibold text-text-1 placeholder:text-text-muted placeholder:font-normal outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-all"
     />
   );
 }

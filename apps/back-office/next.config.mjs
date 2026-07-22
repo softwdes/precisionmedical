@@ -1,3 +1,4 @@
+// @ts-check
 import createNextIntlPlugin from 'next-intl/plugin';
 import path from 'path';
 import { fileURLToPath } from 'url';

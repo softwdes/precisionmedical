@@ -717,7 +717,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                             type="button"
                             onClick={() => !already && addService(svc)}
                             disabled={already}
-                            className={`w-full text-left px-3 py-2.5 flex items-center gap-3 border-b border-border/40 last:border-0 transition-colors ${
+                            className={`w-full text-left px-3 py-2.5 flex items-center gap-3 border-b border-border last:border-0 transition-colors ${
                               already ? 'opacity-40 cursor-not-allowed' : 'hover:bg-bg-2'
                             }`}
                           >
@@ -755,7 +755,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     <span />
                   </div>
                   {services.map(svc => (
-                    <div key={svc.id} className="grid grid-cols-[60px_1fr_90px_36px] items-center px-3 py-2 border-b border-border/30 last:border-0 hover:bg-bg-2/30 transition-colors">
+                    <div key={svc.id} className="grid grid-cols-[60px_1fr_90px_36px] items-center px-3 py-2 border-b border-border last:border-0 hover:bg-bg-2/30 transition-colors">
                       <span className="font-mono text-[11px] text-cyan">{svc.code}</span>
                       <span className="text-xs text-text-1 pr-2 truncate">{svc.description}</span>
                       <input
@@ -847,7 +847,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       </div>
                     ) : (
                       <div className="rounded-lg border border-border overflow-hidden">
-                        <div className="px-4 py-2 bg-bg-2/60 border-b border-border/40">
+                        <div className="px-4 py-2 bg-bg-2/60 border-b border-border">
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('billingDetailByVisit')}</span>
                         </div>
                         <div className="overflow-x-auto">
@@ -873,7 +873,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                                 return (
                                   <>
                                     <tr key={b.id}
-                                      className={`border-b border-border/40 hover:bg-white/[0.02] cursor-pointer ${b.balanceDue <= 0 ? 'opacity-75' : ''} ${isThisAppt ? 'bg-cyan/5' : ''}`}
+                                      className={`border-b border-border hover:bg-white/[0.02] cursor-pointer ${b.balanceDue <= 0 ? 'opacity-75' : ''} ${isThisAppt ? 'bg-cyan/5' : ''}`}
                                       onClick={() => toggleExpanded(b.id)}
                                     >
                                       <td className="px-2 py-3 text-text-muted">
@@ -906,7 +906,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
                                     {/* Sub-filas de pagos */}
                                     {isExp && (
-                                      <tr key={`${b.id}-pays`} className="border-b border-border/40 bg-bg-2/30">
+                                      <tr key={`${b.id}-pays`} className="border-b border-border bg-bg-2/30">
                                         <td colSpan={7} className="px-6 py-0">
                                           {b.payments.length === 0 ? (
                                             <div className="py-3 text-text-muted text-xs italic">{t('emptyPayments')}</div>
@@ -1190,7 +1190,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
   if (inline) {
     return (
-      <div className="flex flex-col overflow-hidden rounded-lg border border-border/30 bg-bg-1 max-h-[600px]">
+      <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-bg-1 max-h-[600px]">
         {panelContent}
       </div>
     );

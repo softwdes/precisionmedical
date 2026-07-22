@@ -480,7 +480,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
       <div className="px-4 sm:px-6 pb-8 space-y-4">
 
         {/* ── Flow diagram ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/20 rounded-lg overflow-hidden border border-border/30">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/20 rounded-lg overflow-hidden border border-border">
           {[
             { num: 1, done: true,             active: false,                                          title: t('flowStep1'), desc: t('flowStep1Desc') },
             { num: 2, done: isAlreadyInRoom, active: !isAlreadyInRoom,                              title: t('flowStep2'), desc: t('flowStep2Desc') },
@@ -823,7 +823,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                     { k: 'Clinic',         v: d.clinic.name },
                     { k: 'Case',           v: d.case?.caseCode },
                   ].filter(r => r.v).map(row => (
-                    <div key={row.k} className="flex justify-between items-center text-[11px] border-b border-border/40 pb-1.5 last:border-0">
+                    <div key={row.k} className="flex justify-between items-center text-[11px] border-b border-border pb-1.5 last:border-0">
                       <span className="text-text-muted">{row.k}</span>
                       <span className="text-text-1 font-medium">{row.v}</span>
                     </div>

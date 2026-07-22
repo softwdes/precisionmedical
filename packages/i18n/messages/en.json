@@ -3071,7 +3071,7 @@
       "caseNoLawFirm": "No law firm on record",
       "caseNoInsurance": "No active insurance · Add insurance to get started",
       "caseEditBtn": "Edit case",
-      "btnInactive": "Deleted",
+      "btnInactive": "Archived",
       "btnActive": "Active",
       "btnCreatePatientCase": "Create Patient / Create Case",
       "btnCreateShort": "Create",

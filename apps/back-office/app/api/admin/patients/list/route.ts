@@ -1,30 +1,26 @@
 /**
- * B.4 · Lista de pacientes
- * Accesible desde el sidebar → /patients
+ * GET /api/admin/patients/list?q=&page=&inactive=1
+ *
+ * Versión API del server component de pacientes.
+ * Permite búsqueda client-side sin navegación completa de página.
  */
 
-import { getTranslations } from 'next-intl/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
-import { PageHeader } from '@/components/ui-phoenix';
-import { PatientsClient } from './patients-client';
 
 const PAGE_SIZE = 15;
 
-export default async function PatientsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; page?: string; showInactive?: string }>;
-}) {
-  const t = await getTranslations('phoenix.patients');
-  const { q, page: pageParam, showInactive } = await searchParams;
-  const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
-  const inactiveOnly = showInactive === '1';
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const q            = (searchParams.get('q') ?? '').trim();
+  const page         = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10) || 0);
+  const inactiveOnly = searchParams.get('inactive') === '1';
 
   const statusFilter = inactiveOnly
     ? { status: 'INACTIVE' as const }
     : { NOT: { status: 'INACTIVE' as const } };
 
-  const qParts = q ? q.trim().split(/\s+/).filter(Boolean) : [];
+  const qParts = q ? q.split(/\s+/).filter(Boolean) : [];
   const fullNameClauses = qParts.length >= 2
     ? [
         { firstName: { contains: qParts[0]!, mode: 'insensitive' as const }, lastName: { contains: qParts[qParts.length - 1]!, mode: 'insensitive' as const } },
@@ -50,7 +46,7 @@ export default async function PatientsPage({
       }
     : statusFilter;
 
-  const [patients, total, inactiveTotal, specialties, clinics, providers] = await Promise.all([
+  const [patients, total] = await Promise.all([
     db.patient.findMany({
       where,
       select: {
@@ -68,25 +64,10 @@ export default async function PatientsPage({
         createdAt: true, updatedAt: true,
       },
       orderBy: { createdAt: 'desc' },
-      skip:  page * PAGE_SIZE,
-      take:  PAGE_SIZE,
+      skip: page * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
     db.patient.count({ where }),
-    db.patient.count({ where: { status: 'INACTIVE' } }),
-    db.specialtyCatalog.findMany({
-      where: { isActive: true, deletedAt: null },
-      orderBy: { sortOrder: 'asc' },
-      select: { id: true, name: true, color: true },
-    }),
-    db.clinic.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, address: true },
-    }),
-    db.provider.findMany({
-      where: { status: 'ACTIVE', deletedAt: null },
-      orderBy: [{ specialty: 'asc' }, { lastName: 'asc' }],
-      select: { id: true, firstName: true, lastName: true, specialty: true },
-    }),
   ]);
 
   const patientIds = patients.map(p => p.id);
@@ -101,15 +82,9 @@ export default async function PatientsPage({
       where: { patientId: { in: patientIds }, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       select: {
-        patientId: true,
-        id: true,
-        caseCode: true,
-        caseType: true,
-        accidentDate: true,
-        status: true,
-        portalToken: true,
-        intakeFormSentAt: true,
-        intakeFormCompletedAt: true,
+        patientId: true, id: true, caseCode: true, caseType: true,
+        accidentDate: true, status: true, portalToken: true,
+        intakeFormSentAt: true, intakeFormCompletedAt: true,
         consentsData: true,
         intakeSubmission: { select: { id: true } },
       },
@@ -117,8 +92,6 @@ export default async function PatientsPage({
   ]);
 
   const caseCountMap = Object.fromEntries(caseCounts.map(c => [c.patientId, c._count._all]));
-
-  // Keep only the most-recent case per patient
   const latestCaseMap: Record<string, typeof latestCases[0]> = {};
   for (const c of latestCases) {
     if (!latestCaseMap[c.patientId]) latestCaseMap[c.patientId] = c;
@@ -126,8 +99,12 @@ export default async function PatientsPage({
 
   const rows = patients.map(p => ({
     ...p,
-    caseCount: caseCountMap[p.id] ?? 0,
-    latestCase: latestCaseMap[p.id]
+    dateOfBirth:  p.dateOfBirth?.toISOString()  ?? null,
+    accidentDate: p.accidentDate?.toISOString() ?? null,
+    createdAt:    p.createdAt.toISOString(),
+    updatedAt:    p.updatedAt.toISOString(),
+    caseCount:    caseCountMap[p.id] ?? 0,
+    latestCase:   latestCaseMap[p.id]
       ? {
           id:                    latestCaseMap[p.id].id,
           caseCode:              latestCaseMap[p.id].caseCode,
@@ -143,16 +120,10 @@ export default async function PatientsPage({
       : null,
   }));
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-
-  return (
-    <div className="p-4 sm:p-6 space-y-2">
-      <PageHeader
-        title={t('listTitle')}
-        subtitle={`${total} ${total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}${q ? ` · ${t('btnSearch').toLowerCase()}: "${q}"` : ''}`}
-      />
-
-      <PatientsClient patients={rows} q={q} page={page} totalPages={totalPages} total={total} inactiveTotal={inactiveTotal} specialties={specialties} clinics={clinics} providers={providers} inactiveOnly={inactiveOnly} />
-    </div>
-  );
+  return NextResponse.json({
+    patients: rows,
+    total,
+    page,
+    totalPages: Math.ceil(total / PAGE_SIZE),
+  });
 }

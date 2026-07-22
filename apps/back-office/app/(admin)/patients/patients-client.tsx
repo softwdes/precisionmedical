@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -833,6 +833,7 @@ interface Props {
   clinics: Array<{ id: string; name: string; address: string | null }>;
   providers: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
   inactiveOnly?: boolean;
+  inactiveTotal?: number;
 }
 
 
@@ -1603,7 +1604,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   );
 }
 
-export function PatientsClient({ patients, q, page, totalPages, total, specialties, clinics, providers, inactiveOnly = false }: Props) {
+export function PatientsClient({ patients, q, page, totalPages, total, inactiveTotal = 0, specialties, clinics, providers, inactiveOnly = false }: Props) {
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
 
@@ -1626,6 +1627,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
   const [wizardPatient, setWizardPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
   const [expandedCases, setExpandedCases] = useState<Record<string, CaseRow[]>>({});
   const [loadingCases,  setLoadingCases]  = useState<Record<string, boolean>>({});
+  const [pdfCaseId,      setPdfCaseId]      = useState<string | null>(null);
   const [caseQrTarget,   setCaseQrTarget]   = useState<CaseRow | null>(null);
   const [caseApptTarget, setCaseApptTarget] = useState<CaseRow | null>(null);
   const [caseViewTarget, setCaseViewTarget] = useState<CaseRow | null>(null);
@@ -1638,14 +1640,50 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
-  const [searchValue, setSearchValue] = useState(q ?? '');
+  const [searchValue,   setSearchValue]   = useState(q ?? '');
+  const [isSearching,   setIsSearching]   = useState(false);
+  const [localPatients, setLocalPatients] = useState<PatientRow[]>(patients);
+  const [localTotal,    setLocalTotal]    = useState(total);
+  const [localPages,    setLocalPages]    = useState(totalPages);
+  const [isPending, startTransition] = useTransition();
+
+  // Sync si el servidor devuelve datos nuevos (navegación de página)
+  useEffect(() => { setLocalPatients(patients); setLocalTotal(total); setLocalPages(totalPages); }, [patients, total, totalPages]);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams();
-      if (searchValue.trim()) params.set('q', searchValue.trim());
-      if (inactiveOnly) params.set('inactive', '1');
-      router.push(`/patients${params.toString() ? '?' + params.toString() : ''}`);
+    const val = searchValue.trim();
+
+    // Si está vacío restaurar datos originales y limpiar URL
+    if (!val) {
+      setIsSearching(false);
+      setLocalPatients(patients);
+      setLocalTotal(total);
+      setLocalPages(totalPages);
+      history.replaceState(null, '', `/patients${inactiveOnly ? '?inactive=1' : ''}`);
+      return;
+    }
+
+    // Spinner inmediato
+    setIsSearching(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ q: val });
+        if (inactiveOnly) params.set('inactive', '1');
+        const res  = await fetch(`/api/admin/patients/list?${params}`);
+        const data = await res.json();
+        startTransition(() => {
+          setLocalPatients(data.patients ?? []);
+          setLocalTotal(data.total ?? 0);
+          setLocalPages(data.totalPages ?? 1);
+        });
+        // Actualizar URL sin navegar (para compartir)
+        history.replaceState(null, '', `/patients?${params}`);
+      } finally {
+        setIsSearching(false);
+      }
     }, 350);
+
     return () => clearTimeout(timer);
   }, [searchValue]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -1774,14 +1812,24 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
         {/* Search form — izquierda, ocupa el espacio disponible */}
         <div className="flex items-center gap-1.5 flex-1 min-w-[180px]">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+            {isSearching || isPending
+              ? <RefreshCw className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-brand animate-spin pointer-events-none" />
+              : <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+            }
             <input
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full pl-8 pr-3 py-2 bg-bg-2 border border-border rounded-md text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              className={`w-full pl-8 pr-3 py-2 bg-bg-2 border rounded-md text-sm text-text-1 placeholder:text-text-muted focus:outline-none transition-colors ${
+                isSearching || isPending ? 'border-brand/50' : 'border-border focus:border-brand'
+              }`}
               autoComplete="off"
             />
+            {false && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-brand font-medium animate-pulse">
+                Buscando…
+              </span>
+            )}
           </div>
           {searchValue && (
             <button
@@ -1797,19 +1845,6 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
 
         {/* Acciones — derecha */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Toggle ver eliminados */}
-          <a
-            href={toggleInactiveUrl()}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm transition-colors whitespace-nowrap ${
-              inactiveOnly
-                ? 'border-amber/40 bg-amber/5 text-amber hover:bg-amber/10'
-                : 'border-border text-text-muted hover:border-amber/40 hover:text-amber'
-            }`}
-            title={inactiveOnly ? 'Ver pacientes activos' : 'Ver pacientes eliminados'}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{inactiveOnly ? t('btnActive') : t('btnInactive')}</span>
-          </a>
           <button
             type="button"
             onClick={() => setQuickRegister(true)}
@@ -1832,8 +1867,53 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
         </div>
       </div>
 
-      <div className="rounded-lg border border-border overflow-hidden">
-        <table className="w-full text-sm">
+      {/* Tabs: Activos / Archivados */}
+      <div className="flex items-center gap-1 border-b border-border mb-3">
+        <a
+          href={`/patients${q ? `?q=${q}` : ''}`}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            !inactiveOnly
+              ? 'border-brand text-brand'
+              : 'border-transparent text-text-muted hover:text-text-1'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5" />
+          {t('btnActive')}
+          <span className={`ml-1 text-[10px] rounded-full px-1.5 py-0.5 tabular-nums font-semibold ${
+            !inactiveOnly ? 'bg-brand/10 text-brand' : 'bg-bg-2 text-text-muted'
+          }`}>
+            {!inactiveOnly ? localTotal : total}
+          </span>
+        </a>
+        <a
+          href={`/patients?showInactive=1${q ? `&q=${q}` : ''}`}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            inactiveOnly
+              ? 'border-amber text-amber'
+              : 'border-transparent text-text-muted hover:text-text-1'
+          }`}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          {t('btnInactive')}
+          <span className={`ml-1 text-[10px] rounded-full px-1.5 py-0.5 tabular-nums font-semibold ${
+            inactiveOnly ? 'bg-amber/10 text-amber' : 'bg-bg-2 text-text-muted'
+          }`}>
+            {inactiveOnly ? localTotal : inactiveTotal}
+          </span>
+        </a>
+      </div>
+
+      <div className="relative rounded-lg border border-border overflow-hidden">
+        {(isSearching || isPending) && (
+          <div className="absolute inset-0 z-10 flex items-start justify-center pt-12 bg-bg-1/60 backdrop-blur-[1px] rounded-lg">
+            <div className="flex items-center gap-2 bg-bg-2 border border-border rounded-full px-3 py-1.5 shadow-lg">
+              <RefreshCw className="w-3.5 h-3.5 text-brand animate-spin" />
+              <span className="text-[11px] text-text-2 font-medium">Buscando…</span>
+            </div>
+          </div>
+        )}
+        <div className="overflow-x-auto">
+        <table className={`w-full min-w-[900px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
           <thead className="bg-bg-2 border-b border-border">
             <tr>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
@@ -1856,9 +1936,9 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                 </td>
               </tr>
             )}
-            {patients.map((p) => (
-              <>
-              <tr key={p.id} className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
+            {localPatients.map((p) => (
+              <Fragment key={p.id}>
+              <tr className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
                 {/* Chevron expand */}
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-2">
@@ -2150,11 +2230,11 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                                           <Trash2 className="w-3 h-3" />
                                         </button>
                                         <button
-                                          onClick={() => window.open(`/api/admin/cases/${c.id}/pdf`, '_blank')}
+                                          onClick={() => setPdfCaseId(c.id)}
                                           className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
                                           title={t('tooltipDownloadPdf')}
                                         >
-                                          <Download className="w-3 h-3" />
+                                          <Printer className="w-3 h-3" />
                                         </button>
                                         <button
                                           onClick={() => setCaseApptTarget(c)}
@@ -2183,17 +2263,18 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                   </td>
                 </tr>
               )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* ─── Paginación ─────────────────────────────────────────────────────── */}
-      {totalPages > 1 && (
+      {localPages > 1 && (
         <div className="flex items-center justify-between px-1">
           <span className="text-[11px] text-text-muted">
-            {t('pageInfo', { page: page + 1, total: totalPages })} · {total} {total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}
+            {t('pageInfo', { page: page + 1, total: localPages })} · {localTotal} {localTotal === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}
           </span>
           <div className="flex gap-1">
             <button
@@ -2205,7 +2286,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             </button>
             <button
               onClick={() => router.push(buildPageUrl(page + 1))}
-              disabled={page >= totalPages - 1}
+              disabled={page >= localPages - 1}
               className="p-1.5 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
@@ -2567,6 +2648,26 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
               {restoring ? 'Restaurando...' : 'Sí, restaurar'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── PDF Viewer modal ────────────────────────────────────────────────── */}
+      <Dialog open={!!pdfCaseId} onOpenChange={(o) => { if (!o) setPdfCaseId(null); }}>
+        <DialogContent className="max-w-5xl w-full p-0 gap-0 overflow-hidden" style={{ height: '90vh' }}>
+          <DialogHeader className="px-4 py-3 border-b border-border flex-row items-center justify-between shrink-0">
+            <DialogTitle className="text-text-1 text-sm flex items-center gap-2">
+              <Printer className="w-4 h-4 text-amber" />
+              Patient Intake Form
+            </DialogTitle>
+          </DialogHeader>
+          {pdfCaseId && (
+            <iframe
+              src={`/api/admin/cases/${pdfCaseId}/pdf`}
+              className="w-full flex-1"
+              style={{ height: 'calc(90vh - 57px)', border: 'none' }}
+              title="Patient Intake Form"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

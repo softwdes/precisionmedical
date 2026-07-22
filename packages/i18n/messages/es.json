@@ -3071,8 +3071,8 @@
       "caseNoLawFirm": "No hay firma de abogados",
       "caseNoInsurance": "No hay seguros activos · Agrega un seguro para comenzar",
       "caseEditBtn": "Editar caso",
-      "btnInactive": "Eliminados",
-      "btnActive": "Ver activos",
+      "btnInactive": "Archivados",
+      "btnActive": "Activos",
       "btnCreatePatientCase": "Crear Paciente / Crear Caso",
       "btnCreateShort": "Crear",
       "btnQuickRegisterShort": "Rápido"

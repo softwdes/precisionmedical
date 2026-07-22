@@ -91,35 +91,76 @@ export async function POST(
     );
   }
 
-  // Phase 1A: actualizar datos básicos del paciente (no-PHI sensitivo)
-  // Phase 2: crear IntakeSubmission row con PHI encriptada
+  // Actualizar todos los campos del paciente que vienen del form
   const patientUpdates: Record<string, unknown> = {};
-  if (parsed.personalData.phone) patientUpdates.phone = parsed.personalData.phone;
-  if (parsed.personalData.email) patientUpdates.email = parsed.personalData.email;
-  if (parsed.personalData.dateOfBirth) {
-    patientUpdates.dateOfBirth = new Date(parsed.personalData.dateOfBirth);
-  }
+  const pd = parsed.personalData;
+  if (pd.phone)                patientUpdates.phone                = pd.phone;
+  if (pd.email)                patientUpdates.email                = pd.email;
+  if (pd.dateOfBirth)          patientUpdates.dateOfBirth          = new Date(pd.dateOfBirth);
+  if (pd.address)              patientUpdates.addressLine1         = pd.address;
+  if (pd.city)                 patientUpdates.addressCity          = pd.city;
+  if (pd.state)                patientUpdates.addressState         = pd.state;
+  if (pd.zip)                  patientUpdates.addressZip           = pd.zip;
+  if (pd.emergencyContactName) patientUpdates.emergencyContactName = pd.emergencyContactName;
+  if (pd.emergencyContactPhone)patientUpdates.emergencyContactPhone= pd.emergencyContactPhone;
 
-  // Transacción: actualizar paciente + caso en un solo commit
+  const hh = parsed.healthHistory;
+  const consentSignature = parsed.consent.signature;
+
+  // Transacción: actualizar paciente + caso + IntakeSubmission
   await db.$transaction([
-    // Actualizar datos del paciente si se proveyeron
     ...(Object.keys(patientUpdates).length > 0
       ? [db.patient.update({
           where: { id: caseRecord.patient.id },
           data: patientUpdates,
         })]
       : []),
-    // Marcar caso como INTAKE_COMPLETED
     db.case.update({
       where: { id: caseRecord.id },
       data: {
         intakeFormCompletedAt: new Date(),
         status: 'INTAKE_COMPLETED',
-        // TODO Phase 2: crear IntakeSubmission con PHI
-        // intakeSubmission: { create: { ... formData encriptado ... } }
+      },
+    }),
+    db.intakeSubmission.upsert({
+      where:  { caseId: caseRecord.id },
+      create: {
+        caseId:             caseRecord.id,
+        healthStatus:       hh.healthStatus,
+        hasMedications:     hh.hasMedications,
+        medications:        hh.medications ?? null,
+        hasAllergies:       hh.hasAllergies,
+        allergies:          hh.allergies ?? null,
+        hasPreviousInjuries:hh.hasPreviousInjuries,
+        previousInjuries:   hh.previousInjuries ?? null,
+        language:           parsed.language,
+      },
+      update: {
+        healthStatus:       hh.healthStatus,
+        hasMedications:     hh.hasMedications,
+        medications:        hh.medications ?? null,
+        hasAllergies:       hh.hasAllergies,
+        allergies:          hh.allergies ?? null,
+        hasPreviousInjuries:hh.hasPreviousInjuries,
+        previousInjuries:   hh.previousInjuries ?? null,
+        language:           parsed.language,
       },
     }),
   ]);
+
+  // Guardar firma de consentimiento en consentsData del caso
+  if (consentSignature) {
+    await db.case.update({
+      where: { id: caseRecord.id },
+      data: {
+        consentsData: {
+          intakeSignature:      consentSignature,
+          intakeAgreedAt:       parsed.consent.agreedAt,
+          agreedToTreatment:    parsed.consent.agreedToTreatment,
+        },
+      },
+    });
+  }
 
   return NextResponse.json({
     ok: true,

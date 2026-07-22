@@ -66,7 +66,7 @@ function KpiCard({
     emerald: 'text-emerald bg-emerald/[0.07]',
     amber:   'text-amber   bg-amber/[0.07]',
     cyan:    'text-cyan    bg-cyan/[0.07]',
-    violet:  'text-violet  bg-violet/[0.07]',
+    violet:  'text-violet  bg-violet/[0.07] border border-border',
   };
   return (
     <div className={`rounded-lg p-4 ${colors[tone]}`}>

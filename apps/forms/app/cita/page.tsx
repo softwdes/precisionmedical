@@ -129,7 +129,7 @@ export default function CitaPage() {
         <div className="card">
           <div className="card-header">
             <div className="card-title">Consulta tu cita · Check your appointment</div>
-            <div className="card-sub">Ingresa el código de tu caso o número de cita</div>
+            <div className="card-sub">Ingresa el código de tu caso o número de cita · Enter your case code or appointment number</div>
           </div>
           <div className="card-body">
             <div className="tabs">
@@ -149,8 +149,8 @@ export default function CitaPage() {
                 {loading ? '...' : 'Buscar →'}
               </button>
             </div>
-            <div className="hint">El código lo encontrarás en tu mensaje de confirmación.</div>
-            {error && <div className="error-msg">Código no encontrado. Verifica e intenta de nuevo.</div>}
+            <div className="hint">El código lo encontrarás en tu mensaje de confirmación · You'll find it in your confirmation message.</div>
+            {error && <div className="error-msg">Código no encontrado · Code not found. Verifica e intenta de nuevo · Please verify and try again.</div>}
           </div>
         </div>
 
@@ -231,7 +231,7 @@ export default function CitaPage() {
         )}
 
         <div className="hipaa-note">
-          HIPAA · Esta página solo muestra información básica de tu cita. Ningún dato médico es visible.
+          HIPAA · Esta página solo muestra información básica de tu cita · This page only shows basic appointment info. Ningún dato médico es visible · No medical data is displayed.
         </div>
       </div>
     </>

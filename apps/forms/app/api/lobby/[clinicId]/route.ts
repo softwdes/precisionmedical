@@ -72,30 +72,16 @@ function anonymize(
   return `${fi}.${li} - ${suffix}`;
 }
 
-/**
- * Today's UTC range for Mountain Daylight Time (UTC-6, June).
- * Phase 1A: hardcoded MDT offset. Phase 2: use `Intl` for DST-aware calc.
- */
-function todayRangeMDT(): { start: Date; end: Date } {
-  const MDT_OFFSET_MS = 6 * 60 * 60 * 1000; // UTC-6 (summer)
-  const now = new Date();
-  // Floor to midnight Denver time
-  const nowDenver = new Date(now.getTime() - MDT_OFFSET_MS);
-  const startDenver = new Date(Date.UTC(
-    nowDenver.getUTCFullYear(),
-    nowDenver.getUTCMonth(),
-    nowDenver.getUTCDate(),
-    0, 0, 0, 0,
-  ));
-  const endDenver = new Date(Date.UTC(
-    nowDenver.getUTCFullYear(),
-    nowDenver.getUTCMonth(),
-    nowDenver.getUTCDate(),
-    23, 59, 59, 999,
-  ));
+function todayRangeDenver(): { start: Date; end: Date } {
+  const tz    = 'America/Denver';
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+  const utcRef    = new Date(`${today}T12:00:00Z`);
+  const locStr    = utcRef.toLocaleString('en-US', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit' });
+  const localHour = parseInt(locStr.split(':')[0]!, 10);
+  const offsetMs  = -(localHour - 12) * 60 * 60 * 1000;
   return {
-    start: new Date(startDenver.getTime() + MDT_OFFSET_MS),
-    end:   new Date(endDenver.getTime()   + MDT_OFFSET_MS),
+    start: new Date(new Date(`${today}T00:00:00Z`).getTime() + offsetMs),
+    end:   new Date(new Date(`${today}T23:59:59.999Z`).getTime() + offsetMs),
   };
 }
 
@@ -116,7 +102,7 @@ export async function GET(
     return NextResponse.json({ ok: false, error: 'Clinic not found' }, { status: 404 });
   }
 
-  const { start, end } = todayRangeMDT();
+  const { start, end } = todayRangeDenver();
   const now = new Date();
   const threeMinAgo = new Date(now.getTime() - 3 * 60 * 1000);
 

@@ -204,7 +204,9 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       });
       if (res.ok) {
         setSavedOk(true);
-setTimeout(() => setSavedOk(false), 2000);
+        setTimeout(() => setSavedOk(false), 2000);
+        // Sync billing records (one per CPT service)
+        fetch(`/api/admin/appointments/${appt.id}/sync-billing`, { method: 'POST' }).catch(() => {});
       }
     } finally {
       setSavingSvc(false);

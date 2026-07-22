@@ -34,6 +34,8 @@ interface BillingRecord {
   appointmentId: string | null;
   appointmentDate: string | null;
   appointmentStatus: string | null;
+  serviceCode: string | null;
+  serviceDescription: string | null;
   totalCost: number;
   discount: number;
   insuranceCovered: number;
@@ -357,14 +359,14 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="px-4 py-2 bg-bg-2/60 border-b border-border">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Detalle por cita</span>
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Detalle por servicio</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/60 bg-bg-2/40">
                   <th className="w-6 px-2" />
-                  <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha</th>
+                  <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Desc. %</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Monto desc.</th>
@@ -387,7 +389,17 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                         <td className="px-2 py-3 text-text-muted">
                           {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
-                        <td className="px-3 py-3 text-text-1 font-mono text-xs whitespace-nowrap">{fmtDate(b.appointmentDate)}</td>
+                        <td className="px-3 py-3 text-xs">
+                          {b.serviceCode ? (
+                            <div>
+                              <span className="font-mono font-semibold text-cyan">{b.serviceCode}</span>
+                              <span className="text-text-muted ml-1.5">{b.serviceDescription}</span>
+                              <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
+                            </div>
+                          ) : (
+                            <span className="font-mono text-text-1">{fmtDate(b.appointmentDate)}</span>
+                          )}
+                        </td>
                         <td className="px-3 py-3 text-right font-semibold font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
                         <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">
                           {b.discount > 0 ? `${((b.discount / b.totalCost) * 100).toFixed(2)}%` : '0.00%'}
@@ -512,7 +524,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
                   <tr>
-                    <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Descuento %</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Monto desc.</th>
@@ -527,7 +539,17 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                     const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
                     return (
                       <tr key={b.id} className="hover:bg-white/[0.02]">
-                        <td className="px-4 py-3 text-text-1 font-mono text-xs whitespace-nowrap">{fmtDate(b.appointmentDate)}</td>
+                        <td className="px-4 py-3 text-xs">
+                          {b.serviceCode ? (
+                            <div>
+                              <span className="font-mono font-semibold text-cyan">{b.serviceCode}</span>
+                              <span className="text-text-muted ml-1.5 text-[11px]">{b.serviceDescription}</span>
+                              <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
+                            </div>
+                          ) : (
+                            <span className="font-mono text-text-1">{fmtDate(b.appointmentDate)}</span>
+                          )}
+                        </td>
                         <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
                         <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">{discPct}%</td>
                         <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">{fmt$(b.discount)}</td>

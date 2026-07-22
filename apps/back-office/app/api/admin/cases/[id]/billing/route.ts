@@ -66,6 +66,8 @@ export async function GET(
     appointmentId: b.appointmentId,
     appointmentDate: b.appointment?.scheduledFor ?? null,
     appointmentStatus: b.appointment?.status ?? null,
+    serviceCode: (b as Record<string, unknown>).serviceCode as string | null ?? null,
+    serviceDescription: (b as Record<string, unknown>).serviceDescription as string | null ?? null,
     totalCost: Number(b.totalCost),
     discount: Number(b.discount),
     insuranceCovered: Number(b.insuranceCovered),

@@ -884,7 +884,7 @@ model Appointment {
   visitNote       VisitNote?
 
   // Billing clínico (costs + payments migrados de v2)
-  billing         AppointmentBilling?
+  billing         AppointmentBilling[]
 
   // B.20 Órdenes de laboratorio / imaging
   labOrders       LabOrder[]
@@ -2434,10 +2434,13 @@ enum BillingPaymentStatus {
 model AppointmentBilling {
   id             String      @id @default(cuid())
 
-  appointmentId  String      @unique
+  appointmentId  String
   appointment    Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   caseId         String?     // denormalizado para queries de billing por caso
+
+  serviceCode        String?  // CPT code, ej: "97814"
+  serviceDescription String?  // Descripción del servicio
 
   totalCost      Decimal     @db.Decimal(10, 2) @default(0)
   discount       Decimal     @db.Decimal(10, 2) @default(0)

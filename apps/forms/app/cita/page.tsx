@@ -17,12 +17,12 @@ interface ApptResult {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  PENDING:    'Pendiente',
-  SCHEDULED:  'Confirmada',
-  CONFIRMED:  'Confirmada',
-  CHECKED_IN: 'Check-in completado',
-  IN_PROGRESS:'En consulta',
-  COMPLETED:  'Completada',
+  PENDING:    'Pendiente · Pending',
+  SCHEDULED:  'Confirmada · Confirmed',
+  CONFIRMED:  'Confirmada · Confirmed',
+  CHECKED_IN: 'Check-in · Checked in',
+  IN_PROGRESS:'En consulta · In consultation',
+  COMPLETED:  'Completada · Completed',
 };
 
 export default function CitaPage() {
@@ -50,8 +50,11 @@ export default function CitaPage() {
   }
 
   const scheduled = result ? new Date(result.scheduledFor) : null;
-  const dateStr = scheduled?.toLocaleDateString('es-US', {
+  const dateStrEs = scheduled?.toLocaleDateString('es-US', {
     weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Denver',
+  });
+  const dateStrEn = scheduled?.toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Denver',
   });
   const timeStr = scheduled?.toLocaleTimeString('es-US', {
     hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver',
@@ -102,7 +105,7 @@ export default function CitaPage() {
         .clinic-name{color:rgba(255,255,255,.6);font-size:14px}
         .details-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:20px 0}
         .detail-box{background:rgba(255,255,255,.04);border-radius:10px;padding:14px}
-        .detail-label{color:rgba(255,255,255,.35);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+        .detail-label{color:rgba(255,255,255,.35);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
         .detail-value{color:#fff;font-size:14px;font-weight:600}
         .alert-box{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:14px 16px;display:flex;gap:10px;align-items:flex-start}
         .alert-text{color:rgba(255,255,255,.7);font-size:12px;line-height:1.6}
@@ -175,7 +178,8 @@ export default function CitaPage() {
                 <div className="when-label">
                   {result.isToday ? 'Tu cita es hoy · Your appointment is today' : `En ${result.daysUntil} día${result.daysUntil !== 1 ? 's' : ''} · In ${result.daysUntil} day${result.daysUntil !== 1 ? 's' : ''}`}
                 </div>
-                <div className="day-text">{dateStr}</div>
+                <div className="day-text">{dateStrEs}</div>
+                <div style={{ color: 'rgba(255,255,255,.3)', fontSize: '13px', marginTop: '2px', fontWeight: 500 }}>{dateStrEn}</div>
                 <div className="time-row">
                   <div className="time-text">{timeStr}</div>
                   <div className="sep">·</div>
@@ -189,15 +193,15 @@ export default function CitaPage() {
                   <div className="detail-value">{result.doctorName ?? '—'}</div>
                 </div>
                 <div className="detail-box">
-                  <div className="detail-label">Dirección</div>
+                  <div className="detail-label">Dirección · Address</div>
                   <div className="detail-value" style={{ fontSize: '12px' }}>{result.clinicAddr ?? result.clinicName}</div>
                 </div>
                 <div className="detail-box">
-                  <div className="detail-label">Tipo de visita</div>
+                  <div className="detail-label">Tipo de visita · Visit type</div>
                   <div className="detail-value">{result.apptType}</div>
                 </div>
                 <div className="detail-box">
-                  <div className="detail-label">Duración estimada</div>
+                  <div className="detail-label">Duración est. · Est. duration</div>
                   <div className="detail-value">~15 min</div>
                 </div>
               </div>

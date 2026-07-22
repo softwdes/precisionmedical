@@ -82,7 +82,9 @@ export default function CitaPage() {
     if (!code) return;
     setLoading(true); setError(false); setResult(null);
     try {
-      const res = await fetch(`/api/cita/${encodeURIComponent(code)}`);
+      const res = await fetch(`/api/cita/${encodeURIComponent(code)}`, {
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+      });
       if (!res.ok) { setError(true); return; }
       const data = await res.json();
       if (!data.ok) { setError(true); return; }

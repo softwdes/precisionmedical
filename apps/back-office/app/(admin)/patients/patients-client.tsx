@@ -1903,16 +1903,16 @@ export function PatientsClient({ patients, q, page, totalPages, total, inactiveT
         </a>
       </div>
 
-      <div className="relative rounded-lg border border-border overflow-hidden">
+      <div className="relative rounded-lg border border-border">
         {(isSearching || isPending) && (
-          <div className="absolute inset-0 z-10 flex items-start justify-center pt-12 bg-bg-1/60 backdrop-blur-[1px] rounded-lg">
-            <div className="flex items-center gap-2 bg-bg-2 border border-border rounded-full px-3 py-1.5 shadow-lg">
+          <div className="absolute inset-0 z-10 flex items-start justify-center pt-12 bg-bg-1/60 backdrop-blur-[1px] rounded-lg pointer-events-none">
+            <div className="flex items-center gap-2 bg-bg-2 border border-border rounded-full px-3 py-1.5 shadow-lg pointer-events-auto">
               <RefreshCw className="w-3.5 h-3.5 text-brand animate-spin" />
               <span className="text-[11px] text-text-2 font-medium">Buscando…</span>
             </div>
           </div>
         )}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-lg">
         <table className={`w-full min-w-[900px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
           <thead className="bg-bg-2 border-b border-border">
             <tr>

@@ -104,10 +104,10 @@ function ApptCard({
   const borderClass = isCheckedIn
     ? 'border border-amber/50 bg-amber/[0.04] ring-1 ring-amber/20'
     : isInRoom
-      ? 'bg-violet/[0.05]'
+      ? 'border border-border bg-violet/[0.05]'
       : appt.case?.hasPending
         ? 'border border-amber/30 bg-amber/[0.02]'
-        : 'bg-bg-2/20';
+        : 'border border-border bg-bg-2/20';
 
   return (
     <div className={`rounded-lg p-4 transition-all ${borderClass}`}>

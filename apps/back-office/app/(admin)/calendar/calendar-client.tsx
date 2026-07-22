@@ -21,7 +21,7 @@ import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 
-type CalendarView = 'day' | 'week' | 'month' | 'agenda';
+type CalendarView = 'day' | 'week' | 'month';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -349,13 +349,6 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const [slotTime,    setSlotTime]        = useState('');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  // Auto-select agenda view on mobile
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setCalView('agenda');
-    }
-  }, []);
-
   const openSlot = (date: string, time: string) => {
     setSlotDate(date);
     setSlotTime(time);
@@ -407,21 +400,25 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
   const goToPrev = () => {
-    if (calView === 'day' || calView === 'agenda') setWeekStart(w => addDays(w, -1));
+    if (calView === 'day')        setWeekStart(w => addDays(w, -1));
     else if (calView === 'week')  setWeekStart(w => addDays(w, -7));
     else setWeekStart(w => getFirstDayOfMonth(new Date(w.getFullYear(), w.getMonth() - 1, 1)));
   };
   const goToNext = () => {
-    if (calView === 'day' || calView === 'agenda') setWeekStart(w => addDays(w, 1));
+    if (calView === 'day')        setWeekStart(w => addDays(w, 1));
     else if (calView === 'week')  setWeekStart(w => addDays(w, 7));
     else setWeekStart(w => getFirstDayOfMonth(new Date(w.getFullYear(), w.getMonth() + 1, 1)));
   };
   const goToToday = () => {
     const now = new Date();
-    if (calView === 'day' || calView === 'agenda') setWeekStart(now);
+    if (calView === 'day')        setWeekStart(now);
     else if (calView === 'week')  setWeekStart(getMondayOf(now));
     else                          setWeekStart(getFirstDayOfMonth(now));
   };
+  // Mobile agenda always navigates 1 day at a time
+  const mobileGoToPrev = () => setWeekStart(w => addDays(w, -1));
+  const mobileGoToNext = () => setWeekStart(w => addDays(w, 1));
+  const mobileGoToToday = () => setWeekStart(new Date());
   /** Cambia de vista ajustando weekStart al ancla correcta para esa vista. */
   const switchView = (v: CalendarView) => {
     setCalView(v);
@@ -505,17 +502,17 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
       {/* ─── Mobile toolbar (md:hidden) ──────────────────────── */}
       <div className="md:hidden px-4 pb-2 flex items-center gap-2">
-        {/* Nav */}
-        <button type="button" onClick={goToPrev}
+        {/* Nav — always 1-day step on mobile */}
+        <button type="button" onClick={mobileGoToPrev}
           className="w-8 h-8 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
           <ChevronLeft className="w-4 h-4" />
         </button>
         <span className="flex-1 text-text-1 font-bold text-sm text-center">{monthLabel}</span>
-        <button type="button" onClick={goToNext}
+        <button type="button" onClick={mobileGoToNext}
           className="w-8 h-8 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
           <ChevronRight className="w-4 h-4" />
         </button>
-        <button type="button" onClick={goToToday}
+        <button type="button" onClick={mobileGoToToday}
           className="px-2.5 h-8 rounded border border-border hover:bg-white/5 text-text-2 text-xs transition-colors">
           {t('today')}
         </button>
@@ -695,8 +692,53 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         </div>
       </div>
 
-      {/* ─── Grid (3 views) ──────────────────────────────────── */}
-      <div className="flex-1 overflow-auto px-6 pb-6 min-h-0">
+      {/* ─── Mobile: Agenda (always shown on mobile) ─────────── */}
+      <div className="md:hidden flex-1 overflow-auto px-4 pb-6 min-h-0">
+        {(() => {
+          const dayKey = denverDateStr(weekStart);
+          const dayAppts = visibleAppointments
+            .filter(a => denverDateStr(new Date(a.scheduledFor)) === dayKey)
+            .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());
+          if (!loading && dayAppts.length === 0) {
+            return (
+              <div className="mt-12 text-center">
+                <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
+                <p className="text-text-2 text-sm">{t('agendaNoAppts')}</p>
+              </div>
+            );
+          }
+          return (
+            <div className="flex flex-col gap-2">
+              {dayAppts.map(appt => {
+                const s = getEventStyle(appt);
+                const time = new Date(appt.scheduledFor).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver' });
+                const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
+                const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                return (
+                  <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
+                    className="w-full text-left rounded-xl p-3 transition-all hover:brightness-110 active:scale-[0.99]"
+                    style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined }}>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-xs font-bold" style={{ color: s.text }}>{time}</span>
+                      {visitLabel && <span className="text-[10px] font-semibold opacity-80" style={{ color: s.text }}>{visitLabel}</span>}
+                    </div>
+                    <div className="text-sm font-semibold" style={{ color: s.text }}>{appt.patient.firstName} {appt.patient.lastName}</div>
+                    {(drName || appt.clinic.name) && (
+                      <div className="text-[11px] mt-0.5 opacity-75" style={{ color: s.text }}>{[drName, appt.clinic.name].filter(Boolean).join(' · ')}</div>
+                    )}
+                    {appt.case?.caseCode && (
+                      <div className="text-[10px] mt-1 opacity-60 font-mono" style={{ color: s.text }}>{appt.case.caseCode}</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* ─── Desktop: Grid (3 views, hidden on mobile) ────────── */}
+      <div className="hidden md:block flex-1 overflow-auto px-6 pb-6 min-h-0">
 
         {/* ══════════════════════════ WEEK VIEW ══════════════════════════════ */}
         {calView === 'week' && (() => {
@@ -896,59 +938,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           );
         })()}
 
-        {/* ══════════════════════════ AGENDA VIEW (mobile) ════════════════════ */}
-        {calView === 'agenda' && (() => {
-          const dayKey = denverDateStr(weekStart);
-          const dayAppts = visibleAppointments
-            .filter(a => denverDateStr(new Date(a.scheduledFor)) === dayKey)
-            .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());
-          if (dayAppts.length === 0) {
-            return (
-              <div className="mt-12 text-center">
-                <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
-                <p className="text-text-2 text-sm">{t('agendaNoAppts')}</p>
-              </div>
-            );
-          }
-          return (
-            <div className="flex flex-col gap-2">
-              {dayAppts.map(appt => {
-                const s = getEventStyle(appt);
-                const time = new Date(appt.scheduledFor).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver' });
-                const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
-                const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
-                return (
-                  <button
-                    key={appt.id}
-                    type="button"
-                    onClick={() => setSelectedAppt(appt)}
-                    className="w-full text-left rounded-xl p-3 transition-all hover:brightness-110 active:scale-[0.99]"
-                    style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined }}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-xs font-bold" style={{ color: s.text }}>{time}</span>
-                      {visitLabel && <span className="text-[10px] font-semibold opacity-80" style={{ color: s.text }}>{visitLabel}</span>}
-                    </div>
-                    <div className="text-sm font-semibold" style={{ color: s.text }}>
-                      {appt.patient.firstName} {appt.patient.lastName}
-                    </div>
-                    {(drName || appt.clinic.name) && (
-                      <div className="text-[11px] mt-0.5 opacity-75" style={{ color: s.text }}>
-                        {[drName, appt.clinic.name].filter(Boolean).join(' · ')}
-                      </div>
-                    )}
-                    {appt.case?.caseCode && (
-                      <div className="text-[10px] mt-1 opacity-60 font-mono" style={{ color: s.text }}>{appt.case.caseCode}</div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-        {/* Empty state (non-agenda views) */}
-        {!loading && calView !== 'agenda' && visibleAppointments.length === 0 && (
+        {/* Empty state */}
+        {!loading && visibleAppointments.length === 0 && (
           <div className="mt-12 text-center">
             <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
             <p className="text-text-2 text-sm">{t('emptyTitle')}</p>

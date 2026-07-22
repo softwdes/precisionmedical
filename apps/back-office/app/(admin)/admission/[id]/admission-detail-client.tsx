@@ -98,7 +98,7 @@ function fmtDate(iso: string | null) {
 // ─── Small reusable pieces ────────────────────────────────────────────────────
 function ChecklistCard({ done, label, meta }: { done: boolean; label: string; meta?: string }) {
   return (
-    <div className={`rounded-lg border p-3 flex items-start gap-2.5 ${done ? 'bg-emerald/5 border-emerald/25' : 'bg-bg-2/30 border-border/20'}`}>
+    <div className={`rounded-lg p-3 flex items-start gap-2.5 ${done ? 'bg-emerald/5' : 'bg-bg-2/30'}`}>
       {done
         ? <CheckCircle2 className="w-4 h-4 text-emerald shrink-0 mt-0.5" />
         : <Clock className="w-4 h-4 text-amber shrink-0 mt-0.5" />
@@ -480,7 +480,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
       <div className="px-4 sm:px-6 pb-8 space-y-4">
 
         {/* ── Flow diagram ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/20 rounded-lg overflow-hidden border border-border">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-bg-2 rounded-lg overflow-hidden">
           {[
             { num: 1, done: true,             active: false,                                          title: t('flowStep1'), desc: t('flowStep1Desc') },
             { num: 2, done: isAlreadyInRoom, active: !isAlreadyInRoom,                              title: t('flowStep2'), desc: t('flowStep2Desc') },
@@ -517,7 +517,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   {step.label}
                 </span>
               </div>
-              {i < arr.length - 1 && <div className="flex-1 h-px bg-border/30" />}
+              {i < arr.length - 1 && <div className="flex-1 h-px bg-bg-3" />}
             </div>
           ))}
         </div>
@@ -566,9 +566,9 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
 
         {/* ── Step 3: In Room (Doctor) — en construcción ── */}
         {isAlreadyInRoom && d.status !== 'COMPLETED' && !showServices && (
-          <div className="rounded-lg border border-violet/30 bg-violet/5 overflow-hidden">
+          <div className="rounded-lg bg-bg-2/40 overflow-hidden">
             {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-violet/20">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-bg-3">
               <div className="w-7 h-7 rounded-full bg-violet flex items-center justify-center text-white font-bold text-[11px] shrink-0">3</div>
               <div className="flex-1">
                 <div className="text-violet font-bold text-[13px]">{t('flowStep3')}</div>
@@ -906,7 +906,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               </div>
 
               {/* Step 4 preview */}
-              <div className="rounded-lg border border-border/60 bg-bg-1/50 p-4">
+              <div className="rounded-lg bg-bg-2/30 p-4">
                 <div className="text-[9.5px] uppercase tracking-wider font-bold text-text-muted mb-2">{t('step4AfterTitle')}</div>
                 <div className="text-[11px] text-text-2 leading-relaxed mb-3">{t('step4AfterDesc')}</div>
                 <div className="grid grid-cols-2 gap-2">
@@ -914,7 +914,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                     { label: t('step4ServicesLabel'), sub: t('step4ServicesDesc') },
                     { label: t('step4PaymentsLabel'), sub: t('step4PaymentsDesc') },
                   ].map(card => (
-                    <div key={card.label} className="bg-bg-2 border border-border rounded-md p-2.5 text-center">
+                    <div key={card.label} className="bg-bg-3/50 rounded-md p-2.5 text-center">
                       <div className="text-[10px] text-text-muted uppercase tracking-wider mb-0.5">{card.label}</div>
                       <div className="text-[11px] font-semibold text-text-2">{card.sub}</div>
                     </div>

@@ -244,7 +244,12 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
   useImperativeHandle(ref, () => ({
     openPayModal,
     reload: load,
-    reloadAndOpen: () => { openAfterLoad.current = true; load(); },
+    reloadAndOpen: () => {
+      // Abrir modal inmediatamente con datos existentes, recargar en background
+      openPayModal();
+      openAfterLoad.current = true;
+      load();
+    },
   }));
 
   function toggleExpanded(id: string) {

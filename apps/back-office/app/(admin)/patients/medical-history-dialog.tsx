@@ -2030,6 +2030,7 @@ function AddHistoryDialog({
 export interface MedicalHistoryContentProps { patient: PatientRow }
 
 export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editVisitInfo,  setEditVisitInfo]  = useState(false);
   const [editHealthInfo, setEditHealthInfo] = useState(false);
   const [addProblem,      setAddProblem]      = useState(false);
@@ -2069,10 +2070,34 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
   return (
     <>
         {/* ── Body: left panel + main ── */}
-        <div className="flex min-h-0 overflow-hidden w-full">
+        <div className="flex min-h-0 overflow-hidden w-full relative">
+
+          {/* Mobile sidebar toggle button */}
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(v => !v)}
+            className="md:hidden absolute top-2 right-2 z-20 flex items-center gap-1.5 h-7 px-2.5 rounded border border-border bg-bg-1 text-text-2 text-[11px] hover:bg-bg-2 transition-colors"
+          >
+            <User className="w-3 h-3" />
+            {sidebarOpen ? 'Cerrar' : 'Ver datos'}
+          </button>
+
+          {/* Mobile overlay backdrop */}
+          {sidebarOpen && (
+            <div
+              className="md:hidden fixed inset-0 z-10 bg-black/50"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
 
           {/* ════ Left sidebar ════ */}
-          <div className="w-72 shrink-0 border-r border-border overflow-y-auto bg-bg-1">
+          <div className={`
+            shrink-0 border-r border-border overflow-y-auto bg-bg-1
+            md:w-72 md:static md:z-auto md:translate-x-0
+            ${sidebarOpen
+              ? 'fixed inset-y-0 left-0 z-20 w-72 translate-x-0'
+              : 'hidden md:block'}
+          `}>
 
             {/* Patient avatar */}
             <div className="px-4 py-4 border-b border-border/60 flex items-center gap-3">

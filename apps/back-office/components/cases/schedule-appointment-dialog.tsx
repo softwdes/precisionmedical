@@ -77,8 +77,8 @@ const SPECIALTY_COLORS: Record<string, string> = {
   NEUROLOGY: 'bg-pink/15 text-pink border-pink/30',
   RADIOLOGY: 'bg-emerald/15 text-emerald border-emerald/30',
   PSYCHOLOGY: 'bg-brand/15 text-brand border-brand/30',
-  GENERAL: 'bg-bg-2 text-text-2 border-border',
-  OTHER: 'bg-bg-2 text-text-2 border-border',
+  GENERAL: 'bg-bg-2 text-text-2 border-border/30',
+  OTHER: 'bg-bg-2 text-text-2 border-border/30',
 };
 
 export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: ScheduleAppointmentDialogProps) {
@@ -248,7 +248,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               id="clinic"
               value={clinicId}
               onChange={(e) => setClinicId(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               disabled={loadingResources}
             >
               <option value="">{loadingResources ? 'Cargando...' : 'Seleccionar clínica...'}</option>
@@ -271,7 +271,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               id="provider"
               value={providerId}
               onChange={(e) => setProviderId(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               disabled={loadingResources}
             >
               <option value="">{loadingResources ? 'Cargando...' : 'Seleccionar doctor...'}</option>
@@ -307,7 +307,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
                 lang="en-US"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               />
             </div>
             <div>
@@ -320,7 +320,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               />
             </div>
           </div>
@@ -344,7 +344,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
                   className={`px-2 py-2 rounded-md border text-xs font-medium transition-colors ${
                     duration === d
                       ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                      : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
+                      : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
                   }`}
                 >
                   {d}m
@@ -360,7 +360,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               id="type"
               value={type}
               onChange={(e) => setType(e.target.value as AppointmentType)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -378,7 +378,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder="Ej: paciente reporta dolor lumbar severo · primera evaluación..."
               maxLength={2000}
             />

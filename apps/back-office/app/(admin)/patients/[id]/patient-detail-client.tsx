@@ -89,7 +89,7 @@ const PATIENT_STATUS_COLORS: Record<PatientStatus, { colorClass: string }> = {
   ACTIVE:     { colorClass: 'bg-emerald/10 text-emerald border-emerald/30' },
   COMPLETED:  { colorClass: 'bg-cyan/10 text-cyan border-cyan/30' },
   DISCHARGED: { colorClass: 'bg-violet/10 text-violet border-violet/30' },
-  INACTIVE:   { colorClass: 'bg-bg-2 text-text-muted border-border' },
+  INACTIVE:   { colorClass: 'bg-bg-2 text-text-muted border-border/30' },
 };
 
 const CASE_STATUS_COLORS: Record<string, { colorClass: string; dot: string }> = {
@@ -332,7 +332,7 @@ function CaseRow({ case: c, onClick }: { case: PatientCase; onClick: () => void 
     <button
       type="button"
       onClick={onClick}
-      className="group w-full text-left rounded-lg border border-border bg-bg-2/40 hover:bg-bg-2 hover:border-border-strong px-4 py-3 transition-all"
+      className="group w-full text-left rounded-lg border border-border/30 bg-bg-2/40 hover:bg-bg-2 hover:border-border-strong px-4 py-3 transition-all"
     >
       <div className="flex items-start gap-3 flex-wrap sm:flex-nowrap">
 
@@ -349,13 +349,13 @@ function CaseRow({ case: c, onClick }: { case: PatientCase; onClick: () => void 
             {c.specialty && (
               <TagPill
                 label={c.specialty.name}
-                colorClass="bg-bg-3 text-text-2 border-border"
+                colorClass="bg-bg-3 text-text-2 border-border/30"
                 compact
                 icon={<span className="w-1.5 h-1.5 rounded-full" style={{ background: c.specialty.color }} />}
               />
             )}
             {c.caseType && c.caseType !== 'MVA' && (
-              <TagPill label={c.caseType} colorClass="bg-bg-3 text-text-2 border-border" compact />
+              <TagPill label={c.caseType} colorClass="bg-bg-3 text-text-2 border-border/30" compact />
             )}
           </div>
 

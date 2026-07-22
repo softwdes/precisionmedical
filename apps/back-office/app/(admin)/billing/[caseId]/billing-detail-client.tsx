@@ -75,7 +75,7 @@ const TAG_CONFIG: Record<string, { emoji: string; label: string; color: string; 
   legal:    { emoji: '⚖️', label: 'Legal',       color: 'text-brand',   border: 'border-brand/30',   bg: 'bg-brand/10'   },
   insurer:  { emoji: '🏥', label: 'Aseguradora', color: 'text-emerald', border: 'border-emerald/30', bg: 'bg-emerald/10' },
   reminder: { emoji: '⏰', label: 'Recordatorio', color: 'text-amber',  border: 'border-amber/30',   bg: 'bg-amber/10'   },
-  general:  { emoji: '📝', label: 'General',      color: 'text-text-2',  border: 'border-border',     bg: 'bg-bg-2/50'    },
+  general:  { emoji: '📝', label: 'General',      color: 'text-text-2',  border: 'border-border/30',     bg: 'bg-bg-2/50'    },
   system:   { emoji: '🤖', label: 'Sistema',      color: 'text-violet',  border: 'border-violet/30',  bg: 'bg-violet/10'  },
 };
 
@@ -152,7 +152,7 @@ function NoteComposer({ caseId, onSaved }: { caseId: string; onSaved: () => void
         onChange={e => setContent(e.target.value)}
         placeholder="Escribir nueva nota interna..."
         rows={3}
-        className="w-full rounded-md border border-border bg-bg-2 px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:border-amber/50 focus:outline-none resize-none mb-3"
+        className="w-full rounded-md border border-border/30 bg-bg-2 px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:border-amber/50 focus:outline-none resize-none mb-3"
       />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         {/* Tag selector */}
@@ -165,7 +165,7 @@ function NoteComposer({ caseId, onSaved }: { caseId: string; onSaved: () => void
                 type="button"
                 onClick={() => setTag(t)}
                 className={`px-2 py-1 rounded text-[9px] font-bold border transition-all ${
-                  tag === t ? `${cfg.border} ${cfg.bg} ${cfg.color}` : 'border-border text-text-muted hover:border-border-strong'
+                  tag === t ? `${cfg.border} ${cfg.bg} ${cfg.color}` : 'border-border/30 text-text-muted hover:border-border-strong'
                 }`}
               >
                 {cfg.emoji} {cfg.label}
@@ -243,7 +243,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
             <button
               type="button"
               onClick={() => router.back()}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Bandeja
@@ -252,7 +252,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
             <button
               type="button"
               onClick={() => router.push(`/billing/${caseId}/ledger`)}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-brand/40 hover:text-brand transition-all"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-brand/40 hover:text-brand transition-all"
             >
               <BarChart3 className="w-3.5 h-3.5" />
               Ledger
@@ -302,7 +302,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
           <div className="space-y-4">
 
             {/* Case summary */}
-            <div className="rounded-lg border border-border bg-bg-1 p-4">
+            <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
                 📋 Resumen del caso
               </div>
@@ -361,7 +361,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
 
             {/* Visit timeline (if multiple) */}
             {d.visits.length > 1 && (
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
+              <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
                   Historial de visitas ({d.visits.length})
                 </div>
@@ -373,7 +373,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                       <span className="text-amber font-semibold">{v.note ? fmtMoney(v.note.total) : '—'}</span>
                     </div>
                   ))}
-                  <div className="border-t border-border pt-2 flex justify-between text-[11px] font-bold">
+                  <div className="border-t border-border/30 pt-2 flex justify-between text-[11px] font-bold">
                     <span className="text-text-muted">Total</span>
                     <span className="text-amber">{fmtMoney(d.billedTotal)}</span>
                   </div>
@@ -382,7 +382,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
             )}
 
             {/* Actions */}
-            <div className="rounded-lg border border-border bg-bg-1 p-4">
+            <div className="rounded-lg border border-border/30 bg-bg-1 p-4">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
                 🚀 Acciones del caso
               </div>
@@ -411,7 +411,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                 {d.attorney?.phone && (
                   <a
                     href={`tel:${d.attorney.phone}`}
-                    className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border text-text-2 text-xs hover:border-amber/30 hover:text-amber transition-colors"
+                    className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border/30 text-text-2 text-xs hover:border-amber/30 hover:text-amber transition-colors"
                   >
                     <Scale className="w-3.5 h-3.5" />
                     Llamar al abogado
@@ -420,7 +420,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                 {d.primaryInsurance?.claimsPhone && (
                   <a
                     href={`tel:${d.primaryInsurance.claimsPhone}`}
-                    className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border text-text-2 text-xs hover:border-cyan/30 hover:text-cyan transition-colors"
+                    className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border/30 text-text-2 text-xs hover:border-cyan/30 hover:text-cyan transition-colors"
                   >
                     <Phone className="w-3.5 h-3.5" />
                     Llamar a {d.primaryInsurance.name}
@@ -429,7 +429,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
                 {d.primaryInsurance?.claimsEmail && (
                   <a
                     href={`mailto:${d.primaryInsurance.claimsEmail}`}
-                    className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border text-text-2 text-xs hover:border-violet/30 hover:text-violet transition-colors"
+                    className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-border/30 text-text-2 text-xs hover:border-violet/30 hover:text-violet transition-colors"
                   >
                     <Mail className="w-3.5 h-3.5" />
                     Email a aseguradora
@@ -455,7 +455,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
 
             {/* Timeline */}
             {d.notes.length === 0 ? (
-              <div className="text-center py-8 text-text-muted text-sm border border-dashed border-border rounded-lg">
+              <div className="text-center py-8 text-text-muted text-sm border border-dashed border-border/30 rounded-lg">
                 Sin notas internas aún. Agregá la primera nota arriba.
               </div>
             ) : (

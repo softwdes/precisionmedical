@@ -289,7 +289,7 @@ function TypePill({ type }: { type: string }) {
     MED_PAY: 'bg-violet/15 text-violet border-violet/30',
     HEALTH:  'bg-emerald/15 text-emerald border-emerald/30',
     WORKERS: 'bg-amber/15 text-amber border-amber/30',
-    OTHER:   'bg-white/5 text-text-2 border-border',
+    OTHER:   'bg-white/5 text-text-2 border-border/30',
   };
   const labels: Record<string, string> = {
     PIP:     'PIP',
@@ -316,7 +316,7 @@ function HcfaChannelPill({ channel }: { channel: string }) {
   return (
     <TagPill
       label={labels[channel] ?? channel}
-      colorClass="bg-white/5 text-text-2 border-border"
+      colorClass="bg-white/5 text-text-2 border-border/30"
       icon={icons[channel] ?? null}
     />
   );
@@ -474,14 +474,14 @@ function InsuranceDialog({
                 id="type"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
                 {TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-border">
+          <div className="pt-3 border-t border-border/30">
             <div className="text-text-2 text-xs uppercase tracking-wider font-semibold mb-2">Claims contact</div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -507,13 +507,13 @@ function InsuranceDialog({
                 id="claimsAddress"
                 value={claimsAddress ?? ''}
                 onChange={(e) => setClaimsAddress(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
                 placeholder="PO Box 12345, San Antonio TX 78284"
               />
             </div>
           </div>
 
-          <div className="pt-3 border-t border-border">
+          <div className="pt-3 border-t border-border/30">
             <div className="text-text-2 text-xs uppercase tracking-wider font-semibold mb-2">HCFA submission</div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -522,7 +522,7 @@ function InsuranceDialog({
                   id="hcfaChannel"
                   value={hcfaChannel}
                   onChange={(e) => setHcfaChannel(e.target.value)}
-                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                  className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
                 >
                   {HCFA_CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
@@ -538,7 +538,7 @@ function InsuranceDialog({
                 id="responseSpeed"
                 value={responseSpeed}
                 onChange={(e) => setResponseSpeed(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
                 {RESPONSE_SPEEDS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
@@ -549,13 +549,13 @@ function InsuranceDialog({
             </label>
           </div>
 
-          <div className="pt-3 border-t border-border">
+          <div className="pt-3 border-t border-border/30">
             <Label htmlFor="notes">Notas internas (Brunella/Edson)</Label>
             <textarea
               id="notes"
               value={notes ?? ''}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder="Detalles operativos: agente específico, observaciones, etc."
             />
           </div>

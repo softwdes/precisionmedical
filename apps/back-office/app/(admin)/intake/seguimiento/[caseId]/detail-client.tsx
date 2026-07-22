@@ -284,7 +284,7 @@ function ActionForm({
             value={amount}
             onChange={e => setAmount(e.target.value)}
             placeholder="0.00"
-            className="w-full rounded-lg border border-border bg-bg-2/40 px-3 py-2 text-sm text-text-1 placeholder-text-muted focus:outline-none focus:border-amber/50"
+            className="w-full rounded-lg border border-border/30 bg-bg-2/40 px-3 py-2 text-sm text-text-1 placeholder-text-muted focus:outline-none focus:border-amber/50"
           />
         </div>
       )}
@@ -297,7 +297,7 @@ function ActionForm({
           onChange={e => setContent(e.target.value)}
           placeholder={cfg.placeholder}
           rows={3}
-          className="w-full resize-none rounded-lg border border-border bg-bg-2/40 px-3 py-2 text-sm text-text-1 placeholder-text-muted focus:outline-none focus:border-amber/50"
+          className="w-full resize-none rounded-lg border border-border/30 bg-bg-2/40 px-3 py-2 text-sm text-text-1 placeholder-text-muted focus:outline-none focus:border-amber/50"
         />
       </div>
 
@@ -305,7 +305,7 @@ function ActionForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg border border-border px-3 py-1.5 text-[12px] text-text-muted hover:text-text-1 transition-colors"
+          className="rounded-lg border border-border/30 px-3 py-1.5 text-[12px] text-text-muted hover:text-text-1 transition-colors"
         >
           Cancelar
         </button>
@@ -423,7 +423,7 @@ export function SeguimientoDetailClient() {
       ? 'border-rose/30 bg-gradient-to-br from-rose/10 to-rose/[0.04]'
       : urgency === 'warning'
         ? 'border-amber/30 bg-gradient-to-br from-amber/8 to-amber/[0.03]'
-        : 'border-border bg-bg-1';
+        : 'border-border/30 bg-bg-1';
 
   const codeColor  = urgency === 'urgent' ? 'text-rose/80' : urgency === 'warning' ? 'text-amber/80' : 'text-text-muted';
   const amountColor = urgency === 'urgent' ? 'text-rose' : urgency === 'warning' ? 'text-amber' : 'text-text-1';
@@ -437,7 +437,7 @@ export function SeguimientoDetailClient() {
     <div className="min-h-screen bg-bg-0 pb-24">
 
       {/* ── Topbar ──────────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 border-b border-border bg-bg-0/80 backdrop-blur-sm px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
+      <div className="sticky top-0 z-30 border-b border-border/30 bg-bg-0/80 backdrop-blur-sm px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => router.push('/intake/seguimiento')}
@@ -519,7 +519,7 @@ export function SeguimientoDetailClient() {
 
         {/* ── Attorney Contact ─────────────────────────────────────────────── */}
         {(c.attorney?.phone || c.firmPhone || c.attorney?.email || c.firmEmail) && (
-          <div className="rounded-lg border border-border bg-bg-1 px-4 py-3 flex flex-wrap items-center gap-4 text-[12px]">
+          <div className="rounded-lg border border-border/30 bg-bg-1 px-4 py-3 flex flex-wrap items-center gap-4 text-[12px]">
             <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">Contacto bufete</span>
             {(c.attorney?.phone || c.firmPhone) && (
               <a
@@ -543,7 +543,7 @@ export function SeguimientoDetailClient() {
         )}
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
-        <div className="flex gap-0 border-b border-border">
+        <div className="flex gap-0 border-b border-border/30">
           {(
             [
               { key: 'timeline' as Tab, label: 'Timeline',          count: timeline.length },
@@ -605,7 +605,7 @@ export function SeguimientoDetailClient() {
       {/* ── Quick Actions Bar (fixed bottom) ────────────────────────────── */}
       {!activeAction && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-bg-0/95 backdrop-blur-sm px-4 sm:px-6 py-3"
+          className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/30 bg-bg-0/95 backdrop-blur-sm px-4 sm:px-6 py-3"
           style={{ paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}
         >
           <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">

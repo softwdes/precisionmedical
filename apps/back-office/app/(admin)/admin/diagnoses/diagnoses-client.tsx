@@ -178,7 +178,7 @@ export function DiagnosesClient({ stats, userId = '' }: Props) {
           <select
             value={categoryFilter}
             onChange={(e) => applyCategory(e.target.value)}
-            className="bg-bg-2 border border-border rounded-md px-3 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand"
+            className="bg-bg-2 border border-border/30 rounded-md px-3 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand"
           >
             <option value="all">{t('filterAllCategories')}</option>
             {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -323,7 +323,7 @@ function CategoryPill({ cat }: { cat: string }) {
     F: 'bg-pink/15 text-pink border-pink/30',
     V_W: 'bg-cyan/15 text-cyan border-cyan/30',
     Z: 'bg-emerald/15 text-emerald border-emerald/30',
-    OTHER: 'bg-white/5 text-text-2 border-border',
+    OTHER: 'bg-white/5 text-text-2 border-border/30',
   };
   return <TagPill label={cat} colorClass={colors[cat] ?? colors.OTHER} mono compact />;
 }
@@ -413,7 +413,7 @@ function DiagnosisDialog({ open, onOpenChange, editing, onSaved, categoryOptions
               </div>
               <div>
                 <Label htmlFor="category">{t('fieldChapter')}</Label>
-                <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
+                <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
                   {categoryOptions.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>

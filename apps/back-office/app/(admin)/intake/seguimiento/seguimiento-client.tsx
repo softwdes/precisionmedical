@@ -109,12 +109,12 @@ const URGENCY_CONFIG = {
     button:  'bg-emerald/10 text-emerald border-emerald/30 hover:bg-emerald/20',
   },
   normal: {
-    border:  'border-border hover:border-border/80',
+    border:  'border-border/30 hover:border-border/80',
     bg:      'bg-bg-1',
-    badge:   'bg-white/5 text-text-muted border-border',
+    badge:   'bg-white/5 text-text-muted border-border/30',
     amount:  'text-text-1',
     dot:     'bg-text-muted',
-    button:  'bg-white/5 text-text-muted border-border hover:bg-white/10',
+    button:  'bg-white/5 text-text-muted border-border/30 hover:bg-white/10',
   },
 } as const;
 
@@ -326,7 +326,7 @@ export function SeguimientoClient() {
           <button
             type="button"
             onClick={() => void fetch(tab)}
-            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-text-muted hover:text-text-1 hover:border-border/70 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-border/30 px-3 py-1.5 text-[12px] text-text-muted hover:text-text-1 hover:border-border/70 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             {t('refresh')}
@@ -337,7 +337,7 @@ export function SeguimientoClient() {
       <div className="px-4 sm:px-6 lg:px-8 space-y-5 mt-5">
 
         {/* ── Toggle Pre / Post ──────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1 rounded-xl border border-border bg-bg-1 p-1 w-fit">
+        <div className="flex items-center gap-1 rounded-xl border border-border/30 bg-bg-1 p-1 w-fit">
           <button
             type="button"
             onClick={() => router.push('/intake')}
@@ -403,7 +403,7 @@ export function SeguimientoClient() {
               className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[11px] font-semibold transition-all ${
                 tab === t.key
                   ? 'bg-amber/15 text-amber border-amber/40'
-                  : 'bg-transparent text-text-muted border-border hover:border-border/70 hover:text-text-2'
+                  : 'bg-transparent text-text-muted border-border/30 hover:border-border/70 hover:text-text-2'
               }`}
             >
               {t.emoji && <span>{t.emoji}</span>}
@@ -431,7 +431,7 @@ export function SeguimientoClient() {
             {[1, 2, 3].map(i => (
               <div
                 key={i}
-                className="h-20 rounded-lg border border-border bg-bg-1 animate-pulse"
+                className="h-20 rounded-lg border border-border/30 bg-bg-1 animate-pulse"
               />
             ))}
           </div>

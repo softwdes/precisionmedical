@@ -170,7 +170,7 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
           </div>
 
           {/* Checklist */}
-          <div className="rounded-lg border border-border bg-bg-2/30 p-4">
+          <div className="rounded-lg border border-border/30 bg-bg-2/30 p-4">
             <div className="flex items-center gap-2 text-text-1 font-semibold text-sm mb-3">
               <ClipboardList className="w-4 h-4 text-brand" />
               Checklist de confirmación
@@ -213,7 +213,7 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder="Ej: paciente pidió llegar 15 min antes · viene con familiar · prefiere ES..."
             />
           </div>
@@ -226,7 +226,7 @@ export function ConfirmAppointmentDialog({ open, onOpenChange, caseInfo }: Confi
           )}
         </div>
 
-        <DialogFooter className="border-t border-border pt-3">
+        <DialogFooter className="border-t border-border/30 pt-3">
           <div className="text-xs text-text-muted mr-auto flex items-center gap-1">
             {allChecked ? (
               <><Check className="w-3.5 h-3.5 text-emerald" /> <span className="text-emerald">Listo para confirmar</span></>
@@ -262,7 +262,7 @@ function ChecklistItem({
       className={`flex items-start gap-3 p-3 rounded-md border cursor-pointer transition-all ${
         checked
           ? 'bg-emerald/5 border-emerald/30 hover:bg-emerald/10'
-          : 'bg-bg-1 border-border hover:border-border-strong'
+          : 'bg-bg-1 border-border/30 hover:border-border-strong'
       }`}
     >
       <input

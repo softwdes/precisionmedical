@@ -261,9 +261,9 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
     CONFIRMED:        { label: t('statusConfirmed'),        colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '🟢' },
     ACTIVE:           { label: t('statusActive'),           colorClass: 'bg-brand/10 text-brand border-brand/30',     icon: '⚕️' },
     MMI:              { label: t('statusMmi'),              colorClass: 'bg-violet/10 text-violet border-violet/30',  icon: '🏁' },
-    CLOSED:           { label: t('statusClosed'),           colorClass: 'bg-bg-2 text-text-2 border-border',           icon: '✓' },
+    CLOSED:           { label: t('statusClosed'),           colorClass: 'bg-bg-2 text-text-2 border-border/30',           icon: '✓' },
     SETTLED:          { label: t('statusSettled'),          colorClass: 'bg-emerald/10 text-emerald border-emerald/30', icon: '💰' },
-    ARCHIVED:         { label: t('statusArchived'),         colorClass: 'bg-bg-2 text-text-muted border-border',       icon: '📦' },
+    ARCHIVED:         { label: t('statusArchived'),         colorClass: 'bg-bg-2 text-text-muted border-border/30',       icon: '📦' },
     CANCELLED:        { label: t('statusCancelled'),        colorClass: 'bg-rose/10 text-rose border-rose/30',         icon: '✗' },
   };
 
@@ -340,7 +340,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       <NextActionBanner caseInfo={caseInfo} />
 
       {/* Tabs */}
-      <div className="flex border-b border-border gap-0 overflow-x-auto scroll-thin -mb-2">
+      <div className="flex border-b border-border/30 gap-0 overflow-x-auto scroll-thin -mb-2">
         {([
           { id: 'caso',           label: 'Paciente',                    icon: FileText },
           { id: 'citas',          label: 'Citas',                       icon: Calendar },
@@ -355,7 +355,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
               activeTab === tab.id
                 ? 'border-brand text-brand'
-                : 'border-transparent text-text-2 hover:text-text-1 hover:border-border'
+                : 'border-transparent text-text-2 hover:text-text-1 hover:border-border/30'
             }`}
           >
             <tab.icon className="w-3.5 h-3.5" />
@@ -448,7 +448,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                   caseInfo.specialty ? (
                     <TagPill
                       label={caseInfo.specialty.name}
-                      colorClass="bg-bg-2 text-text-2 border-border"
+                      colorClass="bg-bg-2 text-text-2 border-border/30"
                       compact
                       icon={<span className="w-1.5 h-1.5 rounded-full" style={{ background: caseInfo.specialty.color }} />}
                     />
@@ -526,7 +526,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                           {caseInfo.attorney.email && <div className="text-text-muted text-[11px]">{caseInfo.attorney.email}</div>}
                         </div>
                         {caseInfo.attorney.memberRole && (
-                          <TagPill label={caseInfo.attorney.memberRole} colorClass="bg-bg-2 text-text-2 border-border" compact />
+                          <TagPill label={caseInfo.attorney.memberRole} colorClass="bg-bg-2 text-text-2 border-border/30" compact />
                         )}
                       </div>
                     </div>
@@ -703,7 +703,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       {/* ── Modal: Editar Seguro ─────────────────────────────────────────────── */}
       {insOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setInsOpen(false)}>
-          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex items-center gap-2">
                 <Shield className="w-4 h-4 text-cyan" /> Editar Seguro
@@ -725,10 +725,10 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                   value={insQuery}
                   onChange={e => setInsQuery(e.target.value)}
                   placeholder="Buscar aseguradora..."
-                  className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
+                  className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {insResults.length > 0 && (
-                  <div className="mt-1 rounded-md border border-border bg-bg-2 max-h-40 overflow-y-auto">
+                  <div className="mt-1 rounded-md border border-border/30 bg-bg-2 max-h-40 overflow-y-auto">
                     {insResults.map(ins => (
                       <button key={ins.id} onClick={() => { setInsSelected({ id: ins.id, name: ins.name }); setInsQuery(''); setInsResults([]); }}
                         className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-1 flex items-center gap-2">
@@ -748,7 +748,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                   value={insPolicy}
                   onChange={e => setInsPolicy(e.target.value)}
                   placeholder="Ej. PIP-123456"
-                  className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand font-mono"
+                  className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand font-mono"
                 />
               </div>
             </div>
@@ -764,7 +764,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       {/* ── Modal: Editar Legal ──────────────────────────────────────────────── */}
       {legalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setLegalOpen(false)}>
-          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-md p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex items-center gap-2">
                 <Scale className="w-4 h-4 text-brand" /> Editar Legal
@@ -787,10 +787,10 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                   value={firmQuery}
                   onChange={e => setFirmQuery(e.target.value)}
                   placeholder="Buscar bufete..."
-                  className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
+                  className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {firmResults.length > 0 && (
-                  <div className="mt-1 rounded-md border border-border bg-bg-2 max-h-40 overflow-y-auto">
+                  <div className="mt-1 rounded-md border border-border/30 bg-bg-2 max-h-40 overflow-y-auto">
                     {firmResults.map(f => (
                       <button key={f.id} onClick={() => { setFirmSelected({ id: f.id, firmName: f.firmName ?? '' }); setFirmQuery(''); setFirmResults([]); }}
                         className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-1">
@@ -808,7 +808,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                   {attResults.length === 0 ? (
                     <p className="text-text-muted text-xs italic">Sin abogados en este bufete.</p>
                   ) : (
-                    <div className="rounded-md border border-border bg-bg-2 max-h-40 overflow-y-auto">
+                    <div className="rounded-md border border-border/30 bg-bg-2 max-h-40 overflow-y-auto">
                       <button onClick={() => setAttSelected(null)}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-1 ${!attSelected ? 'text-text-1 font-semibold' : 'text-text-muted'}`}>
                         — Sin asignar
@@ -1006,7 +1006,7 @@ function CaseProgressBar({ status }: { status: CaseStatus }) {
 
 function InfoCard({ title, icon: Icon, children, onEdit }: { title: string; icon: React.ElementType; children: React.ReactNode; onEdit?: () => void }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-5">
+    <div className="rounded-lg border border-border/30 bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-3">
         <Icon className="w-4 h-4 text-brand" />
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider flex-1">{title}</h3>
@@ -1106,7 +1106,7 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
   events.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-5">
+    <div className="rounded-lg border border-border/30 bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-4">
         <Clock className="w-4 h-4 text-brand" />
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Timeline</h3>
@@ -1121,7 +1121,7 @@ function Timeline({ caseInfo, auditEvents }: { caseInfo: CaseInfo; auditEvents: 
             return (
               <div key={e.id} className="flex gap-3">
                 <div className="flex flex-col items-center shrink-0">
-                  <div className={`w-7 h-7 rounded-full bg-bg-2 border border-border flex items-center justify-center ${e.iconColor}`}>
+                  <div className={`w-7 h-7 rounded-full bg-bg-2 border border-border/30 flex items-center justify-center ${e.iconColor}`}>
                     <e.icon className="w-3.5 h-3.5" />
                   </div>
                   {idx < events.length - 1 && <div className="w-px flex-1 bg-border mt-1" style={{ minHeight: 20 }} />}
@@ -1211,7 +1211,7 @@ function NotesPanel({ notes, onAddNote }: {
 }) {
   const t = useTranslations('phoenix.caseDetail');
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-5">
+    <div className="rounded-lg border border-border/30 bg-bg-1 p-5">
       <div className="flex items-center gap-2 mb-3">
         <MessageSquarePlus className="w-4 h-4 text-brand" />
         <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('sectionInternalNotes')}</h3>
@@ -1225,12 +1225,12 @@ function NotesPanel({ notes, onAddNote }: {
       ) : (
         <div className="space-y-2 max-h-[400px] overflow-y-auto scroll-thin pr-1">
           {notes.map((n) => (
-            <div key={n.id} className="rounded-md border border-border bg-bg-2/40 px-3 py-2.5">
+            <div key={n.id} className="rounded-md border border-border/30 bg-bg-2/40 px-3 py-2.5">
               <div className="flex items-center gap-2 text-[10px] text-text-muted mb-1">
                 <span className="font-semibold text-text-2">{n.authorName}</span>
                 <span>·</span>
                 <span>{formatRelative(n.createdAt)}</span>
-                {n.isPrivate && <TagPill label={`🔒 ${t('notePrivate')}`} colorClass="bg-bg-1 text-text-muted border-border" compact />}
+                {n.isPrivate && <TagPill label={`🔒 ${t('notePrivate')}`} colorClass="bg-bg-1 text-text-muted border-border/30" compact />}
               </div>
               <div className="text-text-1 text-xs whitespace-pre-wrap leading-relaxed">{n.content}</div>
             </div>
@@ -1278,7 +1278,7 @@ function LienSignatureRow({
   sig: { id: string; signerType: string; signerName: string; signerEmail: string | null; signatureSvg: string | null; signedAt: Date };
 }) {
   const [expanded, setExpanded] = useState(false);
-  const colorClass = SIGNER_COLORS[sig.signerType] ?? 'bg-bg-2 border-border text-text-2';
+  const colorClass = SIGNER_COLORS[sig.signerType] ?? 'bg-bg-2 border-border/30 text-text-2';
   const label = SIGNER_LABELS[sig.signerType] ?? sig.signerType;
 
   const imgSrc = sig.signatureSvg

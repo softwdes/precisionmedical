@@ -152,7 +152,7 @@ export function DashboardClient({
       {/* ───── Cola por status + Alertas ────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Cola por status */}
-        <div className="lg:col-span-2 rounded-lg border border-border bg-bg-1 p-5">
+        <div className="lg:col-span-2 rounded-lg border border-border/30 bg-bg-1 p-5">
           <SectionHeader icon={Building2} label={t('queueByStatus')} />
           <div className="space-y-2">
             <StatusRow status="NEW_REFERRAL"     count={statusCounts.NEW_REFERRAL}     label={t('statusNewReferral')}      action={t('statusNewReferralAction')}          color="rose"    icon="🔴" />
@@ -164,7 +164,7 @@ export function DashboardClient({
         </div>
 
         {/* Alertas */}
-        <div className="rounded-lg border border-border bg-bg-1 p-5">
+        <div className="rounded-lg border border-border/30 bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-amber" />
             <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('attentionRequired')}</h3>
@@ -225,7 +225,7 @@ export function DashboardClient({
       {/* ───── Próximas citas + Activity feed ──────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Próximas citas */}
-        <div className="rounded-lg border border-border bg-bg-1 p-5">
+        <div className="rounded-lg border border-border/30 bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Calendar className="w-4 h-4 text-brand" />
             <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('upcomingAppointments')}</h3>
@@ -265,7 +265,7 @@ export function DashboardClient({
         </div>
 
         {/* Activity feed */}
-        <div className="rounded-lg border border-border bg-bg-1 p-5">
+        <div className="rounded-lg border border-border/30 bg-bg-1 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Clock className="w-4 h-4 text-brand" />
             <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('recentActivity')}</h3>
@@ -395,7 +395,7 @@ function AppointmentRow({ appt }: { appt: UpcomingAppointment }) {
   };
 
   const content = (
-    <div className="flex items-center gap-3 px-3 py-2.5 rounded-md border border-border bg-bg-2/30 hover:bg-bg-2/60 transition-colors group">
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-md border border-border/30 bg-bg-2/30 hover:bg-bg-2/60 transition-colors group">
       {/* Hora */}
       <div className="text-center shrink-0 w-14">
         <div className="text-text-1 font-bold text-sm">{time}</div>
@@ -421,7 +421,7 @@ function AppointmentRow({ appt }: { appt: UpcomingAppointment }) {
           {appt.caseCode && <code className="text-text-muted text-[9px] font-mono">{appt.caseCode}</code>}
           <TagPill
             label={appt.status}
-            colorClass={statusColors[appt.status] ?? 'bg-bg-2 text-text-2 border-border'}
+            colorClass={statusColors[appt.status] ?? 'bg-bg-2 text-text-2 border-border/30'}
             mono
             compact
           />
@@ -454,8 +454,8 @@ function ActivityRow({ event }: { event: ActivityEvent }) {
   const ActorIcon = event.actorType === 'AI_AGENT' ? Bot : event.actorType === 'SYSTEM' ? Cpu : User;
 
   const content = (
-    <div className="flex items-start gap-3 px-3 py-2 rounded-md border border-border bg-bg-2/30 hover:bg-bg-2/60 transition-colors">
-      <div className={`w-7 h-7 rounded-full bg-bg-1 border border-border flex items-center justify-center shrink-0 ${meta.color}`}>
+    <div className="flex items-start gap-3 px-3 py-2 rounded-md border border-border/30 bg-bg-2/30 hover:bg-bg-2/60 transition-colors">
+      <div className={`w-7 h-7 rounded-full bg-bg-1 border border-border/30 flex items-center justify-center shrink-0 ${meta.color}`}>
         <Icon className="w-3.5 h-3.5" />
       </div>
       <div className="flex-1 min-w-0">

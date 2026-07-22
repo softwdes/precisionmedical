@@ -117,7 +117,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
           <div className="px-5 py-4 space-y-4">
 
             {/* Patient row */}
-            <div className="flex items-center gap-3 rounded-md border border-border bg-bg-2/40 px-3 py-2.5">
+            <div className="flex items-center gap-3 rounded-md border border-border/30 bg-bg-2/40 px-3 py-2.5">
               <div className="w-8 h-8 rounded-full bg-emerald/15 flex items-center justify-center text-[11px] font-bold text-emerald shrink-0">
                 {initials}
               </div>
@@ -136,7 +136,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
             <div>
               <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">Form link</div>
               {loading && (
-                <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2.5 text-[11px] text-text-muted">
+                <div className="flex items-center gap-2 rounded-md border border-border/30 bg-bg-2/40 px-3 py-2.5 text-[11px] text-text-muted">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   Generating link...
                 </div>
@@ -148,14 +148,14 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                 </div>
               )}
               {portalUrl && !loading && (
-                <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2">
+                <div className="flex items-center gap-2 rounded-md border border-border/30 bg-bg-2/40 px-3 py-2">
                   <code className="flex-1 text-[11px] font-mono text-cyan truncate min-w-0">
                     {portalUrl}
                   </code>
                   <button
                     type="button"
                     onClick={copyLink}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-bg-1 border border-border text-[10px] text-text-2 hover:border-emerald/40 hover:text-emerald transition-colors shrink-0"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-bg-1 border border-border/30 text-[10px] text-text-2 hover:border-emerald/40 hover:text-emerald transition-colors shrink-0"
                     title="Copy link"
                   >
                     {copied ? <Check className="w-3 h-3 text-emerald" /> : <Copy className="w-3 h-3" />}
@@ -165,7 +165,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                     href={portalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-1.5 rounded-md border border-border text-text-muted hover:text-brand hover:border-brand/40 transition-colors"
+                    className="p-1.5 rounded-md border border-border/30 text-text-muted hover:text-brand hover:border-brand/40 transition-colors"
                     title="Open in new tab"
                   >
                     <ExternalLink className="w-3 h-3" />
@@ -175,7 +175,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
             </div>
 
             {/* QR */}
-            <div className="flex flex-col items-center gap-2 rounded-md border border-border bg-bg-2/30 py-4 px-3">
+            <div className="flex flex-col items-center gap-2 rounded-md border border-border/30 bg-bg-2/30 py-4 px-3">
               {qrDataUrl ? (
                 <img
                   src={qrDataUrl}
@@ -185,7 +185,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                   className="rounded-lg border border-border/40"
                 />
               ) : (
-                <div className="w-[180px] h-[180px] rounded-lg bg-bg-1 border border-border animate-pulse flex items-center justify-center text-text-muted">
+                <div className="w-[180px] h-[180px] rounded-lg bg-bg-1 border border-border/30 animate-pulse flex items-center justify-center text-text-muted">
                   <RefreshCw className="w-6 h-6 opacity-30" />
                 </div>
               )}
@@ -202,7 +202,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                   type="button"
                   disabled={!caseInfo.patient.phone}
                   onClick={() => setSendOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border/30 text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <MessageSquare className="w-3 h-3" /> SMS
                 </button>
@@ -210,7 +210,7 @@ export function IntakeFormLinkDialog({ open, onOpenChange, caseInfo }: IntakeFor
                   type="button"
                   disabled={!caseInfo.patient.email}
                   onClick={() => setSendOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border/30 text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <Mail className="w-3 h-3" /> Email
                 </button>

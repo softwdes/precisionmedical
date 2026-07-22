@@ -122,7 +122,7 @@ function SelectUp({
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors"
+        className="w-full flex items-center justify-between gap-2 rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none hover:border-brand/60 transition-colors"
       >
         <span className={selected ? 'text-text-1' : 'text-text-muted'}>
           {selected?.label ?? placeholder ?? 'Seleccionar'}
@@ -131,7 +131,7 @@ function SelectUp({
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-1 left-0 right-0 z-50 bg-bg-1 border border-border rounded-md shadow-xl overflow-hidden">
+        <div className="absolute bottom-full mb-1 left-0 right-0 z-50 bg-bg-1 border border-border/30 rounded-md shadow-xl overflow-hidden">
           {options.map(opt => (
             <button
               key={opt.value}
@@ -157,7 +157,7 @@ function SelectUp({
 
 function KpiCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-4 flex-1 min-w-0">
+    <div className="rounded-lg border border-border/30 bg-bg-1 p-4 flex-1 min-w-0">
       <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{label}</div>
       <div className={`text-2xl font-bold font-mono ${color}`}>{fmt$(value)}</div>
     </div>
@@ -351,8 +351,8 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
           subtitle={t('emptySubtitle')}
         />
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <div className="px-4 py-2 bg-bg-2/60 border-b border-border">
+        <div className="rounded-lg border border-border/30 overflow-hidden">
+          <div className="px-4 py-2 bg-bg-2/60 border-b border-border/30">
             <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Detalle por cita</span>
           </div>
           <div className="overflow-x-auto">
@@ -476,10 +476,10 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
       {/* ── Modal: Pagar deuda ─────────────────────────────────────────────────── */}
       {payOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-4 overflow-y-auto">
-          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-4xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-4xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
 
             {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/30">
               <div>
                 <h2 className="text-text-1 font-semibold text-base flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-amber" /> Pago del caso
@@ -492,8 +492,8 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
             </div>
 
             {/* Summary bar */}
-            <div className="grid grid-cols-2 border-b border-border">
-              <div className="px-5 py-3 border-r border-border">
+            <div className="grid grid-cols-2 border-b border-border/30">
+              <div className="px-5 py-3 border-r border-border/30">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Total pendiente</div>
                 <div className="text-xl font-bold font-mono text-rose mt-0.5">{fmt$(totalPending)}</div>
               </div>
@@ -506,7 +506,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
             {/* Distribution table */}
             <div className="overflow-x-auto max-h-72 overflow-y-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
+                <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border/30">
                   <tr>
                     <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Fecha</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
@@ -546,7 +546,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                                 const val = isNaN(raw) ? '' : Math.min(raw, b.balanceDue).toFixed(2);
                                 setPayAmounts(prev => ({ ...prev, [b.id]: val }));
                               }}
-                              className="w-full rounded-md bg-bg-2 border border-border px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
+                              className="w-full rounded-md bg-bg-2 border border-border/30 px-2 py-1 text-xs text-text-1 font-mono text-right outline-none focus:border-brand"
                               placeholder="0.00"
                             />
                             <button
@@ -571,7 +571,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
             </div>
 
             {/* Registrar pago — footer */}
-            <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
+            <div className="px-5 py-4 border-t border-border/30 bg-bg-2/30 space-y-3">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registrar pago</div>
 
               {/* Fila selects: Source | Método | Tipo  (para Seguro: Source | Método | Carrier) */}
@@ -624,7 +624,7 @@ export function FinanzasTab({ caseId }: { caseId: string }) {
                   step="0.01"
                   placeholder="0"
                   onChange={e => autoDistribute(e.target.value)}
-                  className="flex-1 rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
+                  className="flex-1 rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 font-mono outline-none focus:border-brand"
                   title={t('tipAutoDistribute')}
                 />
                 <Button

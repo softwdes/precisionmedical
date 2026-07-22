@@ -270,7 +270,7 @@ export function IntakeClient() {
             type="button"
             onClick={() => load(filter)}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 h-8 rounded-md border border-border/30 text-text-2 text-xs hover:border-amber/40 hover:text-amber transition-all disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             {t('refresh')}
@@ -281,7 +281,7 @@ export function IntakeClient() {
       <div className="px-6 pb-6 space-y-5">
 
         {/* ── Toggle Pre / Post ─────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1 rounded-xl border border-border bg-bg-1 p-1 w-fit">
+        <div className="flex items-center gap-1 rounded-xl border border-border/30 bg-bg-1 p-1 w-fit">
           <button
             type="button"
             className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12px] font-bold text-amber border border-amber/30 bg-amber/10"
@@ -317,7 +317,7 @@ export function IntakeClient() {
               className={`flex items-center gap-1.5 px-3 h-8 rounded-md text-xs transition-all ${
                 filter === tab.key
                   ? 'bg-amber/10 border border-amber/40 text-amber font-semibold'
-                  : 'border border-border text-text-2 hover:border-border-strong'
+                  : 'border border-border/30 text-text-2 hover:border-border-strong'
               }`}
             >
               {tab.label}

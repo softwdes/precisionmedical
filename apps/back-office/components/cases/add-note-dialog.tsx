@@ -83,7 +83,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
               id="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[120px]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[120px]"
               placeholder="Ej: paciente llamó pidiendo reagendar · prefiere viernes en la tarde..."
               autoFocus
               maxLength={5000}
@@ -102,7 +102,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
                 className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border transition-all text-sm ${
                   isPrivate
                     ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                    : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
+                    : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
                 }`}
               >
                 <Lock className="w-3.5 h-3.5" />
@@ -114,7 +114,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
                 className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-md border transition-all text-sm ${
                   !isPrivate
                     ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                    : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
+                    : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />

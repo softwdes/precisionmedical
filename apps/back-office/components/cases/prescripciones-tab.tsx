@@ -75,7 +75,7 @@ function fmtDate(d: string | null) {
 function StatusPill({ status }: { status: string }) {
   const colors: Record<string, string> = {
     IN_USE: 'bg-emerald/10 text-emerald border-emerald/30',
-    HISTORY: 'bg-bg-2 text-text-muted border-border',
+    HISTORY: 'bg-bg-2 text-text-muted border-border/30',
     PENDING: 'bg-amber/10 text-amber border-amber/30',
     IN_PROGRESS: 'bg-cyan/10 text-cyan border-cyan/30',
     COMPLETED: 'bg-emerald/10 text-emerald border-emerald/30',
@@ -86,7 +86,7 @@ function StatusPill({ status }: { status: string }) {
     ...LAB_STATUS_LABELS,
   };
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${colors[status] ?? 'bg-bg-2 text-text-muted border-border'}`}>
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${colors[status] ?? 'bg-bg-2 text-text-muted border-border/30'}`}>
       {labels[status] ?? status}
     </span>
   );
@@ -230,7 +230,7 @@ function MultiSelectSearch({
 
       {/* Search input */}
       <div
-        className="flex items-center gap-2 rounded-md bg-bg-2 border border-border px-3 py-2 cursor-text focus-within:border-brand transition-colors"
+        className="flex items-center gap-2 rounded-md bg-bg-2 border border-border/30 px-3 py-2 cursor-text focus-within:border-brand transition-colors"
         onClick={() => setOpen(true)}
       >
         <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
@@ -246,7 +246,7 @@ function MultiSelectSearch({
 
       {/* Dropdown */}
       {open && results.length > 0 && (
-        <div className={`absolute z-20 left-0 right-0 rounded-md border border-border bg-bg-1 shadow-xl max-h-52 overflow-y-auto scroll-thin ${openUpward ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+        <div className={`absolute z-20 left-0 right-0 rounded-md border border-border/30 bg-bg-1 shadow-xl max-h-52 overflow-y-auto scroll-thin ${openUpward ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
           {results.map(r => {
             const already = selected.some(s => s.id === r.id);
             return (
@@ -341,11 +341,11 @@ function PrescriptionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="bg-bg-1 border border-border rounded-xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden"
+        className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border/30 shrink-0">
           <h2 className="text-text-1 font-semibold text-sm flex items-center gap-2">
             <Pill className="w-4 h-4 text-violet" /> Nueva prescripción
           </h2>
@@ -391,10 +391,10 @@ function PrescriptionModal({
                   value={drugQuery}
                   onChange={e => setDrugQuery(e.target.value)}
                   placeholder={t('placeholderMed')}
-                  className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
+                  className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {drugResults.length > 0 && (
-                  <div className="absolute z-10 left-0 right-0 bottom-full mb-1 rounded-md border border-border bg-bg-1 shadow-lg max-h-36 overflow-y-auto">
+                  <div className="absolute z-10 left-0 right-0 bottom-full mb-1 rounded-md border border-border/30 bg-bg-1 shadow-lg max-h-36 overflow-y-auto">
                     {drugResults.map(d => (
                       <button key={d.value} onClick={() => { setDrugSelected(d.label); setDrugQuery(''); }}
                         className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-2">
@@ -420,7 +420,7 @@ function PrescriptionModal({
               value={dose}
               onChange={e => setDose(e.target.value)}
               placeholder={t('placeholderDose')}
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
+              className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
             />
           </div>
 
@@ -432,7 +432,7 @@ function PrescriptionModal({
               onChange={e => setInstructions(e.target.value)}
               rows={3}
               placeholder={t('placeholderSig')}
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand resize-none"
+              className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand resize-none"
             />
           </div>
 
@@ -444,7 +444,7 @@ function PrescriptionModal({
                 type="number"
                 value={quantity}
                 onChange={e => setQuantity(e.target.value)}
-                className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+                className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
               />
             </div>
             <div>
@@ -452,7 +452,7 @@ function PrescriptionModal({
               <select
                 value={unit}
                 onChange={e => setUnit(e.target.value)}
-                className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+                className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
               >
                 <option value="">{tc('selectOption')}</option>
                 {UNIT_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
@@ -463,7 +463,7 @@ function PrescriptionModal({
               <select
                 value={refills}
                 onChange={e => setRefills(e.target.value)}
-                className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+                className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
               >
                 {REFILLS_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -478,7 +478,7 @@ function PrescriptionModal({
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+                className="rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
               />
             </div>
             <label className="flex items-center gap-2 cursor-pointer mt-4">
@@ -497,7 +497,7 @@ function PrescriptionModal({
             <select
               value={prescribedBy}
               onChange={e => setPrescribedBy(e.target.value)}
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+              className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
             >
               <option value="">{t('placeholderDoctor')}</option>
               {providers.map(p => <option key={p.id} value={p.label}>{p.label}</option>)}
@@ -519,10 +519,10 @@ function PrescriptionModal({
                   value={diagnosisQuery}
                   onChange={e => setDiagnosisQuery(e.target.value)}
                   placeholder={t('placeholderDiagnosis')}
-                  className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
+                  className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
                 />
                 {diagResults.length > 0 && (
-                  <div className="absolute z-10 left-0 right-0 bottom-full mb-1 rounded-md border border-border bg-bg-1 shadow-lg max-h-36 overflow-y-auto">
+                  <div className="absolute z-10 left-0 right-0 bottom-full mb-1 rounded-md border border-border/30 bg-bg-1 shadow-lg max-h-36 overflow-y-auto">
                     {diagResults.map(d => (
                       <button key={d.code} onClick={() => { setDiagnosisSelected(`${d.code} · ${d.label}`); setDiagnosisQuery(''); }}
                         className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-2">
@@ -544,7 +544,7 @@ function PrescriptionModal({
               value={pharmacy}
               onChange={e => setPharmacy(e.target.value)}
               placeholder={t('placeholderPharmacy')}
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
+              className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand"
             />
           </div>
 
@@ -556,13 +556,13 @@ function PrescriptionModal({
               onChange={e => setPharmacyNote(e.target.value)}
               rows={2}
               placeholder={t('placeholderSigSpec')}
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand resize-none"
+              className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 placeholder-text-muted outline-none focus:border-brand resize-none"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-border flex justify-end gap-2 shrink-0">
+        <div className="px-5 py-3 border-t border-border/30 flex justify-end gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button size="sm" onClick={handleSave} disabled={saving || !drugSelected}>
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
@@ -622,11 +622,11 @@ function LabModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="bg-bg-1 border border-border rounded-xl w-full max-w-2xl flex flex-col"
+        className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-2xl flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border/30 shrink-0">
           <h2 className="text-text-1 font-semibold text-sm flex items-center gap-2">
             <FlaskConical className="w-4 h-4 text-cyan" /> Crear laboratorio
           </h2>
@@ -648,7 +648,7 @@ function LabModal({
                 const found = providers.find(p => p.id === e.target.value);
                 setProviderName(found?.label ?? '');
               }}
-              className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+              className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
             >
               <option value="">{t('placeholderUser')}</option>
               {providers.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
@@ -663,7 +663,7 @@ function LabModal({
                 type="date"
                 value={sampleDate}
                 onChange={e => setSampleDate(e.target.value)}
-                className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+                className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
               />
             </div>
             <div>
@@ -671,7 +671,7 @@ function LabModal({
               <select
                 value={billingType}
                 onChange={e => setBillingType(e.target.value)}
-                className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
+                className="w-full rounded-md bg-bg-2 border border-border/30 px-3 py-2 text-sm text-text-1 outline-none focus:border-brand"
               >
                 <option value="">{t('placeholderBilling')}</option>
                 {BILLING_TYPE_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
@@ -709,7 +709,7 @@ function LabModal({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-border flex justify-end gap-2 shrink-0">
+        <div className="px-5 py-3 border-t border-border/30 flex justify-end gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button size="sm" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
@@ -763,9 +763,9 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
   }
 
   return (
-    <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
+    <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
       {/* Section header */}
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border flex-wrap">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/30 flex-wrap">
         <h3 className="text-text-1 font-semibold text-sm flex items-center gap-2">
           <Pill className="w-4 h-4 text-violet" /> Prescripciones
         </h3>
@@ -804,7 +804,7 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-bg-2/50">
+              <tr className="border-b border-border/30 bg-bg-2/50">
                 {['Medicamento', 'Dosis', 'Indicaciones', 'Cantidad', 'Reposiciones', 'Fecha de inicio', 'Expiración', 'Renovación', 'Prescrito por', 'Estado', 'Creado'].map(h => (
                   <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
                     {h}
@@ -900,9 +900,9 @@ function LabsSection({ caseId }: { caseId: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
+    <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border flex-wrap">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/30 flex-wrap">
         <h3 className="text-text-1 font-semibold text-sm flex items-center gap-2">
           <FlaskConical className="w-4 h-4 text-cyan" /> Laboratorios
         </h3>
@@ -931,7 +931,7 @@ function LabsSection({ caseId }: { caseId: string }) {
         <select
           value={billingFilter}
           onChange={e => { setBillingFilter(e.target.value); setPage(1); }}
-          className="rounded-md bg-bg-2 border border-border px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
+          className="rounded-md bg-bg-2 border border-border/30 px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
         >
           <option value="">{t('filterAllBilling')}</option>
           {BILLING_TYPE_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
@@ -939,7 +939,7 @@ function LabsSection({ caseId }: { caseId: string }) {
         <select
           value={providerFilter}
           onChange={e => { setProviderFilter(e.target.value); setPage(1); }}
-          className="rounded-md bg-bg-2 border border-border px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
+          className="rounded-md bg-bg-2 border border-border/30 px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
         >
           <option value="">{t('filterAllDoctors')}</option>
           {providers.map(p => <option key={p.id} value={p.label}>{p.label}</option>)}
@@ -947,7 +947,7 @@ function LabsSection({ caseId }: { caseId: string }) {
         <select
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-          className="rounded-md bg-bg-2 border border-border px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
+          className="rounded-md bg-bg-2 border border-border/30 px-2 py-1.5 text-xs text-text-1 outline-none focus:border-brand"
         >
           <option value="">{t('filterAllStatuses')}</option>
           {LAB_STATUS_OPTIONS.map(s => <option key={s} value={s}>{LAB_STATUS_LABELS[s]}</option>)}
@@ -967,7 +967,7 @@ function LabsSection({ caseId }: { caseId: string }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-bg-2/50">
+              <tr className="border-b border-border/30 bg-bg-2/50">
                 {['Fecha de muestra', 'Tipo de facturación', 'Médico', 'Estado', 'Laboratorios', 'Diagnósticos'].map(h => (
                   <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
                     {h}

@@ -293,7 +293,7 @@ export function IncomingCallToast({ onAnswer }: { onAnswer: (call: IncomingCallD
               gradientClass="bg-gradient-brand"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-bg-2 border border-border flex items-center justify-center text-text-muted shrink-0">
+            <div className="w-10 h-10 rounded-full bg-bg-2 border border-border/30 flex items-center justify-center text-text-muted shrink-0">
               <User className="w-5 h-5" />
             </div>
           )}

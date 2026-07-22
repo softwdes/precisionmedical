@@ -34,7 +34,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-const INPUT  = 'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors';
+const INPUT  = 'w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors';
 const SELECT = `${INPUT} appearance-none`;
 
 const REFERRAL_OPTIONS = [
@@ -126,7 +126,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
     <div className="flex flex-col sm:flex-row gap-0 min-h-[420px]">
 
       {/* ── Columna izquierda: QR ─────────────────────────────────── */}
-      <div className="flex flex-col items-center justify-center gap-4 px-8 py-8 sm:w-72 shrink-0 bg-bg-2/40 border-b sm:border-b-0 sm:border-r border-border">
+      <div className="flex flex-col items-center justify-center gap-4 px-8 py-8 sm:w-72 shrink-0 bg-bg-2/40 border-b sm:border-b-0 sm:border-r border-border/30">
         {/* Badge */}
         <div className="flex items-center gap-2 rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1">
           <Check className="w-3 h-3 text-emerald" />
@@ -134,7 +134,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
         </div>
 
         {/* QR */}
-        <div className="rounded-xl border border-border p-3 bg-[#12141f] flex flex-col items-center gap-2">
+        <div className="rounded-xl border border-border/30 p-3 bg-[#12141f] flex flex-col items-center gap-2">
           {qrDataUrl
             ? <img src={qrDataUrl} alt="QR del portal" width={200} height={200} className="rounded-lg" />
             : <div className="w-[200px] h-[200px] rounded-lg bg-bg-1 animate-pulse" />
@@ -147,7 +147,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
           type="button"
           onClick={downloadQr}
           disabled={!qrDataUrl}
-          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-40"
+          className="w-full flex items-center justify-center gap-1.5 rounded-md border border-border/30 bg-bg-1 px-3 py-1.5 text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-40"
         >
           <QrCode className="w-3.5 h-3.5" />
           Descargar QR
@@ -159,7 +159,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
 
         {/* Patient + case info */}
         <div className="space-y-3">
-          <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
+          <div className="rounded-lg border border-border/30 bg-bg-1 p-4 space-y-3">
             <div>
               <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1">Paciente</p>
               <p className="text-base font-bold text-text-1">{info.patientName}</p>
@@ -176,7 +176,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
         {/* Portal link */}
         <div className="space-y-1.5">
           <p className="text-[10px] uppercase tracking-wider text-text-muted">Link del portal</p>
-          <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-md border border-border/30 bg-bg-2 px-3 py-2">
             <span className="flex-1 text-[11px] text-text-muted truncate font-mono">{info.portalUrl}</span>
             <button
               type="button"
@@ -383,7 +383,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
       <DialogContent className="max-w-3xl p-0 max-h-[92vh] flex flex-col">
 
         {/* Header */}
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/30 shrink-0">
           <div className="flex items-center gap-2">
             <UserPlus className="w-4 h-4 text-brand" />
             <DialogTitle className="text-base font-semibold text-text-1">
@@ -514,7 +514,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                           className={`flex items-center gap-2.5 px-4 py-3 rounded-lg border text-sm font-medium transition-all
                             ${active
                               ? 'border-brand bg-brand/10 text-brand'
-                              : 'border-border bg-bg-2 text-text-muted hover:border-brand/40'
+                              : 'border-border/30 bg-bg-2 text-text-muted hover:border-brand/40'
                             }`}
                         >
                           <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0
@@ -573,7 +573,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
 
         {/* Footer — solo visible cuando no está en modo QR success */}
         {!successInfo && (
-          <div className="px-4 sm:px-6 py-3 border-t border-border shrink-0 flex items-center gap-2 flex-wrap">
+          <div className="px-4 sm:px-6 py-3 border-t border-border/30 shrink-0 flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               onClick={() => { reset(); onOpenChange(false); }}

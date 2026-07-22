@@ -176,7 +176,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
 
   return (
     <div className={`rounded-xl border bg-bg-1 overflow-hidden transition-all ${
-      urgent > 0 ? 'border-amber/30' : done === total ? 'border-emerald/25' : 'border-border'
+      urgent > 0 ? 'border-amber/30' : done === total ? 'border-emerald/25' : 'border-border/30'
     }`}>
       {/* Summary row */}
       <button
@@ -237,7 +237,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
 
       {/* Expanded tasks */}
       {open && (
-        <div className="border-t border-border px-4 py-3 space-y-2.5">
+        <div className="border-t border-border/30 px-4 py-3 space-y-2.5">
           {tasks.map(task => (
             <div key={task.id} className="flex items-start gap-2.5">
               <div className={`mt-0.5 w-4 h-4 shrink-0 rounded-full border flex items-center justify-center ${
@@ -245,7 +245,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
                   ? 'bg-emerald/15 border-emerald/40'
                   : task.urgent
                   ? 'bg-amber/10 border-amber/40'
-                  : 'bg-bg-2 border-border'
+                  : 'bg-bg-2 border-border/30'
               }`}>
                 {task.done && <CheckCircle2 className="w-2.5 h-2.5 text-emerald" />}
                 {!task.done && task.urgent && <AlertTriangle className="w-2 h-2 text-amber" />}
@@ -273,7 +273,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
             {c.patient?.phone && (
               <a
                 href={`tel:${c.patient.phone}`}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border/30 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
               >
                 <Phone className="w-3 h-3" /> {c.patient.phone}
               </a>
@@ -281,7 +281,7 @@ function PreVisitRow({ c }: { c: PreVisitCase }) {
             {c.lawFirm?.email && (
               <a
                 href={`mailto:${c.lawFirm.email}?subject=Caso ${c.caseCode} — ${patientName}`}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border/30 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
               >
                 <Mail className="w-3 h-3" /> {t('actionEmailFirm')}
               </a>
@@ -315,7 +315,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
     <div className={`rounded-xl border bg-bg-1 overflow-hidden transition-all ${
       daysSinceContact > 60 ? 'border-rose/30' :
       daysSinceContact > 30 ? 'border-amber/25' :
-      'border-border'
+      'border-border/30'
     }`}>
       <button
         type="button"
@@ -362,7 +362,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
       </button>
 
       {open && (
-        <div className="border-t border-border px-4 py-3 space-y-3">
+        <div className="border-t border-border/30 px-4 py-3 space-y-3">
           {/* Status del lien */}
           <div>
             <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">{t('lienStatus')}</div>
@@ -390,7 +390,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
             {c.patient?.phone && (
               <a
                 href={`tel:${c.patient.phone}`}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border/30 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
               >
                 <Phone className="w-3 h-3" /> {c.patient.phone}
               </a>
@@ -398,7 +398,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
             {c.lawFirm?.phone && (
               <a
                 href={`tel:${c.lawFirm.phone}`}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border/30 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
               >
                 <Phone className="w-3 h-3" /> {c.lawFirm.firmName}
               </a>
@@ -406,7 +406,7 @@ function CollectionsRow({ c }: { c: CollectionsCase }) {
             {c.lawFirm?.email && (
               <a
                 href={`mailto:${c.lawFirm.email}?subject=Settlement pendiente – ${c.caseCode}`}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-border/30 px-3 py-1.5 text-[11px] text-text-muted hover:text-text-1 transition-colors"
               >
                 <Mail className="w-3 h-3" /> {t('actionEmailFirm')}
               </a>
@@ -441,7 +441,7 @@ export function EdsonClient({
       />
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1 rounded-xl bg-bg-1 border border-border w-full sm:w-auto self-start">
+      <div className="flex gap-2 p-1 rounded-xl bg-bg-1 border border-border/30 w-full sm:w-auto self-start">
         {([
           { key: 'previsita',  label: t('tabPrevisita'),  badge: urgentPre,    color: 'amber' },
           { key: 'cobranzas',  label: t('tabCobranzas'),  badge: overdue60,    color: 'rose'  },
@@ -452,7 +452,7 @@ export function EdsonClient({
             onClick={() => setTab(item.key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold transition-all ${
               tab === item.key
-                ? 'bg-bg-0 text-text-1 shadow-sm border border-border'
+                ? 'bg-bg-0 text-text-1 shadow-sm border border-border/30'
                 : 'text-text-muted hover:text-text-1'
             }`}
           >
@@ -479,7 +479,7 @@ export function EdsonClient({
               { label: t('kpiReady'),            value: preVisitCases.filter(c => getPreVisitTasks(c).every(task => task.done)).length, color: '#34d399' },
               { label: t('kpiLienIncomplete'),   value: preVisitCases.filter(c => !c.lienSignatures.some(s => s.signerType === 'PATIENT') || !c.lienSignatures.some(s => s.signerType === 'ATTORNEY')).length, color: '#f87171' },
             ].map(k => (
-              <div key={k.label} className="rounded-lg border border-border bg-bg-1 p-3">
+              <div key={k.label} className="rounded-lg border border-border/30 bg-bg-1 p-3">
                 <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{k.label}</div>
                 <div className="text-[24px] font-black leading-none" style={{ color: k.color }}>{k.value}</div>
               </div>
@@ -487,7 +487,7 @@ export function EdsonClient({
           </div>
 
           {preVisitCases.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center gap-3 rounded-xl border border-border bg-bg-1">
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-3 rounded-xl border border-border/30 bg-bg-1">
               <CheckCircle2 className="w-10 h-10 text-emerald opacity-50" />
               <div className="text-text-muted text-[13px]">{t('emptyPrevisita')}</div>
             </div>
@@ -522,7 +522,7 @@ export function EdsonClient({
               { label: t('kpiOverdue30'),  value: collectionsCases.filter(c => daysAgo(c.notes[0]?.createdAt ?? c.updatedAt) > 30).length, color: '#f59e0b' },
               { label: t('kpiMmiClosed'), value: collectionsCases.filter(c => c.status === 'CLOSED').length, color: '#6366f1' },
             ].map(k => (
-              <div key={k.label} className="rounded-lg border border-border bg-bg-1 p-3">
+              <div key={k.label} className="rounded-lg border border-border/30 bg-bg-1 p-3">
                 <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{k.label}</div>
                 <div className="text-[24px] font-black leading-none" style={{ color: k.color }}>{k.value}</div>
               </div>
@@ -530,7 +530,7 @@ export function EdsonClient({
           </div>
 
           {collectionsCases.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center gap-3 rounded-xl border border-border bg-bg-1">
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-3 rounded-xl border border-border/30 bg-bg-1">
               <CheckCircle2 className="w-10 h-10 text-emerald opacity-50" />
               <div className="text-text-muted text-[13px]">{t('emptyCobranzas')}</div>
             </div>

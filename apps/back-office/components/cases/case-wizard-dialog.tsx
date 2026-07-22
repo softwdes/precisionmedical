@@ -53,7 +53,7 @@ function LawFirmSelect({
           const selected = firms.find(f => f.id === e.target.value);
           onChange(selected?.label ?? '', selected?.id ?? null);
         }}
-        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand transition-colors appearance-none"
+        className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand transition-colors appearance-none"
       >
         <option value="">{placeholder}</option>
         {firms.map(f => (
@@ -140,7 +140,7 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
               flex items-center justify-center w-9 h-9 rounded-full border-2 transition-all
               ${done   ? 'bg-brand border-brand text-white' : ''}
               ${active ? 'bg-bg-1 border-brand text-brand' : ''}
-              ${!done && !active ? 'bg-bg-2 border-border text-text-muted' : ''}
+              ${!done && !active ? 'bg-bg-2 border-border/30 text-text-muted' : ''}
             `}>
               {done ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
             </div>
@@ -168,7 +168,7 @@ function ConsentBlock({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
+    <div className="rounded-lg border border-border/30 bg-bg-1 p-4 space-y-3">
       <div className="flex items-center gap-2">
         {Icon && <Icon className="w-4 h-4 text-brand shrink-0" />}
         <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">{title}</h4>
@@ -410,7 +410,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-0">
 
         {/* Header */}
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/30 sticky top-0 bg-bg-1 z-10">
           <DialogTitle className="flex items-center gap-2 text-text-1 text-base">
             <FileText className="w-4 h-4 text-brand" />
             {isEdit ? 'Formulario de caso médico' : t('title')}
@@ -446,7 +446,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                         flex items-center gap-3 px-4 py-3 rounded-lg border text-sm text-left transition-all
                         ${caseType === val
                           ? 'border-brand bg-brand/10 text-brand font-medium'
-                          : 'border-border bg-bg-2/40 text-text-muted hover:border-brand/40'}
+                          : 'border-border/30 bg-bg-2/40 text-text-muted hover:border-brand/40'}
                       `}
                     >
                       <Icon className="w-4 h-4 shrink-0" />
@@ -530,7 +530,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                             value={p.name}
                             placeholder="Nombre del responsable"
                             onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
-                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors"
+                            className="w-full bg-bg-2 border border-border/30 rounded px-2.5 py-1.5 text-[12px] text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors"
                           />
                         </div>
                         <div>
@@ -538,7 +538,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                           <select
                             value={p.relation}
                             onChange={e => setResponsible(prev => prev.map((x, j) => j === i ? { ...x, relation: e.target.value } : x))}
-                            className="w-full bg-bg-2 border border-border rounded px-2.5 py-1.5 text-[12px] text-text-1 outline-none focus:border-brand transition-colors appearance-none"
+                            className="w-full bg-bg-2 border border-border/30 rounded px-2.5 py-1.5 text-[12px] text-text-1 outline-none focus:border-brand transition-colors appearance-none"
                           >
                             <option value="" disabled>Seleccione la relación</option>
                             {RELATION_OPTIONS.map(r => (
@@ -599,7 +599,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
               />
 
               {/* 4. Política financiera + firma */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
+              <div className="rounded-lg border border-border/30 bg-bg-1 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-brand shrink-0" />
                   <h4 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">
@@ -651,7 +651,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
           {/* ══ STEP 3: Revisión ══ */}
           {step === 3 && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-3">
+              <div className="rounded-lg border border-border/30 bg-bg-1 p-5 space-y-3">
                 <h3 className="text-sm font-semibold text-text-1 pb-1 border-b border-border/60">
                   Resumen del caso
                 </h3>
@@ -763,7 +763,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
         </div>
 
         {/* Footer */}
-        <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 sticky bottom-0 bg-bg-1">
+        <DialogFooter className="px-6 py-4 border-t border-border/30 flex-col sm:flex-row gap-2 sticky bottom-0 bg-bg-1">
           {step > 1 && (
             <Button
               variant="outline"

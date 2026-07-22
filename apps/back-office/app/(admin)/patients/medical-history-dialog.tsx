@@ -136,7 +136,7 @@ function SectionCard({
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
+    <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
         <div className="flex items-center gap-2">
           <span className="text-emerald">{icon}</span>
@@ -273,7 +273,7 @@ function VisitInfoEditDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">
             Actualizar información de la visita
           </DialogTitle>
@@ -293,7 +293,7 @@ function VisitInfoEditDialog({
                 value={form.referredBy}
                 onChange={e => set('referredBy', e.target.value)}
                 placeholder="¿Quién lo refirió?"
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
               />
             </div>
 
@@ -303,7 +303,7 @@ function VisitInfoEditDialog({
                 value={form.mainReason}
                 onChange={e => set('mainReason', e.target.value)}
                 placeholder="Razón principal"
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
               />
             </div>
 
@@ -313,7 +313,7 @@ function VisitInfoEditDialog({
                 value={form.otherConcerns}
                 onChange={e => set('otherConcerns', e.target.value)}
                 placeholder="Cualquier otra inquietud"
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
               />
             </div>
           </div>
@@ -339,7 +339,7 @@ function VisitInfoEditDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending}
@@ -379,7 +379,7 @@ function HealthInfoEditDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">
             Actualizar información de salud
           </DialogTitle>
@@ -395,7 +395,7 @@ function HealthInfoEditDialog({
               value={goals}
               onChange={e => setGoals(e.target.value)}
               placeholder="Ingrese las metas de salud"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
@@ -428,7 +428,7 @@ function HealthInfoEditDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending}
@@ -500,7 +500,7 @@ function AddProblemDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">
             Agregar historial médico personal
           </DialogTitle>
@@ -518,7 +518,7 @@ function AddProblemDialog({
               <button
                 type="button"
                 onClick={() => setDropOpen(o => !o)}
-                className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
+                className="w-full flex items-center justify-between bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
               >
                 <span className={selected ? 'text-text-1' : 'text-text-muted'}>
                   {selected ? selected.label : 'Seleccionar una condición'}
@@ -527,7 +527,7 @@ function AddProblemDialog({
               </button>
 
               {dropOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-border/30 bg-bg-1 shadow-lg">
                   <div className="p-2 border-b border-border/60">
                     <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
                       <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
@@ -573,7 +573,7 @@ function AddProblemDialog({
                 type="date"
                 value={diagDate}
                 onChange={e => setDiagDate(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
               />
             </div>
           </div>
@@ -586,12 +586,12 @@ function AddProblemDialog({
               value={comments}
               onChange={e => setComments(e.target.value)}
               placeholder="Notas o detalles adicionales"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending || !selected}
@@ -627,13 +627,13 @@ function SearchDropdown({
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
+        className="w-full flex items-center justify-between bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
       >
         <span className={value ? 'text-text-1' : 'text-text-muted'}>{value || placeholder}</span>
         <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-border/30 bg-bg-1 shadow-lg">
           <div className="p-2 border-b border-border/60">
             <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
               <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
@@ -780,7 +780,7 @@ function AddMedicationDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">Nueva prescripción</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
             Registrar un medicamento en el historial del paciente
@@ -827,7 +827,7 @@ function AddMedicationDialog({
               value={dose}
               onChange={e => setDose(e.target.value)}
               placeholder="Ej.: 5 mg, 20 mg, 10 ml"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
@@ -839,7 +839,7 @@ function AddMedicationDialog({
               value={instructions}
               onChange={e => setInstructions(e.target.value)}
               placeholder="Ej.: Tomar 1 tableta por vía oral dos veces al día con alimentos"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
 
@@ -852,7 +852,7 @@ function AddMedicationDialog({
                 min={1}
                 value={quantity}
                 onChange={e => setQuantity(Number(e.target.value))}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               />
             </div>
             <div className="space-y-1.5">
@@ -860,7 +860,7 @@ function AddMedicationDialog({
               <select
                 value={unit}
                 onChange={e => setUnit(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
                 <option value="">Selecciona una opción</option>
                 {DISPENSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
@@ -871,7 +871,7 @@ function AddMedicationDialog({
               <select
                 value={refills}
                 onChange={e => setRefills(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
                 {REFILL_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -886,7 +886,7 @@ function AddMedicationDialog({
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
+                className="bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
               />
             </div>
             <label className="flex items-center gap-2 cursor-pointer pb-2">
@@ -937,7 +937,7 @@ function AddMedicationDialog({
               value={pharmacy}
               onChange={e => setPharmacy(e.target.value)}
               placeholder="Nombre de la farmacia"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
@@ -948,12 +948,12 @@ function AddMedicationDialog({
               value={pharmacyNote}
               onChange={e => setPharmacyNote(e.target.value)}
               placeholder="Instrucciones especiales para la farmacia..."
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending || !drugName}
@@ -1002,7 +1002,7 @@ function AddSurgeryDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">
             Agregar procedimiento quirúrgico
           </DialogTitle>
@@ -1019,7 +1019,7 @@ function AddSurgeryDialog({
               value={procedure}
               onChange={e => setProcedure(e.target.value)}
               placeholder="ej., Apendicectomía"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
@@ -1029,7 +1029,7 @@ function AddSurgeryDialog({
               value={year}
               onChange={e => setYear(e.target.value)}
               placeholder="ej., 2018"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
@@ -1040,12 +1040,12 @@ function AddSurgeryDialog({
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="Detalles adicionales sobre el procedimiento"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending || !procedure.trim()}
@@ -1105,7 +1105,7 @@ function AddProviderDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">
             Agregar historial de proveedor
           </DialogTitle>
@@ -1147,12 +1147,12 @@ function AddProviderDialog({
               type="date"
               value={lastVisit}
               onChange={e => setLastVisit(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
             />
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending || !providerName}
@@ -1196,7 +1196,7 @@ function VaccinesEditDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">Vacunas</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
             Agregar o actualizar los registros de vacunación del paciente. Incluir nombres de vacunas y refuerzos relevantes.
@@ -1212,7 +1212,7 @@ function VaccinesEditDialog({
                   value={val}
                   onChange={e => updateRow(i, e.target.value)}
                   autoFocus={i === items.length - 1 && i > 0}
-                  className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                  className="flex-1 bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
                 <button
                   type="button"
@@ -1228,13 +1228,13 @@ function VaccinesEditDialog({
           <button
             type="button"
             onClick={addRow}
-            className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
+            className="w-full flex items-center justify-center gap-2 border border-border/30 rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
           >
             <Plus className="w-4 h-4" /> Agregar vacuna
           </button>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending}
@@ -1284,7 +1284,7 @@ function CognitiveEditDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">Estado cognitivo</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
             Actualizar la información del estado cognitivo del paciente. Puede agregar, editar o eliminar entradas según sea necesario.
@@ -1311,7 +1311,7 @@ function CognitiveEditDialog({
                     value={entry.name}
                     onChange={e => update(i, 'name', e.target.value)}
                     placeholder="ej., Memoria, Atención, Lenguaje"
-                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                    className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                   />
                 </div>
                 <div className="space-y-1">
@@ -1320,7 +1320,7 @@ function CognitiveEditDialog({
                     value={entry.status}
                     onChange={e => update(i, 'status', e.target.value)}
                     placeholder="ej., Normal, Deteriorado, Mejorando"
-                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                    className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                   />
                 </div>
               </div>
@@ -1330,13 +1330,13 @@ function CognitiveEditDialog({
           <button
             type="button"
             onClick={addEntry}
-            className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
+            className="w-full flex items-center justify-center gap-2 border border-border/30 rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
           >
             <Plus className="w-4 h-4" /> Agregar estado cognitivo
           </button>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending}
@@ -1384,7 +1384,7 @@ function FunctionalEditDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">Estado funcional</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
             Actualizar la información del estado funcional del paciente. Puede agregar, editar o eliminar entradas según sea necesario.
@@ -1407,7 +1407,7 @@ function FunctionalEditDialog({
                     value={entry.name}
                     onChange={e => update(i, 'name', e.target.value)}
                     placeholder="ej., Movilidad, Autocuidado"
-                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                    className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                   />
                 </div>
                 <div className="space-y-1">
@@ -1416,19 +1416,19 @@ function FunctionalEditDialog({
                     value={entry.status}
                     onChange={e => update(i, 'status', e.target.value)}
                     placeholder="ej., Independiente, Necesita asistencia"
-                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                    className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                   />
                 </div>
               </div>
             </div>
           ))}
 
-          <button type="button" onClick={addEntry} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
+          <button type="button" onClick={addEntry} className="w-full flex items-center justify-center gap-2 border border-border/30 rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
             <Plus className="w-4 h-4" /> Agregar estado funcional
           </button>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
             {isPending ? 'Guardando…' : 'Guardar cambios'}
           </button>
@@ -1468,7 +1468,7 @@ function DevicesEditDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">Dispositivos implantados</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
             Actualizar la lista de dispositivos implantados para este paciente. Puede agregar o eliminar dispositivos según sea necesario.
@@ -1484,7 +1484,7 @@ function DevicesEditDialog({
                   value={val}
                   onChange={e => updateRow(i, e.target.value)}
                   placeholder="Ingrese el dispositivo implantado"
-                  className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                  className="flex-1 bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
                 <button type="button" onClick={() => removeRow(i)} className="p-1.5 rounded text-text-muted hover:text-rose transition-colors">
                   <X className="w-4 h-4" />
@@ -1493,12 +1493,12 @@ function DevicesEditDialog({
             </div>
           ))}
 
-          <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
+          <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border/30 rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
             <Plus className="w-4 h-4" /> Agregar dispositivo
           </button>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
             {isPending ? 'Guardando…' : 'Guardar cambios'}
           </button>
@@ -1538,7 +1538,7 @@ function SystemsReviewEditDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">Revisión de sistemas</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
             Registrar cualquier síntoma o inquietud identificada durante la revisión sistemática de los sistemas del cuerpo.
@@ -1554,7 +1554,7 @@ function SystemsReviewEditDialog({
                   value={val}
                   onChange={e => updateRow(i, e.target.value)}
                   placeholder="ej., Cardiovascular - dolor en el pecho, Respiratorio - falta de aire"
-                  className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                  className="flex-1 bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
                 <button type="button" onClick={() => removeRow(i)} className="p-1.5 rounded text-text-muted hover:text-rose transition-colors">
                   <X className="w-4 h-4" />
@@ -1563,12 +1563,12 @@ function SystemsReviewEditDialog({
             </div>
           ))}
 
-          <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
+          <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border/30 rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
             <Plus className="w-4 h-4" /> Agregar revisión de sistema
           </button>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
             {isPending ? 'Guardando…' : 'Guardar cambios'}
           </button>
@@ -1608,7 +1608,7 @@ function HealthExamsEditDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">Actualizar exámenes de salud</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
             Registrar las pruebas de detección de salud del paciente, incluyendo fechas, ubicaciones y resultados.
@@ -1627,7 +1627,7 @@ function HealthExamsEditDialog({
                   type="date"
                   value={bloodTestDate}
                   onChange={e => setBloodTestDate(e.target.value)}
-                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                  className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
                 />
               </div>
 
@@ -1647,7 +1647,7 @@ function HealthExamsEditDialog({
                   value={colonoscopyYear}
                   onChange={e => setColonoscopyYear(e.target.value)}
                   placeholder="ej., 2026"
-                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                  className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
               </div>
 
@@ -1663,7 +1663,7 @@ function HealthExamsEditDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
             {isPending ? 'Guardando…' : 'Guardar cambios'}
           </button>
@@ -1703,7 +1703,7 @@ function AddCommentDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">Agregar comentario al historial</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
             Proporcione los detalles del nuevo comentario que se agregará al historial médico.
@@ -1719,12 +1719,12 @@ function AddCommentDialog({
               value={text}
               onChange={e => setText(e.target.value)}
               placeholder="Escriba su comentario aquí"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending || !text.trim()}
@@ -1786,7 +1786,7 @@ function AddFamilyHistoryDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">
             Agregar historial familiar
           </DialogTitle>
@@ -1804,7 +1804,7 @@ function AddFamilyHistoryDialog({
               <button
                 type="button"
                 onClick={() => setMemberOpen(o => !o)}
-                className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
+                className="w-full flex items-center justify-between bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
               >
                 <span className={relation ? 'text-text-1' : 'text-text-muted'}>
                   {relation || 'Selecciona una opción'}
@@ -1812,7 +1812,7 @@ function AddFamilyHistoryDialog({
                 <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
               </button>
               {memberOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-border/30 bg-bg-1 shadow-lg">
                   <div className="p-2 border-b border-border/60">
                     <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
                       <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
@@ -1856,7 +1856,7 @@ function AddFamilyHistoryDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending || !relation || !condition}
@@ -1925,7 +1925,7 @@ function AddHistoryDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+        <DialogHeader className="px-6 py-4 border-b border-border/30">
           <DialogTitle className="text-base font-semibold text-text-1">
             Agregar historial médico personal
           </DialogTitle>
@@ -1941,7 +1941,7 @@ function AddHistoryDialog({
               <button
                 type="button"
                 onClick={() => setDropOpen(o => !o)}
-                className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
+                className="w-full flex items-center justify-between bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
               >
                 <span className={selected ? 'text-text-1' : 'text-text-muted'}>
                   {selected ? selected.label : 'Seleccionar una condición'}
@@ -1949,7 +1949,7 @@ function AddHistoryDialog({
                 <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
               </button>
               {dropOpen && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg">
+                <div className="absolute z-50 mt-1 w-full rounded-md border border-border/30 bg-bg-1 shadow-lg">
                   <div className="p-2 border-b border-border/60">
                     <div className="flex items-center gap-2 bg-bg-2 rounded px-2 py-1">
                       <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
@@ -1994,7 +1994,7 @@ function AddHistoryDialog({
                 type="date"
                 value={diagDate}
                 onChange={e => setDiagDate(e.target.value)}
-                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
+                className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand [color-scheme:dark]"
               />
             </div>
           </div>
@@ -2006,12 +2006,12 @@ function AddHistoryDialog({
               value={comments}
               onChange={e => setComments(e.target.value)}
               placeholder="Notas o detalles adicionales"
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end">
+        <div className="px-6 py-4 border-t border-border/30 flex justify-end">
           <button
             onClick={handleSave}
             disabled={isPending || !selected}
@@ -2072,7 +2072,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
         <div className="flex min-h-0 overflow-hidden w-full">
 
           {/* ════ Left sidebar ════ */}
-          <div className="w-72 shrink-0 border-r border-border overflow-y-auto bg-bg-1">
+          <div className="w-72 shrink-0 border-r border-border/30 overflow-y-auto bg-bg-1">
 
             {/* Patient avatar */}
             <div className="px-4 py-4 border-b border-border/60 flex items-center gap-3">
@@ -2611,7 +2611,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-[96vw] w-full max-h-[96vh] p-0 overflow-hidden flex flex-col">
-        <DialogHeader className="px-6 py-3 border-b border-border bg-bg-1 shrink-0">
+        <DialogHeader className="px-6 py-3 border-b border-border/30 bg-bg-1 shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="text-text-1 text-base font-semibold">

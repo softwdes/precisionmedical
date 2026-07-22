@@ -198,7 +198,7 @@ export function PreCallStep({
           />
         </div>
 
-        <div className="rounded-md border border-border bg-bg-2/40 px-3 py-2 text-[11px] text-text-muted">
+        <div className="rounded-md border border-border/30 bg-bg-2/40 px-3 py-2 text-[11px] text-text-muted">
           <span className="text-text-2 font-semibold">{t('incomingNote')}</span>{' '}{t('incomingNoteText')}
         </div>
 
@@ -229,7 +229,7 @@ export function PreCallStep({
             </div>
 
             {query.length >= 2 && (
-              <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
+              <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
                 {searching && results.length === 0 ? (
                   <div className="px-3 py-4 text-text-muted text-xs text-center">{t('searching')}</div>
                 ) : results.length === 0 ? (
@@ -367,10 +367,10 @@ function ModeCard({
   disabledBadge?: string;
 }) {
   const toneClasses: Record<typeof tone, { border: string; bg: string; icon: string }> = {
-    brand:   { border: 'border-border hover:border-brand/40',   bg: 'bg-bg-1',  icon: 'text-brand' },
-    emerald: { border: 'border-border hover:border-emerald/40', bg: 'bg-bg-1',  icon: 'text-emerald' },
-    cyan:    { border: 'border-border hover:border-cyan/40',    bg: 'bg-bg-1',  icon: 'text-cyan' },
-    amber:   { border: 'border-border hover:border-amber/40',   bg: 'bg-bg-1',  icon: 'text-amber' },
+    brand:   { border: 'border-border/30 hover:border-brand/40',   bg: 'bg-bg-1',  icon: 'text-brand' },
+    emerald: { border: 'border-border/30 hover:border-emerald/40', bg: 'bg-bg-1',  icon: 'text-emerald' },
+    cyan:    { border: 'border-border/30 hover:border-cyan/40',    bg: 'bg-bg-1',  icon: 'text-cyan' },
+    amber:   { border: 'border-border/30 hover:border-amber/40',   bg: 'bg-bg-1',  icon: 'text-amber' },
   };
   if (disabled) {
     return (
@@ -396,7 +396,7 @@ function ModeCard({
       onClick={onClick}
       className={`w-full text-left rounded-lg border ${toneClasses[tone].border} ${toneClasses[tone].bg} px-4 py-3 transition-colors flex items-center gap-3 group`}
     >
-      <div className={`w-10 h-10 rounded-md bg-bg-2 border border-border flex items-center justify-center ${toneClasses[tone].icon} shrink-0`}>
+      <div className={`w-10 h-10 rounded-md bg-bg-2 border border-border/30 flex items-center justify-center ${toneClasses[tone].icon} shrink-0`}>
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex-1 min-w-0">
@@ -440,7 +440,7 @@ function FooterActions({
       ? t('startManualBtn')
       : t('startSearchBtn');
   return (
-    <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-border">
+    <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-border/30">
       <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">{t('cancel')}</Button>
       <Button onClick={onConfirm} disabled={!canConfirm} className="w-full sm:w-auto">
         {label}

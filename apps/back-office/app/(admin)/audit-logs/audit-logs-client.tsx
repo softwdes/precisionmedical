@@ -63,7 +63,7 @@ const ACTOR_ICON: Record<string, React.ReactNode> = {
 const ACTOR_COLOR: Record<string, string> = {
   HUMAN_USER: 'text-brand  bg-brand/10  border-brand/20',
   AI_AGENT:   'text-violet bg-violet/10 border-violet/20',
-  SYSTEM:     'text-text-muted bg-bg-2 border-border',
+  SYSTEM:     'text-text-muted bg-bg-2 border-border/30',
 };
 
 const ACTION_COLOR: Record<string, string> = {
@@ -164,7 +164,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
         action={
           <button
             onClick={() => fetchLogs(page)}
-            className="flex items-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-xs text-text-1 hover:bg-bg-2 transition-colors"
+            className="flex items-center gap-1.5 rounded-md border border-border/30 bg-bg-1 px-3 py-1.5 text-xs text-text-1 hover:bg-bg-2 transition-colors"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
@@ -181,7 +181,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
       </div>
 
       {/* Filters */}
-      <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
+      <div className="rounded-lg border border-border/30 bg-bg-1 p-4 space-y-3">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-semibold text-text-muted flex-wrap">
           <Filter className="w-3 h-3" />
           Filtros
@@ -200,7 +200,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
               value={q}
               onChange={e => setQ(e.target.value)}
               placeholder="Buscar acción, entidad, ID…"
-              className="w-full rounded-md border border-border bg-bg-2 pl-7 pr-3 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand/50"
+              className="w-full rounded-md border border-border/30 bg-bg-2 pl-7 pr-3 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand/50"
             />
           </div>
 
@@ -208,7 +208,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
           <select
             value={actorType}
             onChange={e => setActorType(e.target.value)}
-            className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
+            className="rounded-md border border-border/30 bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
           >
             <option value="">Tipo de actor</option>
             <option value="HUMAN_USER">Humano</option>
@@ -220,7 +220,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
           <select
             value={action}
             onChange={e => setAction(e.target.value)}
-            className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
+            className="rounded-md border border-border/30 bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
           >
             <option value="">Acción (todas)</option>
             {actionOpts.map(a => <option key={a} value={a}>{a}</option>)}
@@ -230,7 +230,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
           <select
             value={entityType}
             onChange={e => setEntityType(e.target.value)}
-            className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
+            className="rounded-md border border-border/30 bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
           >
             <option value="">Entidad (todas)</option>
             {entityTypeOpts.map(e => <option key={e} value={e}>{e}</option>)}
@@ -242,7 +242,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
             lang="en-US"
             value={from}
             onChange={e => setFrom(e.target.value)}
-            className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
+            className="rounded-md border border-border/30 bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
           />
 
           {/* To */}
@@ -251,14 +251,14 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
             lang="en-US"
             value={to}
             onChange={e => setTo(e.target.value)}
-            className="rounded-md border border-border bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
+            className="rounded-md border border-border/30 bg-bg-2 px-2 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand/50"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
           <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
             {fmtNum(total)} eventos
           </span>
@@ -367,7 +367,7 @@ export function AuditLogsClient({ kpis, initialLogs }: Props) {
 
         {/* Footer pagination */}
         {pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/30">
             <span className="text-[10px] text-text-muted">
               Página {page} de {pages} · {fmtNum(total)} eventos totales
             </span>

@@ -86,7 +86,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
       </Link>
 
       {/* Hero */}
-      <div className="rounded-lg border border-border bg-bg-1 p-6">
+      <div className="rounded-lg border border-border/30 bg-bg-1 p-6">
         <div className="flex items-start gap-5 flex-wrap">
           <div className="w-16 h-16 rounded-xl bg-gradient-cyan flex items-center justify-center text-white font-bold text-xl shadow-glow shrink-0">
             {firmInitials(firm.firmName)}
@@ -134,7 +134,7 @@ export function LawyerDetailClient({ firm, members }: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border/30">
         <TabButton active={tab === 'summary'} onClick={() => setTab('summary')}>Resumen</TabButton>
         <TabButton active={tab === 'members'} onClick={() => setTab('members')}>
           Miembros <span className="text-text-muted ml-1 font-mono">({members.length})</span>
@@ -262,7 +262,7 @@ function SummaryTab({
             <div className="text-4xl font-bold text-white">{members.length}</div>
             <div className="text-text-muted text-xs uppercase tracking-wider mt-1">Total miembros</div>
           </div>
-          <div className="space-y-2 pt-3 border-t border-border">
+          <div className="space-y-2 pt-3 border-t border-border/30">
             <SummaryStatRow label="Attorneys"     count={attorneys.length} />
             <SummaryStatRow label="Case Managers" count={caseManagers.length} />
             <SummaryStatRow label="Paralegals + Otros" count={members.length - attorneys.length - caseManagers.length} />
@@ -320,7 +320,7 @@ function MembersTab({
       <MemberGroup title="Otros" icon={UserCircle} members={others} onEdit={onEditMember} onDeleted={onDeletedMember} />
 
       {total === 0 && (
-        <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-8 text-center text-text-muted text-sm">
+        <div className="rounded-lg border border-dashed border-border/30 bg-bg-1/50 p-8 text-center text-text-muted text-sm">
           Sin miembros aún. Agregá el primero arriba.
         </div>
       )}
@@ -343,8 +343,8 @@ function MemberGroup({
 }) {
   if (members.length === 0) return null;
   return (
-    <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-      <div className="px-5 py-3 border-b border-border bg-bg-2/50 flex items-center gap-2">
+    <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
+      <div className="px-5 py-3 border-b border-border/30 bg-bg-2/50 flex items-center gap-2">
         <Icon className="w-4 h-4 text-brand" />
         <span className="text-white font-semibold text-sm">{title}</span>
         <span className="text-text-muted text-xs font-mono">· {members.length}</span>
@@ -470,7 +470,7 @@ function NotesTab({ firm, onSaved }: { firm: Firm; onSaved: () => void }) {
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        className="w-full bg-bg-2 border border-border rounded-md px-4 py-3 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[200px]"
+        className="w-full bg-bg-2 border border-border/30 rounded-md px-4 py-3 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[200px]"
         placeholder="Escribí las notas internas aquí..."
       />
       <div className="flex items-center justify-between">
@@ -630,7 +630,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
         </div>
 
         {/* Sparkline a la derecha */}
-        <div className="rounded-lg border border-border bg-bg-1 px-4 py-3 flex flex-col">
+        <div className="rounded-lg border border-border/30 bg-bg-1 px-4 py-3 flex flex-col">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">Casos por mes</div>
           {monthCounts.length > 0 ? (
             <>
@@ -682,12 +682,12 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por caso o paciente..."
-          className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+          className="flex-1 bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+          className="bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
         >
           <option value="">Todos los estados</option>
           {Object.entries(CASE_STATUS_LABELS).map(([v, l]) => (
@@ -733,12 +733,12 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
           ))}
         </div>
       ) : cases.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-bg-1/50 p-10 text-center">
+        <div className="rounded-lg border border-dashed border-border/30 bg-bg-1/50 p-10 text-center">
           <Briefcase className="w-10 h-10 text-text-muted mx-auto mb-2" />
           <div className="text-text-2 text-sm">Sin casos encontrados</div>
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
+        <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -782,14 +782,14 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-2 py-1 rounded text-[11px] border border-border hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="px-2 py-1 rounded text-[11px] border border-border/30 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   ← Anterior
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-2 py-1 rounded text-[11px] border border-border hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="px-2 py-1 rounded text-[11px] border border-border/30 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   Siguiente →
                 </button>
@@ -840,7 +840,7 @@ function AssignDropdown({
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); setQ(''); }}
         className={`flex items-center gap-1 text-xs rounded px-2 py-1 border transition-colors w-full text-left
-          ${open ? 'border-brand/50 bg-brand/5' : 'border-transparent hover:border-border hover:bg-white/[0.03]'}
+          ${open ? 'border-brand/50 bg-brand/5' : 'border-transparent hover:border-border/30 hover:bg-white/[0.03]'}
           ${label ? 'text-text-1' : 'text-text-muted'}`}
       >
         <span className="truncate max-w-[120px]">{label ?? placeholder}</span>
@@ -850,14 +850,14 @@ function AssignDropdown({
       </button>
 
       {open && (
-        <div className="absolute z-50 top-full left-0 mt-1 w-52 rounded-lg border border-border bg-bg-2 shadow-xl py-1" onClick={(e) => e.stopPropagation()}>
-          <div className="px-2 py-1.5 border-b border-border">
+        <div className="absolute z-50 top-full left-0 mt-1 w-52 rounded-lg border border-border/30 bg-bg-2 shadow-xl py-1" onClick={(e) => e.stopPropagation()}>
+          <div className="px-2 py-1.5 border-b border-border/30">
             <input
               autoFocus
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar..."
-              className="w-full bg-bg-1 border border-border rounded px-2 py-1 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              className="w-full bg-bg-1 border border-border/30 rounded px-2 py-1 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
           <div className="max-h-40 overflow-y-auto">
@@ -922,7 +922,7 @@ function CaseTableRow({
   onHistory: () => void;
 }) {
   const patientName = `${row.patient.lastName ?? ''}, ${row.patient.firstName ?? ''}`.trim().replace(/^,\s*/, '');
-  const typeColor = CASE_TYPE_COLORS[row.caseType] ?? 'bg-white/5 text-text-muted border-border';
+  const typeColor = CASE_TYPE_COLORS[row.caseType] ?? 'bg-white/5 text-text-muted border-border/30';
   const dateStr = new Date(row.createdAt).toLocaleDateString('es-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const btnRef = useRef<HTMLButtonElement>(null);
 
@@ -989,7 +989,7 @@ function CaseTableRow({
           <MoreHorizontal className="w-4 h-4" />
         </button>
         {menuOpen && (
-          <div className="fixed z-[9999] min-w-[200px] rounded-lg border border-border bg-bg-2 shadow-xl py-1"
+          <div className="fixed z-[9999] min-w-[200px] rounded-lg border border-border/30 bg-bg-2 shadow-xl py-1"
             style={{ top: (btnRef.current?.getBoundingClientRect().bottom ?? 0) + 4, right: window.innerWidth - (btnRef.current?.getBoundingClientRect().right ?? 0) }}
           >
             <Link
@@ -1102,7 +1102,7 @@ function SignAttorneyModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="bg-bg-1 border border-border rounded-xl w-full max-w-xl space-y-5 p-6 max-h-[92vh] overflow-y-auto"
+        className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-xl space-y-5 p-6 max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -1128,7 +1128,7 @@ function SignAttorneyModal({
                   value={signerName}
                   onChange={(e) => setSignerName(e.target.value)}
                   placeholder="Nombre completo del abogado"
-                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                  className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
               </div>
               <div>
@@ -1138,7 +1138,7 @@ function SignAttorneyModal({
                   value={signerEmail}
                   onChange={(e) => setSignerEmail(e.target.value)}
                   placeholder="abogado@firma.com"
-                  className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                  className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
               </div>
             </div>
@@ -1173,7 +1173,7 @@ function SignAttorneyModal({
             <div className="flex flex-col sm:flex-row gap-2 pt-1">
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-2 rounded-md border border-border text-text-2 text-sm hover:bg-white/5 transition-colors"
+                className="flex-1 px-4 py-2 rounded-md border border-border/30 text-text-2 text-sm hover:bg-white/5 transition-colors"
               >
                 Cancelar
               </button>
@@ -1196,8 +1196,8 @@ function SignAttorneyModal({
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
-      <div className="px-5 py-3 border-b border-border bg-bg-2/50">
+    <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
+      <div className="px-5 py-3 border-b border-border/30 bg-bg-2/50">
         <div className="text-white font-semibold text-sm">{title}</div>
       </div>
       <div className="p-5 space-y-1">{children}</div>
@@ -1236,7 +1236,7 @@ function StatusPill({ status }: { status: string }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/5 text-text-muted border border-border">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/5 text-text-muted border border-border/30">
       <span className="w-1.5 h-1.5 rounded-full bg-text-muted" /> Inactivo
     </span>
   );
@@ -1407,7 +1407,7 @@ function FirmDialog({
               id="fd-paymentSpeed"
               value={paymentSpeed ?? 'UNKNOWN'}
               onChange={(e) => setPaymentSpeed(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {PAYMENT_SPEEDS.map((p) => (
                 <option key={p.value} value={p.value}>{p.label}</option>
@@ -1429,7 +1429,7 @@ function FirmDialog({
               id="fd-notes"
               value={notes ?? ''}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder="Notas privadas: paga lento, prefiere email, etc."
             />
           </div>
@@ -1597,7 +1597,7 @@ function MemberDialog({
               id="memberRole"
               value={memberRole ?? 'ATTORNEY'}
               onChange={(e) => setMemberRole(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
             >
               {MEMBER_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
@@ -1672,7 +1672,7 @@ function ConfirmRemoveModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4"
+        className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-sm p-5 space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3">
@@ -1690,7 +1690,7 @@ function ConfirmRemoveModal({
         <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-text-2 hover:text-text-1 border border-border rounded-md hover:bg-white/5 transition-colors"
+            className="px-4 py-2 text-sm text-text-2 hover:text-text-1 border border-border/30 rounded-md hover:bg-white/5 transition-colors"
           >
             Cancelar
           </button>
@@ -1721,7 +1721,7 @@ function ConfirmExemptModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="bg-bg-1 border border-border rounded-xl w-full max-w-sm p-5 space-y-4"
+        className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-sm p-5 space-y-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3">
@@ -1743,7 +1743,7 @@ function ConfirmExemptModal({
         <div className="flex gap-2 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-text-2 hover:text-text-1 border border-border rounded-md hover:bg-white/5 transition-colors"
+            className="px-4 py-2 text-sm text-text-2 hover:text-text-1 border border-border/30 rounded-md hover:bg-white/5 transition-colors"
           >
             Cancelar
           </button>
@@ -1809,11 +1809,11 @@ function CaseHistoryDrawer({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="bg-bg-1 border border-border rounded-xl w-full max-w-5xl max-h-[88vh] flex flex-col"
+        className="bg-bg-1 border border-border/30 rounded-xl w-full max-w-5xl max-h-[88vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/30">
           <div>
             <div className="text-text-1 font-semibold text-sm flex items-center gap-2">
               <History className="w-4 h-4 text-cyan" /> Historial de cambios
@@ -1845,11 +1845,11 @@ function CaseHistoryDrawer({
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3 flex items-center gap-2">
                     <History className="w-3 h-3" /> Historial de asignaciones ({assignmentEvents.length})
                   </div>
-                  <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="rounded-lg border border-border/30 overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full text-[11px]">
                         <thead>
-                          <tr className="border-b border-border bg-bg-2/40">
+                          <tr className="border-b border-border/30 bg-bg-2/40">
                             <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">Fecha</th>
                             <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">Tipo</th>
                             <th className="text-left px-3 py-2 text-text-muted font-semibold uppercase tracking-wider">Acción</th>
@@ -1896,7 +1896,7 @@ function CaseHistoryDrawer({
                     <div className="space-y-3">
                       {otherEvents.map((ev) => (
                         <div key={ev.id} className="flex gap-3 pl-1">
-                          <div className="w-5 h-5 rounded-full bg-bg-2 border border-border flex items-center justify-center shrink-0 mt-0.5 z-10">
+                          <div className="w-5 h-5 rounded-full bg-bg-2 border border-border/30 flex items-center justify-center shrink-0 mt-0.5 z-10">
                             <div className="w-1.5 h-1.5 rounded-full bg-cyan" />
                           </div>
                           <div className="flex-1 min-w-0 pb-1">

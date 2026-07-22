@@ -160,7 +160,7 @@ function LawFirmSelectInline({ firmId, onChange }: {
       <select value={firmId ?? ''} onChange={e => {
         const sel = firms.find(f => f.id === e.target.value);
         onChange(sel?.label ?? '', sel?.id ?? null);
-      }} className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand appearance-none">
+      }} className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand appearance-none">
         <option value="">Nombre de la firma de abogados que refirió el caso médico...</option>
         {firms.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
       </select>
@@ -251,13 +251,13 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
           <div className="space-y-4">
             {/* Status + type */}
             <div className="flex items-center gap-2 flex-wrap">
-              <TagPill label={t(`caseStatus.${detail.status}` as Parameters<typeof t>[0]) ?? detail.status} colorClass={CASE_STATUS_COLOR[detail.status] ?? 'bg-bg-2 text-text-2 border-border'} />
-              <span className="text-[11px] text-text-muted border border-border rounded px-1.5 py-0.5">{detail.caseType}</span>
+              <TagPill label={t(`caseStatus.${detail.status}` as Parameters<typeof t>[0]) ?? detail.status} colorClass={CASE_STATUS_COLOR[detail.status] ?? 'bg-bg-2 text-text-2 border-border/30'} />
+              <span className="text-[11px] text-text-muted border border-border/30 rounded px-1.5 py-0.5">{detail.caseType}</span>
               {detail.specialty && <span className="text-[11px] text-text-muted">{detail.specialty.name}</span>}
             </div>
 
             {/* Case info */}
-            <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
+            <div className="rounded-lg border border-border/30 bg-bg-1 p-4 space-y-3">
               <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('caseInfoTitle')}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-[12.5px]">
                 <div className="flex justify-between"><span className="text-text-muted">{t('caseLabelType')}</span><span className="text-text-1 font-medium">{detail.caseType}</span></div>
@@ -276,7 +276,7 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
             </div>
 
             {/* Law firm */}
-            <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-2">
+            <div className="rounded-lg border border-border/30 bg-bg-1 p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('caseLabelLawFirm')}</p>
               </div>
@@ -290,7 +290,7 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
             </div>
 
             {/* Insurance */}
-            <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-2">
+            <div className="rounded-lg border border-border/30 bg-bg-1 p-4 space-y-2">
               <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('caseLabelInsurance')}</p>
               {detail.primaryInsurance ? (
                 <div className="rounded-md border border-border/60 bg-bg-2/40 px-3 py-2.5">
@@ -428,7 +428,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
                 {([['MVA', 'MVA (Accidente de vehículo a motor)', Car], ['GENERAL', 'GM (Medicina general)', Stethoscope]] as const).map(([val, label, Icon]) => (
                   <button key={val} type="button" onClick={() => setCaseType(val)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-sm text-left transition-all ${
-                      caseType === val ? 'border-brand bg-brand/10 text-brand font-medium' : 'border-border bg-bg-2/40 text-text-muted hover:border-brand/40'
+                      caseType === val ? 'border-brand bg-brand/10 text-brand font-medium' : 'border-border/30 bg-bg-2/40 text-text-muted hover:border-brand/40'
                     }`}>
                     <Icon className="w-4 h-4 shrink-0" />
                     {label}
@@ -447,7 +447,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
                   <input type="date"
                     value={accDateDisp}
                     onChange={e => setAccDateDisp(e.target.value)}
-                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand [color-scheme:dark]"
+                    className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 outline-none focus:border-brand [color-scheme:dark]"
                   />
                 </div>
 
@@ -456,7 +456,7 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
                   <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Descripción del accidente</label>
                   <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
                     placeholder="Describe brevemente los síntomas y el accidente."
-                    className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand resize-none"
+                    className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand resize-none"
                   />
                 </div>
 
@@ -472,14 +472,14 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Abogado representante</label>
                     <input type="text" value={attorney} onChange={e => setAttorney(e.target.value)}
                       placeholder="Nombre del abogado"
-                      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
+                      className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
                     />
                   </div>
                   <div>
                     <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">Quiropráctico tratante</label>
                     <input type="text" value={chiropractor} onChange={e => setChiropractor(e.target.value)}
                       placeholder="Nombre del quiropráctico"
-                      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
+                      className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand"
                     />
                   </div>
                 </div>
@@ -571,7 +571,7 @@ function CaseQrDialog({ caseId, caseCode, open, onClose }: {
 
         {!loading && portalUrl && (
           <>
-            <div className="flex items-center gap-2 rounded-md bg-bg-2 border border-border px-3 py-2">
+            <div className="flex items-center gap-2 rounded-md bg-bg-2 border border-border/30 px-3 py-2">
               <span className="text-[11px] text-text-2 truncate flex-1 font-mono">{portalUrl}</span>
               <button
                 onClick={handleCopy}
@@ -638,7 +638,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/30">
           <DialogTitle className="text-text-1 flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-brand" />
             Citas programadas
@@ -665,7 +665,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
           {!loading && appointments.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-bg-2 border-b border-border">
+                <thead className="bg-bg-2 border-b border-border/30">
                   <tr>
                     {['Fecha','Hora de inicio','Hora de conclusión','Estado','Firmado por el paciente','Registro','Salida','Doctor','Especialidad','Acciones'].map(h => (
                       <th key={h} className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{h}</th>
@@ -679,7 +679,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
                       <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{fmtTime(a.scheduledFor)}</td>
                       <td className="px-3 py-2.5 text-[12px] text-text-1 whitespace-nowrap">{addMinutes(a.scheduledFor, a.durationMinutes)}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <TagPill label={a.status === 'SCHEDULED' ? 'Pendiente' : a.status} colorClass={APPT_STATUS_COLOR[a.status] ?? 'bg-bg-2 text-text-2 border-border'} />
+                        <TagPill label={a.status === 'SCHEDULED' ? 'Pendiente' : a.status} colorClass={APPT_STATUS_COLOR[a.status] ?? 'bg-bg-2 text-text-2 border-border/30'} />
                       </td>
                       <td className="px-3 py-2.5 text-[12px] text-text-muted whitespace-nowrap">
                         {a.attendanceSignedAt ? <span className="text-emerald">✓ Firmado</span> : '—'}
@@ -733,10 +733,10 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
         </div>
 
         {/* Pagination footer */}
-        <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-bg-1">
+        <div className="flex items-center justify-between px-6 py-3 border-t border-border/30 bg-bg-1">
           <div className="flex items-center gap-2 text-[11px] text-text-muted">
             <span>Filas por página</span>
-            <select className="bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none">
+            <select className="bg-bg-2 border border-border/30 rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none">
               <option>10</option>
               <option>25</option>
             </select>
@@ -745,7 +745,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
             <span>Página 1 de 1</span>
             <div className="flex gap-1 ml-2">
               {['«','‹','›','»'].map(s => (
-                <button key={s} disabled className="w-7 h-7 rounded border border-border text-text-muted disabled:opacity-30 hover:border-brand hover:text-brand transition-colors text-xs">
+                <button key={s} disabled className="w-7 h-7 rounded border border-border/30 text-text-muted disabled:opacity-30 hover:border-brand hover:text-brand transition-colors text-xs">
                   {s}
                 </button>
               ))}
@@ -860,7 +860,7 @@ function emptyInsEntry(insType: 'MEDICAL' | 'AUTO'): InsuranceEntry {
 }
 
 const insLabel = 'text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5';
-const insInput = 'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand';
+const insInput = 'w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand';
 
 function NuevoSeguroDialog({ onClose, onSave }: {
   onClose: () => void;
@@ -876,7 +876,7 @@ function NuevoSeguroDialog({ onClose, onSave }: {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/30 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-4 h-4 text-brand" /> {t('segurosNewTitle')}
           </DialogTitle>
@@ -887,7 +887,7 @@ function NuevoSeguroDialog({ onClose, onSave }: {
         <div className="flex px-6 pt-4 gap-2 shrink-0">
           {(['MEDICAL', 'AUTO'] as const).map(tp => (
             <button key={tp} onClick={() => switchTab(tp)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === tp ? 'bg-brand text-white' : 'bg-bg-2 text-text-2 hover:bg-bg-2/80 border border-border'}`}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === tp ? 'bg-brand text-white' : 'bg-bg-2 text-text-2 hover:bg-bg-2/80 border border-border/30'}`}
             >
               {tp === 'MEDICAL' ? t('segurosTabMedico') : t('segurosTabAuto')}
             </button>
@@ -982,7 +982,7 @@ function NuevoSeguroDialog({ onClose, onSave }: {
               <div><label className={insLabel}>{t('segurosAdjusterEmail')}</label><input type="email" className={insInput} value={entry.adjusterEmail} onChange={e => set('adjusterEmail', e.target.value)} /></div>
               <div><label className={insLabel}>{t('segurosComments')}</label><textarea className={`${insInput} resize-none`} rows={3} value={entry.comments} onChange={e => set('comments', e.target.value)} /></div>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={entry.fullLien} onChange={e => set('fullLien', e.target.checked)} className="w-4 h-4 rounded border border-border accent-brand" />
+                <input type="checkbox" checked={entry.fullLien} onChange={e => set('fullLien', e.target.checked)} className="w-4 h-4 rounded border border-border/30 accent-brand" />
                 <span className="text-sm text-text-2">{t('segurosFullLien')}</span>
               </label>
               {entry.fullLien && (
@@ -992,7 +992,7 @@ function NuevoSeguroDialog({ onClose, onSave }: {
           )}
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
+        <DialogFooter className="px-6 py-4 border-t border-border/30 flex-col sm:flex-row gap-2 shrink-0">
           <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>{t('btnCancel')}</Button>
           <Button className="w-full sm:w-auto" onClick={() => { onSave(entry); onClose(); }}>{t('segurosGuardar')}</Button>
         </DialogFooter>
@@ -1040,7 +1040,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
     <>
       <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
         <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0">
-          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
+          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/30 shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-brand" />
               {t('menuInsurance')} — {patient.firstName} {patient.lastName}
@@ -1075,12 +1075,12 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
             )}
 
             {!saving && insurances.map((ins) => (
-              <div key={ins.id} className="rounded-lg border border-border bg-bg-1 p-4">
+              <div key={ins.id} className="rounded-lg border border-border/30 bg-bg-1 p-4">
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     <TagPill
                       label={insTypeLabel[ins.insType] ?? ins.insType}
-                      colorClass={INS_TYPE_COLOR[ins.insType] ?? 'bg-bg-2 text-text-2 border-border'}
+                      colorClass={INS_TYPE_COLOR[ins.insType] ?? 'bg-bg-2 text-text-2 border-border/30'}
                     />
                     <span className="text-sm font-medium text-text-1">{ins.carrier || '—'}</span>
                   </div>
@@ -1117,7 +1117,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
             )}
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
+          <DialogFooter className="px-6 py-4 border-t border-border/30 flex-col sm:flex-row gap-2 shrink-0">
             <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>{t('btnClose')}</Button>
             {patient.latestCase && (
               <Button className="w-full sm:w-auto" onClick={() => setShowNuevo(true)} disabled={saving}>
@@ -1195,7 +1195,7 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
           )}
           {!loading && portalUrl && (
             <>
-              <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2 px-3 py-2">
+              <div className="flex items-center gap-2 rounded-md border border-border/30 bg-bg-2 px-3 py-2">
                 <code className="flex-1 text-[11px] font-mono text-text-2 truncate">{portalUrl}</code>
                 <button onClick={copyLink} className="p-1.5 rounded hover:bg-bg-1 text-text-muted hover:text-text-1 transition-colors shrink-0">
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1203,7 +1203,7 @@ function QrPatientDialog({ patient, onClose }: { patient: PatientRow; onClose: (
               </div>
               {qrDataUrl ? (
                 <div className="flex justify-center">
-                  <img src={qrDataUrl} alt="QR" className="rounded-lg border border-border" width={280} height={280} />
+                  <img src={qrDataUrl} alt="QR" className="rounded-lg border border-border/30" width={280} height={280} />
                 </div>
               ) : (
                 <div className="flex justify-center py-10 text-text-muted">
@@ -1286,7 +1286,7 @@ function InAppCamera({
       <p className="text-2xl">📷</p>
       <p className="text-[12px] text-text-muted leading-relaxed">{error}</p>
       <div className="flex gap-2">
-        <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-border text-[12px] text-text-muted hover:bg-bg-2 transition-colors">Cancelar</button>
+        <button onClick={onCancel} className="flex-1 py-2 rounded-lg border border-border/30 text-[12px] text-text-muted hover:bg-bg-2 transition-colors">Cancelar</button>
         <button onClick={onPermissionError} className="flex-[2] py-2 rounded-lg border border-brand/40 bg-brand/10 text-[12px] text-brand font-semibold hover:bg-brand/20 transition-colors">Usar archivo</button>
       </div>
     </div>
@@ -1465,7 +1465,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-5xl p-0">
-        <div className="px-6 py-4 border-b border-border">
+        <div className="px-6 py-4 border-b border-border/30">
           <h2 className="text-base font-semibold text-text-1">{patient.firstName} {patient.lastName}</h2>
           <p className="text-[12px] text-text-muted mt-0.5">{t('archivosSubtitle')}</p>
         </div>
@@ -1501,7 +1501,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
               const err       = errors[key] ?? '';
 
               return (
-                <div key={key} className="rounded-lg border border-border bg-bg-2/40 overflow-hidden flex flex-col">
+                <div key={key} className="rounded-lg border border-border/30 bg-bg-2/40 overflow-hidden flex flex-col">
                   {/* Hidden file input (Archivo button) */}
                   <input
                     ref={el => { fileRefs.current[key] = el; }}
@@ -1556,14 +1556,14 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
                     <button
                       disabled={!patient.latestCase || isLoading}
                       onClick={() => setCameraSlot(key)}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:bg-bg-2 hover:border-cyan/40 hover:text-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border/30 text-[11px] text-text-2 hover:bg-bg-2 hover:border-cyan/40 hover:text-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Camera className="w-3 h-3" /> {t('btnCamera')}
                     </button>
                     <button
                       disabled={!patient.latestCase || isLoading}
                       onClick={() => fileRefs.current[key]?.click()}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border text-[11px] text-text-2 hover:bg-bg-2 hover:border-cyan/40 hover:text-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-md border border-border/30 text-[11px] text-text-2 hover:bg-bg-2 hover:border-cyan/40 hover:text-cyan transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Upload className="w-3 h-3" /> {t('btnFile')}
                     </button>
@@ -1580,8 +1580,8 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
                 <FolderOpen className="w-3.5 h-3.5" /> {t('archivosPersonalFiles')}
               </div>
             </div>
-            <div className="rounded-md border border-border overflow-hidden">
-              <div className="grid grid-cols-3 bg-bg-2 border-b border-border px-3 py-2">
+            <div className="rounded-md border border-border/30 overflow-hidden">
+              <div className="grid grid-cols-3 bg-bg-2 border-b border-border/30 px-3 py-2">
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('archivosColName')}</span>
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('archivosColSize')}</span>
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('archivosColDate')}</span>
@@ -1595,7 +1595,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
           </div>
         </div>
 
-        <div className="px-6 py-3 border-t border-border flex justify-end">
+        <div className="px-6 py-3 border-t border-border/30 flex justify-end">
           <Button variant="outline" onClick={onClose}>{t('btnClose')}</Button>
         </div>
       </DialogContent>
@@ -1779,7 +1779,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="w-full pl-8 pr-3 py-2 bg-bg-2 border border-border rounded-md text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+              className="w-full pl-8 pr-3 py-2 bg-bg-2 border border-border/30 rounded-md text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
               autoComplete="off"
             />
           </div>
@@ -1787,7 +1787,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             <button
               type="button"
               onClick={() => setSearchValue('')}
-              className="p-2 rounded-md border border-border text-text-muted hover:text-text-1 hover:border-border-strong transition-colors"
+              className="p-2 rounded-md border border-border/30 text-text-muted hover:text-text-1 hover:border-border-strong transition-colors"
               title={t('btnClear')}
             >
               <XIcon className="w-3.5 h-3.5" />
@@ -1803,7 +1803,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             className={`flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm transition-colors whitespace-nowrap ${
               inactiveOnly
                 ? 'border-amber/40 bg-amber/5 text-amber hover:bg-amber/10'
-                : 'border-border text-text-muted hover:border-amber/40 hover:text-amber'
+                : 'border-border/30 text-text-muted hover:border-amber/40 hover:text-amber'
             }`}
             title={inactiveOnly ? 'Ver pacientes activos' : 'Ver pacientes eliminados'}
           >
@@ -1813,7 +1813,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
           <button
             type="button"
             onClick={() => setQuickRegister(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border/30 text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
             <span className="hidden md:inline">{t('btnQuickRegister')}</span>
@@ -1832,9 +1832,9 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
         </div>
       </div>
 
-      <div className="rounded-lg border border-border overflow-hidden">
+      <div className="rounded-lg border border-border/30 overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-bg-2 border-b border-border">
+          <thead className="bg-bg-2 border-b border-border/30">
             <tr>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colContact')}</th>
@@ -1906,7 +1906,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                 <td className="px-4 py-3.5 hidden md:table-cell">
                   <button
                     onClick={() => toggleExpand(p.id)}
-                    className="flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
+                    className="flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border/30 text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
                     title={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                   >
                     {p.caseCount}
@@ -1917,7 +1917,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
                 <td className="px-4 py-3.5 hidden sm:table-cell">
                   <TagPill
                     label={STATUS_LABEL[p.status] ?? p.status}
-                    colorClass={STATUS_COLORS[p.status] ?? 'bg-bg-2 text-text-2 border-border'}
+                    colorClass={STATUS_COLORS[p.status] ?? 'bg-bg-2 text-text-2 border-border/30'}
                   />
                 </td>
 
@@ -2199,14 +2199,14 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
             <button
               onClick={() => router.push(buildPageUrl(page - 1))}
               disabled={page === 0}
-              className="p-1.5 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-md border border-border/30 text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => router.push(buildPageUrl(page + 1))}
               disabled={page >= totalPages - 1}
-              className="p-1.5 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-md border border-border/30 text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -2293,7 +2293,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
               <div className="flex items-center gap-3 pt-1">
                 <TagPill
                   label={STATUS_LABEL[viewTarget.status] ?? viewTarget.status}
-                  colorClass={STATUS_COLORS[viewTarget.status] ?? 'bg-bg-2 text-text-2 border-border'}
+                  colorClass={STATUS_COLORS[viewTarget.status] ?? 'bg-bg-2 text-text-2 border-border/30'}
                 />
                 <span className="text-text-muted text-xs">{viewTarget.caseCount} caso{viewTarget.caseCount !== 1 ? 's' : ''}</span>
               </div>
@@ -2379,7 +2379,7 @@ export function PatientsClient({ patients, q, page, totalPages, total, specialti
           <div
             ref={menuRef}
             style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 9999 }}
-            className="w-52 rounded-lg border border-border bg-bg-1 shadow-xl py-1 text-sm"
+            className="w-52 rounded-lg border border-border/30 bg-bg-1 shadow-xl py-1 text-sm"
           >
             <button onClick={() => { setEditTarget(p); setOpenMenuId(null); }}
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 hover:bg-bg-2 hover:text-text-1 transition-colors text-left">

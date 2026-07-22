@@ -130,7 +130,7 @@ export function ServicesClient({ services, stats }: Props) {
         }
       />
 
-      <div className="flex gap-0 border-b border-border">
+      <div className="flex gap-0 border-b border-border/30">
         <TabButton active={tab === 'billable'} onClick={() => setTab('billable')}>
           {t('tabBillable')} <span className="text-text-muted ml-1 font-mono">({stats.billable})</span>
         </TabButton>
@@ -171,7 +171,7 @@ export function ServicesClient({ services, stats }: Props) {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="bg-bg-2 border border-border rounded-md px-3 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand"
+            className="bg-bg-2 border border-border/30 rounded-md px-3 py-1.5 text-xs text-text-1 focus:outline-none focus:border-brand"
           >
             <option value="all">{t('filterAllCategories')}</option>
             {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -300,7 +300,7 @@ function TypePill({ type }: { type: string }) {
   const labels: Record<string, string> = {
     CPT: 'CPT', HCPCS: 'HCPCS', CUSTOM_PM: 'PM-',
   };
-  return <TagPill label={labels[type] ?? type} colorClass={colors[type] ?? 'bg-white/5 text-text-2 border-border'} mono />;
+  return <TagPill label={labels[type] ?? type} colorClass={colors[type] ?? 'bg-white/5 text-text-2 border-border/30'} mono />;
 }
 
 function CategoryPill({ cat }: { cat: string }) {
@@ -310,7 +310,7 @@ function CategoryPill({ cat }: { cat: string }) {
     DME: 'DME', DRUGS: 'Drugs', LAB: 'Lab',
     REPORTS: 'Reports', CUSTOM: 'Custom', OTHER: 'Other',
   };
-  return <TagPill label={labels[cat] ?? cat} colorClass="bg-bg-2 text-text-2 border-border" compact />;
+  return <TagPill label={labels[cat] ?? cat} colorClass="bg-bg-2 text-text-2 border-border/30" compact />;
 }
 
 // ─── Modals ──────────────────────────────────────────────────────────────────
@@ -434,7 +434,7 @@ function ServiceDialog({
             </div>
             <div>
               <Label htmlFor="type">{t('fieldType')}</Label>
-              <select id="type" value={type} onChange={(e) => handleTypeChange(e.target.value)} className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
+              <select id="type" value={type} onChange={(e) => handleTypeChange(e.target.value)} className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
                 {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
@@ -455,7 +455,7 @@ function ServiceDialog({
               id="longDesc"
               value={longDesc ?? ''}
               onChange={(e) => setLongDesc(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
               placeholder="Office or other outpatient visit for the evaluation and management..."
             />
           </div>
@@ -463,7 +463,7 @@ function ServiceDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="category">{t('fieldCategory')}</Label>
-              <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
+              <select id="category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand">
                 {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
@@ -479,7 +479,7 @@ function ServiceDialog({
               id="bundlingNotes"
               value={bundlingNotes ?? ''}
               onChange={(e) => setBundlingNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
               placeholder="No se puede facturar junto con 97140. Requiere modifier -25 si se factura con E&M."
             />
           </div>
@@ -490,7 +490,7 @@ function ServiceDialog({
               id="notes"
               value={notes ?? ''}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[50px]"
               placeholder="Notas operativas privadas..."
             />
           </div>
@@ -553,7 +553,7 @@ function ViewDialog({ service, onClose, onEdit }: { service: Service | null; onC
             value={service.modifiersAllowed.length === 0 ? <Empty /> : (
               <div className="flex flex-wrap gap-1">
                 {service.modifiersAllowed.map((m) => (
-                  <code key={m} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-2 border border-border text-text-2">{m}</code>
+                  <code key={m} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-2 border border-border/30 text-text-2">{m}</code>
                 ))}
               </div>
             )} />

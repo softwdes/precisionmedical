@@ -39,7 +39,7 @@ export function KpiCard({
   iconColor = 'text-text-muted',
 }: KpiCardProps) {
   return (
-    <div className={`rounded-lg border border-border bg-bg-1 flex items-center justify-between ${compact ? 'px-4 py-3' : 'px-5 py-4'}`}>
+    <div className={`rounded-lg border border-border/30 bg-bg-1 flex items-center justify-between ${compact ? 'px-4 py-3' : 'px-5 py-4'}`}>
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">
           {label}

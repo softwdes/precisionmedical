@@ -114,7 +114,7 @@ function ModalShell({
       </div>
       <div className="p-4 space-y-2 text-[12.5px]">{children}</div>
       {footer && (
-        <div className="px-4 py-3 border-t border-border flex gap-2">{footer}</div>
+        <div className="px-4 py-3 border-t border-border/30 flex gap-2">{footer}</div>
       )}
     </div>
   );
@@ -313,7 +313,7 @@ function CallHandlerModal({ appt, onClose }: { appt: CalendarAppointment; onClos
       <DataRow label="Clínica"              value={appt.clinic.name} />
       <DataRow label={t('rowChannel')}      value={`📞 ${t('channelInboundCall')}`} />
       <DataRow label={t('rowAppointmentScheduled')} value={t('scheduledOnSameCall')} highlight />
-      <div className="pt-2 text-[11px] text-text-muted rounded-md px-3 py-2 border border-border"
+      <div className="pt-2 text-[11px] text-text-muted rounded-md px-3 py-2 border border-border/30"
         style={{ background: 'rgba(255,255,255,0.02)' }}>
         📜 Información detallada del audit log disponible en Phase 1B (requiere tabla de audit de llamadas).
       </div>
@@ -349,7 +349,7 @@ function IntakeModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
       <p className="text-text-2 text-sm">
         {t('intakeResendDescription', { name: appt.patient.firstName })}
       </p>
-      <div className="rounded-lg p-3 border border-border bg-bg-2/30 space-y-1 text-[12.5px]">
+      <div className="rounded-lg p-3 border border-border/30 bg-bg-2/30 space-y-1 text-[12.5px]">
         <DataRow label={t('rowPatient')} value={`${appt.patient.firstName} ${appt.patient.lastName}`} highlight />
         {appt.patient.phone && <DataRow label={t('rowSmsTo')} value={appt.patient.phone} />}
         {appt.patient.email && <DataRow label={t('rowEmailTo')} value={appt.patient.email} />}

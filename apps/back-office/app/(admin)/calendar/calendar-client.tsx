@@ -229,7 +229,7 @@ function FilterChip({
         className={`flex items-center gap-1.5 pl-2.5 pr-1.5 h-7 rounded text-[11px] font-medium border transition-all ${
           isActive
             ? 'border-cyan bg-cyan/15 text-cyan'
-            : 'border-border/60 bg-white/[0.04] text-text-2 hover:border-border hover:text-text-1'
+            : 'border-border/60 bg-white/[0.04] text-text-2 hover:border-border/30 hover:text-text-1'
         }`}
       >
         <span className="leading-none">{emoji}</span>
@@ -242,7 +242,7 @@ function FilterChip({
           {/* Click-away backdrop */}
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
           {/* Dropdown panel */}
-          <div className="absolute top-[calc(100%+4px)] left-0 z-30 min-w-[180px] rounded-lg border border-border bg-bg-1 shadow-2xl py-1 overflow-hidden">
+          <div className="absolute top-[calc(100%+4px)] left-0 z-30 min-w-[180px] rounded-lg border border-border/30 bg-bg-1 shadow-2xl py-1 overflow-hidden">
             {/* "All" option */}
             <button
               type="button"
@@ -501,16 +501,16 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         {/* Week nav */}
         <div className="flex items-center gap-1 shrink-0">
           <button type="button" onClick={goToPrev}
-            className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
+            className="w-7 h-7 rounded border border-border/30 hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
           <span className="text-text-1 font-bold text-sm px-2 min-w-[110px] text-center">{monthLabel}</span>
           <button type="button" onClick={goToNext}
-            className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
+            className="w-7 h-7 rounded border border-border/30 hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
           <button type="button" onClick={goToToday}
-            className="ml-1 px-2.5 h-7 rounded border border-border hover:bg-white/5 text-text-2 text-xs transition-colors">
+            className="ml-1 px-2.5 h-7 rounded border border-border/30 hover:bg-white/5 text-text-2 text-xs transition-colors">
             {t('today')}
           </button>
         </div>
@@ -575,10 +575,10 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                 value={patientSearch}
                 onChange={e => setPatientSearch(e.target.value)}
                 placeholder={t('searchPatientPlaceholder')}
-                className="h-7 pl-7 pr-2 rounded border border-border bg-bg-2 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan w-44 transition-colors"
+                className="h-7 pl-7 pr-2 rounded border border-border/30 bg-bg-2 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan w-44 transition-colors"
               />
               {(searchingPt || patientResults.length > 0) && (
-                <div className="absolute top-full left-0 mt-1 w-64 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden">
+                <div className="absolute top-full left-0 mt-1 w-64 bg-bg-1 border border-border/30 rounded-md shadow-lg z-50 overflow-hidden">
                   {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">{t('searching')}</div>}
                   {patientResults.map(p => (
                     <button

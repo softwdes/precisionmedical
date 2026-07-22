@@ -181,7 +181,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           type="button"
           disabled={isPrevDisabled}
           onClick={prevWeek}
-          className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+          className="px-2 py-1 rounded-md border border-border/30 text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
         >
           <ArrowLeft className="w-3 h-3" /> {t('prevWeek')}
         </button>
@@ -192,7 +192,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           type="button"
           disabled={isNextDisabled}
           onClick={nextWeek}
-          className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+          className="px-2 py-1 rounded-md border border-border/30 text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
         >
           {t('nextWeek')} <ArrowRight className="w-3 h-3" />
         </button>
@@ -215,7 +215,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
                   : wd.isPast
                   ? 'bg-bg-2/30 border-border/40 text-text-muted opacity-40 cursor-not-allowed'
                   : hasSlots
-                  ? 'bg-bg-2 border-border text-text-2 hover:border-cyan/40 hover:bg-cyan/5 cursor-pointer'
+                  ? 'bg-bg-2 border-border/30 text-text-2 hover:border-cyan/40 hover:bg-cyan/5 cursor-pointer'
                   : 'bg-bg-2/30 border-border/40 text-text-muted cursor-not-allowed'
               }`}
             >
@@ -250,7 +250,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
                 className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors ${
                   value === s.iso
                     ? 'bg-cyan/15 border-cyan/40 text-cyan font-semibold'
-                    : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
+                    : 'bg-bg-2 border-border/30 text-text-2 hover:border-border-strong'
                 }`}
               >
                 {s.label}

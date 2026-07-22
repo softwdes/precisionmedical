@@ -36,7 +36,7 @@ const alignClass = (a: Align | undefined) => a === 'center' ? 'text-center' : a 
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
+    <div className="rounded-lg border border-border/30 bg-bg-1 overflow-hidden">
       {children}
     </div>
   );

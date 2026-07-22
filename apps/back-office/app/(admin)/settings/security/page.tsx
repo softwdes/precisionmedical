@@ -122,7 +122,7 @@ export default function SecuritySettingsPage() {
     <div className="p-6 max-w-2xl">
       <h1 className="text-2xl font-bold text-text-1">Seguridad</h1>
 
-      <div className="mt-6 rounded-lg border border-border bg-bg-1 p-5">
+      <div className="mt-6 rounded-lg border border-border/30 bg-bg-1 p-5">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
           <QrCode className="w-5 h-5 text-brand" />
@@ -173,13 +173,13 @@ export default function SecuritySettingsPage() {
               {qrUri && (
                 <div className="flex flex-col items-center gap-3 mb-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrUri} alt="QR MFA" className="w-40 h-40 rounded-md border border-border bg-white p-1" />
+                  <img src={qrUri} alt="QR MFA" className="w-40 h-40 rounded-md border border-border/30 bg-white p-1" />
                 </div>
               )}
               {secret && (
                 <div>
                   <p className="text-[10px] text-text-muted mb-1 uppercase tracking-wider">Clave manual</p>
-                  <code className="text-xs font-mono bg-bg-2 border border-border rounded px-2 py-1 tracking-widest text-brand break-all">
+                  <code className="text-xs font-mono bg-bg-2 border border-border/30 rounded px-2 py-1 tracking-widest text-brand break-all">
                     {secret}
                   </code>
                 </div>
@@ -201,7 +201,7 @@ export default function SecuritySettingsPage() {
                 required
                 autoFocus
                 autoComplete="one-time-code"
-                className="w-full max-w-[180px] rounded-md border border-border bg-bg-2 px-3 py-2 text-center text-xl font-mono tracking-[0.4em] text-text-1 outline-none focus:border-brand/50"
+                className="w-full max-w-[180px] rounded-md border border-border/30 bg-bg-2 px-3 py-2 text-center text-xl font-mono tracking-[0.4em] text-text-1 outline-none focus:border-brand/50"
               />
             </div>
 
@@ -222,7 +222,7 @@ export default function SecuritySettingsPage() {
               <button
                 type="button"
                 onClick={() => { setStep('idle'); setCode(''); setQrUri(''); setSecret(''); }}
-                className="px-4 py-2 rounded-md border border-border text-text-muted text-sm"
+                className="px-4 py-2 rounded-md border border-border/30 text-text-muted text-sm"
               >
                 Cancelar
               </button>

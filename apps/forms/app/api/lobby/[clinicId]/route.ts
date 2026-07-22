@@ -106,7 +106,7 @@ export async function GET(
     where: {
       clinicId,
       scheduledFor: { gte: start, lte: end },
-      status:       { in: ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'] },
+      status:       { in: ['PENDING', 'SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'] },
     },
     select: {
       id:           true,
@@ -173,8 +173,7 @@ export async function GET(
       } else {
         waiting.push(base);
       }
-    } else if (a.status === 'SCHEDULED' || a.status === 'CONFIRMED') {
-      // Citas del día aún no llegaron — aparecen en Esperando con hora programada
+    } else if (a.status === 'PENDING' || a.status === 'SCHEDULED' || a.status === 'CONFIRMED') {
       waiting.push(base);
     }
   }

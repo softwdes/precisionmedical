@@ -8,7 +8,7 @@ export function FloatingAI(): React.ReactElement {
   return (
     <button
       type="button"
-      className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-gradient-cifo shadow-glow flex items-center justify-center text-white hover:scale-110 transition-transform group"
+      className="hidden md:flex fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-gradient-cifo shadow-glow items-center justify-center text-white hover:scale-110 transition-transform group"
       aria-label="AI Assistant"
     >
       <Sparkles className="w-5 h-5" />

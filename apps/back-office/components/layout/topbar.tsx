@@ -169,15 +169,7 @@ export function Topbar({
   return (
     <>
       <header className="sticky top-0 z-20 flex h-12 items-center gap-2 sm:gap-4 border-b border-border bg-bg-0/80 backdrop-blur-md px-3 sm:px-6">
-        {/* Mobile menu */}
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="md:hidden w-9 h-9 rounded-md hover:bg-white/5 flex items-center justify-center text-text-2"
-          aria-label="Open menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+        {/* Mobile menu — moved to MobileBottomNav */}
 
         {/* Search */}
         <button

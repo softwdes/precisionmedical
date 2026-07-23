@@ -63,7 +63,7 @@ export function AdminShell({
             />
             <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8 animate-fade-in">{children}</main>
           </div>
-          <MobileBottomNav />
+          <MobileBottomNav onMenuClick={() => setMobileOpen(true)} />
           <FloatingAI />
         </div>
       </NavigationProgressProvider>

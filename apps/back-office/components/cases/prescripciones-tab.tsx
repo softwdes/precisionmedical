@@ -801,36 +801,57 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
           <EmptyState.Rich icon={Pill} title={t('emptyMeds')} />
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-bg-2/50">
-                {['Medicamento', 'Dosis', 'Indicaciones', 'Cantidad', 'Reposiciones', 'Fecha de inicio', 'Expiración', 'Renovación', 'Prescrito por', 'Estado', 'Creado'].map(h => (
-                  <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map(p => (
-                <tr key={p.id} className="border-b border-border/40 hover:bg-white/[0.02]">
-                  <td className="px-3 py-2.5 text-text-1 font-medium whitespace-nowrap">{p.medicationName}</td>
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.dose ?? '—'}</td>
-                  <td className="px-3 py-2.5 text-text-2 max-w-[200px] truncate" title={p.instructions ?? ''}>{p.instructions ?? '—'}</td>
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.quantity ?? '—'} {p.unit ?? ''}</td>
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.refills ?? '—'}</td>
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">{fmtDate(p.startDate)}</td>
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.autoExpire ? 'Auto' : '—'}</td>
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.autoRenew ? 'Auto' : '—'}</td>
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.prescribedBy ?? '—'}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={p.status} /></td>
-                  <td className="px-3 py-2.5 text-text-muted whitespace-nowrap font-mono text-xs">{fmtDate(p.createdAt)}</td>
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-border/40">
+            {paged.map(p => (
+              <div key={p.id} className="px-4 py-3 flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-semibold text-text-1 leading-snug">{p.medicationName}</span>
+                  <StatusPill status={p.status} />
+                </div>
+                {p.dose && <span className="text-[11px] text-text-2">{p.dose}{p.quantity ? ` · ${p.quantity} ${p.unit ?? ''}`.trim() : ''}</span>}
+                {p.instructions && <span className="text-[11px] text-text-muted italic line-clamp-2">{p.instructions}</span>}
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                  {p.prescribedBy && <span className="text-[10px] text-text-muted">Dr. {p.prescribedBy}</span>}
+                  {p.startDate && <span className="text-[10px] text-text-muted font-mono">{fmtDate(p.startDate)}</span>}
+                  {p.refills != null && <span className="text-[10px] text-text-muted">{p.refills} repos.</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-bg-2/50">
+                  {['Medicamento', 'Dosis', 'Indicaciones', 'Cantidad', 'Reposiciones', 'Fecha de inicio', 'Expiración', 'Renovación', 'Prescrito por', 'Estado', 'Creado'].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {paged.map(p => (
+                  <tr key={p.id} className="border-b border-border/40 hover:bg-white/[0.02]">
+                    <td className="px-3 py-2.5 text-text-1 font-medium whitespace-nowrap">{p.medicationName}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.dose ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-text-2 max-w-[200px] truncate" title={p.instructions ?? ''}>{p.instructions ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.quantity ?? '—'} {p.unit ?? ''}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.refills ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">{fmtDate(p.startDate)}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.autoExpire ? 'Auto' : '—'}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.autoRenew ? 'Auto' : '—'}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.prescribedBy ?? '—'}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={p.status} /></td>
+                    <td className="px-3 py-2.5 text-text-muted whitespace-nowrap font-mono text-xs">{fmtDate(p.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Pagination */}
@@ -964,33 +985,53 @@ function LabsSection({ caseId }: { caseId: string }) {
           <EmptyState.Rich icon={FlaskConical} title={t('emptyLabs')} />
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-bg-2/50">
-                {['Fecha de muestra', 'Tipo de facturación', 'Médico', 'Estado', 'Laboratorios', 'Diagnósticos'].map(h => (
-                  <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map(l => (
-                <tr key={l.id} className="border-b border-border/40 hover:bg-white/[0.02]">
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDate(l.sampleDate)}</span>
-                  </td>
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{l.billingType ?? '—'}</td>
-                  <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{l.providerName ?? '—'}</td>
-                  <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={l.status} /></td>
-                  <td className="px-3 py-2.5 text-text-2 max-w-[160px] truncate" title={l.labItems.join(', ')}>{l.labItems.join(', ') || '—'}</td>
-                  <td className="px-3 py-2.5 text-text-2 max-w-[160px] truncate" title={l.diagnoses.join(', ')}>{l.diagnoses.join(', ') || '—'}</td>
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-border/40">
+            {paged.map(l => (
+              <div key={l.id} className="px-4 py-3 flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1 text-[11px] font-mono text-text-2">
+                    <Calendar className="w-3 h-3" />{fmtDate(l.sampleDate)}
+                  </span>
+                  <StatusPill status={l.status} />
+                </div>
+                {l.providerName && <span className="text-[11px] text-text-2">{l.providerName}</span>}
+                {l.billingType && <span className="text-[10px] text-text-muted">{l.billingType}</span>}
+                {l.labItems.length > 0 && <span className="text-[11px] text-text-1 line-clamp-2">{l.labItems.join(', ')}</span>}
+                {l.diagnoses.length > 0 && <span className="text-[10px] text-text-muted line-clamp-2">{l.diagnoses.join(', ')}</span>}
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-bg-2/50">
+                  {['Fecha de muestra', 'Tipo de facturación', 'Médico', 'Estado', 'Laboratorios', 'Diagnósticos'].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {paged.map(l => (
+                  <tr key={l.id} className="border-b border-border/40 hover:bg-white/[0.02]">
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDate(l.sampleDate)}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{l.billingType ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{l.providerName ?? '—'}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={l.status} /></td>
+                    <td className="px-3 py-2.5 text-text-2 max-w-[160px] truncate" title={l.labItems.join(', ')}>{l.labItems.join(', ') || '—'}</td>
+                    <td className="px-3 py-2.5 text-text-2 max-w-[160px] truncate" title={l.diagnoses.join(', ')}>{l.diagnoses.join(', ') || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Pagination */}

@@ -2111,7 +2111,49 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                       )}
 
                       {!loadingCases[p.id] && (expandedCases[p.id] ?? []).length > 0 && (
-                        <div className="overflow-x-auto">
+                        <>
+                        {/* Mobile cards */}
+                        <div className="md:hidden divide-y divide-white/[0.06]">
+                          {(expandedCases[p.id] ?? []).map((c) => {
+                            const prog = calcIntakeProgress(c, p);
+                            const { badge: progBadge } = formatProgress(prog, t);
+                            return (
+                              <div key={c.id} className="py-2 flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <Car className="w-3 h-3 text-text-muted shrink-0" />
+                                    <span className="text-[11px] font-mono text-text-1">{c.caseCode}</span>
+                                    <TagPill label={c.status} colorClass={
+                                      c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
+                                      : c.status === 'ACTIVE'  ? 'bg-emerald/10 text-emerald border-emerald/20'
+                                      : 'bg-brand/10 text-brand border-brand/20'
+                                    } />
+                                  </div>
+                                  <div className="flex items-center gap-0.5">
+                                    <button onClick={() => router.push(`/front-office/${c.id}`)} className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')}><Eye className="w-3 h-3" /></button>
+                                    <button onClick={() => setCaseEditTarget(c)} className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipEditCase')}><Pencil className="w-3 h-3" /></button>
+                                    <button onClick={() => setCaseApptTarget(c)} className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors" title={t('tooltipViewAppts')}><CalendarDays className="w-3 h-3" /></button>
+                                    <button onClick={() => setCaseQrTarget(c)} className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipPatientQr')}><QrCode className="w-3 h-3" /></button>
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                                  {c.caseType && <span className="text-[10px] text-text-muted">{CASE_TYPE_LABEL[c.caseType] ?? c.caseType}</span>}
+                                  {c.accidentDate && <span className="text-[10px] text-text-muted tabular-nums">{fmtLocalDate(c.accidentDate)}</span>}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <TagPill label={progBadge} colorClass={prog.colorClass} />
+                                  {prog.pct < 100 && (
+                                    <div className="flex-1 h-1.5 rounded-full bg-bg-2 overflow-hidden">
+                                      <div className={`h-full rounded-full ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Desktop table */}
+                        <div className="hidden md:block overflow-x-auto">
                           <table className="w-full min-w-[640px] border-collapse">
                             <thead>
                               <tr className="border-b border-white/[0.06]">
@@ -2256,6 +2298,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                             </tbody>
                           </table>
                         </div>
+                        </>
                       )}
                     </div>
                   </td>

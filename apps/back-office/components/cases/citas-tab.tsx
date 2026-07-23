@@ -139,35 +139,67 @@ function TableView({ appointments, statusLabels, typeLabels, colHeaders, emptyTi
     return <EmptyState.Rich icon={Calendar} title={emptyTitle} subtitle={emptySubtitle} />;
   }
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border bg-bg-2/50">
-            {colHeaders.map((h, i) => (
-              <th
-                key={h}
-                className={`px-3 py-2.5 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap${i === 0 ? ' sticky left-0 z-10 bg-bg-2' : i === colHeaders.length - 1 ? ' sticky right-0 z-10 bg-bg-2' : ''}`}
-              >{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {appointments.map((a, i) => (
-            <tr key={a.id} className={`border-b border-border/40 hover:bg-white/[0.02] transition-colors ${i % 2 === 0 ? '' : 'bg-bg-2/20'}`}>
-              <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2.5 text-text-1 whitespace-nowrap font-mono text-xs">{fmtDate(a.scheduledFor)}</td>
-              <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">{fmtTime(a.scheduledFor)}</td>
-              <td className="px-3 py-2.5 text-text-1 whitespace-nowrap">{typeLabels[a.type] ?? a.type}</td>
-              <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{a.clinic?.name ?? '—'}</td>
-              <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">
-                {a.provider ? `Dr. ${a.provider.firstName} ${a.provider.lastName}` : '—'}
-              </td>
-              <td className="px-3 py-2.5 text-text-muted whitespace-nowrap">{a.durationMinutes} min</td>
-              <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2.5 whitespace-nowrap"><StatusPill status={a.status} labels={statusLabels} /></td>
+    <>
+      {/* Mobile cards */}
+      <div className="md:hidden rounded-lg border border-border divide-y divide-border/40">
+        {appointments.map(a => (
+          <div key={a.id} className="px-4 py-3 flex flex-col gap-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-xs text-text-1 font-semibold">
+                {fmtDate(a.scheduledFor)} · {fmtTime(a.scheduledFor)}
+              </span>
+              <StatusPill status={a.status} labels={statusLabels} />
+            </div>
+            <span className="text-sm text-text-1">{typeLabels[a.type] ?? a.type}</span>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+              {a.provider && (
+                <span className="text-[11px] text-text-2 flex items-center gap-1">
+                  <User className="w-3 h-3" />Dr. {a.provider.firstName} {a.provider.lastName}
+                </span>
+              )}
+              {a.clinic && (
+                <span className="text-[11px] text-text-2 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />{a.clinic.name}
+                </span>
+              )}
+              <span className="text-[11px] text-text-muted flex items-center gap-1">
+                <Clock className="w-3 h-3" />{a.durationMinutes} min
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-bg-2/50">
+              {colHeaders.map((h, i) => (
+                <th
+                  key={h}
+                  className={`px-3 py-2.5 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap${i === 0 ? ' sticky left-0 z-10 bg-bg-2' : i === colHeaders.length - 1 ? ' sticky right-0 z-10 bg-bg-2' : ''}`}
+                >{h}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {appointments.map((a, i) => (
+              <tr key={a.id} className={`border-b border-border/40 hover:bg-white/[0.02] transition-colors ${i % 2 === 0 ? '' : 'bg-bg-2/20'}`}>
+                <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2.5 text-text-1 whitespace-nowrap font-mono text-xs">{fmtDate(a.scheduledFor)}</td>
+                <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">{fmtTime(a.scheduledFor)}</td>
+                <td className="px-3 py-2.5 text-text-1 whitespace-nowrap">{typeLabels[a.type] ?? a.type}</td>
+                <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{a.clinic?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">
+                  {a.provider ? `Dr. ${a.provider.firstName} ${a.provider.lastName}` : '—'}
+                </td>
+                <td className="px-3 py-2.5 text-text-muted whitespace-nowrap">{a.durationMinutes} min</td>
+                <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2.5 whitespace-nowrap"><StatusPill status={a.status} labels={statusLabels} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

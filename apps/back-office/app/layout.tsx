@@ -45,6 +45,12 @@ const themeScript = `
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
+  // Capture beforeinstallprompt before React hydrates
+  window.__pwaPrompt = null;
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    window.__pwaPrompt = e;
+  });
 })();
 `;
 

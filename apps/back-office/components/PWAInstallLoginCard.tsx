@@ -11,9 +11,14 @@ type Listener = (e: BeforeInstallPromptEvent | null) => void;
 const listeners = new Set<Listener>();
 
 if (typeof window !== 'undefined') {
+  // Pick up event captured by the inline script before React hydrated
+  const early = (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt;
+  if (early) cachedEvent = early;
+
   window.addEventListener('beforeinstallprompt', (e: Event) => {
     e.preventDefault();
     cachedEvent = e as BeforeInstallPromptEvent;
+    (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt = cachedEvent;
     for (const l of listeners) l(cachedEvent);
   });
 }

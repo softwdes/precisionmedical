@@ -23,9 +23,14 @@ function notify() {
 }
 
 if (typeof window !== 'undefined') {
+  // Pick up event captured by the inline script before React hydrated
+  const early = (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt;
+  if (early) cachedEvent = early;
+
   window.addEventListener('beforeinstallprompt', (e: Event) => {
     e.preventDefault();
     cachedEvent = e as BeforeInstallPromptEvent;
+    (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt = cachedEvent;
     notify();
   });
   window.addEventListener('appinstalled', () => {

@@ -37,7 +37,10 @@ importers:
         version: link:../../packages/observability
       '@sentry/nextjs':
         specifier: ^8.55.0
-        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
+        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
+      '@serwist/next':
+        specifier: ^9.5.11
+        version: 9.5.11(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(webpack@5.107.1(postcss@8.5.14))
       lucide-react:
         specifier: ^0.452.0
         version: 0.452.0(react@19.2.5)
@@ -53,6 +56,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.5(react@19.2.5)
+      serwist:
+        specifier: ^9.5.11
+        version: 9.5.11(browserslist@4.28.2)(typescript@5.9.3)
     devDependencies:
       '@precision-medical/tailwind-config':
         specifier: workspace:*
@@ -104,7 +110,7 @@ importers:
         version: 4.5.1(react@19.2.5)
       '@sentry/nextjs':
         specifier: ^8.55.0
-        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
+        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
       '@serwist/next':
         specifier: ^9.5.11
         version: 9.5.11(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(webpack@5.107.1(postcss@8.5.14))
@@ -189,7 +195,10 @@ importers:
         version: link:../../packages/observability
       '@sentry/nextjs':
         specifier: ^8.55.0
-        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
+        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
+      '@serwist/next':
+        specifier: ^9.5.11
+        version: 9.5.11(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(webpack@5.107.1(postcss@8.5.14))
       lucide-react:
         specifier: ^0.452.0
         version: 0.452.0(react@19.2.5)
@@ -205,6 +214,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.5(react@19.2.5)
+      serwist:
+        specifier: ^9.5.11
+        version: 9.5.11(browserslist@4.28.2)(typescript@5.9.3)
     devDependencies:
       '@precision-medical/tailwind-config':
         specifier: workspace:*
@@ -250,7 +262,10 @@ importers:
         version: link:../../packages/observability
       '@sentry/nextjs':
         specifier: ^8.55.0
-        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
+        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
+      '@serwist/next':
+        specifier: ^9.5.11
+        version: 9.5.11(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(webpack@5.107.1(postcss@8.5.14))
       lucide-react:
         specifier: ^0.452.0
         version: 0.452.0(react@19.2.5)
@@ -266,6 +281,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.5(react@19.2.5)
+      serwist:
+        specifier: ^9.5.11
+        version: 9.5.11(browserslist@4.28.2)(typescript@5.9.3)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -308,7 +326,7 @@ importers:
         version: link:../../packages/observability
       '@sentry/nextjs':
         specifier: ^8.55.0
-        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
+        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
       '@supabase/ssr':
         specifier: ^0.5.1
         version: 0.5.2(@supabase/supabase-js@2.105.1)
@@ -378,7 +396,7 @@ importers:
         version: link:../../packages/ui
       '@sentry/nextjs':
         specifier: ^8.55.0
-        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
+        version: 8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))
       '@serwist/next':
         specifier: ^9.5.11
         version: 9.5.11(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(typescript@5.9.3)(webpack@5.107.1(postcss@8.5.14))
@@ -7430,7 +7448,7 @@ snapshots:
 
   '@sentry/core@8.55.2': {}
 
-  '@sentry/nextjs@8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))':
+  '@sentry/nextjs@8.55.2(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.1))(@opentelemetry/instrumentation@0.57.2(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.1))(next@15.5.15(@opentelemetry/api@1.9.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)(webpack@5.107.1(postcss@8.5.14))':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/semantic-conventions': 1.41.1

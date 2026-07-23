@@ -6,6 +6,7 @@ import { Topbar } from './topbar';
 import { FloatingAI } from './floating-ai';
 import { BootAnimation } from './boot-animation';
 import { NavigationProgressProvider } from './navigation-progress';
+import { MobileBottomNav } from './mobile-bottom-nav';
 
 // Wrapper client component que maneja el state del mobile drawer.
 // Desktop (md+): sidebar siempre visible · Mobile: drawer con hamburger.
@@ -60,8 +61,9 @@ export function AdminShell({
               userEmail={userEmail}
               onMenuClick={() => setMobileOpen(true)}
             />
-            <main className="flex-1 p-4 sm:p-6 lg:p-8 animate-fade-in">{children}</main>
+            <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8 animate-fade-in">{children}</main>
           </div>
+          <MobileBottomNav />
           <FloatingAI />
         </div>
       </NavigationProgressProvider>

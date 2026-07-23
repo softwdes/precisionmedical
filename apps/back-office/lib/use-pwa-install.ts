@@ -101,6 +101,9 @@ export function usePWAInstall(): UsePWAInstallState {
     setPlatform(detectPlatform());
     setStandalone(isStandalone());
     setDismissedRecently(wasDismissedRecently());
+    // Recover event captured by inline script before React hydrated
+    const early = (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt;
+    if (early && !cachedEvent) { cachedEvent = early; setEvent(early); } else { setEvent(cachedEvent); }
 
     const listener: Listener = (state) => {
       setEvent(state.event);

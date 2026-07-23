@@ -32,6 +32,9 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
   useEffect(() => {
     setMounted(true);
     setPlatform(detectPlatform());
+    // Recover event captured by inline script before React hydrated
+    const early = (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt;
+    if (early) { cachedEvent = early; setEvent(early); }
     const l: Listener = (e) => setEvent(e);
     listeners.add(l);
     return () => { listeners.delete(l); };

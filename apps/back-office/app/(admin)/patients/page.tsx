@@ -50,7 +50,7 @@ export default async function PatientsPage({
       }
     : statusFilter;
 
-  const [patients, total, inactiveTotal, specialties, clinics, providers] = await Promise.all([
+  const [patients, total, inactiveTotal, activeTotal, specialties, clinics, providers] = await Promise.all([
     db.patient.findMany({
       where,
       select: {
@@ -73,6 +73,7 @@ export default async function PatientsPage({
     }),
     db.patient.count({ where }),
     db.patient.count({ where: { status: 'INACTIVE' } }),
+    db.patient.count({ where: { NOT: { status: 'INACTIVE' as const } } }),
     db.specialtyCatalog.findMany({
       where: { isActive: true, deletedAt: null },
       orderBy: { sortOrder: 'asc' },
@@ -160,7 +161,7 @@ export default async function PatientsPage({
         subtitle={`${total} ${total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}${q ? ` · ${t('btnSearch').toLowerCase()}: "${q}"` : ''}`}
       />
 
-      <PatientsClient patients={rows} q={q} page={page} pageSize={PAGE_SIZE} totalPages={totalPages} total={total} inactiveTotal={inactiveTotal} specialties={specialties} clinics={clinics} providers={providers} inactiveOnly={inactiveOnly} />
+      <PatientsClient patients={rows} q={q} page={page} pageSize={PAGE_SIZE} totalPages={totalPages} total={total} inactiveTotal={inactiveTotal} activeTotal={activeTotal} specialties={specialties} clinics={clinics} providers={providers} inactiveOnly={inactiveOnly} />
     </div>
   );
 }

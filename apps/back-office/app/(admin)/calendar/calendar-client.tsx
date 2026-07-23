@@ -350,6 +350,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   // Mobile agenda has its own date (starts at TODAY, not Monday of week)
   const [mobileDate, setMobileDate] = useState<Date>(() => new Date());
+  type MobileView = 'day' | 'week' | 'month';
+  const [mobileView, setMobileView] = useState<MobileView>('day');
 
   const openSlot = (date: string, time: string) => {
     setSlotDate(date);
@@ -376,9 +378,21 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
       const lastWeek = grid[grid.length - 1];
       to = new Date(lastWeek[lastWeek.length - 1]); to.setHours(23, 59, 59, 999);
     }
-    // Expand range to cover mobileDate if it's outside the desktop range
-    const mobStart = new Date(mobileDate); mobStart.setHours(0, 0, 0, 0);
-    const mobEnd   = new Date(mobileDate); mobEnd.setHours(23, 59, 59, 999);
+    // Expand range to cover full mobile view (day / week / month)
+    let mobStart: Date, mobEnd: Date;
+    if (mobileView === 'week') {
+      const wMon = getMondayOf(mobileDate);
+      mobStart = new Date(wMon); mobStart.setHours(0, 0, 0, 0);
+      mobEnd   = addDays(wMon, 6); mobEnd.setHours(23, 59, 59, 999);
+    } else if (mobileView === 'month') {
+      const grid = getMonthGrid(mobileDate);
+      mobStart = new Date(grid[0][0]); mobStart.setHours(0, 0, 0, 0);
+      const lastW = grid[grid.length - 1];
+      mobEnd = new Date(lastW[lastW.length - 1]); mobEnd.setHours(23, 59, 59, 999);
+    } else {
+      mobStart = new Date(mobileDate); mobStart.setHours(0, 0, 0, 0);
+      mobEnd   = new Date(mobileDate); mobEnd.setHours(23, 59, 59, 999);
+    }
     if (mobStart < from) from = mobStart;
     if (mobEnd   > to)   to   = mobEnd;
 
@@ -403,7 +417,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
     // Cleanup: cancela la petición en vuelo si el efecto se re-dispara
     return () => controller.abort();
-  }, [weekStart, calView, mobileDate, filterClinic, filterProvider, filterType, refreshKey]);
+  }, [weekStart, calView, mobileDate, mobileView, filterClinic, filterProvider, filterType, refreshKey]); // eslint-disable-line
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
   const goToPrev = () => {
@@ -422,9 +436,17 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     else if (calView === 'week')  setWeekStart(getMondayOf(now));
     else                          setWeekStart(getFirstDayOfMonth(now));
   };
-  // Mobile agenda always navigates 1 day at a time (independent of weekStart)
-  const mobileGoToPrev = () => setMobileDate(d => addDays(d, -1));
-  const mobileGoToNext = () => setMobileDate(d => addDays(d, 1));
+  // Mobile nav — step depends on mobileView
+  const mobileGoToPrev = () => {
+    if (mobileView === 'week')       setMobileDate(d => addDays(d, -7));
+    else if (mobileView === 'month') setMobileDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+    else                             setMobileDate(d => addDays(d, -1));
+  };
+  const mobileGoToNext = () => {
+    if (mobileView === 'week')       setMobileDate(d => addDays(d, 7));
+    else if (mobileView === 'month') setMobileDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+    else                             setMobileDate(d => addDays(d, 1));
+  };
   const mobileGoToToday = () => setMobileDate(new Date());
   /** Cambia de vista ajustando weekStart al ancla correcta para esa vista. */
   const switchView = (v: CalendarView) => {
@@ -494,8 +516,12 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     calView === 'day'
       ? `${weekStart.getDate()} ${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`
       : `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
-  // Mobile agenda label — shows the mobileDate day
-  const mobileDateLabel = `${mobileDate.getDate()} ${MONTHS[mobileDate.getMonth()]} ${mobileDate.getFullYear()}`;
+  // Mobile toolbar label — changes by view
+  const mobileDateLabel = mobileView === 'month'
+    ? `${MONTHS[mobileDate.getMonth()]} ${mobileDate.getFullYear()}`
+    : mobileView === 'week'
+      ? (() => { const mon = getMondayOf(mobileDate); const sun = addDays(mon, 6); return `${mon.getDate()}–${sun.getDate()} ${MONTHS[sun.getMonth()]} ${sun.getFullYear()}`; })()
+      : `${mobileDate.getDate()} ${MONTHS[mobileDate.getMonth()]} ${mobileDate.getFullYear()}`;
   const weekLabel =
     calView === 'day'
       ? `${WEEKDAYS_ALL[(weekStart.getDay() + 6) % 7]} · ${t('viewDailySuffix')}`
@@ -511,13 +537,12 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
       />
 
       {/* ─── Mobile toolbar (md:hidden) ──────────────────────── */}
-      <div className="md:hidden px-4 pb-2 flex items-center gap-2">
-        {/* Nav — always 1-day step on mobile */}
+      <div className="md:hidden px-4 pb-1 flex items-center gap-2">
         <button type="button" onClick={mobileGoToPrev}
           className="w-8 h-8 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="flex-1 text-text-1 font-bold text-sm text-center">{mobileDateLabel}</span>
+        <span className="flex-1 text-text-1 font-bold text-sm text-center truncate">{mobileDateLabel}</span>
         <button type="button" onClick={mobileGoToNext}
           className="w-8 h-8 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors">
           <ChevronRight className="w-4 h-4" />
@@ -526,16 +551,35 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           className="px-2.5 h-8 rounded border border-border hover:bg-white/5 text-text-2 text-xs transition-colors">
           {t('today')}
         </button>
-        {/* Filters toggle */}
         <button type="button" onClick={() => setMobileFiltersOpen(v => !v)}
           className={`px-2.5 h-8 rounded border text-xs transition-colors ${mobileFiltersOpen ? 'border-cyan/40 bg-cyan/10 text-cyan' : 'border-border text-text-2 hover:bg-white/5'}`}>
           {t('agendaFilters')}
         </button>
-        {/* New appt */}
         <button type="button"
           onClick={() => { setSlotDate(''); setSlotTime(''); setNewApptOpen(true); }}
           className="w-8 h-8 rounded border border-cyan/40 bg-cyan/10 text-cyan flex items-center justify-center hover:bg-cyan/20 transition-colors">
           <Plus className="w-4 h-4" />
+        </button>
+      </div>
+      {/* View switcher row — Día / Semana / Mes */}
+      <div className="md:hidden px-4 pb-2 flex items-center gap-1">
+        <button type="button" onClick={() => setMobileView('day')}
+          className={`flex-1 h-7 rounded text-[11px] font-semibold transition-all border ${
+            mobileView === 'day' ? 'bg-cyan/15 border-cyan/40 text-cyan' : 'border-border/60 text-text-muted hover:text-text-2 hover:border-border'
+          }`}>
+          {t('viewDay')}
+        </button>
+        <button type="button" onClick={() => setMobileView(v => v === 'week' ? 'day' : 'week')}
+          className={`flex-1 h-7 rounded text-[11px] font-semibold transition-all border ${
+            mobileView === 'week' ? 'bg-cyan/15 border-cyan/40 text-cyan' : 'border-border/60 text-text-muted hover:text-text-2 hover:border-border'
+          }`}>
+          {t('viewWeek')}
+        </button>
+        <button type="button" onClick={() => setMobileView(v => v === 'month' ? 'day' : 'month')}
+          className={`flex-1 h-7 rounded text-[11px] font-semibold transition-all border ${
+            mobileView === 'month' ? 'bg-cyan/15 border-cyan/40 text-cyan' : 'border-border/60 text-text-muted hover:text-text-2 hover:border-border'
+          }`}>
+          {t('viewMonth')}
         </button>
       </div>
 
@@ -702,23 +746,100 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         </div>
       </div>
 
-      {/* ─── Mobile: Agenda (always shown on mobile) ─────────── */}
+      {/* ─── Mobile content ──────────────────────────────────── */}
       <div className="md:hidden flex-1 overflow-auto px-4 pb-6 min-h-0">
+        {/* WEEK STRIP */}
+        {mobileView === 'week' && (() => {
+          const mon = getMondayOf(mobileDate);
+          const weekDays = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
+          const todayStr = localDateStr(new Date());
+          const dayNames = ['L','M','X','J','V','S','D'];
+          return (
+            <div className="grid grid-cols-7 gap-1 mb-3">
+              {weekDays.map((d, i) => {
+                const dKey = denverDateStr(d);
+                const isSelected = localDateStr(d) === localDateStr(mobileDate);
+                const isToday = localDateStr(d) === todayStr;
+                const hasAppts = visibleAppointments.some(a => denverDateStr(new Date(a.scheduledFor)) === dKey);
+                return (
+                  <button key={i} type="button"
+                    onClick={() => setMobileDate(new Date(d))}
+                    className={`flex flex-col items-center py-2 rounded-lg transition-all border ${
+                      isSelected ? 'bg-cyan/20 border-cyan/40' : 'border-transparent hover:bg-white/5'
+                    }`}>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isToday ? 'text-cyan' : 'text-text-muted'}`}>{dayNames[i]}</span>
+                    <span className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-cyan' : isToday ? 'text-cyan' : 'text-text-1'}`}>{d.getDate()}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full mt-1 ${hasAppts ? 'bg-cyan' : 'bg-transparent'}`} />
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
+
+        {/* MONTH GRID */}
+        {mobileView === 'month' && (() => {
+          const grid = getMonthGrid(mobileDate);
+          const todayStr = localDateStr(new Date());
+          const dayNames = ['L','M','X','J','V','S','D'];
+          return (
+            <div className="mb-3">
+              <div className="grid grid-cols-7 gap-0.5 mb-1">
+                {dayNames.map(d => (
+                  <div key={d} className="text-center text-[9px] font-bold uppercase tracking-wider text-text-muted py-1">{d}</div>
+                ))}
+              </div>
+              {grid.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7 gap-0.5 mb-0.5">
+                  {week.map((d, di) => {
+                    const dKey = denverDateStr(d);
+                    const isCurrentMonth = d.getMonth() === mobileDate.getMonth();
+                    const isSelected = localDateStr(d) === localDateStr(mobileDate);
+                    const isToday = localDateStr(d) === todayStr;
+                    const count = visibleAppointments.filter(a => denverDateStr(new Date(a.scheduledFor)) === dKey).length;
+                    return (
+                      <button key={di} type="button"
+                        onClick={() => { setMobileDate(new Date(d)); setMobileView('day'); }}
+                        className={`flex flex-col items-center py-1.5 rounded-md transition-all ${
+                          isSelected ? 'bg-cyan/20 border border-cyan/40' : 'border border-transparent hover:bg-white/5'
+                        } ${!isCurrentMonth ? 'opacity-30' : ''}`}>
+                        <span className={`text-xs font-semibold ${isSelected ? 'text-cyan' : isToday ? 'text-cyan' : 'text-text-1'}`}>{d.getDate()}</span>
+                        {count > 0 ? (
+                          <span className="text-[8px] font-bold text-cyan leading-none mt-0.5">{count}</span>
+                        ) : (
+                          <span className="h-3 mt-0.5" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* DAY AGENDA — shown always (as detail in week/month, or full in day view) */}
         {(() => {
           const dayKey = denverDateStr(mobileDate);
           const dayAppts = visibleAppointments
             .filter(a => denverDateStr(new Date(a.scheduledFor)) === dayKey)
             .sort((a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime());
+
           if (!loading && dayAppts.length === 0) {
             return (
-              <div className="mt-12 text-center">
-                <CalendarDays className="w-10 h-10 text-text-muted mx-auto mb-3" />
+              <div className={`text-center ${mobileView === 'day' ? 'mt-12' : 'mt-4'}`}>
+                <CalendarDays className="w-8 h-8 text-text-muted mx-auto mb-2" />
                 <p className="text-text-2 text-sm">{t('agendaNoAppts')}</p>
               </div>
             );
           }
           return (
             <div className="flex flex-col gap-2">
+              {mobileView !== 'day' && (
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">
+                  {mobileDate.getDate()} {MONTHS[mobileDate.getMonth()]}
+                </div>
+              )}
               {dayAppts.map(appt => {
                 const s = getEventStyle(appt);
                 const time = new Date(appt.scheduledFor).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver' });

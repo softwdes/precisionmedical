@@ -835,6 +835,7 @@ interface Props {
   providers: Array<{ id: string; firstName: string; lastName: string; specialty: string }>;
   inactiveOnly?: boolean;
   inactiveTotal?: number;
+  activeTotal?: number;
 }
 
 
@@ -1605,7 +1606,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   );
 }
 
-export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, total, inactiveTotal = 0, specialties, clinics, providers, inactiveOnly = false }: Props) {
+export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false }: Props) {
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
 
@@ -1850,13 +1851,12 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           <button
             type="button"
             onClick={() => setQuickRegister(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors whitespace-nowrap"
+            className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">{t('btnQuickRegister')}</span>
-            <span className="md:hidden">{t('btnQuickRegisterShort')}</span>
+            {t('btnQuickRegister')}
           </button>
-          <PatientCreateDialog />
+          <div className="hidden md:block"><PatientCreateDialog /></div>
           <button
             type="button"
             onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
@@ -1884,7 +1884,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           <span className={`ml-1 text-[10px] rounded-full px-1.5 py-0.5 tabular-nums font-semibold ${
             !inactiveOnly ? 'bg-brand/10 text-brand' : 'bg-bg-2 text-text-muted'
           }`}>
-            {!inactiveOnly ? localTotal : total}
+            {!inactiveOnly ? localTotal : (activeTotal ?? total)}
           </span>
         </a>
         <a

@@ -2418,6 +2418,9 @@
       "overflowMore": "más",
       "emptyTitle": "No hay citas este período",
       "emptySubtitle": "Agenda una cita desde el Front Office",
+      "viewAgenda": "Agenda",
+      "agendaNoAppts": "Sin citas hoy",
+      "agendaFilters": "Filtros",
       "searchPatientPlaceholder": "Buscar paciente...",
       "searching": "Buscando...",
       "noResults": "Sin resultados",
@@ -3074,7 +3077,7 @@
       "btnInactive": "Archivados",
       "btnActive": "Activos",
       "btnCreatePatientCase": "Crear Paciente / Crear Caso",
-      "btnCreateShort": "Crear",
+      "btnCreateShort": "Paciente + Caso",
       "btnQuickRegisterShort": "Rápido"
     },
     "edson": {

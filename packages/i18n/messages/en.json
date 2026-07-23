@@ -2418,6 +2418,9 @@
       "overflowMore": "more",
       "emptyTitle": "No appointments this period",
       "emptySubtitle": "Schedule an appointment from Front Office",
+      "viewAgenda": "Agenda",
+      "agendaNoAppts": "No appointments today",
+      "agendaFilters": "Filters",
       "searchPatientPlaceholder": "Search patient...",
       "searching": "Searching...",
       "noResults": "No results",
@@ -3074,7 +3077,7 @@
       "btnInactive": "Archived",
       "btnActive": "Active",
       "btnCreatePatientCase": "Create Patient / Create Case",
-      "btnCreateShort": "Create",
+      "btnCreateShort": "Patient + Case",
       "btnQuickRegisterShort": "Quick"
     },
     "edson": {

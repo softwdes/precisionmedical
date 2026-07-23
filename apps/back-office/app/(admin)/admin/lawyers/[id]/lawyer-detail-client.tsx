@@ -622,7 +622,7 @@ function CasesTab({ firmId, members }: { firmId: string; members: Member[] }) {
     <div className="space-y-4">
       {/* KPIs 2×2 + Sparkline — estándar aprobado */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <KpiCard label="Total casos" value={stats?.total ?? '—'} compact icon={FileText} iconBg="bg-brand/10" iconColor="text-brand" />
           <KpiCard label="Abogados" value={attorneys.length} compact icon={Users} iconBg="bg-violet/10" iconColor="text-violet" />
           <KpiCard label="Tasa de firma" value={stats ? `${stats.signatureRate}%` : '—'} compact icon={CheckCircle2} iconBg="bg-emerald/10" iconColor="text-emerald" />
@@ -1207,9 +1207,9 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 function InfoRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
-    <div className="grid grid-cols-3 gap-3 items-center py-2 border-b border-border/20 last:border-0">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-3 items-start sm:items-center py-2 border-b border-border/20 last:border-0">
       <div className="text-text-muted text-xs uppercase tracking-wider font-semibold">{label}</div>
-      <div className={`col-span-2 text-sm text-white ${mono ? 'font-mono' : ''}`}>{value}</div>
+      <div className={`sm:col-span-2 text-sm text-white ${mono ? 'font-mono' : ''}`}>{value}</div>
     </div>
   );
 }

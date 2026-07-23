@@ -322,7 +322,7 @@ export function AdmissionClient() {
         title={t('pageTitle')}
         subtitle={displayDate || t('pageSubtitle')}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {/* Date navigator */}
             <div className="flex items-center gap-1 rounded-md border border-border bg-bg-2/40 h-8 px-1">
               <button

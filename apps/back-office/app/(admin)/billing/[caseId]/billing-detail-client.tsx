@@ -239,7 +239,7 @@ export function BillingDetailClient({ caseId }: { caseId: string }) {
         title={patientName}
         subtitle={d.caseCode}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => router.back()}

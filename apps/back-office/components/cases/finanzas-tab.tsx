@@ -643,7 +643,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registrar pago</div>
 
               {/* Fila selects: Source | Método | Tipo  (para Seguro: Source | Método | Carrier) */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <SelectUp
                   value={paySource}
                   onChange={v => {

@@ -825,8 +825,8 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-bg-2/50">
-                  {['Medicamento', 'Dosis', 'Indicaciones', 'Cantidad', 'Reposiciones', 'Fecha de inicio', 'Expiración', 'Renovación', 'Prescrito por', 'Estado', 'Creado'].map(h => (
-                    <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
+                  {['Medicamento', 'Dosis', 'Indicaciones', 'Cantidad', 'Reposiciones', 'Fecha de inicio', 'Expiración', 'Renovación', 'Prescrito por', 'Estado', 'Creado'].map((h, i) => (
+                    <th key={h} className={`px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap${i === 0 ? ' sticky left-0 z-10 bg-bg-2' : ''}`}>
                       {h}
                     </th>
                   ))}
@@ -835,7 +835,7 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
               <tbody>
                 {paged.map(p => (
                   <tr key={p.id} className="border-b border-border/40 hover:bg-white/[0.02]">
-                    <td className="px-3 py-2.5 text-text-1 font-medium whitespace-nowrap">{p.medicationName}</td>
+                    <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2.5 text-text-1 font-medium whitespace-nowrap">{p.medicationName}</td>
                     <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.dose ?? '—'}</td>
                     <td className="px-3 py-2.5 text-text-2 max-w-[200px] truncate" title={p.instructions ?? ''}>{p.instructions ?? '—'}</td>
                     <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.quantity ?? '—'} {p.unit ?? ''}</td>
@@ -1008,8 +1008,8 @@ function LabsSection({ caseId }: { caseId: string }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-bg-2/50">
-                  {['Fecha de muestra', 'Tipo de facturación', 'Médico', 'Estado', 'Laboratorios', 'Diagnósticos'].map(h => (
-                    <th key={h} className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">
+                  {['Fecha de muestra', 'Tipo de facturación', 'Médico', 'Estado', 'Laboratorios', 'Diagnósticos'].map((h, i) => (
+                    <th key={h} className={`px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap${i === 0 ? ' sticky left-0 z-10 bg-bg-2' : ''}`}>
                       {h}
                     </th>
                   ))}
@@ -1018,7 +1018,7 @@ function LabsSection({ caseId }: { caseId: string }) {
               <tbody>
                 {paged.map(l => (
                   <tr key={l.id} className="border-b border-border/40 hover:bg-white/[0.02]">
-                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">
+                    <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">
                       <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDate(l.sampleDate)}</span>
                     </td>
                     <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{l.billingType ?? '—'}</td>

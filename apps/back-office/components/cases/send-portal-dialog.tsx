@@ -154,8 +154,8 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
             </div>
           </div>
 
-          <DialogFooter>
-            <Button onClick={() => handleCloseSuccess(false)}>Close</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button className="w-full sm:w-auto" onClick={() => handleCloseSuccess(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -293,9 +293,9 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>Cancel</Button>
-          <Button onClick={handleSend} disabled={sending || (!canSendSms && !canSendEmail)}>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)} disabled={sending}>Cancel</Button>
+          <Button className="w-full sm:w-auto" onClick={handleSend} disabled={sending || (!canSendSms && !canSendEmail)}>
             {sending ? 'Sending...' : <><Send className="w-3.5 h-3.5 mr-1" /> Send portal now</>}
           </Button>
         </DialogFooter>

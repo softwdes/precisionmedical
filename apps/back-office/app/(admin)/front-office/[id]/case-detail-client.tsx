@@ -1023,9 +1023,9 @@ function InfoCard({ title, icon: Icon, children, onEdit }: { title: string; icon
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-3 gap-3 items-start py-1.5 border-b border-border/20 last:border-0">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-3 items-start py-1.5 border-b border-border/20 last:border-0">
       <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{label}</div>
-      <div className="col-span-2 text-sm text-text-1">{value}</div>
+      <div className="sm:col-span-2 text-sm text-text-1">{value}</div>
     </div>
   );
 }

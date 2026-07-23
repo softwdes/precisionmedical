@@ -757,6 +757,7 @@ model Patient {
   // Phoenix 2026-06-06: un paciente puede tener varios cases (varios MVAs)
   cases              Case[]          @relation("PatientCases")
   documents          PatientDocument[]
+  callLogs           CallLog[]
 
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
@@ -2153,6 +2154,9 @@ model Case {
   consentsData        Json?             // { hipaa, assignedParties, assignedPartiesOpts, treatment, financial, medicalHistory }
   consentSignaturePng String?           @db.Text  // base64 PNG de la firma digital
 
+  // Twilio: duración de la llamada que originó el caso
+  callDurationSeconds Int?
+
   // Appointments, notas y firmas del lien
   appointments      Appointment[]       @relation("CaseAppointments")
   notes             CaseNote[]
@@ -2161,6 +2165,7 @@ model Case {
   documents         PatientDocument[]
   consents          CaseConsent[]
   authorizedDependents AuthorizedDependent[]
+  callLogs          CallLog[]
 
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -2557,6 +2562,52 @@ model CaseConsent {
   @@unique([caseId, code])
   @@index([caseId])
   @@map("case_consents")
+}
+
+// ─── Twilio: Call Log ────────────────────────────────────────────────────────
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallOutcome {
+  ANSWERED
+  NO_ANSWER
+  BUSY
+  FAILED
+  IN_PROGRESS
+}
+
+model CallLog {
+  id              String        @id @default(cuid())
+  twilioCallSid   String?       @unique
+
+  direction       CallDirection
+  fromNumber      String
+  toNumber        String
+  outcome         CallOutcome   @default(IN_PROGRESS)
+  durationSeconds Int?
+
+  patientId       String?
+  patient         Patient?      @relation(fields: [patientId], references: [id])
+  caseId          String?
+  case            Case?         @relation(fields: [caseId], references: [id])
+  agentUserId     String?       // userId del agente que hizo/tomó la llamada
+  agentName       String?       // nombre denormalizado para reportes rápidos
+
+  recordingUrl    String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([patientId])
+  @@index([caseId])
+  @@index([agentUserId])
+  @@index([direction])
+  @@index([outcome])
+  @@index([createdAt])
+  @@map("call_logs")
 }
 
 // ─── Authorized Dependents ───────────────────────────────────────────────────

@@ -47,8 +47,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactElement {
     { key: 'users',     href: '/dashboard/users',     icon: Users,     label: t('nav.users'),     module: 'usuarios'  },
     { key: 'employees', href: '/dashboard/employees', icon: UserCheck, label: t('nav.employees'), module: 'empleados' },
     { key: 'finanzas',  href: '/dashboard/finanzas',  icon: Banknote,  label: t('nav.finance'),   module: 'finanzas'  },
-    // Visible pero bloqueado hasta que se implemente el módulo. Se quita el `disabled` cuando esté listo.
-    { key: 'metricas',  href: '/dashboard/metricas',  icon: BarChart3, label: t('nav.metrics'),   module: 'metricas', disabled: true },
+    { key: 'metricas',  href: '/dashboard/metricas',  icon: BarChart3, label: t('nav.metrics'),   module: 'metricas' },
   ];
 
   const NAV_INTELLIGENCE: NavItem[] = [

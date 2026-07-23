@@ -1,20 +1,23 @@
 import { Suspense } from 'react';
 import * as React from 'react';
+import { db } from '@precision-medical/database';
 import { api } from '@/lib/trpc/server';
 import { EmployeesClient } from '../employees/employees-client';
 import { LawyersClient } from '../lawyers/lawyers-client';
 import { ProvidersClient } from '../providers/providers-client';
 import { AppointmentsClient } from '../appointments/appointments-client';
+import { ComunicacionesClient } from './comunicaciones-client';
 import { ModuleTabs } from '@/components/module-tabs';
 
 export const metadata = { title: 'Métricas' };
 
 const TABS = [
-  { key: 'clinicas',    label: 'Clínicas',    href: '/dashboard/metricas' },
-  { key: 'empleados',   label: 'Empleados',   href: '/dashboard/metricas?tab=empleados' },
-  { key: 'abogados',    label: 'Abogados',    href: '/dashboard/metricas?tab=abogados' },
-  { key: 'proveedores', label: 'Proveedores', href: '/dashboard/metricas?tab=proveedores' },
-  { key: 'citas',       label: 'Citas',       href: '/dashboard/metricas?tab=citas' },
+  { key: 'comunicaciones', label: 'Comunicaciones', href: '/dashboard/metricas?tab=comunicaciones' },
+  { key: 'clinicas',       label: 'Clínicas',       href: '/dashboard/metricas' },
+  { key: 'empleados',      label: 'Empleados',      href: '/dashboard/metricas?tab=empleados' },
+  { key: 'abogados',       label: 'Abogados',       href: '/dashboard/metricas?tab=abogados' },
+  { key: 'proveedores',    label: 'Proveedores',    href: '/dashboard/metricas?tab=proveedores' },
+  { key: 'citas',          label: 'Citas',          href: '/dashboard/metricas?tab=citas' },
 ];
 
 export default async function MetricasPage({
@@ -22,13 +25,54 @@ export default async function MetricasPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<React.ReactElement> {
-  const params = await searchParams;
-  const tab = (params.tab as string) ?? 'clinicas';
-  const activeTab = TABS.some(t => t.key === tab) ? tab : 'clinicas';
+  const params    = await searchParams;
+  const tab       = (params.tab as string) ?? 'comunicaciones';
+  const activeTab = TABS.some(t => t.key === tab) ? tab : 'comunicaciones';
 
   let content: React.ReactElement;
 
-  if (activeTab === 'empleados') {
+  if (activeTab === 'comunicaciones') {
+    const calls = await db.callLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      include: {
+        patient: { select: { firstName: true, lastName: true } },
+        case:    { select: { caseCode: true } },
+      },
+    });
+
+    // Compute KPIs
+    const answered  = calls.filter(c => c.outcome === 'ANSWERED').length;
+    const noAnswer  = calls.filter(c => c.outcome === 'NO_ANSWER' || c.outcome === 'BUSY').length;
+    const outbound  = calls.filter(c => c.direction === 'OUTBOUND').length;
+    const inbound   = calls.filter(c => c.direction === 'INBOUND').length;
+    const durations = calls.filter(c => c.durationSeconds).map(c => c.durationSeconds!);
+    const avgDurationSec = durations.length
+      ? durations.reduce((a, b) => a + b, 0) / durations.length
+      : 0;
+
+    const rows = calls.map(c => ({
+      id:              c.id,
+      direction:       c.direction as 'INBOUND' | 'OUTBOUND',
+      outcome:         c.outcome as 'ANSWERED' | 'NO_ANSWER' | 'BUSY' | 'FAILED' | 'IN_PROGRESS',
+      fromNumber:      c.fromNumber,
+      toNumber:        c.toNumber,
+      durationSeconds: c.durationSeconds,
+      agentName:       c.agentName,
+      patientName:     c.patient
+        ? `${c.patient.firstName} ${c.patient.lastName}`
+        : null,
+      caseCode: c.case?.caseCode ?? null,
+      createdAt: c.createdAt.toISOString(),
+    }));
+
+    content = (
+      <ComunicacionesClient
+        calls={rows}
+        kpis={{ totalCalls: calls.length, answered, noAnswer, outbound, inbound, avgDurationSec }}
+      />
+    );
+  } else if (activeTab === 'empleados') {
     const [initial, departments] = await Promise.all([
       api.employees.list({ page: 1, pageSize: 25 }),
       api.departments.list(),

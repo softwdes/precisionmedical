@@ -23,7 +23,7 @@ function NeuralBackground(): React.ReactElement {
     const cvs = el; const c = ctx;
     const resize = (): void => { cvs.width = window.innerWidth; cvs.height = window.innerHeight; };
     resize(); window.addEventListener('resize', resize);
-    const nodes: NNode[] = Array.from({ length: 55 }, () => ({
+    const nodes: NNode[] = Array.from({ length: 70 }, () => ({
       x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight,
       vx: (Math.random()-0.5)*0.32, vy: (Math.random()-0.5)*0.32, r: Math.random()*1.8+0.8,
     }));
@@ -33,8 +33,8 @@ function NeuralBackground(): React.ReactElement {
       for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) {
         const ni=nodes[i]; const nj=nodes[j]; if (!ni||!nj) continue;
         const dist=Math.sqrt((ni.x-nj.x)**2+(ni.y-nj.y)**2);
-        if (dist<160) {
-          const isCyan=(i+j)%4===0; const alpha=(1-dist/160)*(isCyan?0.14:0.16);
+        if (dist<185) {
+          const isCyan=(i+j)%4===0; const alpha=(1-dist/185)*(isCyan?0.20:0.22);
           c.beginPath(); c.moveTo(ni.x,ni.y); c.lineTo(nj.x,nj.y);
           c.strokeStyle=isCyan?`rgba(56,189,248,${alpha})`:`rgba(37,99,235,${alpha})`;
           c.lineWidth=0.6; c.stroke();
@@ -42,9 +42,9 @@ function NeuralBackground(): React.ReactElement {
       }
       for (const n of nodes) {
         const g=c.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*5);
-        g.addColorStop(0,'rgba(30,64,175,0.13)'); g.addColorStop(1,'rgba(56,189,248,0)');
+        g.addColorStop(0,'rgba(30,64,175,0.18)'); g.addColorStop(1,'rgba(56,189,248,0)');
         c.beginPath(); c.arc(n.x,n.y,n.r*5,0,Math.PI*2); c.fillStyle=g; c.fill();
-        c.beginPath(); c.arc(n.x,n.y,n.r,0,Math.PI*2); c.fillStyle='rgba(56,189,248,0.60)'; c.fill();
+        c.beginPath(); c.arc(n.x,n.y,n.r,0,Math.PI*2); c.fillStyle='rgba(56,189,248,0.75)'; c.fill();
         n.x+=n.vx; n.y+=n.vy;
         if (n.x<0||n.x>cvs.width) n.vx*=-1; if (n.y<0||n.y>cvs.height) n.vy*=-1;
       }

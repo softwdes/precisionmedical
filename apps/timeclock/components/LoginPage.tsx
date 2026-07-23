@@ -30,7 +30,7 @@ function NeuralBackground() {
     resize();
     window.addEventListener('resize', resize);
 
-    const COUNT = 55;
+    const COUNT = 70;
     const nodes: NNode[] = Array.from({ length: COUNT }, () => ({
       x:  Math.random() * window.innerWidth,
       y:  Math.random() * window.innerHeight,
@@ -39,7 +39,7 @@ function NeuralBackground() {
       r:  Math.random() * 1.8 + 0.8,
     }));
 
-    const MAX_DIST = 160;
+    const MAX_DIST = 185;
     let animId = 0;
 
     function frame() {
@@ -54,7 +54,7 @@ function NeuralBackground() {
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < MAX_DIST) {
             const isCyan = (i + j) % 4 === 0;
-            const alpha  = (1 - dist / MAX_DIST) * (isCyan ? 0.14 : 0.16);
+            const alpha  = (1 - dist / MAX_DIST) * (isCyan ? 0.20 : 0.22);
             c.beginPath();
             c.moveTo(ni.x, ni.y);
             c.lineTo(nj.x, nj.y);

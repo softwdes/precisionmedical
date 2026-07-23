@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "back-office",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@precision-medical/back-office", "dev"],
+      "port": 3002
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@precision-medical/web", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "forms",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@precision-medical/forms", "dev"],
+      "port": 3004
+    }
+  ]
+}

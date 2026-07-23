@@ -34,17 +34,17 @@ function NeuralBackground(): React.ReactElement {
         const ni=nodes[i]; const nj=nodes[j]; if (!ni||!nj) continue;
         const dist=Math.sqrt((ni.x-nj.x)**2+(ni.y-nj.y)**2);
         if (dist<160) {
-          const isGold=(i+j)%4===0; const alpha=(1-dist/160)*(isGold?0.14:0.16);
+          const isCyan=(i+j)%4===0; const alpha=(1-dist/160)*(isCyan?0.14:0.16);
           c.beginPath(); c.moveTo(ni.x,ni.y); c.lineTo(nj.x,nj.y);
-          c.strokeStyle=isGold?`rgba(251,191,36,${alpha})`:`rgba(245,158,11,${alpha})`;
+          c.strokeStyle=isCyan?`rgba(56,189,248,${alpha})`:`rgba(37,99,235,${alpha})`;
           c.lineWidth=0.6; c.stroke();
         }
       }
       for (const n of nodes) {
         const g=c.createRadialGradient(n.x,n.y,0,n.x,n.y,n.r*5);
-        g.addColorStop(0,'rgba(217,119,6,0.13)'); g.addColorStop(1,'rgba(245,158,11,0)');
+        g.addColorStop(0,'rgba(30,64,175,0.13)'); g.addColorStop(1,'rgba(56,189,248,0)');
         c.beginPath(); c.arc(n.x,n.y,n.r*5,0,Math.PI*2); c.fillStyle=g; c.fill();
-        c.beginPath(); c.arc(n.x,n.y,n.r,0,Math.PI*2); c.fillStyle='rgba(245,158,11,0.60)'; c.fill();
+        c.beginPath(); c.arc(n.x,n.y,n.r,0,Math.PI*2); c.fillStyle='rgba(56,189,248,0.60)'; c.fill();
         n.x+=n.vx; n.y+=n.vy;
         if (n.x<0||n.x>cvs.width) n.vx*=-1; if (n.y<0||n.y>cvs.height) n.vy*=-1;
       }
@@ -166,7 +166,7 @@ export default function LoginPage(): React.ReactElement {
         @keyframes lmFadeUp        { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
         @keyframes lmSpin          { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes lmParticlePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.85)} }
-        @keyframes lmSystemPulse   { 0%,100%{opacity:1;box-shadow:0 0 6px #10B981,0 0 12px rgba(16,185,129,0.4)} 50%{opacity:0.5;box-shadow:0 0 3px #10B981,0 0 6px rgba(16,185,129,0.2)} }
+        @keyframes lmSystemPulse   { 0%,100%{opacity:1;box-shadow:0 0 6px #38BDF8,0 0 12px rgba(56,189,248,0.4)} 50%{opacity:0.5;box-shadow:0 0 3px #38BDF8,0 0 6px rgba(56,189,248,0.2)} }
         @keyframes lmButtonShimmer { 0%{left:-100%} 30%,100%{left:150%} }
         @keyframes lmRadarPing     { 0%{transform:scale(0.9);opacity:0.55} 80%{opacity:0.05} 100%{transform:scale(2.4);opacity:0} }
         @keyframes lmHudPulse      { 0%,100%{opacity:0.4} 50%{opacity:1} }
@@ -206,11 +206,19 @@ export default function LoginPage(): React.ReactElement {
         .lm-p7 { animation-name:lmParticlePulse !important; animation-duration:2.6s !important; animation-timing-function:ease-in-out !important; animation-iteration-count:infinite !important; animation-delay:2800ms !important; }
 
         .pm-field { transition: border-color 150ms, border-width 150ms; }
-        .pm-field:focus-within { border-bottom: 2px solid rgba(245,158,11,0.6) !important; }
+        .pm-field:focus-within { border-bottom: 2px solid rgba(56,189,248,0.6) !important; }
         .pm-input { background:transparent;border:none;outline:none;color:#F5F7FB;font-size:14px;flex:1;min-width:0;font-family:inherit; }
         .pm-input::placeholder { color: #6B7592; }
+        .pm-input:-webkit-autofill,
+        .pm-input:-webkit-autofill:hover,
+        .pm-input:-webkit-autofill:focus {
+          -webkit-box-shadow: 0 0 0 1000px #0a0e1a inset !important;
+          -webkit-text-fill-color: #F5F7FB !important;
+          caret-color: #F5F7FB;
+          transition: background-color 5000s ease-in-out 0s;
+        }
         .pm-btn { transition: transform 150ms ease, box-shadow 150ms ease; }
-        .pm-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 12px 36px rgba(245,158,11,0.55) !important; }
+        .pm-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 12px 36px rgba(37,99,235,0.55) !important; }
         @media (max-width:640px) {
           .pm-logo-box { width:52px !important; height:52px !important; border-radius:16px !important; }
           .pm-title    { font-size:18px !important; }
@@ -224,48 +232,53 @@ export default function LoginPage(): React.ReactElement {
         <NeuralBackground />
 
         {/* HUD corners — amber */}
-        <div aria-hidden className="lm-hud-0" style={{position:'absolute',top:18,left:18,width:30,height:30,borderTop:'1.5px solid rgba(245,158,11,0.75)',borderLeft:'1.5px solid rgba(245,158,11,0.75)',pointerEvents:'none',zIndex:1}} />
-        <div aria-hidden className="lm-hud-1" style={{position:'absolute',top:18,right:18,width:30,height:30,borderTop:'1.5px solid rgba(245,158,11,0.75)',borderRight:'1.5px solid rgba(245,158,11,0.75)',pointerEvents:'none',zIndex:1}} />
-        <div aria-hidden className="lm-hud-2" style={{position:'absolute',bottom:18,left:18,width:30,height:30,borderBottom:'1.5px solid rgba(245,158,11,0.75)',borderLeft:'1.5px solid rgba(245,158,11,0.75)',pointerEvents:'none',zIndex:1}} />
-        <div aria-hidden className="lm-hud-3" style={{position:'absolute',bottom:18,right:18,width:30,height:30,borderBottom:'1.5px solid rgba(245,158,11,0.75)',borderRight:'1.5px solid rgba(245,158,11,0.75)',pointerEvents:'none',zIndex:1}} />
+        <div aria-hidden className="lm-hud-0" style={{position:'absolute',top:18,left:18,width:30,height:30,borderTop:'1.5px solid rgba(56,189,248,0.75)',borderLeft:'1.5px solid rgba(56,189,248,0.75)',pointerEvents:'none',zIndex:1}} />
+        <div aria-hidden className="lm-hud-1" style={{position:'absolute',top:18,right:18,width:30,height:30,borderTop:'1.5px solid rgba(56,189,248,0.75)',borderRight:'1.5px solid rgba(56,189,248,0.75)',pointerEvents:'none',zIndex:1}} />
+        <div aria-hidden className="lm-hud-2" style={{position:'absolute',bottom:18,left:18,width:30,height:30,borderBottom:'1.5px solid rgba(56,189,248,0.75)',borderLeft:'1.5px solid rgba(56,189,248,0.75)',pointerEvents:'none',zIndex:1}} />
+        <div aria-hidden className="lm-hud-3" style={{position:'absolute',bottom:18,right:18,width:30,height:30,borderBottom:'1.5px solid rgba(56,189,248,0.75)',borderRight:'1.5px solid rgba(56,189,248,0.75)',pointerEvents:'none',zIndex:1}} />
 
         {/* Scan line */}
-        <div aria-hidden className="lm-scan" style={{position:'absolute',top:0,left:0,right:0,height:1,background:'linear-gradient(90deg,transparent 0%,rgba(245,158,11,0.35) 30%,rgba(251,191,36,0.6) 50%,rgba(245,158,11,0.35) 70%,transparent 100%)',pointerEvents:'none',zIndex:2}} />
+        <div aria-hidden className="lm-scan" style={{position:'absolute',top:0,left:0,right:0,height:1,background:'linear-gradient(90deg,transparent 0%,rgba(56,189,248,0.35) 30%,rgba(96,165,250,0.6) 50%,rgba(56,189,248,0.35) 70%,transparent 100%)',pointerEvents:'none',zIndex:2}} />
 
         {/* Dot grid */}
-        <div style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:0,backgroundImage:'linear-gradient(rgba(245,158,11,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(245,158,11,0.06) 1px,transparent 1px)',backgroundSize:'32px 32px'}} />
+        <div style={{position:'absolute',inset:0,pointerEvents:'none',zIndex:0,backgroundImage:'linear-gradient(rgba(37,99,235,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,0.06) 1px,transparent 1px)',backgroundSize:'32px 32px'}} />
 
         {/* Horizontal light line */}
-        <div style={{position:'absolute',top:'48%',left:0,right:0,height:1,pointerEvents:'none',zIndex:0,background:'linear-gradient(90deg,transparent 0%,rgba(245,158,11,0.08) 35%,rgba(251,191,36,0.08) 65%,transparent 100%)'}} />
+        <div style={{position:'absolute',top:'48%',left:0,right:0,height:1,pointerEvents:'none',zIndex:0,background:'linear-gradient(90deg,transparent 0%,rgba(37,99,235,0.08) 35%,rgba(56,189,248,0.08) 65%,transparent 100%)'}} />
 
         {/* Floating particles */}
-        <div className="lm-p0" style={{position:'absolute',top:'15%',left:'10%', width:3,height:3,borderRadius:'50%',background:'rgba(245,158,11,0.42)',pointerEvents:'none',zIndex:0}} />
-        <div className="lm-p1" style={{position:'absolute',top:'22%',right:'14%',width:2,height:2,borderRadius:'50%',background:'rgba(251,191,36,0.35)',  pointerEvents:'none',zIndex:0}} />
-        <div className="lm-p2" style={{position:'absolute',top:'72%',left:'7%',  width:2,height:2,borderRadius:'50%',background:'rgba(217,119,6,0.35)', pointerEvents:'none',zIndex:0}} />
-        <div className="lm-p3" style={{position:'absolute',top:'65%',right:'9%', width:3,height:3,borderRadius:'50%',background:'rgba(245,158,11,0.32)', pointerEvents:'none',zIndex:0}} />
-        <div className="lm-p4" style={{position:'absolute',top:'38%',left:'4%',  width:2,height:2,borderRadius:'50%',background:'rgba(251,191,36,0.28)',  pointerEvents:'none',zIndex:0}} />
-        <div className="lm-p5" style={{position:'absolute',top:'85%',right:'18%',width:2,height:2,borderRadius:'50%',background:'rgba(245,158,11,0.25)', pointerEvents:'none',zIndex:0}} />
-        <div className="lm-p6" style={{position:'absolute',top:'18%',left:'30%', width:2,height:2,borderRadius:'50%',background:'rgba(16,185,129,0.25)', pointerEvents:'none',zIndex:0}} />
-        <div className="lm-p7" style={{position:'absolute',top:'78%',right:'35%',width:3,height:3,borderRadius:'50%',background:'rgba(251,191,36,0.25)',  pointerEvents:'none',zIndex:0}} />
+        <div className="lm-p0" style={{position:'absolute',top:'15%',left:'10%', width:3,height:3,borderRadius:'50%',background:'rgba(56,189,248,0.42)', pointerEvents:'none',zIndex:0}} />
+        <div className="lm-p1" style={{position:'absolute',top:'22%',right:'14%',width:2,height:2,borderRadius:'50%',background:'rgba(96,165,250,0.35)', pointerEvents:'none',zIndex:0}} />
+        <div className="lm-p2" style={{position:'absolute',top:'72%',left:'7%',  width:2,height:2,borderRadius:'50%',background:'rgba(37,99,235,0.35)',  pointerEvents:'none',zIndex:0}} />
+        <div className="lm-p3" style={{position:'absolute',top:'65%',right:'9%', width:3,height:3,borderRadius:'50%',background:'rgba(56,189,248,0.32)', pointerEvents:'none',zIndex:0}} />
+        <div className="lm-p4" style={{position:'absolute',top:'38%',left:'4%',  width:2,height:2,borderRadius:'50%',background:'rgba(96,165,250,0.28)', pointerEvents:'none',zIndex:0}} />
+        <div className="lm-p5" style={{position:'absolute',top:'85%',right:'18%',width:2,height:2,borderRadius:'50%',background:'rgba(56,189,248,0.25)', pointerEvents:'none',zIndex:0}} />
+        <div className="lm-p6" style={{position:'absolute',top:'18%',left:'30%', width:2,height:2,borderRadius:'50%',background:'rgba(56,189,248,0.22)', pointerEvents:'none',zIndex:0}} />
+        <div className="lm-p7" style={{position:'absolute',top:'78%',right:'35%',width:3,height:3,borderRadius:'50%',background:'rgba(96,165,250,0.25)', pointerEvents:'none',zIndex:0}} />
 
         {/* Content */}
         <div style={{position:'relative',zIndex:1,display:'flex',flexDirection:'column',alignItems:'center',width:'100%',maxWidth:480,overflow:'visible'}}>
 
-          {/* Ambient glows — amber */}
-          <div className="pm-glow-1" style={{position:'absolute',top:-160,right:-100,width:380,height:380,borderRadius:'50%',background:'radial-gradient(circle,rgba(245,158,11,0.18) 0%,rgba(217,119,6,0.07) 45%,transparent 65%)',pointerEvents:'none',zIndex:0}} />
-          <div className="pm-glow-2" style={{position:'absolute',bottom:-120,left:-140,width:320,height:320,borderRadius:'50%',background:'radial-gradient(circle,rgba(251,191,36,0.14) 0%,transparent 60%)',pointerEvents:'none',zIndex:0}} />
-          <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:500,height:500,borderRadius:'50%',background:'radial-gradient(circle,rgba(245,158,11,0.04) 0%,transparent 65%)',pointerEvents:'none',zIndex:0}} />
+          {/* Ambient glows — brand blue/cyan */}
+          <div className="pm-glow-1" style={{position:'absolute',top:-160,right:-100,width:380,height:380,borderRadius:'50%',background:'radial-gradient(circle,rgba(37,99,235,0.18) 0%,rgba(56,189,248,0.07) 45%,transparent 65%)',pointerEvents:'none',zIndex:0}} />
+          <div className="pm-glow-2" style={{position:'absolute',bottom:-120,left:-140,width:320,height:320,borderRadius:'50%',background:'radial-gradient(circle,rgba(56,189,248,0.14) 0%,transparent 60%)',pointerEvents:'none',zIndex:0}} />
+          <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:500,height:500,borderRadius:'50%',background:'radial-gradient(circle,rgba(37,99,235,0.04) 0%,transparent 65%)',pointerEvents:'none',zIndex:0}} />
 
           {/* Logo */}
           <div className="lm-fade-0" style={{position:'relative',zIndex:1,textAlign:'center',marginBottom:'2.25rem'}}>
             <div style={{position:'relative',display:'inline-flex',alignItems:'center',justifyContent:'center',marginBottom:'0.75rem'}}>
-              <div style={{position:'absolute',top:-24,left:-24,right:-24,bottom:-24,borderRadius:40,border:'1px solid rgba(245,158,11,0.05)'}} />
-              <div style={{position:'absolute',top:-16,left:-16,right:-16,bottom:-16,borderRadius:32,border:'1px solid rgba(245,158,11,0.10)'}} />
-              <div style={{position:'absolute',top:-8, left:-8, right:-8, bottom:-8, borderRadius:24,border:'1px solid rgba(245,158,11,0.22)'}} />
-              <div aria-hidden className="lm-radar-1" style={{position:'absolute',top:-4,left:-4,right:-4,bottom:-4,borderRadius:'50%',border:'1.5px solid rgba(245,158,11,0.55)',pointerEvents:'none'}} />
-              <div aria-hidden className="lm-radar-2" style={{position:'absolute',top:-4,left:-4,right:-4,bottom:-4,borderRadius:'50%',border:'1.5px solid rgba(245,158,11,0.45)',pointerEvents:'none'}} />
-              <div className="pm-logo-box" style={{width:68,height:68,borderRadius:20,background:'linear-gradient(135deg,#F59E0B 0%,#D97706 50%,#FBBF24 100%)',boxShadow:'0 0 40px rgba(245,158,11,0.65),0 0 80px rgba(245,158,11,0.25)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <span style={{color:'#0a0a0a',fontWeight:800,fontSize:20}}>PM</span>
+              <div style={{position:'absolute',top:-24,left:-24,right:-24,bottom:-24,borderRadius:40,border:'1px solid rgba(56,189,248,0.05)'}} />
+              <div style={{position:'absolute',top:-16,left:-16,right:-16,bottom:-16,borderRadius:32,border:'1px solid rgba(56,189,248,0.10)'}} />
+              <div style={{position:'absolute',top:-8, left:-8, right:-8, bottom:-8, borderRadius:24,border:'1px solid rgba(56,189,248,0.22)'}} />
+              <div aria-hidden className="lm-radar-1" style={{position:'absolute',top:-4,left:-4,right:-4,bottom:-4,borderRadius:'50%',border:'1.5px solid rgba(56,189,248,0.55)',pointerEvents:'none'}} />
+              <div aria-hidden className="lm-radar-2" style={{position:'absolute',top:-4,left:-4,right:-4,bottom:-4,borderRadius:'50%',border:'1.5px solid rgba(56,189,248,0.45)',pointerEvents:'none'}} />
+              <div className="pm-logo-box" style={{width:68,height:68,borderRadius:20,background:'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)',boxShadow:'0 0 40px rgba(37,99,235,0.65),0 0 80px rgba(56,189,248,0.25)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                {/* Medical cross + heartbeat icon */}
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
+                  <rect x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95"/>
+                  <path d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke="#1E40AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                </svg>
               </div>
             </div>
             <p className="pm-title" style={{color:'#F5F7FB',fontWeight:800,fontSize:26,letterSpacing:'-0.5px',margin:'0 0 5px',textShadow:'0 1px 2px rgba(0,0,0,0.45)'}}>Precision Medical</p>
@@ -274,11 +287,11 @@ export default function LoginPage(): React.ReactElement {
 
           {/* Card */}
           <div style={{position:'relative',zIndex:1,width:420,maxWidth:'90vw'}}>
-            <div style={{position:'absolute',top:-1,left:-1,right:-1,bottom:-1,borderRadius:21,background:'linear-gradient(135deg,rgba(245,158,11,0.40),rgba(217,119,6,0.16) 50%,rgba(251,191,36,0.28) 100%)',pointerEvents:'none',zIndex:0}} />
+            <div style={{position:'absolute',top:-1,left:-1,right:-1,bottom:-1,borderRadius:21,background:'linear-gradient(135deg,rgba(37,99,235,0.40),rgba(30,64,175,0.16) 50%,rgba(56,189,248,0.28) 100%)',pointerEvents:'none',zIndex:0}} />
             <div className="lm-fade-150" style={{position:'relative',zIndex:1,background:'rgba(10,14,26,0.93)',borderRadius:20,padding:'2.25rem 2.5rem',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}>
               {/* Session expired banner */}
               {reason === 'session_expired' && (
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(245,158,11,0.10)',border:'1px solid rgba(245,158,11,0.30)',color:'#fbbf24',fontSize:12}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16,padding:'10px 14px',borderRadius:10,background:'rgba(56,189,248,0.10)',border:'1px solid rgba(56,189,248,0.30)',color:'#7dd3fc',fontSize:12}}>
                   <span style={{flexShrink:0}}>🔒</span>
                   <span>Tu sesión expiró por inactividad. Ingresá nuevamente.</span>
                 </div>
@@ -299,7 +312,7 @@ export default function LoginPage(): React.ReactElement {
                     Enter the 6-digit code from your authenticator app.
                   </div>
                   <div className="pm-field" style={{display:'flex',alignItems:'center',gap:10,borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'14px 0',marginBottom:4}}>
-                    <Key size={17} color="#F59E0B" style={{flexShrink:0}} />
+                    <Key size={17} color="#38BDF8" style={{flexShrink:0}} />
                     <input
                       className="pm-input"
                       type="text"
@@ -320,13 +333,13 @@ export default function LoginPage(): React.ReactElement {
                     </div>
                   )}
                   <div style={{height:'1.5rem'}} />
-                  <button type="submit" disabled={loading} className="pm-btn" style={{position:'relative',overflow:'hidden',width:'100%',background:'linear-gradient(135deg,#F59E0B 0%,#D97706 50%,#FBBF24 100%)',borderRadius:12,padding:16,textAlign:'center',boxShadow:'0 10px 36px rgba(245,158,11,0.50),0 4px 14px rgba(245,158,11,0.28)',color:'#0a0a0a',fontWeight:700,fontSize:15,letterSpacing:'0.03em',border:'none',cursor:loading?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,opacity:loading?0.85:1,fontFamily:'inherit'}}>
+                  <button type="submit" disabled={loading} className="pm-btn" style={{position:'relative',overflow:'hidden',width:'100%',background:'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)',borderRadius:12,padding:16,textAlign:'center',boxShadow:'0 10px 36px rgba(37,99,235,0.50),0 4px 14px rgba(56,189,248,0.28)',color:'#fff',fontWeight:700,fontSize:15,letterSpacing:'0.03em',border:'none',cursor:loading?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,opacity:loading?0.85:1,fontFamily:'inherit'}}>
                     {loading ? (
                       <svg className="lm-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
                     ) : 'Verify →'}
                   </button>
                   <div style={{textAlign:'center',marginTop:12}}>
-                    <button type="button" onClick={()=>{setMfaStep(false);setMfaCode('');}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:'#F59E0B',opacity:0.7,fontWeight:500}}>
+                    <button type="button" onClick={()=>{setMfaStep(false);setMfaCode('');}} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:'#38BDF8',opacity:0.7,fontWeight:500}}>
                       ← Back
                     </button>
                   </div>
@@ -339,12 +352,12 @@ export default function LoginPage(): React.ReactElement {
                   </div>
                   <div style={{height:1,background:'rgba(255,255,255,0.025)',margin:'2px 0'}} />
                   <div className="pm-field" style={{position:'relative',display:'flex',alignItems:'center',gap:10,borderBottom:'1px solid rgba(255,255,255,0.07)',padding:'14px 0',marginBottom:4}}>
-                    <Lock size={17} color="#F59E0B" style={{flexShrink:0}} />
+                    <Lock size={17} color="#38BDF8" style={{flexShrink:0}} />
                     <input className="pm-input" type={showPassword?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password" />
                     <button type="button" onClick={()=>setShowPassword(!showPassword)} aria-label={showPassword?'Hide password':'Show password'} style={{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:1,flexShrink:0}}>
                       {showPassword?<EyeOff size={14} color="#4A5474"/>:<Eye size={14} color="#4A5474"/>}
                     </button>
-                    <div style={{position:'absolute',bottom:-4,left:0,right:0,height:8,background:'linear-gradient(180deg,rgba(245,158,11,0.10),transparent)',borderRadius:'0 0 4px 4px',pointerEvents:'none'}} />
+                    <div style={{position:'absolute',bottom:-4,left:0,right:0,height:8,background:'linear-gradient(180deg,rgba(56,189,248,0.10),transparent)',borderRadius:'0 0 4px 4px',pointerEvents:'none'}} />
                   </div>
                   {error && (
                     <div style={{display:'flex',alignItems:'center',gap:6,marginTop:10,color:'#F43F5E',fontSize:12}}>
@@ -353,7 +366,7 @@ export default function LoginPage(): React.ReactElement {
                     </div>
                   )}
                   <div style={{height:'1.5rem'}} />
-                  <button type="submit" disabled={loading || !!lockedUntil} className="pm-btn" style={{position:'relative',overflow:'hidden',width:'100%',background:'linear-gradient(135deg,#F59E0B 0%,#D97706 50%,#FBBF24 100%)',borderRadius:12,padding:16,textAlign:'center',boxShadow:'0 10px 36px rgba(245,158,11,0.50),0 4px 14px rgba(245,158,11,0.28)',color:'#0a0a0a',fontWeight:700,fontSize:15,letterSpacing:'0.03em',border:'none',cursor:(loading||!!lockedUntil)?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,opacity:(loading||!!lockedUntil)?0.85:1,fontFamily:'inherit'}}>
+                  <button type="submit" disabled={loading || !!lockedUntil} className="pm-btn" style={{position:'relative',overflow:'hidden',width:'100%',background:'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)',borderRadius:12,padding:16,textAlign:'center',boxShadow:'0 10px 36px rgba(37,99,235,0.50),0 4px 14px rgba(56,189,248,0.28)',color:'#fff',fontWeight:700,fontSize:15,letterSpacing:'0.03em',border:'none',cursor:(loading||!!lockedUntil)?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,opacity:(loading||!!lockedUntil)?0.85:1,fontFamily:'inherit'}}>
                     <div className="lm-shimmer" style={{position:'absolute',top:0,left:'-100%',width:'50%',height:'100%',background:'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.20) 50%,transparent 100%)',transform:'skewX(-20deg)',pointerEvents:'none'}} />
                     {loading ? (
                       <>
@@ -365,7 +378,7 @@ export default function LoginPage(): React.ReactElement {
 
                   {/* Forgot password */}
                   <div style={{textAlign:'center',marginTop:12}}>
-                    <a href="/forgot-password" style={{fontSize:12,color:'#F59E0B',opacity:0.7,textDecoration:'none',fontWeight:500,letterSpacing:'0.02em'}}
+                    <a href="/forgot-password" style={{fontSize:12,color:'#38BDF8',opacity:0.7,textDecoration:'none',fontWeight:500,letterSpacing:'0.02em'}}
                       onMouseEnter={e=>(e.currentTarget.style.opacity='1')}
                       onMouseLeave={e=>(e.currentTarget.style.opacity='0.7')}>
                       Forgot your password?
@@ -378,15 +391,15 @@ export default function LoginPage(): React.ReactElement {
 
           {/* Status */}
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginTop:16,marginBottom:10}}>
-            <div className="lm-sys" style={{width:6,height:6,borderRadius:'50%',background:'#10B981',boxShadow:'0 0 6px #10B981,0 0 12px rgba(16,185,129,0.4)'}} />
+            <div className="lm-sys" style={{width:6,height:6,borderRadius:'50%',background:'#38BDF8',boxShadow:'0 0 6px #38BDF8,0 0 12px rgba(56,189,248,0.4)'}} />
             <span style={{fontSize:11,color:'#4A5474',fontWeight:600,letterSpacing:'0.04em'}}>All systems operational</span>
           </div>
 
           {/* Security pills */}
           <div className="lm-fade-280" style={{display:'flex',gap:14,marginTop:'1.75rem',justifyContent:'center',flexWrap:'wrap'}}>
             {([{Icon:ShieldCheck,label:'HIPAA'},{Icon:Lock,label:'SSL'},{Icon:Key,label:'2FA'}] as const).map(({Icon,label})=>(
-              <div key={label} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.18)',borderRadius:20,padding:'7px 16px'}}>
-                <Icon size={14} color="#10B981"/><span style={{color:'#6B7592',fontWeight:600,fontSize:12}}>{label}</span>
+              <div key={label} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(37,99,235,0.08)',border:'1px solid rgba(56,189,248,0.18)',borderRadius:20,padding:'7px 16px'}}>
+                <Icon size={14} color="#38BDF8"/><span style={{color:'#6B7592',fontWeight:600,fontSize:12}}>{label}</span>
               </div>
             ))}
           </div>

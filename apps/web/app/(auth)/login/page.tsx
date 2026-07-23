@@ -160,6 +160,14 @@ export default function LoginPage(): React.ReactElement {
         .pm-field:focus-within { border-bottom: 2px solid rgba(99,102,241,0.6) !important; }
         .pm-input { background:transparent;border:none;outline:none;color:#F5F7FB;font-size:14px;flex:1;min-width:0;font-family:inherit; }
         .pm-input::placeholder { color: #6B7592; }
+        .pm-input:-webkit-autofill,
+        .pm-input:-webkit-autofill:hover,
+        .pm-input:-webkit-autofill:focus {
+          -webkit-box-shadow: 0 0 0 1000px #0a0e1a inset !important;
+          -webkit-text-fill-color: #F5F7FB !important;
+          caret-color: #F5F7FB;
+          transition: background-color 5000s ease-in-out 0s;
+        }
         .pm-btn { transition: transform 150ms ease, box-shadow 150ms ease; }
         .pm-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 12px 36px rgba(99,102,241,0.65) !important; }
         @media (max-width:640px) {
@@ -216,11 +224,15 @@ export default function LoginPage(): React.ReactElement {
               <div aria-hidden className="lm-radar-1" style={{position:'absolute',top:-4,left:-4,right:-4,bottom:-4,borderRadius:'50%',border:'1.5px solid rgba(107,78,255,0.55)',pointerEvents:'none'}} />
               <div aria-hidden className="lm-radar-2" style={{position:'absolute',top:-4,left:-4,right:-4,bottom:-4,borderRadius:'50%',border:'1.5px solid rgba(107,78,255,0.45)',pointerEvents:'none'}} />
               <div className="pm-logo-box" style={{width:68,height:68,borderRadius:20,background:'linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#06B6D4 100%)',boxShadow:'0 0 40px rgba(99,102,241,0.65),0 0 80px rgba(99,102,241,0.25)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <span style={{color:'white',fontWeight:800,fontSize:20}}>LM</span>
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
+                  <rect x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95"/>
+                  <path d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                </svg>
               </div>
             </div>
-            <p className="pm-title" style={{color:'#F5F7FB',fontWeight:800,fontSize:26,letterSpacing:'-0.5px',margin:'0 0 5px',textShadow:'0 1px 2px rgba(0,0,0,0.45)'}}>LM Super Admin</p>
-            <p style={{color:'#4A5474',fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Precision Medical · Utah, USA</p>
+            <p className="pm-title" style={{color:'#F5F7FB',fontWeight:800,fontSize:26,letterSpacing:'-0.5px',margin:'0 0 5px',textShadow:'0 1px 2px rgba(0,0,0,0.45)'}}>Precision Medical</p>
+            <p style={{color:'#4A5474',fontSize:12,textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Administration Panel · Utah, USA</p>
           </div>
 
           {/* Card */}
@@ -253,7 +265,7 @@ export default function LoginPage(): React.ReactElement {
                 </div>
                 <button type="submit" disabled={loading} className="pm-btn" style={{position:'relative',overflow:'hidden',width:'100%',background:'linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#06B6D4 100%)',borderRadius:12,padding:16,textAlign:'center',boxShadow:'0 10px 36px rgba(99,102,241,0.55),0 4px 14px rgba(99,102,241,0.28)',color:'white',fontWeight:700,fontSize:15,letterSpacing:'0.03em',border:'none',cursor:loading?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,opacity:loading?0.85:1,fontFamily:'inherit'}}>
                   <div className="lm-shimmer" style={{position:'absolute',top:0,left:'-100%',width:'50%',height:'100%',background:'linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.13) 50%,transparent 100%)',transform:'skewX(-20deg)',pointerEvents:'none'}} />
-                  {loading?(<><svg className="lm-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Signing in...</>):'Sign in'}
+                  {loading?(<><svg className="lm-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Signing in...</>):'Sign in →'}
                 </button>
               </form>
             </div>
@@ -268,15 +280,15 @@ export default function LoginPage(): React.ReactElement {
           {/* Security pills */}
           <div className="lm-fade-280" style={{display:'flex',gap:14,marginTop:'1.75rem',justifyContent:'center',flexWrap:'wrap'}}>
             {([{Icon:ShieldCheck,label:'HIPAA'},{Icon:Lock,label:'SSL'},{Icon:Key,label:'2FA'}] as const).map(({Icon,label})=>(
-              <div key={label} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.18)',borderRadius:20,padding:'7px 16px'}}>
-                <Icon size={14} color="#10B981"/><span style={{color:'#6B7592',fontWeight:600,fontSize:12}}>{label}</span>
+              <div key={label} style={{display:'flex',alignItems:'center',gap:6,background:'rgba(99,102,241,0.08)',border:'1px solid rgba(139,92,246,0.22)',borderRadius:20,padding:'7px 16px'}}>
+                <Icon size={14} color="#8B5CF6"/><span style={{color:'#6B7592',fontWeight:600,fontSize:12}}>{label}</span>
               </div>
             ))}
           </div>
 
           {/* Footer */}
           <p className="lm-fade-380" style={{color:'#2C3248',fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:'2rem'}}>
-            Precision Medical · LM Super Admin · v2.6
+            Precision Medical · Administration Panel · v2.6
           </p>
         </div>
       </div>

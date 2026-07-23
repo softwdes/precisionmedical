@@ -894,9 +894,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                             onClick={() => { setWeekStart(addDays(weekStart, -7)); setSelectedDay(null); }}
                             className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                           >
-                            <ArrowLeft className="w-3 h-3" /> Sem. ant.
+                            <ArrowLeft className="w-3 h-3" />
+                            <span className="hidden sm:inline">Sem. ant.</span>
                           </button>
-                          <span className="text-[11px] text-text-muted font-medium">
+                          <span className="text-[11px] text-text-muted font-medium text-center">
                             {weekDays[0]
                               ? `${weekDays[0].dayNum} ${weekDays[0].monthShort} – ${weekDays[4].dayNum} ${weekDays[4].monthShort}`
                               : ''}
@@ -907,12 +908,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                             onClick={() => { setWeekStart(addDays(weekStart, 7)); setSelectedDay(null); }}
                             className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                           >
-                            Sem. sig. <ArrowRight className="w-3 h-3" />
+                            <span className="hidden sm:inline">Sem. sig.</span>
+                            <ArrowRight className="w-3 h-3" />
                           </button>
                         </div>
 
                         {/* ── 5 columnas día ── */}
-                        <div className="grid grid-cols-5 gap-1.5 mb-3">
+                        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 mb-3">
                           {weekDays.map((wd) => {
                             const isSelected = selectedDay === wd.iso;
                             const hasSlots   = wd.slots.length > 0;
@@ -922,7 +924,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                                 type="button"
                                 disabled={slotsLoading || (!hasSlots && !wd.isPast)}
                                 onClick={() => !wd.isPast && hasSlots && setSelectedDay(isSelected ? null : wd.iso)}
-                                className={`flex flex-col items-center py-2 px-1 rounded-lg border text-[10px] font-medium transition-colors ${
+                                className={`flex flex-col items-center py-1.5 sm:py-2 px-0.5 sm:px-1 rounded-lg border text-[10px] font-medium transition-colors ${
                                   isSelected
                                     ? 'bg-emerald/15 border-emerald/50 text-emerald'
                                     : wd.isPast
@@ -932,16 +934,16 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                                     : 'bg-bg-2/30 border-border/40 text-text-muted cursor-not-allowed'
                                 }`}
                               >
-                                <span className="uppercase tracking-wide font-semibold">{wd.dayName}</span>
-                                <span className="text-sm font-bold mt-0.5">{wd.dayNum}</span>
+                                <span className="uppercase tracking-wide font-semibold text-[9px] sm:text-[10px]">{wd.dayName}</span>
+                                <span className="text-xs sm:text-sm font-bold mt-0.5">{wd.dayNum}</span>
                                 {slotsLoading ? (
-                                  <div className="mt-1 w-6 h-2 rounded bg-border animate-pulse" />
+                                  <div className="mt-1 w-4 sm:w-6 h-2 rounded bg-border animate-pulse" />
                                 ) : hasSlots ? (
-                                  <span className={`mt-1 text-[9px] ${isSelected ? 'text-emerald' : 'text-text-muted'}`}>
+                                  <span className={`mt-1 text-[8px] sm:text-[9px] ${isSelected ? 'text-emerald' : 'text-text-muted'}`}>
                                     {wd.slots.length} hr{wd.slots.length !== 1 ? 's' : ''}
                                   </span>
                                 ) : (
-                                  <span className="mt-1 text-[9px] text-text-muted/60">—</span>
+                                  <span className="mt-1 text-[8px] sm:text-[9px] text-text-muted/60">—</span>
                                 )}
                               </button>
                             );

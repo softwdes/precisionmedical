@@ -24,7 +24,7 @@ export function SWRegister(): null {
       .then((reg) => {
         if (reg.installing && !sessionStorage.getItem(SW_RELOAD_KEY)) {
           reg.installing.addEventListener('statechange', function () {
-            if ((this as ServiceWorkerGlobalScope & { state: string }).state === 'activated') {
+            if ((this as unknown as { state: string }).state === 'activated') {
               sessionStorage.setItem(SW_RELOAD_KEY, '1');
               window.location.reload();
             }

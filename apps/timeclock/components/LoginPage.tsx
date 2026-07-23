@@ -150,8 +150,8 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
           50%       { opacity: 0.4; transform: scale(0.85); }
         }
         @keyframes systemPulse {
-          0%, 100% { opacity: 1; box-shadow: 0 0 6px #6366F1, 0 0 12px rgba(99,102,241,0.4); }
-          50%       { opacity: 0.5; box-shadow: 0 0 3px #6366F1, 0 0 6px rgba(99,102,241,0.2); }
+          0%, 100% { opacity: 1; box-shadow: 0 0 6px #10B981, 0 0 12px rgba(16,185,129,0.4); }
+          50%       { opacity: 0.5; box-shadow: 0 0 3px #10B981, 0 0 6px rgba(16,185,129,0.2); }
         }
         @keyframes buttonShimmer {
           0%        { left: -100%; }
@@ -187,6 +187,14 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
           font-family: inherit;
         }
         .tc-input::placeholder { color: #6B7592; }
+        .tc-input:-webkit-autofill,
+        .tc-input:-webkit-autofill:hover,
+        .tc-input:-webkit-autofill:focus {
+          -webkit-box-shadow: 0 0 0 1000px #0a0e1a inset !important;
+          -webkit-text-fill-color: #F5F7FB !important;
+          caret-color: #F5F7FB;
+          transition: background-color 5000s ease-in-out 0s;
+        }
         .tc-btn { transition: transform 150ms ease, box-shadow 150ms ease; }
         .tc-btn:hover:not(:disabled) {
           transform: translateY(-1px);
@@ -297,7 +305,7 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
               </div>
             </div>
             <p className="tc-title" style={{ color:'#F5F7FB', fontWeight:800, fontSize:26, letterSpacing:'-0.5px', margin:'0 0 5px', textShadow:'0 1px 2px rgba(0,0,0,0.45)' }}>
-              PM Time Clock
+              Time Clock
             </p>
             <p style={{ color:'#4A5474', fontSize:12, textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>
               Precision Medical · Utah, USA
@@ -407,7 +415,7 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
 
           {/* System status */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:16, marginBottom:10 }}>
-            <div style={{ width:6, height:6, borderRadius:'50%', background:'#6366F1', boxShadow:'0 0 6px #6366F1, 0 0 12px rgba(99,102,241,0.4)', animation:'systemPulse 2s ease-in-out infinite' }} />
+            <div style={{ width:6, height:6, borderRadius:'50%', background:'#10B981', boxShadow:'0 0 6px #10B981, 0 0 12px rgba(16,185,129,0.4)', animation:'systemPulse 2s ease-in-out infinite' }} />
             <span style={{ fontSize:11, color:'#4A5474', fontWeight:600, letterSpacing:'0.04em' }}>{t.systemOnline}</span>
           </div>
 

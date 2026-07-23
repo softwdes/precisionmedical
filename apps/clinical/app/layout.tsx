@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Plus_Jakarta_Sans } from 'next/font/google';
+import { SWRegister } from '@/components/SWRegister';
 import './globals.css';
 
 const font = Plus_Jakarta_Sans({
@@ -13,6 +14,7 @@ const font = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'LM v3 · Clinical',
   description: 'Precision Medical — Clinical (Doctores + MAs · iPad-optimizado)',
+  manifest: '/manifest.json',
 };
 
 export const viewport: Viewport = {
@@ -33,6 +35,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
         </NextIntlClientProvider>
+        <SWRegister />
       </body>
     </html>
   );

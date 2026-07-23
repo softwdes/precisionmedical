@@ -1,4 +1,5 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import withSerwistInit from '@serwist/next';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -20,7 +21,13 @@ const nextConfig = {
   },
 };
 
-let finalConfig = withNextIntl(nextConfig);
+const withSerwist = withSerwistInit({
+  swSrc: 'app/sw.ts',
+  swDest: 'public/sw.js',
+  disable: process.env.NODE_ENV === 'development',
+});
+
+let finalConfig = withSerwist(withNextIntl(nextConfig));
 
 // Sentry: solo cargar si SENTRY_DSN está seteado (evita error de symlink en dev)
 if (process.env.SENTRY_DSN) {

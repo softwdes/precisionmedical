@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
+import { SWRegister } from '@/components/SWRegister';
 import './globals.css';
 
 /**
@@ -19,6 +20,7 @@ const font = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'Precision Medical · Portal del Paciente',
   description: 'Precision Medical — Portal del paciente (magic link)',
+  manifest: '/manifest.json',
 };
 
 // Mobile-first: el paciente entra desde su celular.
@@ -35,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en-US" suppressHydrationWarning>
       <body className={font.className} suppressHydrationWarning>
         {children}
+        <SWRegister />
       </body>
     </html>
   );

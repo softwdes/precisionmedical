@@ -7,6 +7,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 
 const PAGE_SIZE = 15;
 
@@ -103,6 +104,27 @@ export async function GET(req: NextRequest) {
     accidentDate: p.accidentDate?.toISOString() ?? null,
     createdAt:    p.createdAt.toISOString(),
     updatedAt:    p.updatedAt.toISOString(),
+    // Decrypt PHI fields that may carry the legacy "e:" cipher prefix
+    phone:                    dec(p.phone),
+    phone2:                   dec(p.phone2),
+    employer:                 dec(p.employer),
+    preferredPharmacy:        dec(p.preferredPharmacy),
+    socialSecurityNumber:     dec(p.socialSecurityNumber),
+    addressLine1:             dec(p.addressLine1),
+    addressCity:              dec(p.addressCity),
+    addressState:             dec(p.addressState),
+    addressZip:               dec(p.addressZip),
+    emergencyContactName:     dec(p.emergencyContactName),
+    emergencyContactPhone:    dec(p.emergencyContactPhone),
+    emergencyContactRelation: dec(p.emergencyContactRelation),
+    emergency2Name:           dec(p.emergency2Name),
+    emergency2Phone:          dec(p.emergency2Phone),
+    emergency2Relation:       dec(p.emergency2Relation),
+    guardianName:             dec(p.guardianName),
+    guardianPhone:            dec(p.guardianPhone),
+    guardianRelation:         dec(p.guardianRelation),
+    insuranceCarrier:         dec(p.insuranceCarrier),
+    policyNumber:             dec(p.policyNumber),
     caseCount:    caseCountMap[p.id] ?? 0,
     latestCase:   latestCaseMap[p.id]
       ? {

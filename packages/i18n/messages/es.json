@@ -2565,6 +2565,8 @@
       "dialogTitleEdit": "Editar cita",
       "dialogTitleScheduleFirst": "Agendar primera cita",
       "dialogTitleNew": "Nueva cita",
+      "dialogDescPatient": "Paciente",
+      "dialogDescCase": "caso",
       "dialogDescStatusChange": "Al agendar, el status pasa a",
       "caseLabel": "Caso:",
       "fieldPatient": "Paciente",

@@ -61,18 +61,22 @@ function isBusinessSlot(date: Date, durationMinutes: number): boolean {
   return h >= WORK_HOUR_START && h + durationMinutes / 60 <= WORK_HOUR_END;
 }
 
-/** Genera candidatos cada `intervalMin` minutos en el rango dado */
-function generateCandidates(from: Date, to: Date, intervalMin: number): Date[] {
+/** Genera candidatos cada 30 min en el rango dado (independiente de la duración de la cita) */
+function generateCandidates(from: Date, to: Date): Date[] {
+  const INTERVAL = 30;
   const candidates: Date[] = [];
-  const start = new Date(from);
+  // Never generate slots in the past — clamp start to now
+  const now   = new Date();
+  const start = new Date(Math.max(from.getTime(), now.getTime()));
   start.setSeconds(0, 0);
-  const rem = start.getMinutes() % intervalMin;
-  if (rem !== 0) start.setMinutes(start.getMinutes() + (intervalMin - rem));
+  // Snap to next 30-min boundary
+  const rem = start.getMinutes() % INTERVAL;
+  if (rem !== 0) start.setMinutes(start.getMinutes() + (INTERVAL - rem), 0, 0);
 
   const cursor = new Date(start);
   while (cursor < to) {
     candidates.push(new Date(cursor));
-    cursor.setMinutes(cursor.getMinutes() + intervalMin);
+    cursor.setMinutes(cursor.getMinutes() + INTERVAL);
   }
   return candidates;
 }
@@ -119,7 +123,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   });
 
   // ─── Genera candidatos y filtra conflictos ─────────────────────────────
-  const candidates = generateCandidates(fromDate, toDate, query.durationMinutes);
+  const candidates = generateCandidates(fromDate, toDate);
   const durationMs = query.durationMinutes * 60 * 1000;
 
   const available = candidates

@@ -80,8 +80,20 @@ function addDays(date: Date, n: number): Date {
   return d;
 }
 
-const TIME_SLOTS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
-                    '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+const TIME_SLOTS = [
+  '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
+  '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
+  '16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30',
+  '20:00','20:30','21:00','21:30',
+];
+
+/** Converts "HH:MM" 24-h string to "h:MM AM/PM" label */
+function slotLabel(slot: string): string {
+  const [h, m] = slot.split(':').map(Number);
+  const period = h! < 12 ? 'AM' : 'PM';
+  const h12    = h! % 12 === 0 ? 12 : h! % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
 
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -145,6 +157,14 @@ function slotOf(isoString: string): string {
   // t is "09:30" or "14:00"
   const [h, m] = t.split(':').map(Number);
   return `${String(h).padStart(2, '0')}:${m < 30 ? '00' : '30'}`;
+}
+
+/** Returns "8:00–8:30 AM" style range label in Denver time */
+function apptTimeRange(iso: string, durationMinutes: number): string {
+  const start = new Date(iso);
+  const end   = new Date(start.getTime() + durationMinutes * 60_000);
+  const fmt = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+  return `${fmt(start)}–${fmt(end)}`;
 }
 
 // ─── Color por tipo + primera cita ───────────────────────────────────────────
@@ -842,7 +862,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
               )}
               {dayAppts.map(appt => {
                 const s = getEventStyle(appt);
-                const time = new Date(appt.scheduledFor).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver' });
+                const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
                 const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                 const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
                 return (
@@ -850,7 +870,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                     className="w-full text-left rounded-xl p-3 transition-all hover:brightness-110 active:scale-[0.99]"
                     style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: appt.visitNumber === 0 ? s.glow : undefined }}>
                     <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-xs font-bold" style={{ color: s.text }}>{time}</span>
+                      <span className="text-xs font-bold" style={{ color: s.text }}>{timeRange}</span>
                       {visitLabel && <span className="text-[10px] font-semibold opacity-80" style={{ color: s.text }}>{visitLabel}</span>}
                     </div>
                     <div className="text-sm font-semibold" style={{ color: s.text }}>{appt.patient.firstName} {appt.patient.lastName}</div>
@@ -898,7 +918,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                 {TIME_SLOTS.map(slot => (
                   <div key={slot} className="grid grid-cols-[52px_repeat(5,1fr)] border-b border-white/[0.04] last:border-b-0 min-h-[40px]">
                     <div className="border-r border-white/[0.04] flex items-start justify-end pr-2 pt-1">
-                      <span className="text-[9px] text-white/30 font-mono tabular-nums">{slot}</span>
+                      <span className="text-[9px] text-white/30 font-mono tabular-nums">{slotLabel(slot)}</span>
                     </div>
                     {days.map((day, di) => {
                       const dayKey = denverDateStr(day);
@@ -912,10 +932,14 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                             const s = getEventStyle(appt);
                             const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                             const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                            const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
                             return (
                               <button key={appt.id} type="button" onClick={(e) => { e.stopPropagation(); setSelectedAppt(appt); }}
                                 className="w-full text-left rounded px-1.5 py-[3px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99]"
                                 style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
+                                <div className="text-[10px] leading-tight truncate font-semibold" style={{ color: s.text, opacity: 0.75 }}>
+                                  {timeRange}
+                                </div>
                                 <div className="text-[11px] font-bold leading-tight truncate" style={{ color: s.text }}>
                                   {s.badge && <span className="mr-0.5">{s.badge}</span>}
                                   {appt.patient.firstName} {appt.patient.lastName}
@@ -939,8 +963,8 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
         {/* ══════════════════════════ DAY VIEW ═══════════════════════════════ */}
         {calView === 'day' && (() => {
-          const dayKey  = localDateStr(weekStart);
-          const todayStr = localDateStr(new Date());
+          const dayKey  = denverDateStr(weekStart);
+          const todayStr = denverDateStr(new Date());
           const isToday  = dayKey === todayStr;
           const dowIdx   = (weekStart.getDay() + 6) % 7; // 0=Mon … 6=Sun
           return (
@@ -968,7 +992,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                   return (
                     <div key={slot} className="grid grid-cols-[52px_1fr] border-b border-white/[0.04] last:border-b-0 min-h-[44px]">
                       <div className="border-r border-white/[0.04] flex items-start justify-end pr-2 pt-1">
-                        <span className="text-[9px] text-white/30 font-mono tabular-nums">{slot}</span>
+                        <span className="text-[9px] text-white/30 font-mono tabular-nums">{slotLabel(slot)}</span>
                       </div>
                       <div
                         onClick={() => openSlot(dayKey, slot)}
@@ -977,10 +1001,14 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                           const s = getEventStyle(appt);
                           const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                           const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                          const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
                           return (
                             <button key={appt.id} type="button" onClick={(e) => { e.stopPropagation(); setSelectedAppt(appt); }}
                               className="w-full text-left rounded px-2 py-1 transition-all hover:brightness-110"
                               style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
+                              <div className="text-[10px] leading-tight truncate font-semibold" style={{ color: s.text, opacity: 0.75 }}>
+                                {timeRange}
+                              </div>
                               <div className="text-[12px] font-bold leading-tight truncate" style={{ color: s.text }}>
                                 {s.badge && <span className="mr-1">{s.badge}</span>}
                                 {appt.patient.firstName} {appt.patient.lastName}

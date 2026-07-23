@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@precision-medical/auth/client';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Key } from 'lucide-react';
+import { PWAInstallLoginCard } from '@/components/PWAInstallLoginCard';
 
 /**
  * Back-Office · Login
@@ -404,8 +405,11 @@ export default function LoginPage(): React.ReactElement {
             ))}
           </div>
 
+          {/* PWA install card — Android + iOS */}
+          <PWAInstallLoginCard />
+
           {/* Footer */}
-          <p className="lm-fade-380" style={{color:'#2C3248',fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:'2rem'}}>
+          <p className="lm-fade-380" style={{color:'#2C3248',fontSize:11,textTransform:'uppercase',letterSpacing:'0.1em',marginTop:'1.25rem'}}>
             Precision Medical · Clinic · Utah, USA
           </p>
         </div>

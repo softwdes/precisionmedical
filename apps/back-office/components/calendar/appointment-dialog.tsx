@@ -311,6 +311,33 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setError(null);
     if (!canSubmit) return setError(t('errorRequiredFields'));
 
+    // Duplicate check: warn if patient already has an appointment on the same Denver date (free mode only)
+    if (!isEditMode && scheduledForIso && props.mode === 'free' && selectedPatient?.id) {
+      const targetDate = new Date(scheduledForIso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+      const patientId  = selectedPatient.id;
+      if (patientId) {
+        try {
+          const checkRes = await fetch(
+            `/api/admin/appointments?patientId=${patientId}&from=${targetDate}T00:00:00.000Z&to=${targetDate}T23:59:59.999Z`,
+          );
+          if (checkRes.ok) {
+            const checkData = await checkRes.json();
+            const existing = (checkData.appointments ?? []).filter(
+              (a: { status: string }) => a.status !== 'CANCELLED',
+            );
+            if (existing.length > 0) {
+              const confirmDup = window.confirm(
+                `This patient already has ${existing.length} appointment(s) on this date. Do you want to schedule another one?`,
+              );
+              if (!confirmDup) return;
+            }
+          }
+        } catch {
+          // If check fails, proceed anyway — don't block scheduling
+        }
+      }
+    }
+
     setSaving(true);
     try {
       if (isEditMode) {
@@ -380,6 +407,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{t('successTitle')}</DialogTitle>
+          </DialogHeader>
           <div className="text-center py-6">
             <div className="w-16 h-16 rounded-full bg-emerald/20 border-2 border-emerald flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-emerald" />
@@ -411,14 +441,14 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           </DialogTitle>
           {isEditMode && editAppointment && (
             <DialogDescription>
-              Paciente <strong className="text-text-1">{editAppointment.patient.firstName} {editAppointment.patient.lastName}</strong>
-              {' '}· caso <code className="text-text-1 font-mono">{editAppointment.caseCode}</code>.
+              {t('dialogDescPatient')} <strong className="text-text-1">{editAppointment.patient.firstName} {editAppointment.patient.lastName}</strong>
+              {' '}· {t('dialogDescCase')} <code className="text-text-1 font-mono">{editAppointment.caseCode}</code>.
             </DialogDescription>
           )}
           {!isEditMode && props.mode === 'case' && props.caseInfo && (
             <DialogDescription>
-              Paciente <strong className="text-text-1">{props.caseInfo.patient.firstName} {props.caseInfo.patient.lastName}</strong>
-              {' '}· caso <code className="text-text-1 font-mono">{props.caseInfo.caseCode}</code>.
+              {t('dialogDescPatient')} <strong className="text-text-1">{props.caseInfo.patient.firstName} {props.caseInfo.patient.lastName}</strong>
+              {' '}· {t('dialogDescCase')} <code className="text-text-1 font-mono">{props.caseInfo.caseCode}</code>.
               {t('dialogDescStatusChange')} <code className="text-brand">ACTIVE</code>.
             </DialogDescription>
           )}

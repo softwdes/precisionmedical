@@ -2565,6 +2565,8 @@
       "dialogTitleEdit": "Edit appointment",
       "dialogTitleScheduleFirst": "Schedule first visit",
       "dialogTitleNew": "New appointment",
+      "dialogDescPatient": "Patient",
+      "dialogDescCase": "case",
       "dialogDescStatusChange": "On scheduling, status changes to",
       "caseLabel": "Case:",
       "fieldPatient": "Patient",

@@ -69,7 +69,8 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
   const [slots,       setSlots]       = useState<Slot[]>([]);
   const [loading,     setLoading]     = useState(false);
 
-  // Reset when provider/clinic/duration changes (keep initialDate if still valid)
+  // Reset weekStart/selectedDay only when provider or clinic changes
+  // (duration change should NOT reset the selected day — only trigger new slot fetch)
   useEffect(() => {
     if (initialDate) {
       const [y, m, d] = initialDate.split('-').map(Number) as [number, number, number];
@@ -79,7 +80,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
       setWeekStart(getMondayOf(new Date()));
       setSelectedDay(null);
     }
-  }, [providerId, clinicId, duration, initialDate]);
+  }, [providerId, clinicId, initialDate]); // duration intentionally excluded — changing duration only refetches slots
 
   // Fetch slots for current week
   useEffect(() => {

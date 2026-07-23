@@ -10,6 +10,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@serwist/next": "^9.5.11",
+    "serwist": "^9.5.11",
     "@precision-medical/auth": "workspace:*",
     "@precision-medical/database": "workspace:*",
     "@precision-medical/i18n": "workspace:*",

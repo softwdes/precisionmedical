@@ -72,12 +72,13 @@ type ApptRow = Prisma.AppointmentGetPayload<{ include: typeof APPT_INCLUDE }>;
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
 
-  const from      = searchParams.get('from');
-  const to        = searchParams.get('to');
+  const from       = searchParams.get('from');
+  const to         = searchParams.get('to');
   const clinicId   = searchParams.get('clinicId')   ?? undefined;
   const providerId = searchParams.get('providerId') ?? undefined;
   const type       = searchParams.get('type')       ?? undefined;
   const status     = searchParams.get('status')     ?? undefined;
+  const patientId  = searchParams.get('patientId')  ?? undefined;
 
   // Rango por defecto: semana actual (lunes–domingo)
   const fromDate = from ? new Date(from) : (() => {
@@ -102,6 +103,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   };
   if (clinicId)   where.clinicId   = clinicId;
   if (providerId) where.providerId = providerId;
+  if (patientId)  where.patientId  = patientId;
   if (type)       where.type       = type as Prisma.EnumAppointmentTypeFilter;
 
   try {
@@ -218,7 +220,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  if (new Date(parsed.scheduledFor) <= new Date()) {
+  // Allow up to 30 min in the past to handle the case where a user had the slot
+  // picker open when the slot's start time passed (e.g. selected 8:00 AM at 8:05 AM)
+  const GRACE_MS = 30 * 60 * 1000;
+  if (new Date(parsed.scheduledFor).getTime() < Date.now() - GRACE_MS) {
     return NextResponse.json({ error: 'DATE_IN_PAST', message: 'La fecha debe ser futura' }, { status: 400 });
   }
 

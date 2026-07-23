@@ -82,13 +82,24 @@ type Tab = 'detail' | 'services';
 const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 function formatDateTime(iso: string) {
-  const d = new Date(iso);
+  const d  = new Date(iso);
+  const tz = 'America/Denver';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', weekday: 'short', hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
+  const year = get('year'), mon = get('month'), day = get('day');
+  const hr = get('hour'), min = get('minute');
+  const dowMap: Record<string, string> = { Sun:'Dom', Mon:'Lun', Tue:'Mar', Wed:'Mié', Thu:'Jue', Fri:'Vie', Sat:'Sáb' };
+  const monIdx = parseInt(mon, 10) - 1;
+  const h12 = d.toLocaleTimeString('es-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });
   return {
-    date: `${MONTHS_ES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`,
-    time: d.toLocaleTimeString('es-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-    dayName: ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()],
-    dateInput: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
-    timeInput: `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`,
+    date: `${MONTHS_ES[monIdx]} ${parseInt(day, 10)}, ${year}`,
+    time: h12,
+    dayName: dowMap[get('weekday')] ?? get('weekday'),
+    dateInput: `${year}-${mon}-${day}`,
+    timeInput: `${hr === '24' ? '00' : hr}:${min}`,
   };
 }
 
@@ -654,15 +665,31 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         />
       )}
 
-      {/* Reagendar */}
-      <AppointmentDialog
-        mode="free"
-        open={rescheduleOpen}
-        onOpenChange={setRescheduleOpen}
-        initialDate={dt.dateInput}
-        initialTime={dt.timeInput}
-        onSuccess={() => { onRefresh(); onClose(); }}
-      />
+      {/* Reagendar — pre-poblado con datos de la cita actual */}
+      {appt.case && (
+        <AppointmentDialog
+          mode="free"
+          open={rescheduleOpen}
+          onOpenChange={setRescheduleOpen}
+          editAppointment={{
+            id:              appt.id,
+            scheduledFor:    appt.scheduledFor,
+            durationMinutes: appt.durationMinutes,
+            type:            appt.type,
+            notes:           appt.notes,
+            clinicId:        appt.clinic.id,
+            providerId:      appt.provider?.id ?? null,
+            caseId:          appt.case.id,
+            caseCode:        appt.case.caseCode,
+            patient: {
+              id:        appt.patient.id,
+              firstName: appt.patient.firstName,
+              lastName:  appt.patient.lastName,
+            },
+          }}
+          onSuccess={() => { onRefresh(); onClose(); }}
+        />
+      )}
 
       {/* Editar */}
       {appt.case && (

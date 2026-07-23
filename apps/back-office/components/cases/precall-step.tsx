@@ -178,9 +178,7 @@ export function PreCallStep({
             title={t('outgoingTitle')}
             subtitle={t('outgoingSubtitle')}
             tone="cyan"
-            disabled
-            disabledBadge={t('outgoingDisabled')}
-            onClick={() => {}}
+            onClick={() => setMode('outgoing')}
           />
           <ModeCard
             icon={SearchIcon}

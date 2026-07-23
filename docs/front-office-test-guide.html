@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Front Office · Guía de Pruebas</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    @media print {
+      @page { size: letter; margin: 18mm 16mm 18mm 16mm; }
+      .page-break { page-break-before: always; }
+      body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8f9fb;
+      color: #1a1d23;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* ── COVER ── */
+    .cover {
+      background: #0f1117;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 56px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      top: -120px; right: -80px;
+      width: 420px; height: 420px;
+      border-radius: 50%;
+      background: rgba(99,102,241,0.07);
+    }
+    .cover::after {
+      content: '';
+      position: absolute;
+      bottom: -80px; left: 40px;
+      width: 280px; height: 280px;
+      border-radius: 50%;
+      background: rgba(16,185,129,0.05);
+    }
+    .cover-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 24px;
+    }
+    .cover-title {
+      font-size: 38px;
+      font-weight: 700;
+      color: #f1f5f9;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    .cover-subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 48px;
+      max-width: 480px;
+    }
+    .cover-meta {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .cover-meta-item { }
+    .cover-meta-item .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.3);
+      margin-bottom: 3px;
+    }
+    .cover-meta-item .value {
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+      font-family: monospace;
+    }
+    .cover-modules {
+      position: absolute;
+      bottom: 56px;
+      right: 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .cover-module-chip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .chip-brand { background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.3); color: #818cf8; }
+    .chip-emerald { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.25); color: #34d399; }
+    .chip-amber { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.25); color: #fbbf24; }
+    .chip-cyan { background: rgba(6,182,212,0.1); border-color: rgba(6,182,212,0.25); color: #22d3ee; }
+
+    /* ── PAGE LAYOUT ── */
+    .page {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 40px 40px 48px;
+      background: #fff;
+    }
+    @media print {
+      .page { max-width: 100%; padding: 0; }
+      .cover { min-height: auto; padding: 48px 40px 56px; }
+    }
+
+    /* ── SECTION HEADER ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e8eaf0;
+    }
+    .section-num {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .num-brand { background: #eef2ff; color: #4f46e5; }
+    .num-cyan   { background: #ecfeff; color: #0891b2; }
+    .num-amber  { background: #fffbeb; color: #b45309; }
+    .num-emerald{ background: #ecfdf5; color: #059669; }
+
+    .section-title { font-size: 15px; font-weight: 700; color: #0f172a; }
+    .section-badge {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .badge-brand   { background: #eef2ff; color: #4f46e5; }
+    .badge-cyan    { background: #ecfeff; color: #0891b2; }
+    .badge-amber   { background: #fffbeb; color: #b45309; }
+    .badge-emerald { background: #ecfdf5; color: #059669; }
+
+    /* ── MOCKUP FRAME ── */
+    .mockup-frame {
+      border-radius: 12px;
+      border: 1px solid #e2e5ee;
+      overflow: hidden;
+      margin-bottom: 20px;
+      background: #0d1117;
+    }
+    .mockup-bar {
+      background: #161b27;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-red { background: #ef4444; }
+    .dot-amber { background: #f59e0b; }
+    .dot-green { background: #22c55e; }
+    .url-bar {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 10px;
+      font-family: monospace;
+      color: rgba(255,255,255,0.4);
+    }
+
+    .mockup-body { padding: 16px 18px; }
+
+    /* ── MODAL MOCKUP ── */
+    .modal-overlay {
+      background: rgba(0,0,0,0.55);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+    }
+    .modal {
+      background: #161b27;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      width: 100%;
+      max-width: 440px;
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-icon {
+      width: 20px; height: 20px;
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .icon-emerald { background: rgba(16,185,129,0.15); color: #34d399; }
+    .icon-amber   { background: rgba(245,158,11,0.15);  color: #fbbf24; }
+    .icon-cyan    { background: rgba(6,182,212,0.15);    color: #22d3ee; }
+    .icon-brand   { background: rgba(99,102,241,0.15);   color: #818cf8; }
+
+    .modal-title { font-size: 12px; font-weight: 600; color: #e2e8f0; }
+    .modal-subtitle { font-size: 10px; color: rgba(255,255,255,0.35); }
+
+    .modal-content { padding: 12px 16px; }
+
+    /* ── MODE CARDS ── */
+    .mode-cards { display: flex; flex-direction: column; gap: 6px; }
+    .mode-card {
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.07);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      background: #1e2535;
+      transition: border-color 0.15s;
+    }
+    .mode-card.active-brand  { border-color: rgba(99,102,241,0.4);  background: rgba(99,102,241,0.07); }
+    .mode-card.active-cyan   { border-color: rgba(6,182,212,0.4);   background: rgba(6,182,212,0.07); }
+    .mode-card.active-amber  { border-color: rgba(245,158,11,0.4);  background: rgba(245,158,11,0.07); }
+    .mode-icon {
+      width: 32px; height: 32px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .ic-brand  { color: #818cf8; }
+    .ic-cyan   { color: #22d3ee; }
+    .ic-amber  { color: #fbbf24; }
+    .mode-text-title { font-size: 11px; font-weight: 600; color: #e2e8f0; }
+    .mode-text-sub   { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+    .mode-arrow { margin-left: auto; color: rgba(255,255,255,0.2); font-size: 12px; }
+
+    /* ── TIMER PILL ── */
+    .timer-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-family: monospace;
+      font-weight: 600;
+    }
+    .timer-green  { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #34d399; }
+    .timer-amber  { background: rgba(245,158,11,0.12);  border: 1px solid rgba(245,158,11,0.3);  color: #fbbf24; }
+    .pulse { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+
+    /* ── TOAST ── */
+    .toast {
+      background: #1e2535;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .toast-ring {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      color: #34d399;
+      flex-shrink: 0;
+    }
+    .toast-btn-ans {
+      background: #059669;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .toast-btn-dec {
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.45);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 10px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ── SUCCESS CARD ── */
+    .success-card {
+      background: #161b27;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+    .success-ring {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.25);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 10px;
+      font-size: 18px;
+      color: #34d399;
+    }
+    .success-title { font-size: 13px; font-weight: 700; color: #e2e8f0; margin-bottom: 4px; }
+    .success-code  { font-size: 16px; font-weight: 700; font-family: monospace; color: #34d399; margin-bottom: 8px; }
+    .success-line  { font-size: 10px; color: rgba(255,255,255,0.35); margin-bottom: 3px; }
+    .success-btns  { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px;
+      padding: 5px 14px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #4f46e5;
+      border: none;
+      border-radius: 6px;
+      padding: 5px 14px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    /* ── INPUT FIELD MINI ── */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+    .field { display: flex; flex-direction: column; gap: 2px; }
+    .field label { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.05em; }
+    .field input, .field select {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 5px;
+      padding: 5px 8px;
+      font-size: 10px;
+      color: #e2e8f0;
+      outline: none;
+    }
+    .field input.filled { border-color: rgba(99,102,241,0.3); background: rgba(99,102,241,0.06); }
+    .field-hint { font-size: 9px; color: rgba(255,255,255,0.22); margin-top: 1px; font-style: italic; }
+
+    /* ── INFO CARD MINI ── */
+    .info-card {
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.02);
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .info-card-header {
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.55);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .info-card-body { padding: 10px; }
+
+    /* ── STEPS LIST ── */
+    .steps { list-style: none; counter-reset: step; }
+    .steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+      align-items: flex-start;
+    }
+    .steps li::before {
+      content: counter(step);
+      min-width: 20px; height: 20px;
+      border-radius: 50%;
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .steps li.done::before { background: #d1fae5; color: #059669; }
+    .steps li .step-text { font-size: 11.5px; color: #334155; line-height: 1.5; }
+    .steps li .step-text strong { color: #0f172a; font-weight: 600; }
+    .steps li .step-text code {
+      font-family: monospace;
+      font-size: 10px;
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: #4f46e5;
+    }
+
+    /* ── CHECKLIST ── */
+    .checklist { list-style: none; margin-top: 12px; }
+    .checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 11px;
+      color: #475569;
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .check-box {
+      width: 14px; height: 14px;
+      border-radius: 3px;
+      border: 1.5px solid #cbd5e1;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .check-box.ok { background: #059669; border-color: #059669; }
+
+    /* ── NOTE BOX ── */
+    .note {
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+    .note-amber { background: #fffbeb; border-left: 3px solid #f59e0b; color: #78350f; }
+    .note-blue  { background: #eff6ff; border-left: 3px solid #3b82f6; color: #1e3a5f; }
+    .note-green { background: #f0fdf4; border-left: 3px solid #22c55e; color: #14532d; }
+
+    /* ── CHECK TABLE ── */
+    .check-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 12px; }
+    .check-table th {
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      padding: 0 8px 6px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .check-table td { padding: 7px 8px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+    .check-table tr:last-child td { border-bottom: none; }
+    .pass { color: #059669; font-weight: 600; font-size: 10px; }
+    .fail { color: #dc2626; font-weight: 600; font-size: 10px; }
+
+    /* ── SEPARATOR ── */
+    .sep { border: none; border-top: 1px solid #e8eaf0; margin: 28px 0; }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid #0f172a;
+    }
+    .page-header-title { font-size: 18px; font-weight: 700; color: #0f172a; }
+    .page-header-meta  { font-size: 10px; color: #94a3b8; font-family: monospace; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    @media print { .two-col { grid-template-columns: 1fr 1fr; } }
+
+    .mt8  { margin-top: 8px; }
+    .mt14 { margin-top: 14px; }
+    .mt20 { margin-top: 20px; }
+    .mb8  { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <p class="cover-label">Precision Medical Care · QA & Testing</p>
+  <h1 class="cover-title">Front Office<br>Guía de Pruebas</h1>
+  <p class="cover-subtitle">Flujo completo de validación del módulo B.2 — PreCall + New Case Dialog</p>
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <div class="label">URL</div>
+      <div class="value">clinic.lienmaster.net/front-office</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">Fecha</div>
+      <div class="value">2026-06-22</div>
+    </div>
+    <div class="cover-meta-item">
+      <div class="label">App</div>
+      <div class="value">back-office · branch main</div>
+    </div>
+  </div>
+  <div class="cover-modules">
+    <span class="cover-module-chip chip-brand">Prueba 1 · Outgoing</span>
+    <span class="cover-module-chip chip-cyan">Prueba 2 · Search</span>
+    <span class="cover-module-chip chip-amber">Prueba 3 · Manual</span>
+    <span class="cover-module-chip chip-emerald">Prueba 4 · Incoming</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PAGE 1 -->
+<div class="page page-break">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-header-title">Prueba 1 — Llamada saliente (Outgoing)</div>
+    <div class="page-header-meta">back-office · /front-office · modo outgoing</div>
+  </div>
+
+  <div class="two-col">
+
+    <!-- LEFT: steps -->
+    <div>
+      <ol class="steps">
+        <li><span class="step-text">Ir a <code>clinic.lienmaster.net/front-office</code></span></li>
+        <li><span class="step-text">Clic en <strong>"+ Nueva llamada"</strong> (botón header)</span></li>
+        <li><span class="step-text">Verificar que el modal PreCall muestra <strong>3 opciones</strong> en el idioma configurado</span></li>
+        <li><span class="step-text">Seleccionar <strong>"I'm going to call"</strong> (Yo voy a llamar)</span></li>
+        <li><span class="step-text">Llenar: Nombre <code>Test</code> · Apellido <code>Saliente</code> · Teléfono <code>(801) 555-0100</code></span></li>
+        <li><span class="step-text">Verificar que aparece el link <strong>"Tap to dial"</strong> con el número</span></li>
+        <li><span class="step-text">Clic <strong>"Dialed · start capture"</strong></span></li>
+        <li><span class="step-text">Modal grande abre · verificar <strong>timer verde animado</strong> corriendo desde 00:00</span></li>
+        <li><span class="step-text">Sección Patient: datos pre-llenados · agregar DOB y email</span></li>
+        <li><span class="step-text">Tipo de caso: seleccionar <strong>MVA</strong></span></li>
+        <li><span class="step-text">Accidente: fecha de hoy · mecanismo Auto · ubicación <code>I-15 Exit 285</code></span></li>
+        <li><span class="step-text">Abogado: <strong>"Yes, has attorney"</strong> → buscar <code>Smith</code> en autocomplete</span></li>
+        <li><span class="step-text">Seguro PIP: buscar <code>GEICO</code></span></li>
+        <li><span class="step-text">Agenda: seleccionar slot · doctor · clínica</span></li>
+        <li><span class="step-text">Form delivery: <strong>"Send link now"</strong></span></li>
+        <li><span class="step-text">Clic <strong>"End call"</strong> → pantalla de éxito con código <code>MVA-XXXX</code></span></li>
+      </ol>
+
+      <div class="note note-blue mt14">
+        <strong>Verificación de idioma:</strong> todos los labels, hints y botones deben estar en inglés. No debe aparecer ningún texto en español hardcodeado.
+      </div>
+    </div>
+
+    <!-- RIGHT: mockup -->
+    <div>
+      <!-- PreCall modal -->
+      <p style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Modal PreCall</p>
+      <div class="mockup-frame">
+        <div class="mockup-bar">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-amber"></span>
+          <span class="dot dot-green"></span>
+          <span class="url-bar">clinic.lienmaster.net/front-office</span>
+        </div>
+        <div class="mockup-body">
+          <div class="modal-overlay">
+            <div class="modal">
+              <div class="modal-header">
+                <div class="modal-icon icon-emerald">📞</div>
+                <div>
+                  <div class="modal-title">New call · Create case</div>
+                  <div class="modal-subtitle">Timer starts when you're actually speaking</div>
+                </div>
+              </div>
+              <div class="modal-content">
+                <div style="font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">How do we start?</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-bottom:10px;">Pick a scenario before starting · timer starts after.</div>
+                <div class="mode-cards">
+                  <div class="mode-card">
+                    <div class="mode-icon ic-brand">🔍</div>
+                    <div>
+                      <div class="mode-text-title">Search existing patient</div>
+                      <div class="mode-text-sub">Already in the system</div>
+                    </div>
+                    <span class="mode-arrow">›</span>
+                  </div>
+                  <div class="mode-card active-cyan">
+                    <div class="mode-icon ic-cyan">📤</div>
+                    <div>
+                      <div class="mode-text-title" style="color:#22d3ee;">I'm going to call</div>
+                      <div class="mode-text-sub">Outbound · dial the patient number</div>
+                    </div>
+                    <span class="mode-arrow" style="color:#22d3ee;">›</span>
+                  </div>
+                  <div class="mode-card">
+                    <div class="mode-icon ic-amber">📋</div>
+                    <div>
+                      <div class="mode-text-title">Add referral — no call</div>
+                      <div class="mode-text-sub">Manual entry · no timer</div>
+                    </div>
+                    <span class="mode-arrow">›</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success screen -->
+      <p style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;margin-top:14px;">Pantalla de éxito</p>
+      <div class="mockup-frame">
+        <div class="mockup-bar">
+          <span class="dot dot-red"></span><span class="dot dot-amber"></span><span class="dot dot-green"></span>
+          <span class="url-bar">clinic.lienmaster.net/front-office</span>
+        </div>
+        <div class="mockup-body">
+          <div class="success-card">
+            <div class="success-ring">✓</div>
+            <div class="success-title">Case created · call ended</div>
+            <div class="success-code">MVA-3047</div>
+            <div class="success-line">Test Saliente · (801) 555-0100</div>
+            <div class="success-line">Appointment confirmed · status <span style="color:#34d399;font-family:monospace;">CONFIRMED</span></div>
+            <div class="success-line">Form sent by SMS</div>
+            <div class="success-btns">
+              <button class="btn-outline">Close</button>
+              <button class="btn-primary">View case →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Checklist -->
+  <hr class="sep">
+  <p style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:8px;">Checklist de verificación</p>
+  <table class="check-table">
+    <thead><tr><th style="width:40%">Check</th><th>Esperado</th><th style="width:10%">Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>Modal PreCall abre al clic</td><td>3 opciones visibles · idioma correcto (sin español)</td><td class="pass">□ OK</td></tr>
+      <tr><td>Modo Outgoing seleccionado</td><td>Tarjeta cyan resaltada · formulario de nombre + teléfono</td><td class="pass">□ OK</td></tr>
+      <tr><td>Link "Tap to dial" aparece</td><td>Solo cuando teléfono tiene contenido</td><td class="pass">□ OK</td></tr>
+      <tr><td>Timer en modal grande</td><td>Verde animado · corre desde 00:00 · NO se detiene al hacer scroll</td><td class="pass">□ OK</td></tr>
+      <tr><td>Autocomplete abogado</td><td>Resultados de Smith & Johnson al escribir "Smith"</td><td class="pass">□ OK</td></tr>
+      <tr><td>Pantalla de éxito</td><td>Título "Case created · call ended" · código MVA-XXXX · botón "View case"</td><td class="pass">□ OK</td></tr>
+      <tr><td>Caso aparece en cola</td><td>Después de "View case" → /front-office/[id] carga correctamente</td><td class="pass">□ OK</td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PAGE 2 -->
+<div class="page page-break">
+
+  <div class="page-header">
+    <div class="page-header-title">Prueba 2 — Paciente existente (Search)</div>
+    <div class="page-header-meta">back-office · /front-office · modo search</div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <ol class="steps">
+        <li><span class="step-text">Clic en <strong>"+ Nueva llamada"</strong></span></li>
+        <li><span class="step-text">Seleccionar <strong>"Search existing patient"</strong></span></li>
+        <li><span class="step-text">Escribir <code>Sand</code> → esperar resultados (debounce 250ms)</span></li>
+        <li><span class="step-text">Verificar que aparecen resultados con código <code>PT-XXXX</code>, teléfono y cantidad de casos</span></li>
+        <li><span class="step-text">Seleccionar a <strong>Sandra López</strong></span></li>
+        <li><span class="step-text">Verificar tarjeta de paciente: nombre · código · teléfono · botón <strong>"Cambiar"</strong></span></li>
+        <li><span class="step-text">Verificar que el teléfono aparece como link verde <strong>"Tap to dial"</strong></span></li>
+        <li><span class="step-text">Clic <strong>"On the call · start capture"</strong></span></li>
+        <li><span class="step-text">Modal grande: datos de Sandra pre-llenados · badge <code>paciente conocido</code> visible</span></li>
+        <li><span class="step-text">Tipo de caso: seleccionar <strong>GM</strong> (medicina general)</span></li>
+        <li><span class="step-text">Form delivery: <strong>"Fill on tablet at clinic"</strong></span></li>
+        <li><span class="step-text">Clic <strong>"End call"</strong> → éxito</span></li>
+      </ol>
+
+      <div class="note note-amber mt14">
+        <strong>Nota:</strong> Si al escribir "Sand" no aparecen resultados, verificar que el seed de pacientes fue ejecutado en la DB. Mínimo 2 caracteres para activar búsqueda.
+      </div>
+
+      <div class="note note-blue mt8">
+        <strong>Modo GM:</strong> al seleccionar General Medicine, las secciones de Accidente, Abogado y Seguro PIP <strong>no deben aparecer</strong>. Solo Patient + Schedule + Form delivery.
+      </div>
+    </div>
+
+    <div>
+      <!-- Search results mockup -->
+      <p style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Búsqueda de paciente</p>
+      <div class="mockup-frame">
+        <div class="mockup-bar">
+          <span class="dot dot-red"></span><span class="dot dot-amber"></span><span class="dot dot-green"></span>
+          <span class="url-bar">clinic.lienmaster.net/front-office</span>
+        </div>
+        <div class="mockup-body">
+          <div class="modal-overlay">
+            <div class="modal">
+              <div class="modal-header">
+                <div class="modal-icon icon-brand">🔍</div>
+                <div>
+                  <div class="modal-title">Search existing patient</div>
+                </div>
+              </div>
+              <div class="modal-content">
+                <div style="position:relative;margin-bottom:8px;">
+                  <input style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(99,102,241,0.3);border-radius:6px;padding:6px 10px 6px 28px;font-size:11px;color:#e2e8f0;outline:none;" value="Sand" />
+                  <span style="position:absolute;left:9px;top:7px;font-size:12px;color:rgba(255,255,255,0.3);">🔍</span>
+                </div>
+                <!-- results -->
+                <div style="border:1px solid rgba(255,255,255,0.07);border-radius:8px;overflow:hidden;">
+                  <div style="background:#1e2535;border-bottom:1px solid rgba(255,255,255,0.05);padding:8px 12px;display:flex;align-items:center;gap:8px;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#818cf8;">SL</div>
+                    <div style="flex:1;">
+                      <div style="font-size:11px;font-weight:600;color:#e2e8f0;">Sandra López</div>
+                      <div style="font-size:9px;color:rgba(255,255,255,0.3);font-family:monospace;">PT-0012 · (801) 555-0187 · 2 casos</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.2);font-size:12px;">›</span>
+                  </div>
+                  <div style="padding:8px 12px;display:flex;align-items:center;gap:8px;opacity:0.5;">
+                    <div style="width:28px;height:28px;border-radius:50%;background:rgba(6,182,212,0.1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#22d3ee;">SM</div>
+                    <div style="flex:1;">
+                      <div style="font-size:11px;font-weight:600;color:#e2e8f0;">Sandoval, Miguel</div>
+                      <div style="font-size:9px;color:rgba(255,255,255,0.3);font-family:monospace;">PT-0031 · (801) 555-0244 · 1 caso</div>
+                    </div>
+                    <span style="color:rgba(255,255,255,0.2);font-size:12px;">›</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Selected patient -->
+      <p style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;margin-top:14px;">Paciente seleccionado + modal captura</p>
+      <div class="mockup-frame">
+        <div class="mockup-bar">
+          <span class="dot dot-red"></span><span class="dot dot-amber"></span><span class="dot dot-green"></span>
+          <span class="url-bar">clinic.lienmaster.net/front-office</span>
+        </div>
+        <div class="mockup-body" style="padding:10px;">
+          <!-- header -->
+          <div style="background:#161b27;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="font-size:12px;color:#34d399;">📞</span>
+              <span style="font-size:11px;font-weight:600;color:#e2e8f0;">Call · Sandra López</span>
+              <span class="timer-pill timer-green" style="margin-left:auto;">
+                <span class="pulse"></span>02:14
+              </span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <span style="font-size:9px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:#22d3ee;padding:2px 7px;border-radius:10px;font-family:monospace;">paciente conocido</span>
+              <span style="font-size:9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;padding:2px 7px;border-radius:10px;font-family:monospace;">NEW_REFERRAL</span>
+            </div>
+          </div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);font-style:italic;text-align:center;">Secciones Patient / Case Type / Appointment…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+  <p style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:8px;">Checklist de verificación</p>
+  <table class="check-table">
+    <thead><tr><th style="width:40%">Check</th><th>Esperado</th><th style="width:10%">Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>Búsqueda activa desde 2 chars</td><td>Con 1 char no busca · con 2+ muestra resultados o mensaje vacío</td><td class="pass">□ OK</td></tr>
+      <tr><td>Tarjeta de paciente seleccionado</td><td>Nombre · código PT · teléfono · botón "Change"</td><td class="pass">□ OK</td></tr>
+      <tr><td>Badge "paciente conocido"</td><td>Visible en header del modal grande · color cyan</td><td class="pass">□ OK</td></tr>
+      <tr><td>Datos pre-llenados</td><td>Nombre, apellido y teléfono de Sandra ya en los campos</td><td class="pass">□ OK</td></tr>
+      <tr><td>Modo GM oculta secciones MVA</td><td>Sin accidente, abogado, ni PIP al seleccionar General Medicine</td><td class="pass">□ OK</td></tr>
+      <tr><td>Timer corre normalmente</td><td>Verde animado · no se reinicia al cambiar de sección</td><td class="pass">□ OK</td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PAGE 3 -->
+<div class="page page-break">
+
+  <div class="page-header">
+    <div class="page-header-title">Prueba 3 — Referido sin llamada (Manual)</div>
+    <div class="page-header-meta">back-office · /front-office · modo manual</div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <ol class="steps">
+        <li><span class="step-text">Clic en <strong>"+ Nueva llamada"</strong></span></li>
+        <li><span class="step-text">Seleccionar <strong>"Add referral — no call"</strong> (tarjeta amber)</span></li>
+        <li><span class="step-text">Llenar: Nombre <code>Referido</code> · Apellido <code>García</code></span></li>
+        <li><span class="step-text">Dejar teléfono <strong>vacío</strong> (es opcional en modo manual)</span></li>
+        <li><span class="step-text">Verificar nota amber: <em>"Sin timer · caso se crea como LAW_FIRM_REFERRAL"</em></span></li>
+        <li><span class="step-text">Clic <strong>"Continue · fill in details"</strong></span></li>
+        <li><span class="step-text">Verificar header del modal grande:</span></li>
+      </ol>
+
+      <div style="margin-left:32px;margin-bottom:10px;">
+        <ul style="list-style:none;font-size:11px;color:#334155;line-height:1.8;">
+          <li>📋 Ícono clipboard (amber) — NO teléfono verde</li>
+          <li>Título: <code>"New referral · Referido García"</code></li>
+          <li>Badge: <code>no call</code> en amber — NO timer verde</li>
+          <li>NO hay cronómetro corriendo</li>
+        </ul>
+      </div>
+
+      <ol class="steps" start="8">
+        <li><span class="step-text">Fuente de referido: verificar que está en <strong>"Law firm"</strong> por defecto</span></li>
+        <li><span class="step-text">Tipo de caso: <strong>MVA</strong> · llenar accidente y abogado</span></li>
+        <li><span class="step-text">Agenda: marcar <strong>sin agendar</strong> en esta llamada (desmarcar checkbox)</span></li>
+        <li><span class="step-text">Clic <strong>"End call"</strong> (o botón equivalente)</span></li>
+        <li><span class="step-text">Pantalla de éxito: título debe ser <strong>"Referral registered"</strong> (NO "Case created · call ended")</span></li>
+        <li><span class="step-text">Estado del caso: <code>NEW_REFERRAL</code> (no CONFIRMED)</span></li>
+      </ol>
+
+      <div class="note note-amber mt14">
+        <strong>Diferencia clave:</strong> el texto de éxito cambia según el modo. Manual → "Referral registered". Llamada → "Case created · call ended". Verificar este detalle específicamente.
+      </div>
+    </div>
+
+    <div>
+      <!-- Manual preCall -->
+      <p style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Modo manual — formulario</p>
+      <div class="mockup-frame">
+        <div class="mockup-bar">
+          <span class="dot dot-red"></span><span class="dot dot-amber"></span><span class="dot dot-green"></span>
+          <span class="url-bar">clinic.lienmaster.net/front-office</span>
+        </div>
+        <div class="mockup-body">
+          <div class="modal-overlay">
+            <div class="modal">
+              <div class="modal-header">
+                <div class="modal-icon icon-amber">📋</div>
+                <div>
+                  <div class="modal-title" style="color:#fbbf24;">Add referral — no call</div>
+                </div>
+              </div>
+              <div class="modal-content">
+                <div class="info-card">
+                  <div class="info-card-header" style="color:#fbbf24;">📋 Referral details</div>
+                  <div class="info-card-body">
+                    <div class="field-row">
+                      <div class="field">
+                        <label>First name *</label>
+                        <input class="filled" value="Referido" readonly />
+                      </div>
+                      <div class="field">
+                        <label>Last name *</label>
+                        <input class="filled" value="García" readonly />
+                      </div>
+                    </div>
+                    <div class="field mb8">
+                      <label>Phone</label>
+                      <input placeholder="(801) 555-0142" readonly />
+                      <div class="field-hint">Optional if data arrived by email or fax</div>
+                    </div>
+                  </div>
+                </div>
+                <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:6px;padding:8px 10px;font-size:9.5px;color:#fbbf24;">
+                  No call timer · case is created as <span style="font-family:monospace;font-weight:700;">LAW_FIRM_REFERRAL</span>. You can complete all details in the next step.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual modal header -->
+      <p style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;margin-top:14px;">Modal captura — header manual</p>
+      <div class="mockup-frame">
+        <div class="mockup-bar">
+          <span class="dot dot-red"></span><span class="dot dot-amber"></span><span class="dot dot-green"></span>
+          <span class="url-bar">clinic.lienmaster.net/front-office</span>
+        </div>
+        <div class="mockup-body" style="padding:10px;">
+          <div style="background:#161b27;border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px 12px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="font-size:12px;color:#fbbf24;">📋</span>
+              <span style="font-size:11px;font-weight:600;color:#e2e8f0;">New referral · Referido García</span>
+              <span class="timer-pill timer-amber" style="margin-left:auto;">no call</span>
+            </div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);">manual entry · no call · fill in details and schedule</div>
+          </div>
+          <!-- success -->
+          <div style="margin-top:10px;background:#161b27;border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px;text-align:center;">
+            <div style="color:#34d399;font-size:14px;margin-bottom:4px;">✓</div>
+            <div style="font-size:11px;font-weight:700;color:#e2e8f0;margin-bottom:4px;">Referral registered</div>
+            <div style="font-size:10px;font-family:monospace;color:#34d399;">MVA-3048</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:4px;">No appointment yet · status <span style="color:#f87171;font-family:monospace;">NEW_REFERRAL</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+  <p style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:8px;">Checklist de verificación</p>
+  <table class="check-table">
+    <thead><tr><th style="width:40%">Check</th><th>Esperado</th><th style="width:10%">Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>Teléfono opcional</td><td>Se puede continuar sin llenar teléfono · botón habilitado con solo nombre y apellido</td><td class="pass">□ OK</td></tr>
+      <tr><td>Header amber (no verde)</td><td>Ícono clipboard · título "New referral · {nombre}" · badge "no call" amber</td><td class="pass">□ OK</td></tr>
+      <tr><td>Sin timer</td><td>No hay cronómetro · no hay badge verde animado</td><td class="pass">□ OK</td></tr>
+      <tr><td>Fuente = Law firm</td><td>Dropdown de referral source preseleccionado en "Law firm"</td><td class="pass">□ OK</td></tr>
+      <tr><td>Éxito diferenciado</td><td>Título "Referral registered" · estado NEW_REFERRAL (no CONFIRMED)</td><td class="pass">□ OK</td></tr>
+      <tr><td>Sin agendar funciona</td><td>Al desmarcar checkbox de agenda, el caso se crea igual en NEW_REFERRAL</td><td class="pass">□ OK</td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PAGE 4 -->
+<div class="page page-break">
+
+  <div class="page-header">
+    <div class="page-header-title">Prueba 4 — Llamada entrante simulada (Incoming)</div>
+    <div class="page-header-meta">back-office · /front-office · IncomingCallSimulator</div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <ol class="steps">
+        <li><span class="step-text">En <code>/front-office</code>, buscar el botón <strong>"Simular llamada entrante"</strong> en el header</span></li>
+        <li><span class="step-text">Clic en el botón</span></li>
+        <li><span class="step-text">Verificar que aparece un <strong>toast</strong> en la esquina superior derecha con:
+          <ul style="margin-top:4px;margin-left:16px;font-size:11px;color:#334155;">
+            <li>Animación de teléfono / ícono de llamada</li>
+            <li>Sonido de ring (Web Audio · 440Hz+480Hz)</li>
+            <li>Nombre del paciente (60% chance) o número desconocido (40%)</li>
+            <li>Botones "Contestar" y "Rechazar"</li>
+          </ul>
+        </span></li>
+        <li><span class="step-text">Clic <strong>"Contestar"</strong> antes de 12 segundos (auto-dismiss)</span></li>
+        <li><span class="step-text">Verificar que el modal de captura abre <strong>directamente</strong> (sin pasar por PreCall)</span></li>
+        <li><span class="step-text">Datos pre-llenados desde la llamada simulada</span></li>
+        <li><span class="step-text">Timer verde corriendo desde 00:00</span></li>
+        <li><span class="step-text">Completar el caso normalmente y finalizar</span></li>
+      </ol>
+
+      <div class="note note-green mt14">
+        <strong>Flujo incoming:</strong> este modo salta el PreCallStep completamente. El modal abre directo en "capturing" (paso 2) con los datos del toast pre-llenados. El timer arranca inmediatamente.
+      </div>
+
+      <div class="note note-amber mt8">
+        <strong>Auto-dismiss:</strong> si pasan 12 segundos sin contestar, el toast desaparece solo. Probar también este escenario — verificar que el modal NO abre si no se hizo clic en "Contestar".
+      </div>
+
+      <!-- Prueba adicional -->
+      <div style="margin-top:20px;">
+        <p style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:8px;">Prueba 5 — Pausar llamada (guardado parcial)</p>
+        <ol class="steps">
+          <li><span class="step-text">Iniciar cualquier modo de captura</span></li>
+          <li><span class="step-text">Llenar solo nombre, apellido y teléfono</span></li>
+          <li><span class="step-text">Clic <strong>"Pause"</strong> (botón izquierdo del footer)</span></li>
+          <li><span class="step-text">Verificar que el caso se guarda con estado parcial</span></li>
+          <li><span class="step-text">Modal se cierra · caso aparece en cola</span></li>
+        </ol>
+      </div>
+    </div>
+
+    <div>
+      <!-- Toast mockup -->
+      <p style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Toast llamada entrante</p>
+      <div class="mockup-frame">
+        <div class="mockup-bar">
+          <span class="dot dot-red"></span><span class="dot dot-amber"></span><span class="dot dot-green"></span>
+          <span class="url-bar">clinic.lienmaster.net/front-office</span>
+        </div>
+        <div class="mockup-body" style="position:relative;min-height:110px;">
+          <!-- simulated page bg -->
+          <div style="height:55px;background:rgba(255,255,255,0.02);border-radius:6px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:10px;color:rgba(255,255,255,0.15);">cola de front office…</span>
+          </div>
+          <!-- toast positioned top-right -->
+          <div class="toast">
+            <div class="toast-ring">📞</div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:#e2e8f0;">LLAMADA · Sandra López</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.35);font-family:monospace;">(801) 555-0187 · 2 casos previos</div>
+            </div>
+            <button class="toast-btn-dec">Rechazar</button>
+            <button class="toast-btn-ans">Contestar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Post-answer: modal skips precall -->
+      <p style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;margin-top:14px;">Al contestar → modal directo en captura</p>
+      <div class="mockup-frame">
+        <div class="mockup-bar">
+          <span class="dot dot-red"></span><span class="dot dot-amber"></span><span class="dot dot-green"></span>
+          <span class="url-bar">clinic.lienmaster.net/front-office</span>
+        </div>
+        <div class="mockup-body" style="padding:10px;">
+          <div style="background:#161b27;border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="font-size:12px;color:#34d399;">📞</span>
+              <span style="font-size:11px;font-weight:600;color:#e2e8f0;">Call · Sandra López</span>
+              <span class="timer-pill timer-green" style="margin-left:auto;">
+                <span class="pulse"></span>00:03
+              </span>
+            </div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);">incoming call · capture + schedule · 10–15 min typical</div>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);margin-bottom:6px;letter-spacing:.05em;text-transform:uppercase;font-size:9px;">Information to capture on this call</div>
+          <div class="info-card">
+            <div class="info-card-header">👤 Basic patient information</div>
+            <div class="info-card-body">
+              <div class="field-row">
+                <div class="field"><label>First name *</label><input class="filled" value="Sandra" readonly /></div>
+                <div class="field"><label>Last name *</label><input class="filled" value="López" readonly /></div>
+              </div>
+              <div class="field"><label>Phone *</label><input class="filled" value="(801) 555-0187" readonly /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+  <p style="font-size:11px;font-weight:700;color:#0f172a;margin-bottom:8px;">Checklist — Prueba 4 (Incoming) + Prueba 5 (Pause)</p>
+  <table class="check-table">
+    <thead><tr><th style="width:40%">Check</th><th>Esperado</th><th style="width:10%">Resultado</th></tr></thead>
+    <tbody>
+      <tr><td>Toast aparece al simular</td><td>Esquina superior derecha · animación · nombre o número · sonido ring</td><td class="pass">□ OK</td></tr>
+      <tr><td>Auto-dismiss en 12s</td><td>Toast desaparece solo · modal NO abre</td><td class="pass">□ OK</td></tr>
+      <tr><td>Contestar salta PreCall</td><td>Modal abre directo en captura · sin pasar por las 3 opciones</td><td class="pass">□ OK</td></tr>
+      <tr><td>Datos pre-llenados</td><td>Nombre y teléfono del toast ya en los campos del modal</td><td class="pass">□ OK</td></tr>
+      <tr><td>Timer desde 00:00</td><td>Verde animado arranca al abrir el modal (no desde cuando suena)</td><td class="pass">□ OK</td></tr>
+      <tr><td>Pause guarda parcial</td><td>Solo requiere nombre + apellido + teléfono · no bloquea por campos faltantes</td><td class="pass">□ OK</td></tr>
+      <tr><td>Caso pausado en cola</td><td>Aparece en /front-office con estado parcial tras cerrar modal</td><td class="pass">□ OK</td></tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PAGE 5: Summary -->
+<div class="page page-break">
+
+  <div class="page-header">
+    <div class="page-header-title">Resumen · Verificación de Idioma y Mobile</div>
+    <div class="page-header-meta">back-office · checks transversales</div>
+  </div>
+
+  <!-- i18n check -->
+  <p style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:12px;">Verificación de i18n (todos los modos)</p>
+  <div class="note note-blue mb8">
+    Todo el módulo B.2 fue migrado a <code>useTranslations()</code>. No debe quedar ningún string hardcodeado en español. Verificar estos puntos específicamente en cada prueba:
+  </div>
+  <table class="check-table">
+    <thead><tr><th style="width:35%">Elemento</th><th>Texto esperado (EN)</th><th style="width:22%">Texto esperado (ES)</th><th style="width:8%">OK</th></tr></thead>
+    <tbody>
+      <tr><td>Títulos de las 3 tarjetas PreCall</td><td>Search existing / I'm going to call / Add referral — no call</td><td>Buscar paciente / Voy a llamar / Agregar sin llamada</td><td>□</td></tr>
+      <tr><td>Botón confirmar (outgoing)</td><td>Dialed · start capture</td><td>Marcado · iniciar captura</td><td>□</td></tr>
+      <tr><td>Botón confirmar (manual)</td><td>Continue · fill in details</td><td>Continuar · completar datos</td><td>□</td></tr>
+      <tr><td>Badge modo manual</td><td>no call</td><td>sin llamada</td><td>□</td></tr>
+      <tr><td>Título éxito (llamada)</td><td>Case created · call ended</td><td>Caso creado · llamada finalizada</td><td>□</td></tr>
+      <tr><td>Título éxito (manual)</td><td>Referral registered</td><td>Referido registrado</td><td>□</td></tr>
+      <tr><td>Botón pausar</td><td>Pause · partial save</td><td>Pausar · guardado parcial</td><td>□</td></tr>
+      <tr><td>Nota amber modo manual</td><td>No call timer · case is created as LAW_FIRM_REFERRAL…</td><td>Sin temporizador · el caso se crea como LAW_FIRM_REFERRAL…</td><td>□</td></tr>
+    </tbody>
+  </table>
+
+  <hr class="sep">
+
+  <!-- mobile check -->
+  <p style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:12px;">Verificación Mobile (375px · iPhone SE)</p>
+  <div class="two-col">
+    <div>
+      <table class="check-table">
+        <thead><tr><th>Elemento</th><th style="width:12%">OK</th></tr></thead>
+        <tbody>
+          <tr><td>Las 3 tarjetas PreCall stackean en 1 columna</td><td>□</td></tr>
+          <tr><td>Formulario outgoing/manual: grid 1 columna</td><td>□</td></tr>
+          <tr><td>Modal grande sin scroll horizontal</td><td>□</td></tr>
+          <tr><td>Footer botones stackeados (Pause arriba, End call abajo)</td><td>□</td></tr>
+          <tr><td>Slots de agenda en 2 columnas (no 4)</td><td>□</td></tr>
+          <tr><td>Segmented control abogado: 1 columna</td><td>□</td></tr>
+          <tr><td>Toast visible completo sin desbordamiento</td><td>□</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <!-- mini phone mockup -->
+      <div style="width:160px;margin:0 auto;border:2px solid #1e293b;border-radius:24px;padding:12px 8px;background:#0d1117;">
+        <div style="background:#161b27;border-radius:14px;overflow:hidden;min-height:280px;">
+          <!-- status bar -->
+          <div style="background:#0d1117;padding:4px 8px;display:flex;justify-content:space-between;font-size:7px;color:rgba(255,255,255,0.3);">
+            <span>9:41</span><span>●●●</span>
+          </div>
+          <!-- modal cards stacked -->
+          <div style="padding:8px;">
+            <div style="font-size:8px;font-weight:700;color:#e2e8f0;margin-bottom:4px;">How do we start?</div>
+            <!-- card 1 -->
+            <div style="background:#1e2535;border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:6px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+              <div style="width:20px;height:20px;background:rgba(99,102,241,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;">🔍</div>
+              <div>
+                <div style="font-size:8px;font-weight:600;color:#e2e8f0;">Search existing</div>
+                <div style="font-size:7px;color:rgba(255,255,255,0.3);">Already in system</div>
+              </div>
+            </div>
+            <!-- card 2 -->
+            <div style="background:#1e2535;border:1px solid rgba(6,182,212,0.3);border-radius:6px;padding:6px 8px;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+              <div style="width:20px;height:20px;background:rgba(6,182,212,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;">📤</div>
+              <div>
+                <div style="font-size:8px;font-weight:600;color:#22d3ee;">I'm going to call</div>
+                <div style="font-size:7px;color:rgba(255,255,255,0.3);">Outbound</div>
+              </div>
+            </div>
+            <!-- card 3 -->
+            <div style="background:#1e2535;border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:6px 8px;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+              <div style="width:20px;height:20px;background:rgba(245,158,11,0.15);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;">📋</div>
+              <div>
+                <div style="font-size:8px;font-weight:600;color:#e2e8f0;">Add referral</div>
+                <div style="font-size:7px;color:rgba(255,255,255,0.3);">No call</div>
+              </div>
+            </div>
+            <!-- cancel full width -->
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:5px;text-align:center;font-size:8px;color:rgba(255,255,255,0.4);">Cancel</div>
+          </div>
+        </div>
+      </div>
+      <p style="text-align:center;font-size:9px;color:#94a3b8;margin-top:6px;">375px · tarjetas en columna única ✓</p>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- sign-off -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:4px;">
+    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+      <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:24px;">Probado por</div>
+      <div style="border-top:1px solid #cbd5e1;padding-top:4px;font-size:10px;color:#94a3b8;">Nombre · Firma</div>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+      <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:24px;">Fecha de prueba</div>
+      <div style="border-top:1px solid #cbd5e1;padding-top:4px;font-size:10px;color:#94a3b8;">DD / MM / YYYY</div>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+      <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:24px;">Resultado</div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <div style="flex:1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:5px;padding:4px;text-align:center;font-size:10px;font-weight:600;color:#059669;">✓ PASS</div>
+        <div style="flex:1;background:#fff1f2;border:1px solid #fecdd3;border-radius:5px;padding:4px;text-align:center;font-size:10px;font-weight:600;color:#e11d48;">✗ FAIL</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:28px;font-size:9px;color:#cbd5e1;text-align:center;">
+    Precision Medical Care · Front Office QA Guide · Generado 2026-06-22 · commit 27aeabe
+  </div>
+
+</div>
+
+</body>
+</html>

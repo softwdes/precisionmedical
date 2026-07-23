@@ -23,6 +23,8 @@ import {
 import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoenix';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-step';
+import { ActiveCallBar } from './active-call-bar';
+import { useTwilioDevice } from '@/lib/use-twilio-device';
 
 // B.2 — Contacto inicial del paciente · llamada + apertura caso + agendamiento
 //
@@ -90,6 +92,10 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const tp = useTranslations('phoenix.patients');
   const tc = useTranslations('caseWizard');
 
+  // ─── Twilio click-to-dial ──────────────────────────────────────────────
+  const twilioDevice = useTwilioDevice();
+  const [callEnded, setCallEnded] = useState(false);
+
   // ─── Step state ────────────────────────────────────────────────────────
   const [step, setStep] = useState<'precall' | 'capturing'>('precall');
   const [precallInitialMode, setPrecallInitialMode] = useState<PreCallMode | undefined>(undefined);
@@ -100,11 +106,30 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // ─── Call timer ────────────────────────────────────────────────────────
   const [callElapsed, setCallElapsed] = useState(0);
   useEffect(() => {
-    if (!open) { setCallElapsed(0); setStep('precall'); setCallMode(null); setExistingPatientId(null); return; }
+    if (!open) {
+      setCallElapsed(0); setStep('precall'); setCallMode(null);
+      setExistingPatientId(null); setCallEnded(false);
+      return;
+    }
     if (step !== 'capturing' || callMode === 'manual' || callMode === 'search') return;
+    if (callEnded) return;
     const id = setInterval(() => setCallElapsed((p) => p + 1), 1000);
     return () => clearInterval(id);
-  }, [open, step, callMode]);
+  }, [open, step, callMode, callEnded]);
+
+  // Auto-connect Twilio when outgoing mode starts
+  useEffect(() => {
+    if (step !== 'capturing' || callMode !== 'outgoing' || !phone) return;
+    twilioDevice.connect(phone).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, callMode]);
+
+  // When Twilio disconnects, freeze the timer
+  useEffect(() => {
+    if (twilioDevice.status === 'ready' && callMode === 'outgoing' && step === 'capturing') {
+      setCallEnded(true);
+    }
+  }, [twilioDevice.status, callMode, step]);
 
   // ─── Section 1: Patient ────────────────────────────────────────────────
   const [firstName, setFirstName] = useState('');
@@ -540,6 +565,21 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               </button>
             )}
           </div>
+
+          {/* Active call bar — outgoing Twilio call */}
+          {callMode === 'outgoing' && !callEnded && (twilioDevice.status === 'connecting' || twilioDevice.status === 'in-call') && (
+            <div className="mt-3">
+              <ActiveCallBar
+                status={twilioDevice.status}
+                patientName={fullName || phone}
+                phone={phone}
+                elapsed={callElapsed}
+                muted={twilioDevice.muted}
+                onMuteToggle={twilioDevice.toggleMute}
+                onHangUp={() => { twilioDevice.hangUp(); setCallEnded(true); }}
+              />
+            </div>
+          )}
 
           {/* Step progress breadcrumb */}
           <div className="mt-3 flex items-center gap-1 overflow-x-auto pb-0.5">

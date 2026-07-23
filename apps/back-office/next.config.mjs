@@ -1,6 +1,7 @@
 // @ts-check
 // build trigger: 2026-07-21
 import createNextIntlPlugin from 'next-intl/plugin';
+import withSerwistInit from '@serwist/next';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -33,9 +34,15 @@ const nextConfig = {
   },
 };
 
+const withSerwist = withSerwistInit({
+  swSrc: 'app/sw.ts',
+  swDest: 'public/sw.js',
+  disable: process.env.NODE_ENV === 'development',
+});
+
 // Sentry wrapper — solo activo en CI/prod (DSN requerido).
 // En dev local se salta para evitar problemas con symlinks de pnpm.
-let finalConfig = withNextIntl(nextConfig);
+let finalConfig = withSerwist(withNextIntl(nextConfig));
 
 if (process.env.SENTRY_DSN) {
   const { withSentryConfig } = await import('@sentry/nextjs');

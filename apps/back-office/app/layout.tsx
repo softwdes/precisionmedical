@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Plus_Jakarta_Sans } from 'next/font/google';
+import { SWRegister } from '@/components/SWRegister';
+import { PWAInstallBanner } from '@/components/PWAInstallBanner';
 import './globals.css';
 
 const font = Plus_Jakarta_Sans({
@@ -13,12 +15,23 @@ const font = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'LM v3 · Back Office',
   description: 'Precision Medical — Back Office (Front Office + Edson + Brunella + Super Admin clínico)',
+  manifest: '/manifest.json',
+  robots: 'noindex,nofollow',
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'PM Clínica' },
+  icons: {
+    apple: [
+      { url: '/icons/icon-152.png', sizes: '152x152' },
+      { url: '/icons/icon-192.png', sizes: '192x192' },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0D1117',
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#2563EB',
 };
 
 // Inline script anti-FOUC: aplica el tema guardado en localStorage ANTES
@@ -45,6 +58,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className={font.className}>
+        <PWAInstallBanner />
+        <SWRegister />
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
         </NextIntlClientProvider>

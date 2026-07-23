@@ -1687,7 +1687,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [searchValue]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchValue, inactiveOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!openMenuId) return;
     const handler = (e: MouseEvent) => {
@@ -2088,7 +2088,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
                 <tr key={`${p.id}-cases`} className="bg-white/[0.03] border-b border-white/[0.06]">
-                  <td colSpan={6} className="px-6 py-2" style={{ maxWidth: 0, width: '100%' }}>
+                  <td colSpan={6} className="px-6 py-2">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5">
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">

@@ -277,7 +277,21 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
   }
 
   function canGoStep3() {
-    return true; // Flexible: se puede avanzar sin completar todos los consentimientos
+    return !!consents.signatureDataUrl;
+  }
+
+  function acceptAllConsents() {
+    setConsents(prev => ({
+      ...prev,
+      hipaa: true,
+      assignedParties: true,
+      assignedPartiesCheck1: true,
+      assignedPartiesCheck2: true,
+      assignedPartiesCheck3: true,
+      treatment: true,
+      financial: true,
+      medicalHistory: true,
+    }));
   }
 
   function handleNext() {
@@ -500,6 +514,18 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
           {/* ══ STEP 2: Consentimientos ══ */}
           {step === 2 && (
             <div className="space-y-4">
+
+              {/* Accept-all shortcut */}
+              <div className="flex items-center justify-between rounded-md border border-brand/20 bg-brand/5 px-4 py-2.5">
+                <span className="text-[11px] text-text-2">Marcar todos los consentimientos como aceptados</span>
+                <button
+                  type="button"
+                  onClick={acceptAllConsents}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-[11px] font-medium hover:bg-brand/90 transition-colors shrink-0"
+                >
+                  <Check className="w-3 h-3" /> Acepto todos
+                </button>
+              </div>
 
               {/* 1. HIPAA */}
               <ConsentBlock

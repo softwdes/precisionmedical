@@ -7,7 +7,7 @@ import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { PageHeader } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
-import { decryptField } from '@/lib/decrypt';
+import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 
 export default async function PatientsPage({
   searchParams,
@@ -127,14 +127,26 @@ export default async function PatientsPage({
 
   const rows = patients.map(p => ({
     ...p,
-    phone:                    decryptField(p.phone) ?? p.phone,
-    addressCity:              decryptField(p.addressCity) ?? p.addressCity,
-    addressState:             decryptField(p.addressState) ?? p.addressState,
-    addressZip:               decryptField(p.addressZip) ?? p.addressZip,
-    emergencyContactName:     decryptField(p.emergencyContactName) ?? p.emergencyContactName,
-    emergencyContactPhone:    decryptField(p.emergencyContactPhone) ?? p.emergencyContactPhone,
-    emergencyContactRelation: decryptField(p.emergencyContactRelation) ?? p.emergencyContactRelation,
-    employer:                 decryptField(p.employer),
+    phone:                    dec(p.phone),
+    phone2:                   dec(p.phone2),
+    addressLine1:             dec(p.addressLine1),
+    addressCity:              dec(p.addressCity),
+    addressState:             dec(p.addressState),
+    addressZip:               dec(p.addressZip),
+    employer:                 dec(p.employer),
+    preferredPharmacy:        dec(p.preferredPharmacy),
+    socialSecurityNumber:     dec(p.socialSecurityNumber),
+    emergencyContactName:     dec(p.emergencyContactName),
+    emergencyContactPhone:    dec(p.emergencyContactPhone),
+    emergencyContactRelation: dec(p.emergencyContactRelation),
+    emergency2Name:           dec(p.emergency2Name),
+    emergency2Phone:          dec(p.emergency2Phone),
+    emergency2Relation:       dec(p.emergency2Relation),
+    guardianName:             dec(p.guardianName),
+    guardianPhone:            dec(p.guardianPhone),
+    guardianRelation:         dec(p.guardianRelation),
+    insuranceCarrier:         dec(p.insuranceCarrier),
+    policyNumber:             dec(p.policyNumber),
     caseCount: caseCountMap[p.id] ?? 0,
     latestCase: latestCaseMap[p.id]
       ? {

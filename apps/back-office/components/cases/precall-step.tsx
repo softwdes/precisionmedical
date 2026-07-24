@@ -87,8 +87,8 @@ export function PreCallStep({
   const t = useTranslations('phoenix.frontOffice.precall');
   const [mode, setMode] = useState<PreCallMode | null>(initialMode ?? null);
 
-  // Ref para el input oculto del dial pad (siempre se declara — reglas de hooks)
-  const phoneInputRef = useRef<HTMLInputElement>(null);
+  // Ref para el phone screen div — captura teclado físico (siempre al top — reglas de hooks)
+  const phoneScreenRef = useRef<HTMLDivElement>(null);
 
   // Search state
   const [query, setQuery] = useState('');
@@ -327,11 +327,11 @@ export function PreCallStep({
       const d = p.replace(/\D/g, '');
       return d.length < 10 ? d + k : d;
     });
-    phoneInputRef.current?.focus();
+    phoneScreenRef.current?.focus();
   }
   function backspace() {
     setQuickPhone(p => p.replace(/\D/g, '').slice(0, -1));
-    phoneInputRef.current?.focus();
+    phoneScreenRef.current?.focus();
   }
 
   const KEYS: Array<{ d: string; l?: string }> = [
@@ -373,10 +373,18 @@ export function PreCallStep({
         </div>
       </div>
 
-      {/* Phone screen — clickable para teclado físico */}
+      {/* Phone screen — focusable, captura teclado físico directamente */}
       <div
-        className="rounded-lg border border-border bg-bg-0 px-4 py-2.5 relative overflow-hidden cursor-text"
-        onClick={() => phoneInputRef.current?.focus()}
+        ref={phoneScreenRef}
+        tabIndex={0}
+        autoFocus
+        className="rounded-lg border border-border bg-bg-0 px-4 py-2.5 relative overflow-hidden cursor-text outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-colors"
+        onKeyDown={(e) => {
+          if (e.key >= '0' && e.key <= '9') { e.preventDefault(); pressKey(e.key); }
+          else if (e.key === 'Backspace')    { e.preventDefault(); backspace(); }
+          else if (e.key === 'Enter' && canStart) { e.preventDefault(); handleStartCall(); }
+          else if (e.key === '*')            { e.preventDefault(); pressKey('*'); }
+        }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-cyan/5 to-transparent pointer-events-none" />
         <div className="text-[8px] font-bold uppercase tracking-widest text-cyan mb-1 flex items-center gap-1.5">
@@ -385,21 +393,8 @@ export function PreCallStep({
         </div>
         <div className="font-mono text-2xl font-bold tracking-wider text-text-1 min-h-[2rem] flex items-center">
           {formatted || <span className="text-text-muted text-lg font-normal">(___) ___-____</span>}
-          {/* cursor parpadeante */}
           <span className="inline-block w-0.5 h-6 bg-cyan rounded-full ml-1 animate-[blink_1s_step-end_infinite] opacity-70" />
         </div>
-        {/* input real oculto — captura teclado físico */}
-        <input
-          ref={phoneInputRef}
-          type="tel"
-          inputMode="numeric"
-          autoFocus
-          value={digits}
-          onChange={(e) => setQuickPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-          onKeyDown={(e) => { if (e.key === 'Enter' && canStart) handleStartCall(); }}
-          className="absolute opacity-0 w-0 h-0 pointer-events-none"
-          aria-label="Número de teléfono"
-        />
       </div>
 
       {/* Dial pad */}

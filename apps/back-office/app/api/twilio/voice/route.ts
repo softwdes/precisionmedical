@@ -17,8 +17,12 @@ export async function POST(req: NextRequest) {
     return new NextResponse(twiml.toString(), { headers: { 'Content-Type': 'text/xml' } });
   }
 
+  // Normalizar a E.164: quitar todo excepto dígitos y agregar +1 si es US
+  const digits = to.replace(/\D/g, '');
+  const e164   = digits.startsWith('1') ? `+${digits}` : `+1${digits}`;
+
   const dial = twiml.dial({ callerId: TWILIO_PHONE_NUMBER });
-  dial.number(to);
+  dial.number(e164);
 
   return new NextResponse(twiml.toString(), { headers: { 'Content-Type': 'text/xml' } });
 }

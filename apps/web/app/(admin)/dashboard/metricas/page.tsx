@@ -32,7 +32,8 @@ export default async function MetricasPage({
   let content: React.ReactElement;
 
   if (activeTab === 'comunicaciones') {
-    let calls: Awaited<ReturnType<typeof db.callLog.findMany>> = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let calls: any[] = [];
     try {
       calls = await db.callLog.findMany({
         orderBy: { createdAt: 'desc' },

@@ -38,10 +38,21 @@ export const pettyCashRouter = router({
 
       const { data, error } = await query;
       if (error) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: error.message });
-      return (data ?? []).map((b: Record<string, unknown>) => ({
-        ...b,
-        qrDepositUrl: b.qr_deposit_url ?? null,
-      }));
+      return (data ?? []).map((b) => {
+        const row = b as Record<string, unknown>;
+        return {
+          id:                  row['id']                  as string,
+          name:                row['name']                as string,
+          currency:            row['currency']            as string,
+          balance:             row['balance']             as number,
+          lowBalanceThreshold: row['lowBalanceThreshold'] as number,
+          is_active:           row['is_active']           as boolean,
+          clinicId:            (row['clinicId']           as string | null) ?? null,
+          responsibleUserId:   (row['responsibleUserId']  as string | null) ?? null,
+          updatedAt:           row['updatedAt']           as string,
+          qrDepositUrl:        (row['qr_deposit_url']     as string | null) ?? null,
+        };
+      });
     }),
 
   getBox: protectedProcedure

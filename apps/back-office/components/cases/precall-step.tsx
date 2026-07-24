@@ -150,11 +150,15 @@ export function PreCallStep({
       });
     }
     if (mode === 'outgoing' && quickFirstName.trim() && quickPhone.trim()) {
+      const d = quickPhone.replace(/\D/g, '');
+      const fmtPhone = d.length <= 3 ? `(${d}`
+        : d.length <= 6 ? `(${d.slice(0,3)}) ${d.slice(3)}`
+        : `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6,10)}`;
       return onConfirm({
         mode,
         firstName: quickFirstName.trim(),
         lastName: quickLastName.trim(),
-        phone: quickPhone.trim(),
+        phone: fmtPhone,
       });
     }
   };
@@ -310,43 +314,123 @@ export function PreCallStep({
     );
   }
 
-  // ─── Outgoing mode (form mínimo + tel:link) ───────────────────────────
+  // ─── Outgoing mode con dial pad ───────────────────────────────────────
+  const digits = quickPhone.replace(/\D/g, '').slice(0, 10);
+  const formatted = digits.length === 0 ? ''
+    : digits.length <= 3 ? `(${digits}`
+    : digits.length <= 6 ? `(${digits.slice(0,3)}) ${digits.slice(3)}`
+    : `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+
+  function pressKey(k: string) {
+    setQuickPhone(p => {
+      const d = p.replace(/\D/g, '');
+      return d.length < 10 ? d + k : d;
+    });
+  }
+  function backspace() { setQuickPhone(p => p.replace(/\D/g, '').slice(0, -1)); }
+
+  const KEYS: Array<{ d: string; l?: string }> = [
+    { d: '1' }, { d: '2', l: 'ABC' }, { d: '3', l: 'DEF' },
+    { d: '4', l: 'GHI' }, { d: '5', l: 'JKL' }, { d: '6', l: 'MNO' },
+    { d: '7', l: 'PQRS' }, { d: '8', l: 'TUV' }, { d: '9', l: 'WXYZ' },
+    { d: '*' }, { d: '0', l: '+' },
+  ];
+
   return (
-    <div className="px-4 sm:px-6 py-5 space-y-4">
+    <div className="px-4 sm:px-6 pt-3 pb-5 space-y-3">
       <BackButton onClick={() => setMode(null)} label={t('backOutgoing')} />
 
-      <InfoCard title={t('outgoingCardTitle')} icon={PhoneOutgoing} tone="cyan">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <FormField.Input label={t('manualFirstName')} required value={quickFirstName} onChange={setQuickFirstName} autoFocus />
-          <FormField.Input label={t('manualLastName')} value={quickLastName} onChange={setQuickLastName} />
+      {/* Name fields */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-text-muted mb-1">
+            {t('manualFirstName')} <span className="text-rose">*</span>
+          </div>
+          <input
+            type="text"
+            autoFocus
+            value={quickFirstName}
+            onChange={(e) => setQuickFirstName(e.target.value)}
+            placeholder="María"
+            className="w-full rounded-md border border-border bg-bg-2 px-3 py-1.5 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-cyan focus:ring-1 focus:ring-cyan/20 transition-colors"
+          />
         </div>
-        <FormField.Phone
-          label={t('manualPhone')}
-          required
-          value={quickPhone}
-          onChange={(v) => setQuickPhone(v)}
-          hint={t('outgoingDialHint')}
-        />
-
-        {quickPhone.trim() && (
-          <a
-            href={`tel:${quickPhone.trim()}`}
-            className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-md border border-emerald/30 bg-emerald/10 text-emerald hover:bg-emerald/15 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4" />
-              <span className="font-mono text-sm">{quickPhone.trim()}</span>
-            </div>
-            <span className="text-[10px] uppercase tracking-wider font-semibold">{t('tapToDial')}</span>
-          </a>
-        )}
-      </InfoCard>
-
-      <div className="text-text-muted text-[11px] text-center">
-        {t('outgoingDialHint')}
+        <div>
+          <div className="text-[9px] font-bold uppercase tracking-wider text-text-muted mb-1">
+            {t('manualLastName')}
+          </div>
+          <input
+            type="text"
+            value={quickLastName}
+            onChange={(e) => setQuickLastName(e.target.value)}
+            placeholder="García"
+            className="w-full rounded-md border border-border bg-bg-2 px-3 py-1.5 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-cyan focus:ring-1 focus:ring-cyan/20 transition-colors"
+          />
+        </div>
       </div>
 
-      <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} t={t} />
+      {/* Phone screen */}
+      <div className="rounded-lg border border-border bg-bg-0 px-4 py-2.5 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan/5 to-transparent pointer-events-none" />
+        <div className="text-[8px] font-bold uppercase tracking-widest text-cyan mb-1 flex items-center gap-1.5">
+          <PhoneOutgoing className="w-2.5 h-2.5" />
+          {t('manualPhone')}
+        </div>
+        <div className="font-mono text-2xl font-bold tracking-wider text-text-1 min-h-[2rem] flex items-center">
+          {formatted || <span className="text-text-muted text-lg font-normal">(___) ___-____</span>}
+          {formatted && (
+            <span className="inline-block w-0.5 h-6 bg-cyan rounded-full ml-1 animate-[blink_1s_step-end_infinite]" />
+          )}
+        </div>
+      </div>
+
+      {/* Dial pad */}
+      <div className="grid grid-cols-3 gap-2 px-4">
+        {KEYS.map(({ d, l }) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => pressKey(d)}
+            className="flex flex-col items-center justify-center h-12 rounded-full bg-bg-2 border border-border hover:bg-bg-1 hover:border-border-strong active:scale-95 transition-all select-none"
+          >
+            <span className="text-lg font-semibold text-text-1 leading-none">{d}</span>
+            {l && <span className="text-[7px] font-semibold tracking-widest text-text-muted mt-0.5">{l}</span>}
+          </button>
+        ))}
+        {/* Backspace key */}
+        <button
+          type="button"
+          onClick={backspace}
+          className="flex items-center justify-center h-12 rounded-full bg-transparent hover:bg-bg-2 active:scale-95 transition-all select-none text-text-muted hover:text-text-2"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 4H8l-7 8 7 8h13a2 2 0 002-2V6a2 2 0 00-2-2z"/>
+            <line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Call button */}
+      <div className="flex items-center justify-between px-4 pt-1">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-text-muted hover:text-text-2 text-[11px] transition-colors"
+        >
+          {t('cancel')}
+        </button>
+        <button
+          type="button"
+          onClick={handleStartCall}
+          disabled={!canStart}
+          className="w-14 h-14 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed
+            bg-gradient-to-br from-emerald-600 to-emerald shadow-[0_4px_16px_rgba(16,185,129,0.45)]
+            hover:shadow-[0_6px_22px_rgba(16,185,129,0.55)] hover:scale-105 active:scale-95"
+        >
+          <Phone className="w-5 h-5 text-white" />
+        </button>
+        <span className="w-12" />
+      </div>
     </div>
   );
 }

@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import type { TwilioCallStatus } from '@/lib/use-twilio-device';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import QRCode from 'qrcode';
 import {
   PhoneCall, User, Car, Scale, ShieldCheck, Check, AlertCircle, Search as SearchIcon,
   CalendarCheck, Send, Pause, ArrowRight, ArrowLeft, Phone, ClipboardList,
-  Copy, Download, ChevronRight, Shield, X,
+  Copy, Download, ChevronRight, Shield, X, RefreshCw,
 } from 'lucide-react';
 import {
   Button,
@@ -97,7 +98,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [callHungUp, setCallHungUp] = useState(false);
 
   // ─── Step state ────────────────────────────────────────────────────────
-  const [step, setStep] = useState<'precall' | 'capturing'>('precall');
+  const [step, setStep] = useState<'precall' | 'calling' | 'noanswer' | 'capturing'>('precall');
   const [precallInitialMode, setPrecallInitialMode] = useState<PreCallMode | undefined>(undefined);
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [callMode, setCallMode] = useState<PreCallMode | null>(null);
@@ -117,14 +118,31 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     return () => clearInterval(id);
   }, [open, step, callMode, callHungUp]);
 
-  // Auto-conectar Twilio cuando el modo outgoing entra en capturing
+  // Auto-conectar Twilio cuando entramos en la pantalla 'calling'
   useEffect(() => {
-    if (step !== 'capturing' || callMode !== 'outgoing' || !phone || callHungUp) return;
+    if (step !== 'calling' || callMode !== 'outgoing' || !phone) return;
     twilio.connect(phone);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, callMode]);
 
-  // Detener timer cuando Twilio desconecta
+  // Twilio contestó → pasar al wizard
+  useEffect(() => {
+    if (step === 'calling' && twilio.callStatus === 'in-call') {
+      setStep('capturing');
+    }
+  }, [twilio.callStatus, step]);
+
+  // Twilio desconectó tras conectar → no contestó
+  const prevTwilioStatus = useRef<TwilioCallStatus>('idle');
+  useEffect(() => {
+    const prev = prevTwilioStatus.current;
+    prevTwilioStatus.current = twilio.callStatus;
+    if (step === 'calling' && prev === 'connecting' && twilio.callStatus === 'ready') {
+      setStep('noanswer');
+    }
+  }, [twilio.callStatus, step]);
+
+  // Detener timer cuando Twilio desconecta (in-call → ready)
   useEffect(() => {
     if (callMode === 'outgoing' && step === 'capturing' && twilio.callStatus === 'ready') {
       setCallHungUp(true);
@@ -224,7 +242,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       setEmail(result.existingPatient.email ?? '');
     }
     if (result.mode === 'manual') setReferralSource('LAW_FIRM');
-    setCallMode(result.mode); setCallElapsed(0); setStep('capturing');
+    setCallMode(result.mode); setCallElapsed(0);
+    // Outgoing: pantalla de llamando primero; el resto va directo al wizard
+    setStep(result.mode === 'outgoing' ? 'calling' : 'capturing');
     setPrecallInitialMode(undefined);
   };
 
@@ -234,6 +254,18 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setFirstName(''); setLastName(''); setPhone(''); setEmail('');
     setExistingPatientId(null); setCallMode(null); setCallElapsed(0);
     setWizardStep(1);
+  };
+
+  const handleRetryCall = () => {
+    setCallHungUp(false);
+    setStep('calling');
+  };
+
+  const handleEditNumber = () => {
+    twilio.hangUp();
+    setStep('precall');
+    setPrecallInitialMode('outgoing');
+    setCallMode(null); setCallElapsed(0); setCallHungUp(false);
   };
 
   // ─── Provider filtering ────────────────────────────────────────────────
@@ -478,6 +510,113 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
           </DialogHeader>
           <div className="flex-1 overflow-y-auto scroll-thin">
             <PreCallStep onConfirm={handleStartCall} onCancel={() => onOpenChange(false)} initialMode={precallInitialMode} />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // RENDER · Llamando (ringing animation)
+  // ══════════════════════════════════════════════════════════════════════
+  if (step === 'calling') {
+    const initials = [firstName, lastName].filter(Boolean).map((n) => n[0]).join('').toUpperCase() || '?';
+    return (
+      <Dialog open={open} onOpenChange={() => { twilio.hangUp(); onOpenChange(false); }}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <div className="flex flex-col items-center px-6 py-8 gap-5">
+            {/* Avatar con anillos animados */}
+            <div className="relative flex items-center justify-center" style={{ width: 128, height: 128 }}>
+              <span className="absolute w-32 h-32 rounded-full border-2 border-amber/30 animate-ping" style={{ animationDuration: '2s', animationDelay: '0s' }} />
+              <span className="absolute w-24 h-24 rounded-full border-2 border-amber/40 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+              <span className="absolute w-16 h-16 rounded-full border-2 border-amber/50 animate-ping" style={{ animationDuration: '2s', animationDelay: '1s' }} />
+              <div className="relative z-10 w-16 h-16 rounded-full bg-gradient-to-br from-amber-600 to-amber flex items-center justify-center text-white font-bold text-xl shadow-[0_8px_24px_rgba(245,158,11,.4)]">
+                {initials}
+              </div>
+            </div>
+
+            <div className="text-center space-y-1">
+              <div className="text-text-1 font-bold text-lg">{[firstName, lastName].filter(Boolean).join(' ') || phone}</div>
+              <div className="text-text-muted font-mono text-sm">{phone}</div>
+              <div className="flex items-center justify-center gap-1.5 mt-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse" />
+                <span className="text-amber text-[11px] font-semibold uppercase tracking-widest">Llamando…</span>
+              </div>
+            </div>
+
+            {/* Cancel */}
+            <button
+              type="button"
+              onClick={() => { twilio.hangUp(); setStep('noanswer'); }}
+              className="w-14 h-14 rounded-full bg-rose/15 border border-rose/30 flex items-center justify-center text-rose hover:bg-rose/25 transition-colors shadow-[0_4px_16px_rgba(244,63,94,.2)]"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <span className="text-text-muted text-[10px]">Cancelar llamada</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // RENDER · No contestó
+  // ══════════════════════════════════════════════════════════════════════
+  if (step === 'noanswer') {
+    const initials = [firstName, lastName].filter(Boolean).map((n) => n[0]).join('').toUpperCase() || '?';
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <div className="flex flex-col items-center px-6 py-8 gap-4">
+            {/* Avatar */}
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-700 to-rose flex items-center justify-center text-white font-bold text-xl shadow-[0_8px_24px_rgba(244,63,94,.35)]">
+              {initials}
+            </div>
+
+            <div className="text-center space-y-1">
+              <div className="text-text-1 font-bold text-lg">{[firstName, lastName].filter(Boolean).join(' ') || phone}</div>
+              <div className="text-text-muted font-mono text-sm">{phone}</div>
+              <div className="flex items-center justify-center gap-1.5 mt-2">
+                <X className="w-3.5 h-3.5 text-rose" />
+                <span className="text-rose text-[11px] font-semibold uppercase tracking-widest">No contestó</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-4 mt-2">
+              <button
+                type="button"
+                onClick={handleRetryCall}
+                className="flex flex-col items-center gap-2"
+              >
+                <div className="w-14 h-14 rounded-full bg-bg-2 border border-border flex items-center justify-center text-text-2 hover:border-brand/40 hover:bg-brand/10 hover:text-brand transition-colors">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] text-text-muted">Reintentar</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleEditNumber}
+                className="flex flex-col items-center gap-2"
+              >
+                <div className="w-14 h-14 rounded-full bg-bg-2 border border-border flex items-center justify-center text-text-2 hover:border-amber/40 hover:bg-amber/10 hover:text-amber transition-colors">
+                  <Phone className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] text-text-muted">Editar número</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="flex flex-col items-center gap-2"
+              >
+                <div className="w-14 h-14 rounded-full bg-bg-2 border border-border flex items-center justify-center text-text-2 hover:border-rose/40 hover:bg-rose/10 hover:text-rose transition-colors">
+                  <X className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] text-text-muted">Cerrar</span>
+              </button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -32,14 +32,19 @@ export default async function MetricasPage({
   let content: React.ReactElement;
 
   if (activeTab === 'comunicaciones') {
-    const calls = await db.callLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 500,
-      include: {
-        patient: { select: { firstName: true, lastName: true } },
-        case:    { select: { caseCode: true } },
-      },
-    });
+    let calls: Awaited<ReturnType<typeof db.callLog.findMany>> = [];
+    try {
+      calls = await db.callLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+        include: {
+          patient: { select: { firstName: true, lastName: true } },
+          case:    { select: { caseCode: true } },
+        },
+      });
+    } catch {
+      // tabla CallLog aún no existe en producción — mostrar vacío
+    }
 
     // Compute KPIs
     const answered  = calls.filter(c => c.outcome === 'ANSWERED').length;

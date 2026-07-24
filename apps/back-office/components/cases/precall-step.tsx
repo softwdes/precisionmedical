@@ -87,6 +87,9 @@ export function PreCallStep({
   const t = useTranslations('phoenix.frontOffice.precall');
   const [mode, setMode] = useState<PreCallMode | null>(initialMode ?? null);
 
+  // Ref para el input oculto del dial pad (siempre se declara — reglas de hooks)
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+
   // Search state
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PatientSearchResult[]>([]);
@@ -315,9 +318,6 @@ export function PreCallStep({
   }
 
   // ─── Outgoing mode con dial pad ───────────────────────────────────────
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const phoneInputRef = useRef<HTMLInputElement>(null);
-
   const digits = quickPhone.replace(/\D/g, '').slice(0, 10);
   const formatted = digits.length === 0 ? ''
     : digits.length <= 3 ? `(${digits}`

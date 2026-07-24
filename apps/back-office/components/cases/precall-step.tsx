@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Search as SearchIcon, PhoneOutgoing, Phone, ArrowRight, ArrowLeft,
@@ -165,7 +165,7 @@ export function PreCallStep({
 
   const canStart: boolean =
     (mode === 'search' && !!selectedPatient) ||
-    (mode === 'outgoing' && !!quickFirstName.trim() && !!quickPhone.trim());
+    (mode === 'outgoing' && quickPhone.replace(/\D/g, '').length >= 10);
 
   // ─── Mode selection (primera vista) ────────────────────────────────────
   if (!mode) {
@@ -315,6 +315,9 @@ export function PreCallStep({
   }
 
   // ─── Outgoing mode con dial pad ───────────────────────────────────────
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+
   const digits = quickPhone.replace(/\D/g, '').slice(0, 10);
   const formatted = digits.length === 0 ? ''
     : digits.length <= 3 ? `(${digits}`
@@ -326,8 +329,12 @@ export function PreCallStep({
       const d = p.replace(/\D/g, '');
       return d.length < 10 ? d + k : d;
     });
+    phoneInputRef.current?.focus();
   }
-  function backspace() { setQuickPhone(p => p.replace(/\D/g, '').slice(0, -1)); }
+  function backspace() {
+    setQuickPhone(p => p.replace(/\D/g, '').slice(0, -1));
+    phoneInputRef.current?.focus();
+  }
 
   const KEYS: Array<{ d: string; l?: string }> = [
     { d: '1' }, { d: '2', l: 'ABC' }, { d: '3', l: 'DEF' },
@@ -344,11 +351,10 @@ export function PreCallStep({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <div className="text-[9px] font-bold uppercase tracking-wider text-text-muted mb-1">
-            {t('manualFirstName')} <span className="text-rose">*</span>
+            {t('manualFirstName')}
           </div>
           <input
             type="text"
-            autoFocus
             value={quickFirstName}
             onChange={(e) => setQuickFirstName(e.target.value)}
             placeholder="María"
@@ -369,8 +375,11 @@ export function PreCallStep({
         </div>
       </div>
 
-      {/* Phone screen */}
-      <div className="rounded-lg border border-border bg-bg-0 px-4 py-2.5 relative overflow-hidden">
+      {/* Phone screen — clickable para teclado físico */}
+      <div
+        className="rounded-lg border border-border bg-bg-0 px-4 py-2.5 relative overflow-hidden cursor-text"
+        onClick={() => phoneInputRef.current?.focus()}
+      >
         <div className="absolute inset-0 bg-gradient-to-br from-cyan/5 to-transparent pointer-events-none" />
         <div className="text-[8px] font-bold uppercase tracking-widest text-cyan mb-1 flex items-center gap-1.5">
           <PhoneOutgoing className="w-2.5 h-2.5" />
@@ -378,10 +387,21 @@ export function PreCallStep({
         </div>
         <div className="font-mono text-2xl font-bold tracking-wider text-text-1 min-h-[2rem] flex items-center">
           {formatted || <span className="text-text-muted text-lg font-normal">(___) ___-____</span>}
-          {formatted && (
-            <span className="inline-block w-0.5 h-6 bg-cyan rounded-full ml-1 animate-[blink_1s_step-end_infinite]" />
-          )}
+          {/* cursor parpadeante */}
+          <span className="inline-block w-0.5 h-6 bg-cyan rounded-full ml-1 animate-[blink_1s_step-end_infinite] opacity-70" />
         </div>
+        {/* input real oculto — captura teclado físico */}
+        <input
+          ref={phoneInputRef}
+          type="tel"
+          inputMode="numeric"
+          autoFocus
+          value={digits}
+          onChange={(e) => setQuickPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+          onKeyDown={(e) => { if (e.key === 'Enter' && canStart) handleStartCall(); }}
+          className="absolute opacity-0 w-0 h-0 pointer-events-none"
+          aria-label="Número de teléfono"
+        />
       </div>
 
       {/* Dial pad */}
@@ -390,7 +410,7 @@ export function PreCallStep({
           <button
             key={d}
             type="button"
-            onClick={() => pressKey(d)}
+            onMouseDown={(e) => { e.preventDefault(); pressKey(d); }}
             className="flex flex-col items-center justify-center h-12 rounded-full bg-bg-2 border border-border hover:bg-bg-1 hover:border-border-strong active:scale-95 transition-all select-none"
           >
             <span className="text-lg font-semibold text-text-1 leading-none">{d}</span>
@@ -400,7 +420,7 @@ export function PreCallStep({
         {/* Backspace key */}
         <button
           type="button"
-          onClick={backspace}
+          onMouseDown={(e) => { e.preventDefault(); backspace(); }}
           className="flex items-center justify-center h-12 rounded-full bg-transparent hover:bg-bg-2 active:scale-95 transition-all select-none text-text-muted hover:text-text-2"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

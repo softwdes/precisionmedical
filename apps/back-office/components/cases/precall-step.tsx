@@ -152,11 +152,9 @@ export function PreCallStep({
         phone: selectedPatient.phone ?? '',
       });
     }
-    if (mode === 'outgoing' && quickFirstName.trim() && quickPhone.trim()) {
+    if (mode === 'outgoing' && quickPhone.replace(/\D/g, '').length >= 10) {
       const d = quickPhone.replace(/\D/g, '');
-      const fmtPhone = d.length <= 3 ? `(${d}`
-        : d.length <= 6 ? `(${d.slice(0,3)}) ${d.slice(3)}`
-        : `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6,10)}`;
+      const fmtPhone = `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6,10)}`;
       return onConfirm({
         mode,
         firstName: quickFirstName.trim(),
@@ -443,9 +441,11 @@ export function PreCallStep({
           type="button"
           onClick={handleStartCall}
           disabled={!canStart}
-          className="w-14 h-14 rounded-full flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed
-            bg-gradient-to-br from-emerald-600 to-emerald shadow-[0_4px_16px_rgba(16,185,129,0.45)]
-            hover:shadow-[0_6px_22px_rgba(16,185,129,0.55)] hover:scale-105 active:scale-95"
+          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all
+            ${canStart
+              ? 'bg-gradient-to-br from-emerald-600 to-emerald shadow-[0_4px_20px_rgba(16,185,129,0.6)] animate-pulse hover:animate-none hover:scale-105 active:scale-95 cursor-pointer'
+              : 'bg-bg-2 border border-border/60 opacity-40 cursor-not-allowed'
+            }`}
         >
           <Phone className="w-5 h-5 text-white" />
         </button>

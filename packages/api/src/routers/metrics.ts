@@ -4,6 +4,22 @@ import { router, protectedProcedure, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
 
 export const metricsRouter = router({
+  listCalls: protectedProcedure
+    .input(z.object({ limit: z.number().int().positive().max(1000).default(500) }))
+    .query(async ({ input }) => {
+      const { data, error } = await supabaseAdmin
+        .from('CallLog')
+        .select('id, twilioCallSid, direction, fromNumber, toNumber, outcome, durationSeconds, agentName, patientId, caseId, createdAt, patient:patients(firstName, lastName), case:cases(caseCode)')
+        .order('createdAt', { ascending: false })
+        .limit(input.limit);
+
+      if (error) {
+        // tabla puede no existir aún en producción
+        return { calls: [], error: error.message };
+      }
+      return { calls: data ?? [], error: null };
+    }),
+
   list: protectedProcedure
     .input(z.object({
       month: z.string().regex(/^\d{4}-\d{2}$/).optional(),

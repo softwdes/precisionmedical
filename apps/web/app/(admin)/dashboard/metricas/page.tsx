@@ -1,6 +1,5 @@
 import { Suspense } from 'react';
 import * as React from 'react';
-import { db } from '@precision-medical/database';
 import { api } from '@/lib/trpc/server';
 import { EmployeesClient } from '../employees/employees-client';
 import { LawyersClient } from '../lawyers/lawyers-client';
@@ -32,44 +31,34 @@ export default async function MetricasPage({
   let content: React.ReactElement;
 
   if (activeTab === 'comunicaciones') {
+    const { calls: rawCalls } = await api.metrics.listCalls({ limit: 500 });
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let calls: any[] = [];
-    try {
-      calls = await db.callLog.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 500,
-        include: {
-          patient: { select: { firstName: true, lastName: true } },
-          case:    { select: { caseCode: true } },
-        },
-      });
-    } catch {
-      // tabla CallLog aún no existe en producción — mostrar vacío
-    }
+    const calls = rawCalls as any[];
 
     // Compute KPIs
     const answered  = calls.filter(c => c.outcome === 'ANSWERED').length;
     const noAnswer  = calls.filter(c => c.outcome === 'NO_ANSWER' || c.outcome === 'BUSY').length;
     const outbound  = calls.filter(c => c.direction === 'OUTBOUND').length;
     const inbound   = calls.filter(c => c.direction === 'INBOUND').length;
-    const durations = calls.filter(c => c.durationSeconds).map(c => c.durationSeconds!);
+    const durations = calls.filter(c => c.durationSeconds).map(c => Number(c.durationSeconds));
     const avgDurationSec = durations.length
-      ? durations.reduce((a, b) => a + b, 0) / durations.length
+      ? durations.reduce((a: number, b: number) => a + b, 0) / durations.length
       : 0;
 
     const rows = calls.map(c => ({
-      id:              c.id,
+      id:              c.id as string,
       direction:       c.direction as 'INBOUND' | 'OUTBOUND',
       outcome:         c.outcome as 'ANSWERED' | 'NO_ANSWER' | 'BUSY' | 'FAILED' | 'IN_PROGRESS',
-      fromNumber:      c.fromNumber,
-      toNumber:        c.toNumber,
-      durationSeconds: c.durationSeconds,
-      agentName:       c.agentName,
+      fromNumber:      c.fromNumber as string,
+      toNumber:        c.toNumber as string,
+      durationSeconds: c.durationSeconds as number | null,
+      agentName:       c.agentName as string | null,
       patientName:     c.patient
-        ? `${c.patient.firstName} ${c.patient.lastName}`
+        ? `${(c.patient as { firstName: string }).firstName} ${(c.patient as { lastName: string }).lastName}`
         : null,
-      caseCode: c.case?.caseCode ?? null,
-      createdAt: c.createdAt.toISOString(),
+      caseCode: (c.case as { caseCode: string } | null)?.caseCode ?? null,
+      createdAt: c.createdAt as string,
     }));
 
     content = (

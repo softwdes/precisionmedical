@@ -1,25 +1,76 @@
 /**
  * B.4 · Lista de pacientes
  * Accesible desde el sidebar → /patients
+ *
+ * Suspense streaming: PageHeader renderiza de inmediato (LCP ~200ms);
+ * la tabla hace streaming cuando las queries Prisma completan (~2-3s).
  */
 
+import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
-import { PageHeader } from '@/components/ui-phoenix';
+import { PageHeader, Skeleton } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 
-export default async function PatientsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; page?: string; showInactive?: string; size?: string }>;
-}) {
-  const t = await getTranslations('phoenix.patients');
-  const { q, page: pageParam, showInactive, size: sizeParam } = await searchParams;
-  const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
-  const inactiveOnly = showInactive === '1';
-  const PAGE_SIZE = Math.min(50, Math.max(5, parseInt(sizeParam ?? '15', 10) || 15));
+// ---------------------------------------------------------------------------
+// Skeleton interno para el Suspense boundary (solo la tabla)
+// ---------------------------------------------------------------------------
+function PatientsTableSkeleton() {
+  return (
+    <Skeleton.Card className="p-0 overflow-hidden mt-1">
+      <div className="border-b border-border bg-bg-2/50 px-4 py-3 flex items-center gap-4">
+        <Skeleton className="h-9 flex-1 min-w-[180px] max-w-sm" />
+        <div className="flex-1" />
+        <Skeleton className="h-9 w-24" />
+        <Skeleton className="h-9 w-28" />
+      </div>
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div
+          key={i}
+          className="border-b border-border/30 px-4 py-3 flex items-center gap-3"
+          style={{ opacity: 1 - i * 0.1 }}
+        >
+          <Skeleton.Circle size={8} />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3.5 w-36" />
+            <Skeleton className="h-3 w-52" />
+          </div>
+          <Skeleton className="h-5 w-14 rounded-md hidden sm:block" />
+          <Skeleton className="h-5 w-6 rounded" />
+          <div className="flex gap-1">
+            <Skeleton.Circle size={7} className="rounded-md" />
+            <Skeleton.Circle size={7} className="rounded-md" />
+            <Skeleton.Circle size={7} className="rounded-md" />
+          </div>
+        </div>
+      ))}
+      <div className="px-4 py-3 bg-bg-2/30 border-t border-border flex items-center justify-between">
+        <Skeleton className="h-3 w-28" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton.Circle size={7} className="rounded-md" />
+          <Skeleton.Circle size={7} className="rounded-md" />
+        </div>
+      </div>
+    </Skeleton.Card>
+  );
+}
 
+// ---------------------------------------------------------------------------
+// Componente async pesado — todas las queries Prisma aquí
+// ---------------------------------------------------------------------------
+async function PatientsData({
+  q,
+  page,
+  inactiveOnly,
+  PAGE_SIZE,
+}: {
+  q: string | undefined;
+  page: number;
+  inactiveOnly: boolean;
+  PAGE_SIZE: number;
+}) {
   const statusFilter = inactiveOnly
     ? { status: 'INACTIVE' as const }
     : { NOT: { status: 'INACTIVE' as const } };
@@ -119,7 +170,6 @@ export default async function PatientsPage({
 
   const caseCountMap = Object.fromEntries(caseCounts.map(c => [c.patientId, c._count._all]));
 
-  // Keep only the most-recent case per patient
   const latestCaseMap: Record<string, typeof latestCases[0]> = {};
   for (const c of latestCases) {
     if (!latestCaseMap[c.patientId]) latestCaseMap[c.patientId] = c;
@@ -167,13 +217,46 @@ export default async function PatientsPage({
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="p-4 sm:p-6 space-y-2">
-      <PageHeader
-        title={t('listTitle')}
-        subtitle={`${total} ${total === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}${q ? ` · ${t('btnSearch').toLowerCase()}: "${q}"` : ''}`}
-      />
+    <PatientsClient
+      patients={rows}
+      q={q}
+      page={page}
+      pageSize={PAGE_SIZE}
+      totalPages={totalPages}
+      total={total}
+      inactiveTotal={inactiveTotal}
+      activeTotal={activeTotal}
+      specialties={specialties}
+      clinics={clinics}
+      providers={providers}
+      inactiveOnly={inactiveOnly}
+    />
+  );
+}
 
-      <PatientsClient patients={rows} q={q} page={page} pageSize={PAGE_SIZE} totalPages={totalPages} total={total} inactiveTotal={inactiveTotal} activeTotal={activeTotal} specialties={specialties} clinics={clinics} providers={providers} inactiveOnly={inactiveOnly} />
+// ---------------------------------------------------------------------------
+// Page — shell renderiza de inmediato, datos hacen streaming
+// ---------------------------------------------------------------------------
+export default async function PatientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string; showInactive?: string; size?: string }>;
+}) {
+  const t = await getTranslations('phoenix.patients');
+  const { q, page: pageParam, showInactive, size: sizeParam } = await searchParams;
+  const page   = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
+  const inactiveOnly = showInactive === '1';
+  const PAGE_SIZE = Math.min(50, Math.max(5, parseInt(sizeParam ?? '15', 10) || 15));
+
+  return (
+    <div className="p-4 sm:p-6 space-y-2">
+      {/* Renderiza de inmediato — no depende de queries */}
+      <PageHeader title={t('listTitle')} />
+
+      {/* Tabla hace streaming cuando Prisma completa */}
+      <Suspense fallback={<PatientsTableSkeleton />}>
+        <PatientsData q={q} page={page} inactiveOnly={inactiveOnly} PAGE_SIZE={PAGE_SIZE} />
+      </Suspense>
     </div>
   );
 }

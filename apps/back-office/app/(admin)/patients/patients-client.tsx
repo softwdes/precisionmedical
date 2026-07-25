@@ -1951,6 +1951,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                       title={expandedId === p.id ? t('tooltipCollapse') : t('tooltipExpand')}
                       aria-label={expandedId === p.id ? t('tooltipCollapse') : t('tooltipExpand')}
                       aria-expanded={expandedId === p.id}
+                      aria-controls={`cases-row-${p.id}`}
                     >
                       {expandedId === p.id
                         ? <ChevronUp className="w-3.5 h-3.5" />
@@ -2098,7 +2099,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
 
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
-                <tr key={`${p.id}-cases`} className="bg-white/[0.03] border-b border-white/[0.06]">
+                <tr key={`${p.id}-cases`} id={`cases-row-${p.id}`} className="bg-white/[0.03] border-b border-white/[0.06]">
                   <td colSpan={6} className="px-6 py-2">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5">

@@ -35,6 +35,8 @@ interface CalendarAppointment {
   type: string;
   status: string;
   notes: string | null;
+  isOnline: boolean;
+  meetingUrl: string | null;
   visitNumber: number; // 0 = primera cita
   patient: {
     id: string;
@@ -87,12 +89,13 @@ const TIME_SLOTS = [
   '20:00','20:30','21:00','21:30',
 ];
 
-/** Converts "HH:MM" 24-h string to "h:MM AM/PM" label */
+/** Returns "8 AM" for on-the-hour slots, empty string for :30 slots */
 function slotLabel(slot: string): string {
   const [h, m] = slot.split(':').map(Number);
+  if (m !== 0) return '';
   const period = h! < 12 ? 'AM' : 'PM';
   const h12    = h! % 12 === 0 ? 12 : h! % 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+  return `${h12} ${period}`;
 }
 
 function timeToMinutes(t: string): number {
@@ -157,6 +160,44 @@ function slotOf(isoString: string): string {
   // t is "09:30" or "14:00"
   const [h, m] = t.split(':').map(Number);
   return `${String(h).padStart(2, '0')}:${m < 30 ? '00' : '30'}`;
+}
+
+/**
+ * Convert a Denver local date+time (dayKey=YYYY-MM-DD, slot=HH:MM) to a UTC ISO string.
+ * Handles DST automatically by probing both MDT (UTC-6) and MST (UTC-7).
+ */
+function denverSlotToISO(dayKey: string, slot: string): string {
+  const y = +dayKey.slice(0, 4);
+  const mo = +dayKey.slice(5, 7) - 1;
+  const d = +dayKey.slice(8, 10);
+  const [h, m] = slot.split(':').map(Number) as [number, number];
+  for (const offsetH of [6, 7]) {
+    const utc = new Date(Date.UTC(y, mo, d, h + offsetH, m));
+    const parts = utc.toLocaleString('en-US', {
+      timeZone: 'America/Denver',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).split(', ');
+    if (parts.length < 2) continue;
+    const [datePart, timePart] = parts;
+    const [mo2, d2, y2] = datePart!.split('/');
+    const localDay = `${y2}-${mo2}-${d2}`;
+    const localSlot = (timePart ?? '').replace(/^24:/, '00:');
+    if (localDay === dayKey && localSlot === slot) return utc.toISOString();
+  }
+  // Fallback: assume MDT
+  return new Date(Date.UTC(y, mo, d, h + 6, m)).toISOString();
+}
+
+/** True if a slot (HH:MM in Denver time) on dayKey (YYYY-MM-DD Denver) is already past */
+function slotIsPast(dayKey: string, slot: string): boolean {
+  const nowDenverDate = denverDateStr(new Date());
+  if (dayKey < nowDenverDate) return true;
+  if (dayKey > nowDenverDate) return false;
+  const nowTime = new Date().toLocaleTimeString('en-US', {
+    timeZone: 'America/Denver', hour12: false, hour: '2-digit', minute: '2-digit',
+  });
+  return slot <= nowTime;
 }
 
 /** Returns "8:00–8:30 AM" style range label in Denver time */
@@ -379,6 +420,44 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     setNewApptOpen(true);
   };
 
+  // ─── Drag & Drop reschedule ──────────────────────────────────────────────
+  const [draggingId,  setDraggingId]  = useState<string | null>(null);
+  const [dropTarget,  setDropTarget]  = useState<string | null>(null); // 'dayKey|slot'
+  const [dragSaving,  setDragSaving]  = useState(false);
+  const [dragError,   setDragError]   = useState<string | null>(null);
+
+  const handleDrop = async (dayKey: string, slot: string) => {
+    const apptId = draggingId;
+    setDraggingId(null);
+    setDropTarget(null);
+    if (!apptId) return;
+    const appt = appointments.find(a => a.id === apptId);
+    if (!appt) return;
+    // No-op if dropped on same slot
+    if (denverDateStr(new Date(appt.scheduledFor)) === dayKey && slotOf(appt.scheduledFor) === slot) return;
+    setDragSaving(true);
+    setDragError(null);
+    try {
+      const res = await fetch(`/api/admin/appointments/${apptId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledFor: denverSlotToISO(dayKey, slot) }),
+      });
+      if (res.ok) {
+        setRefreshKey(k => k + 1);
+      } else {
+        const data = await res.json() as { message?: string; error?: string };
+        setDragError(data.message ?? data.error ?? 'Error al reprogramar');
+        setTimeout(() => setDragError(null), 4000);
+      }
+    } catch {
+      setDragError('Error de conexión');
+      setTimeout(() => setDragError(null), 4000);
+    } finally {
+      setDragSaving(false);
+    }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -506,11 +585,25 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     setPatientQuery('');
   };
 
-  // ─── Filter appointments by selected patient (client-side) ───────────────────
+  const [filterSpecialty, setFilterSpecialty] = useState('');
+
+  // ─── Filter appointments by selected patient + specialty (client-side) ────────
   const visibleAppointments = useMemo(() => {
-    if (!patientQuery) return appointments;
-    return appointments.filter(a => a.patient.id === patientQuery);
-  }, [appointments, patientQuery]);
+    let result = patientQuery ? appointments.filter(a => a.patient.id === patientQuery) : appointments;
+    if (filterSpecialty) result = result.filter(a => a.provider?.specialty === filterSpecialty);
+    return result;
+  }, [appointments, patientQuery, filterSpecialty]);
+
+  // Unique specialty options derived from loaded appointments
+  const specialtyOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const opts: Array<{ value: string; label: string }> = [];
+    for (const a of appointments) {
+      const s = a.provider?.specialty;
+      if (s && !seen.has(s)) { seen.add(s); opts.push({ value: s, label: s }); }
+    }
+    return opts.sort((a, b) => a.label.localeCompare(b.label));
+  }, [appointments]);
 
   // ─── Derived state ───────────────────────────────────────────────────────────
   // 5-day header array (week view)
@@ -555,6 +648,19 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         title={t('pageTitle')}
         subtitle={weekLabel}
       />
+
+      {/* ─── Drag & Drop feedback ── */}
+      {dragSaving && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg border border-cyan/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl">
+          <Clock className="w-3.5 h-3.5 animate-spin text-cyan" />
+          <span className="text-text-1 text-sm font-medium">Reprogramando cita…</span>
+        </div>
+      )}
+      {dragError && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg border border-rose/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl">
+          <span className="text-rose text-sm font-medium">{dragError}</span>
+        </div>
+      )}
 
       {/* ─── Mobile toolbar (md:hidden) ──────────────────────── */}
       <div className="md:hidden px-4 pb-1 flex items-center gap-2">
@@ -618,9 +724,11 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
               { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
             ]}
             onChange={setFilterType} />
-          {(filterClinic || filterProvider || filterType) && (
+          <FilterChip emoji="🩺" placeholder={t('filterAllSpecialties')} value={filterSpecialty}
+            options={specialtyOptions} onChange={setFilterSpecialty} />
+          {(filterClinic || filterProvider || filterType || filterSpecialty) && (
             <button type="button"
-              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); }}
+              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterSpecialty(''); }}
               className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors">✕</button>
           )}
         </div>
@@ -677,10 +785,17 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
             ]}
             onChange={setFilterType}
           />
-          {(filterClinic || filterProvider || filterType) && (
+          <FilterChip
+            emoji="🩺"
+            placeholder={t('filterAllSpecialties')}
+            value={filterSpecialty}
+            options={specialtyOptions}
+            onChange={setFilterSpecialty}
+          />
+          {(filterClinic || filterProvider || filterType || filterSpecialty) && (
             <button
               type="button"
-              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); }}
+              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterSpecialty(''); }}
               className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors"
             >
               ✕
@@ -773,7 +888,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
           const mon = getMondayOf(mobileDate);
           const weekDays = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
           const todayStr = localDateStr(new Date());
-          const dayNames = ['L','M','X','J','V','S','D'];
+          const dayNames = ['M','T','W','T','F','S','S'];
           return (
             <div className="grid grid-cols-7 gap-1 mb-3">
               {weekDays.map((d, i) => {
@@ -801,7 +916,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         {mobileView === 'month' && (() => {
           const grid = getMonthGrid(mobileDate);
           const todayStr = localDateStr(new Date());
-          const dayNames = ['L','M','X','J','V','S','D'];
+          const dayNames = ['M','T','W','T','F','S','S'];
           return (
             <div className="mb-3">
               <div className="grid grid-cols-7 gap-0.5 mb-1">
@@ -927,21 +1042,43 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                       return (
                         <div key={di}
                           onClick={() => openSlot(dayKey, slot)}
-                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-col gap-0.5 cursor-pointer group ${isToday ? 'bg-cyan/[0.025]' : 'hover:bg-white/[0.015]'}`}>
+                          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
+                          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
+                          onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
+                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-col gap-0.5 cursor-pointer group transition-colors ${
+                            dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
+                            isToday ? 'bg-cyan/[0.025]' : 'hover:bg-white/[0.015]'
+                          }`}>
+                          {cellAppts.length === 0 && !slotIsPast(dayKey, slot) && dropTarget !== `${dayKey}|${slot}` && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center py-0.5">
+                              <Plus className="w-2.5 h-2.5 text-cyan/40" />
+                            </div>
+                          )}
+                          {dropTarget === `${dayKey}|${slot}` && cellAppts.length === 0 && (
+                            <div className="flex items-center justify-center py-1">
+                              <Plus className="w-2.5 h-2.5 text-cyan/60" />
+                            </div>
+                          )}
                           {cellAppts.map(appt => {
                             const s = getEventStyle(appt);
                             const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                             const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
                             const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
+                            const isDragging = draggingId === appt.id;
                             return (
-                              <button key={appt.id} type="button" onClick={(e) => { e.stopPropagation(); setSelectedAppt(appt); }}
-                                className="w-full text-left rounded px-1.5 py-[3px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99]"
+                              <button key={appt.id} type="button"
+                                draggable
+                                onDragStart={(e) => { e.stopPropagation(); setDraggingId(appt.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', appt.id); }}
+                                onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
+                                onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
+                                className={`w-full text-left rounded px-1.5 py-[3px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
                                 style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
-                                <div className="text-[10px] leading-tight truncate font-semibold" style={{ color: s.text, opacity: 0.75 }}>
-                                  {timeRange}
+                                <div className="flex items-center gap-1 leading-tight">
+                                  <span className="text-[10px] font-bold truncate tabular-nums" style={{ color: s.text }}>{timeRange}</span>
+                                  {appt.isOnline && <span className="text-[9px] opacity-80 shrink-0">📹</span>}
+                                  {s.badge && <span className="text-[9px] shrink-0">{s.badge}</span>}
                                 </div>
                                 <div className="text-[11px] font-bold leading-tight truncate" style={{ color: s.text }}>
-                                  {s.badge && <span className="mr-0.5">{s.badge}</span>}
                                   {appt.patient.firstName} {appt.patient.lastName}
                                 </div>
                                 <div className="text-[9.5px] leading-tight truncate" style={{ color: s.text, opacity: 0.65 }}>
@@ -996,21 +1133,39 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                       </div>
                       <div
                         onClick={() => openSlot(dayKey, slot)}
-                        className={`p-0.5 flex flex-col gap-0.5 cursor-pointer ${isToday ? 'bg-cyan/[0.015]' : 'hover:bg-white/[0.015]'}`}>
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
+                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
+                        onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
+                        className={`p-0.5 flex flex-col gap-0.5 cursor-pointer group transition-colors ${
+                          dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
+                          isToday ? 'bg-cyan/[0.015]' : 'hover:bg-white/[0.015]'
+                        }`}>
+                        {cellAppts.length === 0 && !slotIsPast(dayKey, slot) && dropTarget !== `${dayKey}|${slot}` && (
+                          <div className="flex items-center px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Plus className="w-2.5 h-2.5 text-cyan/50 mr-1 shrink-0" />
+                            <span className="text-[10px] text-cyan/50 font-medium">Available</span>
+                          </div>
+                        )}
                         {cellAppts.map(appt => {
                           const s = getEventStyle(appt);
                           const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                           const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
                           const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
+                          const isDragging = draggingId === appt.id;
                           return (
-                            <button key={appt.id} type="button" onClick={(e) => { e.stopPropagation(); setSelectedAppt(appt); }}
-                              className="w-full text-left rounded px-2 py-1 transition-all hover:brightness-110"
+                            <button key={appt.id} type="button"
+                              draggable
+                              onDragStart={(e) => { e.stopPropagation(); setDraggingId(appt.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', appt.id); }}
+                              onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
+                              onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
+                              className={`w-full text-left rounded px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
                               style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
-                              <div className="text-[10px] leading-tight truncate font-semibold" style={{ color: s.text, opacity: 0.75 }}>
-                                {timeRange}
+                              <div className="flex items-center gap-1 leading-tight">
+                                <span className="text-[11px] font-bold truncate tabular-nums" style={{ color: s.text }}>{timeRange}</span>
+                                {appt.isOnline && <span className="text-[10px] opacity-80 shrink-0">📹</span>}
+                                {s.badge && <span className="text-[10px] shrink-0">{s.badge}</span>}
                               </div>
                               <div className="text-[12px] font-bold leading-tight truncate" style={{ color: s.text }}>
-                                {s.badge && <span className="mr-1">{s.badge}</span>}
                                 {appt.patient.firstName} {appt.patient.lastName}
                               </div>
                               <div className="text-[10px] leading-tight truncate mt-0.5" style={{ color: s.text, opacity: 0.65 }}>

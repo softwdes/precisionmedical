@@ -9,7 +9,7 @@
  * Filtra providers por especialidad del caso usando DoctorSpecialtyAssignment (specialtyCatalogIds).
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -73,7 +73,12 @@ export interface EditAppointmentData {
   type: string;
   notes: string | null;
   clinicId: string;
+  clinicName: string;
+  clinicAddress?: string | null;
   providerId: string | null;
+  providerFirstName?: string;
+  providerLastName?: string;
+  providerSpecialty?: string;
   caseId: string;
   caseCode: string;
   patient: { id: string; firstName: string; lastName: string };
@@ -86,7 +91,19 @@ type AppointmentDialogProps = (CaseModeProps | FreeModeProps) & {
   initialDate?: string; // YYYY-MM-DD
   initialTime?: string; // HH:MM
   editAppointment?: EditAppointmentData; // si viene, abre en modo edición
+  /** Reagendar: pre-llena todo excepto el slot (usuario elige nueva hora) */
+  isReschedule?: boolean;
 };
+
+// ─── Types (internal) ────────────────────────────────────────────────────────
+
+interface DuplicateAppt {
+  id: string;
+  scheduledFor: string;
+  status: string;
+  clinic?: { name: string } | null;
+  provider?: { firstName: string; lastName: string; specialty: string | null } | null;
+}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -98,7 +115,7 @@ type AppointmentType = 'AUTO_ACCIDENT' | 'FAMILY_PRACTICE' | 'URGENT_CARE' | 'FO
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AppointmentDialog(props: AppointmentDialogProps) {
-  const { open, onOpenChange, onSuccess, initialDate, initialTime, editAppointment } = props;
+  const { open, onOpenChange, onSuccess, initialDate, initialTime, editAppointment, isReschedule } = props;
   const isEditMode = !!editAppointment;
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
@@ -132,12 +149,18 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [duration,   setDuration]   = useState(15);
   const [type,       setType]       = useState<AppointmentType>('AUTO_ACCIDENT');
   const [notes,      setNotes]      = useState('');
+  const [isOnline,   setIsOnline]   = useState(false);
+  const [meetingUrl, setMeetingUrl] = useState('');
   const [showAll,    setShowAll]    = useState(false); // override specialty filter
 
 
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ clinicName: string; providerName: string; scheduledFor: string } | null>(null);
+  const [saving,         setSaving]         = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [success,        setSuccess]        = useState<{ clinicName: string; providerName: string; scheduledFor: string } | null>(null);
+  const [duplicateAppts, setDuplicateAppts] = useState<DuplicateAppt[]>([]);
+
+  // Prevents the clinic/provider change effect from clearing the pre-populated slot
+  const skipSlotReset = useRef(false);
 
   // ─── Auto-inferir tipo de cita desde el caso seleccionado ─────────────────
 
@@ -194,16 +217,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setPatientQuery('');
     setPatientResults([]);
     setPatientCases([]);
+    setDuplicateAppts([]);
 
     if (editAppointment) {
-      // Modo edición: pre-llenar con datos existentes
+      // Modo edición / reagendar: pre-llenar con datos existentes.
+      // skipSlotReset prevents the clinic/provider change effect from wiping the slot.
+      skipSlotReset.current = true;
       setCaseId(editAppointment.caseId);
       setClinicId(editAppointment.clinicId);
       setProviderId(editAppointment.providerId ?? '');
-      setSlotIso(editAppointment.scheduledFor);
+      // En reagendar, no pre-seleccionar el slot actual — el usuario debe elegir una nueva hora
+      setSlotIso(isReschedule ? null : editAppointment.scheduledFor);
       setDuration(editAppointment.durationMinutes);
       setType(editAppointment.type as AppointmentType);
       setNotes(editAppointment.notes ?? '');
+      setIsOnline((editAppointment as { isOnline?: boolean }).isOnline ?? false);
+      setMeetingUrl((editAppointment as { meetingUrl?: string | null }).meetingUrl ?? '');
       setSelectedPatient({
         id: editAppointment.patient.id,
         firstName: editAppointment.patient.firstName,
@@ -214,6 +243,23 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         lastCaseCode: null,
         lastCaseStatus: null,
       });
+      // Pre-load known clinic/provider so the UI shows immediately (full list arrives via fetch below)
+      setClinics([{
+        id: editAppointment.clinicId,
+        name: editAppointment.clinicName,
+        address: editAppointment.clinicAddress ?? null,
+        phone: null,
+      }]);
+      if (editAppointment.providerId && editAppointment.providerFirstName) {
+        setAllProviders([{
+          id: editAppointment.providerId,
+          firstName: editAppointment.providerFirstName,
+          lastName: editAppointment.providerLastName ?? '',
+          specialty: editAppointment.providerSpecialty ?? '',
+          licenseNumber: null,
+          specialtyCatalogIds: [],
+        }]);
+      }
     } else {
       // Modo crear: limpiar todo
       setCaseId(props.mode === 'case' ? (props.caseInfo?.id ?? '') : '');
@@ -223,6 +269,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setDuration(15);
       setType('AUTO_ACCIDENT');
       setNotes('');
+      setIsOnline(false);
+      setMeetingUrl('');
       setSelectedPatient(null);
     }
 
@@ -276,10 +324,43 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setProviderId('');
   }, []);
 
-  // Reset slot cuando cambia provider/clinic para forzar nueva selección
+  // Reset slot cuando cambia provider/clinic para forzar nueva selección.
+  // Skip the reset when triggered by the initial pre-population (skipSlotReset ref).
   useEffect(() => {
+    if (skipSlotReset.current) {
+      skipSlotReset.current = false;
+      return;
+    }
     setSlotIso(null);
   }, [providerId, clinicId, duration]);
+
+  // ─── Duplicate check: reactive, inline ─────────────────────────────────────
+  // Fires when the user picks a slot. Shows a warning banner — does NOT block submit.
+  // Only applies to new appointments (not edit/reschedule).
+
+  useEffect(() => {
+    setDuplicateAppts([]);
+    if (isEditMode || isReschedule || !slotIso) return;
+    const patientId = props.mode === 'free' ? selectedPatient?.id : null;
+    if (!patientId) return;
+
+    const targetDate = new Date(slotIso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
+    const controller = new AbortController();
+    fetch(
+      `/api/admin/appointments?patientId=${patientId}&from=${targetDate}T00:00:00.000Z&to=${targetDate}T23:59:59.999Z`,
+      { signal: controller.signal },
+    )
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const conflicts = ((data.appointments ?? []) as DuplicateAppt[])
+          .filter((a: DuplicateAppt) => a.status !== 'CANCELLED');
+        setDuplicateAppts(conflicts);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotIso, selectedPatient?.id]);
 
   // ─── Computed: scheduledFor ──────────────────────────────────────────────────
 
@@ -287,11 +368,27 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   const scheduledLabel = useMemo(() => {
     if (!scheduledForIso) return null;
-    return new Date(scheduledForIso).toLocaleString('es-US', {
+    return new Date(scheduledForIso).toLocaleString('en-US', {
       weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
       hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
     });
   }, [scheduledForIso]);
+
+  // Desired time label (from calendar click) — formatted for display
+  const desiredDateLabel = useMemo(() => {
+    if (!initialDate) return '';
+    return new Date(initialDate + 'T12:00:00Z').toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
+    });
+  }, [initialDate]);
+
+  const desiredTimeLabel = useMemo(() => {
+    if (!initialTime) return '';
+    const [h, m] = initialTime.split(':').map(Number) as [number, number];
+    const period = h < 12 ? 'AM' : 'PM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+  }, [initialTime]);
 
   const isFuture = scheduledForIso ? new Date(scheduledForIso).getTime() > Date.now() : false;
 
@@ -311,32 +408,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setError(null);
     if (!canSubmit) return setError(t('errorRequiredFields'));
 
-    // Duplicate check: warn if patient already has an appointment on the same Denver date (free mode only)
-    if (!isEditMode && scheduledForIso && props.mode === 'free' && selectedPatient?.id) {
-      const targetDate = new Date(scheduledForIso).toLocaleDateString('en-CA', { timeZone: 'America/Denver' });
-      const patientId  = selectedPatient.id;
-      if (patientId) {
-        try {
-          const checkRes = await fetch(
-            `/api/admin/appointments?patientId=${patientId}&from=${targetDate}T00:00:00.000Z&to=${targetDate}T23:59:59.999Z`,
-          );
-          if (checkRes.ok) {
-            const checkData = await checkRes.json();
-            const existing = (checkData.appointments ?? []).filter(
-              (a: { status: string }) => a.status !== 'CANCELLED',
-            );
-            if (existing.length > 0) {
-              const confirmDup = window.confirm(
-                `This patient already has ${existing.length} appointment(s) on this date. Do you want to schedule another one?`,
-              );
-              if (!confirmDup) return;
-            }
-          }
-        } catch {
-          // If check fails, proceed anyway — don't block scheduling
-        }
-      }
-    }
+    // Duplicate warning is shown inline — no blocking confirm needed here.
 
     setSaving(true);
     try {
@@ -346,12 +418,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            clinicId,
-            providerId,
-            scheduledFor: scheduledForIso,
+            ...(clinicId     && { clinicId }),
+            ...(providerId   && { providerId }),
+            ...(scheduledForIso && { scheduledFor: scheduledForIso }),
             durationMinutes: duration,
             type,
             notes: notes.trim() || null,
+            // Only send isOnline/meetingUrl when non-default — Prisma client regeneration needed for these fields
+            ...(isOnline && { isOnline }),
+            ...(meetingUrl.trim() && { meetingUrl: meetingUrl.trim() }),
           }),
         });
         if (!res.ok) {
@@ -375,6 +450,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             durationMinutes: duration,
             type,
             notes: notes.trim() || undefined,
+            isOnline,
+            meetingUrl: meetingUrl.trim() || undefined,
           }),
         });
         if (!res.ok) {
@@ -420,7 +497,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               <div><strong className="text-text-1">{t('successPatient')}</strong> {patientName}</div>
               <div><strong className="text-text-1">{t('successDoctor')}</strong> {t('drPrefix')} {success.providerName}</div>
               <div><strong className="text-text-1">{t('successClinic')}</strong> {success.clinicName}</div>
-              <div><strong className="text-text-1">{t('successWhen')}</strong> {new Date(success.scheduledFor).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+              <div><strong className="text-text-1">{t('successWhen')}</strong> {new Date(success.scheduledFor).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
             </div>
             <Button onClick={() => onOpenChange(false)}>{t('actionClose')}</Button>
           </div>
@@ -437,7 +514,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarCheck className="w-5 h-5 text-emerald" />
-            {isEditMode ? t('dialogTitleEdit') : props.mode === 'case' ? t('dialogTitleScheduleFirst') : t('dialogTitleNew')}
+            {isReschedule ? t('dialogTitleReschedule') : isEditMode ? t('dialogTitleEdit') : props.mode === 'case' ? t('dialogTitleScheduleFirst') : t('dialogTitleNew')}
           </DialogTitle>
           {isEditMode && editAppointment && (
             <DialogDescription>
@@ -455,6 +532,34 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         </DialogHeader>
 
         <div className="space-y-4 py-2 max-h-[68vh] overflow-y-auto pr-1">
+
+          {/* ── Desired time banner (from calendar slot click) ── */}
+          {!isEditMode && !isReschedule && initialDate && initialTime && (
+            <div className={`rounded-lg border p-3 flex items-center gap-3 transition-colors ${
+              slotIso
+                ? 'border-emerald/40 bg-emerald/8'
+                : 'border-cyan/40 bg-cyan/8'
+            }`}>
+              <CalendarIcon className={`w-4 h-4 shrink-0 ${slotIso ? 'text-emerald' : 'text-cyan'}`} />
+              <div className="flex-1 min-w-0">
+                {slotIso ? (
+                  <>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-emerald mb-0.5">{t('slotConfirmed')}</div>
+                    <div className="text-text-1 text-sm font-semibold">{scheduledLabel}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-cyan mb-0.5">{t('desiredTime')}</div>
+                    <div className="text-text-1 text-sm font-semibold">{desiredDateLabel} · {desiredTimeLabel}</div>
+                    {(!clinicId || !providerId) && (
+                      <div className="text-cyan/60 text-[11px] mt-0.5">{t('selectClinicDoctorHint')}</div>
+                    )}
+                  </>
+                )}
+              </div>
+              {slotIso && <Check className="w-4 h-4 text-emerald shrink-0" />}
+            </div>
+          )}
 
           {/* ── EDIT MODE: Patient badge read-only ── */}
           {isEditMode && editAppointment && (
@@ -528,35 +633,60 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               {/* Case selector (after patient selected) */}
               {selectedPatient && (
                 <div>
-                  <Label>{t('fieldCase')} <span className="text-rose">*</span></Label>
+                  <Label>
+                    <FileText className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
+                    {t('fieldCase')} <span className="text-rose">*</span>
+                  </Label>
                   {loadingCases ? (
                     <div className="text-text-muted text-xs py-2">{t('loadingCases')}</div>
                   ) : patientCases.length === 0 ? (
-                    <div className="text-amber text-xs py-2">{t('patientNoCases')}</div>
+                    <div className="rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-amber text-xs">{t('patientNoCases')}</div>
                   ) : (
-                    <select
-                      value={caseId}
-                      onChange={(e) => { setCaseId(e.target.value); setProviderId(''); }}
-                      className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-                    >
-                      <option value="">{t('selectCasePlaceholder')}</option>
-                      {patientCases.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.caseCode} · {c.status}{c.specialty ? ` · ${c.specialty.name}` : ''}{c.accidentType ? ` (${c.accidentType})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {/* Specialty badge from selected case */}
-                  {effectiveSpecialty && (
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <span className="text-text-muted text-[10px] uppercase tracking-wider">{t('caseSpecialtyLabel')}</span>
-                      <span
-                        className="inline-flex items-center px-2 py-0.5 rounded border text-[11px] font-medium"
-                        style={{ backgroundColor: `${effectiveSpecialty.color}20`, borderColor: `${effectiveSpecialty.color}50`, color: effectiveSpecialty.color }}
-                      >
-                        {effectiveSpecialty.name}
-                      </span>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      {patientCases.map((c) => {
+                        const isSelected = caseId === c.id;
+                        const statusColor = c.status === 'ACTIVE' ? 'cyan' : c.status === 'CONFIRMED' ? 'emerald' : c.status === 'INTAKE_COMPLETED' ? 'brand' : c.status === 'CLOSED' || c.status === 'SETTLED' ? 'text-muted' : 'amber';
+                        const statusColorMap: Record<string, string> = {
+                          cyan: 'rgba(6,182,212,0.15)', emerald: 'rgba(16,185,129,0.15)',
+                          brand: 'rgba(99,102,241,0.15)', amber: 'rgba(245,158,11,0.15)',
+                          'text-muted': 'rgba(100,116,139,0.15)',
+                        };
+                        const statusTextMap: Record<string, string> = {
+                          cyan: '#22d3ee', emerald: '#34d399', brand: '#818cf8',
+                          amber: '#fbbf24', 'text-muted': '#94a3b8',
+                        };
+                        const accidentLabel = c.accidentType === 'AUTO' || c.accidentType === 'MVA' ? 'MVA' : c.accidentType === 'GENERAL' || c.accidentType === 'GP' ? 'Gen.' : c.accidentType ?? '';
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => { setCaseId(c.id); setProviderId(''); }}
+                            className={`w-full text-left rounded-md border px-3 py-2 transition-all ${
+                              isSelected
+                                ? 'border-brand/60 bg-brand/8 ring-1 ring-brand/30'
+                                : 'border-border/60 bg-bg-2/40 hover:border-border hover:bg-bg-2/80'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-xs font-bold text-text-1">{c.caseCode}</span>
+                              {accidentLabel && (
+                                <span className="text-[10px] px-1.5 py-px rounded border border-border/60 text-text-muted font-medium">{accidentLabel}</span>
+                              )}
+                              <span
+                                className="text-[10px] px-1.5 py-px rounded font-semibold uppercase tracking-wide"
+                                style={{ background: statusColorMap[statusColor], color: statusTextMap[statusColor] }}
+                              >{c.status}</span>
+                              {c.specialty && (
+                                <span
+                                  className="text-[10px] px-1.5 py-px rounded border font-medium"
+                                  style={{ backgroundColor: `${c.specialty.color}20`, borderColor: `${c.specialty.color}50`, color: c.specialty.color }}
+                                >{c.specialty.name}</span>
+                              )}
+                              {isSelected && <Check className="w-3.5 h-3.5 text-brand ml-auto shrink-0" />}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -704,16 +834,53 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   value={slotIso}
                   onChange={setSlotIso}
                   maxWeeks={8}
-                  initialDate={isEditMode && editAppointment
+                  initialDate={isEditMode && editAppointment && !isReschedule
                     ? new Date(editAppointment.scheduledFor).toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
                     : initialDate}
-                  initialTime={isEditMode && editAppointment
+                  initialTime={isEditMode && editAppointment && !isReschedule
                     ? new Date(editAppointment.scheduledFor).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'America/Denver' })
                     : initialTime}
                 />
               </div>
             )}
           </div>
+
+          {/* ── Duplicate appointment warning ── */}
+          {duplicateAppts.length > 0 && (
+            <div className="rounded-lg border border-amber/40 bg-amber/8 p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="text-amber text-base leading-none mt-0.5">⚠</span>
+                <div>
+                  <p className="text-amber font-semibold text-[12.5px]">{t('dupWarningTitle')}</p>
+                  <p className="text-amber/70 text-[11px] mt-0.5">{t('dupWarningHint')}</p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {duplicateAppts.map(a => {
+                  const time = new Date(a.scheduledFor).toLocaleTimeString('en-US', {
+                    hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+                  });
+                  return (
+                    <div key={a.id} className="flex items-center gap-3 rounded-md border border-amber/20 bg-bg-1/60 px-3 py-2 text-[11px]">
+                      <span className="font-bold text-amber text-xs w-16 shrink-0">{time}</span>
+                      {a.clinic && (
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-text-muted uppercase tracking-wider text-[9px] font-semibold">Clinic</span>
+                          <span className="text-text-2 truncate">{a.clinic.name}</span>
+                        </div>
+                      )}
+                      {a.provider && (
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-text-muted uppercase tracking-wider text-[9px] font-semibold">Provider</span>
+                          <span className="text-text-2 truncate">{a.provider.firstName} {a.provider.lastName}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── Tipo de cita ── */}
           <div>
@@ -726,6 +893,41 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             >
               {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+          </div>
+
+          {/* ── Online consultation toggle ── */}
+          <div className={`rounded-lg border p-3 transition-colors ${isOnline ? 'border-cyan/40 bg-cyan/5' : 'border-border/50 bg-bg-2/30'}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📹</span>
+                <div>
+                  <div className="text-sm font-medium text-text-1">{t('fieldOnlineConsultation')}</div>
+                  <div className="text-[11px] text-text-muted">{t('fieldOnlineConsultationHint')}</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isOnline}
+                onClick={() => setIsOnline(v => !v)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors focus:outline-none ${
+                  isOnline ? 'bg-cyan border-cyan/80' : 'bg-bg-2 border-border'
+                }`}
+              >
+                <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${isOnline ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+            {isOnline && (
+              <div className="mt-2.5 pt-2.5 border-t border-cyan/20">
+                <input
+                  type="url"
+                  value={meetingUrl}
+                  onChange={(e) => setMeetingUrl(e.target.value)}
+                  placeholder={t('meetingUrlPlaceholder')}
+                  className="w-full bg-bg-1 border border-cyan/30 rounded-md px-3 py-1.5 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan"
+                />
+              </div>
+            )}
           </div>
 
           {/* ── Notas ── */}

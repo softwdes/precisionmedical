@@ -66,7 +66,7 @@ function ageFromISO(iso: string | null): string {
 function formatDOB(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  return d.toLocaleDateString('es-US', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -169,7 +169,7 @@ function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: 
       onClose={onClose}
       footer={
         <>
-          {p.phone && <ActionBtn href={p.phone} label="Llamar" color="#a5b4fc" tel />}
+          {p.phone && <ActionBtn href={p.phone} label="Call" color="#a5b4fc" tel />}
           {p.email && (
             <a href={`mailto:${p.email}`}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-brand/30 text-brand text-xs font-medium">
@@ -180,7 +180,7 @@ function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: 
       }
     >
       <DataRow label={t('rowFullName')}      value={`${p.firstName} ${p.lastName}`} highlight />
-      <DataRow label={t('rowDateOfBirth')}   value={`${formatDOB(p.dateOfBirth)} (${ageFromISO(p.dateOfBirth)} años)`} />
+      <DataRow label={t('rowDateOfBirth')}   value={`${formatDOB(p.dateOfBirth)} (${ageFromISO(p.dateOfBirth)} yrs)`} />
       <DataRow label={t('rowPhone')}         value={p.phone} />
       <DataRow label={t('rowEmail')}         value={p.email} />
       <DataRow label={t('rowLanguage')}      value={t('rowLanguageHint')} />
@@ -219,7 +219,7 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
       onClose={onClose}
       footer={
         <>
-          {lawyer.phone && <ActionBtn href={lawyer.phone} label="Llamar" color="#fda4af" tel />}
+          {lawyer.phone && <ActionBtn href={lawyer.phone} label="Call" color="#fda4af" tel />}
           {lawyer.email && <ActionBtn label="Email" color="#fda4af" />}
         </>
       }
@@ -236,7 +236,7 @@ function LawyerModal({ appt, onClose }: { appt: CalendarAppointment; onClose: ()
       <DataRow label={t('rowEmail')}    value={lawyer.email} />
       {appt.case?.accidentDate && (
         <DataRow label={t('rowDol')}
-          value={new Date(appt.case.accidentDate).toLocaleDateString('es-US', { dateStyle: 'medium' })}
+          value={new Date(appt.case.accidentDate).toLocaleDateString('en-US', { dateStyle: 'medium' })}
           highlight />
       )}
       <div className="pt-1 flex items-center gap-1.5 text-[11px] text-emerald">
@@ -310,12 +310,12 @@ function CallHandlerModal({ appt, onClose }: { appt: CalendarAppointment; onClos
           <div className="text-text-muted text-xs">{t('callHandlerRoleLabel')} · {appt.clinic.name}</div>
         </div>
       </div>
-      <DataRow label="Clínica"              value={appt.clinic.name} />
+      <DataRow label="Clinic"               value={appt.clinic.name} />
       <DataRow label={t('rowChannel')}      value={`📞 ${t('channelInboundCall')}`} />
       <DataRow label={t('rowAppointmentScheduled')} value={t('scheduledOnSameCall')} highlight />
       <div className="pt-2 text-[11px] text-text-muted rounded-md px-3 py-2 border border-border"
         style={{ background: 'rgba(255,255,255,0.02)' }}>
-        📜 Información detallada del audit log disponible en Phase 1B (requiere tabla de audit de llamadas).
+        📜 Detailed audit log available in Phase 1B (requires call audit table).
       </div>
     </ModalShell>
   );

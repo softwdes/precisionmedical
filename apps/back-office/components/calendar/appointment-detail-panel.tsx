@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   Phone, MessageSquare, RefreshCw, Calendar,
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
-import { Dialog, DialogContent } from '@precision/ui';
+import { Dialog, DialogContent, DialogTitle } from '@precision/ui';
 import { AppointmentSecondaryModals, type SecondaryModalType } from './appointment-secondary-modals';
 import { AppointmentDialog, type EditAppointmentData } from './appointment-dialog';
 import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
@@ -79,9 +79,7 @@ type Tab = 'detail' | 'services';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string, locale = 'en-US') {
   const d  = new Date(iso);
   const tz = 'America/Denver';
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -91,13 +89,13 @@ function formatDateTime(iso: string) {
   const get = (t: string) => parts.find(p => p.type === t)?.value ?? '';
   const year = get('year'), mon = get('month'), day = get('day');
   const hr = get('hour'), min = get('minute');
-  const dowMap: Record<string, string> = { Sun:'Dom', Mon:'Lun', Tue:'Mar', Wed:'Mié', Thu:'Jue', Fri:'Vie', Sat:'Sáb' };
-  const monIdx = parseInt(mon, 10) - 1;
-  const h12 = d.toLocaleTimeString('es-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });
+  const h12 = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });
+  const dayName = d.toLocaleDateString(locale, { weekday: 'short', timeZone: tz });
+  const date = d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric', timeZone: tz });
   return {
-    date: `${MONTHS_ES[monIdx]} ${parseInt(day, 10)}, ${year}`,
+    date,
     time: h12,
-    dayName: dowMap[get('weekday')] ?? get('weekday'),
+    dayName,
     dateInput: `${year}-${mon}-${day}`,
     timeInput: `${hr === '24' ? '00' : hr}:${min}`,
   };
@@ -147,6 +145,7 @@ const fmt$ = (n: number) =>
 export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
+  const locale = useLocale();
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
@@ -173,7 +172,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
 
   const isFirst   = appt.visitNumber === 0;
-  const dt        = formatDateTime(appt.scheduledFor);
+  const dt        = formatDateTime(appt.scheduledFor, locale);
   const statusCfgRaw = STATUS_CONFIG[appt.status];
   const statusCfg = { label: statusCfgRaw ? t(statusCfgRaw.tKey as Parameters<typeof t>[0]) : appt.status, state: (statusCfgRaw?.state ?? 'info') as StatusState };
   const intakeDone    = !!appt.case?.intakeFormCompletedAt;
@@ -301,7 +300,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                 <Calendar className="w-4 h-4 text-cyan" />
                 <div>
                   <div className="text-text-1 font-semibold text-sm">{dt.dayName} {dt.date}</div>
-                  <div className="text-text-muted text-xs">{dt.time} · {appt.durationMinutes} min</div>
+                  <div className="text-text-muted text-xs">{dt.time} <span className="opacity-50 text-[10px]">MT</span> · {appt.durationMinutes} min</div>
                 </div>
               </div>
               <StatusPill label={statusCfg.label} state={statusCfg.state} />
@@ -382,7 +381,21 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📅 {t('sectionAppointmentInfo')}</div>
                 <div className="space-y-2 text-[12.5px]">
-                  <Row label={t('rowDateAndTime')}  value={`${dt.dayName} ${dt.date} · ${dt.time}`} highlight />
+                  <Row label={t('rowDateAndTime')}  value={`${dt.dayName} ${dt.date} · ${dt.time} MT`} highlight />
+                  {(appt as { isOnline?: boolean; meetingUrl?: string | null }).isOnline && (
+                    <div className="flex items-center gap-2 py-0.5">
+                      <span className="text-text-muted text-[11px] w-24 shrink-0">{t('rowOnline')}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan/15 border border-cyan/30 text-cyan font-semibold">📹 {t('onlineBadge')}</span>
+                        {(appt as { meetingUrl?: string | null }).meetingUrl && (
+                          <a href={(appt as { meetingUrl: string }).meetingUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-[11px] text-cyan underline truncate max-w-[160px]">
+                            {t('joinMeeting')}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <Row label={t('rowDuration')}      value={`${appt.durationMinutes} min`} />
                   <Row label={t('rowClinic')}        value={appt.clinic.name} />
                   {appt.provider && <Row label={t('rowDoctor')} value={`${t('drPrefix')} ${appt.provider.firstName} ${appt.provider.lastName}`} />}
@@ -390,7 +403,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   <Row label={t('rowType')} value={TYPE_LABEL[appt.type] ?? appt.type} chip chipColor={appt.type === 'AUTO_ACCIDENT' ? 'rose' : 'emerald'} />
                   {appt.case?.accidentDate && (
                     <Row label={t('rowAccidentDate')}
-                      value={new Date(appt.case.accidentDate).toLocaleDateString('es-US', { dateStyle: 'medium' })} highlight />
+                      value={new Date(appt.case.accidentDate).toLocaleDateString(locale, { dateStyle: 'medium', timeZone: 'America/Denver' })} highlight />
                   )}
                 </div>
               </div>
@@ -436,8 +449,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       <MessageSquare className="w-4 h-4" /> {t('actionSms')}
                     </a>
                   )}
-                  <button type="button" onClick={() => setRescheduleOpen(true)}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                  <button type="button"
+                    onClick={() => appt.case && setRescheduleOpen(true)}
+                    disabled={!appt.case}
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed">
                     <RefreshCw className="w-4 h-4" /> {t('actionReschedule')}
                   </button>
                   <button type="button" onClick={() => setActiveModal('intake')}
@@ -493,7 +508,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               {/* Buscador inline */}
               {!svcLoaded ? (
                 <div className="flex items-center justify-center py-6 text-text-muted text-xs gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cargando...
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
                 </div>
               ) : (
                 <div className="relative">
@@ -648,10 +663,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       <ConfirmDialog
         open={confirmDeleteSvc !== null}
         variant="danger"
-        title="Eliminar servicio"
-        description="¿Seguro que deseas eliminar este servicio de la cita? Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
-        cancelLabel="Cancelar"
+        title="Remove service"
+        description="Are you sure you want to remove this service from the appointment? This action cannot be undone."
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
         onConfirm={() => { if (confirmDeleteSvc) removeService(confirmDeleteSvc); setConfirmDeleteSvc(null); }}
         onCancel={() => setConfirmDeleteSvc(null)}
       />
@@ -665,12 +680,13 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         />
       )}
 
-      {/* Reagendar — pre-poblado con datos de la cita actual */}
+      {/* Reagendar — pre-poblado con paciente/clínica/doctor/duración; slot vacío para elegir nueva hora */}
       {appt.case && (
         <AppointmentDialog
           mode="free"
           open={rescheduleOpen}
           onOpenChange={setRescheduleOpen}
+          isReschedule
           editAppointment={{
             id:              appt.id,
             scheduledFor:    appt.scheduledFor,
@@ -678,7 +694,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
             type:            appt.type,
             notes:           appt.notes,
             clinicId:        appt.clinic.id,
+            clinicName:      appt.clinic.name,
             providerId:      appt.provider?.id ?? null,
+            providerFirstName: appt.provider?.firstName,
+            providerLastName:  appt.provider?.lastName,
+            providerSpecialty: appt.provider?.specialty ?? undefined,
             caseId:          appt.case.id,
             caseCode:        appt.case.caseCode,
             patient: {
@@ -704,7 +724,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
             type:            appt.type,
             notes:           appt.notes,
             clinicId:        appt.clinic.id,
+            clinicName:      appt.clinic.name,
             providerId:      appt.provider?.id ?? null,
+            providerFirstName: appt.provider?.firstName,
+            providerLastName:  appt.provider?.lastName,
+            providerSpecialty: appt.provider?.specialty ?? undefined,
             caseId:          appt.case.id,
             caseCode:        appt.case.caseCode,
             patient: {
@@ -730,6 +754,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+        <DialogTitle className="sr-only">Appointment detail</DialogTitle>
         {panelContent}
       </DialogContent>
     </Dialog>

@@ -37,10 +37,12 @@ const PatchSchema = z.object({
   notes:                z.string().max(2000).nullable().optional(),
   durationMinutes:      z.number().int().min(5).max(480).optional(),
   plannedServiceCodes:  z.array(PlannedServiceSchema).optional(),
-  clinicId:             z.string().cuid().optional(),
-  providerId:           z.string().cuid().nullable().optional(),
+  clinicId:             z.string().min(1).optional(),
+  providerId:           z.string().min(1).nullable().optional(),
   scheduledFor:         z.string().datetime().optional(),
   type:                 z.enum(['AUTO_ACCIDENT','FAMILY_PRACTICE','URGENT_CARE','FOLLOW_UP','CONSULTATION']).optional(),
+  isOnline:             z.boolean().optional(),
+  meetingUrl:           z.string().url().nullable().optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: 'Al menos un campo requerido' });
 
 export async function PATCH(
@@ -75,20 +77,28 @@ export async function PATCH(
     }
   }
 
-  const updated = await db.appointment.update({
-    where: { id },
-    data: {
-      ...(parsed.status               !== undefined && { status:               parsed.status }),
-      ...(parsed.notes                !== undefined && { notes:                parsed.notes }),
-      ...(parsed.durationMinutes      !== undefined && { durationMinutes:      parsed.durationMinutes }),
-      ...(parsed.plannedServiceCodes  !== undefined && { plannedServiceCodes:  parsed.plannedServiceCodes }),
-      ...(parsed.clinicId             !== undefined && { clinicId:             parsed.clinicId }),
-      ...(parsed.providerId           !== undefined && { providerId:           parsed.providerId }),
-      ...(parsed.scheduledFor         !== undefined && { scheduledFor:         new Date(parsed.scheduledFor) }),
-      ...(parsed.type                 !== undefined && { type:                 parsed.type }),
-    },
-    select: { id: true, status: true, notes: true, durationMinutes: true, clinicId: true, providerId: true, scheduledFor: true, type: true },
-  });
+  let updated;
+  try {
+    updated = await db.appointment.update({
+      where: { id },
+      data: {
+        ...(parsed.status               !== undefined && { status:               parsed.status }),
+        ...(parsed.notes                !== undefined && { notes:                parsed.notes }),
+        ...(parsed.durationMinutes      !== undefined && { durationMinutes:      parsed.durationMinutes }),
+        ...(parsed.plannedServiceCodes  !== undefined && { plannedServiceCodes:  parsed.plannedServiceCodes }),
+        ...(parsed.clinicId             !== undefined && { clinicId:             parsed.clinicId }),
+        ...(parsed.providerId           !== undefined && { providerId:           parsed.providerId }),
+        ...(parsed.scheduledFor         !== undefined && { scheduledFor:         new Date(parsed.scheduledFor) }),
+        ...(parsed.type                 !== undefined && { type:                 parsed.type }),
+        ...(parsed.isOnline             !== undefined && { isOnline:             parsed.isOnline }),
+        ...(parsed.meetingUrl           !== undefined && { meetingUrl:           parsed.meetingUrl }),
+      },
+      select: { id: true, status: true, notes: true, durationMinutes: true, clinicId: true, providerId: true, scheduledFor: true, type: true },
+    });
+  } catch (dbErr) {
+    const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+    return NextResponse.json({ error: 'DB_ERROR', message: msg }, { status: 500 });
+  }
 
   await writeAuditLog(db, {
     actorType:   actor.actorType,

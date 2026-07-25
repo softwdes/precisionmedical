@@ -524,6 +524,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     return (
       <Dialog open={open} onOpenChange={() => { twilio.hangUp(); onOpenChange(false); }}>
         <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Llamando</DialogTitle>
           <div className="flex flex-col items-center px-6 py-8 gap-5">
             {/* Avatar con anillos animados */}
             <div className="relative flex items-center justify-center" style={{ width: 128, height: 128 }}>
@@ -567,6 +568,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Sin respuesta</DialogTitle>
           <div className="flex flex-col items-center px-6 py-8 gap-4">
             {/* Avatar */}
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-700 to-rose flex items-center justify-center text-white font-bold text-xl shadow-[0_8px_24px_rgba(244,63,94,.35)]">

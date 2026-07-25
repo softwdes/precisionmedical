@@ -1468,6 +1468,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-5xl p-0">
+        <DialogTitle className="sr-only">{patient.firstName} {patient.lastName} — Archivos</DialogTitle>
         <div className="px-6 py-4 border-b border-border">
           <h2 className="text-base font-semibold text-text-1">{patient.firstName} {patient.lastName}</h2>
           <p className="text-[12px] text-text-muted mt-0.5">{t('archivosSubtitle')}</p>

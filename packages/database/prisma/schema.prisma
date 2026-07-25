@@ -866,6 +866,10 @@ model Appointment {
 
   notes           String?
 
+  // Telemedicine / online consultation toggle (FEATURE-006)
+  isOnline        Boolean           @default(false)
+  meetingUrl      String?           // optional video link (Zoom, Teams, etc.)
+
   // B.15 Admisión — servicios planificados seleccionados por recepción antes de pasar al doctor
   // JSON snapshot: [{code, description, fee}]
   plannedServiceCodes Json @default("[]")

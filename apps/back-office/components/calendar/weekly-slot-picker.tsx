@@ -68,19 +68,21 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
   const [selectedDay, setSelectedDay] = useState<string | null>(initialDate ?? null);
   const [slots,       setSlots]       = useState<Slot[]>([]);
   const [loading,     setLoading]     = useState(false);
+  const [timeTab,     setTimeTab]     = useState<'am' | 'pm' | 'evening'>('am');
 
-  // Reset weekStart/selectedDay only when provider or clinic changes
-  // (duration change should NOT reset the selected day — only trigger new slot fetch)
+  // Reset weekStart/selectedDay only when provider or clinic changes.
+  // Uses functional setter to bail out when weekStart is already the correct value,
+  // preventing a second fetch triggered by a new-but-same-week Date reference.
   useEffect(() => {
-    if (initialDate) {
-      const [y, m, d] = initialDate.split('-').map(Number) as [number, number, number];
-      setWeekStart(getMondayOf(new Date(Date.UTC(y, m - 1, d, 12, 0, 0))));
-      setSelectedDay(initialDate);
-    } else {
-      setWeekStart(getMondayOf(new Date()));
-      setSelectedDay(null);
-    }
-  }, [providerId, clinicId, initialDate]); // duration intentionally excluded — changing duration only refetches slots
+    const target = initialDate
+      ? (() => {
+          const [y, m, d] = initialDate.split('-').map(Number) as [number, number, number];
+          return getMondayOf(new Date(Date.UTC(y, m - 1, d, 12, 0, 0)));
+        })()
+      : getMondayOf(new Date());
+    setWeekStart(prev => prev.getTime() === target.getTime() ? prev : target);
+    setSelectedDay(initialDate ?? null);
+  }, [providerId, clinicId, initialDate]); // duration intentionally excluded
 
   // Fetch slots for current week
   useEffect(() => {
@@ -101,7 +103,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           const d = new Date(s.startAt);
           return {
             iso: s.startAt,
-            label: d.toLocaleTimeString('es-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' }),
+            label: d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' }),
             dayLabel: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Denver' }),
           };
         });
@@ -155,9 +157,9 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
       iso,
       isPast:    iso < todayDenver,
       slots:     slotsByDay.get(iso) ?? [],
-      dayName:   d.toLocaleDateString('es-MX', { weekday: 'short', timeZone: 'America/Denver' }),
+      dayName:   d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/Denver' }),
       dayNum:    d.toLocaleDateString('en-US', { day: 'numeric',   timeZone: 'America/Denver' }),
-      monthShort: d.toLocaleDateString('es-MX', { month: 'short',  timeZone: 'America/Denver' }),
+      monthShort: d.toLocaleDateString('en-US', { month: 'short',  timeZone: 'America/Denver' }),
     };
   }), [weekStart, slotsByDay, todayDenver]);
 
@@ -165,6 +167,32 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
     () => selectedDay ? (slotsByDay.get(selectedDay) ?? []) : [],
     [selectedDay, slotsByDay],
   );
+
+  function slotHour(s: Slot): number {
+    return parseInt(new Date(s.iso).toLocaleTimeString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Denver' }), 10);
+  }
+
+  const amSlots      = useMemo(() => selectedDaySlots.filter(s => slotHour(s) < 12),             [selectedDaySlots]);
+  const pmSlots      = useMemo(() => selectedDaySlots.filter(s => { const h = slotHour(s); return h >= 12 && h < 17; }), [selectedDaySlots]);
+  const eveningSlots = useMemo(() => selectedDaySlots.filter(s => slotHour(s) >= 17),             [selectedDaySlots]);
+
+  // Auto-switch tab to where the selected value lives, or to first non-empty tab
+  useEffect(() => {
+    if (!selectedDay) return;
+    if (value) {
+      const slot = selectedDaySlots.find(s => s.iso === value);
+      if (slot) {
+        const h = slotHour(slot);
+        setTimeTab(h < 12 ? 'am' : h < 17 ? 'pm' : 'evening');
+        return;
+      }
+    }
+    if (amSlots.length > 0)      { setTimeTab('am');      return; }
+    if (pmSlots.length > 0)      { setTimeTab('pm');      return; }
+    if (eveningSlots.length > 0) { setTimeTab('evening'); return; }
+  }, [selectedDay, value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visibleSlots = timeTab === 'am' ? amSlots : timeTab === 'pm' ? pmSlots : eveningSlots;
 
   const isPrevDisabled = weekStart.getTime() <= minWeekStart;
   const isNextDisabled = weekStart.getTime() >= maxWeekStart;
@@ -242,8 +270,37 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           <div className="text-[10px] uppercase tracking-wider text-text-muted font-semibold mb-1.5">
             {weekDays.find(d => d.iso === selectedDay)?.dayName} {weekDays.find(d => d.iso === selectedDay)?.dayNum} · {t('selectHour')}
           </div>
+
+          {/* AM / PM / Evening tabs */}
+          <div className="flex gap-1 mb-2">
+            {([
+              { key: 'am',      label: 'AM',      count: amSlots.length      },
+              { key: 'pm',      label: 'PM',      count: pmSlots.length      },
+              { key: 'evening', label: 'Evening', count: eveningSlots.length },
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                disabled={tab.count === 0}
+                onClick={() => setTimeTab(tab.key)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md border text-[11px] font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                  timeTab === tab.key
+                    ? 'bg-cyan/15 border-cyan/40 text-cyan'
+                    : 'bg-bg-2 border-border text-text-muted hover:text-text-2 hover:border-border-strong'
+                }`}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span className={`text-[9px] rounded-full px-1 py-0 leading-4 ${timeTab === tab.key ? 'bg-cyan/20 text-cyan' : 'bg-bg-1 text-text-muted'}`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="flex flex-wrap gap-1.5">
-            {selectedDaySlots.map(s => (
+            {visibleSlots.map(s => (
               <button
                 key={s.iso}
                 type="button"

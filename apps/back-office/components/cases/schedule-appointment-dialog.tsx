@@ -197,6 +197,7 @@ export function ScheduleAppointmentDialog({ open, onOpenChange, caseInfo }: Sche
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
+          <DialogTitle className="sr-only">Cita agendada</DialogTitle>
           <div className="text-center py-6">
             <div className="w-16 h-16 rounded-full bg-emerald/20 border-2 border-emerald flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-emerald" />

@@ -25,7 +25,7 @@ import { db } from '@precision-medical/database';
 
 const TIMEZONE = 'America/Denver';
 const WORK_HOUR_START = 8;   // 8:00 AM MT
-const WORK_HOUR_END   = 17;  // 5:00 PM MT (último slot puede terminar a las 17:30)
+const WORK_HOUR_END   = 22;  // 10:00 PM MT (allows last slot at 9:30 PM + 30 min)
 
 const QuerySchema = z.object({
   clinicId:        z.string().min(1),
@@ -61,9 +61,9 @@ function isBusinessSlot(date: Date, durationMinutes: number): boolean {
   return h >= WORK_HOUR_START && h + durationMinutes / 60 <= WORK_HOUR_END;
 }
 
-/** Genera candidatos cada 30 min en el rango dado (independiente de la duración de la cita) */
-function generateCandidates(from: Date, to: Date): Date[] {
-  const INTERVAL = 30;
+/** Genera candidatos cada `durationMinutes` min (máx 30) en el rango dado */
+function generateCandidates(from: Date, to: Date, durationMinutes: number): Date[] {
+  const INTERVAL = durationMinutes <= 30 ? durationMinutes : 30;
   const candidates: Date[] = [];
   // Never generate slots in the past — clamp start to now
   const now   = new Date();
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   });
 
   // ─── Genera candidatos y filtra conflictos ─────────────────────────────
-  const candidates = generateCandidates(fromDate, toDate);
+  const candidates = generateCandidates(fromDate, toDate, query.durationMinutes);
   const durationMs = query.durationMinutes * 60 * 1000;
 
   const available = candidates

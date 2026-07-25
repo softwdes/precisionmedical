@@ -148,6 +148,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       type:            appt.type,
       status:          appt.status,
       notes:           appt.notes,
+      isOnline:        appt.isOnline,
+      meetingUrl:      appt.meetingUrl,
       visitNumber:     visitCountsByCaseAndAppt[appt.id] ?? 0,
       patient: {
         id:          appt.patient.id,
@@ -205,6 +207,8 @@ const CreateSchema = z.object({
   durationMinutes: z.number().int().min(15).max(480).default(30),
   type:            z.enum(['AUTO_ACCIDENT', 'FAMILY_PRACTICE', 'URGENT_CARE', 'FOLLOW_UP']).default('AUTO_ACCIDENT'),
   notes:           z.string().max(2000).optional(),
+  isOnline:        z.boolean().default(false),
+  meetingUrl:      z.string().url().nullable().optional(),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -220,11 +224,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Allow up to 30 min in the past to handle the case where a user had the slot
-  // picker open when the slot's start time passed (e.g. selected 8:00 AM at 8:05 AM)
-  const GRACE_MS = 30 * 60 * 1000;
+  // Allow up to 60 min in the past — the slot picker can be open for a while
+  // before the user submits, and the slot is still legitimately chosen.
+  const GRACE_MS = 60 * 60 * 1000;
   if (new Date(parsed.scheduledFor).getTime() < Date.now() - GRACE_MS) {
-    return NextResponse.json({ error: 'DATE_IN_PAST', message: 'La fecha debe ser futura' }, { status: 400 });
+    return NextResponse.json({
+      error: 'DATE_IN_PAST',
+      message: 'El horario seleccionado ya pasó. Por favor selecciona un nuevo horario disponible.',
+    }, { status: 400 });
   }
 
   const [caseRecord, clinic, provider] = await Promise.all([
@@ -290,6 +297,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     durationMinutes: parsed.durationMinutes,
     type:            parsed.type,
     notes:           parsed.notes ?? null,
+    isOnline:        parsed.isOnline,
+    meetingUrl:      parsed.meetingUrl ?? null,
     status:          'SCHEDULED' as const,
   };
 

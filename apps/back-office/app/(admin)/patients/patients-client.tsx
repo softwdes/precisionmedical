@@ -1824,6 +1824,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               placeholder={t('searchPlaceholder')}
+              aria-label={t('searchPlaceholder')}
               className={`w-full pl-8 pr-3 py-2 bg-bg-2 border rounded-md text-sm text-text-1 placeholder:text-text-muted focus:outline-none transition-colors ${
                 isSearching || isPending ? 'border-brand/50' : 'border-border focus:border-brand'
               }`}
@@ -1841,6 +1842,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               onClick={() => setSearchValue('')}
               className="p-2 rounded-md border border-border text-text-muted hover:text-text-1 hover:border-border-strong transition-colors"
               title={t('btnClear')}
+              aria-label={t('btnClear')}
             >
               <XIcon className="w-3.5 h-3.5" />
             </button>
@@ -1945,8 +1947,10 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleExpand(p.id)}
-                      className="p-1 rounded text-text-muted hover:text-brand transition-colors shrink-0"
+                      className="p-2 rounded text-text-muted hover:text-brand transition-colors shrink-0"
                       title={expandedId === p.id ? t('tooltipCollapse') : t('tooltipExpand')}
+                      aria-label={expandedId === p.id ? t('tooltipCollapse') : t('tooltipExpand')}
+                      aria-expanded={expandedId === p.id}
                     >
                       {expandedId === p.id
                         ? <ChevronUp className="w-3.5 h-3.5" />
@@ -1957,6 +1961,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                       <button
                         onClick={() => router.push(`/patients/${p.id}`)}
                         className="text-text-1 font-medium hover:text-brand transition-colors text-left"
+                        aria-label={`Ver perfil de ${p.firstName} ${p.lastName}`}
                       >
                         {p.firstName} {p.lastName}
                       </button>
@@ -1990,8 +1995,9 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 <td className="px-4 py-3.5 hidden md:table-cell">
                   <button
                     onClick={() => toggleExpand(p.id)}
-                    className="flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
+                    className="flex items-center justify-center w-7 h-7 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
                     title={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
+                    aria-label={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                   >
                     {p.caseCount}
                   </button>
@@ -2055,8 +2061,9 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                             preferredLanguage: (p.preferredLanguage as 'es' | 'en' | null) ?? undefined,
                           },
                         })}
-                        className="p-1 rounded hover:bg-brand/10 transition-colors group"
+                        className="p-1.5 rounded hover:bg-brand/10 transition-colors group"
                         title={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fmtLocalDate(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
+                        aria-label={p.latestCase.intakeFormSentAt ? t('tooltipSendFormResend', { date: fmtLocalDate(p.latestCase.intakeFormSentAt) }) : t('tooltipSendFormNew')}
                       >
                         <Mail className={`w-3.5 h-3.5 transition-colors ${p.latestCase.intakeFormSentAt ? 'text-brand' : 'text-text-muted group-hover:text-brand'}`} />
                       </button>
@@ -2077,8 +2084,11 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                   <div className="flex justify-end">
                     <button
                       onClick={(e) => openMenu(p.id, e.currentTarget)}
-                      className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors"
+                      className="p-2 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors"
                       title={t('colActions')}
+                      aria-label={`${t('colActions')} — ${p.firstName} ${p.lastName}`}
+                      aria-haspopup="menu"
+                      aria-expanded={openMenuId === p.id}
                     >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
@@ -2131,10 +2141,10 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                     } />
                                   </div>
                                   <div className="flex items-center gap-0.5">
-                                    <button onClick={() => router.push(`/front-office/${c.id}`)} className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')}><Eye className="w-3 h-3" /></button>
-                                    <button onClick={() => setCaseEditTarget(c)} className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipEditCase')}><Pencil className="w-3 h-3" /></button>
-                                    <button onClick={() => setCaseApptTarget(c)} className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors" title={t('tooltipViewAppts')}><CalendarDays className="w-3 h-3" /></button>
-                                    <button onClick={() => setCaseQrTarget(c)} className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipPatientQr')}><QrCode className="w-3 h-3" /></button>
+                                    <button onClick={() => router.push(`/front-office/${c.id}`)} className="p-2 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')} aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}><Eye className="w-3 h-3" /></button>
+                                    <button onClick={() => setCaseEditTarget(c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipEditCase')} aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}><Pencil className="w-3 h-3" /></button>
+                                    <button onClick={() => setCaseApptTarget(c)} className="p-2 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors" title={t('tooltipViewAppts')} aria-label={`${t('tooltipViewAppts')} — ${c.caseCode}`}><CalendarDays className="w-3 h-3" /></button>
+                                    <button onClick={() => setCaseQrTarget(c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipPatientQr')} aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}><QrCode className="w-3 h-3" /></button>
                                   </div>
                                 </div>
                                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
@@ -2252,6 +2262,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                           onClick={() => router.push(`/front-office/${c.id}`)}
                                           className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
                                           title={t('tooltipViewCase')}
+                                          aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}
                                         >
                                           <Eye className="w-3 h-3" />
                                         </button>
@@ -2259,6 +2270,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                           onClick={() => setCaseEditTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
                                           title={t('tooltipEditCase')}
+                                          aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}
                                         >
                                           <Pencil className="w-3 h-3" />
                                         </button>
@@ -2266,6 +2278,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                           onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
                                           className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
                                           title={t('tooltipCancelCase')}
+                                          aria-label={`${t('tooltipCancelCase')} — ${c.caseCode}`}
                                           disabled={c.status === 'CANCELLED'}
                                         >
                                           <Trash2 className="w-3 h-3" />
@@ -2274,6 +2287,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                           onClick={() => setPdfCaseId(c.id)}
                                           className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
                                           title={t('tooltipDownloadPdf')}
+                                          aria-label={`${t('tooltipDownloadPdf')} — ${c.caseCode}`}
                                         >
                                           <Printer className="w-3 h-3" />
                                         </button>
@@ -2281,6 +2295,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                           onClick={() => setCaseApptTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
                                           title={t('tooltipViewAppts')}
+                                          aria-label={`${t('tooltipViewAppts')} — ${c.caseCode}`}
                                         >
                                           <CalendarDays className="w-3 h-3" />
                                         </button>
@@ -2288,6 +2303,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                           onClick={() => setCaseQrTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
                                           title={t('tooltipPatientQr')}
+                                          aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}
                                         >
                                           <QrCode className="w-3 h-3" />
                                         </button>
@@ -2313,43 +2329,46 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
       </div>
 
       {/* ─── Paginación ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-1 pt-1">
+      <nav aria-label="Paginación de pacientes" className="flex items-center justify-between px-1 pt-1">
         <div className="flex items-center gap-2 text-[11px] text-text-muted">
-          <span>Rows per page</span>
+          <label htmlFor="page-size-select" className="sr-only">Filas por página</label>
+          <span aria-hidden="true">Rows per page</span>
           <select
+            id="page-size-select"
             value={pageSize}
             onChange={(e) => router.push(buildPageUrl(0, Number(e.target.value)))}
             className="bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none focus:border-brand cursor-pointer"
+            aria-label="Filas por página"
           >
             {[10, 15, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
           {localPages > 0 && (
-            <span className="ml-2">
+            <span className="ml-2" aria-live="polite" aria-atomic="true">
               {t('pageInfo', { page: page + 1, total: localPages })} · {localTotal} {localTotal === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}
             </span>
           )}
         </div>
         {localPages > 1 && (
-          <div className="flex gap-1">
+          <div className="flex gap-1" role="group" aria-label="Controles de página">
             <button
               onClick={() => router.push(buildPageUrl(page - 1))}
               disabled={page === 0}
-              aria-label="Previous page"
-              className="p-1.5 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label={`Página anterior (página ${page} de ${localPages})`}
+              className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => router.push(buildPageUrl(page + 1))}
               disabled={page >= localPages - 1}
-              aria-label="Next page"
-              className="p-1.5 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label={`Página siguiente (página ${page + 2} de ${localPages})`}
+              className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         )}
-      </div>
+      </nav>
 
       {/* ─── View modal ─────────────────────────────────────────────────────── */}
       <Dialog open={!!viewTarget} onOpenChange={(o) => { if (!o) setViewTarget(null); }}>

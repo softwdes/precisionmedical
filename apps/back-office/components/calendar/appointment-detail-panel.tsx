@@ -382,13 +382,16 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📅 {t('sectionAppointmentInfo')}</div>
                 <div className="space-y-2 text-[12.5px]">
                   <Row label={t('rowDateAndTime')}  value={`${dt.dayName} ${dt.date} · ${dt.time} MT`} highlight />
-                  {(appt as { isOnline?: boolean; meetingUrl?: string | null }).isOnline && (
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {(appt as any).isOnline && (
                     <div className="flex items-center gap-2 py-0.5">
                       <span className="text-text-muted text-[11px] w-24 shrink-0">{t('rowOnline')}</span>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan/15 border border-cyan/30 text-cyan font-semibold">📹 {t('onlineBadge')}</span>
-                        {(appt as { meetingUrl?: string | null }).meetingUrl && (
-                          <a href={(appt as { meetingUrl: string }).meetingUrl} target="_blank" rel="noopener noreferrer"
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {(appt as any).meetingUrl && (
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          <a href={(appt as any).meetingUrl} target="_blank" rel="noopener noreferrer"
                             className="text-[11px] text-cyan underline truncate max-w-[160px]">
                             {t('joinMeeting')}
                           </a>

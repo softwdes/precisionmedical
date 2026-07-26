@@ -946,7 +946,8 @@ export function IntakeWizard({
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [step, setStep]           = useState<Step>(1);
-  const [lang, setLang]           = useState<Lang>('es');
+  const [lang, setLang]           = useState<Lang>('en');
+  const [langChosen, setLangChosen] = useState(false);
   const [saving, setSaving]       = useState(false);
   const [saveError, setSaveError] = useState('');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -1552,17 +1553,27 @@ export function IntakeWizard({
             </span>
           )}
 
-          {/* Language toggle */}
-          <button
-            type="button"
-            onClick={() => setLang(l => l === 'es' ? 'en' : 'es')}
-            style={{
-              padding: '3px 8px', borderRadius: 6, flexShrink: 0,
-              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-              color: 'rgba(255,255,255,0.60)', fontSize: 10, fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.06em',
-            }}
-          >{t.langToggle}</button>
+          {/* Language pill toggle */}
+          <div style={{
+            display: 'flex', flexShrink: 0,
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 8, overflow: 'hidden',
+          }}>
+            {(['en', 'es'] as const).map(l => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => setLang(l)}
+                style={{
+                  padding: '3px 9px', border: 'none', fontFamily: 'inherit',
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', cursor: 'pointer',
+                  background: lang === l ? 'rgba(6,182,212,0.25)' : 'transparent',
+                  color: lang === l ? '#06B6D4' : 'rgba(255,255,255,0.40)',
+                  transition: 'all 0.15s',
+                }}
+              >{l.toUpperCase()}</button>
+            ))}
+          </div>
 
           {/* Exit button */}
           <button
@@ -1585,8 +1596,59 @@ export function IntakeWizard({
 
       <div style={S.container}>
 
+        {/* ══════ LANGUAGE SELECTION (pre-step) ═══════════════════════════════ */}
+        {!langChosen && (
+          <div style={{ paddingTop: 60, paddingBottom: 40, textAlign: 'center' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 32,
+              padding: '6px 14px', borderRadius: 20,
+              background: 'rgba(6,182,212,0.10)', border: '1px solid rgba(6,182,212,0.25)',
+            }}>
+              <span style={{ color: '#06B6D4', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em' }}>
+                PRECISION MEDICAL
+              </span>
+            </div>
+
+            <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8, lineHeight: 1.2 }}>
+              Choose your language
+            </h1>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14, marginBottom: 40 }}>
+              Selecciona tu idioma preferido
+            </p>
+
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {([
+                { l: 'en' as const, flag: '🇺🇸', label: 'English' },
+                { l: 'es' as const, flag: '🇲🇽', label: 'Español' },
+              ]).map(({ l, flag, label }) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => { setLang(l); setLangChosen(true); }}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                    padding: '24px 40px', borderRadius: 16, cursor: 'pointer',
+                    background: lang === l ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.04)',
+                    border: `2px solid ${lang === l ? 'rgba(6,182,212,0.50)' : 'rgba(255,255,255,0.10)'}`,
+                    fontFamily: 'inherit', transition: 'all 0.15s', minWidth: 140,
+                  }}
+                >
+                  <span style={{ fontSize: 40 }}>{flag}</span>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: lang === l ? '#06B6D4' : 'rgba(255,255,255,0.85)' }}>
+                    {label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <p style={{ marginTop: 40, fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
+              🔒 {lang === 'en' ? 'Your information is private and secure' : 'Tu información es privada y segura'}
+            </p>
+          </div>
+        )}
+
         {/* ══════ STEP 1 · Landing (B.5) ══════════════════════════════════════ */}
-        {step === 1 && (
+        {langChosen && step === 1 && (
           <div style={{ paddingTop: 40 }}>
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <div style={{

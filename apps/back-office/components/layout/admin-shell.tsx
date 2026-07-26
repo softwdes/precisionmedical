@@ -68,11 +68,11 @@ export function AdminShell({
               userRole={userRole}
               userInitials={userInitials}
               userEmail={userEmail}
-              onMenuClick={() => setMobileOpen(true)}
+              onMenuClick={() => setMobileOpen(v => !v)}
             />
             <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8 animate-fade-in">{children}</main>
           </div>
-          <MobileBottomNav onMenuClick={() => setMobileOpen(true)} />
+          <MobileBottomNav onMenuClick={() => setMobileOpen(v => !v)} />
           <FloatingAI />
         </div>
       </NavigationProgressProvider>

@@ -338,7 +338,7 @@ export function AdmissionClient() {
                 onClick={() => dateInputRef.current?.showPicker?.()}
                 className={`text-[11px] font-semibold px-1.5 min-w-[82px] text-center transition-colors ${isToday ? 'text-emerald' : 'text-text-1'}`}
               >
-                {isToday ? 'Hoy' : new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-US', { month: 'short', day: 'numeric' })}
+                {isToday ? t('today') : new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 <input
                   ref={dateInputRef}
                   type="date"
@@ -363,7 +363,7 @@ export function AdmissionClient() {
                 onClick={() => setSelectedDate(new Date().toLocaleDateString('en-CA'))}
                 className="h-8 px-2.5 rounded-md border border-emerald/40 text-emerald text-[11px] font-semibold hover:bg-emerald/10 transition-colors"
               >
-                Hoy
+                {t('today')}
               </button>
             )}
             <button
@@ -383,7 +383,7 @@ export function AdmissionClient() {
               title="Abrir sala de espera en TV"
             >
               <Tv2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Lobby TV</span>
+              <span className="hidden sm:inline">{t('lobbyTv')}</span>
             </a>
           </div>
         }

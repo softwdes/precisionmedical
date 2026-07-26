@@ -1381,7 +1381,10 @@
       "compliance": "Compliance",
       "auditLog": "Audit Log",
       "footerStatus": "Phase 1A · Catalogs in progress",
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "menu": "Menu",
+      "calendarShort": "Appts",
+      "admissionShort": "Check-in"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",
@@ -2225,6 +2228,8 @@
       "sectionCompleted": "Completed ({count})",
       "loading": "Loading...",
       "detailPageSubtitle": "Admission",
+      "today": "Today",
+      "lobbyTv": "Lobby TV",
       "dailyQueue": "Daily queue",
       "stepCheckIn": "Check-in",
       "stepPayments": "Payments & Charges",

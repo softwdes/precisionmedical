@@ -340,28 +340,33 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       <NextActionBanner caseInfo={caseInfo} />
 
       {/* Tabs */}
-      <div className="flex border-b border-border gap-0 overflow-x-auto scroll-thin -mb-2">
-        {([
-          { id: 'caso',           label: 'Paciente',                    icon: FileText },
-          { id: 'citas',          label: 'Citas',                       icon: Calendar },
-          { id: 'historial',      label: 'Historial médico',            icon: ClipboardList },
-          { id: 'prescripciones', label: 'Prescripciones y laboratorios', icon: Pill },
-          { id: 'finanzas',       label: 'Finanzas',                    icon: DollarSign },
-          { id: 'documentos',     label: 'Documentos',                  icon: FolderOpen },
-        ] as { id: ActiveTab; label: string; icon: React.ElementType }[]).map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
-              activeTab === tab.id
-                ? 'border-brand text-brand'
-                : 'border-transparent text-text-2 hover:text-text-1 hover:border-border'
-            }`}
-          >
-            <tab.icon className="w-3.5 h-3.5" />
-            {tab.label}
-          </button>
-        ))}
+      <div className="relative -mb-2">
+        <div className="flex border-b border-border gap-0 overflow-x-auto scrollbar-none">
+          {([
+            { id: 'caso',           label: 'Paciente',       labelShort: 'Paciente',   icon: FileText },
+            { id: 'citas',          label: 'Citas',          labelShort: 'Citas',      icon: Calendar },
+            { id: 'historial',      label: 'Historial médico', labelShort: 'Historial', icon: ClipboardList },
+            { id: 'prescripciones', label: 'Prescripciones y laboratorios', labelShort: 'Labs', icon: Pill },
+            { id: 'finanzas',       label: 'Finanzas',       labelShort: 'Finanzas',   icon: DollarSign },
+            { id: 'documentos',     label: 'Documentos',     labelShort: 'Docs',       icon: FolderOpen },
+          ] as { id: ActiveTab; label: string; labelShort: string; icon: React.ElementType }[]).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
+                activeTab === tab.id
+                  ? 'border-brand text-brand'
+                  : 'border-transparent text-text-2 hover:text-text-1 hover:border-border'
+              }`}
+            >
+              <tab.icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.labelShort}</span>
+            </button>
+          ))}
+        </div>
+        {/* Indicador de scroll derecho */}
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-bg-0 to-transparent sm:hidden" />
       </div>
 
       {/* Tab: Caso ─────────────────────────────────────────────────────────── */}

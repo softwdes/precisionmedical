@@ -364,7 +364,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
       </div>
 
       {/* ── Columna derecha: info + acciones ──────────────────────── */}
-      <div className="flex-1 flex flex-col gap-5 px-6 py-8">
+      <div className="flex-1 min-w-0 flex flex-col gap-5 px-6 py-8">
 
         <div className="space-y-3">
           <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
@@ -383,8 +383,8 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
 
         <div className="space-y-1.5">
           <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('qrPortalLink')}</p>
-          <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2 px-3 py-2">
-            <span className="flex-1 text-[11px] text-text-muted truncate font-mono">{info.portalUrl}</span>
+          <div className="flex items-center gap-2 min-w-0 rounded-md border border-border bg-bg-2 px-3 py-2">
+            <span className="flex-1 min-w-0 text-[11px] text-text-muted truncate font-mono">{info.portalUrl}</span>
             <button
               type="button"
               onClick={copyLink}

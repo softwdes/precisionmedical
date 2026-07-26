@@ -1381,7 +1381,10 @@
       "compliance": "Compliance",
       "auditLog": "Audit Log",
       "footerStatus": "Phase 1A · Catálogos en construcción",
-      "comingSoon": "Próximamente"
+      "comingSoon": "Próximamente",
+      "menu": "Menú",
+      "calendarShort": "Citas",
+      "admissionShort": "Checkin"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -2225,6 +2228,8 @@
       "sectionCompleted": "Completados ({count})",
       "loading": "Cargando...",
       "detailPageSubtitle": "Admisión",
+      "today": "Hoy",
+      "lobbyTv": "Lobby TV",
       "dailyQueue": "Cola del día",
       "stepCheckIn": "Check-in",
       "stepPayments": "Pagos y Cobros",

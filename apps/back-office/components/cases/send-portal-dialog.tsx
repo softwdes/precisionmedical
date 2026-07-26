@@ -1,20 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Send, MessageSquare, Mail, AlertCircle, Check, Phone, Copy, ExternalLink } from 'lucide-react';
 import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  Label,
+  Send, MessageSquare, Mail, AlertCircle, Check,
+  Phone, Copy, Clock,
+} from 'lucide-react';
+import {
+  Button, Dialog, DialogContent, DialogHeader,
+  DialogTitle, DialogFooter,
 } from '@precision/ui';
 
-// B.3 — Send portal magic link · mock para Phase 1A
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SendPortalDialogProps {
   open: boolean;
@@ -24,9 +21,9 @@ interface SendPortalDialogProps {
     caseCode: string;
     patient: {
       firstName: string;
-      lastName: string;
-      phone: string | null;
-      email: string | null;
+      lastName:  string;
+      phone:     string | null;
+      email:     string | null;
       preferredLanguage?: 'es' | 'en';
     };
   } | null;
@@ -42,25 +39,193 @@ interface SendResult {
   expiresAt: string;
 }
 
+type Channel  = 'SMS' | 'EMAIL';
+type Lang     = 'es'  | 'en';
+
+// ─── i18n (UI labels + message templates, switch with lang toggle) ─────────────
+
+function ui(lang: Lang) {
+  const es = {
+    title:        'Enviar portal al paciente',
+    expiresHdr:   'expira en 24h',
+    via:          'Enviar por',
+    viaTwilio:    'vía Twilio',
+    viaMailgun:   'vía Mailgun',
+    langLabel:    'Idioma del mensaje',
+    subjectLbl:   'Asunto',
+    bodyLbl:      'Mensaje',
+    previewLbl:   'Previsualización',
+    previewTo:    'Para:',
+    subjectPfx:   'Asunto:',
+    smsPreview:   'Vista previa SMS',
+    magicHint:    '[magic-link] se reemplaza con el link real al enviar',
+    sendSms:      'Enviar por SMS',
+    sendEmail:    'Enviar por Email',
+    cancel:       'Cancelar',
+    expiresFooter:'Link expira en 24h',
+    sending:      'Enviando...',
+    noPhone:      '(sin teléfono)',
+    noEmail:      '(sin email)',
+    successTitle: 'Portal enviado',
+    successDesc:  'Phase 1A · simulado (Twilio/Mailgun activos con BAA firmado)',
+    successVia:   'Enviado por',
+    magicLink:    'Magic link generado',
+    copied:       '¡Copiado!',
+    copy:         'Copiar',
+    expires:      '⏱ Expira:',
+    close:        'Cerrar',
+    statusUpdate: 'Estado actualizado a',
+  };
+  const en: typeof es = {
+    title:        'Send portal to patient',
+    expiresHdr:   'expires in 24h',
+    via:          'Send via',
+    viaTwilio:    'via Twilio',
+    viaMailgun:   'via Mailgun',
+    langLabel:    'Message language',
+    subjectLbl:   'Subject',
+    bodyLbl:      'Message',
+    previewLbl:   'Preview',
+    previewTo:    'To:',
+    subjectPfx:   'Subject:',
+    smsPreview:   'SMS preview',
+    magicHint:    '[magic-link] is replaced with the real link when you click Send',
+    sendSms:      'Send via SMS',
+    sendEmail:    'Send via Email',
+    cancel:       'Cancel',
+    expiresFooter:'Link expires in 24h',
+    sending:      'Sending...',
+    noPhone:      '(no phone)',
+    noEmail:      '(no email)',
+    successTitle: 'Portal sent',
+    successDesc:  'Phase 1A · simulated (Twilio/Mailgun activate with signed BAA)',
+    successVia:   'Sent via',
+    magicLink:    'Magic link generated',
+    copied:       'Copied!',
+    copy:         'Copy',
+    expires:      '⏱ Expires:',
+    close:        'Close',
+    statusUpdate: 'Status updated to',
+  };
+  return lang === 'es' ? es : en;
+}
+
+function smsTemplate(lang: Lang, firstName: string, caseCode: string): string {
+  return lang === 'es'
+    ? `Hola ${firstName}, soy de Precision Medical. Para completar tu intake del caso ${caseCode}, click: [magic-link]. Expira en 24h. Dudas: (801) 375-2207.`
+    : `Hi ${firstName}, this is Precision Medical. To complete intake for case ${caseCode}, click: [magic-link]. Expires 24h. Questions: (801) 375-2207.`;
+}
+
+function emailSubject(lang: Lang, fullName: string): string {
+  return lang === 'es'
+    ? `Recordatorio: completa tu formulario, ${fullName}`
+    : `Reminder: complete your information form, ${fullName}`;
+}
+
+function emailBody(lang: Lang, fullName: string): string {
+  return lang === 'es'
+    ? `Hola ${fullName},\n\nTu clínica te recuerda completar tu formulario de información antes de tu próxima cita.\n\nUsa el enlace seguro que llegará a continuación para completar tu registro.\n\nGracias,\nPrecision Medical`
+    : `Hello ${fullName},\n\nYour clinic is reminding you to complete your information form before your next visit.\n\nUse the secure link that will follow to complete your registration.\n\nThank you,\nPrecision Medical`;
+}
+
+// ─── Small helpers ─────────────────────────────────────────────────────────────
+
+function initials(first: string, last: string): string {
+  return `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase();
+}
+
+// ─── Sub-components ────────────────────────────────────────────────────────────
+
+function ContactDot({ ok }: { ok: boolean }) {
+  return (
+    <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+      ok ? 'bg-emerald shadow-[0_0_5px_rgba(16,185,129,0.5)]' : 'bg-text-muted'
+    }`} />
+  );
+}
+
+function ChannelTab({
+  active, disabled, color, icon: Icon, label, sub, badge, onClick,
+}: {
+  active: boolean; disabled: boolean; color: 'cyan' | 'brand';
+  icon: React.ElementType; label: string; sub: string; badge: string;
+  onClick: () => void;
+}) {
+  const activeClass = color === 'cyan'
+    ? 'bg-cyan/10 border-cyan/30'
+    : 'bg-brand/10 border-brand/30';
+  const iconColor = active
+    ? (color === 'cyan' ? 'text-cyan' : 'text-brand')
+    : 'text-text-muted';
+  const textColor = active
+    ? (color === 'cyan' ? 'text-cyan' : 'text-brand')
+    : 'text-text-2';
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`relative flex items-center gap-2 px-3 py-2.5 rounded-md border transition-all text-left
+        ${disabled ? 'opacity-40 cursor-not-allowed bg-bg-2 border-border' : 'cursor-pointer'}
+        ${!disabled && active ? activeClass : !disabled ? 'bg-bg-2 border-border hover:border-border/60 hover:bg-bg-3' : ''}
+      `}
+    >
+      <Icon className={`w-4 h-4 flex-shrink-0 ${iconColor}`} />
+      <div className="flex-1 min-w-0">
+        <div className={`text-[12.5px] font-semibold ${textColor}`}>{label}</div>
+        <div className={`text-[9.5px] font-medium opacity-70 ${textColor}`}>{sub}</div>
+      </div>
+      <span className="absolute top-1 right-1.5 text-[7.5px] font-bold uppercase tracking-wide px-1 py-px rounded bg-emerald/15 text-emerald border border-emerald/25">
+        {badge}
+      </span>
+    </button>
+  );
+}
+
+// ─── Main dialog ───────────────────────────────────────────────────────────────
+
 export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDialogProps) {
   const router = useRouter();
-  const [via, setVia] = useState<'SMS' | 'EMAIL'>('SMS');
-  const [language, setLanguage] = useState<'es' | 'en'>('es');
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<SendResult | null>(null);
-  const [copied, setCopied] = useState(false);
 
+  const [channel,  setChannel]  = useState<Channel>('SMS');
+  const [lang,     setLang]     = useState<Lang>('es');
+  const [subject,  setSubject]  = useState('');
+  const [body,     setBody]     = useState('');
+  const [sending,  setSending]  = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
+  const [result,   setResult]   = useState<SendResult | null>(null);
+  const [copied,   setCopied]   = useState(false);
+
+  const L = ui(lang);
+  const fullName = caseInfo ? `${caseInfo.patient.firstName} ${caseInfo.patient.lastName}` : '';
+
+  // Reset on open
   useEffect(() => {
     if (open && caseInfo) {
-      setVia(caseInfo.patient.phone ? 'SMS' : 'EMAIL');
-      setLanguage(caseInfo.patient.preferredLanguage ?? 'es');
+      const initLang = caseInfo.patient.preferredLanguage ?? 'es';
+      const initCh: Channel = caseInfo.patient.phone ? 'SMS' : 'EMAIL';
+      setChannel(initCh);
+      setLang(initLang);
       setError(null);
       setResult(null);
     }
   }, [open, caseInfo]);
 
+  // Sync email subject/body when lang or name changes
+  useEffect(() => {
+    if (!caseInfo) return;
+    setSubject(emailSubject(lang, fullName));
+    setBody(emailBody(lang, fullName));
+  }, [lang, fullName, caseInfo]);
+
   if (!caseInfo) return null;
+
+  const canSendSms   = !!caseInfo.patient.phone;
+  const canSendEmail = !!caseInfo.patient.email;
+
+  const smsText = smsTemplate(lang, caseInfo.patient.firstName, caseInfo.caseCode);
+  const smsChars = smsText.replace('[magic-link]', 'https://forms.lienmaster.net/c/pt_xxxxx').length;
 
   const handleSend = async () => {
     setError(null);
@@ -69,15 +234,18 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
       const res = await fetch(`/api/admin/cases/${caseInfo.id}/send-portal-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ via, language }),
+        body: JSON.stringify({
+          via: channel,
+          language: lang,
+          ...(channel === 'EMAIL' ? { subject, body } : {}),
+        }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+        const data = await res.json().catch(() => ({})) as { message?: string; error?: string };
         throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
       }
-      const data = await res.json();
+      const data = await res.json() as { sent: SendResult };
       setResult(data.sent);
-      // router.refresh() se llama al cerrar el modal para no interrumpir la vista del link
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al enviar portal');
     } finally {
@@ -91,214 +259,318 @@ export function SendPortalDialog({ open, onOpenChange, caseInfo }: SendPortalDia
       await navigator.clipboard.writeText(result.portalUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    } catch { /* clipboard blocked */ }
   };
 
-  const previewTemplate = language === 'es'
-    ? `Hola ${caseInfo.patient.firstName}, soy de Precision Medical. Para completar tu intake del caso ${caseInfo.caseCode}, click: [magic-link]. Expira en 24h. Dudas: (801) 375-2207.`
-    : `Hi ${caseInfo.patient.firstName}, this is Precision Medical. To complete intake for case ${caseInfo.caseCode}, click: [magic-link]. Expires in 24h. Questions: (801) 375-2207.`;
+  const handleCloseSuccess = (v: boolean) => {
+    onOpenChange(v);
+    if (!v) router.refresh();
+  };
 
-  // ─── Success state ────────────────────────────────────────────────────────
+  // ── Success state ─────────────────────────────────────────────────────────
   if (result) {
-    const handleCloseSuccess = (open: boolean) => {
-      onOpenChange(open);
-      if (!open) router.refresh(); // refresh solo cuando cerrás, no al recibir resultado
-    };
     return (
       <Dialog open={open} onOpenChange={handleCloseSuccess}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald">
-              <Check className="w-5 h-5" />
-              Forms sent · mock Phase 1A
-            </DialogTitle>
-            <DialogDescription>
-              Phoenix Phase 1A — SMS was NOT actually sent (Weave BAA pending). Phase 2 with signed BAA activates real delivery.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <div className="px-5 pt-5 pb-4 border-b border-border">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-emerald text-sm">
+                <Check className="w-4 h-4" />
+                {L.successTitle}
+              </DialogTitle>
+              <p className="text-[11px] text-text-muted mt-1">{L.successDesc}</p>
+            </DialogHeader>
+          </div>
 
-          <div className="space-y-3 py-4">
-            <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4">
-              <div className="flex items-center gap-2 text-xs text-emerald font-semibold uppercase tracking-wider mb-2">
-                {result.via === 'SMS' ? <MessageSquare className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
-                {result.via} simulated — sent to {result.to}
+          <div className="px-5 py-4 space-y-3">
+            {/* Via + message */}
+            <div className="rounded-md border border-emerald/25 bg-emerald/5 p-3.5">
+              <div className="flex items-center gap-1.5 text-[10px] text-emerald font-semibold uppercase tracking-wider mb-2">
+                {result.via === 'SMS' ? <MessageSquare className="w-3 h-3" /> : <Mail className="w-3 h-3" />}
+                {L.successVia} {result.via} · {result.to}
               </div>
-              <div className="text-xs text-text-2 bg-bg-1 rounded-md p-3 font-mono whitespace-pre-wrap">
+              <p className="text-[11.5px] text-text-2 font-mono whitespace-pre-wrap leading-relaxed bg-bg-1 rounded px-2.5 py-2">
                 {result.messageBody}
-              </div>
+              </p>
             </div>
 
-            <div className="rounded-lg border border-brand/30 bg-brand/5 p-4">
-              <div className="text-xs text-brand font-semibold uppercase tracking-wider mb-2">Magic link generated</div>
+            {/* Magic link */}
+            <div className="rounded-md border border-brand/25 bg-brand/5 p-3.5">
+              <div className="text-[10px] text-brand font-semibold uppercase tracking-wider mb-2">{L.magicLink}</div>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-text-1 text-[11px] font-mono bg-bg-2 rounded px-3 py-2 break-all" title={result.portalUrl}>
+                <code className="flex-1 text-[10.5px] font-mono text-text-1 bg-bg-2 rounded px-2.5 py-1.5 break-all">
                   {result.portalUrl}
                 </code>
                 <button
                   type="button"
                   onClick={copyLink}
-                  className="px-3 py-2 rounded-md bg-bg-2 hover:bg-bg-3 text-text-2 hover:text-text-1 text-xs flex items-center gap-1"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-bg-2 hover:bg-bg-3 text-text-2 hover:text-text-1 text-[11px] transition-colors flex-shrink-0"
                 >
                   {copied ? <Check className="w-3 h-3 text-emerald" /> : <Copy className="w-3 h-3" />}
-                  {copied ? 'Copied!' : 'Copy'}
+                  {copied ? L.copied : L.copy}
                 </button>
               </div>
-              <div className="mt-2 text-[10px] text-text-muted">
-                ⏱ Expires: {new Date(result.expiresAt).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}
-              </div>
+              <p className="mt-1.5 text-[10px] text-text-muted">
+                {L.expires} {new Date(result.expiresAt).toLocaleString()}
+              </p>
             </div>
 
-            <div className="text-xs text-text-muted text-center pt-2">
-              ✓ Case status updated to <code className="text-amber">INTAKE_PENDING</code><br />
-              Next: patient completes Forms (B.5-B.9) · confirm 24h before appointment (B.4)
-            </div>
+            <p className="text-[10px] text-text-muted text-center">
+              ✓ {L.statusUpdate} <code className="text-amber">INTAKE_PENDING</code>
+            </p>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button className="w-full sm:w-auto" onClick={() => handleCloseSuccess(false)}>Close</Button>
-          </DialogFooter>
+          <div className="px-5 pb-5 flex justify-end">
+            <Button onClick={() => handleCloseSuccess(false)}>{L.close}</Button>
+          </div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  // ─── Form state ───────────────────────────────────────────────────────────
-  const canSendSms = !!caseInfo.patient.phone;
-  const canSendEmail = !!caseInfo.patient.email;
-
+  // ── Form state ─────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Send className="w-5 h-5 text-brand" />
-            Send Forms to Patient
-          </DialogTitle>
-          <DialogDescription>
-            Magic link to Forms (B.5-B.9) for <strong className="text-text-1">{caseInfo.patient.firstName} {caseInfo.patient.lastName}</strong> to complete their intake. Expires in 24h.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-[480px] p-0 overflow-hidden flex flex-col max-h-[92vh]">
 
-        <div className="space-y-4 py-4">
-          {/* Patient info */}
-          <div className="rounded-md border border-border bg-bg-2/30 p-3 text-xs space-y-1">
-            <div className="flex items-center gap-2 text-text-1 font-semibold">
-              {caseInfo.patient.firstName} {caseInfo.patient.lastName}
-              <code className="text-text-muted text-[10px] font-mono">{caseInfo.caseCode}</code>
-            </div>
-            {caseInfo.patient.phone && (
-              <div className="flex items-center gap-1.5 text-text-2 font-mono">
-                <Phone className="w-3 h-3 text-text-muted" /> {caseInfo.patient.phone}
+        {/* Header */}
+        <div className="px-5 pt-5 pb-4 border-b border-border flex-shrink-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2.5 text-sm">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg,rgba(99,102,241,.2),rgba(6,182,212,.1))', border: '1px solid rgba(99,102,241,.22)' }}>
+                <Send className="w-3.5 h-3.5 text-brand" />
               </div>
-            )}
-            {caseInfo.patient.email && (
-              <div className="flex items-center gap-1.5 text-text-2">
-                <Mail className="w-3 h-3 text-text-muted" /> {caseInfo.patient.email}
-              </div>
-            )}
-          </div>
-
-          {/* Via selector */}
-          <div>
-            <Label>Send via</Label>
-            <div className="grid grid-cols-2 gap-2 mt-1.5">
-              <button
-                type="button"
-                disabled={!canSendSms}
-                onClick={() => setVia('SMS')}
-                className={`flex items-center justify-center gap-2 px-3 py-3 rounded-md border transition-all text-sm ${
-                  !canSendSms
-                    ? 'bg-bg-2 border-border opacity-40 cursor-not-allowed text-text-muted'
-                    : via === 'SMS'
-                      ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                      : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                }`}
-              >
-                <MessageSquare className="w-4 h-4" />
-                SMS via Weave
-                {!canSendSms && <span className="text-[10px]">(no phone)</span>}
-              </button>
-              <button
-                type="button"
-                disabled={!canSendEmail}
-                onClick={() => setVia('EMAIL')}
-                className={`flex items-center justify-center gap-2 px-3 py-3 rounded-md border transition-all text-sm ${
-                  !canSendEmail
-                    ? 'bg-bg-2 border-border opacity-40 cursor-not-allowed text-text-muted'
-                    : via === 'EMAIL'
-                      ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                      : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                }`}
-              >
-                <Mail className="w-4 h-4" />
-                Email via Resend
-                {!canSendEmail && <span className="text-[10px]">(no email)</span>}
-              </button>
-            </div>
-          </div>
-
-          {/* Language */}
-          <div>
-            <Label>Message language</Label>
-            <div className="grid grid-cols-2 gap-2 mt-1.5">
-              <button
-                type="button"
-                onClick={() => setLanguage('es')}
-                className={`px-3 py-2 rounded-md border text-sm ${
-                  language === 'es'
-                    ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                    : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                }`}
-              >
-                🇪🇸 Español
-              </button>
-              <button
-                type="button"
-                onClick={() => setLanguage('en')}
-                className={`px-3 py-2 rounded-md border text-sm ${
-                  language === 'en'
-                    ? 'bg-brand/15 border-brand/40 text-brand font-semibold'
-                    : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                }`}
-              >
-                🇺🇸 English
-              </button>
-            </div>
-          </div>
-
-          {/* Template preview */}
-          <div>
-            <Label>Message preview</Label>
-            <div className="mt-1.5 rounded-md border border-border bg-bg-2/50 p-3 text-xs text-text-2 font-mono whitespace-pre-wrap">
-              {previewTemplate}
-            </div>
-            <div className="text-[10px] text-text-muted mt-1.5">
-              ⓘ <code>[magic-link]</code> is replaced with the real link when you click Send.
-            </div>
-          </div>
-
-          {/* Phase 1A warning */}
-          <div className="rounded-md border border-amber/30 bg-amber/5 p-3 flex items-start gap-2 text-xs text-amber">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <div>
-              <strong>Phase 1A · Mock mode:</strong> SMS is NOT actually sent. Weave integration activates after signing Weave BAA. For now it simulates the flow and updates status.
-            </div>
-          </div>
-
-          {error && (
-            <div className="text-rose text-sm bg-rose/10 border border-rose/30 rounded-md px-3 py-2 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
+              {L.title}
+            </DialogTitle>
+            <p className="text-[11.5px] text-text-2 mt-1">
+              Magic link (B.5–B.9) · <strong className="text-text-1 font-semibold">{fullName}</strong> · {L.expiresHdr}
+            </p>
+          </DialogHeader>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)} disabled={sending}>Cancel</Button>
-          <Button className="w-full sm:w-auto" onClick={handleSend} disabled={sending || (!canSendSms && !canSendEmail)}>
-            {sending ? 'Sending...' : <><Send className="w-3.5 h-3.5 mr-1" /> Send portal now</>}
+        {/* Scrollable body */}
+        <div className="px-5 py-4 overflow-y-auto flex-1 flex flex-col gap-4">
+
+          {/* Patient card */}
+          <div className="flex items-center gap-3 rounded-md border border-border bg-bg-2/40 px-3 py-2.5">
+            <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
+              style={{ background: 'linear-gradient(135deg,#4f46e5,#6366f1)' }}>
+              {initials(caseInfo.patient.firstName, caseInfo.patient.lastName)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[12.5px] font-semibold text-text-1">
+                {fullName}
+                <code className="text-[10px] text-text-muted font-mono ml-2">{caseInfo.caseCode}</code>
+              </div>
+              <div className="flex flex-col gap-0.5 mt-1">
+                <div className="flex items-center gap-1.5 text-[11px] text-text-2">
+                  <ContactDot ok={canSendSms} />
+                  <Phone className="w-2.5 h-2.5 text-text-muted" />
+                  <span className="font-mono text-[10.5px]">{caseInfo.patient.phone ?? L.noPhone}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-text-2">
+                  <ContactDot ok={canSendEmail} />
+                  <Mail className="w-2.5 h-2.5 text-text-muted" />
+                  <span className="font-mono text-[10.5px]">{caseInfo.patient.email ?? L.noEmail}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Channel selector */}
+          <div>
+            <p className="text-[10px] font-semibold text-text-muted uppercase tracking-widest mb-1.5">{L.via}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <ChannelTab
+                active={channel === 'SMS'} disabled={!canSendSms} color="cyan"
+                icon={MessageSquare} label="SMS" sub={L.viaTwilio} badge="Live"
+                onClick={() => setChannel('SMS')}
+              />
+              <ChannelTab
+                active={channel === 'EMAIL'} disabled={!canSendEmail} color="brand"
+                icon={Mail} label="Email" sub={L.viaMailgun} badge="Live"
+                onClick={() => setChannel('EMAIL')}
+              />
+            </div>
+          </div>
+
+          {/* Language toggle */}
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">{L.langLabel}</p>
+            <div className="flex items-center bg-bg-2 border border-border rounded-md p-0.5 gap-0.5">
+              {(['es', 'en'] as const).map(l => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLang(l)}
+                  className={`px-3 py-1.5 rounded text-[11.5px] font-semibold transition-all flex items-center gap-1 ${
+                    lang === l
+                      ? 'bg-brand text-white shadow-sm'
+                      : 'text-text-2 hover:text-text-1'
+                  }`}
+                >
+                  {l === 'es' ? '🇪🇸 Español' : '🇺🇸 English'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── SMS panel ── */}
+          {channel === 'SMS' && (
+            <div className="flex flex-col gap-2">
+              <div className="rounded-md border border-border overflow-hidden">
+                {/* Preview header */}
+                <div className="flex items-center justify-between px-3 py-2 bg-bg-2/60 border-b border-border">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+                    <MessageSquare className="w-2.5 h-2.5" />
+                    {L.smsPreview}
+                  </div>
+                  <span className="text-[10px] text-text-muted tabular-nums">
+                    {smsChars} / 160
+                  </span>
+                </div>
+                {/* Bubble */}
+                <div className="px-3 py-3 bg-bg-2/30 flex flex-col gap-2">
+                  <div className="max-w-[88%] bg-bg-1 rounded-xl rounded-tl-sm px-3 py-2.5 text-[12px] text-text-2 leading-relaxed border border-border">
+                    {smsText.split('[magic-link]').map((part, i, arr) => (
+                      <span key={i}>
+                        {part}
+                        {i < arr.length - 1 && (
+                          <code className="text-cyan text-[10px] bg-cyan/10 px-1 py-px rounded">
+                            [magic-link]
+                          </code>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[9.5px] text-text-muted">
+                    <Clock className="w-2.5 h-2.5" />
+                    Twilio · Precision Medical · (801) 375-2207
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-text-muted flex items-center gap-1">
+                <span className="text-[9px] text-text-muted">ⓘ</span>
+                {L.magicHint}
+              </p>
+            </div>
+          )}
+
+          {/* ── Email panel ── */}
+          {channel === 'EMAIL' && (
+            <div className="flex flex-col gap-3">
+              {/* Subject */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">
+                  {L.subjectLbl}
+                </label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={e => setSubject(e.target.value)}
+                  className="w-full rounded-md border border-border bg-bg-2/50 px-3 py-2 text-[12.5px] text-text-1 outline-none focus:border-brand/40 transition-colors"
+                />
+              </div>
+
+              {/* Body */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-semibold text-text-muted uppercase tracking-widest">
+                  {L.bodyLbl}
+                </label>
+                <textarea
+                  value={body}
+                  onChange={e => setBody(e.target.value)}
+                  rows={5}
+                  className="w-full rounded-md border border-border bg-bg-2/50 px-3 py-2 text-[12.5px] text-text-2 leading-relaxed outline-none focus:border-brand/40 transition-colors resize-none font-sans"
+                />
+              </div>
+
+              {/* Preview — always visible, no toggle */}
+              <div className="rounded-md border border-border overflow-hidden">
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-bg-2/60 border-b border-border text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  {L.previewLbl}
+                </div>
+
+                {/* Subject line */}
+                <div className="px-3 py-2 bg-bg-2/30 border-b border-border text-[11.5px] text-text-2">
+                  <span className="text-text-muted">{L.subjectPfx}</span>{' '}
+                  <span className="text-text-1 font-medium">{subject}</span>
+                </div>
+
+                {/* Email body preview */}
+                <div className="px-3 py-3 bg-bg-1/60">
+                  <p className="text-[11px] text-text-muted mb-2">
+                    <span className="uppercase tracking-wider font-semibold text-[9.5px]">{L.previewTo}</span>{' '}
+                    <code className="font-mono text-text-1">{caseInfo.patient.email}</code>
+                  </p>
+                  <div className="text-[11.5px] text-text-2 leading-relaxed whitespace-pre-wrap">
+                    {body.split('[magic-link]').map((part, i, arr) => (
+                      <span key={i}>
+                        {part}
+                        {i < arr.length - 1 && (
+                          <code className="text-brand text-[10.5px] bg-brand/10 px-1 py-px rounded">
+                            [magic-link]
+                          </code>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-text-muted flex items-center gap-1">
+                <span className="text-[9px]">ⓘ</span>
+                {L.magicHint}
+              </p>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-start gap-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+              {error}
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3.5 border-t border-border flex items-center gap-2 flex-shrink-0">
+          {/* Expires note */}
+          <div className="flex items-center gap-1.5 text-[10px] text-text-muted mr-auto">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block shadow-[0_0_4px_rgba(16,185,129,.5)]" />
+            {L.expiresFooter}
+          </div>
+
+          <Button
+            variant="outline"
+            className="h-8 px-4 text-[12.5px]"
+            onClick={() => onOpenChange(false)}
+            disabled={sending}
+          >
+            {L.cancel}
           </Button>
-        </DialogFooter>
+
+          <button
+            type="button"
+            disabled={sending || (channel === 'SMS' ? !canSendSms : !canSendEmail)}
+            onClick={handleSend}
+            className={`h-8 px-4 rounded-md text-[12.5px] font-semibold text-white flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+              channel === 'SMS'
+                ? 'bg-cyan hover:brightness-110 shadow-[0_4px_12px_rgba(6,182,212,.30)]'
+                : 'bg-brand hover:brightness-110 shadow-[0_4px_12px_rgba(99,102,241,.32)]'
+            }`}
+          >
+            <Send className="w-3 h-3" />
+            {sending ? L.sending : (channel === 'SMS' ? L.sendSms : L.sendEmail)}
+          </button>
+        </div>
+
       </DialogContent>
     </Dialog>
   );

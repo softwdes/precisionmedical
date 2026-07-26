@@ -160,12 +160,14 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [duplicateAppts, setDuplicateAppts] = useState<DuplicateAppt[]>([]);
 
   // Prevents the clinic/provider change effect from clearing the pre-populated slot
-  const skipSlotReset = useRef(false);
+  const skipSlotReset  = useRef(false);
+  const userChangedType = useRef(false); // true cuando el usuario eligió el tipo manualmente
 
   // ─── Auto-inferir tipo de cita desde el caso seleccionado ─────────────────
 
   useEffect(() => {
     if (props.mode !== 'free' || !caseId) return;
+    if (userChangedType.current) return; // respetar selección manual
     const found = patientCases.find((c) => c.id === caseId);
     if (!found) return;
     if (found.accidentType === 'AUTO' || found.accidentType === 'MVA') {
@@ -214,6 +216,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setError(null);
     setSuccess(null);
     setShowAll(false);
+    userChangedType.current = false;
     setPatientQuery('');
     setPatientResults([]);
     setPatientCases([]);
@@ -308,7 +311,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setPatientQuery('');
     setPatientResults([]);
     setCaseId('');
-    setProviderId('');
+    // No resetear providerId/clinicId — el doctor y clínica ya seleccionados se mantienen
     setLoadingCases(true);
     fetch(`/api/admin/patients/${pt.id}/cases`)
       .then((r) => r.json())
@@ -888,7 +891,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             <select
               id="appt-type"
               value={type}
-              onChange={(e) => setType(e.target.value as AppointmentType)}
+              onChange={(e) => { userChangedType.current = true; setType(e.target.value as AppointmentType); }}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

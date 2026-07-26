@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@precision-medical/auth/client';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, AlertCircle, Key } from 'lucide-react';
+import { PWAInstallLoginCard } from '@/components/PWAInstallLoginCard';
 
 /**
  * Back-Office · Login
@@ -388,6 +389,9 @@ export default function LoginPage(): React.ReactElement {
               )}
             </div>
           </div>
+
+          {/* PWA install prompt */}
+          <PWAInstallLoginCard />
 
           {/* Status */}
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginTop:16,marginBottom:10}}>

@@ -109,7 +109,15 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           {loading && (
             <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
           )}
-          <kbd className="text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded text-text-2">ESC</kbd>
+          <kbd className="hidden sm:inline text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded text-text-2">ESC</kbd>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors"
+            aria-label="Close search"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         <Command.List className="max-h-[60vh] overflow-y-auto p-2">

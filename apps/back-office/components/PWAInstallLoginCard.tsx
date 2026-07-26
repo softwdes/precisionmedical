@@ -1,28 +1,24 @@
 'use client';
 
 import * as React from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Download } from 'lucide-react';
-import { detectPlatform, isStandalone, wasDismissedRecently, markDismissed, type BeforeInstallPromptEvent } from '@/lib/use-pwa-install';
+import { usePWAInstall } from '@/lib/use-pwa-install';
 
-// ── Singleton — same event bus as usePWAInstall ──────────────────────────────
-let cachedEvent: BeforeInstallPromptEvent | null = null;
-type Listener = (e: BeforeInstallPromptEvent | null) => void;
-const listeners = new Set<Listener>();
+// ── Step-by-step modal for iOS (no native prompt available) ─────────────────
+function InstallGuideModal({ onClose, isIos }: { onClose: () => void; isIos: boolean }): React.ReactElement {
+  const steps = isIos
+    ? [
+        { n: 1, text: 'Abre el menú de Safari — toca el', strong: 'ícono de Compartir', after: '(cuadro con flecha)' },
+        { n: 2, text: 'Desplázate y toca', strong: '"Agregar a pantalla de inicio"', after: '' },
+        { n: 3, text: 'Toca', strong: '"Agregar"', after: 'para confirmar' },
+      ]
+    : [
+        { n: 1, text: 'Abre el menú de Chrome — toca los', strong: '⋮ tres puntos', after: 'arriba a la derecha' },
+        { n: 2, text: 'Toca', strong: '"Instalar app"', after: 'o "Agregar a pantalla de inicio"' },
+        { n: 3, text: 'Toca', strong: '"Instalar"', after: 'en el cuadro de diálogo' },
+      ];
 
-if (typeof window !== 'undefined') {
-  const early = (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt;
-  if (early) cachedEvent = early;
-  window.addEventListener('beforeinstallprompt', (e: Event) => {
-    e.preventDefault();
-    cachedEvent = e as BeforeInstallPromptEvent;
-    (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt = cachedEvent;
-    for (const l of listeners) l(cachedEvent);
-  });
-}
-
-// ── Step-by-step modal when native prompt is unavailable ─────────────────────
-function InstallGuideModal({ onClose }: { onClose: () => void }): React.ReactElement {
   return (
     <div
       onClick={onClose}
@@ -43,17 +39,14 @@ function InstallGuideModal({ onClose }: { onClose: () => void }): React.ReactEle
           padding: '20px 24px 32px',
         }}
       >
-        {/* Handle */}
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)', margin: '0 auto 20px' }} />
 
         <p style={{ fontSize: 15, fontWeight: 700, color: '#BFDBFE', margin: '0 0 4px' }}>Instalar Clínica App</p>
-        <p style={{ fontSize: 12, color: '#6B7592', margin: '0 0 20px' }}>Sigue estos pasos en Chrome:</p>
+        <p style={{ fontSize: 12, color: '#6B7592', margin: '0 0 20px' }}>
+          {isIos ? 'Sigue estos pasos en Safari:' : 'Sigue estos pasos en Chrome:'}
+        </p>
 
-        {[
-          { n: 1, text: 'Abre el menú de Chrome — toca los', strong: '⋮ tres puntos', after: 'arriba a la derecha' },
-          { n: 2, text: 'Toca', strong: '"Instalar app"', after: 'o "Agregar a pantalla de inicio"' },
-          { n: 3, text: 'Toca', strong: '"Instalar"', after: 'en el cuadro de diálogo' },
-        ].map(({ n, text, strong, after }) => (
+        {steps.map(({ n, text, strong, after }) => (
           <div key={n} style={{ display: 'flex', gap: 14, marginBottom: 16, alignItems: 'flex-start' }}>
             <div style={{
               width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
@@ -86,46 +79,30 @@ function InstallGuideModal({ onClose }: { onClose: () => void }): React.ReactEle
 
 // ── Main card ────────────────────────────────────────────────────────────────
 export function PWAInstallLoginCard(): React.ReactElement | null {
-  const [platform,   setPlatform]   = useState<'android' | 'ios' | 'desktop' | 'unknown'>('unknown');
-  const [event,      setEvent]      = useState<BeforeInstallPromptEvent | null>(cachedEvent);
-  const [hidden,     setHidden]     = useState(false);
-  const [mounted,    setMounted]    = useState(false);
-  const [showGuide,  setShowGuide]  = useState(false);
+  const { event, platform, standalone, dismissedRecently, install, dismiss } = usePWAInstall();
+  const [hidden,    setHidden]    = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    setPlatform(detectPlatform());
-    // Recover event captured by inline script before React hydrated
-    const early = (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt;
-    if (early) { cachedEvent = early; setEvent(early); }
-    const l: Listener = (e) => setEvent(e);
-    listeners.add(l);
-    return () => { listeners.delete(l); };
-  }, []);
-
-  if (!mounted) return null;
   if (hidden) return null;
-  if (isStandalone()) return null;
-  if (wasDismissedRecently()) return null;
-  if (platform === 'desktop' || platform === 'unknown') return null;
+  if (standalone) return null;
+  if (dismissedRecently) return null;
+  if (platform === 'unknown') return null;
+  // Require either a native prompt event or a known platform (for guide fallback)
+  if (!event && platform === 'desktop') return null;
 
-  const dismiss = (): void => { markDismissed(); setHidden(true); };
+  const handleDismiss = (): void => { dismiss(); setHidden(true); };
 
   const handleInstall = async (): Promise<void> => {
     if (event) {
-      await event.prompt();
-      const { outcome } = await event.userChoice;
-      if (outcome === 'dismissed') dismiss();
+      const outcome = await install();
+      if (outcome === 'dismissed') handleDismiss();
       else setHidden(true);
-    } else if (platform === 'ios') {
-      setShowGuide(true);
     } else {
-      // Android without native event — open guide
       setShowGuide(true);
     }
   };
 
-  const label = platform === 'ios' ? 'Agregar a inicio' : 'Instalar App';
+  const label    = platform === 'ios' ? 'Agregar a inicio' : 'Instalar App';
   const subtitle = event
     ? 'Acceso rápido desde tu pantalla de inicio'
     : platform === 'ios'
@@ -135,7 +112,7 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
   return (
     <>
       {showGuide && (
-        <InstallGuideModal onClose={() => setShowGuide(false)} />
+        <InstallGuideModal onClose={() => setShowGuide(false)} isIos={platform === 'ios'} />
       )}
 
       <div style={{ marginTop: '1.25rem', width: 420, maxWidth: '90vw', position: 'relative', zIndex: 1 }}>
@@ -183,7 +160,7 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
             </button>
 
             <button
-              onClick={dismiss}
+              onClick={handleDismiss}
               aria-label="Cerrar"
               style={{ background: 'transparent', border: 'none', color: '#4A5474', cursor: 'pointer', padding: 2, display: 'inline-flex', flexShrink: 0, fontSize: 16 }}
             >

@@ -7,7 +7,7 @@ import { usePWAInstall } from '@/lib/use-pwa-install';
 export function PWAInstallBanner(): React.ReactElement | null {
   const { event, installed, platform, standalone, dismissedRecently, install, dismiss } = usePWAInstall();
 
-  if (platform !== 'android') return null;
+  if (platform === 'ios' || platform === 'unknown') return null;
   if (standalone || installed) return null;
   if (dismissedRecently) return null;
   if (!event) return null;

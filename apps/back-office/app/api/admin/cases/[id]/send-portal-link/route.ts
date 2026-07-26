@@ -19,9 +19,11 @@ import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 
 const InputSchema = z.object({
-  via: z.enum(['SMS', 'EMAIL']).default('SMS'),
-  language: z.enum(['es', 'en']).default('es'),
+  via:           z.enum(['SMS', 'EMAIL']).default('SMS'),
+  language:      z.enum(['es', 'en']).default('es'),
   customMessage: z.string().max(500).optional(),
+  subject:       z.string().max(200).optional(),
+  body:          z.string().max(2000).optional(),
 });
 
 export async function POST(

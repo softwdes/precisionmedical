@@ -6,22 +6,54 @@ import type { Call, Device } from '@twilio/voice-sdk';
 export type TwilioCallStatus = 'idle' | 'ready' | 'connecting' | 'in-call' | 'error';
 
 export interface UseTwilioDeviceReturn {
-  callStatus: TwilioCallStatus;
-  muted:      boolean;
-  error:      string | null;
-  connect:      (toPhone: string) => Promise<void>;
-  hangUp:       () => void;
-  toggleMute:   () => void;
+  callStatus:  TwilioCallStatus;
+  muted:       boolean;
+  error:       string | null;
+  isMockMode:  boolean;
+  connect:     (toPhone: string) => Promise<void>;
+  hangUp:      () => void;
+  toggleMute:  () => void;
 }
 
+// ── Mock mode ─────────────────────────────────────────────────────────────────
+// Set NEXT_PUBLIC_TWILIO_MOCK=true in .env.local to simulate calls without
+// real Twilio credentials. Simulates: connecting (3s) → in-call → hangUp.
+const MOCK_MODE = process.env.NEXT_PUBLIC_TWILIO_MOCK === 'true';
+const MOCK_CONNECT_DELAY_MS = 3000;
+
 export function useTwilioDevice(): UseTwilioDeviceReturn {
-  const deviceRef = useRef<Device | null>(null);
-  const callRef   = useRef<Call | null>(null);
+  const deviceRef  = useRef<Device | null>(null);
+  const callRef    = useRef<Call | null>(null);
+  const mockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [callStatus, setCallStatus] = useState<TwilioCallStatus>('idle');
   const [muted,      setMuted]      = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
+  // ── Mock implementation ──────────────────────────────────────────────────
+  const connectMock = useCallback(async (_toPhone: string) => {
+    setCallStatus('connecting');
+    setError(null);
+    setMuted(false);
+    mockTimerRef.current = setTimeout(() => {
+      setCallStatus('in-call');
+    }, MOCK_CONNECT_DELAY_MS);
+  }, []);
+
+  const hangUpMock = useCallback(() => {
+    if (mockTimerRef.current) {
+      clearTimeout(mockTimerRef.current);
+      mockTimerRef.current = null;
+    }
+    setCallStatus('idle');
+    setMuted(false);
+  }, []);
+
+  const toggleMuteMock = useCallback(() => {
+    setMuted(prev => !prev);
+  }, []);
+
+  // ── Real Twilio implementation ────────────────────────────────────────────
   const getOrCreateDevice = useCallback(async (): Promise<Device> => {
     if (deviceRef.current) return deviceRef.current;
 
@@ -50,7 +82,7 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     return device;
   }, []);
 
-  const connect = useCallback(async (toPhone: string) => {
+  const connectReal = useCallback(async (toPhone: string) => {
     try {
       setCallStatus('connecting');
       setError(null);
@@ -69,14 +101,14 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     }
   }, [getOrCreateDevice]);
 
-  const hangUp = useCallback(() => {
+  const hangUpReal = useCallback(() => {
     callRef.current?.disconnect();
     callRef.current = null;
     setCallStatus('ready');
     setMuted(false);
   }, []);
 
-  const toggleMute = useCallback(() => {
+  const toggleMuteReal = useCallback(() => {
     const call = callRef.current;
     if (!call) return;
     const next = !muted;
@@ -84,12 +116,35 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     setMuted(next);
   }, [muted]);
 
+  // ── Cleanup ───────────────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
+      if (mockTimerRef.current) clearTimeout(mockTimerRef.current);
       callRef.current?.disconnect();
       deviceRef.current?.destroy();
     };
   }, []);
 
-  return { callStatus, muted, error, connect, hangUp, toggleMute };
+  // ── Route to mock or real ─────────────────────────────────────────────────
+  if (MOCK_MODE) {
+    return {
+      callStatus,
+      muted,
+      error,
+      isMockMode: true,
+      connect:     connectMock,
+      hangUp:      hangUpMock,
+      toggleMute:  toggleMuteMock,
+    };
+  }
+
+  return {
+    callStatus,
+    muted,
+    error,
+    isMockMode: false,
+    connect:    connectReal,
+    hangUp:     hangUpReal,
+    toggleMute: toggleMuteReal,
+  };
 }

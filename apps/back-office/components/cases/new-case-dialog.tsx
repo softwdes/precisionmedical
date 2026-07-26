@@ -716,6 +716,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <div className="mt-3">
               <ActiveCallBar
                 status={twilio.callStatus as 'connecting' | 'in-call'}
+                isMockMode={twilio.isMockMode}
                 patientName={[firstName, lastName].filter(Boolean).join(' ') || phone}
                 phone={phone}
                 elapsed={callElapsed}

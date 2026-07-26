@@ -948,6 +948,14 @@ export function IntakeWizard({
   const [step, setStep]           = useState<Step>(1);
   const [lang, setLang]           = useState<Lang>('en');
   const [langChosen, setLangChosen] = useState(false);
+  const [isWide, setIsWide]       = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsWide(window.innerWidth >= 960);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
   const [saving, setSaving]       = useState(false);
   const [saveError, setSaveError] = useState('');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -1745,7 +1753,12 @@ export function IntakeWizard({
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="👤" title={t.personalTitle} sub={t.personalSub} />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isWide ? '1fr 1fr' : '1fr',
+              gap: 16,
+              alignItems: 'start',
+            }}>
 
               {/* ── Sección 1: Información personal ── */}
               <FormSection

@@ -1976,7 +1976,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           </div>
         )}
         <div className="overflow-x-auto rounded-lg">
-        <table className={`w-full min-w-[820px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
+        <table className={`w-full min-w-[820px] table-fixed text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
           <thead className="bg-bg-2 border-b border-border">
             <tr>
               <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-[200px]">{t('colPatient')}</th>
@@ -2019,7 +2019,8 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                     <div className="min-w-0">
                       <button
                         onClick={() => router.push(`/patients/${p.id}`)}
-                        className="text-text-1 text-[13px] font-medium hover:text-brand transition-colors text-left truncate block max-w-[120px]"
+                        className="text-text-1 text-[13px] font-medium hover:text-brand transition-colors text-left truncate block w-full"
+                        title={`${p.firstName} ${p.lastName}`}
                         aria-label={`Ver perfil de ${p.firstName} ${p.lastName}`}
                       >
                         {p.firstName} {p.lastName}
@@ -2091,7 +2092,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                             <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
                           </div>
                         )}
-                        {sub && <p className="text-[10px] text-text-muted truncate">{sub}</p>}
+                        {sub && <p className="text-[10px] text-text-muted truncate" title={sub}>{sub}</p>}
                       </div>
                     );
                   })() : <span className="text-[10px] text-text-muted">—</span>}
@@ -2304,7 +2305,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                         </div>
                                       )}
                                       {progSub && (
-                                        <p className="text-[10px] text-text-muted mt-0.5 truncate">{progSub}</p>
+                                        <p className="text-[10px] text-text-muted mt-0.5 truncate" title={progSub}>{progSub}</p>
                                       )}
                                     </td>
 

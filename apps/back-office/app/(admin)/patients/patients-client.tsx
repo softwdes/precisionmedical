@@ -64,7 +64,7 @@ type MissingKey =
   | 'missingMedicalHistory'
   | 'missingConsents';
 
-function MissingTooltip({ items, pct }: { items: string[]; pct?: number }) {
+function MissingTooltip({ items, pct, missingLabel }: { items: string[]; pct?: number; missingLabel: string }) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -78,7 +78,8 @@ function MissingTooltip({ items, pct }: { items: string[]; pct?: number }) {
 
   return (
     <div ref={ref} onMouseEnter={handleEnter} onMouseLeave={() => setPos(null)}>
-      <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex items-center gap-1 min-w-0">
+        <span className="text-[10px] text-text-muted font-medium flex-shrink-0">{missingLabel}</span>
         <p className="text-[10px] text-text-muted truncate cursor-default select-none flex-1 min-w-0">
           {items.join(', ')}
         </p>
@@ -91,7 +92,7 @@ function MissingTooltip({ items, pct }: { items: string[]; pct?: number }) {
           className="fixed z-[9999] w-max max-w-[240px] rounded-lg border border-border bg-bg-1 shadow-lg shadow-black/40 p-2.5 pointer-events-none -translate-y-full"
           style={{ top: pos.top, left: pos.left }}
         >
-          <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">Falta completar</p>
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">{missingLabel}</p>
           <ul className="space-y-1">
             {items.map((item, i) => (
               <li key={i} className="flex items-center gap-1.5 text-[11px] text-text-2">
@@ -2146,7 +2147,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                             <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
                           </div>
                         )}
-                        <MissingTooltip items={missingItems} pct={prog.pct < 100 ? prog.pct : undefined} />
+                        <MissingTooltip items={missingItems} pct={prog.pct < 100 ? prog.pct : undefined} missingLabel={t('progressMissingLabel')} />
                       </div>
                     );
                   })() : <span className="text-[10px] text-text-muted">—</span>}
@@ -2362,7 +2363,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                           />
                                         </div>
                                       )}
-                                      <MissingTooltip items={progMissing} pct={prog.pct < 100 ? prog.pct : undefined} />
+                                      <MissingTooltip items={progMissing} pct={prog.pct < 100 ? prog.pct : undefined} missingLabel={t('progressMissingLabel')} />
                                     </td>
 
                                     {/* Acciones */}

@@ -936,13 +936,23 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                       <div>
                         <Label>{t('lawFirmLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('lawFirmAutocomplete')}</span></Label>
                         <Autocomplete endpoint="/api/admin/lawyers/autocomplete" placeholder={t('lawFirmPlaceholder')}
-                          selected={lawFirm} onSelect={(r) => { setLawFirm(r); setAttorney(null); }} />
+                          selected={lawFirm} onSelect={(r) => { setLawFirm(r); setAttorney(null); }}
+                          renderAvatar={(r) => (
+                            <div className="w-7 h-7 rounded flex items-center justify-center text-brand-fg text-[10px] font-bold shrink-0 bg-brand/20 border border-brand/30">
+                              {r.label.slice(0, 2).toUpperCase()}
+                            </div>
+                          )} />
                       </div>
                       {lawFirm && (
                         <div>
                           <Label>{t('attorneyLabel')} <span className="text-text-muted text-[10px] ml-1 font-normal">{t('attorneyOptional')}</span></Label>
                           <Autocomplete endpoint="/api/admin/lawyers/autocomplete" extraParams={{ firmId: lawFirm.id }}
-                            placeholder={t('attorneyPlaceholder')} selected={attorney} onSelect={setAttorney} />
+                            placeholder={t('attorneyPlaceholder')} selected={attorney} onSelect={setAttorney}
+                            renderAvatar={(r) => (
+                              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 bg-cyan/20 border border-cyan/30 text-cyan">
+                                {r.label.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()}
+                              </div>
+                            )} />
                         </div>
                       )}
                       <Note tone="emerald">{t('lawyerNoteHas')}</Note>

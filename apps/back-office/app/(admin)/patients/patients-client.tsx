@@ -1983,8 +1983,8 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colContact')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colCases')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[220px]">{t('colAdmission')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-20">{t('colForm')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[140px]">{t('colAdmission')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-16">{t('colForm')}</th>
               <th className="sticky right-0 z-10 bg-bg-2 w-16 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
@@ -2071,7 +2071,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Admisión */}
-                <td className="px-4 py-3.5 hidden lg:table-cell w-[220px] max-w-[220px]">
+                <td className="px-4 py-3.5 hidden lg:table-cell w-[140px]">
                   {p.latestCase ? (() => {
                     const prog = calcIntakeProgress(
                       {
@@ -2085,7 +2085,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                       },
                       p,
                     );
-                    const { badge, sub } = formatProgress(prog, t);
+                    const { badge } = formatProgress(prog, t);
                     return (
                       <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -2097,7 +2097,6 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                             <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
                           </div>
                         )}
-                        {sub && <p className="text-[10px] text-text-muted mt-0.5 truncate">{sub}</p>}
                       </div>
                     );
                   })() : <span className="text-[10px] text-text-muted">—</span>}

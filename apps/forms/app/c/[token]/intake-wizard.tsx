@@ -961,6 +961,10 @@ export function IntakeWizard({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // ── Form state ──────────────────────────────────────────────────────────────
+  const knownReferralValues = REFERRAL_OPTIONS.map(o => o.value);
+  const rawReferral = patient.referralSource ?? '';
+  const referralIsKnown = knownReferralValues.includes(rawReferral);
+
   const [personal, setPersonal] = useState({
     firstName:                patient.firstName,
     lastName:                 patient.lastName,
@@ -973,7 +977,8 @@ export function IntakeWizard({
     addressState:             patient.addressState ?? '',
     addressZip:               patient.addressZip ?? '',
     // Información clínica Step 2
-    referralSource:           patient.referralSource ?? '',
+    referralSource:           referralIsKnown ? rawReferral : (rawReferral ? 'OTHER' : ''),
+    referralSourceOther:      referralIsKnown ? '' : rawReferral,
     communicationPreference:  patient.communicationPreference ?? '',
     // Información clínica Step 3
     referredBy:               savedExtra.referredBy ?? '',
@@ -1101,10 +1106,15 @@ export function IntakeWizard({
   }, []);
 
   // ── Validation errors ───────────────────────────────────────────────────────
-  const [phoneError, setPhoneError]             = useState('');
-  const [cellPhoneError, setCellPhoneError]     = useState('');
-  const [emerPhoneError, setEmerPhoneError]     = useState('');
-  const [emer2PhoneError, setEmer2PhoneError]   = useState('');
+  const [firstNameError, setFirstNameError]         = useState('');
+  const [lastNameError, setLastNameError]           = useState('');
+  const [dobError, setDobError]                     = useState('');
+  const [emailError, setEmailError]                 = useState('');
+  const [referralOtherError, setReferralOtherError] = useState('');
+  const [phoneError, setPhoneError]                 = useState('');
+  const [cellPhoneError, setCellPhoneError]         = useState('');
+  const [emerPhoneError, setEmerPhoneError]         = useState('');
+  const [emer2PhoneError, setEmer2PhoneError]       = useState('');
 
   // Step 7 — Consentimientos
   const [consents, setConsents] = useState({
@@ -1366,7 +1376,11 @@ export function IntakeWizard({
     setSaveError('');
     try {
       let body: Record<string, unknown> = {};
-      if (stepNum === 2) body = { personal: { ...personal, preferredLanguage: lang } };
+      if (stepNum === 2) {
+        const p2 = { ...personal, preferredLanguage: lang };
+        if (p2.referralSource === 'OTHER') p2.referralSource = p2.referralSourceOther || 'OTHER';
+        body = { personal: p2 };
+      }
       if (stepNum === 3) body = { additional: {
         emergencyContactName:     personal.emergencyContactName,
         emergencyContactPhone:    personal.emergencyContactPhone,
@@ -1435,7 +1449,33 @@ export function IntakeWizard({
   const goNext = async (fromStep: Step) => {
     if (fromStep === 2) {
       let valid = true;
+      const req = (f: string) => lang === 'es' ? `${f} es obligatorio.` : `${f} is required.`;
       const phoneMsg = lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.';
+
+      if (!personal.firstName.trim()) { setFirstNameError(req(lang === 'es' ? 'Nombre' : 'First name')); valid = false; } else { setFirstNameError(''); }
+      if (!personal.lastName.trim())  { setLastNameError(req(lang === 'es' ? 'Apellido' : 'Last name'));  valid = false; } else { setLastNameError(''); }
+
+      if (!personal.dateOfBirth) {
+        setDobError(lang === 'es' ? 'Fecha de nacimiento es obligatoria.' : 'Date of birth is required.');
+        valid = false;
+      } else {
+        const dobDate = new Date(personal.dateOfBirth);
+        if (dobDate >= new Date()) {
+          setDobError(lang === 'es' ? 'La fecha de nacimiento no puede ser futura.' : 'Date of birth cannot be in the future.');
+          valid = false;
+        } else { setDobError(''); }
+      }
+
+      if (personal.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personal.email)) {
+        setEmailError(lang === 'es' ? 'Correo electrónico inválido.' : 'Invalid email address.');
+        valid = false;
+      } else { setEmailError(''); }
+
+      if (personal.referralSource === 'OTHER' && !personal.referralSourceOther.trim()) {
+        setReferralOtherError(lang === 'es' ? 'Por favor especifica la fuente.' : 'Please specify the source.');
+        valid = false;
+      } else { setReferralOtherError(''); }
+
       if (personal.phone && !isValidNANP(personal.phone)) { setPhoneError(phoneMsg); valid = false; } else { setPhoneError(''); }
       if (personal.cellPhone && !isValidNANP(personal.cellPhone)) { setCellPhoneError(phoneMsg); valid = false; } else { setCellPhoneError(''); }
       if (!valid) return;
@@ -1767,11 +1807,11 @@ export function IntakeWizard({
               >
                 {/* Nombre + Apellido */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.firstName}>
+                  <Field label={t.firstName} error={firstNameError}>
                     <input type="text" style={S.input} value={personal.firstName}
                       onChange={e => setPersonal(p => ({ ...p, firstName: e.target.value }))} />
                   </Field>
-                  <Field label={t.lastName}>
+                  <Field label={t.lastName} error={lastNameError}>
                     <input type="text" style={S.input} value={personal.lastName}
                       onChange={e => setPersonal(p => ({ ...p, lastName: e.target.value }))} />
                   </Field>
@@ -1779,7 +1819,7 @@ export function IntakeWizard({
 
                 {/* DOB + Teléfono */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.dob}>
+                  <Field label={t.dob} error={dobError}>
                     <DateInputMDY style={S.input} value={personal.dateOfBirth}
                       onChange={v => setPersonal(p => ({ ...p, dateOfBirth: v }))} />
                   </Field>
@@ -1799,7 +1839,7 @@ export function IntakeWizard({
                       onChange={e => { setPersonal(p => ({ ...p, cellPhone: formatPhone(e.target.value) })); setCellPhoneError(''); }} />
                     {cellPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{cellPhoneError}</span>}
                   </Field>
-                  <Field label={t.email}>
+                  <Field label={t.email} error={emailError}>
                     <input type="email" style={S.input} value={personal.email}
                       placeholder="correo@ejemplo.com"
                       onChange={e => setPersonal(p => ({ ...p, email: e.target.value }))} />
@@ -1884,14 +1924,23 @@ export function IntakeWizard({
                       {COMM_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </Field>
-                  <Field label={t.howHeard}>
+                  <Field label={t.howHeard} error={referralOtherError}>
                     <select
                       style={{ ...S.input, backgroundColor: '#1a2236', color: personal.referralSource ? '#fff' : 'rgba(255,255,255,0.35)' }}
                       value={personal.referralSource}
-                      onChange={e => setPersonal(p => ({ ...p, referralSource: e.target.value }))}
+                      onChange={e => setPersonal(p => ({ ...p, referralSource: e.target.value, referralSourceOther: '' }))}
                     >
                       {REFERRAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
+                    {personal.referralSource === 'OTHER' && (
+                      <input
+                        type="text"
+                        style={{ ...S.input, marginTop: 8 }}
+                        placeholder={lang === 'es' ? 'Especifica la fuente…' : 'Please specify…'}
+                        value={personal.referralSourceOther}
+                        onChange={e => setPersonal(p => ({ ...p, referralSourceOther: e.target.value }))}
+                      />
+                    )}
                   </Field>
                 </div>
 
@@ -3230,7 +3279,7 @@ function StepHeader({ icon, title, sub }: { icon: string; title: string; sub: st
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <div>
       <label style={{
@@ -3239,6 +3288,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
         color: 'rgba(255,255,255,0.40)', marginBottom: 6,
       }}>{label}</label>
       {children}
+      {error && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#f87171' }}>{error}</p>}
     </div>
   );
 }

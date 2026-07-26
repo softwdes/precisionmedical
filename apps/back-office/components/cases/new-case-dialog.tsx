@@ -180,6 +180,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [duration, setDuration]       = useState(45);
   const [appointmentNotes, setAppointmentNotes] = useState('');
   const [showAllProviders, setShowAllProviders] = useState(false);
+  const [providerSearch, setProviderSearch] = useState('');
   const [weekStart, setWeekStart]     = useState<Date>(() => getMondayOf(new Date()));
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
@@ -215,7 +216,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setChiropractor('');
     setInsurance(null); setPolicyNumber('');
     setSpecialtyId(''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
-    setProviderId(''); setSlotIso(null); setDuration(45); setAppointmentNotes(''); setShowAllProviders(false);
+    setProviderId(''); setSlotIso(null); setDuration(45); setAppointmentNotes(''); setShowAllProviders(false); setProviderSearch('');
     setWeekStart(getMondayOf(new Date())); setSelectedDay(null);
     setFormDelivery('SEND_NOW');
     setSaving(false); setError(null); setSuccess(null); setCopied(false); setDuplicateId(null);
@@ -369,7 +370,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
   // ─── Step validation ───────────────────────────────────────────────────
   const canGoToStep2 = firstName.trim() !== '' && lastName.trim() !== '';
-  const canGoToStep3 = canGoToStep2 && (caseType !== 'MVA' || lawyerStatus !== 'HAS' || !!lawFirm);
+  const accidentDateIsValid = !accidentDate || accidentDate <= todayDenver;
+  const canGoToStep3 = canGoToStep2 && (caseType !== 'MVA' || lawyerStatus !== 'HAS' || !!lawFirm) && accidentDateIsValid;
   const canGoToStep4 = canGoToStep3 && (!scheduleNow || (!!clinicId && !!providerId && !!slotIso));
   const canSubmit = canGoToStep4;
 
@@ -655,7 +657,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         {/* ─── Header ──────────────────────────────────────────────────── */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
           <DialogHeader>
-            <div className="flex items-start justify-between gap-2 flex-wrap">
+            <div className="flex items-start justify-between gap-2 flex-wrap pr-8">
               <div className="min-w-0 flex-1">
                 <DialogTitle className="flex items-center gap-2 text-text-1 text-sm sm:text-base">
                   {isManual || isSearch
@@ -784,13 +786,13 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 </div>
                 <div className="min-w-0">
                   <div className="text-text-1 font-semibold text-sm">
-                    Case <code className="text-emerald font-mono font-bold">{success.caseCode}</code> created successfully
+                    {t('successCaseCode', { caseCode: success.caseCode })}
                   </div>
                   <div className="text-text-muted text-[11px] mt-1 space-y-0.5">
                     {success.appointmentScheduled && successSlot && (
                       <div className="flex items-center gap-1.5">
                         <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
-                        <span>Appointment: <strong className="text-text-2">{successSlot.dayLabel} · {successSlot.label}</strong>
+                        <span>{t('successApptLabel')} <strong className="text-text-2">{successSlot.dayLabel} · {successSlot.label}</strong>
                           {successProvider && <> · Dr. {successProvider.firstName} {successProvider.lastName}</>}
                           {successClinic && <> · {successClinic.name}</>}
                         </span>
@@ -799,7 +801,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     {caseType === 'MVA' && lawFirm && (
                       <div className="flex items-center gap-1.5">
                         <Check className="w-2.5 h-2.5 text-emerald shrink-0" />
-                        <span>Law firm: <strong className="text-text-2">{lawFirm.label}</strong></span>
+                        <span>{t('successLawFirmLabel')} <strong className="text-text-2">{lawFirm.label}</strong></span>
                       </div>
                     )}
                   </div>
@@ -810,7 +812,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               {success.portalUrl ? (
                 <div className="rounded-lg border border-border bg-bg-1 p-4">
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">
-                    Forms link · share with patient
+                    {t('successFormsLinkTitle')}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 items-start">
                     {success.qrDataUrl && (
@@ -820,34 +822,34 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     )}
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="rounded-md bg-bg-2/40 border border-border/40 px-3 py-2">
-                        <div className="text-[10px] text-text-muted mb-1">Forms URL</div>
+                        <div className="text-[10px] text-text-muted mb-1">{t('successFormsUrlLabel')}</div>
                         <div className="text-xs text-text-2 font-mono truncate">{success.portalUrl}</div>
                       </div>
                       <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={copyLink}>
-                        {copied ? <><Check className="w-3.5 h-3.5 text-emerald" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy link</>}
+                        {copied ? <><Check className="w-3.5 h-3.5 text-emerald" /> {t('successCopied')}</> : <><Copy className="w-3.5 h-3.5" /> {t('successCopyLink')}</>}
                       </Button>
                       {success.qrDataUrl && (
                         <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={downloadQr}>
-                          <Download className="w-3.5 h-3.5" /> Download QR
+                          <Download className="w-3.5 h-3.5" /> {t('successDownloadQr')}
                         </Button>
                       )}
                       <a
                         href={phone.trim()
-                          ? `https://wa.me/${phone.trim().replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${firstName}, here is your medical forms link from Precision Medical: ${success.portalUrl}`)}`
-                          : `https://wa.me/?text=${encodeURIComponent(`Hi ${firstName}, here is your medical forms link from Precision Medical: ${success.portalUrl}`)}`}
+                          ? `https://wa.me/${phone.trim().replace(/\D/g, '')}?text=${encodeURIComponent(t('successWhatsAppMessage', { name: firstName, url: success.portalUrl }))}`
+                          : `https://wa.me/?text=${encodeURIComponent(t('successWhatsAppMessage', { name: firstName, url: success.portalUrl }))}`}
                         target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors"
                       >
-                        <span className="text-base leading-none">💬</span> Send via WhatsApp
+                        <span className="text-base leading-none">💬</span> {t('successSendWhatsApp')}
                       </a>
                       <div className="text-[10px] text-text-muted italic pt-1">
-                        Link expires once the patient completes the form.
+                        {t('successLinkExpires')}
                       </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <Note tone="amber">Could not generate the forms link. Use the &quot;Send portal&quot; button from the case detail.</Note>
+                <Note tone="amber">{t('successNoFormsLink')}</Note>
               )}
             </div>
           ) : (<>
@@ -968,8 +970,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                     />
                   </div>
                   {insurance && (
-                    <FormField.Input label={t('policyNumber')} value={policyNumber} onChange={setPolicyNumber}
-                      placeholder="PIP-2026-0142" hint={t('policyHint')} />
+                    <FormField.Input label={t('policyNumber')} value={policyNumber}
+                      onChange={(v) => setPolicyNumber(v.replace(/[^A-Za-z0-9\-]/g, '').toUpperCase())}
+                      placeholder="PIP-2026-0142" hint={t('policyHint')} maxLength={40} />
                   )}
                 </InfoCard>
               )}
@@ -1021,8 +1024,20 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                         </button>
                       )}
                     </div>
+                    {filteredProviders.length > 4 && (
+                      <div className="relative mb-2">
+                        <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
+                        <input
+                          type="text"
+                          value={providerSearch}
+                          onChange={(e) => setProviderSearch(e.target.value)}
+                          placeholder="Buscar doctor..."
+                          className="w-full rounded-md border border-border bg-bg-2 pl-8 pr-3 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-border-strong"
+                        />
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {filteredProviders.map((p) => (
+                      {filteredProviders.filter((p) => !providerSearch || `${p.firstName} ${p.lastName}`.toLowerCase().includes(providerSearch.toLowerCase())).map((p) => (
                         <button
                           key={p.id}
                           type="button"
@@ -1344,17 +1359,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     <Dialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle className="text-text-1">Leave the form?</DialogTitle>
+          <DialogTitle className="text-text-1">{t('exitTitle')}</DialogTitle>
           <DialogDescription className="text-text-2 text-sm mt-1">
-            You have entered data that will be lost if you leave now.
+            {t('exitDesc')}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-2 mt-4">
           <Button variant="destructive" className="w-full" onClick={() => { setShowExitConfirm(false); onOpenChange(false); }}>
-            Leave and discard data
+            {t('exitLeave')}
           </Button>
           <Button variant="outline" className="w-full" onClick={() => setShowExitConfirm(false)}>
-            Stay · keep filling
+            {t('exitStay')}
           </Button>
         </div>
       </DialogContent>
@@ -1423,6 +1438,8 @@ function Autocomplete({
   const [results, setResults] = useState<AutoResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [dropStyle, setDropStyle] = useState<React.CSSProperties>({});
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (selected) { setQuery(''); setOpen(false); return; }
@@ -1436,6 +1453,30 @@ function Autocomplete({
     }, 200);
     return () => clearTimeout(handle);
   }, [query, endpoint, extraParams, selected]);
+
+  // Reposition dropdown to fixed to escape overflow:hidden clipping
+  useEffect(() => {
+    if (!open || !wrapRef.current) return;
+    const rect = wrapRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const dropH = Math.min(240, results.length * 52 + 8);
+    if (spaceBelow < dropH && spaceAbove > spaceBelow) {
+      setDropStyle({ position: 'fixed', bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width });
+    } else {
+      setDropStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  }, [open, results.length]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
 
   if (selected) {
     return (
@@ -1453,14 +1494,14 @@ function Autocomplete({
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={wrapRef}>
       <div className="relative">
         <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
         <Input value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)} placeholder={placeholder} className="pl-9" />
       </div>
       {open && (results.length > 0 || loading) && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
+        <div style={dropStyle} className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
           {loading && results.length === 0 ? (
             <div className="px-3 py-2 text-text-muted text-xs">{t('autocompleteSearching')}</div>
           ) : results.map((r) => (

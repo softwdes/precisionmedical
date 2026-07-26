@@ -85,7 +85,7 @@ function SideSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-border/60 last:border-0">
+    <div className="border-b border-border/30 last:border-0">
       <button
         className="flex items-center justify-between w-full py-2.5 px-4 text-left hover:bg-white/[0.02] transition-colors"
         onClick={() => setOpen(o => !o)}
@@ -111,11 +111,11 @@ function SideSection({
   );
 }
 
-function SideRow({ label, value }: { label: string; value?: string | null }) {
+function SideRow({ label, value, na = 'N/A' }: { label: string; value?: string | null; na?: string }) {
   return (
     <div className="flex items-start justify-between gap-2 text-[11px]">
       <span className="text-text-muted shrink-0">{label}:</span>
-      <span className="text-text-1 text-right">{value || 'N/D'}</span>
+      <span className="text-text-1 text-right">{value || na}</span>
     </div>
   );
 }
@@ -129,10 +129,10 @@ function EmptyState({ text }: { text: string }) {
 }
 
 function SectionCard({
-  icon, title, count, onAdd, editBtn = false, onEdit, children,
+  icon, title, count, onAdd, addLabel = 'Add', editBtn = false, onEdit, children,
 }: {
   icon: React.ReactNode; title: string; count?: number;
-  onAdd?: () => void; editBtn?: boolean; onEdit?: () => void; children: React.ReactNode;
+  onAdd?: () => void; addLabel?: string; editBtn?: boolean; onEdit?: () => void; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -153,7 +153,7 @@ function SectionCard({
               onClick={onAdd}
               className="flex items-center gap-1 text-[10px] text-text-muted hover:text-brand transition-colors"
             >
-              <Plus className="w-3 h-3" /> Agregar
+              <Plus className="w-3 h-3" /> {addLabel}
             </button>
           )}
           {editBtn && (
@@ -175,11 +175,12 @@ function SectionCard({
 }
 
 function TableShell({
-  headers, rows, emptyText,
+  headers, rows, emptyText, totalLabel = 'Total records:',
 }: {
   headers: string[];
   rows: React.ReactNode[][];
   emptyText: string;
+  totalLabel?: string;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -206,7 +207,7 @@ function TableShell({
         </tbody>
       </table>
       <div className="pt-2 text-right text-[10px] text-text-muted">
-        Total registros: {rows.length}
+        {totalLabel} {rows.length}
       </div>
     </div>
   );
@@ -248,6 +249,7 @@ function VisitInfoEditDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState({
     referredBy:          initial?.referredBy          ?? '',
@@ -275,64 +277,64 @@ function VisitInfoEditDialog({
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
-            Actualizar información de la visita
+            {t('mh.sub.visitInfoTitle')}
           </DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Actualizar detalles de la visita y estado de medicamentos
+            {t('mh.sub.visitInfoDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
-          {/* Detalles de la visita */}
+          {/* Visit details */}
           <div className="space-y-3">
-            <p className="text-sm font-semibold text-text-1">Detalles de la visita</p>
+            <p className="text-sm font-semibold text-text-1">{t('mh.sub.visitDetails')}</p>
 
             <div className="space-y-1">
-              <label className="text-xs text-text-muted">Referido por</label>
+              <label className="text-xs text-text-muted">{t('mh.sub.referredBy')}</label>
               <input
                 value={form.referredBy}
                 onChange={e => set('referredBy', e.target.value)}
-                placeholder="¿Quién lo refirió?"
+                placeholder={t('mh.sub.referredByPlaceholder')}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-text-muted">Razón principal de la visita</label>
+              <label className="text-xs text-text-muted">{t('mh.sub.mainReasonLabel')}</label>
               <input
                 value={form.mainReason}
                 onChange={e => set('mainReason', e.target.value)}
-                placeholder="Razón principal"
+                placeholder={t('mh.sub.mainReasonPlaceholder')}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-text-muted">Otras inquietudes</label>
+              <label className="text-xs text-text-muted">{t('mh.sub.otherConcernsLabel')}</label>
               <input
                 value={form.otherConcerns}
                 onChange={e => set('otherConcerns', e.target.value)}
-                placeholder="Cualquier otra inquietud"
+                placeholder={t('mh.sub.otherConcernsPlaceholder')}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
               />
             </div>
           </div>
 
-          {/* Estado de medicamentos */}
+          {/* Medication status */}
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-text-1">Estado de medicamentos</p>
+            <p className="text-sm font-semibold text-text-1">{t('mh.sub.medStatusSection')}</p>
             <ToggleRow
-              label="Sin medicamentos actuales"
+              label={t('mh.sub.noCurrentMeds')}
               checked={form.noCurrentMeds}
               onChange={v => set('noCurrentMeds', v)}
             />
             <ToggleRow
-              label="Trajo lista de medicamentos"
+              label={t('mh.sub.broughtMedList')}
               checked={form.broughtMedList}
               onChange={v => set('broughtMedList', v)}
             />
             <ToggleRow
-              label="Sin historial médico significativo"
+              label={t('mh.sub.noSignificantHistory')}
               checked={form.noSignificantHistory}
               onChange={v => set('noSignificantHistory', v)}
             />
@@ -345,7 +347,7 @@ function VisitInfoEditDialog({
             disabled={isPending}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -364,6 +366,7 @@ function HealthInfoEditDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [goals, setGoals]       = useState(initial?.goals ?? '');
   const [rating, setRating]     = useState<number | null>(initial?.selfRating ?? null);
@@ -381,26 +384,26 @@ function HealthInfoEditDialog({
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
-            Actualizar información de salud
+            {t('mh.sub.healthInfoTitle')}
           </DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Actualizar metas de salud y autoevaluación del paciente
+            {t('mh.sub.healthInfoDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-5">
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Metas de salud</label>
+            <label className="text-sm text-text-2">{t('mh.sub.healthGoalsLabel')}</label>
             <input
               value={goals}
               onChange={e => setGoals(e.target.value)}
-              placeholder="Ingrese las metas de salud"
+              placeholder={t('mh.sub.healthGoalsPlaceholder')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm text-text-2">Autoevaluación (1-5)</label>
+            <label className="text-sm text-text-2">{t('mh.sub.selfRatingLabel')}</label>
             <div className="flex items-center gap-3 flex-wrap">
               {[1, 2, 3, 4, 5].map(n => (
                 <label key={n} className="flex items-center gap-1.5 cursor-pointer">
@@ -422,7 +425,7 @@ function HealthInfoEditDialog({
                   onChange={() => setRating(null)}
                   className="accent-brand"
                 />
-                <span className="text-sm text-text-2">N/D</span>
+                <span className="text-sm text-text-2">{t('mh.sub.na')}</span>
               </label>
             </div>
           </div>
@@ -434,7 +437,7 @@ function HealthInfoEditDialog({
             disabled={isPending}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -455,6 +458,7 @@ function AddProblemDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [query,     setQuery]        = useState('');
   const [results,   setResults]      = useState<DiagnosisOption[]>([]);
@@ -502,18 +506,18 @@ function AddProblemDialog({
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
-            Agregar historial médico personal
+            {t('mh.sub.addProblemTitle')}
           </DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Agregar una nueva condición médica al historial del paciente
+            {t('mh.sub.addProblemDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
 
-          {/* Condición — searchable dropdown */}
+          {/* Condition — searchable dropdown */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Condición</label>
+            <label className="text-sm text-text-2">{t('mh.sub.condition')}</label>
             <div className="relative">
               <button
                 type="button"
@@ -521,7 +525,7 @@ function AddProblemDialog({
                 className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
               >
                 <span className={selected ? 'text-text-1' : 'text-text-muted'}>
-                  {selected ? selected.label : 'Seleccionar una condición'}
+                  {selected ? selected.label : t('mh.sub.selectCondition')}
                 </span>
                 <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
               </button>
@@ -535,14 +539,14 @@ function AddProblemDialog({
                         autoFocus
                         value={query}
                         onChange={e => handleQuery(e.target.value)}
-                        placeholder="Buscar..."
+                        placeholder={t('mh.sub.search')}
                         className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
                       />
                     </div>
                   </div>
                   <div className="max-h-48 overflow-y-auto">
                     {results.length === 0 ? (
-                      <p className="px-3 py-3 text-xs text-text-muted text-center">Sin resultados</p>
+                      <p className="px-3 py-3 text-xs text-text-muted text-center">{t('mh.sub.noResults')}</p>
                     ) : results.map(opt => (
                       <button
                         key={opt.id}
@@ -560,15 +564,15 @@ function AddProblemDialog({
             </div>
           </div>
 
-          {/* Estado */}
+          {/* Status */}
           <div className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
-            <p className="text-sm font-semibold text-text-1">Estado</p>
+            <p className="text-sm font-semibold text-text-1">{t('mh.sub.status')}</p>
             <div className="grid grid-cols-2 gap-3">
-              <ToggleRow label="Actual"    checked={isCurrent}  onChange={setIsCurrent} />
-              <ToggleRow label="Resuelto"  checked={isResolved} onChange={setIsResolved} />
+              <ToggleRow label={t('mh.sub.current')}  checked={isCurrent}  onChange={setIsCurrent} />
+              <ToggleRow label={t('mh.sub.resolved')} checked={isResolved} onChange={setIsResolved} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-text-muted">Diagnosticado el</label>
+              <label className="text-xs text-text-muted">{t('mh.sub.diagnosedAt')}</label>
               <input
                 type="date"
                 value={diagDate}
@@ -578,14 +582,14 @@ function AddProblemDialog({
             </div>
           </div>
 
-          {/* Comentarios */}
+          {/* Comments */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Comentarios</label>
+            <label className="text-sm text-text-2">{t('mh.sub.comments')}</label>
             <textarea
               rows={3}
               value={comments}
               onChange={e => setComments(e.target.value)}
-              placeholder="Notas o detalles adicionales"
+              placeholder={t('mh.sub.additionalNotes')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
@@ -597,7 +601,7 @@ function AddProblemDialog({
             disabled={isPending || !selected}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -609,12 +613,15 @@ function AddProblemDialog({
 
 function SearchDropdown({
   value, placeholder, options, onSearch, onSelect,
+  searchPlaceholder = 'Search...', emptyText = 'No results',
 }: {
-  value:       string;
-  placeholder: string;
-  options:     Array<{ id: string; label: string; badge?: string }>;
-  onSearch:    (q: string) => void;
-  onSelect:    (id: string, label: string) => void;
+  value:              string;
+  placeholder:        string;
+  options:            Array<{ id: string; label: string; badge?: string }>;
+  onSearch:           (q: string) => void;
+  onSelect:           (id: string, label: string) => void;
+  searchPlaceholder?: string;
+  emptyText?:         string;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ]       = useState('');
@@ -641,14 +648,14 @@ function SearchDropdown({
                 autoFocus
                 value={q}
                 onChange={e => handleQ(e.target.value)}
-                placeholder="Buscar..."
+                placeholder={searchPlaceholder}
                 className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
               />
             </div>
           </div>
           <div className="max-h-48 overflow-y-auto">
             {options.length === 0
-              ? <p className="px-3 py-3 text-xs text-text-muted text-center">Sin resultados</p>
+              ? <p className="px-3 py-3 text-xs text-text-muted text-center">{emptyText}</p>
               : options.map(opt => (
                   <button
                     key={opt.id}
@@ -672,14 +679,6 @@ function SearchDropdown({
 
 // ── Add medication dialog ──────────────────────────────────────────────────
 
-const DISPENSE_UNITS = ['Tabletas','Cápsulas','ml','mg','Gramos','Unidades','Inhalaciones','Gotas','Parche(s)'];
-const REFILL_OPTIONS = ['Sin reposiciones','1 reposición','2 reposiciones','3 reposiciones','4 reposiciones','5 reposiciones','6 reposiciones','Reposiciones ilimitadas'];
-
-const CATEGORY_BADGE: Record<string, string> = {
-  NSAID: 'NSAID', RELAXANT: 'relajante', OPIOID: 'opioide',
-  NEURO: 'neuro', TOPICAL: 'tópico', STEROID: 'esteroide', OTHER: 'otro',
-};
-
 function AddMedicationDialog({
   patientId, existing, preferredPharmacy, open, onClose, onSaved,
 }: {
@@ -690,9 +689,27 @@ function AddMedicationDialog({
   onClose:            () => void;
   onSaved?:           (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
+  const DISPENSE_UNITS = [
+    t('mh.sub.unit.tablets'), t('mh.sub.unit.capsules'), t('mh.sub.unit.ml'),
+    t('mh.sub.unit.mg'), t('mh.sub.unit.grams'), t('mh.sub.unit.units'),
+    t('mh.sub.unit.inhalations'), t('mh.sub.unit.drops'), t('mh.sub.unit.patches'),
+  ];
+  const REFILL_OPTIONS = [
+    t('mh.sub.refill.none'), t('mh.sub.refill.1'), t('mh.sub.refill.2'),
+    t('mh.sub.refill.3'), t('mh.sub.refill.4'), t('mh.sub.refill.5'),
+    t('mh.sub.refill.6'), t('mh.sub.refill.unlimited'),
+  ];
+  const CATEGORY_BADGE: Record<string, string> = {
+    NSAID: 'NSAID',
+    RELAXANT: t('mh.sub.cat.relaxant'), OPIOID: t('mh.sub.cat.opioid'),
+    NEURO: t('mh.sub.cat.neuro'), TOPICAL: t('mh.sub.cat.topical'),
+    STEROID: t('mh.sub.cat.steroid'), OTHER: t('mh.sub.cat.other'),
+  };
+
   const [isPending, startTransition] = useTransition();
 
-  // Estado
+  // Status
   const [status, setStatus] = useState<'IN_USE' | 'HISTORY'>('IN_USE');
 
   // Medicamento
@@ -706,7 +723,7 @@ function AddMedicationDialog({
   // Cantidad / unidad / reposiciones
   const [quantity, setQuantity] = useState(30);
   const [unit,     setUnit]     = useState('');
-  const [refills,  setRefills]  = useState('Sin reposiciones');
+  const [refills,  setRefills]  = useState(() => t('mh.sub.refill.none'));
 
   // Fecha / checkboxes
   const today = new Date().toISOString().slice(0, 10);
@@ -781,15 +798,15 @@ function AddMedicationDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
-          <DialogTitle className="text-base font-semibold text-text-1">Nueva prescripción</DialogTitle>
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.newPrescriptionTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Registrar un medicamento en el historial del paciente
+            {t('mh.sub.newPrescriptionDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
 
-          {/* Estado */}
+          {/* Status */}
           <div className="flex items-center gap-6">
             {(['IN_USE', 'HISTORY'] as const).map(s => (
               <label key={s} className="flex items-center gap-2 cursor-pointer">
@@ -800,53 +817,55 @@ function AddMedicationDialog({
                   onChange={() => setStatus(s)}
                   className="accent-brand"
                 />
-                <span className="text-sm text-text-2">{s === 'IN_USE' ? 'En uso' : 'Historial médico'}</span>
+                <span className="text-sm text-text-2">{s === 'IN_USE' ? t('mh.sub.inUse') : t('mh.sub.medHistoryLabel')}</span>
               </label>
             ))}
           </div>
 
-          {/* Medicamento */}
+          {/* Medication */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Medicamento</label>
+            <label className="text-sm text-text-2">{t('mh.sub.medicationLabel')}</label>
             <SearchDropdown
               value={drugName}
-              placeholder="Selecciona un medicamento"
+              placeholder={t('mh.sub.selectMedication')}
               options={drugOptions}
               onSearch={handleDrugSearch}
               onSelect={(_, label) => setDrugName(label)}
+              searchPlaceholder={t('mh.sub.search')}
+              emptyText={t('mh.sub.noResults')}
             />
             <p className="text-[11px] text-text-muted">
-              {drugName ? drugName : 'Selecciona un medicamento para ver su descripción'}
+              {drugName ? drugName : t('mh.sub.selectMedicationHint')}
             </p>
           </div>
 
-          {/* Dosis */}
+          {/* Dose */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Dosis</label>
+            <label className="text-sm text-text-2">{t('mh.sub.doseLabel')}</label>
             <input
               value={dose}
               onChange={e => setDose(e.target.value)}
-              placeholder="Ej.: 5 mg, 20 mg, 10 ml"
+              placeholder={t('mh.sub.dosePlaceholder')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
-          {/* Indicaciones */}
+          {/* Instructions */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Indicaciones</label>
+            <label className="text-sm text-text-2">{t('mh.sub.instructionsLabel')}</label>
             <textarea
               rows={3}
               value={instructions}
               onChange={e => setInstructions(e.target.value)}
-              placeholder="Ej.: Tomar 1 tableta por vía oral dos veces al día con alimentos"
+              placeholder={t('mh.sub.instructionsPlaceholder')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
 
-          {/* Cantidad / Unidad / Reposiciones */}
+          {/* Quantity / Unit / Refills */}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1.5">
-              <label className="text-sm text-text-2">Cantidad a dispensar</label>
+              <label className="text-sm text-text-2">{t('mh.sub.dispenseQtyLabel')}</label>
               <input
                 type="number"
                 min={1}
@@ -856,18 +875,18 @@ function AddMedicationDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm text-text-2">Unidad de dispensación</label>
+              <label className="text-sm text-text-2">{t('mh.sub.dispenseUnitLabel')}</label>
               <select
                 value={unit}
                 onChange={e => setUnit(e.target.value)}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
-                <option value="">Selecciona una opción</option>
+                <option value="">{t('mh.sub.selectOption')}</option>
                 {DISPENSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm text-text-2">Reposiciones</label>
+              <label className="text-sm text-text-2">{t('mh.sub.refillsLabel')}</label>
               <select
                 value={refills}
                 onChange={e => setRefills(e.target.value)}
@@ -878,10 +897,10 @@ function AddMedicationDialog({
             </div>
           </div>
 
-          {/* Fecha de inicio + checkboxes */}
+          {/* Start date + checkboxes */}
           <div className="flex items-end gap-4 flex-wrap">
             <div className="space-y-1.5">
-              <label className="text-sm text-text-2">Fecha de inicio</label>
+              <label className="text-sm text-text-2">{t('mh.sub.startDateLabel')}</label>
               <input
                 type="date"
                 value={startDate}
@@ -891,32 +910,34 @@ function AddMedicationDialog({
             </div>
             <label className="flex items-center gap-2 cursor-pointer pb-2">
               <input type="checkbox" checked={autoExpire} onChange={e => setAutoExpire(e.target.checked)} className="accent-brand" />
-              <span className="text-sm text-text-2">Expiración automática</span>
+              <span className="text-sm text-text-2">{t('mh.sub.autoExpire')}</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer pb-2">
               <input type="checkbox" checked={autoRenew} onChange={e => setAutoRenew(e.target.checked)} className="accent-brand" />
-              <span className="text-sm text-text-2">Renovación automática</span>
+              <span className="text-sm text-text-2">{t('mh.sub.autoRenew')}</span>
             </label>
           </div>
 
-          {/* Prescrito por */}
+          {/* Prescribed by */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Prescrito por</label>
+            <label className="text-sm text-text-2">{t('mh.sub.prescribedByLabel')}</label>
             <SearchDropdown
               value={prescribedBy}
-              placeholder="Selecciona el médico que prescribe"
+              placeholder={t('mh.sub.selectPrescriber')}
               options={doctorOptions}
               onSearch={handleDoctorSearch}
               onSelect={(id, label) => { setPrescribedById(id); setPrescribedBy(label); }}
+              searchPlaceholder={t('mh.sub.search')}
+              emptyText={t('mh.sub.noResults')}
             />
           </div>
 
-          {/* Diagnóstico */}
+          {/* Diagnosis */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Diagnóstico</label>
+            <label className="text-sm text-text-2">{t('mh.sub.diagnosisLabel')}</label>
             <SearchDropdown
               value={diagLabel}
-              placeholder="Selecciona un diagnóstico"
+              placeholder={t('mh.sub.selectDiagnosis')}
               options={diagOptions}
               onSearch={handleDiagSearch}
               onSelect={(_, label) => {
@@ -924,30 +945,32 @@ function AddMedicationDialog({
                 setDiagCode(code.trim());
                 setDiagLabel(rest.join(' - ').trim());
               }}
+              searchPlaceholder={t('mh.sub.search')}
+              emptyText={t('mh.sub.noResults')}
             />
             <p className="text-[11px] text-text-muted">
-              {diagLabel ? diagLabel : 'Selecciona un diagnóstico para ver su descripción'}
+              {diagLabel ? diagLabel : t('mh.sub.selectDiagnosisHint')}
             </p>
           </div>
 
-          {/* Farmacia */}
+          {/* Pharmacy */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Nombre de la farmacia</label>
+            <label className="text-sm text-text-2">{t('mh.sub.pharmacyNameLabel')}</label>
             <input
               value={pharmacy}
               onChange={e => setPharmacy(e.target.value)}
-              placeholder="Nombre de la farmacia"
+              placeholder={t('mh.sub.pharmacyNamePlaceholder')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Nota para la farmacia</label>
+            <label className="text-sm text-text-2">{t('mh.sub.pharmacyNoteLabel')}</label>
             <textarea
               rows={3}
               value={pharmacyNote}
               onChange={e => setPharmacyNote(e.target.value)}
-              placeholder="Instrucciones especiales para la farmacia..."
+              placeholder={t('mh.sub.pharmacyNotePlaceholder')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
@@ -959,7 +982,7 @@ function AddMedicationDialog({
             disabled={isPending || !drugName}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Crear prescripción'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.createPrescription')}
           </button>
         </div>
       </DialogContent>
@@ -978,6 +1001,7 @@ function AddSurgeryDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [procedure, setProcedure]    = useState('');
   const [year,      setYear]         = useState('');
@@ -1004,42 +1028,42 @@ function AddSurgeryDialog({
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
-            Agregar procedimiento quirúrgico
+            {t('mh.sub.addSurgeryTitle')}
           </DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Agregar un nuevo procedimiento quirúrgico al historial del paciente
+            {t('mh.sub.addSurgeryDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Nombre del procedimiento</label>
+            <label className="text-sm text-text-2">{t('mh.sub.procedureNameLabel')}</label>
             <input
               autoFocus
               value={procedure}
               onChange={e => setProcedure(e.target.value)}
-              placeholder="ej., Apendicectomía"
+              placeholder={t('mh.sub.procedureNamePlaceholder')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Año</label>
+            <label className="text-sm text-text-2">{t('mh.sub.yearLabel')}</label>
             <input
               value={year}
               onChange={e => setYear(e.target.value)}
-              placeholder="ej., 2018"
+              placeholder={t('mh.sub.yearPlaceholder')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Comentarios</label>
+            <label className="text-sm text-text-2">{t('mh.sub.comments')}</label>
             <textarea
               rows={3}
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="Detalles adicionales sobre el procedimiento"
+              placeholder={t('mh.sub.surgeryNotes')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
@@ -1051,7 +1075,7 @@ function AddSurgeryDialog({
             disabled={isPending || !procedure.trim()}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -1070,6 +1094,7 @@ function AddProviderDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
 
   const [doctorOptions,    setDoctorOptions]    = useState<Array<{ id: string; label: string }>>([]);
@@ -1092,7 +1117,7 @@ function AddProviderDialog({
       id:        crypto.randomUUID(),
       name:      providerName,
       specialty: specialty || undefined,
-      notes:     lastVisit ? `Última visita: ${lastVisit}` : undefined,
+      notes:     lastVisit ? t('mh.sub.lastVisitNote', { date: lastVisit }) : undefined,
     };
     const updated = [...(existing ?? []), newItem];
     startTransition(async () => {
@@ -1107,42 +1132,46 @@ function AddProviderDialog({
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
-            Agregar historial de proveedor
+            {t('mh.sub.addProviderTitle')}
           </DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Registrar la información del proveedor de salud y la fecha de su última visita.
+            {t('mh.sub.addProviderDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-4">
 
-          {/* Nombre del proveedor */}
+          {/* Provider name */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Nombre del proveedor</label>
+            <label className="text-sm text-text-2">{t('mh.sub.providerNameLabel')}</label>
             <SearchDropdown
               value={providerName}
-              placeholder="Selecciona una opción"
+              placeholder={t('mh.sub.selectOption')}
               options={doctorOptions}
               onSearch={q => searchDoctors(q).then(rows => setDoctorOptions(rows.map(r => ({ id: r.id, label: r.name }))))}
               onSelect={(id, label) => { setProviderId(id); setProviderName(label); }}
+              searchPlaceholder={t('mh.sub.search')}
+              emptyText={t('mh.sub.noResults')}
             />
           </div>
 
-          {/* Especialidad */}
+          {/* Specialty */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Especialidad</label>
+            <label className="text-sm text-text-2">{t('mh.sub.specialtyLabel')}</label>
             <SearchDropdown
               value={specialty}
-              placeholder="Selecciona una opción"
+              placeholder={t('mh.sub.selectOption')}
               options={specOptions}
               onSearch={q => searchSpecialties(q).then(rows => setSpecOptions(rows.map(r => ({ id: r.id, label: r.name }))))}
               onSelect={(_, label) => setSpecialty(label)}
+              searchPlaceholder={t('mh.sub.search')}
+              emptyText={t('mh.sub.noResults')}
             />
           </div>
 
-          {/* Fecha de última visita — mm/dd/yyyy */}
+          {/* Last visit date */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Fecha de última visita</label>
+            <label className="text-sm text-text-2">{t('mh.sub.lastVisitLabel')}</label>
             <input
               type="date"
               value={lastVisit}
@@ -1158,7 +1187,7 @@ function AddProviderDialog({
             disabled={isPending || !providerName}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -1177,6 +1206,7 @@ function VaccinesEditDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
 
@@ -1197,16 +1227,16 @@ function VaccinesEditDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
-          <DialogTitle className="text-base font-semibold text-text-1">Vacunas</DialogTitle>
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.vaccinesTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Agregar o actualizar los registros de vacunación del paciente. Incluir nombres de vacunas y refuerzos relevantes.
+            {t('mh.sub.vaccinesDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-3 max-h-[60vh] overflow-y-auto">
           {items.map((val, i) => (
             <div key={i} className="space-y-1">
-              <label className="text-xs text-text-muted">Vacuna {i + 1}</label>
+              <label className="text-xs text-text-muted">{t('mh.sub.vaccineN', { n: i + 1 })}</label>
               <div className="flex items-center gap-2">
                 <input
                   value={val}
@@ -1230,7 +1260,7 @@ function VaccinesEditDialog({
             onClick={addRow}
             className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
           >
-            <Plus className="w-4 h-4" /> Agregar vacuna
+            <Plus className="w-4 h-4" /> {t('mh.sub.addVaccine')}
           </button>
         </div>
 
@@ -1240,7 +1270,7 @@ function VaccinesEditDialog({
             disabled={isPending}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -1261,6 +1291,7 @@ function CognitiveEditDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [entries, setEntries] = useState<CognitiveEntry[]>(
     initial?.length ? [...initial] : [{ name: '', status: '' }]
@@ -1285,9 +1316,9 @@ function CognitiveEditDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
-          <DialogTitle className="text-base font-semibold text-text-1">Estado cognitivo</DialogTitle>
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.cognitiveTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Actualizar la información del estado cognitivo del paciente. Puede agregar, editar o eliminar entradas según sea necesario.
+            {t('mh.sub.cognitiveDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -1295,7 +1326,7 @@ function CognitiveEditDialog({
           {entries.map((entry, i) => (
             <div key={i} className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-text-1">Entrada {i + 1}</span>
+                <span className="text-sm font-semibold text-text-1">{t('mh.sub.entry', { n: i + 1 })}</span>
                 <button
                   type="button"
                   onClick={() => removeEntry(i)}
@@ -1306,20 +1337,20 @@ function CognitiveEditDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs text-text-muted">Nombre cognitivo</label>
+                  <label className="text-xs text-text-muted">{t('mh.sub.cognitiveNameLabel')}</label>
                   <input
                     value={entry.name}
                     onChange={e => update(i, 'name', e.target.value)}
-                    placeholder="ej., Memoria, Atención, Lenguaje"
+                    placeholder={t('mh.sub.cognitiveNamePlaceholder')}
                     className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-text-muted">Estado</label>
+                  <label className="text-xs text-text-muted">{t('mh.sub.status')}</label>
                   <input
                     value={entry.status}
                     onChange={e => update(i, 'status', e.target.value)}
-                    placeholder="ej., Normal, Deteriorado, Mejorando"
+                    placeholder={t('mh.sub.cognitiveStatusPlaceholder')}
                     className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                   />
                 </div>
@@ -1332,7 +1363,7 @@ function CognitiveEditDialog({
             onClick={addEntry}
             className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors"
           >
-            <Plus className="w-4 h-4" /> Agregar estado cognitivo
+            <Plus className="w-4 h-4" /> {t('mh.sub.addCognitiveEntry')}
           </button>
         </div>
 
@@ -1342,7 +1373,7 @@ function CognitiveEditDialog({
             disabled={isPending}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -1361,6 +1392,7 @@ function FunctionalEditDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [entries, setEntries] = useState(
     initial?.length ? [...initial] : [{ name: '', status: '' }]
@@ -1385,9 +1417,9 @@ function FunctionalEditDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
-          <DialogTitle className="text-base font-semibold text-text-1">Estado funcional</DialogTitle>
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.functionalTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Actualizar la información del estado funcional del paciente. Puede agregar, editar o eliminar entradas según sea necesario.
+            {t('mh.sub.functionalDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -1395,27 +1427,27 @@ function FunctionalEditDialog({
           {entries.map((entry, i) => (
             <div key={i} className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-text-1">Entrada {i + 1}</span>
+                <span className="text-sm font-semibold text-text-1">{t('mh.sub.entry', { n: i + 1 })}</span>
                 <button type="button" onClick={() => removeEntry(i)} className="p-1 rounded text-text-muted hover:text-rose transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs text-text-muted">Nombre funcional</label>
+                  <label className="text-xs text-text-muted">{t('mh.sub.functionalNameLabel')}</label>
                   <input
                     value={entry.name}
                     onChange={e => update(i, 'name', e.target.value)}
-                    placeholder="ej., Movilidad, Autocuidado"
+                    placeholder={t('mh.sub.functionalNamePlaceholder')}
                     className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-text-muted">Estado</label>
+                  <label className="text-xs text-text-muted">{t('mh.sub.status')}</label>
                   <input
                     value={entry.status}
                     onChange={e => update(i, 'status', e.target.value)}
-                    placeholder="ej., Independiente, Necesita asistencia"
+                    placeholder={t('mh.sub.functionalStatusPlaceholder')}
                     className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                   />
                 </div>
@@ -1424,13 +1456,13 @@ function FunctionalEditDialog({
           ))}
 
           <button type="button" onClick={addEntry} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
-            <Plus className="w-4 h-4" /> Agregar estado funcional
+            <Plus className="w-4 h-4" /> {t('mh.sub.addFunctionalEntry')}
           </button>
         </div>
 
         <div className="px-6 py-4 border-t border-border flex justify-end">
           <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -1449,6 +1481,7 @@ function DevicesEditDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
 
@@ -1469,21 +1502,21 @@ function DevicesEditDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
-          <DialogTitle className="text-base font-semibold text-text-1">Dispositivos implantados</DialogTitle>
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.devicesTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Actualizar la lista de dispositivos implantados para este paciente. Puede agregar o eliminar dispositivos según sea necesario.
+            {t('mh.sub.devicesDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-3 max-h-[60vh] overflow-y-auto">
           {items.map((val, i) => (
             <div key={i} className="space-y-1">
-              <label className="text-xs text-text-muted">Dispositivo {i + 1}</label>
+              <label className="text-xs text-text-muted">{t('mh.sub.deviceN', { n: i + 1 })}</label>
               <div className="flex items-center gap-2">
                 <input
                   value={val}
                   onChange={e => updateRow(i, e.target.value)}
-                  placeholder="Ingrese el dispositivo implantado"
+                  placeholder={t('mh.sub.devicePlaceholder')}
                   className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
                 <button type="button" onClick={() => removeRow(i)} className="p-1.5 rounded text-text-muted hover:text-rose transition-colors">
@@ -1494,13 +1527,13 @@ function DevicesEditDialog({
           ))}
 
           <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
-            <Plus className="w-4 h-4" /> Agregar dispositivo
+            <Plus className="w-4 h-4" /> {t('mh.sub.addDevice')}
           </button>
         </div>
 
         <div className="px-6 py-4 border-t border-border flex justify-end">
           <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -1519,6 +1552,7 @@ function SystemsReviewEditDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<string[]>(initial?.length ? [...initial] : ['']);
 
@@ -1539,21 +1573,21 @@ function SystemsReviewEditDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
-          <DialogTitle className="text-base font-semibold text-text-1">Revisión de sistemas</DialogTitle>
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.systemsTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Registrar cualquier síntoma o inquietud identificada durante la revisión sistemática de los sistemas del cuerpo.
+            {t('mh.sub.systemsDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-3 max-h-[60vh] overflow-y-auto">
           {items.map((val, i) => (
             <div key={i} className="space-y-1">
-              <label className="text-xs text-text-muted">Revisión de sistema {i + 1}</label>
+              <label className="text-xs text-text-muted">{t('mh.sub.systemReviewN', { n: i + 1 })}</label>
               <div className="flex items-center gap-2">
                 <input
                   value={val}
                   onChange={e => updateRow(i, e.target.value)}
-                  placeholder="ej., Cardiovascular - dolor en el pecho, Respiratorio - falta de aire"
+                  placeholder={t('mh.sub.systemReviewPlaceholder')}
                   className="flex-1 bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
                 <button type="button" onClick={() => removeRow(i)} className="p-1.5 rounded text-text-muted hover:text-rose transition-colors">
@@ -1564,13 +1598,13 @@ function SystemsReviewEditDialog({
           ))}
 
           <button type="button" onClick={addRow} className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm text-text-2 hover:border-brand hover:text-brand transition-colors">
-            <Plus className="w-4 h-4" /> Agregar revisión de sistema
+            <Plus className="w-4 h-4" /> {t('mh.sub.addSystemReview')}
           </button>
         </div>
 
         <div className="px-6 py-4 border-t border-border flex justify-end">
           <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -1589,6 +1623,7 @@ function HealthExamsEditDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [bloodTestDate,   setBloodTestDate]   = useState(initial?.bloodTestDate   ?? '');
   const [normalResults,   setNormalResults]   = useState(initial?.normalResults   ?? false);
@@ -1609,20 +1644,20 @@ function HealthExamsEditDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-lg w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
-          <DialogTitle className="text-base font-semibold text-text-1">Actualizar exámenes de salud</DialogTitle>
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.healthExamsTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Registrar las pruebas de detección de salud del paciente, incluyendo fechas, ubicaciones y resultados.
+            {t('mh.sub.healthExamsDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5">
           <div className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-4">
-            <p className="text-sm font-semibold text-text-1">Exámenes médicos generales</p>
+            <p className="text-sm font-semibold text-text-1">{t('mh.sub.generalExams')}</p>
 
             <div className="grid grid-cols-2 gap-3">
-              {/* Fecha de análisis de sangre */}
+              {/* Blood test date */}
               <div className="space-y-1.5">
-                <label className="text-xs text-text-muted">Fecha de análisis de sangre</label>
+                <label className="text-xs text-text-muted">{t('mh.sub.bloodTestDateLabel')}</label>
                 <input
                   type="date"
                   value={bloodTestDate}
@@ -1631,30 +1666,30 @@ function HealthExamsEditDialog({
                 />
               </div>
 
-              {/* Resultados normales toggle */}
+              {/* Normal results toggle */}
               <div className="flex items-end pb-1">
                 <ToggleRow
-                  label="Resultados normales"
+                  label={t('mh.sub.normalResults')}
                   checked={normalResults}
                   onChange={setNormalResults}
                 />
               </div>
 
-              {/* Año de colonoscopia */}
+              {/* Colonoscopy year */}
               <div className="space-y-1.5">
-                <label className="text-xs text-text-muted">Año de colonoscopia</label>
+                <label className="text-xs text-text-muted">{t('mh.sub.colonoscopyYearLabel')}</label>
                 <input
                   value={colonoscopyYear}
                   onChange={e => setColonoscopyYear(e.target.value)}
-                  placeholder="ej., 2026"
+                  placeholder={t('mh.sub.colonoscopyYearPlaceholder')}
                   className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                 />
               </div>
 
-              {/* Anormal toggle */}
+              {/* Abnormal toggle */}
               <div className="flex items-end pb-1">
                 <ToggleRow
-                  label="Anormal"
+                  label={t('mh.sub.abnormal')}
                   checked={abnormal}
                   onChange={setAbnormal}
                 />
@@ -1665,7 +1700,7 @@ function HealthExamsEditDialog({
 
         <div className="px-6 py-4 border-t border-border flex justify-end">
           <button onClick={handleSave} disabled={isPending} className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors">
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -1684,6 +1719,7 @@ function AddCommentDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [text, setText] = useState('');
 
@@ -1704,21 +1740,21 @@ function AddCommentDialog({
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
-          <DialogTitle className="text-base font-semibold text-text-1">Agregar comentario al historial</DialogTitle>
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.sub.addCommentTitle')}</DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Proporcione los detalles del nuevo comentario que se agregará al historial médico.
+            {t('mh.sub.addCommentDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5">
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Comentario</label>
+            <label className="text-sm text-text-2">{t('mh.sub.commentLabel')}</label>
             <textarea
               autoFocus
               rows={5}
               value={text}
               onChange={e => setText(e.target.value)}
-              placeholder="Escriba su comentario aquí"
+              placeholder={t('mh.sub.commentPlaceholder')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
@@ -1730,7 +1766,7 @@ function AddCommentDialog({
             disabled={isPending || !text.trim()}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Agregar comentario'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.addComment')}
           </button>
         </div>
       </DialogContent>
@@ -1739,14 +1775,6 @@ function AddCommentDialog({
 }
 
 // ── Add family history dialog ──────────────────────────────────────────────
-
-const FAMILY_MEMBERS = [
-  'Padre','Madre','Hijo','Hija','Hermano','Hermana',
-  'Abuelo materno','Abuela materna','Abuelo paterno','Abuela paterna',
-  'Tío','Tía','Sobrino','Sobrina','Primo(a)','Nieto','Nieta',
-  'Esposo(a)/Pareja','Padrastro/Madrastra','Medio hermano(a)',
-  'Padre/Madre adoptivo(a)','Otro',
-];
 
 function AddFamilyHistoryDialog({
   patientId, existing, open, onClose, onSaved,
@@ -1757,6 +1785,17 @@ function AddFamilyHistoryDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
+  const FAMILY_MEMBERS = [
+    t('mh.sub.family.father'), t('mh.sub.family.mother'), t('mh.sub.family.son'), t('mh.sub.family.daughter'),
+    t('mh.sub.family.brother'), t('mh.sub.family.sister'),
+    t('mh.sub.family.maternalGrandfather'), t('mh.sub.family.maternalGrandmother'),
+    t('mh.sub.family.paternalGrandfather'), t('mh.sub.family.paternalGrandmother'),
+    t('mh.sub.family.uncle'), t('mh.sub.family.aunt'), t('mh.sub.family.nephew'), t('mh.sub.family.niece'),
+    t('mh.sub.family.cousin'), t('mh.sub.family.grandson'), t('mh.sub.family.granddaughter'),
+    t('mh.sub.family.spousePartner'), t('mh.sub.family.stepParent'),
+    t('mh.sub.family.halfSibling'), t('mh.sub.family.adoptiveParent'), t('mh.sub.family.other'),
+  ];
   const [isPending, startTransition] = useTransition();
 
   const [memberQuery,   setMemberQuery]   = useState('');
@@ -1788,18 +1827,18 @@ function AddFamilyHistoryDialog({
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
-            Agregar historial familiar
+            {t('mh.sub.addFamilyHistoryTitle')}
           </DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Registrar la condición médica de un miembro de la familia para rastrear patrones de salud hereditarios.
+            {t('mh.sub.addFamilyHistoryDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-4">
 
-          {/* Miembro de la familia — filtro local */}
+          {/* Family member — local filter */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Miembro de la familia</label>
+            <label className="text-sm text-text-2">{t('mh.sub.familyMemberLabel')}</label>
             <div className="relative">
               <button
                 type="button"
@@ -1807,7 +1846,7 @@ function AddFamilyHistoryDialog({
                 className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
               >
                 <span className={relation ? 'text-text-1' : 'text-text-muted'}>
-                  {relation || 'Selecciona una opción'}
+                  {relation || t('mh.sub.selectOption')}
                 </span>
                 <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
               </button>
@@ -1820,7 +1859,7 @@ function AddFamilyHistoryDialog({
                         autoFocus
                         value={memberQuery}
                         onChange={e => setMemberQuery(e.target.value)}
-                        placeholder="Buscar..."
+                        placeholder={t('mh.sub.search')}
                         className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
                       />
                     </div>
@@ -1843,15 +1882,17 @@ function AddFamilyHistoryDialog({
             </div>
           </div>
 
-          {/* Condición — ICD search */}
+          {/* Condition — ICD search */}
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Condición</label>
+            <label className="text-sm text-text-2">{t('mh.sub.condition')}</label>
             <SearchDropdown
               value={condition}
-              placeholder="Selecciona una opción"
+              placeholder={t('mh.sub.selectOption')}
               options={diagOptions}
               onSearch={q => searchDiagnoses(q).then(rows => setDiagOptions(rows.map(r => ({ id: r.id, label: r.label }))))}
               onSelect={(_, label) => setCondition(label)}
+              searchPlaceholder={t('mh.sub.search')}
+              emptyText={t('mh.sub.noResults')}
             />
           </div>
         </div>
@@ -1862,7 +1903,7 @@ function AddFamilyHistoryDialog({
             disabled={isPending || !relation || !condition}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -1881,6 +1922,7 @@ function AddHistoryDialog({
   onClose:   () => void;
   onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [isPending, startTransition] = useTransition();
   const [query,     setQuery]        = useState('');
   const [results,   setResults]      = useState<DiagnosisOption[]>([]);
@@ -1927,16 +1969,16 @@ function AddHistoryDialog({
       <DialogContent className="max-w-md w-full p-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle className="text-base font-semibold text-text-1">
-            Agregar historial médico personal
+            {t('mh.sub.addProblemTitle')}
           </DialogTitle>
           <DialogDescription className="text-xs text-text-muted">
-            Agregar una nueva condición médica al historial del paciente
+            {t('mh.sub.addProblemDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Condición</label>
+            <label className="text-sm text-text-2">{t('mh.sub.condition')}</label>
             <div className="relative">
               <button
                 type="button"
@@ -1944,7 +1986,7 @@ function AddHistoryDialog({
                 className="w-full flex items-center justify-between bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-left focus:outline-none focus:border-brand"
               >
                 <span className={selected ? 'text-text-1' : 'text-text-muted'}>
-                  {selected ? selected.label : 'Seleccionar una condición'}
+                  {selected ? selected.label : t('mh.sub.selectCondition')}
                 </span>
                 <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
               </button>
@@ -1957,14 +1999,14 @@ function AddHistoryDialog({
                         autoFocus
                         value={query}
                         onChange={e => handleQuery(e.target.value)}
-                        placeholder="Buscar..."
+                        placeholder={t('mh.sub.search')}
                         className="flex-1 bg-transparent text-sm text-text-1 placeholder:text-text-muted focus:outline-none"
                       />
                     </div>
                   </div>
                   <div className="max-h-48 overflow-y-auto">
                     {results.length === 0
-                      ? <p className="px-3 py-3 text-xs text-text-muted text-center">Sin resultados</p>
+                      ? <p className="px-3 py-3 text-xs text-text-muted text-center">{t('mh.sub.noResults')}</p>
                       : results.map(opt => (
                           <button
                             key={opt.id}
@@ -1983,13 +2025,13 @@ function AddHistoryDialog({
           </div>
 
           <div className="rounded-md border border-border/60 bg-bg-2/40 p-4 space-y-3">
-            <p className="text-sm font-semibold text-text-1">Estado</p>
+            <p className="text-sm font-semibold text-text-1">{t('mh.sub.status')}</p>
             <div className="grid grid-cols-2 gap-3">
-              <ToggleRow label="Actual"   checked={isCurrent}  onChange={setIsCurrent} />
-              <ToggleRow label="Resuelto" checked={isResolved} onChange={setIsResolved} />
+              <ToggleRow label={t('mh.sub.current')}  checked={isCurrent}  onChange={setIsCurrent} />
+              <ToggleRow label={t('mh.sub.resolved')} checked={isResolved} onChange={setIsResolved} />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-text-muted">Diagnosticado el</label>
+              <label className="text-xs text-text-muted">{t('mh.sub.diagnosedAt')}</label>
               <input
                 type="date"
                 value={diagDate}
@@ -2000,12 +2042,12 @@ function AddHistoryDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm text-text-2">Comentarios</label>
+            <label className="text-sm text-text-2">{t('mh.sub.comments')}</label>
             <textarea
               rows={3}
               value={comments}
               onChange={e => setComments(e.target.value)}
-              placeholder="Notas o detalles adicionales"
+              placeholder={t('mh.sub.additionalNotes')}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-y"
             />
           </div>
@@ -2017,7 +2059,7 @@ function AddHistoryDialog({
             disabled={isPending || !selected}
             className="px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-60 transition-colors"
           >
-            {isPending ? 'Guardando…' : 'Guardar cambios'}
+            {isPending ? t('mh.sub.saving') : t('mh.sub.saveChanges')}
           </button>
         </div>
       </DialogContent>
@@ -2030,6 +2072,7 @@ function AddHistoryDialog({
 export interface MedicalHistoryContentProps { patient: PatientRow }
 
 export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
+  const t = useTranslations('phoenix.patients');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editVisitInfo,  setEditVisitInfo]  = useState(false);
   const [editHealthInfo, setEditHealthInfo] = useState(false);
@@ -2056,15 +2099,16 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
 
   // Sidebar section label maps
   const SEX_LABEL: Record<string, string> = {
-    MALE: 'Masculino', FEMALE: 'Femenino', NON_BINARY: 'No binario',
-    OTHER: 'Otro', PREFER_NOT_TO_SAY: 'Prefiero no decir',
+    MALE: t('mh.sexLabels.MALE'), FEMALE: t('mh.sexLabels.FEMALE'), NON_BINARY: t('mh.sexLabels.NON_BINARY'),
+    OTHER: t('mh.sexLabels.OTHER'), PREFER_NOT_TO_SAY: t('mh.sexLabels.PREFER_NOT_TO_SAY'),
   };
   const MARITAL_LABEL: Record<string, string> = {
-    SINGLE: 'Soltero/a', MARRIED: 'Casado/a', DIVORCED: 'Divorciado/a',
-    WIDOWED: 'Viudo/a', SEPARATED: 'Separado/a', OTHER: 'Otro',
+    SINGLE: t('mh.maritalLabels.SINGLE'), MARRIED: t('mh.maritalLabels.MARRIED'), DIVORCED: t('mh.maritalLabels.DIVORCED'),
+    WIDOWED: t('mh.maritalLabels.WIDOWED'), SEPARATED: t('mh.maritalLabels.SEPARATED'), OTHER: t('mh.maritalLabels.OTHER'),
   };
   const LANG_LABEL: Record<string, string> = {
-    es: 'Español', en: 'Inglés', fr: 'Francés', it: 'Italiano', pt: 'Portugués', other: 'Otro',
+    es: t('mh.langLabels.es'), en: t('mh.langLabels.en'), fr: t('mh.langLabels.fr'),
+    it: t('mh.langLabels.it'), pt: t('mh.langLabels.pt'), other: t('mh.langLabels.other'),
   };
 
   return (
@@ -2079,7 +2123,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             className="md:hidden absolute top-2 right-2 z-20 flex items-center gap-1.5 h-7 px-2.5 rounded border border-border bg-bg-1 text-text-2 text-[11px] hover:bg-bg-2 transition-colors"
           >
             <User className="w-3 h-3" />
-            {sidebarOpen ? 'Cerrar' : 'Ver datos'}
+            {sidebarOpen ? t('mh.closePanel') : t('mh.openPanel')}
           </button>
 
           {/* Mobile overlay backdrop */}
@@ -2113,133 +2157,133 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             </div>
 
             {/* Personal info */}
-            <SideSection icon={<User className="w-3.5 h-3.5" />} title="Información personal">
+            <SideSection icon={<User className="w-3.5 h-3.5" />} title={t('mh.personalInfo')}>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] text-text-muted">Fecha de nacimiento:</span>
+                <span className="text-[11px] text-text-muted">{t('mh.dob')}:</span>
                 <span className="text-[11px] text-text-1">{dobStr}</span>
                 {age !== null && (
                   <span className="bg-emerald/20 text-emerald text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                    {age} años
+                    {age} {t('mh.years')}
                   </span>
                 )}
               </div>
-              <SideRow label="Sexo"        value={patient.sex ? (SEX_LABEL[patient.sex] ?? patient.sex) : null} />
-              <SideRow label="Estado civil" value={patient.maritalStatus ? (MARITAL_LABEL[patient.maritalStatus] ?? patient.maritalStatus) : null} />
-              <SideRow label="Idioma"      value={patient.preferredLanguage ? (LANG_LABEL[patient.preferredLanguage] ?? patient.preferredLanguage) : null} />
+              <SideRow na={t('mh.na')} label={t('mh.sex')}          value={patient.sex ? (SEX_LABEL[patient.sex] ?? patient.sex) : null} />
+              <SideRow na={t('mh.na')} label={t('mh.maritalStatus')} value={patient.maritalStatus ? (MARITAL_LABEL[patient.maritalStatus] ?? patient.maritalStatus) : null} />
+              <SideRow na={t('mh.na')} label={t('mh.language')}     value={patient.preferredLanguage ? (LANG_LABEL[patient.preferredLanguage] ?? patient.preferredLanguage) : null} />
             </SideSection>
 
             {/* Contact */}
-            <SideSection icon={<Phone className="w-3.5 h-3.5" />} title="Información de contacto">
-              <SideRow label="Teléfono"          value={patient.phone} />
-              <SideRow label="Celular"           value={patient.phone2} />
-              <SideRow label="Correo electrónico" value={patient.email} />
+            <SideSection icon={<Phone className="w-3.5 h-3.5" />} title={t('mh.contactInfo')}>
+              <SideRow na={t('mh.na')} label={t('mh.phone')}    value={patient.phone} />
+              <SideRow na={t('mh.na')} label={t('mh.cellPhone')} value={patient.phone2} />
+              <SideRow na={t('mh.na')} label={t('mh.email')}    value={patient.email} />
             </SideSection>
 
             {/* Emergency + additional */}
-            <SideSection icon={<AlertTriangle className="w-3.5 h-3.5" />} title="Emergencia y adicional">
-              <SideRow label="Emergencia"  value={patient.emergencyContactName} />
-              <SideRow label="Referido por" value={patient.referralSource} />
-              <SideRow label="Farmacia"    value={patient.preferredPharmacy} />
-              <SideRow label="Empleador"   value={patient.employer} />
-              <SideRow label="Proveedor"   value={mh.providers?.[0]?.name ?? null} />
+            <SideSection icon={<AlertTriangle className="w-3.5 h-3.5" />} title={t('mh.emergencyAdditional')}>
+              <SideRow na={t('mh.na')} label={t('mh.emergency')}  value={patient.emergencyContactName} />
+              <SideRow na={t('mh.na')} label={t('mh.referredBy')} value={patient.referralSource} />
+              <SideRow na={t('mh.na')} label={t('mh.pharmacy')}   value={patient.preferredPharmacy} />
+              <SideRow na={t('mh.na')} label={t('mh.employer')}   value={patient.employer} />
+              <SideRow na={t('mh.na')} label={t('mh.provider')}   value={mh.providers?.[0]?.name ?? null} />
             </SideSection>
 
             {/* Insurance */}
-            <SideSection icon={<Shield className="w-3.5 h-3.5" />} title="Detalles del seguro" defaultOpen={false}>
+            <SideSection icon={<Shield className="w-3.5 h-3.5" />} title={t('mh.insuranceDetails')} defaultOpen={false}>
               {insurances && insurances.length > 0 ? (
                 insurances.map((ins, i) => (
                   <div key={i} className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2 space-y-0.5 mb-2 last:mb-0">
                     <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
-                      {ins.insType === 'MEDICAL' ? 'Seguro médico' : 'Seguro de auto'}
+                      {ins.insType === 'MEDICAL' ? t('mh.medicalInsurance') : t('mh.autoInsurance')}
                     </p>
-                    <p className="text-[11px] text-text-1 font-medium">{ins.carrier || 'Sin nombre'}</p>
-                    {ins.policyId && <p className="text-[10px] text-text-muted">Póliza: {ins.policyId}</p>}
+                    <p className="text-[11px] text-text-1 font-medium">{ins.carrier || t('mh.noName')}</p>
+                    {ins.policyId && <p className="text-[10px] text-text-muted">{t('mh.policy')} {ins.policyId}</p>}
                   </div>
                 ))
               ) : (
                 <>
-                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">Seguro principal</p>
-                  <EmptyState text="No hay seguro principal registrado" />
-                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mt-2 mb-1">Seguro secundario</p>
-                  <EmptyState text="No hay seguro secundario registrado" />
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.primaryInsurance')}</p>
+                  <EmptyState text={t('mh.noPrimaryInsurance')} />
+                  <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mt-2 mb-1">{t('mh.secondaryInsurance')}</p>
+                  <EmptyState text={t('mh.noSecondaryInsurance')} />
                 </>
               )}
             </SideSection>
 
             {/* Allergies */}
-            <SideSection icon={<AlertTriangle className="w-3.5 h-3.5" />} title="Alergias" editBtn defaultOpen={false}>
-              <EmptyState text={mh.allergies ?? 'No se conocen alergias a medicamentos'} />
+            <SideSection icon={<AlertTriangle className="w-3.5 h-3.5" />} title={t('mh.allergies')} editBtn defaultOpen={false}>
+              <EmptyState text={mh.allergies ?? t('mh.noAllergies')} />
             </SideSection>
 
             {/* Problems list (sidebar) */}
-            <SideSection icon={<Heart className="w-3.5 h-3.5" />} title="Lista de problemas" defaultOpen={false}>
+            <SideSection icon={<Heart className="w-3.5 h-3.5" />} title={t('mh.problemList')} defaultOpen={false}>
               {(mh.problems?.length ?? 0) > 0
                 ? mh.problems!.map(p => (
                     <div key={p.id} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{p.condition}</div>
                   ))
-                : <EmptyState text="No hay problemas activos" />}
+                : <EmptyState text={t('mh.noProblems')} />}
             </SideSection>
 
             {/* Active medications */}
-            <SideSection icon={<Pill className="w-3.5 h-3.5" />} title="Medicamentos activos" defaultOpen={false}>
+            <SideSection icon={<Pill className="w-3.5 h-3.5" />} title={t('mh.activeMedications')} defaultOpen={false}>
               {(mh.medications?.length ?? 0) > 0
                 ? mh.medications!.map(m => (
                     <div key={m.id} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{m.name}</div>
                   ))
-                : <EmptyState text="No hay medicamentos activos" />}
+                : <EmptyState text={t('mh.noMedications')} />}
             </SideSection>
 
             {/* Surgeries */}
-            <SideSection icon={<Scissors className="w-3.5 h-3.5" />} title="Cirugías y procedimientos" defaultOpen={false}>
+            <SideSection icon={<Scissors className="w-3.5 h-3.5" />} title={t('mh.surgeriesProcedures')} defaultOpen={false}>
               {(mh.surgeries?.length ?? 0) > 0
                 ? mh.surgeries!.map(s => (
                     <div key={s.id} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{s.procedure}</div>
                   ))
-                : <EmptyState text="No hay procedimientos quirúrgicos" />}
+                : <EmptyState text={t('mh.noSurgeries')} />}
             </SideSection>
 
             {/* Family history */}
-            <SideSection icon={<Users className="w-3.5 h-3.5" />} title="Antecedentes familiares" defaultOpen={false}>
+            <SideSection icon={<Users className="w-3.5 h-3.5" />} title={t('mh.familyHistory')} defaultOpen={false}>
               {(mh.familyHistory?.length ?? 0) > 0
                 ? mh.familyHistory!.map(f => (
                     <div key={f.id} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{f.relation}: {f.condition}</div>
                   ))
-                : <EmptyState text="No hay antecedentes familiares" />}
+                : <EmptyState text={t('mh.noFamilyHistory')} />}
             </SideSection>
 
             {/* Social history */}
-            <SideSection icon={<MessageSquare className="w-3.5 h-3.5" />} title="Historia social" editBtn defaultOpen={false}>
+            <SideSection icon={<MessageSquare className="w-3.5 h-3.5" />} title={t('mh.socialHistory')} editBtn defaultOpen={false}>
               <div className="space-y-2">
                 <div className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2">
-                  <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">Trabajo y familia</p>
-                  <SideRow label="Trabajo" value={mh.socialHistory?.work} />
-                  <SideRow label="Hijos"   value={mh.socialHistory?.children} />
+                  <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.workAndFamily')}</p>
+                  <SideRow na={t('mh.na')} label={t('mh.work')}     value={mh.socialHistory?.work} />
+                  <SideRow na={t('mh.na')} label={t('mh.children')} value={mh.socialHistory?.children} />
                 </div>
                 <div className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Cigarette className="w-3 h-3 text-text-muted" />
-                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">Uso de tabaco</p>
+                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.tobaccoUse')}</p>
                   </div>
-                  <SideRow label="Estado" value={mh.socialHistory?.tobacco} />
+                  <SideRow na={t('mh.na')} label={t('mh.status')} value={mh.socialHistory?.tobacco} />
                 </div>
                 <div className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Wine className="w-3 h-3 text-text-muted" />
-                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">Uso de alcohol</p>
+                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.alcoholUse')}</p>
                   </div>
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-text-muted">Estado:</span>
+                    <span className="text-text-muted">{t('mh.status')}:</span>
                     {mh.socialHistory?.alcohol
                       ? <TagPill label={mh.socialHistory.alcohol} colorClass="bg-amber/10 text-amber border-amber/20" />
-                      : <span className="text-text-muted">N/D</span>}
+                      : <span className="text-text-muted">{t('mh.na')}</span>}
                   </div>
                 </div>
                 <div className="rounded-md border border-border/60 bg-bg-2/40 px-2.5 py-2">
                   <div className="flex items-center gap-1.5 mb-1">
                     <FlaskConical className="w-3 h-3 text-text-muted" />
-                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">Uso de drogas</p>
+                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('mh.drugUse')}</p>
                   </div>
-                  <SideRow label="Estado" value={mh.socialHistory?.drugs} />
+                  <SideRow na={t('mh.na')} label={t('mh.status')} value={mh.socialHistory?.drugs} />
                 </div>
               </div>
             </SideSection>
@@ -2252,121 +2296,127 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             {/* Row 1: Visit info + Health info */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-              {/* Información de la visita */}
+              {/* Visit info */}
               <SectionCard
                 icon={<User className="w-4 h-4" />}
-                title="Información de la visita"
+                title={t('mh.visitInfo')}
                 editBtn
                 onEdit={() => setEditVisitInfo(true)}
               >
                 <div className="space-y-2 text-[12.5px]">
                   <div className="flex justify-between">
-                    <span className="text-text-muted">Referido por:</span>
-                    <span className="text-text-1">{mh.visitInfo?.referredBy || 'N/D'}</span>
+                    <span className="text-text-muted">{t('mh.referredByLabel')}</span>
+                    <span className="text-text-1">{mh.visitInfo?.referredBy || t('mh.na')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-text-muted">Razón principal:</span>
-                    <span className="text-text-1">{mh.visitInfo?.mainReason || 'N/D'}</span>
+                    <span className="text-text-muted">{t('mh.mainReason')}</span>
+                    <span className="text-text-1">{mh.visitInfo?.mainReason || t('mh.na')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-text-muted">Otras inquietudes:</span>
-                    <span className="text-text-1">{mh.visitInfo?.otherConcerns || 'N/D'}</span>
+                    <span className="text-text-muted">{t('mh.otherConcerns')}</span>
+                    <span className="text-text-1">{mh.visitInfo?.otherConcerns || t('mh.na')}</span>
                   </div>
                 </div>
               </SectionCard>
 
-              {/* Información de salud */}
+              {/* Health info */}
               <SectionCard
                 icon={<Activity className="w-4 h-4" />}
-                title="Información de salud"
+                title={t('mh.healthInfo')}
                 editBtn
                 onEdit={() => setEditHealthInfo(true)}
               >
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-md border border-border/60 bg-bg-2/40 p-3">
-                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">Metas de salud</p>
-                    <p className="text-[11px] text-text-2">{mh.healthInfo?.goals || 'No hay metas establecidas'}</p>
+                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.healthGoals')}</p>
+                    <p className="text-[11px] text-text-2">{mh.healthInfo?.goals || t('mh.noGoals')}</p>
                   </div>
                   <div className="rounded-md border border-border/60 bg-bg-2/40 p-3">
-                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">Autoevaluación</p>
+                    <p className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('mh.selfRating')}</p>
                     <p className="text-[11px] text-text-2">
-                      {mh.healthInfo?.selfRating != null ? `${mh.healthInfo.selfRating}/5` : 'Sin calificación'}
+                      {mh.healthInfo?.selfRating != null ? `${mh.healthInfo.selfRating}/5` : t('mh.notRated')}
                     </p>
                   </div>
                 </div>
               </SectionCard>
             </div>
 
-            {/* Lista de problemas */}
+            {/* Problem list */}
             <SectionCard
               icon={<Heart className="w-4 h-4" />}
-              title="Lista de problemas"
+              title={t('mh.problemList')}
               count={mh.problems?.length ?? 0}
               onAdd={() => setAddProblem(true)}
+              addLabel={t('mh.add')}
             >
               <TableShell
-                headers={['Condición', 'Diagnosticado el', 'Estado', 'Comentarios', 'Acciones']}
+                headers={[t('mh.condition'), t('mh.diagnosedOn'), t('mh.status'), t('mh.comments'), t('mh.actions')]}
+                totalLabel={t('mh.totalRecords')}
                 rows={(mh.problems ?? []).map(p => [
                   p.condition,
                   p.diagnosedAt ?? '—',
                   p.status ? <TagPill label={p.status} colorClass="bg-cyan/10 text-cyan border-cyan/20" /> : '—',
                   p.comments ?? '—',
-                  <button key="del" className="text-text-muted hover:text-rose transition-colors text-[10px]">Eliminar</button>,
+                  <button key="del" className="text-text-muted hover:text-rose transition-colors text-[10px]">{t('mh.delete')}</button>,
                 ])}
-                emptyText="No hay datos para mostrar."
+                emptyText={t('mh.noData')}
               />
             </SectionCard>
 
-            {/* Historial médico */}
+            {/* Medical history */}
             <SectionCard
               icon={<ClipboardList className="w-4 h-4" />}
-              title="Historial médico"
+              title={t('mh.medicalHistory')}
               count={mh.history?.length ?? 0}
               onAdd={() => setAddHistory(true)}
+              addLabel={t('mh.add')}
             >
               <TableShell
-                headers={['Condición', 'Acciones']}
+                headers={[t('mh.condition'), t('mh.actions')]}
+                totalLabel={t('mh.totalRecords')}
                 rows={(mh.history ?? []).map(h => [
                   h.condition,
-                  <button key="del" className="text-text-muted hover:text-rose transition-colors text-[10px]">Eliminar</button>,
+                  <button key="del" className="text-text-muted hover:text-rose transition-colors text-[10px]">{t('mh.delete')}</button>,
                 ])}
-                emptyText="No hay datos para mostrar."
+                emptyText={t('mh.noData')}
               />
             </SectionCard>
 
-            {/* Medicamentos */}
+            {/* Medications */}
             <SectionCard
               icon={<Pill className="w-4 h-4" />}
-              title="Medicamentos"
+              title={t('mh.medications')}
               count={mh.medications?.length ?? 0}
               onAdd={() => setAddMedication(true)}
+              addLabel={t('mh.add')}
             >
               <TableShell
-                headers={['Medicamento', 'Dosis', 'Indicaciones', 'Prescrito por', 'Acciones']}
+                headers={[t('mh.medName'), t('mh.medDose'), t('mh.medInstructions'), t('mh.medPrescribedBy'), t('mh.actions')]}
+                totalLabel={t('mh.totalRecords')}
                 rows={(mh.medications ?? []).map(m => [
                   m.name,
                   m.dose ?? '—',
                   m.instructions ?? '—',
                   m.prescribedBy ?? '—',
-                  <button key="del" className="text-text-muted hover:text-rose transition-colors text-[10px]">Eliminar</button>,
+                  <button key="del" className="text-text-muted hover:text-rose transition-colors text-[10px]">{t('mh.delete')}</button>,
                 ])}
-                emptyText="No hay datos para mostrar."
+                emptyText={t('mh.noData')}
               />
             </SectionCard>
 
-            {/* Row: Cirugías + Historial familiar */}
+            {/* Row: Surgeries + Family history */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard icon={<Scissors className="w-4 h-4" />} title="Cirugías y procedimientos" count={mh.surgeries?.length ?? 0} onAdd={() => setAddSurgery(true)}>
+              <SectionCard icon={<Scissors className="w-4 h-4" />} title={t('mh.surgeriesProcedures')} count={mh.surgeries?.length ?? 0} onAdd={() => setAddSurgery(true)} addLabel={t('mh.add')}>
                 {(mh.surgeries?.length ?? 0) === 0
-                  ? <EmptyState text="No hay procedimientos quirúrgicos registrados" />
+                  ? <EmptyState text={t('mh.noSurgeries')} />
                   : mh.surgeries!.map(s => (
                       <div key={s.id} className="text-[11px] text-text-2 border-b border-border/40 py-1.5 last:border-0">{s.procedure}</div>
                     ))}
               </SectionCard>
 
-              <SectionCard icon={<Users className="w-4 h-4" />} title="Historial familiar" count={mh.familyHistory?.length ?? 0} onAdd={() => setAddFamilyHistory(true)}>
+              <SectionCard icon={<Users className="w-4 h-4" />} title={t('mh.familyHistory')} count={mh.familyHistory?.length ?? 0} onAdd={() => setAddFamilyHistory(true)} addLabel={t('mh.add')}>
                 {(mh.familyHistory?.length ?? 0) === 0
-                  ? <EmptyState text="No hay historial familiar registrado" />
+                  ? <EmptyState text={t('mh.noFamilyHistory')} />
                   : mh.familyHistory!.map(f => (
                       <div key={f.id} className="text-[11px] text-text-2 border-b border-border/40 py-1.5 last:border-0">
                         <span className="text-text-muted">{f.relation}:</span> {f.condition}
@@ -2375,19 +2425,19 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
               </SectionCard>
             </div>
 
-            {/* Row: Historial de proveedores + Vacunas */}
+            {/* Row: Provider history + Vaccines */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard icon={<Briefcase className="w-4 h-4" />} title="Historial de proveedores" count={mh.providers?.length ?? 0} onAdd={() => setAddProvider(true)}>
+              <SectionCard icon={<Briefcase className="w-4 h-4" />} title={t('mh.providerHistory')} count={mh.providers?.length ?? 0} onAdd={() => setAddProvider(true)} addLabel={t('mh.add')}>
                 {(mh.providers?.length ?? 0) === 0
-                  ? <EmptyState text="No hay historial de proveedores registrado" />
+                  ? <EmptyState text={t('mh.noProviders')} />
                   : mh.providers!.map(p => (
                       <div key={p.id} className="text-[11px] text-text-2 border-b border-border/40 py-1.5 last:border-0">{p.name}</div>
                     ))}
               </SectionCard>
 
-              <SectionCard icon={<Shield className="w-4 h-4" />} title="Vacunas" editBtn onEdit={() => setEditVaccines(true)}>
+              <SectionCard icon={<Shield className="w-4 h-4" />} title={t('mh.vaccines')} editBtn onEdit={() => setEditVaccines(true)}>
                 {(mh.vaccines?.length ?? 0) === 0
-                  ? <EmptyState text="No hay vacunas registradas" />
+                  ? <EmptyState text={t('mh.noVaccines')} />
                   : <div className="space-y-1">
                       {mh.vaccines!.map((v, i) => (
                         <div key={i} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{v}</div>
@@ -2397,11 +2447,11 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
               </SectionCard>
             </div>
 
-            {/* Row: Estado cognitivo + Estado funcional */}
+            {/* Row: Cognitive status + Functional status */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard icon={<Brain className="w-4 h-4" />} title="Estado cognitivo" editBtn onEdit={() => setEditCognitive(true)}>
+              <SectionCard icon={<Brain className="w-4 h-4" />} title={t('mh.cognitiveStatus')} editBtn onEdit={() => setEditCognitive(true)}>
                 {(mh.cognitiveStatus?.length ?? 0) === 0
-                  ? <EmptyState text="No hay información de estado cognitivo disponible" />
+                  ? <EmptyState text={t('mh.noCognitive')} />
                   : <div className="space-y-1">
                       {mh.cognitiveStatus!.map((e, i) => (
                         <div key={i} className="flex justify-between text-[11px] border-b border-border/40 py-1 last:border-0">
@@ -2413,9 +2463,9 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 }
               </SectionCard>
 
-              <SectionCard icon={<Activity className="w-4 h-4" />} title="Estado funcional" editBtn onEdit={() => setEditFunctional(true)}>
+              <SectionCard icon={<Activity className="w-4 h-4" />} title={t('mh.functionalStatus')} editBtn onEdit={() => setEditFunctional(true)}>
                 {(mh.functionalStatus?.length ?? 0) === 0
-                  ? <EmptyState text="No hay información de estado funcional disponible" />
+                  ? <EmptyState text={t('mh.noFunctional')} />
                   : <div className="space-y-1">
                       {mh.functionalStatus!.map((e, i) => (
                         <div key={i} className="flex justify-between text-[11px] border-b border-border/40 py-1 last:border-0">
@@ -2428,11 +2478,11 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
               </SectionCard>
             </div>
 
-            {/* Row: Dispositivos implantados + Revisión de sistemas */}
+            {/* Row: Implanted devices + Systems review */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard icon={<Stethoscope className="w-4 h-4" />} title="Dispositivos implantados" editBtn onEdit={() => setEditDevices(true)}>
+              <SectionCard icon={<Stethoscope className="w-4 h-4" />} title={t('mh.implantedDevices')} editBtn onEdit={() => setEditDevices(true)}>
                 {(mh.implantedDevices?.length ?? 0) === 0
-                  ? <EmptyState text="No hay dispositivos implantados registrados" />
+                  ? <EmptyState text={t('mh.noDevices')} />
                   : <div className="space-y-1">
                       {mh.implantedDevices!.map((d, i) => (
                         <div key={i} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{d}</div>
@@ -2441,9 +2491,9 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
                 }
               </SectionCard>
 
-              <SectionCard icon={<ClipboardList className="w-4 h-4" />} title="Revisión de sistemas" editBtn onEdit={() => setEditSystems(true)}>
+              <SectionCard icon={<ClipboardList className="w-4 h-4" />} title={t('mh.systemsReview')} editBtn onEdit={() => setEditSystems(true)}>
                 {(mh.systemsReview?.length ?? 0) === 0
-                  ? <EmptyState text="No hay revisiones de sistemas registradas" />
+                  ? <EmptyState text={t('mh.noSystems')} />
                   : <div className="space-y-1">
                       {mh.systemsReview!.map((s, i) => (
                         <div key={i} className="text-[11px] text-text-2 border-b border-border/40 py-1 last:border-0">{s}</div>
@@ -2453,32 +2503,33 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
               </SectionCard>
             </div>
 
-            {/* Row: Exámenes de salud + Historial de comentarios */}
+            {/* Row: Health exams + Comments history */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard icon={<Activity className="w-4 h-4" />} title="Exámenes de salud" editBtn onEdit={() => setEditExams(true)}>
+              <SectionCard icon={<Activity className="w-4 h-4" />} title={t('mh.healthExams')} editBtn onEdit={() => setEditExams(true)}>
                 {!mh.healthExams
-                  ? <EmptyState text="No hay exámenes de salud registrados" />
+                  ? <EmptyState text={t('mh.noHealthExams')} />
                   : <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      {mh.healthExams.bloodTestDate && <div className="flex justify-between col-span-2"><span className="text-text-muted">Análisis de sangre:</span><span className="text-text-2">{mh.healthExams.bloodTestDate}</span></div>}
-                      {mh.healthExams.colonoscopyYear && <div className="flex justify-between col-span-2"><span className="text-text-muted">Colonoscopia:</span><span className="text-text-2">{mh.healthExams.colonoscopyYear}</span></div>}
-                      {mh.healthExams.normalResults && <div className="col-span-2 text-emerald">✓ Resultados normales</div>}
-                      {mh.healthExams.abnormal && <div className="col-span-2 text-amber">⚠ Anormal</div>}
+                      {mh.healthExams.bloodTestDate && <div className="flex justify-between col-span-2"><span className="text-text-muted">{t('mh.bloodTest')}</span><span className="text-text-2">{mh.healthExams.bloodTestDate}</span></div>}
+                      {mh.healthExams.colonoscopyYear && <div className="flex justify-between col-span-2"><span className="text-text-muted">{t('mh.colonoscopy')}</span><span className="text-text-2">{mh.healthExams.colonoscopyYear}</span></div>}
+                      {mh.healthExams.normalResults && <div className="col-span-2 text-emerald">&#x2713; {t('mh.normalResults')}</div>}
+                      {mh.healthExams.abnormal && <div className="col-span-2 text-amber">&#x26A0; {t('mh.abnormal')}</div>}
                     </div>
                 }
               </SectionCard>
 
               <SectionCard
                 icon={<MessageSquare className="w-4 h-4" />}
-                title="Historial de comentarios"
+                title={t('mh.commentsHistory')}
                 count={mh.comments?.length ?? 0}
                 onAdd={() => setAddComment(true)}
+                addLabel={t('mh.add')}
               >
                 {(mh.comments?.length ?? 0) === 0
-                  ? <EmptyState text="No hay comentarios disponibles." />
+                  ? <EmptyState text={t('mh.noComments')} />
                   : mh.comments!.map(c => (
                       <div key={c.id} className="border-b border-border/40 py-2 last:border-0">
                         <div className="flex justify-between text-[10px] text-text-muted mb-0.5">
-                          <span>{c.author ?? 'Sistema'}</span>
+                          <span>{c.author ?? t('mh.system')}</span>
                           <span>{c.date}</span>
                         </div>
                         <p className="text-[11px] text-text-2">{c.text}</p>
@@ -2633,6 +2684,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
 // ── Main dialog (thin wrapper around MedicalHistoryContent) ─────────────────
 
 export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
+  const t = useTranslations('phoenix.patients');
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent className="max-w-[96vw] w-full max-h-[96vh] p-0 overflow-hidden flex flex-col">
@@ -2643,7 +2695,7 @@ export function MedicalHistoryDialog({ patient, open, onClose }: Props) {
                 {patient.firstName} {patient.lastName}
               </DialogTitle>
               <DialogDescription className="text-text-muted text-xs">
-                Historial médico · {patient.patientCode ?? ''}
+                {t('mh.historyTitle', { code: patient.patientCode ?? '' })}
               </DialogDescription>
             </div>
           </div>

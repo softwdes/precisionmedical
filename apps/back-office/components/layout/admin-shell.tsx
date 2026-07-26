@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
 import { FloatingAI } from './floating-ai';
@@ -33,6 +33,15 @@ export function AdminShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
+  useEffect(() => {
+    if (localStorage.getItem('pm_sidebar_collapsed') === 'true') setCollapsed(true);
+  }, []);
+
+  function handleCollapsedChange(c: boolean) {
+    setCollapsed(c);
+    localStorage.setItem('pm_sidebar_collapsed', String(c));
+  }
+
   return (
     <BootAnimation>
       <NavigationProgressProvider>
@@ -41,7 +50,7 @@ export function AdminShell({
             mobileOpen={mobileOpen}
             onMobileClose={() => setMobileOpen(false)}
             collapsed={collapsed}
-            onCollapsedChange={setCollapsed}
+            onCollapsedChange={handleCollapsedChange}
           />
 
           {/* Backdrop mobile */}

@@ -189,7 +189,7 @@ const CASE_STATUS_LABEL: Record<string, string> = {
   SETTLED: 'Liquidado', ARCHIVED: 'Archivado', CANCELLED: 'Cancelado',
 };
 const CASE_STATUS_COLOR: Record<string, string> = {
-  NEW_REFERRAL:     'bg-brand/10 text-brand border-brand/20',
+  NEW_REFERRAL:     'bg-brand/10 text-[#4338CA] dark:text-[#818CF8] border-brand/20',
   INTAKE_PENDING:   'bg-amber/10 text-amber border-amber/20',
   INTAKE_COMPLETED: 'bg-cyan/10 text-cyan border-cyan/20',
   CONFIRMED:        'bg-cyan/10 text-cyan border-cyan/20',
@@ -621,6 +621,7 @@ function fmtApptDate(iso: string): string {
 function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
   caseId: string; caseCode: string; open: boolean; onClose: () => void;
 }) {
+  const t = useTranslations('phoenix.patients');
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [loading, setLoading]           = useState(false);
   const router = useRouter();
@@ -641,10 +642,10 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
           <DialogTitle className="text-text-1 flex items-center gap-2">
             <CalendarDays className="w-4 h-4 text-brand" />
-            Scheduled Appointments
+            {t('apptDialogTitle')}
           </DialogTitle>
           <DialogDescription className="text-text-muted text-xs">
-            Review the details of all scheduled appointments for this case.
+            {t('apptDialogDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -658,7 +659,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
           {!loading && appointments.length === 0 && (
             <div className="text-center py-12 text-text-muted">
               <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-20" />
-              <p className="text-sm">No appointments found</p>
+              <p className="text-sm">{t('apptNoResults')}</p>
             </div>
           )}
 
@@ -667,7 +668,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
               <table className="w-full text-sm">
                 <thead className="bg-bg-2 border-b border-border">
                   <tr>
-                    {['Date','Start time','End time','Status','Patient signed','Check-in','Check-out','Doctor','Specialty','Actions'].map(h => (
+                    {[t('apptColDate'),t('apptColStart'),t('apptColEnd'),t('apptColStatus'),t('apptColSigned'),t('apptColCheckin'),t('apptColCheckout'),t('apptColDoctor'),t('apptColSpecialty'),t('apptColActions')].map(h => (
                       <th key={h} className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -758,7 +759,7 @@ function CaseAppointmentsDialog({ caseId, caseCode, open, onClose }: {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  NEW:        'bg-brand/15 text-brand border-brand/30',
+  NEW:        'bg-brand/15 text-[#4338CA] dark:text-[#818CF8] border-brand/30',
   ACTIVE:     'bg-emerald/15 text-emerald border-emerald/30',
   COMPLETED:  'bg-cyan/15 text-cyan border-cyan/30',
   DISCHARGED: 'bg-amber/15 text-amber border-amber/30',
@@ -872,9 +873,39 @@ function NuevoSeguroDialog({ onClose, onSave }: {
   const t = useTranslations('phoenix.patients');
   const [tab, setTab] = useState<'MEDICAL' | 'AUTO'>('MEDICAL');
   const [entry, setEntry] = useState<InsuranceEntry>(() => emptyInsEntry('MEDICAL'));
+  const [errors, setErrors] = useState<Partial<Record<keyof InsuranceEntry, string>>>({});
 
-  function switchTab(t: 'MEDICAL' | 'AUTO') { setTab(t); setEntry(emptyInsEntry(t)); }
-  function set(k: keyof InsuranceEntry, v: string | boolean) { setEntry(prev => ({ ...prev, [k]: v })); }
+  const today = new Date().toISOString().split('T')[0];
+  const minDOB = `${new Date().getFullYear() - 120}-01-01`;
+
+  function switchTab(tp: 'MEDICAL' | 'AUTO') { setTab(tp); setEntry(emptyInsEntry(tp)); setErrors({}); }
+  function set(k: keyof InsuranceEntry, v: string | boolean) {
+    setEntry(prev => ({ ...prev, [k]: v }));
+    if (errors[k]) setErrors(prev => ({ ...prev, [k]: undefined }));
+  }
+
+  function validate(): boolean {
+    const e: Partial<Record<keyof InsuranceEntry, string>> = {};
+    if (!entry.carrier.trim()) e.carrier = t('segurosErrRequired');
+    if (!entry.policyId.trim()) {
+      e.policyId = t('segurosErrRequired');
+    } else if (!/^[a-zA-Z0-9\-]{4,30}$/.test(entry.policyId.trim())) {
+      e.policyId = t('segurosErrPolicyFormat');
+    }
+    if (tab === 'MEDICAL') {
+      if (!entry.holderRelation.trim()) e.holderRelation = t('segurosErrRequired');
+      if (!entry.effectiveDate) e.effectiveDate = t('segurosErrRequired');
+      if (entry.holderDOB && entry.holderDOB < minDOB) e.holderDOB = t('segurosErrDOBRange');
+      const copayVal = parseFloat(entry.copay);
+      if (entry.copay && (isNaN(copayVal) || copayVal < 0 || copayVal > 999999)) e.copay = t('segurosErrAmount');
+      const dedVal = parseFloat(entry.deductible);
+      if (entry.deductible && (isNaN(dedVal) || dedVal < 0 || dedVal > 999999)) e.deductible = t('segurosErrAmount');
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  function handleSave() { if (validate()) { onSave(entry); onClose(); } }
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -901,8 +932,16 @@ function NuevoSeguroDialog({ onClose, onSave }: {
           {tab === 'MEDICAL' ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>{t('segurosCarrier')}</label><input className={insInput} value={entry.carrier} onChange={e => set('carrier', e.target.value)} /></div>
-                <div><label className={insLabel}>{t('segurosPolicyId')}</label><input className={insInput} value={entry.policyId} onChange={e => set('policyId', e.target.value)} /></div>
+                <div>
+                  <label className={insLabel}>{t('segurosCarrier')} <span className="text-rose">*</span></label>
+                  <input className={`${insInput} ${errors.carrier ? 'border-rose' : ''}`} value={entry.carrier} onChange={e => set('carrier', e.target.value)} />
+                  {errors.carrier && <p className="text-[11px] text-rose mt-1">{errors.carrier}</p>}
+                </div>
+                <div>
+                  <label className={insLabel}>{t('segurosPolicyId')} <span className="text-rose">*</span></label>
+                  <input className={`${insInput} ${errors.policyId ? 'border-rose' : ''}`} value={entry.policyId} onChange={e => set('policyId', e.target.value)} />
+                  {errors.policyId && <p className="text-[11px] text-rose mt-1">{errors.policyId}</p>}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className={insLabel}>{t('segurosHolderName')}</label><input className={insInput} value={entry.holderName} onChange={e => set('holderName', e.target.value)} /></div>
@@ -913,23 +952,30 @@ function NuevoSeguroDialog({ onClose, onSave }: {
                   <label className={insLabel}>{t('segurosHolderDOB')}</label>
                   <input
                     type="date"
-                    max={new Date().toISOString().split('T')[0]}
-                    className={`${insInput} [color-scheme:dark]`}
+                    min={minDOB}
+                    max={today}
+                    className={`${insInput} [color-scheme:dark] ${errors.holderDOB ? 'border-rose' : ''}`}
                     value={entry.holderDOB}
                     onChange={e => set('holderDOB', e.target.value)}
                   />
+                  {errors.holderDOB && <p className="text-[11px] text-rose mt-1">{errors.holderDOB}</p>}
                 </div>
-                <div><label className={insLabel}>{t('segurosHolderRelation')}</label><input className={insInput} value={entry.holderRelation} onChange={e => set('holderRelation', e.target.value)} /></div>
+                <div>
+                  <label className={insLabel}>{t('segurosHolderRelation')} <span className="text-rose">*</span></label>
+                  <input className={`${insInput} ${errors.holderRelation ? 'border-rose' : ''}`} value={entry.holderRelation} onChange={e => set('holderRelation', e.target.value)} />
+                  {errors.holderRelation && <p className="text-[11px] text-rose mt-1">{errors.holderRelation}</p>}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className={insLabel}>{t('segurosEffectiveDate')}</label>
+                  <label className={insLabel}>{t('segurosEffectiveDate')} <span className="text-rose">*</span></label>
                   <input
                     type="date"
-                    className={`${insInput} [color-scheme:dark]`}
+                    className={`${insInput} [color-scheme:dark] ${errors.effectiveDate ? 'border-rose' : ''}`}
                     value={entry.effectiveDate}
                     onChange={e => set('effectiveDate', e.target.value)}
                   />
+                  {errors.effectiveDate && <p className="text-[11px] text-rose mt-1">{errors.effectiveDate}</p>}
                 </div>
                 <div>
                   <label className={insLabel}>{t('segurosCopay')}</label>
@@ -938,13 +984,15 @@ function NuevoSeguroDialog({ onClose, onSave }: {
                     <input
                       type="number"
                       min="0"
+                      max="999999"
                       step="0.01"
-                      className={`${insInput} pl-7`}
+                      className={`${insInput} pl-7 ${errors.copay ? 'border-rose' : ''}`}
                       placeholder="0.00"
                       value={entry.copay}
                       onChange={e => set('copay', e.target.value)}
                     />
                   </div>
+                  {errors.copay && <p className="text-[11px] text-rose mt-1">{errors.copay}</p>}
                 </div>
                 <div>
                   <label className={insLabel}>{t('segurosDeductible')}</label>
@@ -953,21 +1001,31 @@ function NuevoSeguroDialog({ onClose, onSave }: {
                     <input
                       type="number"
                       min="0"
+                      max="999999"
                       step="0.01"
-                      className={`${insInput} pl-7`}
+                      className={`${insInput} pl-7 ${errors.deductible ? 'border-rose' : ''}`}
                       placeholder="0.00"
                       value={entry.deductible}
                       onChange={e => set('deductible', e.target.value)}
                     />
                   </div>
+                  {errors.deductible && <p className="text-[11px] text-rose mt-1">{errors.deductible}</p>}
                 </div>
               </div>
             </>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><label className={insLabel}>{t('segurosCarrier')}</label><input className={insInput} value={entry.carrier} onChange={e => set('carrier', e.target.value)} /></div>
-                <div><label className={insLabel}>{t('segurosPolicyId')}</label><input className={insInput} value={entry.policyId} onChange={e => set('policyId', e.target.value)} /></div>
+                <div>
+                  <label className={insLabel}>{t('segurosCarrier')} <span className="text-rose">*</span></label>
+                  <input className={`${insInput} ${errors.carrier ? 'border-rose' : ''}`} value={entry.carrier} onChange={e => set('carrier', e.target.value)} />
+                  {errors.carrier && <p className="text-[11px] text-rose mt-1">{errors.carrier}</p>}
+                </div>
+                <div>
+                  <label className={insLabel}>{t('segurosPolicyId')} <span className="text-rose">*</span></label>
+                  <input className={`${insInput} ${errors.policyId ? 'border-rose' : ''}`} value={entry.policyId} onChange={e => set('policyId', e.target.value)} />
+                  {errors.policyId && <p className="text-[11px] text-rose mt-1">{errors.policyId}</p>}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className={insLabel}>{t('segurosLossDate')}</label><input type="date" className={`${insInput} [color-scheme:dark]`} value={entry.lossDate} onChange={e => set('lossDate', e.target.value)} /></div>
@@ -997,7 +1055,7 @@ function NuevoSeguroDialog({ onClose, onSave }: {
 
         <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
           <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>{t('btnCancel')}</Button>
-          <Button className="w-full sm:w-auto" onClick={() => { onSave(entry); onClose(); }}>{t('segurosGuardar')}</Button>
+          <Button className="w-full sm:w-auto" onClick={handleSave}>{t('segurosGuardar')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1913,7 +1971,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           <div className="absolute inset-0 z-10 flex items-start justify-center pt-12 bg-bg-1/60 backdrop-blur-[1px] rounded-lg pointer-events-none">
             <div className="flex items-center gap-2 bg-bg-2 border border-border rounded-full px-3 py-1.5 shadow-lg pointer-events-auto">
               <RefreshCw className="w-3.5 h-3.5 text-brand animate-spin" />
-              <span className="text-[11px] text-text-2 font-medium">Buscando…</span>
+              <span className="text-[11px] text-text-2 font-medium">{t('searching')}</span>
             </div>
           </div>
         )}
@@ -1922,7 +1980,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           <thead className="bg-bg-2 border-b border-border">
             <tr>
               <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">Contact</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colContact')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colCases')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colAdmission')}</th>
@@ -2100,7 +2158,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
                 <tr key={`${p.id}-cases`} id={`cases-row-${p.id}`} className="bg-white/[0.03] border-b border-white/[0.06]">
-                  <td colSpan={6} className="px-6 py-2">
+                  <td colSpan={7} className="px-6 py-2 overflow-x-auto">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5">
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
@@ -2330,16 +2388,16 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
       </div>
 
       {/* ─── Paginación ─────────────────────────────────────────────────────── */}
-      <nav aria-label="Paginación de pacientes" className="flex items-center justify-between px-1 pt-1">
+      <nav aria-label={t('paginationNav')} className="flex items-center justify-between px-1 pt-1">
         <div className="flex items-center gap-2 text-[11px] text-text-muted">
-          <label htmlFor="page-size-select" className="sr-only">Filas por página</label>
-          <span aria-hidden="true">Rows per page</span>
+          <label htmlFor="page-size-select" className="sr-only">{t('rowsPerPage')}</label>
+          <span aria-hidden="true">{t('rowsPerPage')}</span>
           <select
             id="page-size-select"
             value={pageSize}
             onChange={(e) => router.push(buildPageUrl(0, Number(e.target.value)))}
             className="bg-bg-2 border border-border rounded px-2 py-1 text-[11px] text-text-1 focus:outline-none focus:border-brand cursor-pointer"
-            aria-label="Filas por página"
+            aria-label={t('rowsPerPage')}
           >
             {[10, 15, 25, 50].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
@@ -2350,11 +2408,11 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           )}
         </div>
         {localPages > 1 && (
-          <div className="flex gap-1" role="group" aria-label="Controles de página">
+          <div className="flex gap-1" role="group" aria-label={t('pageControls')}>
             <button
               onClick={() => router.push(buildPageUrl(page - 1))}
               disabled={page === 0}
-              aria-label={`Página anterior (página ${page} de ${localPages})`}
+              aria-label={t('prevPage', { page: page, total: localPages })}
               className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" aria-hidden="true" />
@@ -2362,7 +2420,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
             <button
               onClick={() => router.push(buildPageUrl(page + 1))}
               disabled={page >= localPages - 1}
-              aria-label={`Página siguiente (página ${page + 2} de ${localPages})`}
+              aria-label={t('nextPage', { page: page + 2, total: localPages })}
               className="p-2 rounded-md border border-border text-text-2 hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" aria-hidden="true" />

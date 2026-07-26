@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { UserPlus, ShieldAlert, User, Stethoscope, PhoneCall } from 'lucide-react';
@@ -36,15 +36,85 @@ function calcAge(dob: string): number | null {
   return age;
 }
 
+// ─── ProviderSearch ────────────────────────────────────────────────────────────
+
+interface ProviderOpt { id: string; label: string; }
+
+function ProviderSearch({
+  value, onChange, placeholder,
+}: {
+  value: string; onChange: (id: string, label: string) => void; placeholder?: string;
+}) {
+  const [query,   setQuery]   = useState('');
+  const [results, setResults] = useState<ProviderOpt[]>([]);
+  const [open,    setOpen]    = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) { setResults([]); return; }
+    const tid = setTimeout(() => {
+      fetch(`/api/admin/providers?q=${encodeURIComponent(q)}&limit=10`)
+        .then(r => r.json())
+        .then(j => setResults(
+          (j.providers ?? j.data ?? []).map((p: { firstName?: string; lastName?: string; id: string }) => ({
+            id: p.id,
+            label: `Dr. ${p.firstName ?? ''} ${p.lastName ?? ''}`.trim(),
+          }))
+        ))
+        .catch(() => {});
+    }, 200);
+    return () => clearTimeout(tid);
+  }, [query]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const displayName = value ? (results.find(r => r.id === value)?.label ?? query) : query;
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors"
+        value={displayName}
+        placeholder={placeholder ?? 'Buscar doctor…'}
+        onChange={e => { setQuery(e.target.value); if (!e.target.value) onChange('', ''); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+      />
+      {open && results.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg overflow-hidden">
+          {results.map(p => (
+            <button
+              key={p.id} type="button"
+              className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-2"
+              onClick={() => { onChange(p.id, p.label); setQuery(p.label); setOpen(false); setResults([]); }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Form ──────────────────────────────────────────────────────────────────────
+
 const EMPTY_FORM = {
   firstName: '', lastName: '', email: '', phone: '', phone2: '', dateOfBirth: '',
   preferredLanguage: '', sex: '', maritalStatus: '', employer: '',
   preferredPharmacy: '', communicationPreference: '', referralSource: '',
   addressLine1: '', addressCity: '', addressState: '', addressZip: '',
   race: '', ethnicity: '', socialSecurityNumber: '',
-  emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '',
-  emergency2Name: '', emergency2Phone: '', emergency2Relation: '',
+  emergencyContactName: '', emergencyContactPhone: '', emergencyContactRelation: '', emergencyContactRelationOther: '',
+  emergency2Name: '', emergency2Phone: '', emergency2Relation: '', emergency2RelationOther: '',
   guardianName: '', guardianPhone: '', guardianRelation: '',
+  providerReferrerId: '',
 };
 
 interface Props {
@@ -59,6 +129,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
   const [open,        setOpen]        = useState(false);
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [form,        setForm]        = useState(EMPTY_FORM);
   const [confirmExit, setConfirmExit] = useState(false);
   const [emailError,  setEmailError]  = useState('');
@@ -85,11 +156,16 @@ export function PatientCreateDialog({ onCreated }: Props) {
     k => form[k as keyof typeof EMPTY_FORM] !== EMPTY_FORM[k as keyof typeof EMPTY_FORM]
   );
 
+  function clearFieldError(field: string) {
+    setFieldErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+  }
+
   function handleClose(force = false) {
     if (!force && isDirty) { setConfirmExit(true); return; }
     setOpen(false);
     setForm(EMPTY_FORM);
     setError('');
+    setFieldErrors({});
   }
 
   function handleConfirmExit() {
@@ -97,27 +173,27 @@ export function PatientCreateDialog({ onCreated }: Props) {
     setOpen(false);
     setForm(EMPTY_FORM);
     setError('');
+    setFieldErrors({});
   }
 
   async function handleCreate() {
-    if (!form.firstName.trim() || !form.lastName.trim()) {
-      setError(t('errorNameRequired'));
-      return;
-    }
-    if (form.email && !validateEmail(form.email)) return;
+    const errs: Record<string, string> = {};
+
+    if (!form.firstName.trim()) errs.firstName = t('errorFirstNameRequired');
+    if (!form.lastName.trim())  errs.lastName  = t('errorLastNameRequired');
+    if (form.email && !validateEmail(form.email)) errs.email = t('errorEmailInvalid');
     if (form.dateOfBirth) {
       const a = calcAge(form.dateOfBirth);
-      if (a === null || a < 0) { setError(t('errorDOBInvalid')); return; }
-      if (a > 120) { setError(t('errorDOBYear')); return; }
+      if (a === null || a < 0) errs.dateOfBirth = t('errorDOBInvalid');
+      else if (a > 120)        errs.dateOfBirth = t('errorDOBYear');
     }
-    if (form.addressZip && !/^\d{5}(-\d{4})?$/.test(form.addressZip.trim())) {
-      setError('Zip code must be 5 digits (e.g. 84606).');
-      return;
-    }
-    if (isMinor && !form.guardianName.trim()) {
-      setError(t('errorGuardianRequired'));
-      return;
-    }
+    if (form.addressZip && !/^\d{5}(-\d{4})?$/.test(form.addressZip.trim()))
+      errs.addressZip = t('errorZipInvalid');
+    if (isMinor && !form.guardianName.trim())
+      errs.guardianName = t('errorGuardianRequired');
+
+    if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
+    setFieldErrors({});
     setSaving(true);
     setError('');
     try {
@@ -133,6 +209,13 @@ export function PatientCreateDialog({ onCreated }: Props) {
           race:                    form.race                    || null,
           ethnicity:               form.ethnicity               || null,
           guardianRelation:        form.guardianRelation        || null,
+          // When relation is OTHER, persist the free-text label instead of 'OTHER'
+          emergencyContactRelation: form.emergencyContactRelation === 'OTHER' && form.emergencyContactRelationOther?.trim()
+            ? form.emergencyContactRelationOther.trim()
+            : (form.emergencyContactRelation || null),
+          emergency2Relation: form.emergency2Relation === 'OTHER' && form.emergency2RelationOther?.trim()
+            ? form.emergency2RelationOther.trim()
+            : (form.emergency2Relation || null),
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -234,13 +317,13 @@ export function PatientCreateDialog({ onCreated }: Props) {
     { value: 'OTHER',          label: t('guardianRelation.OTHER') },
   ];
   const RELATION_OPTIONS = [
-    { value: '', label: '—' },
-    { value: 'Spouse',  label: 'Spouse' },
-    { value: 'Parent',  label: 'Parent' },
-    { value: 'Sibling', label: 'Sibling' },
-    { value: 'Child',   label: 'Child' },
-    { value: 'Friend',  label: 'Friend' },
-    { value: 'Other',   label: 'Other' },
+    { value: '',        label: '—' },
+    { value: 'SPOUSE',  label: t('relation.SPOUSE') },
+    { value: 'PARENT',  label: t('relation.PARENT') },
+    { value: 'SIBLING', label: t('relation.SIBLING') },
+    { value: 'CHILD',   label: t('relation.CHILD') },
+    { value: 'FRIEND',  label: t('relation.FRIEND') },
+    { value: 'OTHER',   label: t('relation.OTHER') },
   ];
 
   return (
@@ -290,22 +373,22 @@ export function PatientCreateDialog({ onCreated }: Props) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField.Input label={`${t('fieldFirstName')} *`} value={form.firstName} onChange={set('firstName')} placeholder={t('fieldFirstName')} />
-                <FormField.Input label={`${t('fieldLastName')} *`}  value={form.lastName}  onChange={set('lastName')}  placeholder={t('fieldLastName')} />
+                <FormField.Input label={`${t('fieldFirstName')} *`} value={form.firstName} onChange={(v) => { set('firstName')(v); clearFieldError('firstName'); }} placeholder={t('fieldFirstName')} error={fieldErrors.firstName} />
+                <FormField.Input label={`${t('fieldLastName')} *`}  value={form.lastName}  onChange={(v) => { set('lastName')(v);  clearFieldError('lastName');  }} placeholder={t('fieldLastName')}  error={fieldErrors.lastName} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField.Input
                   label={t('fieldEmail')}
                   value={form.email}
-                  onChange={(v) => { set('email')(v); if (emailError) validateEmail(v); }}
+                  onChange={(v) => { set('email')(v); clearFieldError('email'); if (emailError) validateEmail(v); }}
                   onBlur={() => validateEmail(form.email)}
                   placeholder="patient@email.com"
                   type="email"
-                  error={emailError}
+                  error={fieldErrors.email || emailError}
                 />
                 <div className="space-y-1">
-                  <FormField.Input label={t('fieldDOB')} value={form.dateOfBirth} onChange={set('dateOfBirth')} type="date" />
+                  <FormField.Input label={t('fieldDOB')} value={form.dateOfBirth} onChange={(v) => { set('dateOfBirth')(v); clearFieldError('dateOfBirth'); }} type="date" error={fieldErrors.dateOfBirth} />
                   {age !== null && (
                     <p className={`text-[11px] ${isMinor ? 'text-amber font-semibold' : 'text-text-muted'}`}>
                       {isMinor ? t('ageMinor', { age }) : t('ageYears', { age })}
@@ -335,7 +418,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
                   placeholder={form.addressState ? t('placeholderSelectCity') : t('placeholderSelectStateFirst')}
                   disabled={!form.addressState}
                 />
-                <FormField.Input label={t('fieldZip')} value={form.addressZip} onChange={set('addressZip')} placeholder="e.g. 90210" />
+                <FormField.Input label={t('fieldZip')} value={form.addressZip} onChange={(v) => { set('addressZip')(v); clearFieldError('addressZip'); }} placeholder="e.g. 90210" error={fieldErrors.addressZip} />
               </div>
 
               <FormField.Input label={t('fieldAddress')} value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St, Apt 4B" />
@@ -348,6 +431,17 @@ export function PatientCreateDialog({ onCreated }: Props) {
               <div className="flex items-center gap-2 pb-1 border-b border-border/60">
                 <Stethoscope className="w-4 h-4 text-brand" />
                 <h3 className="text-sm font-semibold text-text-1">{t('sectionClinical')}</h3>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-1.5 block">
+                  {t('fieldAssignedDoctor')}
+                </label>
+                <ProviderSearch
+                  value={form.providerReferrerId}
+                  onChange={(id) => set('providerReferrerId')(id)}
+                  placeholder={t('placeholderSearchDoctor')}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -384,7 +478,7 @@ export function PatientCreateDialog({ onCreated }: Props) {
                   {t('guardianNote')}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField.Input  label={`${t('fieldGuardianName')} *`} value={form.guardianName}     onChange={set('guardianName')}     placeholder={t('fieldGuardianName')} />
+                  <FormField.Input  label={`${t('fieldGuardianName')} *`} value={form.guardianName}     onChange={(v) => { set('guardianName')(v); clearFieldError('guardianName'); }}     placeholder={t('fieldGuardianName')} error={fieldErrors.guardianName} />
                   <FormField.Select label={t('fieldGuardianRelation')}     value={form.guardianRelation} onChange={set('guardianRelation')} options={GUARDIAN_OPTIONS} />
                 </div>
                 <FormField.Input label={t('fieldGuardianPhone')} value={form.guardianPhone} onChange={setPhone('guardianPhone')} placeholder="(801) 555-0100" type="tel" />
@@ -398,16 +492,32 @@ export function PatientCreateDialog({ onCreated }: Props) {
                 <h3 className="text-sm font-semibold text-text-1">{t('sectionEmergencyContacts')}</h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label={t('fieldName')}     value={form.emergencyContactName}     onChange={set('emergencyContactName')}       placeholder={t('fieldName')} />
-                <FormField.Input label={t('fieldPhone')}    value={form.emergencyContactPhone}    onChange={setPhone('emergencyContactPhone')} placeholder="(305) 000-0000" type="tel" />
-                <FormField.Select label={t('fieldRelation')} value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')} options={RELATION_OPTIONS} />
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-text-muted mb-3">{t('emergencyContact1')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <FormField.Input  label={t('fieldName')}     value={form.emergencyContactName}     onChange={set('emergencyContactName')}       placeholder={t('fieldName')} />
+                  <FormField.Input  label={t('fieldPhone')}    value={form.emergencyContactPhone}    onChange={setPhone('emergencyContactPhone')} placeholder="(305) 000-0000" type="tel" />
+                  <FormField.Select label={t('fieldRelation')} value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')}  options={RELATION_OPTIONS} />
+                </div>
+                {form.emergencyContactRelation === 'OTHER' && (
+                  <div className="mt-2">
+                    <FormField.Input label={t('fieldRelationOther')} value={form.emergencyContactRelationOther ?? ''} onChange={set('emergencyContactRelationOther')} placeholder={t('placeholderRelationOther')} />
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label={t('fieldName')}     value={form.emergency2Name}     onChange={set('emergency2Name')}       placeholder={t('fieldName')} />
-                <FormField.Input label={t('fieldPhone')}    value={form.emergency2Phone}    onChange={setPhone('emergency2Phone')} placeholder="(305) 000-0000" type="tel" />
-                <FormField.Select label={t('fieldRelation')} value={form.emergency2Relation} onChange={set('emergency2Relation')} options={RELATION_OPTIONS} />
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-text-muted mb-3">{t('emergencyContact2')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <FormField.Input  label={t('fieldName')}     value={form.emergency2Name}     onChange={set('emergency2Name')}       placeholder={t('fieldName')} />
+                  <FormField.Input  label={t('fieldPhone')}    value={form.emergency2Phone}    onChange={setPhone('emergency2Phone')} placeholder="(305) 000-0000" type="tel" />
+                  <FormField.Select label={t('fieldRelation')} value={form.emergency2Relation} onChange={set('emergency2Relation')}  options={RELATION_OPTIONS} />
+                </div>
+                {form.emergency2Relation === 'OTHER' && (
+                  <div className="mt-2">
+                    <FormField.Input label={t('fieldRelationOther')} value={form.emergency2RelationOther ?? ''} onChange={set('emergency2RelationOther')} placeholder={t('placeholderRelationOther')} />
+                  </div>
+                )}
               </div>
             </div>
 

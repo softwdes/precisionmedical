@@ -109,7 +109,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           {loading && (
             <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
           )}
-          <kbd className="text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded text-text-muted">ESC</kbd>
+          <kbd className="text-[10px] font-mono bg-bg-3 border border-border px-1.5 py-0.5 rounded text-text-2">ESC</kbd>
         </div>
 
         <Command.List className="max-h-[60vh] overflow-y-auto p-2">
@@ -119,7 +119,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
               <div className="text-text-muted text-xs">
                 Busca transversal en todos los catálogos del back-office
               </div>
-              <div className="mt-6 flex flex-wrap gap-2 justify-center text-xs text-text-muted">
+              <div className="mt-6 flex flex-wrap gap-2 justify-center text-xs text-text-2">
                 <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">Stethoscope</kbd>
                 <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">Bufetes</kbd>
                 <kbd className="bg-bg-2 border border-border px-2 py-0.5 rounded">GEICO</kbd>
@@ -252,7 +252,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           )}
         </Command.List>
 
-        <div className="border-t border-border px-4 py-2 text-[10px] text-text-muted flex items-center justify-between">
+        <div className="border-t border-border px-4 py-2 text-[10px] text-text-2 flex items-center justify-between">
           <span>
             <kbd className="bg-bg-2 border border-border px-1 py-0.5 rounded font-mono">↑↓</kbd> navegar
             <kbd className="bg-bg-2 border border-border px-1 py-0.5 rounded font-mono ml-2">↵</kbd> abrir

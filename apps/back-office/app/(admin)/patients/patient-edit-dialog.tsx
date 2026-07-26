@@ -89,6 +89,20 @@ function formatPhone(raw: string): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
+function formatSSN(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 9);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+}
+
+const KNOWN_RELATIONS = ['SPOUSE', 'PARENT', 'SIBLING', 'CHILD', 'FRIEND', 'OTHER'];
+function normalizeRelation(stored: string): { selectVal: string; otherVal: string } {
+  if (!stored) return { selectVal: '', otherVal: '' };
+  if (KNOWN_RELATIONS.includes(stored)) return { selectVal: stored, otherVal: '' };
+  return { selectVal: 'OTHER', otherVal: stored };
+}
+
 export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const t      = useTranslations('phoenix.patients');
   const tc     = useTranslations('common');
@@ -100,6 +114,13 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const [confirmExit,  setConfirmExit]  = useState(false);
   const [emailError,   setEmailError]   = useState('');
   const [phoneError,   setPhoneError]   = useState('');
+  const [referralSourceOther,      setReferralSourceOther]      = useState('');
+  const [emergency1RelationOther,  setEmergency1RelationOther]  = useState(
+    () => normalizeRelation(patient.emergencyContactRelation ?? '').otherVal
+  );
+  const [emergency2RelationOther,  setEmergency2RelationOther]  = useState(
+    () => normalizeRelation(patient.emergency2Relation ?? '').otherVal
+  );
 
   function validateEmail(v: string) {
     if (!v) { setEmailError(''); return true; }
@@ -127,7 +148,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     preferredLanguage:         patient.preferredLanguage        ?? '',
     sex:                       patient.sex                      ?? '',
     maritalStatus:             patient.maritalStatus            ?? '',
-    employer:                  patient.employer                 ?? '',
+    employer:                  (patient.employer?.startsWith('e:') ? '' : patient.employer) ?? '',
     preferredPharmacy:         patient.preferredPharmacy        ?? '',
     communicationPreference:   patient.communicationPreference  ?? '',
     referralSource:            patient.referralSource           ?? '',
@@ -140,10 +161,10 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     addressZip:                patient.addressZip               ?? '',
     emergencyContactName:      patient.emergencyContactName     ?? '',
     emergencyContactPhone:     patient.emergencyContactPhone    ?? '',
-    emergencyContactRelation:  patient.emergencyContactRelation ?? '',
+    emergencyContactRelation:  normalizeRelation(patient.emergencyContactRelation ?? '').selectVal,
     emergency2Name:            patient.emergency2Name           ?? '',
     emergency2Phone:           patient.emergency2Phone          ?? '',
-    emergency2Relation:        patient.emergency2Relation       ?? '',
+    emergency2Relation:        normalizeRelation(patient.emergency2Relation ?? '').selectVal,
     guardianName:              patient.guardianName             ?? '',
     guardianPhone:             patient.guardianPhone            ?? '',
     guardianRelation:          patient.guardianRelation         ?? '',
@@ -194,6 +215,17 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       setError(t('errorGuardianRequired'));
       return;
     }
+    if (form.addressZip && !/^\d{5}(-\d{4})?$/.test(form.addressZip.trim())) {
+      setError(t('errorZipInvalid'));
+      return;
+    }
+    if (form.socialSecurityNumber) {
+      const ssnDigits = form.socialSecurityNumber.replace(/\D/g, '');
+      if (ssnDigits.length > 0 && ssnDigits.length !== 9) {
+        setError(t('errorSSNInvalid'));
+        return;
+      }
+    }
     setSaving(true);
     setError('');
     try {
@@ -209,6 +241,12 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
           race:                    form.race                    || null,
           ethnicity:               form.ethnicity               || null,
           guardianRelation:        form.guardianRelation        || null,
+          emergencyContactRelation: form.emergencyContactRelation === 'OTHER'
+            ? (emergency1RelationOther.trim() || 'OTHER')
+            : (form.emergencyContactRelation || null),
+          emergency2Relation: form.emergency2Relation === 'OTHER'
+            ? (emergency2RelationOther.trim() || 'OTHER')
+            : (form.emergency2Relation || null),
         }),
       });
       if (!res.ok) {
@@ -318,6 +356,16 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
     { value: 'OTHER',          label: t('guardianRelation.OTHER') },
   ];
 
+  const EMERGENCY_RELATION_OPTIONS = [
+    { value: '',        label: '—' },
+    { value: 'SPOUSE',  label: t('relation.SPOUSE') },
+    { value: 'PARENT',  label: t('relation.PARENT') },
+    { value: 'SIBLING', label: t('relation.SIBLING') },
+    { value: 'CHILD',   label: t('relation.CHILD') },
+    { value: 'FRIEND',  label: t('relation.FRIEND') },
+    { value: 'OTHER',   label: t('relation.OTHER') },
+  ];
+
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)} className="shrink-0">
@@ -411,9 +459,27 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
 
               <FormField.Input label={t('fieldAddress')} value={form.addressLine1} onChange={set('addressLine1')} placeholder="123 Main St, Apt 4B" />
 
-              <FormField.Select label={t('fieldReferralSource')} value={form.referralSource} onChange={set('referralSource')} options={REFERRAL_OPTIONS} />
+              <div className="space-y-2">
+                <FormField.Select
+                  label={t('fieldReferralSource')}
+                  value={form.referralSource}
+                  onChange={(v) => { set('referralSource')(v); if (v !== 'OTHER') setReferralSourceOther(''); }}
+                  options={REFERRAL_OPTIONS}
+                />
+                {form.referralSource === 'OTHER' && (
+                  <FormField.Input
+                    label={t('fieldReferralSourceOther')}
+                    value={referralSourceOther}
+                    onChange={setReferralSourceOther}
+                    placeholder={t('placeholderReferralOther')}
+                  />
+                )}
+              </div>
 
-              <FormField.Select label={t('fieldStatus')} value={form.status} onChange={set('status')} options={STATUS_OPTIONS} />
+              <div className="space-y-1">
+                <FormField.Select label={t('fieldStatus')} value={form.status} onChange={set('status')} options={STATUS_OPTIONS} />
+                <p className="text-[10px] text-amber">{t('statusNote')}</p>
+              </div>
             </div>
 
             {/* ══ Clinical info ══ */}
@@ -430,7 +496,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField.Select label={t('fieldCommPref')} value={form.communicationPreference} onChange={set('communicationPreference')} options={COMM_OPTIONS} />
-                <FormField.Input  label={t('fieldSSN')}      value={form.socialSecurityNumber}    onChange={set('socialSecurityNumber')}    placeholder="XXX-XX-XXXX" />
+                <FormField.Input  label={t('fieldSSN')}      value={form.socialSecurityNumber}    onChange={(v) => set('socialSecurityNumber')(formatSSN(v))}    placeholder="XXX-XX-XXXX" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -471,16 +537,40 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                 <h3 className="text-sm font-semibold text-text-1">{t('sectionEmergencyContacts')}</h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label={t('fieldName')}     value={form.emergencyContactName}     onChange={set('emergencyContactName')}       placeholder={t('fieldName')} />
-                <FormField.Input label={t('fieldPhone')}    value={form.emergencyContactPhone}    onChange={setPhone('emergencyContactPhone')} placeholder="(305) 000-0000" type="tel" />
-                <FormField.Input label={t('fieldRelation')} value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')}   placeholder="e.g. Spouse, Mother..." />
+              {/* Contact 1 */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">{t('emergencyContact1')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <FormField.Input  label={t('fieldName')}     value={form.emergencyContactName}     onChange={set('emergencyContactName')}       placeholder={t('fieldName')} />
+                  <FormField.Input  label={t('fieldPhone')}    value={form.emergencyContactPhone}    onChange={setPhone('emergencyContactPhone')} placeholder="(305) 000-0000" type="tel" />
+                  <FormField.Select label={t('fieldRelation')} value={form.emergencyContactRelation} onChange={(v) => { set('emergencyContactRelation')(v); if (v !== 'OTHER') setEmergency1RelationOther(''); }} options={EMERGENCY_RELATION_OPTIONS} />
+                </div>
+                {form.emergencyContactRelation === 'OTHER' && (
+                  <FormField.Input
+                    label={t('fieldRelationOther')}
+                    value={emergency1RelationOther}
+                    onChange={setEmergency1RelationOther}
+                    placeholder={t('placeholderRelationOther')}
+                  />
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <FormField.Input label={t('fieldName')}     value={form.emergency2Name}     onChange={set('emergency2Name')}       placeholder={t('fieldName')} />
-                <FormField.Input label={t('fieldPhone')}    value={form.emergency2Phone}    onChange={setPhone('emergency2Phone')} placeholder="(305) 000-0000" type="tel" />
-                <FormField.Input label={t('fieldRelation')} value={form.emergency2Relation} onChange={set('emergency2Relation')}   placeholder="e.g. Sibling..." />
+              {/* Contact 2 */}
+              <div className="space-y-3">
+                <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">{t('emergencyContact2')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <FormField.Input  label={t('fieldName')}     value={form.emergency2Name}     onChange={set('emergency2Name')}       placeholder={t('fieldName')} />
+                  <FormField.Input  label={t('fieldPhone')}    value={form.emergency2Phone}    onChange={setPhone('emergency2Phone')} placeholder="(305) 000-0000" type="tel" />
+                  <FormField.Select label={t('fieldRelation')} value={form.emergency2Relation} onChange={(v) => { set('emergency2Relation')(v); if (v !== 'OTHER') setEmergency2RelationOther(''); }} options={EMERGENCY_RELATION_OPTIONS} />
+                </div>
+                {form.emergency2Relation === 'OTHER' && (
+                  <FormField.Input
+                    label={t('fieldRelationOther')}
+                    value={emergency2RelationOther}
+                    onChange={setEmergency2RelationOther}
+                    placeholder={t('placeholderRelationOther')}
+                  />
+                )}
               </div>
             </div>
 

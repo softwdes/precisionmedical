@@ -3,9 +3,10 @@
 import { useEffect, useState, useRef, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { Bell, Search, Moon, Sun, Menu, User, KeyRound, LogOut, Eye, EyeOff, Copy, Zap } from 'lucide-react';
+import { Bell, Search, Menu, User, KeyRound, LogOut, Eye, EyeOff, Copy, Zap } from 'lucide-react';
 import { CommandPalette } from './command-palette';
 import { useTransitionProgress } from './navigation-progress';
+import { ThemeSwitch } from './theme-switch';
 import { createClient } from '@precision-medical/auth/client';
 
 // Amber identity color for back-office (single value in tailwind config — no scale)
@@ -52,8 +53,6 @@ export function Topbar({
   const t             = useTranslations('phoenix.topbar');
 
   const [time,        setTime]        = useState('');
-  const [theme,       setTheme]       = useState<'dark' | 'light'>('dark');
-  const [mounted,     setMounted]     = useState(false);
   const [cmdOpen,     setCmdOpen]     = useState(false);
   const [menuOpen,    setMenuOpen]    = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -100,13 +99,6 @@ export function Topbar({
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Theme init
-  useEffect(() => {
-    setMounted(true);
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('pm_theme') : null;
-    setTheme(saved === 'light' ? 'light' : 'dark');
-  }, []);
-
   // Cerrar dropdown al click fuera
   useEffect(() => {
     if (!menuOpen) return;
@@ -116,13 +108,6 @@ export function Topbar({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
-
-  const toggleTheme = (): void => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    localStorage.setItem('pm_theme', next);
-    document.documentElement.setAttribute('data-theme', next);
-  };
 
   const setLocale = (next: 'en' | 'es'): void => {
     if (next === currentLocale || switchingLocale) return;
@@ -152,9 +137,9 @@ export function Topbar({
   const copyPassword = (): void => { void navigator.clipboard.writeText(newPw); };
 
   const handlePasswordChange = async (): Promise<void> => {
-    if (!newPw)              return setPwError('Enter a new password');
-    if (newPw.length < 8)    return setPwError('Minimum 8 characters');
-    if (newPw !== confirmPw) return setPwError('Passwords do not match');
+    if (!newPw)              return setPwError(t('pwErrEmpty'));
+    if (newPw.length < 8)    return setPwError(t('pwErrShort'));
+    if (newPw !== confirmPw) return setPwError(t('pwErrMismatch'));
     setPwLoading(true); setPwError('');
     const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password: newPw });
@@ -235,23 +220,16 @@ export function Topbar({
           <button
             type="button"
             className="relative w-9 h-9 rounded-md hover:bg-white/5 flex items-center justify-center text-text-2 hover:text-text-1 transition-colors"
-            aria-label={t('notifications')}
+            aria-label={`${t('notifications')}, ${t('notificationsUnread', { count: 2 })}`}
           >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-rose text-white text-[9px] font-bold flex items-center justify-center">
+            <Bell className="w-4 h-4" aria-hidden="true" />
+            <span aria-hidden="true" className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-rose text-white text-[9px] font-bold flex items-center justify-center">
               2
             </span>
           </button>
 
           {/* Theme toggle */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="w-9 h-9 rounded-md hover:bg-white/5 flex items-center justify-center text-text-2 hover:text-text-1 transition-colors"
-            aria-label={t('switchTheme')}
-          >
-            {mounted ? (theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />) : <Moon className="w-4 h-4" />}
-          </button>
+          <ThemeSwitch />
 
           {/* Avatar + dropdown */}
           <div ref={menuRef} className="relative pl-2 sm:pl-3 ml-1 border-l border-border">
@@ -298,7 +276,7 @@ export function Topbar({
                     onClick={() => { setMenuOpen(false); setProfileOpen(true); }}
                   >
                     <User className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
-                    View profile
+                    {t('viewProfile')}
                   </button>
                   <button
                     type="button"
@@ -306,7 +284,7 @@ export function Topbar({
                     onClick={openPwModal}
                   >
                     <KeyRound className="w-3.5 h-3.5 shrink-0" style={{ color: AMBER }} />
-                    Change password
+                    {t('changePassword')}
                   </button>
                 </div>
                 <div className="border-t border-border py-1">
@@ -316,7 +294,7 @@ export function Topbar({
                     onClick={() => { setMenuOpen(false); void handleLogout(); }}
                   >
                     <LogOut className="w-3.5 h-3.5 shrink-0" />
-                    Log out
+                    {t('logOut')}
                   </button>
                 </div>
               </div>
@@ -333,7 +311,7 @@ export function Topbar({
         >
           <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-1 shadow-2xl overflow-hidden">
             <div className="px-6 pt-5 pb-4 border-b border-border">
-              <h2 className="text-[15px] font-bold text-text-1">My profile</h2>
+              <h2 className="text-[15px] font-bold text-text-1">{t('myProfile')}</h2>
             </div>
             <div className="flex flex-col items-center gap-4 px-6 py-6">
               <div
@@ -359,7 +337,7 @@ export function Topbar({
                 </span>
               </div>
               <div className="w-full rounded-xl border border-border bg-surface px-4 py-3">
-                <p className="text-xs text-text-3 mb-0.5">Email</p>
+                <p className="text-xs text-text-3 mb-0.5">{t('email')}</p>
                 <p className="text-sm text-text-1 font-medium">{userEmail || '—'}</p>
               </div>
             </div>
@@ -369,7 +347,7 @@ export function Topbar({
                 onClick={() => setProfileOpen(false)}
                 className="px-4 py-2 rounded-lg border border-border text-sm text-text-2 hover:bg-surface transition-colors"
               >
-                Close
+                {t('close')}
               </button>
             </div>
           </div>
@@ -384,7 +362,7 @@ export function Topbar({
         >
           <div className="w-full max-w-sm rounded-2xl border border-border bg-bg-1 shadow-2xl overflow-hidden">
             <div className="px-6 pt-5 pb-4 border-b border-border">
-              <h2 className="text-[15px] font-bold text-text-1">Change password</h2>
+              <h2 className="text-[15px] font-bold text-text-1">{t('changePassword')}</h2>
             </div>
             <div className="px-6 py-5 space-y-4">
               {/* Sugerir contraseña */}
@@ -399,12 +377,12 @@ export function Topbar({
                 }}
               >
                 <Zap className="w-3.5 h-3.5" />
-                Suggest secure password
+                {t('suggestPassword')}
               </button>
 
               {/* Nueva contraseña */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-2">New password</label>
+                <label className="text-xs font-medium text-text-2">{t('newPassword')}</label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <input
@@ -419,6 +397,7 @@ export function Topbar({
                       type="button"
                       onClick={() => setShowNew(v => !v)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-3 hover:text-text-2"
+                      aria-label={t('newPassword')}
                     >
                       {showNew ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
@@ -428,7 +407,7 @@ export function Topbar({
                       type="button"
                       onClick={copyPassword}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-3 hover:text-text-1 transition-colors"
-                      title="Copy"
+                      aria-label={t('copy')}
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
@@ -438,7 +417,7 @@ export function Topbar({
 
               {/* Confirmar */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-2">Confirm password</label>
+                <label className="text-xs font-medium text-text-2">{t('confirmPassword')}</label>
                 <div className="relative">
                   <input
                     type={showConf ? 'text' : 'password'}
@@ -451,6 +430,7 @@ export function Topbar({
                     type="button"
                     onClick={() => setShowConf(v => !v)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-3 hover:text-text-2"
+                    aria-label={t('confirmPassword')}
                   >
                     {showConf ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
@@ -458,7 +438,7 @@ export function Topbar({
               </div>
 
               {pwError   && <p className="text-xs text-rose">{pwError}</p>}
-              {pwSuccess  && <p className="text-xs text-emerald font-medium">✓ Password updated successfully</p>}
+              {pwSuccess  && <p className="text-xs text-emerald font-medium">✓ {t('pwSuccess')}</p>}
             </div>
 
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
@@ -467,7 +447,7 @@ export function Topbar({
                 onClick={() => setPwOpen(false)}
                 className="px-4 py-2 rounded-lg border border-border text-sm text-text-2 hover:bg-surface transition-colors"
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="button"
@@ -479,7 +459,7 @@ export function Topbar({
                   color: '#0a0a0a',
                 }}
               >
-                {pwLoading ? 'Saving…' : 'Save password'}
+                {pwLoading ? t('saving') : t('savePassword')}
               </button>
             </div>
           </div>

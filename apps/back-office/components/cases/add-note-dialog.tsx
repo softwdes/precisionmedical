@@ -123,7 +123,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
             </div>
             <div className="text-text-muted text-[11px] mt-1.5">
               {isPrivate
-                ? 'Solo visible para Front Office y Edson (administración interna).'
+                ? 'Solo visible para Front Office y el equipo de administración interna.'
                 : 'Visible para Doctor y todo el equipo clínico también.'}
             </div>
           </div>

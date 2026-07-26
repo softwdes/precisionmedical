@@ -218,6 +218,7 @@ async function PatientsData({
 
   return (
     <PatientsClient
+      key={inactiveOnly ? 'inactive' : 'active'}
       patients={rows}
       q={q}
       page={page}

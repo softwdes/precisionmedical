@@ -140,6 +140,12 @@ body {
   to   { width: 0%;   }
 }
 
+/* Table row separators — lighter than structural borders (modal headers, cards) */
+thead.border-b,
+tr.border-b {
+  border-color: color-mix(in srgb, var(--border) 40%, transparent);
+}
+
 /* Variant: thin scrollbar (4px) — para modales/paneles pequeños */
 .scroll-thin {
   scrollbar-width: thin;

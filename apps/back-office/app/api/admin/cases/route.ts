@@ -55,7 +55,14 @@ const InputSchema = z.object({
   // Workflow
   specialtyId: z.string().nullable().optional(),
   caseType: z.enum(['MVA', 'GENERAL', 'WORKERS_COMP', 'NURSING_HOME']).default('MVA'),
-  source: z.enum(['PHONE_CALL', 'WALK_IN', 'LAW_FIRM_REFERRAL', 'PATIENT_REFERRAL', 'WEB_FORM', 'AI_AGENT', 'OTHER']).default('PHONE_CALL'),
+  source: z.enum([
+    'PHONE_CALL', 'WALK_IN', 'WEB_FORM', 'AI_AGENT',
+    'LAW_FIRM', 'LAW_FIRM_REFERRAL', 'PATIENT_REFERRAL',
+    'WEB_SEARCH', 'ACCIDENT_CENTER', 'FACEBOOK', 'FAMILY',
+    'GOOGLE', 'GOOGLE_MAPS', 'INSTAGRAM', 'WEBSITE',
+    'CLINIC_STAFF', 'CHIROPRACTOR', 'REFERRAL', 'INSURANCE',
+    'MEDICAL_INSURANCE', 'TIKTOK', 'OTHER',
+  ]).default('WALK_IN'),
 
   // ─── Appointment (opcional · si se agenda en la llamada) ────────────
   appointment: z.object({
@@ -108,10 +115,32 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     parsed = InputSchema.parse(await req.json());
   } catch (err) {
-    return NextResponse.json(
-      { error: 'INVALID_PAYLOAD', details: err instanceof z.ZodError ? err.flatten() : String(err) },
-      { status: 400 },
-    );
+    if (err instanceof z.ZodError) {
+      const fieldErrors: Record<string, string[]> = {};
+      for (const issue of err.issues) {
+        const key = issue.path.join('.');
+        if (!fieldErrors[key]) fieldErrors[key] = [];
+        fieldErrors[key].push(issue.message);
+      }
+      const LABELS: Record<string, string> = {
+        'patient.firstName':    'Nombre',
+        'patient.lastName':     'Apellido',
+        'patient.email':        'Email',
+        'patient.phone':        'Teléfono',
+        'patient.dateOfBirth':  'Fecha de nacimiento',
+        'accident.date':        'Fecha del accidente',
+        'source':               'Fuente de referido',
+        'caseType':             'Tipo de caso',
+      };
+      const msgs = Object.entries(fieldErrors)
+        .filter(([, errs]) => errs.length)
+        .map(([path, errs]) => `${LABELS[path] ?? path}: ${errs[0]}`);
+      return NextResponse.json(
+        { error: 'INVALID_PAYLOAD', message: msgs.join(' · ') || 'Verifica los campos requeridos.', details: { fieldErrors } },
+        { status: 400 },
+      );
+    }
+    return NextResponse.json({ error: 'INVALID_PAYLOAD', message: String(err) }, { status: 400 });
   }
 
   // ─── Paciente nuevo requiere teléfono válido ────────────────────────

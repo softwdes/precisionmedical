@@ -9,7 +9,7 @@
  * QR: muestra panel de éxito con código del caso y link del portal inline (sin cerrar).
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import {
@@ -23,13 +23,14 @@ import {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
       <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted">
         {label}{required && <span className="text-rose ml-0.5">*</span>}
       </label>
       {children}
+      {error && <p className="text-[11px] text-rose mt-0.5">{error}</p>}
     </div>
   );
 }
@@ -77,6 +78,228 @@ function ReferredBySelect({ value, onChange }: { value: string; onChange: (v: st
       ))}
       <option value="__otro__">Otro…</option>
     </select>
+  );
+}
+
+// ─── LawFirmAutocomplete ──────────────────────────────────────────────────────
+
+interface FirmOption { id: string; label: string; subtitle: string; }
+
+function LawFirmAutocomplete({
+  firmId, firmName, onSelect,
+}: {
+  firmId: string; firmName: string;
+  onSelect: (id: string, name: string) => void;
+}) {
+  const [query,    setQuery]    = useState(firmName);
+  const [results,  setResults]  = useState<FirmOption[]>([]);
+  const [open,     setOpen]     = useState(false);
+  const [adding,   setAdding]   = useState(false);
+  const [newName,  setNewName]  = useState('');
+  const [creating, setCreating] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // sync display when parent resets
+  useEffect(() => { setQuery(firmName); }, [firmName]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q || firmId) { setResults([]); return; }
+    const id = setTimeout(() => {
+      fetch(`/api/admin/lawyers/autocomplete?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(j => setResults(j.results ?? []))
+        .catch(() => {});
+    }, 200);
+    return () => clearTimeout(id);
+  }, [query, firmId]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  function clear() { setQuery(''); onSelect('', ''); setResults([]); setAdding(false); }
+
+  async function createFirm() {
+    if (!newName.trim()) return;
+    setCreating(true);
+    try {
+      const res = await fetch('/api/admin/lawyers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entityType: 'FIRM', firmName: newName.trim() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.firm?.id) {
+        onSelect(json.firm.id, newName.trim());
+        setQuery(newName.trim());
+        setAdding(false); setNewName(''); setOpen(false); setResults([]);
+      }
+    } catch { /* ignore */ } finally { setCreating(false); }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="relative">
+        <input
+          className={`${INPUT} pr-7`}
+          value={query}
+          placeholder={firmId ? '' : 'Buscar bufete…'}
+          readOnly={!!firmId}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => { if (!firmId) setOpen(true); }}
+        />
+        {firmId && (
+          <button type="button" onClick={clear} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-1 text-xs">✕</button>
+        )}
+      </div>
+      {open && !firmId && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg overflow-hidden">
+          {results.map(f => (
+            <button
+              key={f.id} type="button"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-bg-2 flex flex-col"
+              onClick={() => { onSelect(f.id, f.label); setQuery(f.label); setOpen(false); setResults([]); }}
+            >
+              <span className="text-text-1">{f.label}</span>
+              {f.subtitle && <span className="text-[11px] text-text-muted">{f.subtitle}</span>}
+            </button>
+          ))}
+          {!adding && (
+            <button type="button" className="w-full text-left px-3 py-2 text-[11px] text-brand hover:bg-bg-2 border-t border-border"
+              onClick={() => setAdding(true)}>
+              + Agregar nuevo bufete…
+            </button>
+          )}
+          {adding && (
+            <div className="px-3 py-2 border-t border-border flex gap-2 items-center">
+              <input
+                autoFocus
+                className={`${INPUT} flex-1 text-sm`}
+                placeholder="Nombre del bufete"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') createFirm(); if (e.key === 'Escape') setAdding(false); }}
+              />
+              <button type="button" disabled={creating} onClick={createFirm}
+                className="shrink-0 text-[11px] bg-brand text-white px-2 py-1 rounded-md disabled:opacity-50">
+                {creating ? '…' : 'Crear'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AttorneySelect — miembros del firm seleccionado ─────────────────────────
+
+interface MemberOption { id: string; label: string; subtitle: string; }
+
+function AttorneySelect({
+  firmId, value, onChange,
+}: {
+  firmId: string; value: string; onChange: (v: string) => void;
+}) {
+  const [members, setMembers] = useState<MemberOption[]>([]);
+
+  useEffect(() => {
+    if (!firmId) { setMembers([]); return; }
+    fetch(`/api/admin/lawyers/autocomplete?firmId=${firmId}`)
+      .then(r => r.json())
+      .then(j => setMembers(j.results ?? []))
+      .catch(() => {});
+  }, [firmId]);
+
+  if (!firmId) {
+    return (
+      <input
+        className={INPUT}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder="Nombre del abogado"
+      />
+    );
+  }
+
+  return (
+    <select className={SELECT} value={value} onChange={e => onChange(e.target.value)}>
+      <option value="">Seleccionar abogado</option>
+      {members.map(m => (
+        <option key={m.id} value={m.label}>{m.label}{m.subtitle ? ` — ${m.subtitle}` : ''}</option>
+      ))}
+      <option value="__otro__">Otro…</option>
+    </select>
+  );
+}
+
+// ─── ProviderAutocomplete — buscar quiroprácticos / proveedores ───────────────
+
+interface ProviderOption { id: string; label: string; }
+
+function ProviderAutocomplete({
+  value, onChange,
+}: {
+  value: string; onChange: (v: string) => void;
+}) {
+  const [query,   setQuery]   = useState(value);
+  const [results, setResults] = useState<ProviderOption[]>([]);
+  const [open,    setOpen]    = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) { setResults([]); return; }
+    const id = setTimeout(() => {
+      fetch(`/api/admin/providers?q=${encodeURIComponent(q)}&limit=10`)
+        .then(r => r.json())
+        .then(j => setResults((j.providers ?? j.data ?? []).map((p: { firstName?: string; lastName?: string; id: string }) => ({
+          id: p.id,
+          label: `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim(),
+        }))))
+        .catch(() => {});
+    }, 200);
+    return () => clearTimeout(id);
+  }, [query]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        className={INPUT}
+        value={query}
+        placeholder="Buscar quiropráctico…"
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+      />
+      {open && results.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-bg-1 shadow-lg overflow-hidden">
+          {results.map(p => (
+            <button
+              key={p.id} type="button"
+              className="w-full text-left px-3 py-2 text-sm text-text-1 hover:bg-bg-2"
+              onClick={() => { onChange(p.label); setQuery(p.label); setOpen(false); setResults([]); }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -260,14 +483,16 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   const [phone,      setPhone]      = useState('');
   const [email,      setEmail]      = useState('');
   const [language,   setLanguage]   = useState('es');
-  const [howFound,      setHowFound]      = useState('');
-  const [referredBy,    setReferredBy]    = useState('');
+  const [howFound,         setHowFound]         = useState('');
+  const [howFoundOther,    setHowFoundOther]    = useState('');
+  const [referredBy,       setReferredBy]       = useState('');
   const [referredByFreeText, setReferredByFreeText] = useState('');
 
   // Case info
   const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
   const [accidentDate, setAccidentDate] = useState('');
   const [accDisplay,   setAccDisplay]   = useState('');
+  const [lawFirmId,    setLawFirmId]    = useState('');
   const [lawFirm,      setLawFirm]      = useState('');
   const [attorney,     setAttorney]     = useState('');
   const [chiropractor, setChiropractor] = useState('');
@@ -276,28 +501,50 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   // UI state
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
 
   const isMVA = caseType === 'MVA';
 
   function reset() {
     setFirstName(''); setLastName(''); setDob(''); setDobDisplay(''); setPhone('');
-    setEmail(''); setLanguage('es'); setHowFound(''); setReferredBy(''); setReferredByFreeText('');
-    setCaseType('MVA'); setAccidentDate(''); setAccDisplay(''); setLawFirm('');
+    setEmail(''); setLanguage('es'); setHowFound(''); setHowFoundOther(''); setReferredBy(''); setReferredByFreeText('');
+    setCaseType('MVA'); setAccidentDate(''); setAccDisplay(''); setLawFirmId(''); setLawFirm('');
     setAttorney(''); setChiropractor(''); setDescription('');
-    setError(''); setSuccessInfo(null);
+    setError(''); setFieldErrors({}); setSuccessInfo(null);
   }
 
-  function validate() {
-    if (!firstName.trim()) return 'El nombre es obligatorio.';
-    if (!lastName.trim())  return 'El apellido es obligatorio.';
-    if (!dob)              return 'La fecha de nacimiento es obligatoria.';
-    return null;
+  function validate(): boolean {
+    const errs: Record<string, string> = {};
+    const today = new Date().toISOString().slice(0, 10);
+    const minDOB = `${new Date().getFullYear() - 120}-01-01`;
+
+    if (!firstName.trim()) errs.firstName = 'El nombre es obligatorio.';
+    if (!lastName.trim())  errs.lastName  = 'El apellido es obligatorio.';
+    if (!dob) {
+      errs.dob = 'La fecha de nacimiento es obligatoria.';
+    } else if (dob > today) {
+      errs.dob = 'La fecha de nacimiento no puede ser futura.';
+    } else if (dob < minDOB) {
+      errs.dob = 'La fecha de nacimiento no puede ser hace más de 120 años.';
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      errs.email = 'Formato inválido (ej. nombre@dominio.com).';
+    if (phone.trim() && phone.replace(/\D/g, '').length < 10)
+      errs.phone = 'El teléfono debe tener 10 dígitos.';
+    if (accidentDate && accidentDate > today)
+      errs.accidentDate = 'La fecha de accidente no puede ser futura.';
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  function clearFieldError(field: string) {
+    setFieldErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
   }
 
   async function handleSave(mode: SaveMode) {
-    const err = validate();
-    if (err) { setError(err); return; }
+    if (!validate()) return;
     setSaving(true);
     setError('');
 
@@ -324,7 +571,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
           },
           legal: {
             lawyerStatus:    'HAS',
-            lawFirmId:       null,
+            lawFirmId:       isMVA ? (lawFirmId || null) : null,
             caseManagerName: isMVA ? (attorney.trim() || null) : null,
             firmPhone:       null,
           },
@@ -438,18 +685,35 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Field label="Nombre" required>
-                    <input className={INPUT} value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Nombre del paciente" />
-                  </Field>
-                  <Field label="Apellido" required>
-                    <input className={INPUT} value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido del paciente" />
-                  </Field>
-                  <Field label="Fecha de nacimiento" required>
-                    <input type="date" className={`${INPUT} [color-scheme:dark]`} value={dob} onChange={e => { setDob(e.target.value); setDobDisplay(''); }} />
-                  </Field>
-                  <Field label="Teléfono">
+                  <Field label="Nombre" required error={fieldErrors.firstName}>
                     <input
-                      className={INPUT}
+                      className={`${INPUT} ${fieldErrors.firstName ? 'border-rose' : ''}`}
+                      value={firstName}
+                      onChange={e => { setFirstName(e.target.value); clearFieldError('firstName'); }}
+                      placeholder="Nombre del paciente"
+                    />
+                  </Field>
+                  <Field label="Apellido" required error={fieldErrors.lastName}>
+                    <input
+                      className={`${INPUT} ${fieldErrors.lastName ? 'border-rose' : ''}`}
+                      value={lastName}
+                      onChange={e => { setLastName(e.target.value); clearFieldError('lastName'); }}
+                      placeholder="Apellido del paciente"
+                    />
+                  </Field>
+                  <Field label="Fecha de nacimiento" required error={fieldErrors.dob}>
+                    <input
+                      type="date"
+                      className={`${INPUT} [color-scheme:dark] ${fieldErrors.dob ? 'border-rose' : ''}`}
+                      value={dob}
+                      max={new Date().toISOString().split('T')[0]}
+                      min={`${new Date().getFullYear() - 120}-01-01`}
+                      onChange={e => { setDob(e.target.value); setDobDisplay(''); clearFieldError('dob'); }}
+                    />
+                  </Field>
+                  <Field label="Teléfono" error={fieldErrors.phone}>
+                    <input
+                      className={`${INPUT} ${fieldErrors.phone ? 'border-rose' : ''}`}
                       value={phone}
                       onChange={e => {
                         const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
@@ -458,14 +722,21 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                         else if (digits.length > 3) fmt = `(${digits.slice(0,3)}) ${digits.slice(3)}`;
                         else if (digits.length > 0) fmt = `(${digits}`;
                         setPhone(fmt);
+                        clearFieldError('phone');
                       }}
                       placeholder="(000) 000-0000"
                       maxLength={14}
                       inputMode="numeric"
                     />
                   </Field>
-                  <Field label="Correo electrónico">
-                    <input type="email" className={INPUT} value={email} onChange={e => setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
+                  <Field label="Correo electrónico" error={fieldErrors.email}>
+                    <input
+                      type="email"
+                      className={`${INPUT} ${fieldErrors.email ? 'border-rose' : ''}`}
+                      value={email}
+                      onChange={e => { setEmail(e.target.value); clearFieldError('email'); }}
+                      placeholder="correo@ejemplo.com"
+                    />
                   </Field>
                   <Field label="Idioma preferido">
                     <select className={SELECT} value={language} onChange={e => setLanguage(e.target.value)}>
@@ -474,12 +745,21 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                     </select>
                   </Field>
                   <Field label="¿Cómo se enteró de nosotros?">
-                    <select className={SELECT} value={howFound} onChange={e => setHowFound(e.target.value)}>
+                    <select className={SELECT} value={howFound} onChange={e => { setHowFound(e.target.value); if (e.target.value !== 'OTHER') setHowFoundOther(''); }}>
                       <option value="">Seleccionar opción</option>
                       {REFERRAL_OPTIONS.map(o => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
+                    {howFound === 'OTHER' && (
+                      <input
+                        className={`${INPUT} mt-1.5`}
+                        placeholder="Especificar: ¿Cómo se enteró de nosotros?"
+                        value={howFoundOther}
+                        onChange={e => setHowFoundOther(e.target.value)}
+                        autoFocus
+                      />
+                    )}
                   </Field>
                   <Field label="¿Quién lo refirió?">
                     <ReferredBySelect value={referredBy} onChange={v => { setReferredBy(v); if (v !== '__otro__') setReferredByFreeText(''); }} />
@@ -541,17 +821,27 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 {/* Campos solo MVA */}
                 {isMVA && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field label="Fecha de accidente">
-                      <input type="date" className={`${INPUT} [color-scheme:dark]`} value={accidentDate} onChange={e => { setAccidentDate(e.target.value); setAccDisplay(''); }} />
+                    <Field label="Fecha de accidente" error={fieldErrors.accidentDate}>
+                      <input
+                        type="date"
+                        className={`${INPUT} [color-scheme:dark] ${fieldErrors.accidentDate ? 'border-rose' : ''}`}
+                        value={accidentDate}
+                        max={new Date().toISOString().split('T')[0]}
+                        onChange={e => { setAccidentDate(e.target.value); setAccDisplay(''); clearFieldError('accidentDate'); }}
+                      />
                     </Field>
                     <Field label="Bufete / fuente de referido">
-                      <input className={INPUT} value={lawFirm} onChange={e => setLawFirm(e.target.value)} placeholder="Nombre del bufete" />
+                      <LawFirmAutocomplete
+                        firmId={lawFirmId}
+                        firmName={lawFirm}
+                        onSelect={(id, name) => { setLawFirmId(id); setLawFirm(name); setAttorney(''); }}
+                      />
                     </Field>
                     <Field label="Abogado preferido">
-                      <input className={INPUT} value={attorney} onChange={e => setAttorney(e.target.value)} placeholder="Nombre del abogado" />
+                      <AttorneySelect firmId={lawFirmId} value={attorney} onChange={setAttorney} />
                     </Field>
                     <Field label="Quiropráctica">
-                      <input className={INPUT} value={chiropractor} onChange={e => setChiropractor(e.target.value)} placeholder="Nombre del quiropráctico" />
+                      <ProviderAutocomplete value={chiropractor} onChange={setChiropractor} />
                     </Field>
                   </div>
                 )}
@@ -567,7 +857,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 </Field>
               </div>
 
-              {/* Error */}
+              {/* Error de API (errores de campo se muestran inline) */}
               {error && (
                 <div className="flex items-center gap-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2">
                   <AlertCircle className="w-3.5 h-3.5 text-rose shrink-0" />

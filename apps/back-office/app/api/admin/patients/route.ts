@@ -41,6 +41,7 @@ const CreateSchema = z.object({
   guardianName:            z.string().nullable().optional().or(empty),
   guardianPhone:           z.string().nullable().optional().or(empty),
   guardianRelation:        z.enum(['FATHER','MOTHER','LEGAL_GUARDIAN','OTHER']).nullable().optional(),
+  providerReferrerId:      z.string().cuid().nullable().optional().or(empty),
 });
 
 async function generatePatientCode(): Promise<string> {
@@ -58,7 +59,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.json().catch(() => null);
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: 'INVALID_BODY', issues: parsed.error.issues }, { status: 400 });
+    const LABELS: Record<string, string> = {
+      firstName: 'Nombre', lastName: 'Apellido', email: 'Email',
+      phone: 'Teléfono', dateOfBirth: 'Fecha de nacimiento',
+      addressZip: 'Código postal',
+    };
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join('.');
+      if (!fieldErrors[key]) fieldErrors[key] = [];
+      fieldErrors[key].push(issue.message);
+    }
+    const msgs = Object.entries(fieldErrors)
+      .filter(([, errs]) => errs.length)
+      .map(([path, errs]) => `${LABELS[path] ?? path}: ${errs[0]}`);
+    return NextResponse.json(
+      { ok: false, error: 'INVALID_PAYLOAD', message: msgs.join(' · ') || 'Verifica los campos requeridos.', details: { fieldErrors } },
+      { status: 400 },
+    );
   }
 
   const d = parsed.data;
@@ -97,7 +115,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ...(d.emergency2Relation !== undefined && { emergency2Relation: d.emergency2Relation }),
         ...(d.guardianName      !== undefined && { guardianName:      d.guardianName }),
         ...(d.guardianPhone     !== undefined && { guardianPhone:     d.guardianPhone }),
-        ...(d.guardianRelation  !== undefined && { guardianRelation:  d.guardianRelation }),
+        ...(d.guardianRelation      !== undefined && { guardianRelation:      d.guardianRelation }),
+        ...(d.providerReferrerId    !== undefined && { providerReferrerId:    d.providerReferrerId }),
         ...(d.dateOfBirth ? { dateOfBirth: new Date(d.dateOfBirth) } : {}),
       },
       select: { id: true, patientCode: true, firstName: true, lastName: true },

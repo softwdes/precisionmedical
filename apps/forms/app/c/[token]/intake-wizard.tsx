@@ -1148,6 +1148,7 @@ export function IntakeWizard({
   const [emer2PhoneError, setEmer2PhoneError]           = useState('');
   const [emerRelOtherError, setEmerRelOtherError]       = useState('');
   const [emer2RelOtherError, setEmer2RelOtherError]     = useState('');
+  const [accidentDateError, setAccidentDateError]       = useState('');
 
   // Step 7 — Consentimientos
   const [consents, setConsents] = useState({
@@ -1522,6 +1523,24 @@ export function IntakeWizard({
       if (personal.emergencyContactRelation === 'OTHER' && !personal.emergencyContactRelationOther.trim()) { setEmerRelOtherError(otherMsg); valid = false; } else { setEmerRelOtherError(''); }
       if (personal.emergency2Relation === 'OTHER' && !personal.emergency2RelationOther.trim()) { setEmer2RelOtherError(otherMsg); valid = false; } else { setEmer2RelOtherError(''); }
       if (!valid) return;
+    }
+    if (fromStep === 5 && acc.type === 'MVA') {
+      if (!acc.date) {
+        setAccidentDateError(lang === 'es' ? 'La fecha del accidente es obligatoria.' : 'Accident date is required.');
+        return;
+      }
+      const accDate = new Date(acc.date);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (accDate > today) {
+        setAccidentDateError(lang === 'es' ? 'La fecha no puede ser futura.' : 'Accident date cannot be in the future.');
+        return;
+      }
+      const tenYearsAgo = new Date(); tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+      if (accDate < tenYearsAgo) {
+        setAccidentDateError(lang === 'es' ? 'La fecha no puede ser anterior a 10 años.' : 'Please enter a valid date within the last 10 years.');
+        return;
+      }
+      setAccidentDateError('');
     }
     if (fromStep === 9) {
       const checked = [consents.hipaa, consents.assignedParties, consents.treatment, consents.financial, consents.medicalHistory].filter(Boolean).length;
@@ -2289,9 +2308,9 @@ export function IntakeWizard({
                     title={lang === 'es' ? 'Fecha del accidente' : 'Accident date'}
                     sub={lang === 'es' ? 'Describa correctamente la razón de su visita a la clínica.' : 'Describe correctly the reason for your visit to the clinic.'}
                   >
-                    <Field label={t.accidentDate}>
+                    <Field label={t.accidentDate} error={accidentDateError}>
                       <DateInputMDY style={S.input} value={acc.date}
-                        onChange={v => setAcc(a => ({ ...a, date: v }))} />
+                        onChange={v => { setAcc(a => ({ ...a, date: v })); setAccidentDateError(''); }} />
                     </Field>
 
                     <Field label={t.accidentDesc}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { TwilioCallStatus } from '@/lib/use-twilio-device';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -1515,7 +1516,7 @@ function Autocomplete({
         <Input value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)} placeholder={placeholder} className="pl-9" />
       </div>
-      {open && (results.length > 0 || loading) && (
+      {open && (results.length > 0 || loading) && typeof window !== 'undefined' && createPortal(
         <div style={dropStyle} className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
           {loading && results.length === 0 ? (
             <div className="px-3 py-2 text-text-muted text-xs">{t('autocompleteSearching')}</div>
@@ -1529,7 +1530,8 @@ function Autocomplete({
               </div>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

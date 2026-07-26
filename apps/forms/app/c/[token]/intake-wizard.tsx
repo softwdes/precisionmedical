@@ -753,6 +753,30 @@ const REFERRAL_OPTIONS = [
   { value: 'OTHER', label: 'Otro' },
 ];
 
+const RELATION_OPTIONS_ES = [
+  { value: '', label: '—' },
+  { value: 'SPOUSE', label: 'Cónyuge / Pareja' },
+  { value: 'PARENT', label: 'Padre / Madre' },
+  { value: 'CHILD', label: 'Hijo / Hija' },
+  { value: 'SIBLING', label: 'Hermano / Hermana' },
+  { value: 'FRIEND', label: 'Amigo/a' },
+  { value: 'EMPLOYER', label: 'Jefe / Empleador' },
+  { value: 'NEIGHBOR', label: 'Vecino/a' },
+  { value: 'OTHER', label: 'Otro' },
+];
+const RELATION_OPTIONS_EN = [
+  { value: '', label: '—' },
+  { value: 'SPOUSE', label: 'Spouse / Partner' },
+  { value: 'PARENT', label: 'Parent' },
+  { value: 'CHILD', label: 'Child' },
+  { value: 'SIBLING', label: 'Sibling' },
+  { value: 'FRIEND', label: 'Friend' },
+  { value: 'EMPLOYER', label: 'Employer / Boss' },
+  { value: 'NEIGHBOR', label: 'Neighbor' },
+  { value: 'OTHER', label: 'Other' },
+];
+const RELATION_VALUES = ['', 'SPOUSE', 'PARENT', 'CHILD', 'SIBLING', 'FRIEND', 'EMPLOYER', 'NEIGHBOR', 'OTHER'];
+
 const COMM_OPTIONS = [
   { value: '', label: '—' },
   { value: 'PHONE', label: 'Teléfono' },
@@ -965,6 +989,11 @@ export function IntakeWizard({
   const rawReferral = patient.referralSource ?? '';
   const referralIsKnown = knownReferralValues.includes(rawReferral);
 
+  const rawRel1 = patient.emergencyContactRelation ?? '';
+  const rel1IsKnown = RELATION_VALUES.includes(rawRel1);
+  const rawRel2 = patient.emergency2Relation ?? '';
+  const rel2IsKnown = RELATION_VALUES.includes(rawRel2);
+
   const [personal, setPersonal] = useState({
     firstName:                patient.firstName,
     lastName:                 patient.lastName,
@@ -990,10 +1019,12 @@ export function IntakeWizard({
     maritalStatus:            patient.maritalStatus ?? '',
     emergencyContactName:     patient.emergencyContactName ?? '',
     emergencyContactPhone:    patient.emergencyContactPhone ?? '',
-    emergencyContactRelation: patient.emergencyContactRelation ?? '',
-    emergency2Name:           patient.emergency2Name ?? '',
-    emergency2Phone:          patient.emergency2Phone ?? '',
-    emergency2Relation:       patient.emergency2Relation ?? '',
+    emergencyContactRelation:      rel1IsKnown ? rawRel1 : (rawRel1 ? 'OTHER' : ''),
+    emergencyContactRelationOther: rel1IsKnown ? '' : rawRel1,
+    emergency2Name:                patient.emergency2Name ?? '',
+    emergency2Phone:               patient.emergency2Phone ?? '',
+    emergency2Relation:            rel2IsKnown ? rawRel2 : (rawRel2 ? 'OTHER' : ''),
+    emergency2RelationOther:       rel2IsKnown ? '' : rawRel2,
     guardianName:             patient.guardianName ?? '',
     guardianLastName:         savedExtra.guardianLastName ?? '',
     guardianEmail:            savedExtra.guardianEmail ?? '',
@@ -1113,8 +1144,10 @@ export function IntakeWizard({
   const [referralOtherError, setReferralOtherError] = useState('');
   const [phoneError, setPhoneError]                 = useState('');
   const [cellPhoneError, setCellPhoneError]         = useState('');
-  const [emerPhoneError, setEmerPhoneError]         = useState('');
-  const [emer2PhoneError, setEmer2PhoneError]       = useState('');
+  const [emerPhoneError, setEmerPhoneError]             = useState('');
+  const [emer2PhoneError, setEmer2PhoneError]           = useState('');
+  const [emerRelOtherError, setEmerRelOtherError]       = useState('');
+  const [emer2RelOtherError, setEmer2RelOtherError]     = useState('');
 
   // Step 7 — Consentimientos
   const [consents, setConsents] = useState({
@@ -1384,10 +1417,10 @@ export function IntakeWizard({
       if (stepNum === 3) body = { additional: {
         emergencyContactName:     personal.emergencyContactName,
         emergencyContactPhone:    personal.emergencyContactPhone,
-        emergencyContactRelation: personal.emergencyContactRelation,
+        emergencyContactRelation: personal.emergencyContactRelation === 'OTHER' ? (personal.emergencyContactRelationOther || 'OTHER') : personal.emergencyContactRelation,
         emergency2Name:           personal.emergency2Name,
         emergency2Phone:          personal.emergency2Phone,
-        emergency2Relation:       personal.emergency2Relation,
+        emergency2Relation:       personal.emergency2Relation === 'OTHER' ? (personal.emergency2RelationOther || 'OTHER') : personal.emergency2Relation,
         referredBy:               personal.referredBy,
         preferredPharmacy:        personal.preferredPharmacy,
         employer:                 personal.employer,
@@ -1483,8 +1516,11 @@ export function IntakeWizard({
     if (fromStep === 3) {
       let valid = true;
       const phoneMsg = lang === 'es' ? 'Teléfono inválido. Usa el formato (801) 555-0100.' : 'Invalid phone. Use format (801) 555-0100.';
+      const otherMsg = lang === 'es' ? 'Por favor especifica la relación.' : 'Please specify the relationship.';
       if (personal.emergencyContactPhone && !isValidNANP(personal.emergencyContactPhone)) { setEmerPhoneError(phoneMsg); valid = false; } else { setEmerPhoneError(''); }
       if (personal.emergency2Phone && !isValidNANP(personal.emergency2Phone)) { setEmer2PhoneError(phoneMsg); valid = false; } else { setEmer2PhoneError(''); }
+      if (personal.emergencyContactRelation === 'OTHER' && !personal.emergencyContactRelationOther.trim()) { setEmerRelOtherError(otherMsg); valid = false; } else { setEmerRelOtherError(''); }
+      if (personal.emergency2Relation === 'OTHER' && !personal.emergency2RelationOther.trim()) { setEmer2RelOtherError(otherMsg); valid = false; } else { setEmer2RelOtherError(''); }
       if (!valid) return;
     }
     if (fromStep === 9) {
@@ -2066,10 +2102,20 @@ export function IntakeWizard({
                       onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: formatPhone(e.target.value) })); setEmerPhoneError(''); }} />
                     {emerPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emerPhoneError}</span>}
                   </Field>
-                  <Field label={t.emergencyRelation}>
-                    <input type="text" style={S.input} value={personal.emergencyContactRelation}
-                      placeholder={t.emergencyRelationPh}
-                      onChange={e => setPersonal(p => ({ ...p, emergencyContactRelation: e.target.value }))} />
+                  <Field label={t.emergencyRelation} error={emerRelOtherError}>
+                    <select
+                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.emergencyContactRelation ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.emergencyContactRelation}
+                      onChange={e => setPersonal(p => ({ ...p, emergencyContactRelation: e.target.value, emergencyContactRelationOther: '' }))}
+                    >
+                      {(lang === 'es' ? RELATION_OPTIONS_ES : RELATION_OPTIONS_EN).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    {personal.emergencyContactRelation === 'OTHER' && (
+                      <input type="text" style={{ ...S.input, marginTop: 8 }}
+                        placeholder={lang === 'es' ? 'Especifica la relación…' : 'Specify relationship…'}
+                        value={personal.emergencyContactRelationOther}
+                        onChange={e => setPersonal(p => ({ ...p, emergencyContactRelationOther: e.target.value }))} />
+                    )}
                   </Field>
                 </div>
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '2px 0' }} />
@@ -2086,10 +2132,20 @@ export function IntakeWizard({
                       onChange={e => { setPersonal(p => ({ ...p, emergency2Phone: formatPhone(e.target.value) })); setEmer2PhoneError(''); }} />
                     {emer2PhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emer2PhoneError}</span>}
                   </Field>
-                  <Field label={t.emergency2Relation}>
-                    <input type="text" style={S.input} value={personal.emergency2Relation}
-                      placeholder={t.emergency2RelationPh}
-                      onChange={e => setPersonal(p => ({ ...p, emergency2Relation: e.target.value }))} />
+                  <Field label={t.emergency2Relation} error={emer2RelOtherError}>
+                    <select
+                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.emergency2Relation ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                      value={personal.emergency2Relation}
+                      onChange={e => setPersonal(p => ({ ...p, emergency2Relation: e.target.value, emergency2RelationOther: '' }))}
+                    >
+                      {(lang === 'es' ? RELATION_OPTIONS_ES : RELATION_OPTIONS_EN).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    {personal.emergency2Relation === 'OTHER' && (
+                      <input type="text" style={{ ...S.input, marginTop: 8 }}
+                        placeholder={lang === 'es' ? 'Especifica la relación…' : 'Specify relationship…'}
+                        value={personal.emergency2RelationOther}
+                        onChange={e => setPersonal(p => ({ ...p, emergency2RelationOther: e.target.value }))} />
+                    )}
                   </Field>
                 </div>
               </FormSection>

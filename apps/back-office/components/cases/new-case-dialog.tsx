@@ -1453,6 +1453,7 @@ function Autocomplete({
     { position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden' }
   );
   const wrapRef = useRef<HTMLDivElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (selected) { setQuery(''); setOpen(false); return; }
@@ -1467,28 +1468,27 @@ function Autocomplete({
     return () => clearTimeout(handle);
   }, [query, endpoint, extraParams, selected]);
 
-  // useLayoutEffect: fires sync before paint so rect is always accurate
   useLayoutEffect(() => {
     if (!open || !wrapRef.current) {
       setDropStyle({ position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden' });
       return;
     }
     const rect = wrapRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const dropH = Math.min(240, results.length * 52 + 8);
-    if (spaceBelow < dropH && spaceAbove > spaceBelow) {
+    const dropH = Math.min(240, results.length * 44 + 8);
+    // Prefer opening upward to avoid covering form fields below
+    if (rect.top >= dropH) {
       setDropStyle({ position: 'fixed', bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width, visibility: 'visible' });
     } else {
       setDropStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, visibility: 'visible' });
     }
   }, [open, results.length]);
 
-  // Close on outside click
+  // Close on outside click — must check both the input wrapper AND the portal dropdown
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!wrapRef.current?.contains(t) && !dropRef.current?.contains(t)) setOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -1517,7 +1517,7 @@ function Autocomplete({
           onFocus={() => setOpen(true)} placeholder={placeholder} className="pl-9" />
       </div>
       {open && (results.length > 0 || loading) && typeof window !== 'undefined' && createPortal(
-        <div style={dropStyle} className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
+        <div ref={dropRef} style={dropStyle} className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
           {loading && results.length === 0 ? (
             <div className="px-3 py-2 text-text-muted text-xs">{t('autocompleteSearching')}</div>
           ) : results.map((r) => (

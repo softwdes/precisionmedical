@@ -9,7 +9,7 @@
 import { db } from '@precision-medical/database';
 import { CloseWindowButton } from './close-window-button';
 
-type Props = { params: Promise<{ token: string }> };
+type Props = { params: Promise<{ token: string }>; searchParams: Promise<{ lang?: string }> };
 
 function fmtDateTime(d: Date | null | undefined): string {
   if (!d) return '—';
@@ -20,8 +20,10 @@ function fmtDateTime(d: Date | null | undefined): string {
   });
 }
 
-export default async function DonePage({ params }: Props) {
+export default async function DonePage({ params, searchParams }: Props) {
   const { token } = await params;
+  const { lang = 'en' } = await searchParams;
+  const isEs = lang === 'es';
 
   const rec = await db.case.findUnique({
     where: { portalToken: token },
@@ -137,7 +139,7 @@ export default async function DonePage({ params }: Props) {
         {/* Actions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Close window */}
-          <CloseWindowButton firstName={firstName} caseCode={caseCode} />
+          <CloseWindowButton firstName={firstName} caseCode={caseCode} lang={isEs ? 'es' : 'en'} />
 
           {/* Download PDF — Phase 2 placeholder */}
           <button

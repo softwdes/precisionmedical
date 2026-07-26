@@ -1645,7 +1645,7 @@ export function IntakeWizard({
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      router.push(`/c/${token}/done`);
+      router.push(`/c/${token}/done?lang=${lang}`);
     } catch {
       setSaveError(STRINGS[lang].signError);
     } finally {

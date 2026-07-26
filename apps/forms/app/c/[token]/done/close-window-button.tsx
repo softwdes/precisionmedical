@@ -2,10 +2,20 @@
 
 import { useState, useEffect } from 'react';
 
-export function CloseWindowButton({ firstName, caseCode }: { firstName: string; caseCode: string }) {
+export function CloseWindowButton({
+  firstName,
+  caseCode,
+  lang = 'en',
+}: {
+  firstName: string;
+  caseCode: string;
+  lang?: 'es' | 'en';
+}) {
   const [handoff, setHandoff]     = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [dimmed, setDimmed]       = useState(false);
+
+  const es = lang === 'es';
 
   useEffect(() => {
     if (!handoff) return;
@@ -33,7 +43,7 @@ export function CloseWindowButton({ firstName, caseCode }: { firstName: string; 
           boxShadow: '0 4px 20px rgba(16,185,129,0.30)',
         }}
       >
-        ✓ Cerrar esta ventana
+        {es ? '✓ Cerrar esta ventana' : '✓ Close this window'}
       </button>
     );
   }
@@ -63,18 +73,15 @@ export function CloseWindowButton({ firstName, caseCode }: { firstName: string; 
 
           {/* ── Icono con anillo giratorio ─────────────────────────────── */}
           <div style={{ position: 'relative', width: 128, height: 128, margin: '0 auto 28px' }}>
-            {/* anillo exterior */}
             <div style={{
               position: 'absolute', inset: 0, borderRadius: '50%',
               background: 'conic-gradient(from 0deg, #10B981 0%, #06B6D4 50%, #10B981 100%)',
               animation: 'pmSpin 3s linear infinite',
               opacity: .5,
             }} />
-            {/* relleno oscuro para separar */}
             <div style={{
               position: 'absolute', inset: 4, borderRadius: '50%', background: '#0a1224',
             }} />
-            {/* círculo principal */}
             <div style={{
               position: 'absolute', inset: 8, borderRadius: '50%',
               background: 'linear-gradient(135deg, #10B981, #06B6D4)',
@@ -96,7 +103,7 @@ export function CloseWindowButton({ firstName, caseCode }: { firstName: string; 
               fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
               color: 'rgba(255,255,255,0.30)', marginBottom: 4,
             }}>
-              Número de caso · Case number
+              {es ? 'Número de caso' : 'Case number'}
             </div>
             <div style={{
               fontSize: 20, fontWeight: 900, fontFamily: 'monospace',
@@ -109,13 +116,10 @@ export function CloseWindowButton({ firstName, caseCode }: { firstName: string; 
           {/* ── Saludo ────────────────────────────────────────────────── */}
           <h1 style={{
             fontSize: 30, fontWeight: 900, color: '#fff',
-            marginBottom: 4, lineHeight: 1.2,
+            marginBottom: 24, lineHeight: 1.2,
           }}>
-            ¡Gracias, {firstName}!
+            {es ? `¡Gracias, ${firstName}!` : `Thank you, ${firstName}!`}
           </h1>
-          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.35)', marginBottom: 24 }}>
-            Thank you!
-          </p>
 
           {/* ── Instrucción principal ─────────────────────────────────── */}
           <div style={{
@@ -126,17 +130,11 @@ export function CloseWindowButton({ firstName, caseCode }: { firstName: string; 
             <div style={{ fontSize: 22, marginBottom: 12 }}>📲</div>
             <p style={{
               fontSize: 17, fontWeight: 700, color: '#fff',
-              lineHeight: 1.45, marginBottom: 10,
+              lineHeight: 1.45, margin: 0,
             }}>
-              Puedes entregar la tablet<br />al personal de la clínica.
-            </p>
-            <div style={{
-              width: 40, height: 1,
-              background: 'rgba(16,185,129,0.30)',
-              margin: '0 auto 10px',
-            }} />
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>
-              Please hand the tablet back<br />to our clinic staff.
+              {es
+                ? <>Puedes entregar la tablet<br />al personal de la clínica.</>
+                : <>Please hand the tablet back<br />to our clinic staff.</>}
             </p>
           </div>
 
@@ -151,8 +149,7 @@ export function CloseWindowButton({ firstName, caseCode }: { firstName: string; 
           </div>
 
           <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.22)', marginBottom: 20, lineHeight: 1.6 }}>
-            El equipo te atenderá en unos momentos.<br />
-            <span style={{ fontSize: 11 }}>Our team will assist you shortly.</span>
+            {es ? 'El equipo te atenderá en unos momentos.' : 'Our team will assist you shortly.'}
           </p>
 
           {/* ── Countdown ─────────────────────────────────────────────── */}
@@ -167,7 +164,7 @@ export function CloseWindowButton({ firstName, caseCode }: { firstName: string; 
               animation: 'pmPulse 1s ease-in-out infinite',
             }} />
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
-              Pantalla se oscurece en {countdown}s
+              {es ? `Pantalla se oscurece en ${countdown}s` : `Screen dims in ${countdown}s`}
             </span>
           </div>
 

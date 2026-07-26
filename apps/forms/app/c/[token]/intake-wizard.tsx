@@ -1100,9 +1100,52 @@ export function IntakeWizard({
   );
   const [showInsModal, setShowInsModal] = useState(false);
   const [insModalEntry, setInsModalEntry] = useState<InsuranceEntry>(blankInsurance('AUTO'));
-  const openInsModal = (insType: InsuranceType) => { setInsModalEntry(blankInsurance(insType)); setShowInsModal(true); };
-  const saveInsEntry = () => { setInsurances(prev => [...prev, insModalEntry]); setShowInsModal(false); };
+  const [insErrors, setInsErrors] = useState<Record<string, string>>({});
+  const openInsModal = (insType: InsuranceType) => { setInsModalEntry(blankInsurance(insType)); setInsErrors({}); setShowInsModal(true); };
   const removeIns = (id: string) => setInsurances(prev => prev.filter(i => i.id !== id));
+
+  const isMoneyField = (v: string) => !v || /^\$?\d{1,7}(\.\d{0,2})?$/.test(v.trim());
+
+  const saveInsEntry = () => {
+    const e = insModalEntry;
+    const es: Record<string, string> = {};
+    const req = (label: string) => lang === 'es' ? `${label} es obligatorio.` : `${label} is required.`;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const tenYearsAgo = new Date(); tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+
+    if (!e.carrier.trim() || e.carrier.trim().length < 2) es.carrier = req(lang === 'es' ? 'Compañía de seguro' : 'Insurance company');
+
+    if (e.insType === 'MEDICAL') {
+      if (!e.policyId.trim() || e.policyId.trim().length < 3) es.policyId = lang === 'es' ? 'N° de póliza inválido (mín. 3 caracteres).' : 'Policy number invalid (min 3 chars).';
+      if (e.copay && !isMoneyField(e.copay)) es.copay = lang === 'es' ? 'Formato inválido (ej: $500.00).' : 'Invalid amount (e.g. $500.00).';
+      if (e.deductible && !isMoneyField(e.deductible)) es.deductible = lang === 'es' ? 'Formato inválido (ej: $1000.00).' : 'Invalid amount (e.g. $1000.00).';
+      if (e.effectiveDate) {
+        const d = new Date(e.effectiveDate);
+        if (d > today) es.effectiveDate = lang === 'es' ? 'La fecha de vigencia no puede ser futura.' : 'Effective date cannot be in the future.';
+      }
+      if (e.holderDOB) {
+        const d = new Date(e.holderDOB);
+        if (d >= today) es.holderDOB = lang === 'es' ? 'Fecha de nacimiento inválida.' : 'Invalid date of birth.';
+      }
+    }
+
+    if (e.insType === 'AUTO') {
+      if (e.lossDate) {
+        const d = new Date(e.lossDate);
+        if (d > today) es.lossDate = lang === 'es' ? 'La fecha de siniestro no puede ser futura.' : 'Loss date cannot be in the future.';
+        else if (d < tenYearsAgo) es.lossDate = lang === 'es' ? 'La fecha no puede ser anterior a 10 años.' : 'Date cannot be more than 10 years ago.';
+      }
+      if (e.adjusterPhone && !isValidNANP(e.adjusterPhone)) es.adjusterPhone = lang === 'es' ? 'Teléfono inválido.' : 'Invalid phone.';
+      if (e.adjusterFax && !isValidNANP(e.adjusterFax)) es.adjusterFax = lang === 'es' ? 'Fax inválido.' : 'Invalid fax.';
+      if (e.adjusterPhone2 && !isValidNANP(e.adjusterPhone2)) es.adjusterPhone2 = lang === 'es' ? 'Teléfono inválido.' : 'Invalid phone.';
+      if (e.adjusterEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.adjusterEmail)) es.adjusterEmail = lang === 'es' ? 'Correo inválido.' : 'Invalid email.';
+    }
+
+    if (Object.keys(es).length > 0) { setInsErrors(es); return; }
+    setInsurances(prev => [...prev, insModalEntry]);
+    setShowInsModal(false);
+    setInsErrors({});
+  };
 
   const [health, setHealth] = useState({
     healthStatus:        (savedHealth?.healthStatus ?? 'good') as HealthStatus,
@@ -2484,13 +2527,13 @@ export function IntakeWizard({
               {insModalEntry.insType === 'MEDICAL' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insCarrier}>
+                    <Field label={t.insCarrier} error={insErrors.carrier}>
                       <input type="text" style={S.input} value={insModalEntry.carrier}
-                        onChange={e => setInsModalEntry(v => ({ ...v, carrier: e.target.value }))} />
+                        onChange={e => { setInsModalEntry(v => ({ ...v, carrier: e.target.value })); setInsErrors(er => ({ ...er, carrier: '' })); }} />
                     </Field>
-                    <Field label={t.insPolicyId}>
+                    <Field label={t.insPolicyId} error={insErrors.policyId}>
                       <input type="text" style={S.input} value={insModalEntry.policyId}
-                        onChange={e => setInsModalEntry(v => ({ ...v, policyId: e.target.value }))} />
+                        onChange={e => { setInsModalEntry(v => ({ ...v, policyId: e.target.value })); setInsErrors(er => ({ ...er, policyId: '' })); }} />
                     </Field>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -2504,9 +2547,9 @@ export function IntakeWizard({
                     </Field>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insHolderDOB}>
+                    <Field label={t.insHolderDOB} error={insErrors.holderDOB}>
                       <DateInputMDY style={S.input} value={insModalEntry.holderDOB}
-                        onChange={v => setInsModalEntry(e => ({ ...e, holderDOB: v }))} />
+                        onChange={v => { setInsModalEntry(e => ({ ...e, holderDOB: v })); setInsErrors(er => ({ ...er, holderDOB: '' })); }} />
                     </Field>
                     <Field label={t.insHolderRelation}>
                       <input type="text" style={S.input} value={insModalEntry.holderRelation}
@@ -2514,18 +2557,18 @@ export function IntakeWizard({
                     </Field>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insEffectiveDate}>
+                    <Field label={t.insEffectiveDate} error={insErrors.effectiveDate}>
                       <DateInputMDY style={S.input} value={insModalEntry.effectiveDate}
-                        onChange={v => setInsModalEntry(e => ({ ...e, effectiveDate: v }))} />
+                        onChange={v => { setInsModalEntry(e => ({ ...e, effectiveDate: v })); setInsErrors(er => ({ ...er, effectiveDate: '' })); }} />
                     </Field>
-                    <Field label={t.insCopay}>
+                    <Field label={t.insCopay} error={insErrors.copay}>
                       <input type="text" style={S.input} value={insModalEntry.copay} placeholder="$0.00"
-                        onChange={e => setInsModalEntry(v => ({ ...v, copay: e.target.value }))} />
+                        onChange={e => { setInsModalEntry(v => ({ ...v, copay: e.target.value })); setInsErrors(er => ({ ...er, copay: '' })); }} />
                     </Field>
                   </div>
-                  <Field label={t.insDeductible}>
+                  <Field label={t.insDeductible} error={insErrors.deductible}>
                     <input type="text" style={S.input} value={insModalEntry.deductible} placeholder="$0.00"
-                      onChange={e => setInsModalEntry(v => ({ ...v, deductible: e.target.value }))} />
+                      onChange={e => { setInsModalEntry(v => ({ ...v, deductible: e.target.value })); setInsErrors(er => ({ ...er, deductible: '' })); }} />
                   </Field>
                 </div>
               )}
@@ -2534,9 +2577,9 @@ export function IntakeWizard({
               {insModalEntry.insType === 'AUTO' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insCarrier}>
+                    <Field label={t.insCarrier} error={insErrors.carrier}>
                       <input type="text" style={S.input} value={insModalEntry.carrier}
-                        onChange={e => setInsModalEntry(v => ({ ...v, carrier: e.target.value }))} />
+                        onChange={e => { setInsModalEntry(v => ({ ...v, carrier: e.target.value })); setInsErrors(er => ({ ...er, carrier: '' })); }} />
                     </Field>
                     <Field label={t.insPolicyNum}>
                       <input type="text" style={S.input} value={insModalEntry.policyId}
@@ -2544,9 +2587,9 @@ export function IntakeWizard({
                     </Field>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insLossDate}>
+                    <Field label={t.insLossDate} error={insErrors.lossDate}>
                       <DateInputMDY style={S.input} value={insModalEntry.lossDate}
-                        onChange={v => setInsModalEntry(e => ({ ...e, lossDate: v }))} />
+                        onChange={v => { setInsModalEntry(e => ({ ...e, lossDate: v })); setInsErrors(er => ({ ...er, lossDate: '' })); }} />
                     </Field>
                     <Field label={t.insPip}>
                       <select style={{ ...S.input, backgroundColor: '#1a2236', color: '#fff' }}
@@ -2569,23 +2612,23 @@ export function IntakeWizard({
                     </Field>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insAdjusterPhone}>
+                    <Field label={t.insAdjusterPhone} error={insErrors.adjusterPhone}>
                       <input type="tel" style={S.input} placeholder="(000) 000-0000" value={insModalEntry.adjusterPhone}
-                        onChange={e => setInsModalEntry(v => ({ ...v, adjusterPhone: e.target.value }))} />
+                        onChange={e => { setInsModalEntry(v => ({ ...v, adjusterPhone: e.target.value })); setInsErrors(er => ({ ...er, adjusterPhone: '' })); }} />
                     </Field>
-                    <Field label={t.insAdjusterFax}>
+                    <Field label={t.insAdjusterFax} error={insErrors.adjusterFax}>
                       <input type="tel" style={S.input} placeholder="(000) 000-0000" value={insModalEntry.adjusterFax}
-                        onChange={e => setInsModalEntry(v => ({ ...v, adjusterFax: e.target.value }))} />
+                        onChange={e => { setInsModalEntry(v => ({ ...v, adjusterFax: e.target.value })); setInsErrors(er => ({ ...er, adjusterFax: '' })); }} />
                     </Field>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <Field label={t.insAdjusterPhone2}>
+                    <Field label={t.insAdjusterPhone2} error={insErrors.adjusterPhone2}>
                       <input type="tel" style={S.input} placeholder="(000) 000-0000" value={insModalEntry.adjusterPhone2}
-                        onChange={e => setInsModalEntry(v => ({ ...v, adjusterPhone2: e.target.value }))} />
+                        onChange={e => { setInsModalEntry(v => ({ ...v, adjusterPhone2: e.target.value })); setInsErrors(er => ({ ...er, adjusterPhone2: '' })); }} />
                     </Field>
-                    <Field label={t.insAdjusterEmail}>
+                    <Field label={t.insAdjusterEmail} error={insErrors.adjusterEmail}>
                       <input type="email" style={S.input} value={insModalEntry.adjusterEmail}
-                        onChange={e => setInsModalEntry(v => ({ ...v, adjusterEmail: e.target.value }))} />
+                        onChange={e => { setInsModalEntry(v => ({ ...v, adjusterEmail: e.target.value })); setInsErrors(er => ({ ...er, adjusterEmail: '' })); }} />
                     </Field>
                   </div>
                   <Field label={t.insComments}>

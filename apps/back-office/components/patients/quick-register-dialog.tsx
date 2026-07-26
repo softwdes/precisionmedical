@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import QRCode from 'qrcode';
 import {
   UserPlus, Car, Stethoscope, AlertCircle, QrCode, Send, Save,
@@ -38,25 +39,9 @@ function Field({ label, required, error, children }: { label: string; required?:
 const INPUT  = 'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted/50 outline-none focus:border-brand transition-colors';
 const SELECT = `${INPUT} appearance-none`;
 
-const REFERRAL_OPTIONS = [
-  { value: 'WALK_IN',          label: 'Presentó en clínica' },
-  { value: 'PHONE_CALL',       label: 'Llamada telefónica' },
-  { value: 'LAW_FIRM',         label: 'Bufete de abogados' },
-  { value: 'PATIENT_REFERRAL', label: 'Referido por paciente' },
-  { value: 'GOOGLE',           label: 'Google' },
-  { value: 'GOOGLE_MAPS',      label: 'Google Maps' },
-  { value: 'FACEBOOK',         label: 'Facebook' },
-  { value: 'INSTAGRAM',        label: 'Instagram' },
-  { value: 'TIKTOK',           label: 'TikTok' },
-  { value: 'FAMILY',           label: 'Familiar' },
-  { value: 'CHIROPRACTOR',     label: 'Quiropráctica' },
-  { value: 'INSURANCE',        label: 'Seguro médico' },
-  { value: 'OTHER',            label: 'Otro' },
-];
-
 // ─── ReferredBy Select — lista de firmas cargada desde DB ────────────────────
 
-function ReferredBySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function ReferredBySelect({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   const [firms, setFirms] = useState<string[]>([]);
 
   useEffect(() => {
@@ -72,7 +57,7 @@ function ReferredBySelect({ value, onChange }: { value: string; onChange: (v: st
       value={value}
       onChange={e => onChange(e.target.value)}
     >
-      <option value="">Seleccionar opción</option>
+      <option value="">{placeholder}</option>
       {firms.map(f => (
         <option key={f} value={f}>{f}</option>
       ))}
@@ -86,10 +71,13 @@ function ReferredBySelect({ value, onChange }: { value: string; onChange: (v: st
 interface FirmOption { id: string; label: string; subtitle: string; }
 
 function LawFirmAutocomplete({
-  firmId, firmName, onSelect,
+  firmId, firmName, onSelect, searchPlaceholder, addLabel, createLabel,
 }: {
   firmId: string; firmName: string;
   onSelect: (id: string, name: string) => void;
+  searchPlaceholder: string;
+  addLabel: string;
+  createLabel: string;
 }) {
   const [query,    setQuery]    = useState(firmName);
   const [results,  setResults]  = useState<FirmOption[]>([]);
@@ -99,7 +87,6 @@ function LawFirmAutocomplete({
   const [creating, setCreating] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // sync display when parent resets
   useEffect(() => { setQuery(firmName); }, [firmName]);
 
   useEffect(() => {
@@ -148,7 +135,7 @@ function LawFirmAutocomplete({
         <input
           className={`${INPUT} pr-7`}
           value={query}
-          placeholder={firmId ? '' : 'Buscar bufete…'}
+          placeholder={firmId ? '' : searchPlaceholder}
           readOnly={!!firmId}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => { if (!firmId) setOpen(true); }}
@@ -172,7 +159,7 @@ function LawFirmAutocomplete({
           {!adding && (
             <button type="button" className="w-full text-left px-3 py-2 text-[11px] text-brand hover:bg-bg-2 border-t border-border"
               onClick={() => setAdding(true)}>
-              + Agregar nuevo bufete…
+              {addLabel}
             </button>
           )}
           {adding && (
@@ -180,14 +167,14 @@ function LawFirmAutocomplete({
               <input
                 autoFocus
                 className={`${INPUT} flex-1 text-sm`}
-                placeholder="Nombre del bufete"
+                placeholder={searchPlaceholder}
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') createFirm(); if (e.key === 'Escape') setAdding(false); }}
               />
               <button type="button" disabled={creating} onClick={createFirm}
                 className="shrink-0 text-[11px] bg-brand text-white px-2 py-1 rounded-md disabled:opacity-50">
-                {creating ? '…' : 'Crear'}
+                {creating ? '…' : createLabel}
               </button>
             </div>
           )}
@@ -202,9 +189,10 @@ function LawFirmAutocomplete({
 interface MemberOption { id: string; label: string; subtitle: string; }
 
 function AttorneySelect({
-  firmId, value, onChange,
+  firmId, value, onChange, placeholder, selectPlaceholder,
 }: {
   firmId: string; value: string; onChange: (v: string) => void;
+  placeholder: string; selectPlaceholder: string;
 }) {
   const [members, setMembers] = useState<MemberOption[]>([]);
 
@@ -222,14 +210,14 @@ function AttorneySelect({
         className={INPUT}
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder="Nombre del abogado"
+        placeholder={placeholder}
       />
     );
   }
 
   return (
     <select className={SELECT} value={value} onChange={e => onChange(e.target.value)}>
-      <option value="">Seleccionar abogado</option>
+      <option value="">{selectPlaceholder}</option>
       {members.map(m => (
         <option key={m.id} value={m.label}>{m.label}{m.subtitle ? ` — ${m.subtitle}` : ''}</option>
       ))}
@@ -243,9 +231,9 @@ function AttorneySelect({
 interface ProviderOption { id: string; label: string; }
 
 function ProviderAutocomplete({
-  value, onChange,
+  value, onChange, placeholder,
 }: {
-  value: string; onChange: (v: string) => void;
+  value: string; onChange: (v: string) => void; placeholder: string;
 }) {
   const [query,   setQuery]   = useState(value);
   const [results, setResults] = useState<ProviderOption[]>([]);
@@ -282,7 +270,7 @@ function ProviderAutocomplete({
       <input
         className={INPUT}
         value={query}
-        placeholder="Buscar quiropráctico…"
+        placeholder={placeholder}
         onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
       />
@@ -319,6 +307,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
   onNewPatient: () => void;
   onClose: () => void;
 }) {
+  const t = useTranslations('quickRegister');
   const [copied,    setCopied]    = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
@@ -350,22 +339,19 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
 
       {/* ── Columna izquierda: QR ─────────────────────────────────── */}
       <div className="flex flex-col items-center justify-center gap-4 px-8 py-8 sm:w-72 shrink-0 bg-bg-2/40 border-b sm:border-b-0 sm:border-r border-border">
-        {/* Badge */}
         <div className="flex items-center gap-2 rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1">
           <Check className="w-3 h-3 text-emerald" />
-          <span className="text-[11px] font-medium text-emerald">Registrado exitosamente</span>
+          <span className="text-[11px] font-medium text-emerald">{t('qrRegistered')}</span>
         </div>
 
-        {/* QR */}
         <div className="rounded-xl border border-border p-3 bg-[#12141f] flex flex-col items-center gap-2">
           {qrDataUrl
-            ? <img src={qrDataUrl} alt="QR del portal" width={200} height={200} className="rounded-lg" />
+            ? <img src={qrDataUrl} alt="QR" width={200} height={200} className="rounded-lg" />
             : <div className="w-[200px] h-[200px] rounded-lg bg-bg-1 animate-pulse" />
           }
-          <p className="text-[10px] text-text-muted text-center">Escanear para completar formulario</p>
+          <p className="text-[10px] text-text-muted text-center">{t('qrScanHint')}</p>
         </div>
 
-        {/* Descargar */}
         <button
           type="button"
           onClick={downloadQr}
@@ -373,62 +359,58 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
           className="w-full flex items-center justify-center gap-1.5 rounded-md border border-border bg-bg-1 px-3 py-1.5 text-[11px] text-text-2 hover:border-brand/40 hover:text-brand transition-colors disabled:opacity-40"
         >
           <QrCode className="w-3.5 h-3.5" />
-          Descargar QR
+          {t('qrDownload')}
         </button>
       </div>
 
       {/* ── Columna derecha: info + acciones ──────────────────────── */}
       <div className="flex-1 flex flex-col gap-5 px-6 py-8">
 
-        {/* Patient + case info */}
         <div className="space-y-3">
           <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1">Paciente</p>
+              <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1">{t('qrPatient')}</p>
               <p className="text-base font-bold text-text-1">{info.patientName}</p>
               <p className="text-[11px] text-brand font-mono mt-0.5">{info.patientCode}</p>
             </div>
             <div className="h-px bg-border" />
             <div>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1">Código del caso</p>
+              <p className="text-[10px] uppercase tracking-wider text-text-muted mb-1">{t('qrCaseCode')}</p>
               <p className="text-lg font-bold text-text-1 font-mono tracking-wide">{info.caseCode}</p>
             </div>
           </div>
         </div>
 
-        {/* Portal link */}
         <div className="space-y-1.5">
-          <p className="text-[10px] uppercase tracking-wider text-text-muted">Link del portal</p>
+          <p className="text-[10px] uppercase tracking-wider text-text-muted">{t('qrPortalLink')}</p>
           <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2 px-3 py-2">
             <span className="flex-1 text-[11px] text-text-muted truncate font-mono">{info.portalUrl}</span>
             <button
               type="button"
               onClick={copyLink}
               className="text-text-muted hover:text-brand transition-colors shrink-0"
-              title="Copiar link"
+              title={t('qrCopyLink')}
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
           </div>
-          {copied && <p className="text-[10px] text-emerald">✓ Link copiado</p>}
+          {copied && <p className="text-[10px] text-emerald">{t('qrCopied')}</p>}
         </div>
 
-        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Actions */}
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={onNewPatient} className="flex items-center justify-center gap-1.5 text-xs">
               <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-              Nuevo registro
+              {t('qrNewRecord')}
             </Button>
             <Button
               onClick={() => window.open(`/patients/${info.patientId}`, '_blank')}
               className="flex items-center justify-center gap-1.5 text-xs"
             >
               <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-              Ver paciente
+              {t('qrViewPatient')}
             </Button>
           </div>
           <button
@@ -436,7 +418,7 @@ function QrSuccessPanel({ info, onNewPatient, onClose }: {
             onClick={onClose}
             className="w-full text-[11px] text-text-muted hover:text-text-1 transition-colors py-1"
           >
-            Cerrar
+            {t('qrClose')}
           </button>
         </div>
 
@@ -454,32 +436,30 @@ interface Props {
 
 type SaveMode = 'exit' | 'form' | 'qr';
 
-// Date helpers: YYYY-MM-DD ↔ MM/DD/YYYY display
-function isoToDisp(iso: string): string {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-');
-  return (m && d && y) ? `${m}/${d}/${y}` : '';
-}
-function fmtDate(raw: string): string {
-  const digs = raw.replace(/\D/g, '').slice(0, 8);
-  if (digs.length <= 2) return digs;
-  if (digs.length <= 4) return `${digs.slice(0, 2)}/${digs.slice(2)}`;
-  return `${digs.slice(0, 2)}/${digs.slice(2, 4)}/${digs.slice(4)}`;
-}
-function dateToIso(disp: string): string {
-  const digs = disp.replace(/\D/g, '');
-  if (digs.length < 8) return '';
-  return `${digs.slice(4, 8)}-${digs.slice(0, 2)}-${digs.slice(2, 4)}`;
-}
-
 export function QuickRegisterDialog({ open, onOpenChange }: Props) {
+  const t      = useTranslations('quickRegister');
   const router = useRouter();
+
+  const REFERRAL_OPTIONS = [
+    { value: 'WALK_IN',          label: t('referralWalkIn') },
+    { value: 'PHONE_CALL',       label: t('referralPhone') },
+    { value: 'LAW_FIRM',         label: t('referralLawFirm') },
+    { value: 'PATIENT_REFERRAL', label: t('referralPatient') },
+    { value: 'GOOGLE',           label: t('referralGoogle') },
+    { value: 'GOOGLE_MAPS',      label: t('referralGoogleMaps') },
+    { value: 'FACEBOOK',         label: t('referralFacebook') },
+    { value: 'INSTAGRAM',        label: t('referralInstagram') },
+    { value: 'TIKTOK',           label: t('referralTikTok') },
+    { value: 'FAMILY',           label: t('referralFamily') },
+    { value: 'CHIROPRACTOR',     label: t('referralChiro') },
+    { value: 'INSURANCE',        label: t('referralInsurance') },
+    { value: 'OTHER',            label: t('referralOther') },
+  ];
 
   // Patient basics
   const [firstName,  setFirstName]  = useState('');
   const [lastName,   setLastName]   = useState('');
   const [dob,        setDob]        = useState('');
-  const [dobDisplay, setDobDisplay] = useState('');
   const [phone,      setPhone]      = useState('');
   const [email,      setEmail]      = useState('');
   const [language,   setLanguage]   = useState('es');
@@ -491,7 +471,6 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   // Case info
   const [caseType,     setCaseType]     = useState<'MVA' | 'GENERAL'>('MVA');
   const [accidentDate, setAccidentDate] = useState('');
-  const [accDisplay,   setAccDisplay]   = useState('');
   const [lawFirmId,    setLawFirmId]    = useState('');
   const [lawFirm,      setLawFirm]      = useState('');
   const [attorney,     setAttorney]     = useState('');
@@ -507,9 +486,9 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
   const isMVA = caseType === 'MVA';
 
   function reset() {
-    setFirstName(''); setLastName(''); setDob(''); setDobDisplay(''); setPhone('');
+    setFirstName(''); setLastName(''); setDob(''); setPhone('');
     setEmail(''); setLanguage('es'); setHowFound(''); setHowFoundOther(''); setReferredBy(''); setReferredByFreeText('');
-    setCaseType('MVA'); setAccidentDate(''); setAccDisplay(''); setLawFirmId(''); setLawFirm('');
+    setCaseType('MVA'); setAccidentDate(''); setLawFirmId(''); setLawFirm('');
     setAttorney(''); setChiropractor(''); setDescription('');
     setError(''); setFieldErrors({}); setSuccessInfo(null);
   }
@@ -519,21 +498,21 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
     const today = new Date().toISOString().slice(0, 10);
     const minDOB = `${new Date().getFullYear() - 120}-01-01`;
 
-    if (!firstName.trim()) errs.firstName = 'El nombre es obligatorio.';
-    if (!lastName.trim())  errs.lastName  = 'El apellido es obligatorio.';
+    if (!firstName.trim()) errs.firstName = t('errFirstName');
+    if (!lastName.trim())  errs.lastName  = t('errLastName');
     if (!dob) {
-      errs.dob = 'La fecha de nacimiento es obligatoria.';
+      errs.dob = t('errDob');
     } else if (dob > today) {
-      errs.dob = 'La fecha de nacimiento no puede ser futura.';
+      errs.dob = t('errDobFuture');
     } else if (dob < minDOB) {
-      errs.dob = 'La fecha de nacimiento no puede ser hace más de 120 años.';
+      errs.dob = t('errDobOld');
     }
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-      errs.email = 'Formato inválido (ej. nombre@dominio.com).';
+      errs.email = t('errEmail');
     if (phone.trim() && phone.replace(/\D/g, '').length < 10)
-      errs.phone = 'El teléfono debe tener 10 dígitos.';
+      errs.phone = t('errPhone');
     if (accidentDate && accidentDate > today)
-      errs.accidentDate = 'La fecha de accidente no puede ser futura.';
+      errs.accidentDate = t('errAccidentFuture');
 
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -603,7 +582,6 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
       }
 
       if (mode === 'qr') {
-        // Generar token del portal y construir URL real
         const caseId = json.case?.id ?? '';
         let portalUrl = `/portal?case=${caseId}`;
         if (caseId) {
@@ -620,7 +598,6 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
           portalUrl,
         });
       } else {
-        // Refresh + cierre solo para guardar y salir / enviar formulario
         router.refresh();
         reset();
         onOpenChange(false);
@@ -641,18 +618,17 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
           <div className="flex items-center gap-2">
             <UserPlus className="w-4 h-4 text-brand" />
             <DialogTitle className="text-base font-semibold text-text-1">
-              Registro rápido de paciente
+              {t('title')}
             </DialogTitle>
           </div>
           <DialogDescription className="text-[12px] text-text-muted mt-0.5">
-            Crea el paciente y el caso con solo los datos que recepción necesita ahora.
+            {t('subtitle')}
           </DialogDescription>
         </DialogHeader>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* ── QR Success Panel ─────────────────────────────────────────── */}
           {successInfo ? (
             <QrSuccessPanel
               info={successInfo}
@@ -667,8 +643,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
               <div className="flex items-start gap-2.5 rounded-md border border-amber/30 bg-amber/[0.08] px-3 py-2.5">
                 <AlertCircle className="w-3.5 h-3.5 text-amber shrink-0 mt-0.5" />
                 <p className="text-[11.5px] text-amber leading-snug">
-                  <strong>Campos obligatorios:</strong> nombre, apellido, fecha de nacimiento y tipo de caso.
-                  Todo lo demás se puede completar desde el formulario QR.
+                  {t('requiredNotice')}
                 </p>
               </div>
 
@@ -677,41 +652,41 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 <div className="flex items-center gap-2">
                   <UserPlus className="w-4 h-4 text-brand" />
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">
-                    Datos básicos del paciente
+                    {t('sectionPatient')}
                   </h3>
                 </div>
                 <p className="text-[11px] text-text-muted -mt-2">
-                  Datos demográficos usados con más frecuencia en recepción.
+                  {t('sectionPatientSub')}
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Field label="Nombre" required error={fieldErrors.firstName}>
+                  <Field label={t('firstName')} required error={fieldErrors.firstName}>
                     <input
                       className={`${INPUT} ${fieldErrors.firstName ? 'border-rose' : ''}`}
                       value={firstName}
                       onChange={e => { setFirstName(e.target.value); clearFieldError('firstName'); }}
-                      placeholder="Nombre del paciente"
+                      placeholder={t('firstName')}
                     />
                   </Field>
-                  <Field label="Apellido" required error={fieldErrors.lastName}>
+                  <Field label={t('lastName')} required error={fieldErrors.lastName}>
                     <input
                       className={`${INPUT} ${fieldErrors.lastName ? 'border-rose' : ''}`}
                       value={lastName}
                       onChange={e => { setLastName(e.target.value); clearFieldError('lastName'); }}
-                      placeholder="Apellido del paciente"
+                      placeholder={t('lastName')}
                     />
                   </Field>
-                  <Field label="Fecha de nacimiento" required error={fieldErrors.dob}>
+                  <Field label={t('dob')} required error={fieldErrors.dob}>
                     <input
                       type="date"
                       className={`${INPUT} [color-scheme:dark] ${fieldErrors.dob ? 'border-rose' : ''}`}
                       value={dob}
                       max={new Date().toISOString().split('T')[0]}
                       min={`${new Date().getFullYear() - 120}-01-01`}
-                      onChange={e => { setDob(e.target.value); setDobDisplay(''); clearFieldError('dob'); }}
+                      onChange={e => { setDob(e.target.value); clearFieldError('dob'); }}
                     />
                   </Field>
-                  <Field label="Teléfono" error={fieldErrors.phone}>
+                  <Field label={t('phone')} error={fieldErrors.phone}>
                     <input
                       className={`${INPUT} ${fieldErrors.phone ? 'border-rose' : ''}`}
                       value={phone}
@@ -729,24 +704,24 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                       inputMode="numeric"
                     />
                   </Field>
-                  <Field label="Correo electrónico" error={fieldErrors.email}>
+                  <Field label={t('email')} error={fieldErrors.email}>
                     <input
                       type="email"
                       className={`${INPUT} ${fieldErrors.email ? 'border-rose' : ''}`}
                       value={email}
                       onChange={e => { setEmail(e.target.value); clearFieldError('email'); }}
-                      placeholder="correo@ejemplo.com"
+                      placeholder="name@example.com"
                     />
                   </Field>
-                  <Field label="Idioma preferido">
+                  <Field label={t('preferredLanguage')}>
                     <select className={SELECT} value={language} onChange={e => setLanguage(e.target.value)}>
-                      <option value="es">Español</option>
-                      <option value="en">English</option>
+                      <option value="es">{t('langEs')}</option>
+                      <option value="en">{t('langEn')}</option>
                     </select>
                   </Field>
-                  <Field label="¿Cómo se enteró de nosotros?">
+                  <Field label={t('howFound')}>
                     <select className={SELECT} value={howFound} onChange={e => { setHowFound(e.target.value); if (e.target.value !== 'OTHER') setHowFoundOther(''); }}>
-                      <option value="">Seleccionar opción</option>
+                      <option value="">{t('selectOption')}</option>
                       {REFERRAL_OPTIONS.map(o => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
@@ -754,19 +729,23 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                     {howFound === 'OTHER' && (
                       <input
                         className={`${INPUT} mt-1.5`}
-                        placeholder="Especificar: ¿Cómo se enteró de nosotros?"
+                        placeholder={t('specifyHowFound')}
                         value={howFoundOther}
                         onChange={e => setHowFoundOther(e.target.value)}
                         autoFocus
                       />
                     )}
                   </Field>
-                  <Field label="¿Quién lo refirió?">
-                    <ReferredBySelect value={referredBy} onChange={v => { setReferredBy(v); if (v !== '__otro__') setReferredByFreeText(''); }} />
+                  <Field label={t('referredBy')}>
+                    <ReferredBySelect
+                      value={referredBy}
+                      onChange={v => { setReferredBy(v); if (v !== '__otro__') setReferredByFreeText(''); }}
+                      placeholder={t('selectOption')}
+                    />
                     {referredBy === '__otro__' && (
                       <input
                         className={`${INPUT} mt-1.5`}
-                        placeholder="Escribe el nombre..."
+                        placeholder={t('typeReferredBy')}
                         value={referredByFreeText}
                         onChange={e => setReferredByFreeText(e.target.value)}
                         autoFocus
@@ -781,23 +760,22 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 <div className="flex items-center gap-2">
                   <Stethoscope className="w-4 h-4 text-brand" />
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider text-text-1">
-                    Información del caso
+                    {t('sectionCase')}
                   </h3>
                 </div>
                 <p className="text-[11px] text-text-muted -mt-2">
-                  GM solo necesita el tipo de caso. Los detalles de MVA son opcionales y pueden completarse después.
+                  {t('sectionCaseSub')}
                 </p>
 
-                {/* Tipo de caso */}
-                <Field label="Tipo de caso" required>
+                <Field label={t('caseType')} required>
                   <div className="grid grid-cols-2 gap-3">
-                    {(['MVA', 'GENERAL'] as const).map(t => {
-                      const active = caseType === t;
+                    {(['MVA', 'GENERAL'] as const).map(ct => {
+                      const active = caseType === ct;
                       return (
                         <button
-                          key={t}
+                          key={ct}
                           type="button"
-                          onClick={() => setCaseType(t)}
+                          onClick={() => setCaseType(ct)}
                           className={`flex items-center gap-2.5 px-4 py-3 rounded-lg border text-sm font-medium transition-all
                             ${active
                               ? 'border-brand bg-brand/10 text-brand'
@@ -808,7 +786,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                             ${active ? 'border-brand' : 'border-text-muted/40'}`}>
                             {active && <span className="w-1.5 h-1.5 rounded-full bg-brand block" />}
                           </span>
-                          {t === 'MVA'
+                          {ct === 'MVA'
                             ? <><Car className="w-3.5 h-3.5 shrink-0" /> MVA</>
                             : <><Stethoscope className="w-3.5 h-3.5 shrink-0" /> GM</>
                           }
@@ -818,46 +796,57 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                   </div>
                 </Field>
 
-                {/* Campos solo MVA */}
                 {isMVA && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Field label="Fecha de accidente" error={fieldErrors.accidentDate}>
+                    <Field label={t('accidentDate')} error={fieldErrors.accidentDate}>
                       <input
                         type="date"
                         className={`${INPUT} [color-scheme:dark] ${fieldErrors.accidentDate ? 'border-rose' : ''}`}
                         value={accidentDate}
                         max={new Date().toISOString().split('T')[0]}
-                        onChange={e => { setAccidentDate(e.target.value); setAccDisplay(''); clearFieldError('accidentDate'); }}
+                        onChange={e => { setAccidentDate(e.target.value); clearFieldError('accidentDate'); }}
                       />
                     </Field>
-                    <Field label="Bufete / fuente de referido">
+                    <Field label={t('lawFirm')}>
                       <LawFirmAutocomplete
                         firmId={lawFirmId}
                         firmName={lawFirm}
                         onSelect={(id, name) => { setLawFirmId(id); setLawFirm(name); setAttorney(''); }}
+                        searchPlaceholder={t('searchFirm')}
+                        addLabel={t('addNewFirm')}
+                        createLabel={t('createFirm')}
                       />
                     </Field>
-                    <Field label="Abogado preferido">
-                      <AttorneySelect firmId={lawFirmId} value={attorney} onChange={setAttorney} />
+                    <Field label={t('attorney')}>
+                      <AttorneySelect
+                        firmId={lawFirmId}
+                        value={attorney}
+                        onChange={setAttorney}
+                        placeholder={t('attorneyPlaceholder')}
+                        selectPlaceholder={t('selectAttorney')}
+                      />
                     </Field>
-                    <Field label="Quiropráctica">
-                      <ProviderAutocomplete value={chiropractor} onChange={setChiropractor} />
+                    <Field label={t('chiropractor')}>
+                      <ProviderAutocomplete
+                        value={chiropractor}
+                        onChange={setChiropractor}
+                        placeholder={t('searchChiro')}
+                      />
                     </Field>
                   </div>
                 )}
 
-                <Field label="Descripción del caso">
+                <Field label={t('caseDescription')}>
                   <textarea
                     rows={3}
                     className={INPUT}
                     value={description}
                     onChange={e => setDescription(e.target.value)}
-                    placeholder="Describe brevemente los síntomas y el motivo de consulta."
+                    placeholder={t('caseDescriptionPlaceholder')}
                   />
                 </Field>
               </div>
 
-              {/* Error de API (errores de campo se muestran inline) */}
               {error && (
                 <div className="flex items-center gap-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2">
                   <AlertCircle className="w-3.5 h-3.5 text-rose shrink-0" />
@@ -868,7 +857,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
           )}
         </div>
 
-        {/* Footer — solo visible cuando no está en modo QR success */}
+        {/* Footer */}
         {!successInfo && (
           <div className="px-4 sm:px-6 py-3 border-t border-border shrink-0 flex items-center gap-2 flex-wrap">
             <Button
@@ -877,7 +866,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
               disabled={saving}
               className="shrink-0"
             >
-              Cancelar
+              {t('cancel')}
             </Button>
 
             <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
@@ -888,7 +877,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 className="flex items-center gap-1.5 whitespace-nowrap"
               >
                 <Save className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">Guardar y </span>salir
+                {t('saveExit')}
               </Button>
 
               <Button
@@ -898,7 +887,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 className="flex items-center gap-1.5 whitespace-nowrap"
               >
                 <Send className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline">Guardar y enviar </span>formulario
+                {t('saveForm')}
               </Button>
 
               <Button
@@ -907,7 +896,7 @@ export function QuickRegisterDialog({ open, onOpenChange }: Props) {
                 className="flex items-center gap-1.5 whitespace-nowrap bg-cyan hover:bg-cyan/90 text-white border-cyan"
               >
                 <QrCode className="w-3.5 h-3.5 shrink-0" />
-                {saving ? 'Guardando...' : <><span className="hidden sm:inline">Guardar y generar </span>QR</>}
+                {saving ? t('saving') : t('saveQr')}
               </Button>
             </div>
           </div>

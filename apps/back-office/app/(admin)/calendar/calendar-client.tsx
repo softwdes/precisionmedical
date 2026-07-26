@@ -651,14 +651,14 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
       {/* ─── Drag & Drop feedback ── */}
       {dragSaving && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-lg border border-cyan/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl">
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg border border-cyan/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl">
           <Clock className="w-3.5 h-3.5 animate-spin text-cyan" />
-          <span className="text-text-1 text-sm font-medium">Reprogramando cita…</span>
+          <span className="text-text-1 text-sm font-medium">{t('dragRescheduling')}</span>
         </div>
       )}
       {dragError && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-lg border border-rose/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl">
-          <span className="text-rose text-sm font-medium">{dragError}</span>
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg border border-rose/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl">
+          <span className="text-rose text-sm font-medium">{t('dragError')}</span>
         </div>
       )}
 

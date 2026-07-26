@@ -31,9 +31,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (!user) redirect('/login');
 
   // Obtener nombre y rol desde la tabla users
+  const emailLocal = (user.email ?? '').split('@')[0] ?? '';
   let userName    = user.email ?? 'Usuario';
   let userRole    = '';
-  let userInits   = 'U';
+  let userInits   = (emailLocal[0] ?? 'U').toUpperCase();
 
   try {
     const admin = createAdminClient();
@@ -49,7 +50,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       userInits = initials(data.firstName ?? '', data.lastName ?? '');
     }
   } catch {
-    // Si falla la consulta, usar email como fallback
+    // fallback: inicial del email
   }
 
   return (

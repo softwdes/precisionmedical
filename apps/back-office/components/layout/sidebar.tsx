@@ -75,18 +75,26 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
       <div className={cn('flex items-center border-b border-border', collapsed ? 'justify-center px-0 py-4' : 'justify-between px-5 py-5')}>
         {!collapsed && (
           <Link href="/dashboard" onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="flex h-9 w-9 items-center justify-center rounded bg-gradient-brand shadow-glow shrink-0">
-              <span className="text-white font-bold text-sm">LM</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-[10px] shrink-0" style={{ background: 'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)', boxShadow: '0 0 16px rgba(37,99,235,0.55)' }}>
+              <svg width="20" height="20" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
+                <rect x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95"/>
+                <path d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke="#1E40AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              </svg>
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-text-1 font-bold text-sm leading-tight truncate">LienMaster v3</span>
-              <span className="text-text-muted text-[10px] uppercase tracking-wider truncate">Back Office</span>
+              <span className="text-text-1 font-bold text-sm leading-tight truncate">Precision Medical</span>
+              <span className="text-text-muted text-[10px] uppercase tracking-wider truncate">LienMaster v3</span>
             </div>
           </Link>
         )}
         {collapsed && (
-          <Link href="/dashboard" onClick={onMobileClose} className="flex h-9 w-9 items-center justify-center rounded bg-gradient-brand shadow-glow hover:opacity-80 transition-opacity">
-            <span className="text-white font-bold text-sm">LM</span>
+          <Link href="/dashboard" onClick={onMobileClose} className="flex h-9 w-9 items-center justify-center rounded-[10px] hover:opacity-80 transition-opacity" style={{ background: 'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)', boxShadow: '0 0 16px rgba(37,99,235,0.55)' }}>
+            <svg width="20" height="20" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
+              <rect x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95"/>
+              <path d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke="#1E40AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            </svg>
           </Link>
         )}
         {/* Close button mobile only */}

@@ -65,22 +65,19 @@ type MissingKey =
   | 'missingConsents';
 
 function MissingTooltip({ items, pct }: { items: string[]; pct?: number }) {
-  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
+  function handleEnter() {
+    if (!ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    setPos({ top: r.top - 8, left: r.left });
+  }
 
   if (!items.length) return null;
 
   return (
-    <div ref={ref} className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+    <div ref={ref} onMouseEnter={handleEnter} onMouseLeave={() => setPos(null)}>
       <div className="flex items-center gap-1.5 min-w-0">
         <p className="text-[10px] text-text-muted truncate cursor-default select-none flex-1 min-w-0">
           {items.join(', ')}
@@ -89,8 +86,11 @@ function MissingTooltip({ items, pct }: { items: string[]; pct?: number }) {
           <span className="text-[10px] text-text-muted tabular-nums flex-shrink-0">{pct}%</span>
         )}
       </div>
-      {open && (
-        <div className="absolute bottom-full left-0 mb-1.5 z-50 w-max max-w-[240px] rounded-lg border border-border bg-bg-1 shadow-lg shadow-black/30 p-2.5 pointer-events-none">
+      {pos && (
+        <div
+          className="fixed z-[9999] w-max max-w-[240px] rounded-lg border border-border bg-bg-1 shadow-lg shadow-black/40 p-2.5 pointer-events-none -translate-y-full"
+          style={{ top: pos.top, left: pos.left }}
+        >
           <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">Falta completar</p>
           <ul className="space-y-1">
             {items.map((item, i) => (
@@ -2028,6 +2028,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[90px]">{t('colStatus')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[200px]">{t('colAdmission')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[64px]">{t('colForm')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell w-[96px]">{t('colCreated')}</th>
               <th className="sticky right-0 z-10 bg-bg-2 w-[48px] px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
@@ -2058,7 +2059,6 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                         ? <ChevronUp className="w-3.5 h-3.5" />
                         : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
-                    <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} />
                     <div className="min-w-0">
                       <button
                         onClick={() => router.push(`/patients/${p.id}`)}
@@ -2175,6 +2175,11 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                   </div>
                 </td>
 
+                {/* Created */}
+                <td className="hidden xl:table-cell px-4 py-3.5 text-[11px] text-text-muted tabular-nums whitespace-nowrap">
+                  {fmtLocalDate(p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt))}
+                </td>
+
                 {/* Acciones */}
                 <td className="sticky right-0 z-10 bg-bg-0 px-4 py-3.5">
                   <div className="flex justify-end">
@@ -2228,7 +2233,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                               <div key={c.id} className="py-2 flex flex-col gap-1.5">
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-1.5">
-                                    <Car className="w-3 h-3 text-text-muted shrink-0" />
+                                    {c.caseType === 'MVA' ? <Car className="w-3 h-3 text-text-muted shrink-0" /> : <Stethoscope className="w-3 h-3 text-text-muted shrink-0" />}
                                     <span className="text-[11px] font-mono text-text-1">{c.caseCode}</span>
                                     <TagPill label={c.status} colorClass={
                                       c.status === 'CANCELLED' ? 'bg-rose/10 text-rose border-rose/20'
@@ -2286,7 +2291,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                     {/* Código caso */}
                                     <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2">
                                       <div className="flex items-center gap-1.5">
-                                        <Car className="w-3 h-3 text-text-muted shrink-0" />
+                                        {c.caseType === 'MVA' ? <Car className="w-3 h-3 text-text-muted shrink-0" /> : <Stethoscope className="w-3 h-3 text-text-muted shrink-0" />}
                                         <span className="text-[11px] font-mono text-text-1">{c.caseCode}</span>
                                       </div>
                                       <TagPill
@@ -2437,7 +2442,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           </select>
           {localPages > 0 && (
             <span className="ml-2" aria-live="polite" aria-atomic="true">
-              {t('pageInfo', { page: page + 1, total: localPages })} · {localTotal} {localTotal === 1 ? t('colPatient').toLowerCase() : t('colPatient').toLowerCase() + 's'}
+              {t('pageInfo', { page: page + 1, total: localPages })}
             </span>
           )}
         </div>

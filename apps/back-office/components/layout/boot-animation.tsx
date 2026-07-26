@@ -13,9 +13,10 @@ import { useEffect, useState } from 'react';
  * (usar NavigationProgress para esos casos).
  */
 export function BootAnimation({ children }: { children: React.ReactNode }): React.ReactElement {
-  const [booted, setBooted] = useState(false);
+  const [booted, setBooted] = useState(true);
 
   useEffect(() => {
+    setBooted(false);
     const timer = setTimeout(() => setBooted(true), 1200);
     return () => clearTimeout(timer);
   }, []);
@@ -24,8 +25,12 @@ export function BootAnimation({ children }: { children: React.ReactNode }): Reac
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-bg-0 z-[100]">
         <div className="flex flex-col items-center gap-4 animate-boot-glow">
-          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gradient-brand shadow-glow">
-            <span className="text-lg font-extrabold text-white tracking-widest">LM</span>
+          <div className="flex h-16 w-16 items-center justify-center rounded-[20px] shadow-glow" style={{ background: 'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)', boxShadow: '0 0 40px rgba(37,99,235,0.65),0 0 80px rgba(56,189,248,0.25)' }}>
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
+              <rect x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95"/>
+              <path d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke="#1E40AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            </svg>
           </div>
           <p className="text-xs text-text-muted tracking-wider uppercase">Precision Medical</p>
           <div className="flex gap-1">

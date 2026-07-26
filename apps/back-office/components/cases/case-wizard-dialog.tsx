@@ -167,6 +167,7 @@ function ConsentBlock({
   onCheck: (v: boolean) => void;
   children?: React.ReactNode;
 }) {
+  const t = useTranslations('caseWizard');
   return (
     <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-3">
       <div className="flex items-center gap-2">
@@ -184,7 +185,7 @@ function ConsentBlock({
           onChange={(e) => onCheck(e.target.checked)}
           className="mt-0.5 accent-brand"
         />
-        <span className="text-[11px] text-text-1">Acepto todos los términos de este consentimiento.</span>
+        <span className="text-[11px] text-text-1">{t('acceptAll')}</span>
       </label>
     </div>
   );
@@ -517,13 +518,13 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
 
               {/* Accept-all shortcut */}
               <div className="flex items-center justify-between rounded-md border border-brand/20 bg-brand/5 px-4 py-2.5">
-                <span className="text-[11px] text-text-2">Marcar todos los consentimientos como aceptados</span>
+                <span className="text-[11px] text-text-2">{tc('markAllConsents')}</span>
                 <button
                   type="button"
                   onClick={acceptAllConsents}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-[11px] font-medium hover:bg-brand/90 transition-colors shrink-0"
                 >
-                  <Check className="w-3 h-3" /> Acepto todos
+                  <Check className="w-3 h-3" /> {tc('acceptAll')}
                 </button>
               </div>
 
@@ -642,7 +643,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                     onChange={(e) => setConsent('financial', e.target.checked)}
                     className="mt-0.5 accent-brand"
                   />
-                  <span className="text-[11px] text-text-1">Acepto todos los términos de este consentimiento</span>
+                  <span className="text-[11px] text-text-1">{tc('acceptAll')}</span>
                 </label>
 
                 {/* Firma digital — requerida */}
@@ -658,7 +659,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                     height={140}
                   />
                   {!consents.signatureDataUrl && (
-                    <p className="text-[10px] text-text-muted/60">La firma es obligatoria para crear el caso.</p>
+                    <p className="text-[10px] text-text-muted/60">{tc('signatureRequired')}</p>
                   )}
                 </div>
               </div>
@@ -679,7 +680,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
             <div className="space-y-4">
               <div className="rounded-lg border border-border bg-bg-1 p-5 space-y-3">
                 <h3 className="text-sm font-semibold text-text-1 pb-1 border-b border-border/60">
-                  Resumen del caso
+                  {t('reviewCaseSummary')}
                 </h3>
 
                 {([
@@ -715,10 +716,10 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                     {/* Header */}
                     <div className="flex items-center justify-between">
                       <span className={`text-[11px] font-semibold uppercase tracking-wider ${allSigned ? 'text-emerald' : 'text-amber'}`}>
-                        Estado de consentimientos
+                        {t('reviewConsentStatus')}
                       </span>
                       <span className={`text-[11px] font-medium ${allSigned ? 'text-emerald' : 'text-amber'}`}>
-                        {signedCount} / {items.length} firmados
+                        {t('reviewSigned', { count: signedCount, total: items.length })}
                       </span>
                     </div>
 
@@ -744,7 +745,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                         {consents.signatureDataUrl ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
                       </span>
                       <span className={`text-[12px] ${consents.signatureDataUrl ? 'text-text-1' : 'text-text-muted'}`}>
-                        Firma digital
+                        {t('reviewDigitalSignature')}
                       </span>
                       {consents.signatureDataUrl && (
                         <img
@@ -758,10 +759,10 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                     {/* Personas responsables — siempre visible */}
                     <div className="pt-1 border-t border-border/30">
                       <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1.5">
-                        Personas responsables autorizadas
+                        {t('reviewResponsiblePersons')}
                       </p>
                       {responsible.length === 0 ? (
-                        <p className="text-[12px] text-text-muted/60 italic">0 persona(s) responsable(s) registrada(s)</p>
+                        <p className="text-[12px] text-text-muted/60 italic">{t('reviewNoResponsible')}</p>
                       ) : (
                         <div className="space-y-1">
                           {responsible.map((p, i) => (

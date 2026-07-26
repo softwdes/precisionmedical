@@ -64,6 +64,43 @@ type MissingKey =
   | 'missingMedicalHistory'
   | 'missingConsents';
 
+function MissingTooltip({ items }: { items: string[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  if (!items.length) return null;
+
+  return (
+    <div ref={ref} className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <p className="text-[10px] text-text-muted truncate cursor-default select-none">
+        {items.join(', ')}
+      </p>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-1.5 z-50 w-max max-w-[240px] rounded-lg border border-border bg-bg-1 shadow-lg shadow-black/30 p-2.5 pointer-events-none">
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">Falta completar</p>
+          <ul className="space-y-1">
+            {items.map((item, i) => (
+              <li key={i} className="flex items-center gap-1.5 text-[11px] text-text-2">
+                <span className="w-1 h-1 rounded-full bg-rose flex-shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function calcIntakeProgress(c: CaseRow, p: PatientRow): {
   pct: number; missingKeys: MissingKey[]; colorClass: string; barClass: string;
 } {
@@ -109,10 +146,11 @@ function formatProgress(prog: ReturnType<typeof calcIntakeProgress>, t: TFunc) {
   const badge = pct === 100
     ? t('progressComplete')
     : t('progressIncomplete', { pct });
-  const sub = missingKeys.length > 0
-    ? `${t('progressMissingLabel')} ${missingKeys.map(k => t(k as Parameters<typeof t>[0])).join(', ')}`
+  const missingItems = missingKeys.map(k => t(k as Parameters<typeof t>[0]));
+  const sub = missingItems.length > 0
+    ? `${t('progressMissingLabel')} ${missingItems.join(', ')}`
     : '';
-  return { badge, sub };
+  return { badge, sub, missingItems };
 }
 
 
@@ -2080,7 +2118,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                       },
                       p,
                     );
-                    const { badge, sub } = formatProgress(prog, t);
+                    const { badge, missingItems } = formatProgress(prog, t);
                     return (
                       <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -2092,7 +2130,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                             <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
                           </div>
                         )}
-                        {sub && <p className="text-[10px] text-text-muted truncate" title={sub}>{sub}</p>}
+                        <MissingTooltip items={missingItems} />
                       </div>
                     );
                   })() : <span className="text-[10px] text-text-muted">—</span>}
@@ -2235,7 +2273,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                             <tbody>
                               {(expandedCases[p.id] ?? []).map((c, idx) => {
                                 const prog = calcIntakeProgress(c, p);
-                                const { badge: progBadge, sub: progSub } = formatProgress(prog, t);
+                                const { badge: progBadge, missingItems: progMissing } = formatProgress(prog, t);
                                 return (
                                   <tr
                                     key={c.id}
@@ -2304,9 +2342,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                           />
                                         </div>
                                       )}
-                                      {progSub && (
-                                        <p className="text-[10px] text-text-muted mt-0.5 truncate" title={progSub}>{progSub}</p>
-                                      )}
+                                      <MissingTooltip items={progMissing} />
                                     </td>
 
                                     {/* Acciones */}

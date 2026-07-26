@@ -16,9 +16,10 @@ export interface UseTwilioDeviceReturn {
 }
 
 // ── Mock mode ─────────────────────────────────────────────────────────────────
-// Set NEXT_PUBLIC_TWILIO_MOCK=true in .env.local to simulate calls without
-// real Twilio credentials. Simulates: connecting (3s) → in-call → hangUp.
-const MOCK_MODE = process.env.NEXT_PUBLIC_TWILIO_MOCK === 'true';
+// Mock mode is ON by default until real Twilio credentials are configured.
+// To disable: set NEXT_PUBLIC_TWILIO_MOCK=false in Vercel env vars (or .env.local).
+// Simulates: connecting (3s) → in-call → hangUp.
+const MOCK_MODE = process.env.NEXT_PUBLIC_TWILIO_MOCK !== 'false';
 const MOCK_CONNECT_DELAY_MS = 3000;
 
 export function useTwilioDevice(): UseTwilioDeviceReturn {

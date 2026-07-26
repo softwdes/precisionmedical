@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { TwilioCallStatus } from '@/lib/use-twilio-device';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -1448,7 +1448,9 @@ function Autocomplete({
   const [results, setResults] = useState<AutoResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [dropStyle, setDropStyle] = useState<React.CSSProperties>({});
+  const [dropStyle, setDropStyle] = useState<React.CSSProperties>(
+    { position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden' }
+  );
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1464,17 +1466,20 @@ function Autocomplete({
     return () => clearTimeout(handle);
   }, [query, endpoint, extraParams, selected]);
 
-  // Reposition dropdown to fixed to escape overflow:hidden clipping
-  useEffect(() => {
-    if (!open || !wrapRef.current) return;
+  // useLayoutEffect: fires sync before paint so rect is always accurate
+  useLayoutEffect(() => {
+    if (!open || !wrapRef.current) {
+      setDropStyle({ position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden' });
+      return;
+    }
     const rect = wrapRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
     const dropH = Math.min(240, results.length * 52 + 8);
     if (spaceBelow < dropH && spaceAbove > spaceBelow) {
-      setDropStyle({ position: 'fixed', bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width });
+      setDropStyle({ position: 'fixed', bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width, visibility: 'visible' });
     } else {
-      setDropStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width });
+      setDropStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, visibility: 'visible' });
     }
   }, [open, results.length]);
 

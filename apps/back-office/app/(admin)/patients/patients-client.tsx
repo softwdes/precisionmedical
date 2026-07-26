@@ -1976,16 +1976,16 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           </div>
         )}
         <div className="overflow-x-auto rounded-lg">
-        <table className={`w-full min-w-[680px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
+        <table className={`w-full min-w-[820px] text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
           <thead className="bg-bg-2 border-b border-border">
             <tr>
-              <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('colPatient')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colContact')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colCases')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[140px]">{t('colAdmission')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-16">{t('colForm')}</th>
-              <th className="sticky right-0 z-10 bg-bg-2 w-16 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
+              <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-[200px]">{t('colPatient')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[160px]">{t('colContact')}</th>
+              <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell w-[56px]">{t('colCases')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[90px]">{t('colStatus')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[200px]">{t('colAdmission')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[64px]">{t('colForm')}</th>
+              <th className="sticky right-0 z-10 bg-bg-2 w-[48px] px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -2001,11 +2001,11 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               <Fragment key={p.id}>
               <tr className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
                 {/* Chevron expand */}
-                <td className="sticky left-0 z-10 bg-bg-0 px-4 py-3.5">
+                <td className="sticky left-0 z-10 bg-bg-0 px-4 py-3.5 w-[200px]">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleExpand(p.id)}
-                      className="p-2 rounded text-text-muted hover:text-brand transition-colors shrink-0"
+                      className="p-1.5 rounded text-text-muted hover:text-brand transition-colors shrink-0"
                       title={expandedId === p.id ? t('tooltipCollapse') : t('tooltipExpand')}
                       aria-label={expandedId === p.id ? t('tooltipCollapse') : t('tooltipExpand')}
                       aria-expanded={expandedId === p.id}
@@ -2016,10 +2016,10 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                         : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
                     <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} />
-                    <div>
+                    <div className="min-w-0">
                       <button
                         onClick={() => router.push(`/patients/${p.id}`)}
-                        className="text-text-1 font-medium hover:text-brand transition-colors text-left"
+                        className="text-text-1 text-[13px] font-medium hover:text-brand transition-colors text-left truncate block max-w-[120px]"
                         aria-label={`Ver perfil de ${p.firstName} ${p.lastName}`}
                       >
                         {p.firstName} {p.lastName}
@@ -2027,23 +2027,17 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                       {p.patientCode && (
                         <div className="text-text-muted text-[10px] font-mono">{p.patientCode}</div>
                       )}
-                      {(p.addressCity || p.addressState) && (
-                        <div className="text-text-muted text-[10px]">
-                          {[p.addressCity, p.addressState].filter(Boolean).join(', ')}
-                        </div>
-                      )}
                     </div>
                   </div>
                 </td>
 
                 {/* Contact */}
-                <td className="px-4 py-3.5 hidden sm:table-cell">
-                  <div className="text-text-2 text-xs space-y-0.5">
+                <td className="px-4 py-3.5 hidden sm:table-cell w-[160px]">
+                  <div className="text-text-2 text-[12px] space-y-0.5">
                     {p.phone
-                      ? <span className="font-mono">{p.phone}</span>
+                      ? <div className="font-mono truncate">{p.phone}</div>
                       : <span className="text-text-muted">—</span>}
-                    {p.phone2 && <div className="text-text-muted font-mono text-[10px]">{p.phone2}</div>}
-                    {p.email && <div className="text-text-muted text-[10px] truncate max-w-[160px]">{p.email}</div>}
+                    {p.email && <div className="text-text-muted text-[11px] truncate">{p.email}</div>}
                     {p.preferredLanguage && (
                       <div className="text-[10px] text-text-muted">{p.preferredLanguage === 'es' ? '🇪🇸 ES' : '🇺🇸 EN'}</div>
                     )}
@@ -2051,10 +2045,10 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Casos */}
-                <td className="px-4 py-3.5 hidden md:table-cell">
+                <td className="px-3 py-3.5 hidden md:table-cell w-[56px] text-center">
                   <button
                     onClick={() => toggleExpand(p.id)}
-                    className="flex items-center justify-center w-7 h-7 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
+                    className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
                     title={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                     aria-label={p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
                   >
@@ -2063,7 +2057,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Estado */}
-                <td className="px-4 py-3.5 hidden sm:table-cell">
+                <td className="px-4 py-3.5 hidden sm:table-cell w-[90px]">
                   <TagPill
                     label={STATUS_LABEL[p.status] ?? p.status}
                     colorClass={STATUS_COLORS[p.status] ?? 'bg-bg-2 text-text-2 border-border'}
@@ -2071,7 +2065,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Admisión */}
-                <td className="px-4 py-3.5 hidden lg:table-cell w-[140px]">
+                <td className="px-4 py-3.5 hidden lg:table-cell w-[200px]">
                   {p.latestCase ? (() => {
                     const prog = calcIntakeProgress(
                       {
@@ -2085,7 +2079,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                       },
                       p,
                     );
-                    const { badge } = formatProgress(prog, t);
+                    const { badge, sub } = formatProgress(prog, t);
                     return (
                       <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -2093,17 +2087,18 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                           {prog.pct < 100 && <span className="text-[10px] text-text-muted tabular-nums">{prog.pct}%</span>}
                         </div>
                         {prog.pct < 100 && (
-                          <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
+                          <div className="h-1 rounded-full bg-bg-2 overflow-hidden w-full mb-0.5">
                             <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
                           </div>
                         )}
+                        {sub && <p className="text-[10px] text-text-muted truncate">{sub}</p>}
                       </div>
                     );
                   })() : <span className="text-[10px] text-text-muted">—</span>}
                 </td>
 
                 {/* Formulario */}
-                <td className="px-4 py-3.5 hidden lg:table-cell">
+                <td className="px-3 py-3.5 hidden lg:table-cell w-[64px]">
                   <div className="flex items-center gap-1.5">
                     {/* Ícono email — clickeable si hay caso + email */}
                     {p.latestCase && p.email ? (

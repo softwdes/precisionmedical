@@ -9,7 +9,6 @@ interface ActiveCallBarProps {
   phone:       string;
   elapsed:     number;
   muted:       boolean;
-  isMockMode?: boolean;
   onMuteToggle: () => void;
   onHangUp:     () => void;
 }
@@ -21,7 +20,7 @@ function fmtElapsed(sec: number) {
 }
 
 export function ActiveCallBar({
-  status, patientName, phone, elapsed, muted, isMockMode, onMuteToggle, onHangUp,
+  status, patientName, phone, elapsed, muted, onMuteToggle, onHangUp,
 }: ActiveCallBarProps) {
   const connecting = status === 'connecting';
 
@@ -44,11 +43,6 @@ export function ActiveCallBar({
       <div className="flex-1 min-w-0">
         <span className="font-semibold text-text-1 truncate">{patientName}</span>
         <span className="text-text-muted ml-2 font-mono text-[11px]">{phone}</span>
-        {isMockMode && (
-          <span className="ml-2 text-[9px] font-bold uppercase tracking-wide px-1.5 py-px rounded bg-amber/15 text-amber border border-amber/25">
-            Simulación
-          </span>
-        )}
       </div>
 
       {connecting ? (

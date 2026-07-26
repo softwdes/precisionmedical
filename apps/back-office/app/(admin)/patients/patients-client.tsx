@@ -64,7 +64,7 @@ type MissingKey =
   | 'missingMedicalHistory'
   | 'missingConsents';
 
-function MissingTooltip({ items }: { items: string[] }) {
+function MissingTooltip({ items, pct }: { items: string[]; pct?: number }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -81,9 +81,14 @@ function MissingTooltip({ items }: { items: string[] }) {
 
   return (
     <div ref={ref} className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-      <p className="text-[10px] text-text-muted truncate cursor-default select-none">
-        {items.join(', ')}
-      </p>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <p className="text-[10px] text-text-muted truncate cursor-default select-none flex-1 min-w-0">
+          {items.join(', ')}
+        </p>
+        {pct !== undefined && (
+          <span className="text-[10px] text-text-muted tabular-nums flex-shrink-0">{pct}%</span>
+        )}
+      </div>
       {open && (
         <div className="absolute bottom-full left-0 mb-1.5 z-50 w-max max-w-[240px] rounded-lg border border-border bg-bg-1 shadow-lg shadow-black/30 p-2.5 pointer-events-none">
           <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">Falta completar</p>
@@ -2123,14 +2128,13 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <TagPill label={badge} colorClass={prog.colorClass} />
-                          {prog.pct < 100 && <span className="text-[10px] text-text-muted tabular-nums">{prog.pct}%</span>}
                         </div>
                         {prog.pct < 100 && (
                           <div className="h-1 rounded-full bg-bg-2 overflow-hidden w-full mb-0.5">
                             <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
                           </div>
                         )}
-                        <MissingTooltip items={missingItems} />
+                        <MissingTooltip items={missingItems} pct={prog.pct < 100 ? prog.pct : undefined} />
                       </div>
                     );
                   })() : <span className="text-[10px] text-text-muted">—</span>}
@@ -2332,7 +2336,6 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                     <td className="px-3 py-2 min-w-[140px]">
                                       <div className="flex items-center gap-2 mb-1">
                                         <TagPill label={progBadge} colorClass={prog.colorClass} />
-                                        {prog.pct < 100 && <span className="text-[10px] text-text-muted tabular-nums">{prog.pct}%</span>}
                                       </div>
                                       {prog.pct < 100 && (
                                         <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
@@ -2342,7 +2345,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                           />
                                         </div>
                                       )}
-                                      <MissingTooltip items={progMissing} />
+                                      <MissingTooltip items={progMissing} pct={prog.pct < 100 ? prog.pct : undefined} />
                                     </td>
 
                                     {/* Acciones */}

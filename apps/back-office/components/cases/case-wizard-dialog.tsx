@@ -45,7 +45,7 @@ function LawFirmSelect({
   return (
     <div>
       <label className="text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5">
-        Firma de abogados
+        Law firm
       </label>
       <select
         value={firmId ?? ''}
@@ -452,7 +452,7 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
               <div className="space-y-2">
                 <label className="text-xs font-medium text-text-muted uppercase tracking-wider">{t('caseType')}</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {([['MVA', 'MVA (Accidente de vehículo a motor)', Car], ['GENERAL', 'GM (Medicina general)', Stethoscope]] as const).map(([val, label, Icon]) => (
+                  {([['MVA', t('caseTypeMVA'), Car], ['GENERAL', t('caseTypeGM'), Stethoscope]] as const).map(([val, label, Icon]) => (
                     <button
                       key={val}
                       type="button"

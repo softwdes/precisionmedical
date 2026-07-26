@@ -254,6 +254,7 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
   caseId: string; open: boolean; onClose: () => void; onEdit: () => void;
 }) {
   const t      = useTranslations('phoenix.patients');
+  const tWiz   = useTranslations('caseWizard');
   const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -378,6 +379,7 @@ function fmtDateInput(raw: string): string {
 function CaseEditDialog({ caseId, open, onClose, onSaved }: {
   caseId: string; open: boolean; onClose: () => void; onSaved: () => void;
 }) {
+  const tWiz   = useTranslations('caseWizard');
   const [detail, setDetail]     = useState<CaseDetail | null>(null);
   const [loading, setLoading]   = useState(false);
   const [saving, setSaving]     = useState(false);
@@ -466,9 +468,9 @@ function CaseEditDialog({ caseId, open, onClose, onSaved }: {
           <div className="space-y-5 py-1">
             {/* Tipo de caso — same cards as wizard */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-text-muted uppercase tracking-wider">Tipo de caso</label>
+              <label className="text-xs font-medium text-text-muted uppercase tracking-wider">{tWiz('caseType')}</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {([['MVA', 'MVA (Accidente de vehículo a motor)', Car], ['GENERAL', 'GM (Medicina general)', Stethoscope]] as const).map(([val, label, Icon]) => (
+                {([['MVA', tWiz('caseTypeMVA'), Car], ['GENERAL', tWiz('caseTypeGM'), Stethoscope]] as const).map(([val, label, Icon]) => (
                   <button key={val} type="button" onClick={() => setCaseType(val)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-sm text-left transition-all ${
                       caseType === val ? 'border-brand bg-brand/10 text-brand font-medium' : 'border-border bg-bg-2/40 text-text-muted hover:border-brand/40'
@@ -1912,6 +1914,16 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
 
   return (
     <>
+      {/* Título + conteo unificado */}
+      <div className="flex items-baseline gap-2 mb-3">
+        <h1 className="text-2xl font-bold text-text-1">{t('listTitle')}</h1>
+        {localTotal > 0 && (
+          <span className="text-sm font-medium text-text-muted tabular-nums">
+            · {localTotal.toLocaleString()}
+          </span>
+        )}
+      </div>
+
       {/* Toolbar: búsqueda + acciones en una sola fila */}
       <div className="flex flex-wrap items-center gap-2 mb-1">
         {/* Search form — izquierda, ocupa el espacio disponible */}

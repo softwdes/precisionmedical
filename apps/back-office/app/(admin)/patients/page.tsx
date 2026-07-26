@@ -2,14 +2,13 @@
  * B.4 · Lista de pacientes
  * Accesible desde el sidebar → /patients
  *
- * Suspense streaming: PageHeader renderiza de inmediato (LCP ~200ms);
- * la tabla hace streaming cuando las queries Prisma completan (~2-3s).
+ * Título + conteo se muestran dentro de PatientsClient (donde localTotal está disponible).
  */
 
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
-import { PageHeader, Skeleton } from '@/components/ui-phoenix';
+import { Skeleton } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 
@@ -250,10 +249,7 @@ export default async function PatientsPage({
   const PAGE_SIZE = Math.min(50, Math.max(5, parseInt(sizeParam ?? '15', 10) || 15));
 
   return (
-    <div className="p-4 sm:p-6 space-y-2">
-      {/* Renderiza de inmediato — no depende de queries */}
-      <PageHeader title={t('listTitle')} />
-
+    <div className="p-4 sm:p-6">
       {/* Tabla hace streaming cuando Prisma completa */}
       <Suspense fallback={<PatientsTableSkeleton />}>
         <PatientsData q={q} page={page} inactiveOnly={inactiveOnly} PAGE_SIZE={PAGE_SIZE} />

@@ -1983,8 +1983,8 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colContact')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">{t('colCases')}</th>
               <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell">{t('colStatus')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colAdmission')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">{t('colForm')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[220px]">{t('colAdmission')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-20">{t('colForm')}</th>
               <th className="sticky right-0 z-10 bg-bg-2 w-16 px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
@@ -2071,7 +2071,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Admisión */}
-                <td className="px-4 py-3.5 hidden lg:table-cell min-w-[180px]">
+                <td className="px-4 py-3.5 hidden lg:table-cell w-[220px] max-w-[220px]">
                   {p.latestCase ? (() => {
                     const prog = calcIntakeProgress(
                       {
@@ -2226,7 +2226,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                         <div className="hidden md:block overflow-x-auto">
                           <table className="w-full min-w-[640px] border-collapse">
                             <thead>
-                              <tr className="border-b border-white/[0.06]">
+                              <tr className="bg-bg-0 border-b border-white/[0.06]">
                                 <th className="sticky left-0 z-10 bg-bg-0 text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">{t('colType')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('colDescription')}</th>
@@ -2244,7 +2244,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                 return (
                                   <tr
                                     key={c.id}
-                                    className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03] transition-colors"
+                                    className="bg-bg-0 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02] transition-colors"
                                   >
                                     {/* Código caso */}
                                     <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2">

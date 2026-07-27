@@ -22,6 +22,7 @@ import {
   DialogDescription, DialogFooter, Label,
 } from '@precision/ui';
 import { PersonAvatar } from '@/components/ui-phoenix';
+import { DoctorCombobox } from '@/components/ui-phoenix/doctor-combobox';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -152,8 +153,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [isOnline,      setIsOnline]      = useState(false);
   const [meetingUrl,    setMeetingUrl]    = useState('');
   const [showAll,       setShowAll]       = useState(false); // override specialty filter
-  const [doctorSearch,  setDoctorSearch]  = useState(''); // combobox filter
-  const [doctorOpen,    setDoctorOpen]    = useState(false); // dropdown open
 
 
   const [saving,         setSaving]         = useState(false);
@@ -798,61 +797,16 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               </div>
             )}
 
-            {loadingRes ? (
-              <div className="h-9 rounded-md border border-border bg-bg-2 animate-pulse mt-1" />
-            ) : filteredProviders.length === 0 ? (
-              <p className="text-[11px] text-text-muted italic mt-1">{t('noProvidersAvailable')}</p>
-            ) : (
-              <div className="mt-1 space-y-1">
-                {/* Selected doctor badge */}
-                {providerId && (() => {
-                  const sel = allProviders.find(p => p.id === providerId);
-                  return sel ? (
-                    <div className="flex items-center gap-2 rounded-md border border-cyan/40 bg-cyan/5 px-3 py-2 text-sm">
-                      <PersonAvatar firstName={sel.firstName} lastName={sel.lastName} size={8} gradientClass="bg-gradient-brand" />
-                      <span className="flex-1 text-text-1 font-medium text-[12.5px]">{t('drPrefix')} {sel.firstName} {sel.lastName}</span>
-                      <button onClick={() => { setProviderId(''); setDoctorSearch(''); }} className="text-text-muted hover:text-rose transition-colors"><X className="w-3.5 h-3.5" /></button>
-                    </div>
-                  ) : null;
-                })()}
-                {/* Search + dropdown */}
-                {!providerId && (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
-                    <input
-                      type="text"
-                      value={doctorSearch}
-                      onChange={e => setDoctorSearch(e.target.value)}
-                      onFocus={() => setDoctorOpen(true)}
-                      onBlur={() => setTimeout(() => setDoctorOpen(false), 150)}
-                      placeholder="Buscar doctor…"
-                      className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand/50"
-                    />
-                    {doctorOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
-                        {filteredProviders
-                          .filter(p => !doctorSearch.trim() || `${p.firstName} ${p.lastName}`.toLowerCase().includes(doctorSearch.toLowerCase()))
-                          .map(p => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onMouseDown={e => e.preventDefault()}
-                              onClick={() => { setProviderId(p.id); setDoctorSearch(''); setDoctorOpen(false); }}
-                              className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-row-sep last:border-0 flex items-center gap-2"
-                            >
-                              <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
-                              <div className="min-w-0">
-                                <div className="text-text-1 text-sm font-medium">{t('drPrefix')} {p.firstName} {p.lastName}</div>
-                                <div className="text-text-muted text-[10px] capitalize">{p.specialty.toLowerCase().replace(/_/g, ' ')}</div>
-                              </div>
-                            </button>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="mt-1">
+              <DoctorCombobox
+                providers={filteredProviders}
+                allProviders={allProviders}
+                value={providerId}
+                onChange={setProviderId}
+                loading={loadingRes}
+                drPrefix={t('drPrefix')}
+              />
+            </div>
 
             {hasSpecialtyMismatch && (
               <div className="mt-1.5 text-[11px] text-amber flex items-start gap-1">

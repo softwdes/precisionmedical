@@ -23,6 +23,7 @@ import {
   Label,
 } from '@precision/ui';
 import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoenix';
+import { DoctorCombobox } from '@/components/ui-phoenix/doctor-combobox';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-step';
 import { ActiveCallBar } from './active-call-bar';
@@ -181,7 +182,6 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [duration, setDuration]       = useState(45);
   const [appointmentNotes, setAppointmentNotes] = useState('');
   const [showAllProviders, setShowAllProviders] = useState(false);
-  const [providerSearch, setProviderSearch] = useState('');
   const [weekStart, setWeekStart]     = useState<Date>(() => getMondayOf(new Date()));
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
@@ -219,7 +219,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setChiropractor('');
     setInsurance(null); setPolicyNumber('');
     setSpecialtyId(''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
-    setProviderId(''); setSlotIso(null); setDuration(45); setAppointmentNotes(''); setShowAllProviders(false); setProviderSearch('');
+    setProviderId(''); setSlotIso(null); setDuration(45); setAppointmentNotes(''); setShowAllProviders(false);
     setWeekStart(getMondayOf(new Date())); setSelectedDay(null);
     setFormDelivery({ email: true, sms: true, tablet: false });
     setSaving(false); setError(null); setSuccess(null); setCopied(false); setDuplicateId(null);
@@ -1063,60 +1063,25 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <Label>Doctor</Label>
-                      {!hasFilteredProviders && providers.length > 0 && (
-                        <button type="button" onClick={() => setShowAllProviders((v) => !v)}
-                          className="text-[10px] text-brand hover:underline">
-                          {showAllProviders ? 'Ver solo esta especialidad' : 'Ver todos los doctores'}
-                        </button>
-                      )}
                       {hasFilteredProviders && filteredProviders.length < providers.length && (
                         <button type="button" onClick={() => setShowAllProviders((v) => !v)}
                           className="text-[10px] text-text-muted hover:text-brand">
-                          {showAllProviders ? `Mostrar solo especialidad (${filteredProviders.length})` : `Ver todos (${providers.length})`}
+                          {showAllProviders ? `Solo especialidad (${filteredProviders.length})` : `Ver todos (${providers.length})`}
+                        </button>
+                      )}
+                      {!hasFilteredProviders && providers.length > 0 && (
+                        <button type="button" onClick={() => setShowAllProviders((v) => !v)}
+                          className="text-[10px] text-brand hover:underline">
+                          {showAllProviders ? 'Ver solo especialidad' : 'Ver todos los doctores'}
                         </button>
                       )}
                     </div>
-                    {filteredProviders.length > 4 && (
-                      <div className="relative mb-2">
-                        <SearchIcon className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
-                        <input
-                          type="text"
-                          value={providerSearch}
-                          onChange={(e) => setProviderSearch(e.target.value)}
-                          placeholder="Buscar doctor..."
-                          className="w-full rounded-md border border-border bg-bg-2 pl-8 pr-3 py-1.5 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-border-strong"
-                        />
-                      </div>
-                    )}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {filteredProviders.filter((p) => !providerSearch || `${p.firstName} ${p.lastName}`.toLowerCase().includes(providerSearch.toLowerCase())).map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => setProviderId(p.id)}
-                          className={`text-left p-2.5 rounded-md border text-xs transition-colors flex items-center gap-2 ${
-                            providerId === p.id
-                              ? 'bg-emerald/10 border-emerald/40 text-text-1'
-                              : 'bg-bg-2 border-border text-text-2 hover:border-border-strong'
-                          }`}
-                        >
-                          <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">Dr. {p.firstName} {p.lastName}</div>
-                            <div className="text-[10px] text-text-muted capitalize">{p.specialty.toLowerCase().replace('_', ' ')}</div>
-                          </div>
-                          {providerId === p.id && <Check className="w-3.5 h-3.5 text-emerald shrink-0" />}
-                        </button>
-                      ))}
-                      {filteredProviders.length === 0 && (
-                        <div className="col-span-2 text-[11px] text-text-muted italic p-2">
-                          No hay doctores para esta especialidad.{' '}
-                          <button type="button" onClick={() => setShowAllProviders(true)} className="text-brand hover:underline">
-                            Ver todos
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <DoctorCombobox
+                      providers={filteredProviders}
+                      allProviders={providers}
+                      value={providerId}
+                      onChange={setProviderId}
+                    />
                   </div>
 
                   {/* Duración */}

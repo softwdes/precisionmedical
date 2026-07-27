@@ -8,7 +8,7 @@ export const metricsRouter = router({
     .input(z.object({ limit: z.number().int().positive().max(1000).default(500) }))
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin
-        .from('CallLog')
+        .from('call_logs')
         .select('id, twilioCallSid, direction, fromNumber, toNumber, outcome, durationSeconds, agentName, patientId, caseId, createdAt, patient:patients(firstName, lastName), case:cases(caseCode)')
         .order('createdAt', { ascending: false })
         .limit(input.limit);

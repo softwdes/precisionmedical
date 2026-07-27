@@ -130,11 +130,16 @@ export function SettingsClient({
   function openCreate() { setForm(EMPTY_FORM); setError(null); setPickerOpen(false); setCreateOpen(true); }
   function openEdit(c: Clinic) {
     setForm({ name: c.name, phone: c.phone, cellPhone: c.cellPhone, email: c.email,
-              address: c.address, zipCode: c.zipCode, state: c.state, city: c.city, color: c.color || '#6366F1' });
+              address: c.address, zipCode: c.zipCode,
+              state: US_STATES.find(s => s.name === c.state || s.code === c.state)?.code ?? c.state,
+              city: c.city, color: c.color || '#6366F1' });
     setError(null); setEditing(c);
   }
 
   async function handleCreate() {
+    if (!form.name.trim()) return setError('El nombre de la clínica es requerido.');
+    if (!form.state)       return setError('Selecciona un estado.');
+    if (!form.city)        return setError('Selecciona una ciudad.');
     setError(null); setSaving(true);
     try {
       const res = await fetch('/api/admin/clinics', {
@@ -151,6 +156,8 @@ export function SettingsClient({
 
   async function handleEdit() {
     if (!editing) return;
+    if (!form.state) return setError('Selecciona un estado.');
+    if (!form.city)  return setError('Selecciona una ciudad.');
     setError(null); setSaving(true);
     try {
       const res = await fetch(`/api/admin/clinics/${editing.id}`, {

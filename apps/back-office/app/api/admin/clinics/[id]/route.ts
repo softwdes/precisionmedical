@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const actor = actorFromHeaders(req.headers);
   let parsed;
   try { parsed = UpdateSchema.parse(await req.json()); }
-  catch { return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 }); }
+  catch { return NextResponse.json({ error: 'INVALID_PAYLOAD', message: 'Datos inválidos. Verifica que todos los campos estén completos.' }, { status: 400 }); }
 
   const clinic = await db.clinic.findUnique({ where: { id }, select: { id: true } });
   if (!clinic) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });

@@ -78,10 +78,10 @@ function calcAge(dob: Date | string | null | undefined): number | null {
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 function SideSection({
-  icon, title, defaultOpen = true, editBtn = false, children,
+  icon, title, defaultOpen = true, editBtn = false, onEdit, children,
 }: {
   icon: React.ReactNode; title: string; defaultOpen?: boolean;
-  editBtn?: boolean; children: React.ReactNode;
+  editBtn?: boolean; onEdit?: () => void; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -98,7 +98,7 @@ function SideSection({
           {editBtn && open && (
             <span
               className="p-0.5 rounded text-text-muted hover:text-brand transition-colors"
-              onClick={e => { e.stopPropagation(); }}
+              onClick={e => { e.stopPropagation(); onEdit?.(); }}
             >
               <Edit2 className="w-3 h-3" />
             </span>
@@ -1195,6 +1195,63 @@ function AddProviderDialog({
   );
 }
 
+// ── Allergies edit dialog ──────────────────────────────────────────────────
+
+function AllergiesEditDialog({
+  patientId, initial, open, onClose, onSaved,
+}: {
+  patientId: string;
+  initial:   string | undefined;
+  open:      boolean;
+  onClose:   () => void;
+  onSaved?:  (patch: Partial<MedicalHistoryData>) => void;
+}) {
+  const t = useTranslations('phoenix.patients');
+  const [isPending, startTransition] = useTransition();
+  const [value, setValue] = useState(initial ?? '');
+
+  function handleSave() {
+    startTransition(async () => {
+      await updateMedicalHistory(patientId, { allergies: value.trim() || undefined });
+      onSaved?.({ allergies: value.trim() || undefined });
+      onClose();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-md w-full p-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle className="text-base font-semibold text-text-1">{t('mh.allergies')}</DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            {t('mh.noAllergies')}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="px-6 py-5">
+          <textarea
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            rows={4}
+            placeholder={t('mh.noAllergies')}
+            className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand resize-none"
+            autoFocus
+          />
+        </div>
+        <div className="px-6 pb-5 flex flex-col sm:flex-row gap-2 justify-end">
+          <button onClick={onClose} disabled={isPending}
+            className="w-full sm:w-auto px-4 py-2 rounded-md border border-border text-sm text-text-2 hover:bg-white/5 disabled:opacity-50 transition-colors">
+            Cancelar
+          </button>
+          <button onClick={handleSave} disabled={isPending}
+            className="w-full sm:w-auto px-4 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 disabled:opacity-50 transition-colors">
+            {isPending ? 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Vaccines edit dialog ───────────────────────────────────────────────────
 
 function VaccinesEditDialog({
@@ -2082,6 +2139,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
   const [addSurgery,       setAddSurgery]       = useState(false);
   const [addFamilyHistory, setAddFamilyHistory] = useState(false);
   const [addProvider,      setAddProvider]      = useState(false);
+  const [editAllergies,    setEditAllergies]    = useState(false);
   const [editVaccines,     setEditVaccines]     = useState(false);
   const [editCognitive,    setEditCognitive]    = useState(false);
   const [editFunctional,   setEditFunctional]   = useState(false);
@@ -2211,7 +2269,7 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
             </SideSection>
 
             {/* Allergies */}
-            <SideSection icon={<AlertTriangle className="w-3.5 h-3.5" />} title={t('mh.allergies')} editBtn defaultOpen={false}>
+            <SideSection icon={<AlertTriangle className="w-3.5 h-3.5" />} title={t('mh.allergies')} editBtn onEdit={() => setEditAllergies(true)} defaultOpen={false}>
               <EmptyState text={mh.allergies ?? t('mh.noAllergies')} />
             </SideSection>
 
@@ -2628,6 +2686,15 @@ export function MedicalHistoryContent({ patient }: MedicalHistoryContentProps) {
         initial={mh.cognitiveStatus}
         open={editCognitive}
         onClose={() => setEditCognitive(false)}
+        onSaved={onSaved}
+      />
+    )}
+    {editAllergies && (
+      <AllergiesEditDialog
+        patientId={patient.id}
+        initial={mh.allergies}
+        open={editAllergies}
+        onClose={() => setEditAllergies(false)}
         onSaved={onSaved}
       />
     )}

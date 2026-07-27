@@ -29,7 +29,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const actor = actorFromHeaders(req.headers);
   let parsed;
   try { parsed = CreateSchema.parse(await req.json()); }
-  catch { return NextResponse.json({ error: 'INVALID_PAYLOAD' }, { status: 400 }); }
+  catch { return NextResponse.json({ error: 'INVALID_PAYLOAD', message: 'Datos inválidos. Verifica que todos los campos estén completos.' }, { status: 400 }); }
 
   const exists = await db.clinic.findUnique({ where: { name: parsed.name }, select: { id: true } });
   if (exists) return NextResponse.json({ error: 'DUPLICATE_NAME', message: `Ya existe una clínica con el nombre "${parsed.name}".` }, { status: 409 });

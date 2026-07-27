@@ -2156,11 +2156,9 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                         <div className="flex items-center gap-2 mb-1">
                           <TagPill label={badge} colorClass={prog.colorClass} />
                         </div>
-                        {prog.pct < 100 && (
-                          <div className="h-1 rounded-full bg-bg-2 overflow-hidden w-full mb-0.5">
-                            <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
-                          </div>
-                        )}
+                        <div className="h-1 rounded-full bg-bg-2 overflow-hidden w-full mb-0.5">
+                          <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
+                        </div>
                         <MissingTooltip items={missingItems} pct={prog.pct < 100 ? prog.pct : undefined} missingLabel={t('progressMissingLabel')} />
                       </div>
                     );

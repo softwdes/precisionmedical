@@ -275,7 +275,7 @@ export function LawyersClient({ firms, stats }: Props) {
                       <DataTable.Td align="center" className="!py-1">
                         <StatusPill
                           state={f.status === 'ACTIVE' ? 'active' : 'inactive'}
-                          label={f.status === 'ACTIVE' ? tc('statusActive') : (f.status === 'INACTIVE' ? tc('statusInactive') : f.status)}
+                          label={f.status === 'ACTIVE' ? tc('active') : (f.status === 'INACTIVE' ? tc('statusInactive') : f.status)}
                         />
                       </DataTable.Td>
 
@@ -544,7 +544,7 @@ function FirmDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{tc('btnCancel')}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>{tc('cancel')}</Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? tc('saving') : editing ? t('btnSaveChanges') : t('btnCreateFirm')}
           </Button>
@@ -612,7 +612,7 @@ function DeleteConfirmDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={deleting}>{tc('btnCancel')}</Button>
+          <Button variant="outline" onClick={onClose} disabled={deleting}>{tc('cancel')}</Button>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
             {deleting ? tc('deleting') : (<><Trash2 className="w-3.5 h-3.5 mr-1" /> {tc('btnDelete')}</>)}
           </Button>

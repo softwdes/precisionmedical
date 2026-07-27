@@ -40,7 +40,7 @@ export const usersRouter = router({
       page: z.number().min(1).default(1),
       pageSize: z.number().min(1).max(100).default(20),
       search: z.string().optional(),
-      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']).optional(),
+      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'DOCTOR', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']).optional(),
       status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION']).optional(),
     }))
     .query(async ({ input }) => {
@@ -115,7 +115,7 @@ export const usersRouter = router({
       email: z.string().email(),
       firstName: z.string().min(1),
       lastName: z.string().min(1),
-      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']),
+      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'DOCTOR', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']),
       phone: z.string().optional(),
       /** If provided, the resulting user is linked back to the employee row
        *  via employees.userId. Source of truth for email/firstName/lastName
@@ -215,7 +215,7 @@ export const usersRouter = router({
       id: z.string(),
       firstName: z.string().min(1).optional(),
       lastName: z.string().min(1).optional(),
-      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']).optional(),
+      role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'DOCTOR', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']).optional(),
       status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION']).optional(),
       phone: z.string().optional(),
     }))

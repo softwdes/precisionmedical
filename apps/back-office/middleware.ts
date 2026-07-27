@@ -94,7 +94,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // ── Portal médico (/doctor) — scoping por rol ──────────────────────────────
   const isDoctorArea = pathname === '/doctor' || pathname.startsWith('/doctor/');
 
-  if (dbRole === 'PROVIDER') {
+  if (dbRole === 'DOCTOR' || dbRole === 'PROVIDER') {
     // Los doctores viven en /doctor/* — cualquier página administrativa redirige
     // a su portal. Las APIs pasan (las vistas compartidas consumen /api/admin/*).
     if (!isDoctorArea && !pathname.startsWith('/api/')) {

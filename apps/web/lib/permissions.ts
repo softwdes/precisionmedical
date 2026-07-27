@@ -9,6 +9,7 @@ export type Role =
   | 'admin'
   | 'contador'
   | 'employee'
+  | 'doctor'
   | 'lawyer'
   | 'provider'
   | 'ia_auditor';
@@ -19,6 +20,7 @@ export type DbRole =
   | 'ADMIN'
   | 'CONTADOR'
   | 'EMPLOYEE'
+  | 'DOCTOR'
   | 'LAWYER'
   | 'PROVIDER'
   | 'AUDITOR_AI';
@@ -91,6 +93,12 @@ export const ROLE_META: Record<Role, RoleMeta> = {
     dbValue: 'EMPLOYEE',
     accesos: 'PM Time Clock · Doctors App',
   },
+  doctor: {
+    label: 'Doctor',
+    color: '#7C3AED',
+    dbValue: 'DOCTOR',
+    accesos: 'Portal Médico (Doctors App)',
+  },
   lawyer: {
     label: 'Abogado',
     color: '#F59E0B',
@@ -117,6 +125,7 @@ export const ALL_ROLES: Role[] = [
   'admin',
   'contador',
   'employee',
+  'doctor',
   'lawyer',
   'provider',
   'ia_auditor',
@@ -131,6 +140,7 @@ export function dbRoleToRole(dbRole: string): Role {
     ADMIN: 'admin',
     CONTADOR: 'contador',
     EMPLOYEE: 'employee',
+    DOCTOR: 'doctor',
     LAWYER: 'lawyer',
     PROVIDER: 'provider',
     AUDITOR_AI: 'ia_auditor',
@@ -196,6 +206,19 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
       configuracion: 'none',
     },
     pm_timeclock: true,
+  },
+
+  doctor: {
+    lm_admin: {
+      dashboard: 'none',
+      usuarios: 'none',
+      empleados: 'none',
+      finanzas: 'none',
+      metricas: 'own_data',
+      agentes_ia: 'none',
+      configuracion: 'none',
+    },
+    pm_timeclock: false,
   },
 
   lawyer: {
@@ -272,6 +295,7 @@ export function defaultModule(role: Role): string {
       return '/dashboard/employees?tab=asistencia';
     case 'lawyer':
     case 'provider':
+    case 'doctor':
       return '/dashboard/metricas';
     case 'ia_auditor':
       return '/dashboard/ai-agents';

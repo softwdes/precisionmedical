@@ -15,6 +15,7 @@ const ROLE_APP_ACCESS: Record<string, V2App[]> = {
   ADMIN:        ['back-office', 'clinical', 'attorney'],
   CONTADOR:     ['back-office'],
   EMPLOYEE:     ['back-office', 'clinical'],
+  DOCTOR:       ['clinical'], // portal /doctor en back-office se gobierna en su middleware
   PROVIDER:     ['clinical'],
   LAWYER:       ['attorney'],
   AUDITOR_AI:   [],

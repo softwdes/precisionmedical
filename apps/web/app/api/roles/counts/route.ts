@@ -13,6 +13,7 @@ const DB_TO_ROLE: Record<string, string> = {
   ADMIN:       'admin',
   CONTADOR:    'contador',
   EMPLOYEE:    'employee',
+  DOCTOR:      'doctor',
   LAWYER:      'lawyer',
   PROVIDER:    'provider',
   AUDITOR_AI:  'ia_auditor',

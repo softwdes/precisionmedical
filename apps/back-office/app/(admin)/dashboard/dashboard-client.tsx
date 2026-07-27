@@ -108,14 +108,6 @@ export function DashboardClient({
             <span>· {t('subtitle')} · {formatDate(new Date())}</span>
           </span>
         }
-        action={
-          <Link href="/front-office">
-            <Button>
-              <PhoneCall className="w-4 h-4 mr-2" />
-              {t('goToQueue')}
-            </Button>
-          </Link>
-        }
       />
 
       {/* ───── KPIs del día ───────────────────────────────────────────────── */}

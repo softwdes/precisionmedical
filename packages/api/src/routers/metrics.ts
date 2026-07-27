@@ -20,8 +20,8 @@ export const metricsRouter = router({
         const bo = getBackofficeClient();
         const { data, error } = await bo
           .from('call_logs')
-          .select('id, twilio_call_sid, direction, from_number, to_number, outcome, duration_seconds, agent_name, patient_id, case_id, created_at, patient:patients(first_name, last_name), case_data:cases(case_code)')
-          .order('created_at', { ascending: false })
+          .select('id, twilioCallSid, direction, fromNumber, toNumber, outcome, durationSeconds, agentName, patientId, caseId, createdAt, patient:patients(firstName, lastName), caseData:cases(caseCode)')
+          .order('createdAt', { ascending: false })
           .limit(input.limit);
         if (error) {
           console.error('[metrics.listCalls] supabase error:', error.message);
@@ -30,18 +30,18 @@ export const metricsRouter = router({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const calls = (data ?? []).map((r: any) => ({
           id: r.id,
-          twilioCallSid: r.twilio_call_sid,
+          twilioCallSid: r.twilioCallSid,
           direction: r.direction,
-          fromNumber: r.from_number,
-          toNumber: r.to_number,
+          fromNumber: r.fromNumber,
+          toNumber: r.toNumber,
           outcome: r.outcome,
-          durationSeconds: r.duration_seconds,
-          agentName: r.agent_name,
-          patientId: r.patient_id,
-          caseId: r.case_id,
-          createdAt: r.created_at,
-          patient: r.patient ? { firstName: r.patient.first_name, lastName: r.patient.last_name } : null,
-          case: r.case_data ? { caseCode: r.case_data.case_code } : null,
+          durationSeconds: r.durationSeconds,
+          agentName: r.agentName,
+          patientId: r.patientId,
+          caseId: r.caseId,
+          createdAt: r.createdAt,
+          patient: r.patient ? { firstName: r.patient.firstName, lastName: r.patient.lastName } : null,
+          case: r.caseData ? { caseCode: r.caseData.caseCode } : null,
         }));
         return { calls, error: null };
       } catch (err) {

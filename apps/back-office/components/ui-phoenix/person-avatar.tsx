@@ -16,12 +16,13 @@ export interface PersonAvatarProps {
   lastName?: string | null;
   /** Si querés gradient diferente al default brand. Ej: `bg-gradient-cyan` */
   gradientClass?: string;
-  size?: 8 | 9 | 10 | 12;
+  size?: 6 | 8 | 9 | 10 | 12;
   /** URL de foto real — si se provee, se muestra la imagen en lugar de las iniciales */
   photoUrl?: string | null;
 }
 
 const SIZE_CLASSES = {
+  6:  'w-6 h-6 text-[9px]',
   8:  'w-8 h-8 text-[10px]',
   9:  'w-9 h-9 text-[11px]',
   10: 'w-10 h-10 text-xs',

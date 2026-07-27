@@ -7,9 +7,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { createClient } from '@supabase/supabase-js';
 
+// Storage vive en el proyecto Phoenix (kiqlh…) — vars dedicadas con fallback legacy.
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  (process.env.SUPABASE_STORAGE_URL ?? process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL)!,
+  (process.env.SUPABASE_STORAGE_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!,
 );
 
 const BUCKET = 'case-documents';

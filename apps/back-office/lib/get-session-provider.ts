@@ -4,8 +4,9 @@ import { db } from '@precision-medical/database';
 /**
  * Resuelve el Provider (doctor) de la sesión actual.
  *
- * Cadena: Supabase auth user → users (por email) → Provider.userId.
- * Devuelve null si no hay sesión o si el usuario no tiene perfil de doctor.
+ * Puente por EMAIL: la sesión puede vivir en el proyecto Admin (login unificado)
+ * mientras el Provider vive en la base Phoenix — el email corporativo (sincronizado
+ * desde HR) es la llave común. Devuelve null si no hay sesión o no hay perfil.
  */
 export interface SessionProvider {
   id: string;
@@ -25,7 +26,7 @@ export async function getSessionProvider(): Promise<SessionProvider | null> {
   const provider = await db.provider.findFirst({
     where: {
       deletedAt: null,
-      user: { email: { equals: user.email, mode: 'insensitive' } },
+      email: { equals: user.email, mode: 'insensitive' },
     },
     select: {
       id: true,

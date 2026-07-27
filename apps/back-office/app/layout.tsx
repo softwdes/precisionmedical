@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Plus_Jakarta_Sans } from 'next/font/google';
-import { PWAInstallBanner } from '@/components/PWAInstallBanner';
 import './globals.css';
 
 const font = Plus_Jakarta_Sans({
@@ -66,7 +65,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className={font.className}>
-        <PWAInstallBanner />
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
         </NextIntlClientProvider>

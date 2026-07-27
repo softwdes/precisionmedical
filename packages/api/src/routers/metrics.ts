@@ -9,12 +9,12 @@ export const metricsRouter = router({
     .query(async ({ input }) => {
       const { data, error } = await supabaseAdmin
         .from('call_logs')
-        .select('id, twilioCallSid, direction, fromNumber, toNumber, outcome, durationSeconds, agentName, patientId, caseId, createdAt, patient:patients(firstName, lastName), case:cases(caseCode)')
+        .select('id, twilioCallSid, direction, fromNumber, toNumber, outcome, durationSeconds, agentName, patientId, caseId, createdAt, patient:patients(firstName, lastName), caseData:cases(caseCode)')
         .order('createdAt', { ascending: false })
         .limit(input.limit);
 
       if (error) {
-        // tabla puede no existir aún en producción
+        console.error('[metrics.listCalls] supabase error:', error.message);
         return { calls: [], error: error.message };
       }
       return { calls: data ?? [], error: null };

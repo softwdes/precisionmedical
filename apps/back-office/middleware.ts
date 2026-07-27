@@ -16,6 +16,7 @@ import { fetchDbRole, fetchRoleClinicAccess } from '@precision-medical/auth/v2-a
  */
 
 const ROLE_COOKIE        = 'pm_role';
+const ROLE_EMAIL_COOKIE  = 'pm_role_email'; // a quién pertenece pm_role/pm_clinic
 const CLINIC_COOKIE      = 'pm_clinic';
 const LAST_ACTIVE_COOKIE = 'pm_last_active';
 const INACTIVITY_HOURS   = 4;
@@ -75,17 +76,19 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   });
   // ────────────────────────────────────────────────────────────────────────────
 
-  // Obtener rol (cookie rápida primero, DB lento si no hay)
-  let dbRole = request.cookies.get(ROLE_COOKIE)?.value;
+  // Obtener rol (cookie rápida primero, DB lento si no hay).
+  // La cookie solo es válida si pertenece al usuario actual — sin esto, un login
+  // con otra cuenta en el mismo navegador hereda el rol cacheado del usuario anterior.
+  const cookieOwner = request.cookies.get(ROLE_EMAIL_COOKIE)?.value;
+  const cookieFresh = !!user.email && cookieOwner === user.email;
+
+  let dbRole = cookieFresh ? request.cookies.get(ROLE_COOKIE)?.value : undefined;
 
   if (!dbRole && user.email) {
     dbRole = await fetchDbRole(user.email);
-    response.cookies.set(ROLE_COOKIE, dbRole, {
-      httpOnly: true,
-      path:     '/',
-      maxAge:   3600,
-      sameSite: 'lax',
-    });
+    const cookieOpts = { httpOnly: true, path: '/', maxAge: 3600, sameSite: 'lax' as const };
+    response.cookies.set(ROLE_COOKIE, dbRole, cookieOpts);
+    response.cookies.set(ROLE_EMAIL_COOKIE, user.email, cookieOpts);
   }
 
   // ── Portal médico (/doctor) — scoping por rol ──────────────────────────────
@@ -114,7 +117,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // Primero revisa cookie cacheada (1h); si no hay, consulta roles_config en DB.
   // fetchRoleClinicAccess devuelve true para SUPER_ADMIN/ADMIN/CONTADOR directamente,
   // y para otros roles consulta pm_clinic en roles_config (ej: EMPLOYEE con toggle ON).
-  let clinicAccess = request.cookies.get(CLINIC_COOKIE)?.value;
+  let clinicAccess = cookieFresh ? request.cookies.get(CLINIC_COOKIE)?.value : undefined;
 
   if (clinicAccess === undefined && dbRole) {
     const hasAccess = await fetchRoleClinicAccess(dbRole);

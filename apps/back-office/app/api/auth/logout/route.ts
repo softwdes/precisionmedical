@@ -20,6 +20,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const response = NextResponse.redirect(loginUrl);
   response.cookies.delete('pm_last_active');
   response.cookies.delete('pm_role');
+  response.cookies.delete('pm_role_email');
   response.cookies.delete('pm_clinic');
 
   return response;

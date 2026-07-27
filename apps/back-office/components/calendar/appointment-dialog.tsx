@@ -153,6 +153,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [meetingUrl,    setMeetingUrl]    = useState('');
   const [showAll,       setShowAll]       = useState(false); // override specialty filter
   const [doctorSearch,  setDoctorSearch]  = useState(''); // combobox filter
+  const [doctorOpen,    setDoctorOpen]    = useState(false); // dropdown open
 
 
   const [saving,         setSaving]         = useState(false);
@@ -635,10 +636,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                       value={patientQuery}
                       onChange={(e) => setPatientQuery(e.target.value)}
                       placeholder={t('searchPatientPlaceholder2')}
-                      className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                      className="w-full bg-bg-2 border border-border/30 rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                     />
                     {(searchingPt || patientResults.length > 0) && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border/30 rounded-md shadow-lg z-50 overflow-hidden">
                         {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">Buscando...</div>}
                         {patientResults.map((pt) => (
                           <button
@@ -761,7 +762,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-clinic"
               value={clinicId}
               onChange={(e) => setClinicId(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               disabled={loadingRes}
             >
               <option value="">{loadingRes ? 'Cargando...' : t('selectClinicPlaceholder')}</option>
@@ -822,27 +823,32 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                       type="text"
                       value={doctorSearch}
                       onChange={e => setDoctorSearch(e.target.value)}
+                      onFocus={() => setDoctorOpen(true)}
+                      onBlur={() => setTimeout(() => setDoctorOpen(false), 150)}
                       placeholder="Buscar doctor…"
-                      className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                      className="w-full bg-bg-2 border border-border/30 rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand/50"
                     />
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
-                      {filteredProviders
-                        .filter(p => !doctorSearch.trim() || `${p.firstName} ${p.lastName}`.toLowerCase().includes(doctorSearch.toLowerCase()))
-                        .map(p => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => { setProviderId(p.id); setDoctorSearch(''); }}
-                            className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-border/50 last:border-0 flex items-center gap-2"
-                          >
-                            <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
-                            <div className="min-w-0">
-                              <div className="text-text-1 text-sm font-medium">{t('drPrefix')} {p.firstName} {p.lastName}</div>
-                              <div className="text-text-muted text-[10px] capitalize">{p.specialty.toLowerCase().replace(/_/g, ' ')}</div>
-                            </div>
-                          </button>
-                        ))}
-                    </div>
+                    {doctorOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border/30 rounded-md shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
+                        {filteredProviders
+                          .filter(p => !doctorSearch.trim() || `${p.firstName} ${p.lastName}`.toLowerCase().includes(doctorSearch.toLowerCase()))
+                          .map(p => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={() => { setProviderId(p.id); setDoctorSearch(''); setDoctorOpen(false); }}
+                              className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-border/20 last:border-0 flex items-center gap-2"
+                            >
+                              <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
+                              <div className="min-w-0">
+                                <div className="text-text-1 text-sm font-medium">{t('drPrefix')} {p.firstName} {p.lastName}</div>
+                                <div className="text-text-muted text-[10px] capitalize">{p.specialty.toLowerCase().replace(/_/g, ' ')}</div>
+                              </div>
+                            </button>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -863,7 +869,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-duration"
               value={String(duration)}
               onChange={(e) => { setDuration(parseInt(e.target.value, 10)); setSlotIso(null); }}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {DURATION_OPTIONS.map((d) => (
                 <option key={d} value={String(d)}>{d} min</option>
@@ -946,7 +952,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-type"
               value={type}
               onChange={(e) => { userChangedType.current = true; setType(e.target.value as AppointmentType); }}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
@@ -968,7 +974,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 aria-checked={isOnline}
                 onClick={() => setIsOnline(v => !v)}
                 className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors focus:outline-none ${
-                  isOnline ? 'bg-cyan border-cyan/80' : 'bg-bg-2 border-border'
+                  isOnline ? 'bg-cyan border-cyan/80' : 'bg-bg-2 border-border/30'
                 }`}
               >
                 <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${isOnline ? 'translate-x-4' : 'translate-x-0.5'}`} />
@@ -997,7 +1003,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder={t('notesPlaceholder')}
               maxLength={2000}
             />

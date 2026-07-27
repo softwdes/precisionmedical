@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Plus_Jakarta_Sans } from 'next/font/google';
-import { SWRegister } from '@/components/SWRegister';
 import { PWAInstallBanner } from '@/components/PWAInstallBanner';
 import './globals.css';
 
@@ -36,23 +35,42 @@ export const viewport: Viewport = {
   themeColor: '#2563EB',
 };
 
-// Inline script anti-FOUC: aplica el tema guardado en localStorage ANTES
-// del primer render del DOM. Si no hay nada guardado, default = 'dark'.
+// Inline script: tema anti-FOUC + registro temprano del SW + captura beforeinstallprompt
+// Ejecuta ANTES de que React hidrate para que Chrome evalúe instalabilidad lo antes posible.
 const themeScript = `
 (function() {
+  // 1. Tema
   try {
     var t = localStorage.getItem('pm_theme');
-    if (!t) t = 'dark';
-    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.setAttribute('data-theme', t || 'dark');
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
-  // Capture beforeinstallprompt before React hydrates
+
+  // 2. Captura beforeinstallprompt antes de que React hidrate
   window.__pwaPrompt = null;
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     window.__pwaPrompt = e;
   });
+
+  // 3. Registro temprano del SW (solo HTTPS + producción)
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
+        // Primera activación: recargar para que Chrome re-evalúe instalabilidad con SW activo
+        var sw = reg.installing || reg.waiting;
+        if (sw && !sessionStorage.getItem('sw-ready')) {
+          sw.addEventListener('statechange', function() {
+            if (sw.state === 'activated') {
+              sessionStorage.setItem('sw-ready', '1');
+              location.reload();
+            }
+          });
+        }
+      }).catch(function() {});
+    });
+  }
 })();
 `;
 
@@ -67,7 +85,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className={font.className}>
         <PWAInstallBanner />
-        <SWRegister />
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
         </NextIntlClientProvider>

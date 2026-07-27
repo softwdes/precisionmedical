@@ -130,25 +130,20 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, callMode]);
 
-  // Twilio contestó → pasar al wizard
+  // NOTA: el evento 'accept' del SDK de Twilio se dispara cuando el navegador conecta
+  // con Twilio (WebRTC), NO cuando el destinatario contesta. Por eso NO transitamos
+  // automáticamente a 'capturing' en 'in-call'. El agente hace clic en "Contestó"
+  // cuando confirma que el paciente levantó el teléfono.
+
+  // Twilio desconectó (no contestó, ocupado, o error) → pantalla de no contestó
   useEffect(() => {
-    if (step === 'calling' && twilio.callStatus === 'in-call') {
-      setStep('capturing');
+    if (step !== 'calling') return;
+    if (twilio.callStatus === 'ready' || twilio.callStatus === 'error') {
+      setStep('noanswer');
     }
   }, [twilio.callStatus, step]);
 
-  // Twilio desconectó tras conectar → no contestó; o error → misma pantalla de reintento
-  const prevTwilioStatus = useRef<TwilioCallStatus>('idle');
-  useEffect(() => {
-    const prev = prevTwilioStatus.current;
-    prevTwilioStatus.current = twilio.callStatus;
-    if (step === 'calling') {
-      if (prev === 'connecting' && twilio.callStatus === 'ready') setStep('noanswer');
-      if (twilio.callStatus === 'error') setStep('noanswer');
-    }
-  }, [twilio.callStatus, step]);
-
-  // Detener timer cuando Twilio desconecta (in-call → ready)
+  // Detener timer cuando Twilio desconecta mientras el agente está en el wizard
   useEffect(() => {
     if (callMode === 'outgoing' && step === 'capturing' && twilio.callStatus === 'ready') {
       setCallHungUp(true);
@@ -582,11 +577,25 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               <div className="text-text-muted font-mono text-sm">{phone}</div>
               <div className="flex items-center justify-center gap-1.5 mt-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse" />
-                <span className="text-amber text-[11px] font-semibold uppercase tracking-widest">Llamando…</span>
+                <span className="text-amber text-[11px] font-semibold uppercase tracking-widest">
+                  {twilio.callStatus === 'in-call' ? 'Timbrado…' : 'Llamando…'}
+                </span>
               </div>
             </div>
 
-            {/* Cancel */}
+            {/* Contestó → abre el wizard */}
+            {twilio.callStatus === 'in-call' && (
+              <button
+                type="button"
+                onClick={() => setStep('capturing')}
+                className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 bg-emerald/15 border border-emerald/30 text-emerald hover:bg-emerald/25 transition-colors text-sm font-semibold"
+              >
+                <PhoneCall className="w-4 h-4 flex-shrink-0" />
+                Contestó — abrir formulario
+              </button>
+            )}
+
+            {/* Cancelar */}
             <button
               type="button"
               onClick={() => { twilio.hangUp(); setStep('noanswer'); }}

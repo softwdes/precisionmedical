@@ -10,24 +10,29 @@ const STATUS_MAP: Record<string, 'ANSWERED' | 'NO_ANSWER' | 'BUSY' | 'FAILED' | 
   'canceled':    'NO_ANSWER',
 };
 
-// Twilio posts status updates here as the call progresses.
-// Updates CallLog with final outcome and duration.
+// Twilio llama este endpoint como <Dial action="..."> cuando el leg saliente termina.
+// El campo relevante es DialCallStatus (no CallStatus, que es del leg entrante).
 export async function POST(req: NextRequest) {
   try {
-    const form         = await req.formData();
-    const callSid      = form.get('CallSid')      as string | null;
-    const callStatus   = form.get('CallStatus')   as string | null;
-    const callDuration = form.get('CallDuration') as string | null;
+    const form            = await req.formData();
+    const callSid         = form.get('CallSid')         as string | null;
+    // DialCallStatus viene del <Dial action>; CallStatus del status callback genérico
+    const dialCallStatus  = form.get('DialCallStatus')  as string | null;
+    const callStatus      = form.get('CallStatus')      as string | null;
+    const dialDuration    = form.get('DialCallDuration') as string | null;
+    const callDuration    = form.get('CallDuration')    as string | null;
 
     if (!callSid) return new NextResponse('ok');
 
-    const outcome = STATUS_MAP[callStatus ?? ''] ?? 'ANSWERED';
+    const status  = dialCallStatus ?? callStatus ?? '';
+    const outcome = STATUS_MAP[status] ?? 'ANSWERED';
+    const duration = dialDuration ?? callDuration;
 
     await db.callLog.updateMany({
       where: { twilioCallSid: callSid },
       data: {
         outcome,
-        durationSeconds: callDuration ? parseInt(callDuration, 10) : undefined,
+        durationSeconds: duration ? parseInt(duration, 10) : undefined,
       },
     });
   } catch (err) {

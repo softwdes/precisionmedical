@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@precision-medical/auth/middleware';
-import { fetchDbRole, fetchRoleClinicAccess } from '@precision-medical/auth/v2-apps';
+import { fetchDbRole, fetchRoleClinicAccess, fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 
 /**
  * Back-Office middleware.
@@ -16,10 +16,31 @@ import { fetchDbRole, fetchRoleClinicAccess } from '@precision-medical/auth/v2-a
  */
 
 const ROLE_COOKIE        = 'pm_role';
-const ROLE_EMAIL_COOKIE  = 'pm_role_email'; // a quién pertenece pm_role/pm_clinic
+const ROLE_EMAIL_COOKIE  = 'pm_role_email'; // a quién pertenece pm_role/pm_clinic/pm_mods
 const CLINIC_COOKIE      = 'pm_clinic';
+const MODULES_COOKIE     = 'pm_mods'; // JSON de pm_clinic_modules ('*' = sin restricción)
 const LAST_ACTIVE_COOKIE = 'pm_last_active';
 const INACTIVITY_HOURS   = 4;
+
+// Mapa ruta → módulo del back-office (checks por rol en roles_config)
+const MODULE_ROUTES: Array<[module: string, pattern: RegExp]> = [
+  ['dashboard', /^\/dashboard/],
+  ['patients',  /^\/(patients|front-office)/], // detalle de caso cuenta como Patients
+  ['calendar',  /^\/calendar/],
+  ['admission', /^\/admission/],
+  ['externals', /^\/admin\/lawyers/],
+  ['edson',     /^\/edson/],
+  ['intake',    /^\/intake/],
+  ['billing',   /^\/billing/],
+  ['settings',  /^\/(settings|audit-logs|admin\/(specialties|insurances|services|diagnoses|providers|templates))/],
+];
+
+// Ruta home de cada módulo (para redirigir al primero permitido)
+const MODULE_HOME: Record<string, string> = {
+  dashboard: '/dashboard', patients: '/patients', calendar: '/calendar',
+  admission: '/admission', externals: '/admin/lawyers', edson: '/edson',
+  intake: '/intake', billing: '/billing', settings: '/settings',
+};
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
@@ -134,6 +155,38 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     const url = request.nextUrl.clone();
     url.pathname = '/no-access';
     return NextResponse.redirect(url);
+  }
+
+  // ── Checks por menú POR USUARIO (users.clinicModules) ─────────────────────
+  // null = "Visión completa"; con mapa, solo ve/entra a los módulos marcados.
+  // SUPER_ADMIN y ADMIN nunca se restringen.
+  if (dbRole && dbRole !== 'SUPER_ADMIN' && dbRole !== 'ADMIN' && !pathname.startsWith('/api/')) {
+    let modsRaw = cookieFresh ? request.cookies.get(MODULES_COOKIE)?.value : undefined;
+
+    if (modsRaw === undefined && user.email) {
+      const mods = await fetchUserClinicModules(user.email);
+      modsRaw = mods ? JSON.stringify(mods) : '*';
+      response.cookies.set(MODULES_COOKIE, modsRaw, {
+        httpOnly: true, path: '/', maxAge: 3600, sameSite: 'lax',
+      });
+    }
+
+    if (modsRaw && modsRaw !== '*') {
+      let mods: Record<string, boolean> = {};
+      try { mods = JSON.parse(modsRaw) as Record<string, boolean>; } catch { /* '*' fallback */ }
+
+      const matched = MODULE_ROUTES.find(([, re]) => re.test(pathname));
+      const blocked = matched ? mods[matched[0]] === false : false;
+      const isRoot  = pathname === '/';
+
+      if (blocked || isRoot) {
+        const firstAllowed = MODULE_ROUTES.find(([m]) => mods[m] !== false)?.[0];
+        const url = request.nextUrl.clone();
+        url.pathname = firstAllowed ? MODULE_HOME[firstAllowed]! : '/no-access';
+        url.search = '';
+        if (url.pathname !== pathname) return NextResponse.redirect(url);
+      }
+    }
   }
 
   return response;

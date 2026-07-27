@@ -7,10 +7,10 @@ import { BarChart3, Users, CalendarDays, ClipboardCheck, Menu, Sun } from 'lucid
 import { cn } from '@precision/ui';
 
 const NAV_LINKS = [
-  { href: '/dashboard',  icon: BarChart3,      key: 'dashboard',      exact: false },
-  { href: '/patients',   icon: Users,          key: 'patients',       exact: false },
-  { href: '/calendar',   icon: CalendarDays,   key: 'calendarShort',  exact: false },
-  { href: '/admission',  icon: ClipboardCheck, key: 'admissionShort', exact: false },
+  { href: '/dashboard',  icon: BarChart3,      key: 'dashboard',      exact: false, moduleKey: 'dashboard' },
+  { href: '/patients',   icon: Users,          key: 'patients',       exact: false, moduleKey: 'patients'  },
+  { href: '/calendar',   icon: CalendarDays,   key: 'calendarShort',  exact: false, moduleKey: 'calendar'  },
+  { href: '/admission',  icon: ClipboardCheck, key: 'admissionShort', exact: false, moduleKey: 'admission' },
 ] as const;
 
 // Portal médico — identidad violet (Regla #5 · B.17–B.18)
@@ -24,13 +24,18 @@ const DOCTOR_NAV_LINKS = [
 interface MobileBottomNavProps {
   onMenuClick?: () => void;
   variant?: 'admin' | 'doctor';
+  /** Checks por menú del rol. null = ve todo. */
+  allowedModules?: Record<string, boolean> | null;
 }
 
-export function MobileBottomNav({ onMenuClick, variant = 'admin' }: MobileBottomNavProps): React.ReactElement {
+export function MobileBottomNav({ onMenuClick, variant = 'admin', allowedModules = null }: MobileBottomNavProps): React.ReactElement {
   const pathname = usePathname();
   const t = useTranslations('phoenix.nav');
   const isDoctor = variant === 'doctor';
-  const links = isDoctor ? DOCTOR_NAV_LINKS : NAV_LINKS;
+  const baseLinks = isDoctor ? DOCTOR_NAV_LINKS : NAV_LINKS;
+  const links = allowedModules
+    ? baseLinks.filter((l) => !('moduleKey' in l) || allowedModules[(l as { moduleKey: string }).moduleKey] !== false)
+    : baseLinks;
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-bg-1 border-t border-border">

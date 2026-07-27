@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@precision-medical/auth/server';
 import { createAdminClient } from '@precision-medical/auth/admin';
+import { fetchUserClinicModules } from '@precision-medical/auth/v2-apps';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 
@@ -36,6 +37,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   let userName    = user.email ?? 'Usuario';
   let userRole    = '';
   let userInits   = (emailLocal[0] ?? 'U').toUpperCase();
+  let allowedModules: Record<string, boolean> | null = null;
 
   try {
     const admin = createAdminClient();
@@ -49,6 +51,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       userName  = `${data.firstName} ${data.lastName}`.trim();
       userRole  = ROLE_LABELS[data.role as string] ?? data.role;
       userInits = initials(data.firstName ?? '', data.lastName ?? '');
+      // Checks por menú POR USUARIO (null = "Visión completa"); admins nunca se restringen
+      if (data.role !== 'SUPER_ADMIN' && data.role !== 'ADMIN' && user.email) {
+        allowedModules = await fetchUserClinicModules(user.email);
+      }
     }
   } catch {
     // fallback: inicial del email
@@ -62,6 +68,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         userRole={userRole}
         userInitials={userInits}
         userEmail={user.email ?? ''}
+        allowedModules={allowedModules}
       >
         {children}
       </AdminShell>

@@ -30,6 +30,8 @@ interface NavItem {
   disabled?: boolean;
   /** Solo activo con match exacto (para items "home" como /doctor) */
   exact?: boolean;
+  /** Llave del módulo en roles_config.pm_clinic_modules (checks por rol) */
+  moduleKey?: string;
 }
 
 interface NavSection {
@@ -41,15 +43,15 @@ const SECTIONS: NavSection[] = [
   {
     titleKey: '',
     items: [
-      { href: '/dashboard',  icon: BarChart3,      labelKey: 'dashboard',  mockup: 'B.29'        },
-      { href: '/patients',   icon: Users,          labelKey: 'patients',   mockup: 'B.4'         },
-      { href: '/calendar',   icon: CalendarDays,   labelKey: 'calendar',   mockup: 'B.10–B.11'  },
-      { href: '/admission',  icon: ClipboardCheck, labelKey: 'admission',  mockup: 'B.14–B.15'  },
-      { href: '/admin/lawyers', icon: Scale,       labelKey: 'lawyers',    mockup: 'B.30–B.31'  },
-      { href: '/edson',      icon: ClipboardList,  labelKey: 'edson',      mockup: 'B.12–B.13/B.23–B.24' },
-      { href: '/intake',     icon: Phone,          labelKey: 'intake',     mockup: 'B.12–B.13'  },
-      { href: '/billing',    icon: Briefcase,      labelKey: 'billing',    mockup: 'B.25–B.28'  },
-      { href: '/settings',   icon: Settings,       labelKey: 'settings',   mockup: 'B.36+'       },
+      { href: '/dashboard',  icon: BarChart3,      labelKey: 'dashboard',  mockup: 'B.29',       moduleKey: 'dashboard' },
+      { href: '/patients',   icon: Users,          labelKey: 'patients',   mockup: 'B.4',        moduleKey: 'patients'  },
+      { href: '/calendar',   icon: CalendarDays,   labelKey: 'calendar',   mockup: 'B.10–B.11', moduleKey: 'calendar'  },
+      { href: '/admission',  icon: ClipboardCheck, labelKey: 'admission',  mockup: 'B.14–B.15', moduleKey: 'admission' },
+      { href: '/admin/lawyers', icon: Scale,       labelKey: 'lawyers',    mockup: 'B.30–B.31', moduleKey: 'externals' },
+      { href: '/edson',      icon: ClipboardList,  labelKey: 'edson',      mockup: 'B.12–B.13/B.23–B.24', moduleKey: 'edson' },
+      { href: '/intake',     icon: Phone,          labelKey: 'intake',     mockup: 'B.12–B.13', moduleKey: 'intake'    },
+      { href: '/billing',    icon: Briefcase,      labelKey: 'billing',    mockup: 'B.25–B.28', moduleKey: 'billing'   },
+      { href: '/settings',   icon: Settings,       labelKey: 'settings',   mockup: 'B.36+',      moduleKey: 'settings'  },
     ],
   },
 ];
@@ -76,14 +78,23 @@ interface SidebarProps {
   collapsed?: boolean;
   onCollapsedChange?: (c: boolean) => void;
   variant?: ShellVariant;
+  /** Checks por menú del rol. null = ve todo. */
+  allowedModules?: Record<string, boolean> | null;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin' }: SidebarProps): React.ReactElement {
+export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin', allowedModules = null }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
   const t = useTranslations('phoenix.nav');
 
   const isDoctor = variant === 'doctor';
-  const sections = isDoctor ? DOCTOR_SECTIONS : SECTIONS;
+  const baseSections = isDoctor ? DOCTOR_SECTIONS : SECTIONS;
+  // Checks por menú del rol: sin mapa → todo visible; con mapa → solo los marcados
+  const sections = allowedModules
+    ? baseSections.map((s) => ({
+        ...s,
+        items: s.items.filter((i) => !i.moduleKey || allowedModules[i.moduleKey] !== false),
+      }))
+    : baseSections;
   const homeHref = isDoctor ? '/doctor' : '/dashboard';
   const logoGradient = isDoctor
     ? 'linear-gradient(135deg,#7C3AED 0%,#8B5CF6 50%,#A78BFA 100%)'

@@ -62,6 +62,34 @@ export async function fetchRoleClinicAccess(dbRole: string): Promise<boolean> {
 }
 
 /**
+ * Menús del back-office visibles para UN USUARIO (checks por menú, por persona).
+ *
+ * Lee users.clinicModules (Record<módulo, boolean> | null) por email.
+ * null / ausente = "Visión completa" (sin restricción — ve todos los menús).
+ * Cachear en cookie (1h) igual que el resto de flags.
+ */
+export async function fetchUserClinicModules(email: string): Promise<Record<string, boolean> | null> {
+  try {
+    const url =
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/users` +
+      `?select=clinicModules&email=eq.${encodeURIComponent(email)}&limit=1`;
+
+    const res = await fetch(url, {
+      headers: {
+        apikey:        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+      },
+    });
+
+    if (!res.ok) return null;
+    const data = (await res.json()) as Array<{ clinicModules?: Record<string, boolean> | null }>;
+    return data[0]?.clinicModules ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch del role del usuario desde Supabase REST API.
  * Edge-safe — no usa el SDK de Supabase, solo fetch.
  * Cachear el resultado en cookie (1h) para evitar llamadas repetidas.

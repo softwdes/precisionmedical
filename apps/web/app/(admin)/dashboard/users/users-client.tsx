@@ -70,12 +70,16 @@ function RoleBadge({ dbRole }: { dbRole: string }): React.ReactElement {
 }
 
 // ─── Accesos summary text ──────────────────────────────────────────────────────
-function AccesosText({ dbRole }: { dbRole: string }): React.ReactElement {
+function AccesosText({ dbRole, clinicModules }: { dbRole: string; clinicModules?: Record<string, boolean> | null }): React.ReactElement {
   const role = dbRoleToRole(dbRole);
   const meta = ROLE_META[role];
+  const limitedCount = clinicModules ? Object.values(clinicModules).filter(Boolean).length : null;
   return (
     <span className="text-[11px] text-text-muted leading-relaxed">
       {meta.accesos}
+      {limitedCount !== null && (
+        <span className="text-amber-400"> · Back-Office limitado ({limitedCount} menús)</span>
+      )}
     </span>
   );
 }
@@ -194,7 +198,7 @@ export function UsersClient({
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'),
     ADMIN: t('users.roles.ADMIN'),
-    EMPLOYEE: t('users.roles.EMPLOYEE'),
+    EMPLOYEE: t('users.roles.EMPLOYEE'), DOCTOR: t('users.roles.DOCTOR'),
     LAWYER: t('users.roles.LAWYER'),
     PROVIDER: t('users.roles.PROVIDER'),
     AUDITOR_AI: t('users.roles.AUDITOR_AI'),
@@ -210,7 +214,7 @@ export function UsersClient({
   const { data, refetch } = trpc.users.list.useQuery(
     {
       page, pageSize: 10, search: search || undefined,
-      role: (roleFilter as 'SUPER_ADMIN' | 'ADMIN' | 'EMPLOYEE' | 'LAWYER' | 'PROVIDER' | 'AUDITOR_AI' | undefined) || undefined,
+      role: (roleFilter as 'SUPER_ADMIN' | 'ADMIN' | 'EMPLOYEE' | 'DOCTOR' | 'LAWYER' | 'PROVIDER' | 'AUDITOR_AI' | undefined) || undefined,
       status: (statusFilter as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION' | undefined) || undefined,
     },
     { initialData: initial },
@@ -411,7 +415,7 @@ export function UsersClient({
                           />
                         </TableCell>
                         <TableCell>
-                          <AccesosText dbRole={user.role as string} />
+                          <AccesosText dbRole={user.role as string} clinicModules={(user as { clinicModules?: Record<string, boolean> | null }).clinicModules} />
                         </TableCell>
                         <TableCell>
                           <Badge variant={STATUS_COLORS[user.status] ?? 'secondary'}>{STATUS_LABELS[user.status as keyof typeof STATUS_LABELS] ?? user.status}</Badge>
@@ -531,7 +535,7 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'),
     ADMIN: t('users.roles.ADMIN'),
-    EMPLOYEE: t('users.roles.EMPLOYEE'),
+    EMPLOYEE: t('users.roles.EMPLOYEE'), DOCTOR: t('users.roles.DOCTOR'),
     LAWYER: t('users.roles.LAWYER'),
     PROVIDER: t('users.roles.PROVIDER'),
     AUDITOR_AI: t('users.roles.AUDITOR_AI'),
@@ -722,19 +726,39 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
 }
 
 // ─── Edit Dialog ──────────────────────────────────────────────────────────────
+// Menús del Clinic Back-Office gobernables por usuario (mismo orden que su sidebar)
+const CLINIC_MODULES: Array<{ key: string; label: string; emoji: string }> = [
+  { key: 'dashboard', label: 'Dashboard',      emoji: '📊' },
+  { key: 'patients',  label: 'Patients',       emoji: '👥' },
+  { key: 'calendar',  label: 'Appointments',   emoji: '📅' },
+  { key: 'admission', label: 'Day Admission',  emoji: '🏥' },
+  { key: 'externals', label: 'Externals',      emoji: '⚖️' },
+  { key: 'edson',     label: 'Edson',          emoji: '📋' },
+  { key: 'intake',    label: 'Intake',         emoji: '📞' },
+  { key: 'billing',   label: 'Billing',        emoji: '💼' },
+  { key: 'settings',  label: 'Settings',       emoji: '⚙️' },
+];
+
 function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: () => void; onSaved: () => void }): React.ReactElement {
   const t = useTranslations();
   const [form, setForm] = useState({
     firstName: user.firstName,
     lastName: user.lastName,
-    role: user.role as 'SUPER_ADMIN' | 'ADMIN' | 'EMPLOYEE' | 'LAWYER' | 'PROVIDER' | 'AUDITOR_AI',
+    role: user.role as 'SUPER_ADMIN' | 'ADMIN' | 'EMPLOYEE' | 'DOCTOR' | 'LAWYER' | 'PROVIDER' | 'AUDITOR_AI',
     status: user.status as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION',
     phone: user.phone ?? '',
   });
 
+  // Menús del Back-Office visibles para ESTE usuario. null = visión completa.
+  const savedModules = (user as { clinicModules?: Record<string, boolean> | null }).clinicModules ?? null;
+  const [fullVision, setFullVision] = useState(savedModules === null);
+  const [clinicModules, setClinicModules] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(CLINIC_MODULES.map(m => [m.key, savedModules ? savedModules[m.key] !== false : true])),
+  );
+
   const ROLE_LABELS = {
     SUPER_ADMIN: t('users.roles.SUPER_ADMIN'), ADMIN: t('users.roles.ADMIN'),
-    EMPLOYEE: t('users.roles.EMPLOYEE'), LAWYER: t('users.roles.LAWYER'),
+    EMPLOYEE: t('users.roles.EMPLOYEE'), DOCTOR: t('users.roles.DOCTOR'), LAWYER: t('users.roles.LAWYER'),
     PROVIDER: t('users.roles.PROVIDER'), AUDITOR_AI: t('users.roles.AUDITOR_AI'),
   };
 
@@ -764,7 +788,11 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
-    update.mutate({ id: user.id, ...form });
+    update.mutate({
+      id: user.id,
+      ...form,
+      clinicModules: fullVision ? null : clinicModules,
+    });
   };
 
   return (
@@ -817,6 +845,46 @@ function EditUserDialog({ user, onClose, onSaved }: { user: UserRow; onClose: ()
             <div className="space-y-1.5">
               <Label>{t('employees.phone')} <span className="text-text-muted font-normal">({t('common.optional')})</span></Label>
               <Input value={form.phone} onChange={(e) => setForm(f => ({ ...f, phone: e.target.value }))} />
+            </div>
+
+            {/* ── Back-Office: menús visibles para este usuario ── */}
+            <div className="rounded-lg border border-border bg-surface/50 px-4 py-3 space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-text-1">Back-Office — Visibilidad</p>
+                  <p className="text-[11px] text-text-muted">
+                    {fullVision ? 'Visión completa: ve todos los menús del Back-Office.' : 'Solo ve los menús marcados.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFullVision(v => !v)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-200 cursor-pointer ${fullVision ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                  title={fullVision ? 'Visión completa' : 'Menús seleccionados'}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${fullVision ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {!fullVision && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 border-t border-border/60">
+                  {CLINIC_MODULES.map(mod => {
+                    const on = clinicModules[mod.key] !== false;
+                    return (
+                      <label key={mod.key} className="flex items-center gap-2.5 rounded-md px-2 py-1.5 cursor-pointer hover:bg-surface transition-colors" style={{ opacity: on ? 1 : 0.55 }}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => setClinicModules(m => ({ ...m, [mod.key]: !(m[mod.key] !== false) }))}
+                          className="h-3.5 w-3.5 accent-indigo-500"
+                        />
+                        <span className="text-[11px] w-4 text-center">{mod.emoji}</span>
+                        <span className="text-[12.5px] text-text-2">{mod.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* ── Empleado vinculado ── */}

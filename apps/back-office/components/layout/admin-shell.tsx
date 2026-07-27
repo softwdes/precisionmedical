@@ -23,6 +23,8 @@ interface AdminShellProps {
   userEmail?:    string;
   /** 'doctor' activa el portal médico: sidebar/bottom-nav violet con rutas /doctor/* */
   variant?:      'admin' | 'doctor';
+  /** Checks por menú del rol (roles_config.pm_clinic_modules). null = ve todo. */
+  allowedModules?: Record<string, boolean> | null;
 }
 
 export function AdminShell({
@@ -32,6 +34,7 @@ export function AdminShell({
   userInitials = 'U',
   userEmail    = '',
   variant      = 'admin',
+  allowedModules = null,
 }: AdminShellProps): React.ReactElement {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -55,6 +58,7 @@ export function AdminShell({
             collapsed={collapsed}
             onCollapsedChange={handleCollapsedChange}
             variant={variant}
+            allowedModules={allowedModules}
           />
 
           {/* Backdrop mobile */}
@@ -76,7 +80,7 @@ export function AdminShell({
             />
             <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8 animate-fade-in">{children}</main>
           </div>
-          <MobileBottomNav onMenuClick={() => setMobileOpen(v => !v)} variant={variant} />
+          <MobileBottomNav onMenuClick={() => setMobileOpen(v => !v)} variant={variant} allowedModules={allowedModules} />
           <FloatingAI />
         </div>
       </NavigationProgressProvider>

@@ -251,6 +251,7 @@ function EditPermissionsModal({
               ))}
             </div>
           </div>
+
         </div>
 
         {/* Actions */}

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   response.cookies.delete('pm_role');
   response.cookies.delete('pm_role_email');
   response.cookies.delete('pm_clinic');
+  response.cookies.delete('pm_mods');
 
   return response;
 }

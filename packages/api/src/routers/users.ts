@@ -50,7 +50,7 @@ export const usersRouter = router({
 
       let query = supabaseAdmin
         .from('users')
-        .select('id, email, firstName, lastName, avatarUrl, role, status, phone, lastLoginAt, createdAt', { count: 'exact' })
+        .select('id, email, firstName, lastName, avatarUrl, role, status, phone, lastLoginAt, createdAt, clinicModules', { count: 'exact' })
         .is('deletedAt', null)
         .range(from, to)
         .order('createdAt', { ascending: false });
@@ -218,6 +218,8 @@ export const usersRouter = router({
       role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'DOCTOR', 'LAWYER', 'PROVIDER', 'AUDITOR_AI']).optional(),
       status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION']).optional(),
       phone: z.string().optional(),
+      /** Menús del Back-Office visibles para ESTE usuario. null = visión completa. */
+      clinicModules: z.record(z.string(), z.boolean()).nullable().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const { id, ...updateData } = input;

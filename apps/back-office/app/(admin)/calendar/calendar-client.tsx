@@ -97,13 +97,13 @@ const TIME_SLOTS = [
   '20:00','20:30','21:00','21:30',
 ];
 
-/** Returns "8 AM" for on-the-hour slots, empty string for :30 slots */
+/** Returns "8 AM" for on-the-hour slots, "8:30" for half-hour slots */
 function slotLabel(slot: string): string {
   const [h, m] = slot.split(':').map(Number);
-  if (m !== 0) return '';
   const period = h! < 12 ? 'AM' : 'PM';
   const h12    = h! % 12 === 0 ? 12 : h! % 12;
-  return `${h12} ${period}`;
+  if (m === 0) return `${h12} ${period}`;
+  return `${h12}:30`;
 }
 
 function timeToMinutes(t: string): number {
@@ -1057,7 +1057,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                 {TIME_SLOTS.map(slot => (
                   <div key={slot} className="grid grid-cols-[52px_repeat(5,1fr)] border-b border-white/[0.04] last:border-b-0 min-h-[40px]">
                     <div className="border-r border-white/[0.04] flex items-start justify-end pr-2 pt-1">
-                      <span className="text-[9px] text-white/30 font-mono tabular-nums">{slotLabel(slot)}</span>
+                      <span className={`font-mono tabular-nums ${slot.endsWith(':00') ? 'text-[9px] text-white/30' : 'text-[8px] text-white/18'}`}>{slotLabel(slot)}</span>
                     </div>
                     {days.map((day, di) => {
                       const dayKey = denverDateStr(day);

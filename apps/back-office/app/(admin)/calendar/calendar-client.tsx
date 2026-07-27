@@ -63,17 +63,25 @@ interface CalendarAppointment {
 interface CalendarClientProps {
   clinics: Clinic[];
   providers: Provider[];
+  /**
+   * Portal médico: fija el calendario a las citas de UN doctor (sesión).
+   * Oculta el filtro de doctor; el resto de la funcionalidad queda intacta.
+   */
+  lockedProviderId?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getMondayOf(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  // Always compute the Monday in America/Denver timezone to stay consistent
+  // with denverDateStr() used for appointment bucketing. Using local browser
+  // time here would cause a mismatch when the user's browser is outside MT.
+  const [y, m, d] = date.toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
+    .split('-').map(Number) as [number, number, number];
+  const noonUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const dow = noonUtc.getUTCDay(); // 0=Sun,1=Mon,...,6=Sat
+  const diff = dow === 0 ? -6 : 1 - dow;
+  return new Date(Date.UTC(y, m - 1, d + diff, 12, 0, 0));
 }
 
 function addDays(date: Date, n: number): Date {
@@ -375,7 +383,7 @@ function LegendStats({
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function CalendarClient({ clinics, providers }: CalendarClientProps) {
+export function CalendarClient({ clinics, providers, lockedProviderId }: CalendarClientProps) {
   const t = useTranslations('phoenix.calendar');
 
   const WEEKDAYS     = Object.values(t.raw('weekdays') as Record<string, string>);
@@ -498,8 +506,10 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
     const params = new URLSearchParams({
       from: from.toISOString(),
       to:   to.toISOString(),
-      ...(filterClinic   ? { clinicId:   filterClinic }   : {}),
-      ...(filterProvider ? { providerId: filterProvider } : {}),
+      ...(filterClinic ? { clinicId: filterClinic } : {}),
+      ...(lockedProviderId
+        ? { providerId: lockedProviderId }
+        : filterProvider ? { providerId: filterProvider } : {}),
       ...(filterType     ? { type:       filterType }     : {}),
     });
 
@@ -623,18 +633,23 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
   const firstVisitCount = visibleAppointments.filter(a => a.visitNumber === 0).length;
   const pendingConfirm  = visibleAppointments.filter(a => a.status === 'SCHEDULED').length;
 
-  // Labels en barra de título
+  // Labels en barra de título — always use Denver date for consistency
   const viewEnd4   = addDays(weekStart, 4);
+  // Helper: get month/year/day from a Denver date string "YYYY-MM-DD"
+  const dStr = (d: Date) => denverDateStr(d);
+  const dNum = (d: Date) => parseInt(dStr(d).slice(8), 10);
+  const dMonth = (d: Date) => MONTHS[parseInt(dStr(d).slice(5, 7), 10) - 1]!;
+  const dYear = (d: Date) => parseInt(dStr(d).slice(0, 4), 10);
   const monthLabel =
     calView === 'day'
-      ? `${weekStart.getDate()} ${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`
-      : `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
+      ? `${dNum(weekStart)} ${dMonth(weekStart)} ${dYear(weekStart)}`
+      : `${dMonth(weekStart)} ${dYear(weekStart)}`;
   // Mobile toolbar label — changes by view
   const mobileDateLabel = mobileView === 'month'
-    ? `${MONTHS[mobileDate.getMonth()]} ${mobileDate.getFullYear()}`
+    ? `${dMonth(mobileDate)} ${dYear(mobileDate)}`
     : mobileView === 'week'
-      ? (() => { const mon = getMondayOf(mobileDate); const sun = addDays(mon, 6); return `${mon.getDate()}–${sun.getDate()} ${MONTHS[sun.getMonth()]} ${sun.getFullYear()}`; })()
-      : `${mobileDate.getDate()} ${MONTHS[mobileDate.getMonth()]} ${mobileDate.getFullYear()}`;
+      ? (() => { const mon = getMondayOf(mobileDate); const sun = addDays(mon, 6); return `${dNum(mon)}–${dNum(sun)} ${dMonth(sun)} ${dYear(sun)}`; })()
+      : `${dNum(mobileDate)} ${dMonth(mobileDate)} ${dYear(mobileDate)}`;
   const weekLabel =
     calView === 'day'
       ? `${WEEKDAYS_ALL[(weekStart.getDay() + 6) % 7]} · ${t('viewDailySuffix')}`
@@ -714,8 +729,10 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         <div className="md:hidden px-4 pb-2 flex flex-wrap gap-1.5">
           <FilterChip emoji="🏥" placeholder={t('filterAllClinics')} value={filterClinic}
             options={clinics.map(c => ({ value: c.id, label: c.name }))} onChange={setFilterClinic} />
-          <FilterChip emoji="👨‍⚕️" placeholder={t('filterAllDoctors')} value={filterProvider}
-            options={providers.map(p => ({ value: p.id, label: `Dr. ${p.lastName}` }))} onChange={setFilterProvider} />
+          {!lockedProviderId && (
+            <FilterChip emoji="👨‍⚕️" placeholder={t('filterAllDoctors')} value={filterProvider}
+              options={providers.map(p => ({ value: p.id, label: `Dr. ${p.lastName}` }))} onChange={setFilterProvider} />
+          )}
           <FilterChip emoji="🚗" placeholder={t('filterAllTypes')} value={filterType}
             options={[
               { value: 'AUTO_ACCIDENT',   label: t('typeAutoAccident') },
@@ -766,13 +783,15 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
             options={clinics.map(c => ({ value: c.id, label: c.name }))}
             onChange={setFilterClinic}
           />
-          <FilterChip
-            emoji="👨‍⚕️"
-            placeholder={t('filterAllDoctors')}
-            value={filterProvider}
-            options={providers.map(p => ({ value: p.id, label: `Dr. ${p.lastName}` }))}
-            onChange={setFilterProvider}
-          />
+          {!lockedProviderId && (
+            <FilterChip
+              emoji="👨‍⚕️"
+              placeholder={t('filterAllDoctors')}
+              value={filterProvider}
+              options={providers.map(p => ({ value: p.id, label: `Dr. ${p.lastName}` }))}
+              onChange={setFilterProvider}
+            />
+          )}
           <FilterChip
             emoji="🚗"
             placeholder={t('filterAllTypes')}
@@ -887,14 +906,15 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         {mobileView === 'week' && (() => {
           const mon = getMondayOf(mobileDate);
           const weekDays = Array.from({ length: 7 }, (_, i) => addDays(mon, i));
-          const todayStr = localDateStr(new Date());
+          const todayDenver = denverDateStr(new Date());
+          const selectedDenver = denverDateStr(mobileDate);
           const dayNames = ['M','T','W','T','F','S','S'];
           return (
             <div className="grid grid-cols-7 gap-1 mb-3">
               {weekDays.map((d, i) => {
                 const dKey = denverDateStr(d);
-                const isSelected = localDateStr(d) === localDateStr(mobileDate);
-                const isToday = localDateStr(d) === todayStr;
+                const isSelected = dKey === selectedDenver;
+                const isToday = dKey === todayDenver;
                 const hasAppts = visibleAppointments.some(a => denverDateStr(new Date(a.scheduledFor)) === dKey);
                 return (
                   <button key={i} type="button"
@@ -903,7 +923,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                       isSelected ? 'bg-cyan/20 border-cyan/40' : 'border-transparent hover:bg-white/5'
                     }`}>
                     <span className={`text-[9px] font-bold uppercase tracking-wider ${isToday ? 'text-cyan' : 'text-text-muted'}`}>{dayNames[i]}</span>
-                    <span className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-cyan' : isToday ? 'text-cyan' : 'text-text-1'}`}>{d.getDate()}</span>
+                    <span className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-cyan' : isToday ? 'text-cyan' : 'text-text-1'}`}>{parseInt(dKey.slice(8), 10)}</span>
                     <span className={`w-1.5 h-1.5 rounded-full mt-1 ${hasAppts ? 'bg-cyan' : 'bg-transparent'}`} />
                   </button>
                 );
@@ -915,7 +935,9 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
         {/* MONTH GRID */}
         {mobileView === 'month' && (() => {
           const grid = getMonthGrid(mobileDate);
-          const todayStr = localDateStr(new Date());
+          const todayDenver = denverDateStr(new Date());
+          const selectedDenver = denverDateStr(mobileDate);
+          const mobileMonthKey = denverDateStr(mobileDate).slice(0, 7); // "YYYY-MM"
           const dayNames = ['M','T','W','T','F','S','S'];
           return (
             <div className="mb-3">
@@ -928,9 +950,9 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                 <div key={wi} className="grid grid-cols-7 gap-0.5 mb-0.5">
                   {week.map((d, di) => {
                     const dKey = denverDateStr(d);
-                    const isCurrentMonth = d.getMonth() === mobileDate.getMonth();
-                    const isSelected = localDateStr(d) === localDateStr(mobileDate);
-                    const isToday = localDateStr(d) === todayStr;
+                    const isCurrentMonth = dKey.slice(0, 7) === mobileMonthKey;
+                    const isSelected = dKey === selectedDenver;
+                    const isToday = dKey === todayDenver;
                     const count = visibleAppointments.filter(a => denverDateStr(new Date(a.scheduledFor)) === dKey).length;
                     return (
                       <button key={di} type="button"
@@ -938,7 +960,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                         className={`flex flex-col items-center py-1.5 rounded-md transition-all ${
                           isSelected ? 'bg-cyan/20 border border-cyan/40' : 'border border-transparent hover:bg-white/5'
                         } ${!isCurrentMonth ? 'opacity-30' : ''}`}>
-                        <span className={`text-xs font-semibold ${isSelected ? 'text-cyan' : isToday ? 'text-cyan' : 'text-text-1'}`}>{d.getDate()}</span>
+                        <span className={`text-xs font-semibold ${isSelected ? 'text-cyan' : isToday ? 'text-cyan' : 'text-text-1'}`}>{parseInt(dKey.slice(8), 10)}</span>
                         {count > 0 ? (
                           <span className="text-[8px] font-bold text-cyan leading-none mt-0.5">{count}</span>
                         ) : (
@@ -1008,7 +1030,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
         {/* ══════════════════════════ WEEK VIEW ══════════════════════════════ */}
         {calView === 'week' && (() => {
-          const todayLocalStr = localDateStr(new Date());
+          const todayDenverStr = denverDateStr(new Date());
           return (
             <>
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
@@ -1016,11 +1038,13 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                 <div className="grid grid-cols-[52px_repeat(5,1fr)] border-b border-white/[0.07]">
                   <div className="border-r border-white/[0.07]" />
                   {days.map((day, i) => {
-                    const isToday = localDateStr(day) === todayLocalStr;
+                    const dKey = denverDateStr(day);
+                    const isToday = dKey === todayDenverStr;
+                    const dayNum = parseInt(dKey.slice(8), 10);
                     return (
                       <div key={i} className={`py-3 text-center border-r border-white/[0.07] last:border-r-0 ${isToday ? 'bg-cyan/[0.06]' : ''}`}>
                         <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>{WEEKDAYS[i]}</div>
-                        <div className={`text-[28px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>{day.getDate()}</div>
+                        <div className={`text-[28px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>{dayNum}</div>
                       </div>
                     );
                   })}
@@ -1037,7 +1061,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                     </div>
                     {days.map((day, di) => {
                       const dayKey = denverDateStr(day);
-                      const isToday = localDateStr(day) === todayLocalStr;
+                      const isToday = dayKey === todayDenverStr;
                       const cellAppts = apptMap[dayKey]?.[slot] ?? [];
                       return (
                         <div key={di}
@@ -1100,10 +1124,13 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
 
         {/* ══════════════════════════ DAY VIEW ═══════════════════════════════ */}
         {calView === 'day' && (() => {
-          const dayKey  = denverDateStr(weekStart);
+          const dayKey   = denverDateStr(weekStart);
           const todayStr = denverDateStr(new Date());
           const isToday  = dayKey === todayStr;
-          const dowIdx   = (weekStart.getDay() + 6) % 7; // 0=Mon … 6=Sun
+          const dayNum   = parseInt(dayKey.slice(8), 10);
+          // Weekday index from Denver date to avoid local-tz mismatch
+          const [dy, dm, dd] = dayKey.split('-').map(Number) as [number,number,number];
+          const dowIdx = (new Date(Date.UTC(dy, dm - 1, dd, 12)).getUTCDay() + 6) % 7; // 0=Mon…6=Sun
           return (
             <>
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden max-w-[640px] relative">
@@ -1115,7 +1142,7 @@ export function CalendarClient({ clinics, providers }: CalendarClientProps) {
                       {WEEKDAYS_ALL[dowIdx]}
                     </div>
                     <div className={`text-[28px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>
-                      {weekStart.getDate()}
+                      {dayNum}
                     </div>
                   </div>
                 </div>

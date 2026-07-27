@@ -905,6 +905,7 @@ model Appointment {
   @@index([clinicId])
   @@index([scheduledFor])
   @@index([status])
+  @@index([providerId, scheduledFor])
   @@map("appointments")
 }
 

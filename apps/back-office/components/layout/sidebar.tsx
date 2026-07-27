@@ -15,6 +15,8 @@ import {
   ClipboardList,
   Users,
   Scale,
+  Sun,
+  FileText,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -26,6 +28,8 @@ interface NavItem {
   labelKey: string;
   mockup?: string;
   disabled?: boolean;
+  /** Solo activo con match exacto (para items "home" como /doctor) */
+  exact?: boolean;
 }
 
 interface NavSection {
@@ -50,16 +54,41 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
+// Portal médico — identidad violet (Regla #5 · B.17–B.18)
+const DOCTOR_SECTIONS: NavSection[] = [
+  {
+    titleKey: '',
+    items: [
+      { href: '/doctor',           icon: Sun,          labelKey: 'myDay',      mockup: 'B.17',   exact: true },
+      { href: '/doctor/calendar',  icon: CalendarDays, labelKey: 'calendar'                                  },
+      { href: '/doctor/patients',  icon: Users,        labelKey: 'myPatients'                                },
+      { href: '/doctor/stats',     icon: BarChart3,    labelKey: 'stats'                                     },
+      { href: '/doctor/templates', icon: FileText,     labelKey: 'templates',  mockup: 'B.17.7'              },
+    ],
+  },
+];
+
+export type ShellVariant = 'admin' | 'doctor';
+
 interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
   collapsed?: boolean;
   onCollapsedChange?: (c: boolean) => void;
+  variant?: ShellVariant;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange }: SidebarProps): React.ReactElement {
+export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, onCollapsedChange, variant = 'admin' }: SidebarProps): React.ReactElement {
   const pathname = usePathname();
   const t = useTranslations('phoenix.nav');
+
+  const isDoctor = variant === 'doctor';
+  const sections = isDoctor ? DOCTOR_SECTIONS : SECTIONS;
+  const homeHref = isDoctor ? '/doctor' : '/dashboard';
+  const logoGradient = isDoctor
+    ? 'linear-gradient(135deg,#7C3AED 0%,#8B5CF6 50%,#A78BFA 100%)'
+    : 'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)';
+  const logoShadow = isDoctor ? '0 0 16px rgba(139,92,246,0.55)' : '0 0 16px rgba(37,99,235,0.55)';
 
   return (
     <aside
@@ -74,26 +103,28 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
       {/* Brand */}
       <div className={cn('flex items-center border-b border-border', collapsed ? 'justify-center px-0 py-4' : 'justify-between px-5 py-5')}>
         {!collapsed && (
-          <Link href="/dashboard" onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div suppressHydrationWarning className="flex h-9 w-9 items-center justify-center rounded-[10px] shrink-0" style={{ background: 'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)', boxShadow: '0 0 16px rgba(37,99,235,0.55)' }}>
+          <Link href={homeHref} onClick={onMobileClose} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div suppressHydrationWarning className="flex h-9 w-9 items-center justify-center rounded-[10px] shrink-0" style={{ background: logoGradient, boxShadow: logoShadow }}>
               <svg width="20" height="20" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
                 <rect x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95"/>
-                <path d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke="#1E40AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                <path d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke={isDoctor ? '#7C3AED' : '#1E40AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
               </svg>
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-text-1 font-bold text-sm leading-tight truncate">Precision Medical</span>
-              <span className="text-text-muted text-[10px] uppercase tracking-wider truncate">LienMaster v3</span>
+              <span className={cn('text-[10px] uppercase tracking-wider truncate', isDoctor ? 'text-violet font-semibold' : 'text-text-muted')}>
+                {isDoctor ? t('doctorPortal') : 'LienMaster v3'}
+              </span>
             </div>
           </Link>
         )}
         {collapsed && (
-          <Link suppressHydrationWarning href="/dashboard" onClick={onMobileClose} className="flex h-9 w-9 items-center justify-center rounded-[10px] hover:opacity-80 transition-opacity" style={{ background: 'linear-gradient(135deg,#1E40AF 0%,#2563EB 50%,#38BDF8 100%)', boxShadow: '0 0 16px rgba(37,99,235,0.55)' }}>
+          <Link suppressHydrationWarning href={homeHref} onClick={onMobileClose} className="flex h-9 w-9 items-center justify-center rounded-[10px] hover:opacity-80 transition-opacity" style={{ background: logoGradient, boxShadow: logoShadow }}>
             <svg width="20" height="20" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="13" y="2" width="10" height="32" rx="2.5" fill="white" fillOpacity="0.95"/>
               <rect x="2" y="13" width="32" height="10" rx="2.5" fill="white" fillOpacity="0.95"/>
-              <path d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke="#1E40AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              <path d="M8 18 L11 18 L13 14 L15 22 L17 16 L19 20 L21 18 L28 18" stroke={isDoctor ? '#7C3AED' : '#1E40AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
             </svg>
           </Link>
         )}
@@ -112,7 +143,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
 
       {/* Nav */}
       <nav className={cn('flex-1 overflow-y-auto py-4 space-y-1', collapsed ? 'px-1.5' : 'px-3 pt-5 space-y-6')}>
-        {SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.titleKey}>
             {section.titleKey && !collapsed && (
               <div className="text-text-muted text-[10px] uppercase tracking-wider font-semibold px-3 mb-2">
@@ -127,10 +158,11 @@ export function Sidebar({ mobileOpen = false, onMobileClose, collapsed = false, 
                   icon={item.icon}
                   label={t(item.labelKey)}
                   mockup={item.mockup}
-                  active={pathname === item.href || pathname.startsWith(item.href + '/')}
+                  active={item.exact ? pathname === item.href : (pathname === item.href || pathname.startsWith(item.href + '/'))}
                   disabled={item.disabled}
                   onClick={onMobileClose}
                   collapsed={collapsed}
+                  accent={isDoctor ? 'violet' : 'brand'}
                 />
               ))}
             </ul>
@@ -180,9 +212,10 @@ interface NavItemLinkProps {
   disabled?: boolean;
   onClick?: () => void;
   collapsed?: boolean;
+  accent?: 'brand' | 'violet';
 }
 
-function NavItemLink({ href, icon: Icon, label, mockup, active, disabled, onClick, collapsed }: NavItemLinkProps): React.ReactElement {
+function NavItemLink({ href, icon: Icon, label, mockup, active, disabled, onClick, collapsed, accent = 'brand' }: NavItemLinkProps): React.ReactElement {
   if (disabled) {
     return (
       <li>
@@ -206,13 +239,17 @@ function NavItemLink({ href, icon: Icon, label, mockup, active, disabled, onClic
         href={href}
         onClick={onClick}
         title={collapsed ? label : undefined}
+        suppressHydrationWarning
         className={cn(
           'flex items-center rounded-md text-[13px] transition-all group',
           collapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2',
           active
-            ? 'bg-gradient-brand text-white shadow-glow font-semibold'
+            ? cn('text-white font-semibold', accent === 'brand' && 'bg-gradient-brand shadow-glow')
             : 'text-text-2 hover:text-text-1 hover:bg-white/5',
         )}
+        style={active && accent === 'violet'
+          ? { background: 'linear-gradient(135deg,#7C3AED,#A78BFA)', boxShadow: '0 0 18px rgba(139,92,246,0.35)' }
+          : undefined}
       >
         <Icon className="w-4 h-4 shrink-0" />
         {!collapsed && (

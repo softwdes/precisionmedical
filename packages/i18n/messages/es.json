@@ -1384,7 +1384,31 @@
       "comingSoon": "Próximamente",
       "menu": "Menú",
       "calendarShort": "Citas",
-      "admissionShort": "Checkin"
+      "admissionShort": "Checkin",
+      "myDay": "Mi Día",
+      "myPatients": "Mis Pacientes",
+      "stats": "Estadísticas",
+      "templates": "Plantillas",
+      "doctorPortal": "Portal Médico"
+    },
+    "doctor": {
+      "greeting": "Dr. {name}",
+      "myDaySubtitle": "Tu jornada de hoy · {count} citas",
+      "kpiToday": "Citas hoy",
+      "kpiCompleted": "Atendidas",
+      "kpiPending": "Pendientes",
+      "comingSoonTitle": "Módulo en construcción",
+      "comingSoonSubtitle": "Esta sección del portal médico se habilita en la siguiente fase.",
+      "noProfileTitle": "Cuenta sin perfil de doctor",
+      "noProfileSubtitle": "Tu usuario no está vinculado a un perfil de doctor. Contacta al administrador.",
+      "calendarTitle": "Mi Calendario",
+      "calendarSubtitle": "Tus citas del día, semana y mes",
+      "patientsTitle": "Mis Pacientes",
+      "patientsSubtitle": "Pacientes que has atendido en consulta",
+      "statsTitle": "Mis Estadísticas",
+      "statsSubtitle": "Consultas, tiempos y reportes de tu práctica",
+      "templatesTitle": "Plantillas",
+      "templatesSubtitle": "Tus plantillas de notas clínicas"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

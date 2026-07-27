@@ -88,6 +88,28 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     });
   }
 
+  // ── Portal médico (/doctor) — scoping por rol ──────────────────────────────
+  const isDoctorArea = pathname === '/doctor' || pathname.startsWith('/doctor/');
+
+  if (dbRole === 'PROVIDER') {
+    // Los doctores viven en /doctor/* — cualquier página administrativa redirige
+    // a su portal. Las APIs pasan (las vistas compartidas consumen /api/admin/*).
+    if (!isDoctorArea && !pathname.startsWith('/api/')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/doctor';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    return response; // PROVIDER no pasa por el check pm_clinic del back-office
+  }
+
+  // Staff no navega el portal médico (SUPER_ADMIN/ADMIN sí, para soporte)
+  if (isDoctorArea && dbRole !== 'SUPER_ADMIN' && dbRole !== 'ADMIN') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
+
   // Verificar acceso al back-office.
   // Primero revisa cookie cacheada (1h); si no hay, consulta roles_config en DB.
   // fetchRoleClinicAccess devuelve true para SUPER_ADMIN/ADMIN/CONTADOR directamente,

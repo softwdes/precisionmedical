@@ -1,15 +1,16 @@
-import { getTranslations } from 'next-intl/server';
-import { db } from '@precision-medical/database';
-import { Sun, CalendarCheck2, CheckCircle2, Clock3 } from 'lucide-react';
-import { PageHeader, KpiCard, EmptyState } from '@/components/ui-phoenix';
-import { getSessionProvider } from '@/lib/get-session-provider';
-
 /**
- * Portal Médico · Mi Día (B.17 — placeholder D0)
+ * Portal Médico · Mi Día (B.17 — D1)
  *
- * KPIs reales del día del doctor (scoped por providerId de sesión).
- * El dashboard completo (hero "Siguiente paciente" + cola + acciones) llega en D1.
+ * Server component: citas del día del doctor (Denver, DST-aware) + notas DRAFT
+ * pendientes de firma. Todo scoped por el Provider de la sesión.
  */
+
+import { db } from '@precision-medical/database';
+import { decryptFieldOrOriginal } from '@/lib/decrypt';
+import { getSessionProvider } from '@/lib/get-session-provider';
+import { MyDayClient, type MyDayAppointment, type UnsignedNote } from './my-day-client';
+
+export const metadata = { title: 'Mi Día · Portal Médico' };
 
 /** Rango [inicio, fin) del día actual en America/Denver, DST-aware. */
 function denverDayRange(): { start: Date; end: Date } {
@@ -28,35 +29,82 @@ function denverDayRange(): { start: Date; end: Date } {
 }
 
 export default async function DoctorMyDayPage(): Promise<React.ReactElement> {
-  const t = await getTranslations('phoenix.doctor');
   const provider = await getSessionProvider();
   if (!provider) return <></>; // el layout ya renderiza el estado sin perfil
 
   const { start, end } = denverDayRange();
-  const [total, completed] = await Promise.all([
-    db.appointment.count({
-      where: { providerId: provider.id, scheduledFor: { gte: start, lt: end }, status: { not: 'CANCELLED' } },
+
+  const [appts, drafts] = await Promise.all([
+    db.appointment.findMany({
+      where: {
+        providerId: provider.id,
+        scheduledFor: { gte: start, lt: end },
+        status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+      },
+      orderBy: { scheduledFor: 'asc' },
+      select: {
+        id: true,
+        scheduledFor: true,
+        durationMinutes: true,
+        status: true,
+        type: true,
+        isOnline: true,
+        meetingUrl: true,
+        checkedInAt: true,
+        attendanceSignedAt: true,
+        patient: { select: { firstName: true, lastName: true } },
+        case: { select: { caseCode: true } },
+        clinic: { select: { name: true } },
+        triageRecord: { select: { id: true } },
+        visitNote: { select: { status: true } },
+      },
     }),
-    db.appointment.count({
-      where: { providerId: provider.id, scheduledFor: { gte: start, lt: end }, status: 'COMPLETED' },
+    db.visitNote.findMany({
+      where: { status: 'DRAFT', appointment: { providerId: provider.id } },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: {
+        appointmentId: true,
+        appointment: {
+          select: {
+            scheduledFor: true,
+            patient: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
     }),
   ]);
-  const pending = total - completed;
+
+  const appointments: MyDayAppointment[] = appts.map((a) => ({
+    id: a.id,
+    scheduledFor: a.scheduledFor.toISOString(),
+    durationMinutes: a.durationMinutes,
+    status: a.status,
+    type: a.type,
+    isOnline: a.isOnline,
+    meetingUrl: a.meetingUrl,
+    checkedInAt: a.checkedInAt?.toISOString() ?? null,
+    attendanceSignedAt: a.attendanceSignedAt?.toISOString() ?? null,
+    hasTriage: !!a.triageRecord,
+    noteStatus: a.visitNote?.status ?? null,
+    patientFirstName: decryptFieldOrOriginal(a.patient.firstName) ?? '',
+    patientLastName: decryptFieldOrOriginal(a.patient.lastName) ?? '',
+    caseCode: a.case?.caseCode ?? null,
+    clinicName: a.clinic.name,
+  }));
+
+  const unsignedNotes: UnsignedNote[] = drafts.map((n) => ({
+    appointmentId: n.appointmentId,
+    patientName: `${decryptFieldOrOriginal(n.appointment.patient.firstName) ?? ''} ${decryptFieldOrOriginal(n.appointment.patient.lastName) ?? ''}`.trim(),
+    date: n.appointment.scheduledFor.toISOString(),
+  }));
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('greeting', { name: `${provider.firstName} ${provider.lastName}` })}
-        subtitle={t('myDaySubtitle', { count: total })}
-      />
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <KpiCard label={t('kpiToday')} value={total} color="text-violet" icon={CalendarCheck2} iconBg="bg-violet/10" iconColor="text-violet" />
-        <KpiCard label={t('kpiCompleted')} value={completed} color="text-emerald" icon={CheckCircle2} iconBg="bg-emerald/10" iconColor="text-emerald" />
-        <KpiCard label={t('kpiPending')} value={pending} color="text-amber" icon={Clock3} iconBg="bg-amber/10" iconColor="text-amber" />
-      </div>
-
-      <EmptyState.Rich icon={Sun} title={t('comingSoonTitle')} subtitle={t('comingSoonSubtitle')} />
-    </div>
+    <MyDayClient
+      doctorName={`${provider.firstName} ${provider.lastName}`}
+      appointments={appointments}
+      unsignedNotes={unsignedNotes}
+      clinicalUrl={process.env.NEXT_PUBLIC_CLINICAL_URL ?? 'https://clinical.lienmaster.net'}
+    />
   );
 }

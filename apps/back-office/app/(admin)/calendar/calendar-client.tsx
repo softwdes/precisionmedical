@@ -735,17 +735,15 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           )}
           <FilterChip emoji="🚗" placeholder={t('filterAllTypes')} value={filterType}
             options={[
-              { value: 'AUTO_ACCIDENT',   label: t('typeAutoAccident') },
-              { value: 'FAMILY_PRACTICE', label: t('typeFamilyPractice') },
-              { value: 'URGENT_CARE',     label: t('typeUrgentCare') },
-              { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
+              { value: 'AUTO_ACCIDENT',   label: 'MVA · Auto' },
+              { value: 'FAMILY_PRACTICE', label: 'GP · General' },
             ]}
             onChange={setFilterType} />
           <FilterChip emoji="🩺" placeholder={t('filterAllSpecialties')} value={filterSpecialty}
             options={specialtyOptions} onChange={setFilterSpecialty} />
-          {(filterClinic || filterProvider || filterType || filterSpecialty) && (
+          {(filterClinic || filterProvider || filterType || filterSpecialty || selectedPatient) && (
             <button type="button"
-              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterSpecialty(''); }}
+              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterSpecialty(''); clearPatient(); }}
               className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors">✕</button>
           )}
         </div>
@@ -797,10 +795,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             placeholder={t('filterAllTypes')}
             value={filterType}
             options={[
-              { value: 'AUTO_ACCIDENT',   label: t('typeAutoAccident') },
-              { value: 'FAMILY_PRACTICE', label: t('typeFamilyPractice') },
-              { value: 'URGENT_CARE',     label: t('typeUrgentCare') },
-              { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
+              { value: 'AUTO_ACCIDENT',   label: 'MVA · Auto' },
+              { value: 'FAMILY_PRACTICE', label: 'GP · General' },
             ]}
             onChange={setFilterType}
           />
@@ -811,10 +807,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             options={specialtyOptions}
             onChange={setFilterSpecialty}
           />
-          {(filterClinic || filterProvider || filterType || filterSpecialty) && (
+          {(filterClinic || filterProvider || filterType || filterSpecialty || selectedPatient) && (
             <button
               type="button"
-              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterSpecialty(''); }}
+              onClick={() => { setFilterClinic(''); setFilterProvider(''); setFilterType(''); setFilterSpecialty(''); clearPatient(); }}
               className="h-7 px-2 rounded border border-rose/30 text-rose text-[11px] hover:bg-rose/10 transition-colors"
             >
               ✕
@@ -838,7 +834,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
               <input
                 type="text"
                 value={patientSearch}
-                onChange={e => setPatientSearch(e.target.value)}
+                onChange={e => { const v = e.target.value; setPatientSearch(v); if (!v) { setPatientResults([]); setPatientQuery(''); } }}
                 placeholder={t('searchPatientPlaceholder')}
                 className="h-7 pl-7 pr-2 rounded border border-border bg-bg-2 text-xs text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan w-44 transition-colors"
               />

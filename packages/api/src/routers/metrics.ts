@@ -2,14 +2,14 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
-import { createClient } from '@supabase/supabase-js';
+import { createClientWithCredentials } from '@precision-medical/auth';
 
 // Back-office uses a separate Supabase project where call_logs lives
 function getBackofficeClient() {
   const url = process.env.BACKOFFICE_SUPABASE_URL;
   const key = process.env.BACKOFFICE_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('BACKOFFICE_SUPABASE_URL or BACKOFFICE_SUPABASE_SERVICE_ROLE_KEY not set');
-  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+  return createClientWithCredentials(url, key);
 }
 
 export const metricsRouter = router({

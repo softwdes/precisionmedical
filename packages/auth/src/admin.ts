@@ -7,3 +7,7 @@ export function createAdminClient() {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 }
+
+export function createClientWithCredentials(url: string, serviceRoleKey: string) {
+  return createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+}

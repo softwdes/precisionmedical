@@ -597,7 +597,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
           {/* ── EDIT MODE: Patient badge read-only ── */}
           {isEditMode && editAppointment && (
-            <div className="flex items-center gap-2 rounded-md border border-border/40 bg-bg-2/40 px-3 py-2 flex-wrap">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2 flex-wrap">
               <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('caseLabel')}</span>
               <span className="text-text-1 font-mono text-xs font-semibold">{editAppointment.caseCode}</span>
               <span className="text-border">·</span>
@@ -636,16 +636,16 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                       value={patientQuery}
                       onChange={(e) => setPatientQuery(e.target.value)}
                       placeholder={t('searchPatientPlaceholder2')}
-                      className="w-full bg-bg-2 border border-border/30 rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
+                      className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand"
                     />
                     {(searchingPt || patientResults.length > 0) && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border/30 rounded-md shadow-lg z-50 overflow-hidden">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden">
                         {searchingPt && <div className="px-3 py-2 text-text-muted text-xs">Buscando...</div>}
                         {patientResults.map((pt) => (
                           <button
                             key={pt.id}
                             onClick={() => selectPatient(pt)}
-                            className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-border/50 last:border-0"
+                            className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-row-sep last:border-0"
                           >
                             <div className="text-text-1 text-sm font-medium">{pt.firstName} {pt.lastName}</div>
                             <div className="text-text-muted text-[11px]">
@@ -700,16 +700,16 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                             onClick={() => { if (schedulable) { setCaseId(c.id); setProviderId(''); } }}
                             className={`w-full text-left rounded-md border px-3 py-2 transition-all ${
                               !schedulable
-                                ? 'border-border/30 bg-bg-2/20 opacity-50 cursor-not-allowed'
+                                ? 'border-border bg-bg-2/20 opacity-50 cursor-not-allowed'
                                 : isSelected
                                   ? 'border-brand/60 bg-brand/8 ring-1 ring-brand/30'
-                                  : 'border-border/60 bg-bg-2/40 hover:border-border hover:bg-bg-2/80'
+                                  : 'border-border bg-bg-2/40 hover:bg-bg-2/80'
                             }`}
                           >
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-mono text-xs font-bold text-text-1">{c.caseCode}</span>
                               {accidentLabel && (
-                                <span className="text-[10px] px-1.5 py-px rounded border border-border/60 text-text-muted font-medium">{accidentLabel}</span>
+                                <span className="text-[10px] px-1.5 py-px rounded border border-border text-text-muted font-medium">{accidentLabel}</span>
                               )}
                               <span
                                 className="text-[10px] px-1.5 py-px rounded font-semibold uppercase tracking-wide"
@@ -735,7 +735,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
           {/* ── CASE MODE: caso + specialty badge ── */}
           {!isEditMode && props.mode === 'case' && props.caseInfo && (
-            <div className="flex items-center gap-2 rounded-md border border-border/40 bg-bg-2/40 px-3 py-2 flex-wrap">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2 flex-wrap">
               <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('caseLabel')}</span>
               <span className="text-text-1 font-mono text-xs font-semibold">{props.caseInfo.caseCode}</span>
               {effectiveSpecialty && (
@@ -762,7 +762,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-clinic"
               value={clinicId}
               onChange={(e) => setClinicId(e.target.value)}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               disabled={loadingRes}
             >
               <option value="">{loadingRes ? 'Cargando...' : t('selectClinicPlaceholder')}</option>
@@ -826,10 +826,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                       onFocus={() => setDoctorOpen(true)}
                       onBlur={() => setTimeout(() => setDoctorOpen(false), 150)}
                       placeholder="Buscar doctor…"
-                      className="w-full bg-bg-2 border border-border/30 rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand/50"
+                      className="w-full bg-bg-2 border border-border rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand/50"
                     />
                     {doctorOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border/30 rounded-md shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-md shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
                         {filteredProviders
                           .filter(p => !doctorSearch.trim() || `${p.firstName} ${p.lastName}`.toLowerCase().includes(doctorSearch.toLowerCase()))
                           .map(p => (
@@ -838,7 +838,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                               type="button"
                               onMouseDown={e => e.preventDefault()}
                               onClick={() => { setProviderId(p.id); setDoctorSearch(''); setDoctorOpen(false); }}
-                              className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-border/20 last:border-0 flex items-center gap-2"
+                              className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-row-sep last:border-0 flex items-center gap-2"
                             >
                               <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
                               <div className="min-w-0">
@@ -869,7 +869,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-duration"
               value={String(duration)}
               onChange={(e) => { setDuration(parseInt(e.target.value, 10)); setSlotIso(null); }}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {DURATION_OPTIONS.map((d) => (
                 <option key={d} value={String(d)}>{d} min</option>
@@ -952,14 +952,14 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-type"
               value={type}
               onChange={(e) => { userChangedType.current = true; setType(e.target.value as AppointmentType); }}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
             >
               {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
 
           {/* ── Online consultation toggle ── */}
-          <div className={`rounded-lg border p-3 transition-colors ${isOnline ? 'border-cyan/40 bg-cyan/5' : 'border-border/50 bg-bg-2/30'}`}>
+          <div className={`rounded-lg border p-3 transition-colors ${isOnline ? 'border-cyan/40 bg-cyan/5' : 'border-border bg-bg-2/30'}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-lg">📹</span>
@@ -974,7 +974,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 aria-checked={isOnline}
                 onClick={() => setIsOnline(v => !v)}
                 className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors focus:outline-none ${
-                  isOnline ? 'bg-cyan border-cyan/80' : 'bg-bg-2 border-border/30'
+                  isOnline ? 'bg-cyan border-cyan/80' : 'bg-bg-2 border-border'
                 }`}
               >
                 <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${isOnline ? 'translate-x-4' : 'translate-x-0.5'}`} />
@@ -1003,7 +1003,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               id="appt-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-bg-2 border border-border/30 rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
+              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[60px]"
               placeholder={t('notesPlaceholder')}
               maxLength={2000}
             />

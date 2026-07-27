@@ -808,7 +808,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   const sel = allProviders.find(p => p.id === providerId);
                   return sel ? (
                     <div className="flex items-center gap-2 rounded-md border border-cyan/40 bg-cyan/5 px-3 py-2 text-sm">
-                      <PersonAvatar firstName={sel.firstName} lastName={sel.lastName} size={6} gradientClass="bg-gradient-brand" />
+                      <PersonAvatar firstName={sel.firstName} lastName={sel.lastName} size={8} gradientClass="bg-gradient-brand" />
                       <span className="flex-1 text-text-1 font-medium text-[12.5px]">{t('drPrefix')} {sel.firstName} {sel.lastName}</span>
                       <button onClick={() => { setProviderId(''); setDoctorSearch(''); }} className="text-text-muted hover:text-rose transition-colors"><X className="w-3.5 h-3.5" /></button>
                     </div>
@@ -835,7 +835,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                             onClick={() => { setProviderId(p.id); setDoctorSearch(''); }}
                             className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-border/50 last:border-0 flex items-center gap-2"
                           >
-                            <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={6} gradientClass="bg-gradient-brand" />
+                            <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
                             <div className="min-w-0">
                               <div className="text-text-1 text-sm font-medium">{t('drPrefix')} {p.firstName} {p.lastName}</div>
                               <div className="text-text-muted text-[10px] capitalize">{p.specialty.toLowerCase().replace(/_/g, ' ')}</div>

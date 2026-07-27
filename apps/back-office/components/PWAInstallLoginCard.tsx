@@ -86,9 +86,7 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
   if (hidden) return null;
   if (standalone) return null;
   if (dismissedRecently) return null;
-  if (platform === 'unknown') return null;
-  // Require either a native prompt event or a known platform (for guide fallback)
-  if (!event && platform === 'desktop') return null;
+  if (platform === 'unknown' || platform === 'desktop') return null;
 
   const handleDismiss = (): void => { dismiss(); setHidden(true); };
 

@@ -29,7 +29,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/no-access') ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/api/auth');
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/twilio');
 
   if (isPublic) return NextResponse.next();
 

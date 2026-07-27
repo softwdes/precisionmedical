@@ -16,9 +16,10 @@ function toE164(raw: string): string {
 export async function POST(req: NextRequest) {
   try {
     const form    = await req.formData();
-    const to      = form.get('To')      as string | null;
-    const callSid = form.get('CallSid') as string | null;
-    const from    = form.get('From')    as string | null;
+    const to        = form.get('To')        as string | null;
+    const callSid   = form.get('CallSid')   as string | null;
+    const from      = form.get('From')      as string | null;
+    const agentName = form.get('AgentName') as string | null;
 
     const twiml = new VoiceResponse();
 
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
           fromNumber:      from ?? callerE164 ?? '',
           toNumber:        toE164Num,
           outcome:         'IN_PROGRESS',
+          agentName:       agentName || null,
         },
       }).catch((e) => console.error('[twilio/voice] callLog.create failed:', e));
     }

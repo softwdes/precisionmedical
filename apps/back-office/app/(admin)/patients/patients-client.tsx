@@ -883,6 +883,7 @@ interface Props {
   inactiveOnly?: boolean;
   inactiveTotal?: number;
   activeTotal?: number;
+  agentName?: string;
 }
 
 
@@ -1711,7 +1712,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   );
 }
 
-export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false }: Props) {
+export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName }: Props) {
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
 
@@ -2780,6 +2781,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
         clinics={clinics}
         providers={providers}
         initialState={newCaseInitial}
+        agentName={agentName}
       />
 
       {/* ─── Delete confirm ──────────────────────────────────────────────────── */}

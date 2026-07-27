@@ -390,6 +390,7 @@ export function FrontOfficeClient({ cases, stats, kpis, userName, specialties, c
         clinics={clinics}
         providers={providers}
         initialState={newCaseInitial}
+        agentName={userName}
       />
 
       {/* B.3 — Send Portal modal */}

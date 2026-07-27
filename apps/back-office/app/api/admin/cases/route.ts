@@ -85,6 +85,7 @@ const InputSchema = z.object({
 
   // ─── Métrica de la llamada ──────────────────────────────────────────
   callDurationSeconds: z.number().int().min(0).max(7200).optional(),
+  twilioCallSid: z.string().nullable().optional(),
 
   // ─── Consentimientos (wizard desde paciente) ─────────────────────────
   consents: z.object({
@@ -419,6 +420,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return { patient, case: newCase, appointment };
   });
+
+  // ─── Vincular CallLog con paciente y caso ──────────────────────────
+  if (parsed.twilioCallSid) {
+    await db.callLog.updateMany({
+      where: { twilioCallSid: parsed.twilioCallSid },
+      data: { patientId: result.patient.id, caseId: result.case.id },
+    }).catch((e) => console.error('[cases] callLog link failed:', e));
+  }
 
   // ─── Audit log principal ────────────────────────────────────────────
   await writeAuditLog(db, {

@@ -8,6 +8,8 @@
 import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@precision-medical/database';
+import { createServerClient } from '@precision-medical/auth/server';
+import { createAdminClient } from '@precision-medical/auth/admin';
 import { Skeleton } from '@/components/ui-phoenix';
 import { PatientsClient } from './patients-client';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
@@ -70,6 +72,18 @@ async function PatientsData({
   inactiveOnly: boolean;
   PAGE_SIZE: number;
 }) {
+  // Obtener nombre del usuario actual para etiquetar llamadas
+  let agentName: string | undefined;
+  try {
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.email) {
+      const admin = createAdminClient();
+      const { data } = await admin.from('users').select('firstName, lastName').eq('email', user.email).single();
+      if (data) agentName = `${data.firstName} ${data.lastName}`.trim() || undefined;
+    }
+  } catch { /* fallback: sin nombre */ }
+
   const statusFilter = inactiveOnly
     ? { status: 'INACTIVE' as const }
     : { NOT: { status: 'INACTIVE' as const } };
@@ -230,6 +244,7 @@ async function PatientsData({
       clinics={clinics}
       providers={providers}
       inactiveOnly={inactiveOnly}
+      agentName={agentName}
     />
   );
 }

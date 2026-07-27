@@ -137,7 +137,7 @@ export function PreCallStep({
   const handleStartCall = () => {
     if (mode === 'search' && selectedPatient) {
       return onConfirm({
-        mode,
+        mode: 'search',
         existingPatient: {
           id: selectedPatient.id,
           patientCode: selectedPatient.patientCode,
@@ -162,6 +162,25 @@ export function PreCallStep({
         phone: fmtPhone,
       });
     }
+  };
+
+  const handleCallExisting = () => {
+    if (!selectedPatient) return;
+    onConfirm({
+      mode: 'outgoing',
+      existingPatient: {
+        id: selectedPatient.id,
+        patientCode: selectedPatient.patientCode,
+        firstName: selectedPatient.firstName,
+        lastName: selectedPatient.lastName,
+        phone: selectedPatient.phone,
+        email: selectedPatient.email,
+        casesCount: selectedPatient.casesCount,
+      },
+      firstName: selectedPatient.firstName,
+      lastName: selectedPatient.lastName,
+      phone: selectedPatient.phone ?? '',
+    });
   };
 
   const canStart: boolean =
@@ -310,7 +329,21 @@ export function PreCallStep({
           </InfoCard>
         )}
 
-        <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} t={t} />
+        {selectedPatient ? (
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2 border-t border-border">
+            <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">{t('cancel')}</Button>
+            <Button variant="outline" onClick={handleStartCall} className="w-full sm:w-auto">
+              Continuar sin llamar
+              <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            </Button>
+            <Button onClick={handleCallExisting} disabled={!selectedPatient.phone} className="w-full sm:w-auto">
+              <Phone className="w-3.5 h-3.5 mr-1" />
+              Llamar
+            </Button>
+          </div>
+        ) : (
+          <FooterActions onCancel={onCancel} onConfirm={handleStartCall} canConfirm={canStart} mode={mode} t={t} />
+        )}
       </div>
     );
   }

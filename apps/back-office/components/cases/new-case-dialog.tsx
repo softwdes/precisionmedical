@@ -55,6 +55,7 @@ interface NewCaseDialogProps {
   clinics: Array<{ id: string; name: string; address: string | null }>;
   providers: Array<{ id: string; firstName: string; lastName: string; specialty: string; specialtyCatalogIds?: string[] }>;
   initialState?: NewCaseInitialState | null;
+  agentName?: string;
 }
 
 interface AutoResult {
@@ -88,7 +89,7 @@ const SPECIALTY_ENUM_MAP: Record<string, string[]> = {
   'urgent care':     ['GENERAL', 'OTHER'],
 };
 
-export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState }: NewCaseDialogProps) {
+export function NewCaseDialog({ open, onOpenChange, specialties, clinics, providers, initialState, agentName }: NewCaseDialogProps) {
   const router = useRouter();
   const t  = useTranslations('phoenix.frontOffice.newCase');
   const tp = useTranslations('phoenix.patients');
@@ -125,7 +126,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   // Auto-conectar Twilio cuando entramos en la pantalla 'calling'
   useEffect(() => {
     if (step !== 'calling' || callMode !== 'outgoing' || !phone) return;
-    twilio.connect(phone);
+    twilio.connect(phone, agentName);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, callMode]);
 
@@ -437,6 +438,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             ? { sendEmail: formDelivery.email, sendSms: formDelivery.sms }
             : null,
           callDurationSeconds: callElapsed,
+          twilioCallSid: twilio.callSid ?? null,
         }),
       });
       if (!res.ok) {

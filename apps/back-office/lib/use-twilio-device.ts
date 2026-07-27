@@ -7,9 +7,10 @@ export type TwilioCallStatus = 'idle' | 'ready' | 'connecting' | 'in-call' | 'er
 
 export interface UseTwilioDeviceReturn {
   callStatus: TwilioCallStatus;
+  callSid:    string | null;
   muted:      boolean;
   error:      string | null;
-  connect:      (toPhone: string) => Promise<void>;
+  connect:      (toPhone: string, agentName?: string) => Promise<void>;
   hangUp:       () => void;
   toggleMute:   () => void;
 }
@@ -19,6 +20,7 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
   const callRef   = useRef<Call | null>(null);
 
   const [callStatus, setCallStatus] = useState<TwilioCallStatus>('idle');
+  const [callSid,    setCallSid]    = useState<string | null>(null);
   const [muted,      setMuted]      = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
@@ -55,18 +57,22 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     return device;
   }, []);
 
-  const connect = useCallback(async (toPhone: string) => {
+  const connect = useCallback(async (toPhone: string, agentName?: string) => {
     try {
       setCallStatus('connecting');
       setError(null);
       setMuted(false);
+      setCallSid(null);
 
       const device = await getOrCreateDevice();
-      const call   = await device.connect({ params: { To: toPhone } });
+      const call   = await device.connect({ params: { To: toPhone, AgentName: agentName ?? '' } });
       callRef.current = call;
 
-      call.on('accept',     () => setCallStatus('in-call'));
-      call.on('disconnect', () => { setCallStatus('ready'); setMuted(false); callRef.current = null; });
+      call.on('accept',     () => {
+        setCallStatus('in-call');
+        setCallSid((call.parameters as Record<string, string>).CallSid ?? null);
+      });
+      call.on('disconnect', () => { setCallStatus('ready'); setMuted(false); setCallSid(null); callRef.current = null; });
       call.on('error',      (err: Error) => { setError(err.message); setCallStatus('ready'); callRef.current = null; });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed');
@@ -96,5 +102,5 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     };
   }, []);
 
-  return { callStatus, muted, error, connect, hangUp, toggleMute };
+  return { callStatus, callSid, muted, error, connect, hangUp, toggleMute };
 }

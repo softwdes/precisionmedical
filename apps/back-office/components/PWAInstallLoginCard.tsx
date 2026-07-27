@@ -119,17 +119,19 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
   const [showBanner, setShowBanner] = useState(false);
   const [showGuide,  setShowGuide]  = useState(false);
   const [dismissed,  setDismissed]  = useState(false);
+  const [hasPrompt,  setHasPrompt]  = useState(false);
   const promptRef = useRef<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
     // Recover any early-captured prompt (from layout inline script)
     const early = (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt;
-    if (early) promptRef.current = early;
+    if (early) { promptRef.current = early; setHasPrompt(true); }
 
-    // Listen for prompt arriving after mount
+    // Listen for prompt arriving after mount (may come after the 3s timer)
     const onPrompt = (e: Event): void => {
       e.preventDefault();
       promptRef.current = e as BeforeInstallPromptEvent;
+      setHasPrompt(true);
     };
     window.addEventListener('beforeinstallprompt', onPrompt);
 
@@ -169,11 +171,12 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
     }
   };
 
-  const label    = platform === 'ios' ? 'Agregar a inicio' : 'Instalar App';
-  const subtitle = promptRef.current
+  // iOS never has beforeinstallprompt — always show inline instruction, no install button
+  const isIos    = platform === 'ios';
+  const subtitle = hasPrompt
     ? 'Acceso rápido desde tu pantalla de inicio'
-    : platform === 'ios'
-      ? 'Compartir → Agregar a pantalla de inicio'
+    : isIos
+      ? 'Toca ⎙ → "Agregar a pantalla de inicio"'
       : 'Un toque para instalar en tu dispositivo';
 
   return (
@@ -216,18 +219,21 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
               </p>
             </div>
 
-            <button
-              onClick={() => void handleInstall()}
-              style={{
-                padding: '7px 12px', borderRadius: 8,
-                background: 'linear-gradient(135deg,#1E40AF,#2563EB)',
-                color: 'white', fontSize: 11.5, fontWeight: 600,
-                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.40)',
-              }}
-            >
-              {label}
-            </button>
+            {/* iOS: no install button — instructions are in subtitle */}
+            {!isIos && (
+              <button
+                onClick={() => void handleInstall()}
+                style={{
+                  padding: '7px 12px', borderRadius: 8,
+                  background: 'linear-gradient(135deg,#1E40AF,#2563EB)',
+                  color: 'white', fontSize: 11.5, fontWeight: 600,
+                  border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                  flexShrink: 0, boxShadow: '0 4px 12px rgba(37,99,235,0.40)',
+                }}
+              >
+                Instalar App
+              </button>
+            )}
 
             <button
               onClick={handleDismiss}

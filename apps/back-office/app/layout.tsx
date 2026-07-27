@@ -61,6 +61,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en-US" data-theme="dark" suppressHydrationWarning>
       <head>
+        {/* Manifest link explícito — @ducanh2912/next-pwa puede interferir con metadata.manifest */}
+        <link rel="manifest" href="/manifest.json" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className={font.className}>

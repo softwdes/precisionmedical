@@ -57,7 +57,7 @@ export default async function MetricasPage({
       patientName:     c.patient
         ? `${(c.patient as { firstName: string }).firstName} ${(c.patient as { lastName: string }).lastName}`
         : null,
-      caseCode: (c.caseData as { caseCode: string } | null)?.caseCode ?? null,
+      caseCode: (c.case as { caseCode: string } | null)?.caseCode ?? null,
       createdAt: c.createdAt as string,
     }));
 

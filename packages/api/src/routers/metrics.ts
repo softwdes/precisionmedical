@@ -2,22 +2,21 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
+import { db } from '@precision-medical/database';
 
 export const metricsRouter = router({
   listCalls: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().max(1000).default(500) }))
     .query(async ({ input }) => {
-      const { data, error } = await supabaseAdmin
-        .from('call_logs')
-        .select('id, twilioCallSid, direction, fromNumber, toNumber, outcome, durationSeconds, agentName, patientId, caseId, createdAt, patient:patients(firstName, lastName), caseData:cases(caseCode)')
-        .order('createdAt', { ascending: false })
-        .limit(input.limit);
-
-      if (error) {
-        console.error('[metrics.listCalls] supabase error:', error.message);
-        return { calls: [], error: error.message };
-      }
-      return { calls: data ?? [], error: null };
+      const calls = await db.callLog.findMany({
+        take: input.limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          patient: { select: { firstName: true, lastName: true } },
+          case: { select: { caseCode: true } },
+        },
+      });
+      return { calls, error: null };
     }),
 
   list: protectedProcedure

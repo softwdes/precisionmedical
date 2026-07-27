@@ -8,15 +8,20 @@ export const metricsRouter = router({
   listCalls: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().max(1000).default(500) }))
     .query(async ({ input }) => {
-      const calls = await db.callLog.findMany({
-        take: input.limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          patient: { select: { firstName: true, lastName: true } },
-          case: { select: { caseCode: true } },
-        },
-      });
-      return { calls, error: null };
+      try {
+        const calls = await db.callLog.findMany({
+          take: input.limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            patient: { select: { firstName: true, lastName: true } },
+            case: { select: { caseCode: true } },
+          },
+        });
+        return { calls, error: null };
+      } catch (err) {
+        console.error('[metrics.listCalls] prisma error:', err);
+        return { calls: [], error: String(err) };
+      }
     }),
 
   list: protectedProcedure

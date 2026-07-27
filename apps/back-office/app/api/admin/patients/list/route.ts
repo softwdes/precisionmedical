@@ -16,10 +16,16 @@ export async function GET(req: NextRequest) {
   const q            = (searchParams.get('q') ?? '').trim();
   const page         = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10) || 0);
   const inactiveOnly = searchParams.get('inactive') === '1';
+  // Portal médico: limita a pacientes con cita del provider indicado
+  const providerId   = searchParams.get('providerId') ?? '';
 
   const statusFilter = inactiveOnly
     ? { status: 'INACTIVE' as const }
     : { NOT: { status: 'INACTIVE' as const } };
+
+  const providerScope = providerId
+    ? { appointments: { some: { providerId } } }
+    : {};
 
   const qParts = q ? q.split(/\s+/).filter(Boolean) : [];
   const fullNameClauses = qParts.length >= 2
@@ -33,6 +39,7 @@ export async function GET(req: NextRequest) {
     ? {
         AND: [
           statusFilter,
+          providerScope,
           {
             OR: [
               ...fullNameClauses,
@@ -45,7 +52,7 @@ export async function GET(req: NextRequest) {
           },
         ],
       }
-    : statusFilter;
+    : { AND: [statusFilter, providerScope] };
 
   const [patients, total] = await Promise.all([
     db.patient.findMany({

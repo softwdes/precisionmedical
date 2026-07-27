@@ -102,7 +102,7 @@ const CASE_STATUS_COLORS: Record<string, { colorClass: string; dot: string }> = 
 
 // ─── Component principal ──────────────────────────────────────────────────────
 
-export function PatientDetailClient({ patient }: { patient: PatientData }) {
+export function PatientDetailClient({ patient, doctorMode = false }: { patient: PatientData; doctorMode?: boolean }) {
   const t = useTranslations('phoenix.patients');
   const router = useRouter();
 
@@ -297,7 +297,7 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
               <CaseRow
                 key={c.id}
                 case={c}
-                onClick={() => router.push(`/front-office/${c.id}`)}
+                onClick={doctorMode ? undefined : () => router.push(`/front-office/${c.id}`)}
               />
             ))}
           </div>
@@ -314,7 +314,7 @@ export function PatientDetailClient({ patient }: { patient: PatientData }) {
 
 // ─── CaseRow — fila de caso dentro de la ficha del paciente ─────────────────
 
-function CaseRow({ case: c, onClick }: { case: PatientCase; onClick: () => void }) {
+function CaseRow({ case: c, onClick }: { case: PatientCase; onClick?: () => void }) {
   const t = useTranslations('phoenix.patients');
   const stColors = CASE_STATUS_COLORS[c.status] ?? CASE_STATUS_COLORS.NEW_REFERRAL;
   const CASE_STATUS_LABEL_KEYS: Record<string, string> = {

@@ -884,6 +884,14 @@ interface Props {
   inactiveTotal?: number;
   activeTotal?: number;
   agentName?: string;
+  /**
+   * Portal médico: limita la vista a los pacientes del doctor de sesión.
+   * Oculta acciones administrativas (crear/archivar/enviar portal) y las
+   * URLs internas usan basePath. La búsqueda server-side también se filtra.
+   */
+  scopeProviderId?: string;
+  /** Prefijo de rutas para navegación/paginación (default '/patients') */
+  basePath?: string;
 }
 
 
@@ -1712,7 +1720,8 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   );
 }
 
-export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName }: Props) {
+export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, scopeProviderId, basePath = '/patients' }: Props) {
+  const doctorMode = !!scopeProviderId;
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
 
@@ -1767,7 +1776,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
       setLocalPatients(patients);
       setLocalTotal(total);
       setLocalPages(totalPages);
-      history.replaceState(null, '', `/patients${inactiveOnly ? '?showInactive=1' : ''}`);
+      history.replaceState(null, '', `${basePath}${inactiveOnly ? '?showInactive=1' : ''}`);
       return;
     }
 
@@ -1778,6 +1787,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
       try {
         const params = new URLSearchParams({ q: val });
         if (inactiveOnly) params.set('showInactive', '1');
+        if (scopeProviderId) params.set('providerId', scopeProviderId);
         const res  = await fetch(`/api/admin/patients/list?${params}`);
         const data = await res.json();
         startTransition(() => {
@@ -1785,8 +1795,9 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           setLocalTotal(data.total ?? 0);
           setLocalPages(data.totalPages ?? 1);
         });
-        // Actualizar URL sin navegar (para compartir)
-        history.replaceState(null, '', `/patients?${params}`);
+        // Actualizar URL sin navegar (para compartir) — sin exponer providerId
+        params.delete('providerId');
+        history.replaceState(null, '', `${basePath}?${params}`);
       } finally {
         setIsSearching(false);
       }
@@ -1903,7 +1914,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
     if (inactiveOnly) params.set('showInactive', '1');
     if (size !== 15) params.set('size', String(size));
     const qs = params.toString();
-    return `/patients${qs ? `?${qs}` : ''}`;
+    return `${basePath}${qs ? `?${qs}` : ''}`;
   }
 
   function toggleInactiveUrl() {
@@ -1911,7 +1922,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
     if (q) params.set('q', q);
     if (!inactiveOnly) params.set('showInactive', '1');
     const qs = params.toString();
-    return `/patients${qs ? `?${qs}` : ''}`;
+    return `${basePath}${qs ? `?${qs}` : ''}`;
   }
 
   return (
@@ -1964,7 +1975,8 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           )}
         </div>
 
-        {/* Acciones — derecha */}
+        {/* Acciones — derecha (solo admin; el doctor no crea pacientes/casos) */}
+        {!doctorMode && (
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
@@ -1985,12 +1997,13 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
             <span className="sm:hidden">{t('btnCreateShort')}</span>
           </button>
         </div>
+        )}
       </div>
 
       {/* Tabs: Activos / Archivados */}
       <div className="flex items-center gap-1 border-b border-border mb-3">
         <a
-          href={`/patients${q ? `?q=${q}` : ''}`}
+          href={`${basePath}${q ? `?q=${q}` : ''}`}
           className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             !inactiveOnly
               ? 'border-brand text-brand'
@@ -2006,7 +2019,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           </span>
         </a>
         <a
-          href={`/patients?showInactive=1${q ? `&q=${q}` : ''}`}
+          href={`${basePath}?showInactive=1${q ? `&q=${q}` : ''}`}
           className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             inactiveOnly
               ? 'border-amber text-amber'
@@ -2075,7 +2088,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                     </button>
                     <div className="min-w-0">
                       <button
-                        onClick={() => router.push(`/patients/${p.id}`)}
+                        onClick={() => router.push(`${basePath}/${p.id}`)}
                         className="text-text-1 text-[13px] font-medium hover:text-brand transition-colors text-left truncate block w-full"
                         title={`${p.firstName} ${p.lastName}`}
                         aria-label={`Ver perfil de ${p.firstName} ${p.lastName}`}
@@ -2157,8 +2170,8 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 {/* Formulario */}
                 <td className="px-3 py-3.5 hidden lg:table-cell w-[64px]">
                   <div className="flex items-center gap-1.5">
-                    {/* Ícono email — clickeable si hay caso + email */}
-                    {p.latestCase && p.email ? (
+                    {/* Ícono email — clickeable si hay caso + email (solo admin) */}
+                    {p.latestCase && p.email && !doctorMode ? (
                       <button
                         onClick={() => setSendPortalTarget({
                           id: p.latestCase!.id,
@@ -2256,7 +2269,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                     } />
                                   </div>
                                   <div className="flex items-center gap-0.5">
-                                    <button onClick={() => router.push(`/front-office/${c.id}`)} className="p-2 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')} aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}><Eye className="w-3 h-3" /></button>
+                                    {!doctorMode && <button onClick={() => router.push(`/front-office/${c.id}`)} className="p-2 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors" title={t('tooltipViewCase')} aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}><Eye className="w-3 h-3" /></button>}
                                     <button onClick={() => setCaseEditTarget(c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipEditCase')} aria-label={`${t('tooltipEditCase')} — ${c.caseCode}`}><Pencil className="w-3 h-3" /></button>
                                     <button onClick={() => setCaseApptTarget(c)} className="p-2 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors" title={t('tooltipViewAppts')} aria-label={`${t('tooltipViewAppts')} — ${c.caseCode}`}><CalendarDays className="w-3 h-3" /></button>
                                     <button onClick={() => setCaseQrTarget(c)} className="p-2 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors" title={t('tooltipPatientQr')} aria-label={`${t('tooltipPatientQr')} — ${c.caseCode}`}><QrCode className="w-3 h-3" /></button>
@@ -2370,14 +2383,16 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                     {/* Acciones */}
                                     <td className="sticky right-0 z-10 bg-bg-0 px-3 py-2">
                                       <div className="flex items-center justify-end gap-0.5">
-                                        <button
-                                          onClick={() => router.push(`/front-office/${c.id}`)}
-                                          className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
-                                          title={t('tooltipViewCase')}
-                                          aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}
-                                        >
-                                          <Eye className="w-3 h-3" />
-                                        </button>
+                                        {!doctorMode && (
+                                          <button
+                                            onClick={() => router.push(`/front-office/${c.id}`)}
+                                            className="p-1.5 rounded text-text-muted hover:text-emerald hover:bg-emerald/10 transition-colors"
+                                            title={t('tooltipViewCase')}
+                                            aria-label={`${t('tooltipViewCase')} — ${c.caseCode}`}
+                                          >
+                                            <Eye className="w-3 h-3" />
+                                          </button>
+                                        )}
                                         <button
                                           onClick={() => setCaseEditTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
@@ -2386,15 +2401,17 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                         >
                                           <Pencil className="w-3 h-3" />
                                         </button>
-                                        <button
-                                          onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
-                                          className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
-                                          title={t('tooltipCancelCase')}
-                                          aria-label={`${t('tooltipCancelCase')} — ${c.caseCode}`}
-                                          disabled={c.status === 'CANCELLED'}
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </button>
+                                        {!doctorMode && (
+                                          <button
+                                            onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
+                                            className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
+                                            title={t('tooltipCancelCase')}
+                                            aria-label={`${t('tooltipCancelCase')} — ${c.caseCode}`}
+                                            disabled={c.status === 'CANCELLED'}
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        )}
                                         <button
                                           onClick={() => setPdfCaseId(c.id)}
                                           className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
@@ -2673,17 +2690,22 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               className="flex items-center gap-2.5 w-full px-3 py-2 text-text-2 transition-colors text-left opacity-40 cursor-not-allowed">
               <History className="w-3.5 h-3.5 text-text-muted shrink-0" /> {t('menuAuditHistory')}
             </button>
-            <div className="my-1 border-t border-border/60" />
-            {p.status === 'INACTIVE' ? (
-              <button onClick={() => { setRestoreTarget(p); setRestoreError(''); setOpenMenuId(null); }}
-                className="flex items-center gap-2.5 w-full px-3 py-2 text-emerald hover:bg-emerald/10 transition-colors text-left">
-                <RefreshCw className="w-3.5 h-3.5 shrink-0" /> Restaurar paciente
-              </button>
-            ) : (
-              <button onClick={() => { setDeleteTarget(p); setDeleteError(''); setOpenMenuId(null); }}
-                className="flex items-center gap-2.5 w-full px-3 py-2 text-rose hover:bg-rose/10 transition-colors text-left">
-                <Trash2 className="w-3.5 h-3.5 shrink-0" /> {t('menuDelete')}
-              </button>
+            {/* Archivar/restaurar: acciones administrativas — ocultas en el portal médico */}
+            {!doctorMode && (
+              <>
+                <div className="my-1 border-t border-border/60" />
+                {p.status === 'INACTIVE' ? (
+                  <button onClick={() => { setRestoreTarget(p); setRestoreError(''); setOpenMenuId(null); }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 text-emerald hover:bg-emerald/10 transition-colors text-left">
+                    <RefreshCw className="w-3.5 h-3.5 shrink-0" /> Restaurar paciente
+                  </button>
+                ) : (
+                  <button onClick={() => { setDeleteTarget(p); setDeleteError(''); setOpenMenuId(null); }}
+                    className="flex items-center gap-2.5 w-full px-3 py-2 text-rose hover:bg-rose/10 transition-colors text-left">
+                    <Trash2 className="w-3.5 h-3.5 shrink-0" /> {t('menuDelete')}
+                  </button>
+                )}
+              </>
             )}
           </div>
         );

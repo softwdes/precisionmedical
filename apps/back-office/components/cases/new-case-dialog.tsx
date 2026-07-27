@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import QRCode from 'qrcode';
 import {
-  PhoneCall, User, Car, Scale, ShieldCheck, Check, AlertCircle, Search as SearchIcon,
+  PhoneCall, PhoneOff, User, Car, Scale, ShieldCheck, Check, AlertCircle, Search as SearchIcon,
   CalendarCheck, Send, Pause, ArrowRight, ArrowLeft, Phone, ClipboardList,
   Copy, Download, ChevronRight, Shield, X, RefreshCw, Mail, MessageSquare, Tablet,
 } from 'lucide-react';
@@ -584,11 +584,11 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <button
               type="button"
               onClick={() => { twilio.hangUp(); setStep('noanswer'); }}
-              className="w-14 h-14 rounded-full bg-rose/15 border border-rose/30 flex items-center justify-center text-rose hover:bg-rose/25 transition-colors shadow-[0_4px_16px_rgba(244,63,94,.2)]"
+              className="flex items-center gap-2 rounded-full px-5 py-3 bg-rose/15 border border-rose/30 text-rose hover:bg-rose/25 transition-colors shadow-[0_4px_16px_rgba(244,63,94,.2)] text-sm font-semibold"
             >
-              <X className="w-5 h-5" />
+              <PhoneOff className="w-4 h-4 flex-shrink-0" />
+              <span>Cancelar llamada</span>
             </button>
-            <span className="text-text-muted text-[10px]">Cancelar llamada</span>
           </div>
         </DialogContent>
       </Dialog>

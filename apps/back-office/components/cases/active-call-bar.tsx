@@ -74,9 +74,10 @@ export function ActiveCallBar({
           type="button"
           onClick={onHangUp}
           title="Colgar"
-          className="flex items-center justify-center w-7 h-7 rounded-md bg-rose/15 text-rose hover:bg-rose/25 transition-colors"
+          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 bg-rose/15 border border-rose/30 text-rose hover:bg-rose/25 transition-colors text-[12px] font-semibold"
         >
-          <PhoneOff className="w-3.5 h-3.5" />
+          <PhoneOff className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Colgar</span>
         </button>
       </div>
     </div>

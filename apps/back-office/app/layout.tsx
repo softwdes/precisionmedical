@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   robots: 'noindex,nofollow',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'PM Clínica' },
+  other: { 'mobile-web-app-capable': 'yes' },
   icons: {
     apple: [
       { url: '/icons/icon-152.png', sizes: '152x152' },
@@ -31,6 +32,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',
   themeColor: '#2563EB',
 };
 

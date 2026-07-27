@@ -1,17 +1,53 @@
 'use client';
 
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Download } from 'lucide-react';
-import { usePWAInstall } from '@/lib/use-pwa-install';
 
-// ── Step-by-step modal for iOS (no native prompt available) ─────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+type MobilePlatform = 'ios' | 'android';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const DISMISS_KEY = 'bo-pwa-install-dismissed';
+const DISMISS_TTL = 7 * 24 * 60 * 60 * 1000;
+
+function getMobilePlatform(): MobilePlatform | null {
+  const ua = navigator.userAgent;
+  // iPadOS 13+ reports Macintosh UA but has touch points
+  if (/iPhone|iPod/.test(ua)) return 'ios';
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  if (/Android/i.test(ua)) return 'android';
+  return null;
+}
+
+function isStandalone(): boolean {
+  if (window.matchMedia('(display-mode: standalone)').matches) return true;
+  return (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
+function wasDismissedRecently(): boolean {
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+    const ts = parseInt(raw, 10);
+    return !isNaN(ts) && Date.now() - ts < DISMISS_TTL;
+  } catch {
+    return false;
+  }
+}
+
+// ── Step-by-step modal ────────────────────────────────────────────────────────
 function InstallGuideModal({ onClose, isIos }: { onClose: () => void; isIos: boolean }): React.ReactElement {
   const steps = isIos
     ? [
-        { n: 1, text: 'Abre el menú de Safari — toca el', strong: 'ícono de Compartir', after: '(cuadro con flecha)' },
+        { n: 1, text: 'Abre el menú de Safari — toca el', strong: 'ícono de Compartir', after: '(cuadro con flecha ↑)' },
         { n: 2, text: 'Desplázate y toca', strong: '"Agregar a pantalla de inicio"', after: '' },
-        { n: 3, text: 'Toca', strong: '"Agregar"', after: 'para confirmar' },
+        { n: 3, text: 'Toca', strong: '"Agregar"', after: 'en la esquina superior derecha' },
       ]
     : [
         { n: 1, text: 'Abre el menú de Chrome — toca los', strong: '⋮ tres puntos', after: 'arriba a la derecha' },
@@ -26,7 +62,7 @@ function InstallGuideModal({ onClose, isIos }: { onClose: () => void; isIos: boo
         position: 'fixed', inset: 0, zIndex: 99999,
         background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        padding: '0 0 env(safe-area-inset-bottom,0)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
       <div
@@ -77,31 +113,64 @@ function InstallGuideModal({ onClose, isIos }: { onClose: () => void; isIos: boo
   );
 }
 
-// ── Main card ────────────────────────────────────────────────────────────────
+// ── Main card ─────────────────────────────────────────────────────────────────
 export function PWAInstallLoginCard(): React.ReactElement | null {
-  const { event, platform, standalone, dismissedRecently, install, dismiss } = usePWAInstall();
-  const [hidden,    setHidden]    = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
+  const [platform,   setPlatform]   = useState<MobilePlatform | null>(null);
+  const [showBanner, setShowBanner] = useState(false);
+  const [showGuide,  setShowGuide]  = useState(false);
+  const [dismissed,  setDismissed]  = useState(false);
+  const promptRef = useRef<BeforeInstallPromptEvent | null>(null);
 
-  if (hidden) return null;
-  if (standalone) return null;
-  if (dismissedRecently) return null;
-  if (platform === 'unknown' || platform === 'desktop') return null;
+  useEffect(() => {
+    // Recover any early-captured prompt (from layout inline script)
+    const early = (window as { __pwaPrompt?: BeforeInstallPromptEvent }).__pwaPrompt;
+    if (early) promptRef.current = early;
 
-  const handleDismiss = (): void => { dismiss(); setHidden(true); };
+    // Listen for prompt arriving after mount
+    const onPrompt = (e: Event): void => {
+      e.preventDefault();
+      promptRef.current = e as BeforeInstallPromptEvent;
+    };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+
+    // Skip non-mobile or already-installed or dismissed
+    const mob = getMobilePlatform();
+    if (!mob) return;
+    if (isStandalone()) return;
+    if (wasDismissedRecently()) return;
+
+    setPlatform(mob);
+
+    // Show banner after 3 s (same approach as reference project)
+    const timer = setTimeout(() => setShowBanner(true), 3000);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+    };
+  }, []);
+
+  if (!showBanner || !platform || dismissed) return null;
+
+  const handleDismiss = (): void => {
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* private mode */ }
+    setDismissed(true);
+  };
 
   const handleInstall = async (): Promise<void> => {
-    if (event) {
-      const outcome = await install();
-      if (outcome === 'dismissed') handleDismiss();
-      else setHidden(true);
+    if (promptRef.current) {
+      promptRef.current.prompt();
+      const { outcome } = await promptRef.current.userChoice;
+      promptRef.current = null;
+      if (outcome === 'accepted') { setShowBanner(false); return; }
+      handleDismiss();
     } else {
       setShowGuide(true);
     }
   };
 
   const label    = platform === 'ios' ? 'Agregar a inicio' : 'Instalar App';
-  const subtitle = event
+  const subtitle = promptRef.current
     ? 'Acceso rápido desde tu pantalla de inicio'
     : platform === 'ios'
       ? 'Compartir → Agregar a pantalla de inicio'
@@ -110,7 +179,10 @@ export function PWAInstallLoginCard(): React.ReactElement | null {
   return (
     <>
       {showGuide && (
-        <InstallGuideModal onClose={() => setShowGuide(false)} isIos={platform === 'ios'} />
+        <InstallGuideModal
+          onClose={() => setShowGuide(false)}
+          isIos={platform === 'ios'}
+        />
       )}
 
       <div style={{ marginTop: '1.25rem', width: 420, maxWidth: '90vw', position: 'relative', zIndex: 1 }}>

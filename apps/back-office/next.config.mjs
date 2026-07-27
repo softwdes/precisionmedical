@@ -1,7 +1,7 @@
 // @ts-check
 // build trigger: 2026-07-21
 import createNextIntlPlugin from 'next-intl/plugin';
-import withSerwistInit from '@serwist/next';
+import withPWA from '@ducanh2912/next-pwa';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -46,15 +46,38 @@ const nextConfig = {
   },
 };
 
-const withSerwist = withSerwistInit({
-  swSrc: 'app/sw.ts',
-  swDest: 'public/sw.js',
+const withPWAConfig = withPWA({
+  dest: 'public',
+  register: true,        // inyecta el registro del SW en el HTML antes de que React hidrate
+  skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  workboxOptions: {
+    runtimeCaching: [
+      {
+        urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+        handler: 'NetworkOnly',
+      },
+      {
+        urlPattern: /^\/api\/.*/i,
+        handler: 'NetworkOnly',
+      },
+      {
+        urlPattern: /\/_next\/static\/.*/i,
+        handler: 'CacheFirst',
+        options: { cacheName: 'bo-static', expiration: { maxEntries: 200, maxAgeSeconds: 604800 } },
+      },
+      {
+        urlPattern: /\/_next\/image.*/i,
+        handler: 'StaleWhileRevalidate',
+        options: { cacheName: 'bo-images', expiration: { maxEntries: 100, maxAgeSeconds: 86400 } },
+      },
+    ],
+  },
 });
 
 // Sentry wrapper — solo activo en CI/prod (DSN requerido).
 // En dev local se salta para evitar problemas con symlinks de pnpm.
-let finalConfig = withSerwist(withNextIntl(nextConfig));
+let finalConfig = withPWAConfig(withNextIntl(nextConfig));
 
 if (process.env.SENTRY_DSN) {
   const { withSentryConfig } = await import('@sentry/nextjs');

@@ -35,42 +35,22 @@ export const viewport: Viewport = {
   themeColor: '#2563EB',
 };
 
-// Inline script: tema anti-FOUC + registro temprano del SW + captura beforeinstallprompt
-// Ejecuta ANTES de que React hidrate para que Chrome evalúe instalabilidad lo antes posible.
+// Inline script: tema anti-FOUC + captura beforeinstallprompt
+// El SW lo registra @ducanh2912/next-pwa automáticamente (register: true).
 const themeScript = `
 (function() {
-  // 1. Tema
   try {
     var t = localStorage.getItem('pm_theme');
     document.documentElement.setAttribute('data-theme', t || 'dark');
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
-
-  // 2. Captura beforeinstallprompt antes de que React hidrate
+  // Captura beforeinstallprompt antes de que React hidrate
   window.__pwaPrompt = null;
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     window.__pwaPrompt = e;
   });
-
-  // 3. Registro temprano del SW (solo HTTPS + producción)
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg) {
-        // Primera activación: recargar para que Chrome re-evalúe instalabilidad con SW activo
-        var sw = reg.installing || reg.waiting;
-        if (sw && !sessionStorage.getItem('sw-ready')) {
-          sw.addEventListener('statechange', function() {
-            if (sw.state === 'activated') {
-              sessionStorage.setItem('sw-ready', '1');
-              location.reload();
-            }
-          });
-        }
-      }).catch(function() {});
-    });
-  }
 })();
 `;
 

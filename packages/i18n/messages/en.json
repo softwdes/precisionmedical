@@ -1995,7 +1995,11 @@
         "successSendWhatsApp": "Send via WhatsApp",
         "successLinkExpires": "Link expires once the patient completes the form.",
         "successNoFormsLink": "Could not generate the forms link. Use the \"Send portal\" button from the case detail.",
-        "accidentDateFuture": "Accident date cannot be in the future"
+        "accidentDateFuture": "Accident date cannot be in the future",
+        "noAnswerTitle": "No answer",
+        "noAnswerRetry": "Try again",
+        "noAnswerContinue": "Continue without call",
+        "noAnswerBack": "Go back"
       }
     },
     "billing": {

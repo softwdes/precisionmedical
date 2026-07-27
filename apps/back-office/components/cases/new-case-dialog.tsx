@@ -270,11 +270,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setStep('calling');
   };
 
-  const handleEditNumber = () => {
+  const handleGoBack = () => {
     twilio.hangUp();
     setStep('precall');
-    setPrecallInitialMode('outgoing');
+    // Si había paciente existente → volver a búsqueda; si no → volver a outgoing
+    setPrecallInitialMode(existingPatientId ? 'search' : 'outgoing');
     setCallMode(null); setCallElapsed(0); setCallHungUp(false);
+  };
+
+  const handleContinueWithoutCall = () => {
+    setCallMode('search');
+    setStep('capturing');
   };
 
   // ─── Provider filtering ────────────────────────────────────────────────
@@ -615,43 +621,37 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
               <div className="text-text-muted font-mono text-sm">{phone}</div>
               <div className="flex items-center justify-center gap-1.5 mt-2">
                 <X className="w-3.5 h-3.5 text-rose" />
-                <span className="text-rose text-[11px] font-semibold uppercase tracking-widest">No contestó</span>
+                <span className="text-rose text-[11px] font-semibold uppercase tracking-widest">{t('noAnswerTitle')}</span>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex gap-4 mt-2">
+            <div className="flex flex-col w-full gap-2 mt-2">
               <button
                 type="button"
                 onClick={handleRetryCall}
-                className="flex flex-col items-center gap-2"
+                className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 bg-brand text-white font-semibold text-sm hover:bg-brand/90 transition-colors"
               >
-                <div className="w-14 h-14 rounded-full bg-bg-2 border border-border flex items-center justify-center text-text-2 hover:border-brand/40 hover:bg-brand/10 hover:text-brand transition-colors">
-                  <RefreshCw className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] text-text-muted">Reintentar</span>
+                <RefreshCw className="w-4 h-4" />
+                {t('noAnswerRetry')}
               </button>
 
               <button
                 type="button"
-                onClick={handleEditNumber}
-                className="flex flex-col items-center gap-2"
+                onClick={handleContinueWithoutCall}
+                className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 border border-border bg-bg-2 text-text-1 font-semibold text-sm hover:bg-white/5 transition-colors"
               >
-                <div className="w-14 h-14 rounded-full bg-bg-2 border border-border flex items-center justify-center text-text-2 hover:border-amber/40 hover:bg-amber/10 hover:text-amber transition-colors">
-                  <Phone className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] text-text-muted">Editar número</span>
+                <ArrowRight className="w-4 h-4" />
+                {t('noAnswerContinue')}
               </button>
 
               <button
                 type="button"
-                onClick={() => onOpenChange(false)}
-                className="flex flex-col items-center gap-2"
+                onClick={handleGoBack}
+                className="w-full flex items-center justify-center gap-1.5 py-2 text-text-muted text-sm hover:text-text-1 transition-colors"
               >
-                <div className="w-14 h-14 rounded-full bg-bg-2 border border-border flex items-center justify-center text-text-2 hover:border-rose/40 hover:bg-rose/10 hover:text-rose transition-colors">
-                  <X className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] text-text-muted">Cerrar</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                {t('noAnswerBack')}
               </button>
             </div>
           </div>

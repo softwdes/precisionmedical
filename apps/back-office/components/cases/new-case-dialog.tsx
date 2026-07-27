@@ -136,13 +136,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     }
   }, [twilio.callStatus, step]);
 
-  // Twilio desconectó tras conectar → no contestó
+  // Twilio desconectó tras conectar → no contestó; o error → misma pantalla de reintento
   const prevTwilioStatus = useRef<TwilioCallStatus>('idle');
   useEffect(() => {
     const prev = prevTwilioStatus.current;
     prevTwilioStatus.current = twilio.callStatus;
-    if (step === 'calling' && prev === 'connecting' && twilio.callStatus === 'ready') {
-      setStep('noanswer');
+    if (step === 'calling') {
+      if (prev === 'connecting' && twilio.callStatus === 'ready') setStep('noanswer');
+      if (twilio.callStatus === 'error') setStep('noanswer');
     }
   }, [twilio.callStatus, step]);
 

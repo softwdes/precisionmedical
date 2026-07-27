@@ -40,9 +40,14 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     });
 
     device.on('tokenWillExpire', async () => {
-      const r = await fetch('/api/twilio/token', { method: 'POST' });
-      const { token: fresh } = await r.json() as { token: string };
-      device.updateToken(fresh);
+      try {
+        const r = await fetch('/api/twilio/token', { method: 'POST' });
+        if (!r.ok) throw new Error(`token refresh failed: ${r.status}`);
+        const { token: fresh } = await r.json() as { token: string };
+        if (fresh) device.updateToken(fresh);
+      } catch (e) {
+        console.error('[twilio] token refresh error:', e);
+      }
     });
 
     await device.register();

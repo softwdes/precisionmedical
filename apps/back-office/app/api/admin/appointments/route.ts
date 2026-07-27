@@ -244,7 +244,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!clinic)     return NextResponse.json({ error: 'CLINIC_NOT_FOUND' }, { status: 404 });
   if (!provider)   return NextResponse.json({ error: 'PROVIDER_NOT_FOUND' }, { status: 404 });
 
-  const SCHEDULABLE = ['CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED'];
+  const SCHEDULABLE = ['NEW_REFERRAL', 'CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED', 'INTAKE_PENDING'];
   if (!SCHEDULABLE.includes(caseRecord.status)) {
     return NextResponse.json(
       { error: 'INVALID_CASE_STATUS', message: `El caso está en status ${caseRecord.status} y no permite agendar` },

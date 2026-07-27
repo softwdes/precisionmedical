@@ -689,7 +689,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                           amber: '#fbbf24', 'text-muted': '#94a3b8',
                         };
                         const accidentLabel = c.accidentType === 'AUTO' || c.accidentType === 'MVA' ? 'MVA' : c.accidentType === 'GENERAL' || c.accidentType === 'GP' ? 'Gen.' : c.accidentType ?? '';
-                        const schedulable = ['CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED'].includes(c.status);
+                        const schedulable = ['NEW_REFERRAL', 'INTAKE_PENDING', 'CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED'].includes(c.status);
                         return (
                           <button
                             key={c.id}

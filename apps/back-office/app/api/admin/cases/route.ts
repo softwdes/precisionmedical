@@ -75,7 +75,10 @@ const InputSchema = z.object({
   }).nullable().optional(),
 
   // ─── Form delivery (opcional · si se elige durante la llamada) ──────
-  formDelivery: z.enum(['SEND_NOW', 'TABLET_AT_CLINIC']).nullable().optional(),
+  formDelivery: z.object({
+    sendEmail: z.boolean(),
+    sendSms:   z.boolean(),
+  }).nullable().optional(),
 
   // ─── Paciente existente (desde PreCallStep · evita duplicados) ─────
   existingPatientId: z.string().cuid().nullable().optional(),
@@ -339,9 +342,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           consentSignaturePng: parsed.consents.signatureDataUrl ?? null,
         } : {}),
         // Si en la llamada se agenda cita Y se manda formulario, marca timestamps
-        intakeFormSentAt: parsed.formDelivery === 'SEND_NOW' ? now : null,
-        intakeFormSentVia: parsed.formDelivery === 'SEND_NOW'
-          ? (parsed.patient.email ? 'EMAIL' : 'SMS')
+        intakeFormSentAt: (parsed.formDelivery?.sendEmail || parsed.formDelivery?.sendSms) ? now : null,
+        intakeFormSentVia: parsed.formDelivery?.sendEmail && parsed.formDelivery?.sendSms
+          ? 'EMAIL_AND_SMS'
+          : parsed.formDelivery?.sendEmail
+          ? 'EMAIL'
+          : parsed.formDelivery?.sendSms
+          ? 'SMS'
           : null,
         firstAppointmentConfirmedAt: parsed.appointment ? now : null,
         firstAppointmentConfirmedById: parsed.appointment ? actor.actorUserId : null,
@@ -394,11 +401,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           parsed.appointment
             ? `Cita agendada: ${new Date(parsed.appointment.scheduledFor).toLocaleString('es-US', { dateStyle: 'medium', timeStyle: 'short' })}`
             : 'Cita: pendiente de agendar',
-          parsed.formDelivery === 'SEND_NOW'
-            ? `Formulario enviado por ${parsed.patient.email ? 'email' : 'SMS'}`
-            : parsed.formDelivery === 'TABLET_AT_CLINIC'
-              ? 'Formulario: tablet en clínica al llegar'
-              : 'Formulario: sin definir',
+          parsed.formDelivery?.sendEmail && parsed.formDelivery?.sendSms
+            ? 'Formulario enviado por email y SMS'
+            : parsed.formDelivery?.sendEmail
+            ? 'Formulario enviado por email'
+            : parsed.formDelivery?.sendSms
+            ? 'Formulario enviado por SMS'
+            : parsed.formDelivery === null
+            ? 'Formulario: tablet en clínica al llegar'
+            : 'Formulario: sin definir',
         ].join('\n'),
         isPrivate: true,
         authorUserId: actor.actorUserId,
@@ -455,7 +466,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // ─── Audit log adicional: envío de formulario ───────────────────────
-  if (parsed.formDelivery === 'SEND_NOW') {
+  if (parsed.formDelivery?.sendEmail || parsed.formDelivery?.sendSms) {
+    const channels = [
+      parsed.formDelivery.sendEmail ? 'EMAIL' : null,
+      parsed.formDelivery.sendSms   ? 'SMS'   : null,
+    ].filter(Boolean).join('+');
     await writeAuditLog(db, {
       actorType: actor.actorType,
       actorUserId: actor.actorUserId,
@@ -466,7 +481,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       userAgent: actor.userAgent,
       metadata: {
         caseCode: result.case.caseCode,
-        via: parsed.patient.email ? 'EMAIL' : 'SMS',
+        via: channels,
         language: parsed.patient.preferredLanguage,
         viaB2: true,
         phase: '1A_mock',

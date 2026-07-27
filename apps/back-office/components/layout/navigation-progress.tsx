@@ -117,6 +117,7 @@ function NavigationProgressBar({ progress, visible }: { progress: number; visibl
       style={{ opacity: visible ? 1 : 0, transition: 'opacity 250ms ease-out' }}
     >
       <div
+        suppressHydrationWarning
         className="h-full bg-gradient-brand"
         style={{
           width: `${progress}%`,

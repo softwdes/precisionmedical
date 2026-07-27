@@ -9,7 +9,7 @@ import QRCode from 'qrcode';
 import {
   PhoneCall, User, Car, Scale, ShieldCheck, Check, AlertCircle, Search as SearchIcon,
   CalendarCheck, Send, Pause, ArrowRight, ArrowLeft, Phone, ClipboardList,
-  Copy, Download, ChevronRight, Shield, X, RefreshCw,
+  Copy, Download, ChevronRight, Shield, X, RefreshCw, Mail, MessageSquare, Tablet,
 } from 'lucide-react';
 import {
   Button,
@@ -71,7 +71,7 @@ type ReferralSource =
   | 'LAW_FIRM' | 'PATIENT_REFERRAL' | 'CHIROPRACTOR' | 'REFERRAL' | 'PHONE_CALL' | 'WALK_IN'
   | 'ACCIDENT_CENTER' | 'WEB_SEARCH' | 'GOOGLE' | 'GOOGLE_MAPS' | 'FACEBOOK' | 'INSTAGRAM'
   | 'TIKTOK' | 'WEBSITE' | 'CLINIC_STAFF' | 'INSURANCE' | 'MEDICAL_INSURANCE' | 'FAMILY' | 'OTHER';
-type FormDelivery = 'SEND_NOW' | 'TABLET_AT_CLINIC';
+type FormDelivery = { email: boolean; sms: boolean; tablet: boolean };
 type WizardStep  = 1 | 2 | 3 | 4;
 
 // Mapa local de especialidad → enum de Provider (fallback cuando specialtyCatalogIds no está disponible)
@@ -102,6 +102,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [step, setStep] = useState<'precall' | 'calling' | 'noanswer' | 'capturing'>('precall');
   const [precallInitialMode, setPrecallInitialMode] = useState<PreCallMode | undefined>(undefined);
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
+  // Tracks whether the reset effect already ran for the current open cycle,
+  // preventing re-runs caused by new array references for specialties/clinics.
+  const didResetRef = useRef(false);
   const [callMode, setCallMode] = useState<PreCallMode | null>(null);
   const [existingPatientId, setExistingPatientId] = useState<string | null>(null);
 
@@ -186,7 +189,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   // ─── Section 3: Form delivery ──────────────────────────────────────────
-  const [formDelivery, setFormDelivery] = useState<FormDelivery>('SEND_NOW');
+  const [formDelivery, setFormDelivery] = useState<FormDelivery>({ email: true, sms: true, tablet: false });
 
   // ─── Submit + success state ────────────────────────────────────────────
   const [saving, setSaving]   = useState(false);
@@ -210,7 +213,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
 
   // ─── Reset on open ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!open) return;
+    if (!open) { didResetRef.current = false; return; }
+    if (didResetRef.current) return;
+    didResetRef.current = true;
     setWizardStep(1);
     setCaseType('MVA');
     setAccidentDate(''); setAccidentType('AUTO'); setAccidentLocation(''); setAccidentNotes('');
@@ -219,7 +224,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     setSpecialtyId(''); setScheduleNow(true); setClinicId(clinics[0]?.id ?? '');
     setProviderId(''); setSlotIso(null); setDuration(45); setAppointmentNotes(''); setShowAllProviders(false); setProviderSearch('');
     setWeekStart(getMondayOf(new Date())); setSelectedDay(null);
-    setFormDelivery('SEND_NOW');
+    setFormDelivery({ email: true, sms: true, tablet: false });
     setSaving(false); setError(null); setSuccess(null); setCopied(false); setDuplicateId(null);
 
     if (initialState) {
@@ -427,7 +432,9 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             type: caseType === 'MVA' ? 'AUTO_ACCIDENT' : 'FAMILY_PRACTICE',
             notes: appointmentNotes.trim() || null,
           } : null,
-          formDelivery: action === 'finalize' ? formDelivery : null,
+          formDelivery: action === 'finalize'
+            ? { sendEmail: formDelivery.email, sendSms: formDelivery.sms }
+            : null,
           callDurationSeconds: callElapsed,
         }),
       });
@@ -441,22 +448,44 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
       const data = await res.json();
       const caseId = data.case.id;
 
-      // Generate portal token + QR
+      // Generate portal token + QR.
+      // If the user selected email or SMS channels, use send-portal-link (which
+      // also saves the token and triggers the real send in Phase 2). Otherwise
+      // just generate-portal-token for display only.
       let portalUrl: string | null = null;
       let qrDataUrl: string | null = null;
       try {
-        const tokenRes = await fetch(`/api/admin/cases/${caseId}/generate-portal-token`, { method: 'POST' });
-        console.log('[NewCase] token status:', tokenRes.status);
-        if (tokenRes.ok) {
-          const tokenData = await tokenRes.json();
-          console.log('[NewCase] tokenData:', tokenData);
-          portalUrl = tokenData.portalUrl ?? null;
-          if (portalUrl) {
-            qrDataUrl = await QRCode.toDataURL(portalUrl, {
-              width: 200, margin: 1,
-              color: { dark: '#e2e8f0', light: '#12141f' },
-            });
+        const channels: Array<'EMAIL' | 'SMS'> = [
+          ...(formDelivery.email ? ['EMAIL' as const] : []),
+          ...(formDelivery.sms   ? ['SMS'   as const] : []),
+        ];
+
+        if (channels.length > 0) {
+          // Send via each selected channel. Use first response for the portal URL.
+          const results = await Promise.all(
+            channels.map((via) =>
+              fetch(`/api/admin/cases/${caseId}/send-portal-link`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ via, language }),
+              }).then((r) => r.json()),
+            ),
+          );
+          portalUrl = results[0]?.sent?.portalUrl ?? null;
+        } else {
+          // Tablet or no delivery — just generate the token for display.
+          const tokenRes = await fetch(`/api/admin/cases/${caseId}/generate-portal-token`, { method: 'POST' });
+          if (tokenRes.ok) {
+            const tokenData = await tokenRes.json();
+            portalUrl = tokenData.portalUrl ?? null;
           }
+        }
+
+        if (portalUrl) {
+          qrDataUrl = await QRCode.toDataURL(portalUrl, {
+            width: 200, margin: 1,
+            color: { dark: '#e2e8f0', light: '#12141f' },
+          });
         }
       } catch (e) { console.error('[NewCase] token error:', e); }
 
@@ -1235,13 +1264,125 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             <>
               {/* Delivery options */}
               <InfoCard title={t('sectionFormDelivery')} icon={Send} tone="emerald">
-                <div className="text-text-2 text-xs">{t('formDeliveryDesc')}</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <SelectableCard selected={formDelivery === 'SEND_NOW'} onClick={() => setFormDelivery('SEND_NOW')}
-                    icon="📨" title={t('sendNowTitle')} subtitle={t('sendNowDesc')} />
-                  <SelectableCard selected={formDelivery === 'TABLET_AT_CLINIC'} onClick={() => setFormDelivery('TABLET_AT_CLINIC')}
-                    icon="📱" title={t('tabletTitle')} subtitle={t('tabletDesc')} />
+                <p className="text-text-2 text-xs mb-3">Elige cómo el paciente recibe el enlace al formulario. Puedes activar uno o ambos canales.</p>
+
+                {/* Remote channels */}
+                <div className={`space-y-2 ${formDelivery.tablet ? 'opacity-40 pointer-events-none' : ''}`}>
+                  {/* Email toggle */}
+                  <button
+                    type="button"
+                    disabled={!email.trim()}
+                    onClick={() => setFormDelivery((d) => ({ ...d, email: !d.email, tablet: false }))}
+                    className={`w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all ${
+                      formDelivery.email && !formDelivery.tablet
+                        ? 'border-emerald/50 bg-emerald/10'
+                        : 'border-border bg-bg-2/40 hover:border-border-strong'
+                    } ${!email.trim() ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                      formDelivery.email && !formDelivery.tablet ? 'bg-emerald/20' : 'bg-bg-2'
+                    }`}>
+                      <Mail className={`w-4 h-4 ${formDelivery.email && !formDelivery.tablet ? 'text-emerald' : 'text-text-muted'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-semibold ${formDelivery.email && !formDelivery.tablet ? 'text-emerald' : 'text-text-1'}`}>
+                        Email
+                      </div>
+                      <div className="text-[11px] text-text-muted truncate">
+                        {email.trim() ? email.trim() : 'Sin email registrado'}
+                      </div>
+                    </div>
+                    {/* Toggle pill */}
+                    <div className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                      formDelivery.email && !formDelivery.tablet ? 'bg-emerald' : 'bg-bg-0 border border-border'
+                    }`}>
+                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                        formDelivery.email && !formDelivery.tablet ? 'translate-x-4' : 'translate-x-0.5'
+                      }`} />
+                    </div>
+                  </button>
+
+                  {/* SMS toggle */}
+                  <button
+                    type="button"
+                    disabled={!phone.trim()}
+                    onClick={() => setFormDelivery((d) => ({ ...d, sms: !d.sms, tablet: false }))}
+                    className={`w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all ${
+                      formDelivery.sms && !formDelivery.tablet
+                        ? 'border-cyan/50 bg-cyan/10'
+                        : 'border-border bg-bg-2/40 hover:border-border-strong'
+                    } ${!phone.trim() ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                      formDelivery.sms && !formDelivery.tablet ? 'bg-cyan/20' : 'bg-bg-2'
+                    }`}>
+                      <MessageSquare className={`w-4 h-4 ${formDelivery.sms && !formDelivery.tablet ? 'text-cyan' : 'text-text-muted'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-semibold ${formDelivery.sms && !formDelivery.tablet ? 'text-cyan' : 'text-text-1'}`}>
+                        SMS
+                      </div>
+                      <div className="text-[11px] text-text-muted truncate">
+                        {phone.trim() ? phone.trim() : 'Sin teléfono registrado'}
+                      </div>
+                    </div>
+                    <div className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                      formDelivery.sms && !formDelivery.tablet ? 'bg-cyan' : 'bg-bg-0 border border-border'
+                    }`}>
+                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                        formDelivery.sms && !formDelivery.tablet ? 'translate-x-4' : 'translate-x-0.5'
+                      }`} />
+                    </div>
+                  </button>
                 </div>
+
+                {/* Divider */}
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border/40" />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-bg-1 px-2 text-[10px] uppercase tracking-wider text-text-muted">o bien</span>
+                  </div>
+                </div>
+
+                {/* Tablet option */}
+                <button
+                  type="button"
+                  onClick={() => setFormDelivery((d) => ({ email: false, sms: false, tablet: !d.tablet }))}
+                  className={`w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-all ${
+                    formDelivery.tablet
+                      ? 'border-amber/50 bg-amber/10'
+                      : 'border-border bg-bg-2/40 hover:border-border-strong'
+                  }`}
+                >
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    formDelivery.tablet ? 'bg-amber/20' : 'bg-bg-2'
+                  }`}>
+                    <Tablet className={`w-4 h-4 ${formDelivery.tablet ? 'text-amber' : 'text-text-muted'}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm font-semibold ${formDelivery.tablet ? 'text-amber' : 'text-text-1'}`}>
+                      Tablet en clínica
+                    </div>
+                    <div className="text-[11px] text-text-muted">El paciente llena el formulario al llegar</div>
+                  </div>
+                  <div className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                    formDelivery.tablet ? 'bg-amber' : 'bg-bg-0 border border-border'
+                  }`}>
+                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      formDelivery.tablet ? 'translate-x-4' : 'translate-x-0.5'
+                    }`} />
+                  </div>
+                </button>
+
+                {/* Warning si ninguna opción */}
+                {!formDelivery.email && !formDelivery.sms && !formDelivery.tablet && (
+                  <div className="mt-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber flex items-center gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    Sin canal de entrega seleccionado — el paciente no recibirá el formulario.
+                  </div>
+                )}
               </InfoCard>
 
 
@@ -1270,10 +1411,23 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                       <span>{t('summaryAppointmentSMS')}</span>
                     </li>
                   )}
-                  {formDelivery === 'SEND_NOW' && (
+                  {(formDelivery.email || formDelivery.sms) && !formDelivery.tablet && (
                     <li className="flex items-start gap-2">
                       <Check className="w-3 h-3 text-emerald mt-0.5 shrink-0" />
-                      <span>{t('summaryForm')}</span>
+                      <span>
+                        Formulario enviado por{' '}
+                        {formDelivery.email && formDelivery.sms
+                          ? 'email y SMS'
+                          : formDelivery.email
+                          ? 'email'
+                          : 'SMS'}
+                      </span>
+                    </li>
+                  )}
+                  {formDelivery.tablet && (
+                    <li className="flex items-start gap-2">
+                      <Check className="w-3 h-3 text-amber mt-0.5 shrink-0" />
+                      <span>Formulario en tablet al llegar a la clínica</span>
                     </li>
                   )}
                   {caseType === 'MVA' && lawFirm && (
@@ -1449,11 +1603,14 @@ function Autocomplete({
   const [results, setResults] = useState<AutoResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [dropStyle, setDropStyle] = useState<React.CSSProperties>(
-    { position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden' }
+    { position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden', pointerEvents: 'none' }
   );
   const wrapRef = useRef<HTMLDivElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (selected) { setQuery(''); setOpen(false); return; }
@@ -1468,27 +1625,44 @@ function Autocomplete({
     return () => clearTimeout(handle);
   }, [query, endpoint, extraParams, selected]);
 
+  // Recalculate position on open, results change, AND any scroll/resize
   useLayoutEffect(() => {
-    if (!open || !wrapRef.current) {
-      setDropStyle({ position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden' });
-      return;
+    const compute = () => {
+      if (!open || !wrapRef.current) {
+        setDropStyle({ position: 'fixed', top: -9999, left: -9999, width: 0, visibility: 'hidden', pointerEvents: 'none' });
+        return;
+      }
+      const rect = wrapRef.current.getBoundingClientRect();
+      const dropH = Math.min(240, results.length * 44 + 8);
+      if (rect.top >= dropH) {
+        setDropStyle({ position: 'fixed', bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width, visibility: 'visible', pointerEvents: 'auto' });
+      } else {
+        setDropStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, visibility: 'visible', pointerEvents: 'auto' });
+      }
+    };
+    compute();
+    if (!open) return;
+    // Find the dialog's scrollable container and listen so dropdown tracks it
+    let scrollable: HTMLElement | null = wrapRef.current?.parentElement ?? null;
+    while (scrollable) {
+      const oy = window.getComputedStyle(scrollable).overflowY;
+      if (oy === 'auto' || oy === 'scroll') break;
+      scrollable = scrollable.parentElement;
     }
-    const rect = wrapRef.current.getBoundingClientRect();
-    const dropH = Math.min(240, results.length * 44 + 8);
-    // Prefer opening upward to avoid covering form fields below
-    if (rect.top >= dropH) {
-      setDropStyle({ position: 'fixed', bottom: window.innerHeight - rect.top + 4, left: rect.left, width: rect.width, visibility: 'visible' });
-    } else {
-      setDropStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, visibility: 'visible' });
-    }
+    scrollable?.addEventListener('scroll', compute, { passive: true });
+    window.addEventListener('resize', compute, { passive: true });
+    return () => {
+      scrollable?.removeEventListener('scroll', compute);
+      window.removeEventListener('resize', compute);
+    };
   }, [open, results.length]);
 
-  // Close on outside click — must check both the input wrapper AND the portal dropdown
+  // Close on outside click — check both input wrapper and portal dropdown
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (!wrapRef.current?.contains(t) && !dropRef.current?.contains(t)) setOpen(false);
+      const target = e.target as Node;
+      if (!wrapRef.current?.contains(target) && !dropRef.current?.contains(target)) setOpen(false);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -1516,12 +1690,12 @@ function Autocomplete({
         <Input value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)} placeholder={placeholder} className="pl-9" />
       </div>
-      {open && (results.length > 0 || loading) && typeof window !== 'undefined' && createPortal(
+      {mounted && open && (results.length > 0 || loading) && createPortal(
         <div ref={dropRef} style={dropStyle} className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
           {loading && results.length === 0 ? (
             <div className="px-3 py-2 text-text-muted text-xs">{t('autocompleteSearching')}</div>
           ) : results.map((r) => (
-            <button key={r.id} type="button" onClick={() => { onSelect(r); setOpen(false); }}
+            <button key={r.id} type="button" onMouseDown={(e) => { e.preventDefault(); onSelect(r); setOpen(false); }}
               className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left text-sm transition-colors">
               {renderAvatar?.(r)}
               <div className="flex-1 min-w-0">

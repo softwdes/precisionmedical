@@ -2,24 +2,50 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, adminProcedure } from '../trpc';
 import { supabaseAdmin } from '../supabase-admin';
-import { db } from '@precision-medical/database';
+import { createClient } from '@supabase/supabase-js';
+
+// Back-office uses a separate Supabase project where call_logs lives
+function getBackofficeClient() {
+  const url = process.env.BACKOFFICE_SUPABASE_URL;
+  const key = process.env.BACKOFFICE_SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('BACKOFFICE_SUPABASE_URL or BACKOFFICE_SUPABASE_SERVICE_ROLE_KEY not set');
+  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+}
 
 export const metricsRouter = router({
   listCalls: protectedProcedure
     .input(z.object({ limit: z.number().int().positive().max(1000).default(500) }))
     .query(async ({ input }) => {
       try {
-        const calls = await db.callLog.findMany({
-          take: input.limit,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            patient: { select: { firstName: true, lastName: true } },
-            case: { select: { caseCode: true } },
-          },
-        });
+        const bo = getBackofficeClient();
+        const { data, error } = await bo
+          .from('call_logs')
+          .select('id, twilio_call_sid, direction, from_number, to_number, outcome, duration_seconds, agent_name, patient_id, case_id, created_at, patient:patients(first_name, last_name), case_data:cases(case_code)')
+          .order('created_at', { ascending: false })
+          .limit(input.limit);
+        if (error) {
+          console.error('[metrics.listCalls] supabase error:', error.message);
+          return { calls: [], error: error.message };
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const calls = (data ?? []).map((r: any) => ({
+          id: r.id,
+          twilioCallSid: r.twilio_call_sid,
+          direction: r.direction,
+          fromNumber: r.from_number,
+          toNumber: r.to_number,
+          outcome: r.outcome,
+          durationSeconds: r.duration_seconds,
+          agentName: r.agent_name,
+          patientId: r.patient_id,
+          caseId: r.case_id,
+          createdAt: r.created_at,
+          patient: r.patient ? { firstName: r.patient.first_name, lastName: r.patient.last_name } : null,
+          case: r.case_data ? { caseCode: r.case_data.case_code } : null,
+        }));
         return { calls, error: null };
       } catch (err) {
-        console.error('[metrics.listCalls] prisma error:', err);
+        console.error('[metrics.listCalls] error:', err);
         return { calls: [], error: String(err) };
       }
     }),

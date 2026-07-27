@@ -406,11 +406,40 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, props.mode, caseId, clinicId, providerId, scheduledForIso, isFuture, saving]);
 
+  // Refs for scrolling to missing fields
+  const caseRef    = useRef<HTMLDivElement>(null);
+  const clinicRef  = useRef<HTMLDivElement>(null);
+  const doctorRef  = useRef<HTMLDivElement>(null);
+  const slotRef    = useRef<HTMLDivElement>(null);
+
   // ─── Submit ──────────────────────────────────────────────────────────────────
 
   const handleSchedule = async () => {
     setError(null);
-    if (!canSubmit) return setError(t('errorRequiredFields'));
+    if (!canSubmit) {
+      // Identify first missing field and scroll to it
+      if (props.mode === 'free' && !caseId) {
+        setError('Selecciona un caso para continuar.');
+        caseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      if (!clinicId) {
+        setError('Selecciona una clínica.');
+        clinicRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      if (!providerId) {
+        setError('Selecciona un doctor.');
+        doctorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      if (!scheduledForIso || !isFuture) {
+        setError('Selecciona un horario disponible.');
+        slotRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      return;
+    }
 
     // Duplicate warning is shown inline — no blocking confirm needed here.
 
@@ -636,7 +665,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
               {/* Case selector (after patient selected) */}
               {selectedPatient && (
-                <div>
+                <div ref={caseRef}>
                   <Label>
                     <FileText className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
                     {t('fieldCase')} <span className="text-rose">*</span>
@@ -660,15 +689,20 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                           amber: '#fbbf24', 'text-muted': '#94a3b8',
                         };
                         const accidentLabel = c.accidentType === 'AUTO' || c.accidentType === 'MVA' ? 'MVA' : c.accidentType === 'GENERAL' || c.accidentType === 'GP' ? 'Gen.' : c.accidentType ?? '';
+                        const schedulable = ['CONFIRMED', 'ACTIVE', 'INTAKE_COMPLETED'].includes(c.status);
                         return (
                           <button
                             key={c.id}
                             type="button"
-                            onClick={() => { setCaseId(c.id); setProviderId(''); }}
+                            disabled={!schedulable}
+                            title={!schedulable ? `Estado "${c.status}" no permite agendar citas` : undefined}
+                            onClick={() => { if (schedulable) { setCaseId(c.id); setProviderId(''); } }}
                             className={`w-full text-left rounded-md border px-3 py-2 transition-all ${
-                              isSelected
-                                ? 'border-brand/60 bg-brand/8 ring-1 ring-brand/30'
-                                : 'border-border/60 bg-bg-2/40 hover:border-border hover:bg-bg-2/80'
+                              !schedulable
+                                ? 'border-border/30 bg-bg-2/20 opacity-50 cursor-not-allowed'
+                                : isSelected
+                                  ? 'border-brand/60 bg-brand/8 ring-1 ring-brand/30'
+                                  : 'border-border/60 bg-bg-2/40 hover:border-border hover:bg-bg-2/80'
                             }`}
                           >
                             <div className="flex items-center gap-2 flex-wrap">
@@ -718,7 +752,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           )}
 
           {/* ── Clínica ── */}
-          <div>
+          <div ref={clinicRef}>
             <Label htmlFor="appt-clinic">
               <Building2 className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
               {t('fieldClinic')} <span className="text-rose">*</span>
@@ -739,7 +773,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           </div>
 
           {/* ── Doctor ── */}
-          <div>
+          <div ref={doctorRef}>
             <div className="flex items-center justify-between mb-1">
               <Label htmlFor="appt-provider">
                 <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
@@ -838,7 +872,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           </div>
 
           {/* ── Horarios disponibles ── */}
-          <div>
+          <div ref={slotRef}>
             <Label>
               <CalendarIcon className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
               {t('fieldAvailableSchedule')} <span className="text-rose">*</span>
@@ -996,7 +1030,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} className="w-full sm:w-auto">
             {t('actionCancel')}
           </Button>
-          <Button onClick={handleSchedule} disabled={!canSubmit} className="w-full sm:w-auto">
+          <Button onClick={handleSchedule} disabled={saving} className="w-full sm:w-auto">
             {saving
               ? (isEditMode ? t('savingInProgress') : t('schedulingInProgress'))
               : isEditMode

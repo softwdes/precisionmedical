@@ -47,7 +47,9 @@ function fmtDuration(sec: number | null) {
 }
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleString('es-US', {
+  // Append 'Z' if no timezone info — DB stores UTC without suffix
+  const utc = iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z';
+  return new Date(utc).toLocaleString('es-US', {
     month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -85,14 +87,21 @@ function KpiCard({ icon: Icon, label, value, sub, color }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ComunicacionesClient({ calls, kpis }: Props) {
-  const [search,     setSearch]     = useState('');
-  const [filterDir,  setFilterDir]  = useState<'ALL' | 'INBOUND' | 'OUTBOUND'>('ALL');
-  const [filterOut,  setFilterOut]  = useState<string>('ALL');
+  const [search,      setSearch]      = useState('');
+  const [filterDir,   setFilterDir]   = useState<'ALL' | 'INBOUND' | 'OUTBOUND'>('ALL');
+  const [filterOut,   setFilterOut]   = useState<string>('ALL');
+  const [filterAgent, setFilterAgent] = useState<string>('ALL');
+
+  const agents = useMemo(() => {
+    const names = calls.map(c => c.agentName).filter(Boolean) as string[];
+    return Array.from(new Set(names)).sort();
+  }, [calls]);
 
   const filtered = useMemo(() => {
     let rows = calls;
-    if (filterDir !== 'ALL') rows = rows.filter(r => r.direction === filterDir);
-    if (filterOut !== 'ALL') rows = rows.filter(r => r.outcome === filterOut);
+    if (filterDir   !== 'ALL') rows = rows.filter(r => r.direction === filterDir);
+    if (filterOut   !== 'ALL') rows = rows.filter(r => r.outcome === filterOut);
+    if (filterAgent !== 'ALL') rows = rows.filter(r => r.agentName === filterAgent);
     if (search.trim()) {
       const q = search.toLowerCase();
       rows = rows.filter(r =>
@@ -104,7 +113,7 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
       );
     }
     return rows;
-  }, [calls, search, filterDir, filterOut]);
+  }, [calls, search, filterDir, filterOut, filterAgent]);
 
   const avgFmt = kpis.avgDurationSec > 0 ? fmtDuration(Math.round(kpis.avgDurationSec)) : '—';
 
@@ -161,6 +170,17 @@ export function ComunicacionesClient({ calls, kpis }: Props) {
           <option value="BUSY">Ocupado</option>
           <option value="FAILED">Falló</option>
         </select>
+
+        {agents.length > 0 && (
+          <select
+            value={filterAgent}
+            onChange={e => setFilterAgent(e.target.value)}
+            className="text-sm bg-surface border border-border rounded-lg px-3 py-1.5 text-text-1 focus:outline-none focus:border-brand/50"
+          >
+            <option value="ALL">Todos los agentes</option>
+            {agents.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Table */}

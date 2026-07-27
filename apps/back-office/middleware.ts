@@ -112,8 +112,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     response.cookies.set(ROLE_EMAIL_COOKIE, user.email, cookieOpts);
   }
 
-  // ── Portal médico (/doctor) — scoping por rol ──────────────────────────────
+  // ── Portal médico (/doctor) — scoping por rol y por host ───────────────────
   const isDoctorArea = pathname === '/doctor' || pathname.startsWith('/doctor/');
+  // providers.lienmaster.net (prod) / providers.localhost (dev) → solo mundo doctor
+  const isProvidersHost = (request.headers.get('host') ?? '').startsWith('providers.');
 
   if (dbRole === 'DOCTOR' || dbRole === 'PROVIDER') {
     // Los doctores viven en /doctor/* — cualquier página administrativa redirige
@@ -125,6 +127,13 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       return NextResponse.redirect(url);
     }
     return response; // PROVIDER no pasa por el check pm_clinic del back-office
+  }
+
+  // Staff que entra por el subdominio del portal médico → mandarlo a su dominio
+  // (por providers.* solo existe el mundo doctor)
+  if (isProvidersHost) {
+    const clinicUrl = process.env.NEXT_PUBLIC_CLINIC_URL ?? 'https://clinic.lienmaster.net';
+    return NextResponse.redirect(new URL(pathname === '/' ? '/dashboard' : pathname, clinicUrl));
   }
 
   // Staff no navega el portal médico (SUPER_ADMIN/ADMIN sí, para soporte)

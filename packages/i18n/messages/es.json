@@ -4160,6 +4160,23 @@
       }
     }
   },
+  "addNoteDialog": {
+    "title": "Agregar nota interna",
+    "subtitle": "Nota interna del caso <code>{caseCode}</code>. Visible para el equipo · queda en el historial.",
+    "noteLabel": "Nota",
+    "notePlaceholder": "Ej: paciente llamó pidiendo reagendar · prefiere viernes en la tarde...",
+    "charCount": "{count} / {max}",
+    "visibilityLabel": "Visibilidad",
+    "private": "Privada",
+    "shared": "Compartida",
+    "privateHint": "Solo visible para Front Office y el equipo de administración interna.",
+    "sharedHint": "Visible para Doctor y todo el equipo clínico también.",
+    "emptyError": "La nota no puede estar vacía",
+    "saveError": "Error al guardar la nota",
+    "cancel": "Cancelar",
+    "save": "Guardar nota",
+    "saving": "Guardando..."
+  },
   "finanzas": {
     "reportesTab": "Reportes"
   },

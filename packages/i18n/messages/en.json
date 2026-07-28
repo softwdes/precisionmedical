@@ -4160,6 +4160,23 @@
       }
     }
   },
+  "addNoteDialog": {
+    "title": "Add internal note",
+    "subtitle": "Internal note for case <code>{caseCode}</code>. Visible to the team · stays in the history.",
+    "noteLabel": "Note",
+    "notePlaceholder": "E.g.: patient called asking to reschedule · prefers Friday afternoon...",
+    "charCount": "{count} / {max}",
+    "visibilityLabel": "Visibility",
+    "private": "Private",
+    "shared": "Shared",
+    "privateHint": "Only visible to Front Office and the internal admin team.",
+    "sharedHint": "Also visible to the Doctor and the whole clinical team.",
+    "emptyError": "The note cannot be empty",
+    "saveError": "Error saving the note",
+    "cancel": "Cancel",
+    "save": "Save note",
+    "saving": "Saving..."
+  },
   "finanzas": {
     "reportesTab": "Reports"
   },

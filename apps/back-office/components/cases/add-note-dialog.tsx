@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { MessageSquarePlus, AlertCircle, Lock, Users } from 'lucide-react';
 import {
   Button,
@@ -26,6 +27,7 @@ interface AddNoteDialogProps {
 
 export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteDialogProps) {
   const router = useRouter();
+  const t = useTranslations('addNoteDialog');
   const [content, setContent] = useState('');
   const [isPrivate, setIsPrivate] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,7 +43,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
 
   const handleSave = async () => {
     setError(null);
-    if (!content.trim()) return setError('La nota no puede estar vacía');
+    if (!content.trim()) return setError(t('emptyError'));
     setSaving(true);
     try {
       const res = await fetch(`/api/admin/cases/${caseId}/notes`, {
@@ -56,7 +58,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
       onOpenChange(false);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar la nota');
+      setError(e instanceof Error ? e.message : t('saveError'));
     } finally {
       setSaving(false);
     }
@@ -68,33 +70,35 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquarePlus className="w-5 h-5 text-brand" />
-            Agregar nota interna
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            Nota interna del caso <code className="text-text-1 font-mono">{caseCode}</code>.
-            Visible para el equipo · queda en el historial.
+            {t.rich('subtitle', {
+              caseCode,
+              code: (chunks) => <code className="text-text-1 font-mono">{chunks}</code>,
+            })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-4">
           <div>
-            <Label htmlFor="content">Nota</Label>
+            <Label htmlFor="content">{t('noteLabel')}</Label>
             <textarea
               id="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-brand min-h-[120px]"
-              placeholder="Ej: paciente llamó pidiendo reagendar · prefiere viernes en la tarde..."
+              placeholder={t('notePlaceholder')}
               autoFocus
               maxLength={5000}
             />
             <div className="text-text-muted text-[10px] mt-1 text-right">
-              {content.length} / 5000
+              {t('charCount', { count: content.length, max: 5000 })}
             </div>
           </div>
 
           <div>
-            <Label>Visibilidad</Label>
+            <Label>{t('visibilityLabel')}</Label>
             <div className="grid grid-cols-2 gap-2 mt-1.5">
               <button
                 type="button"
@@ -106,7 +110,7 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
                 }`}
               >
                 <Lock className="w-3.5 h-3.5" />
-                Privada
+                {t('private')}
               </button>
               <button
                 type="button"
@@ -118,13 +122,11 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                Compartida
+                {t('shared')}
               </button>
             </div>
             <div className="text-text-muted text-[11px] mt-1.5">
-              {isPrivate
-                ? 'Solo visible para Front Office y el equipo de administración interna.'
-                : 'Visible para Doctor y todo el equipo clínico también.'}
+              {isPrivate ? t('privateHint') : t('sharedHint')}
             </div>
           </div>
 
@@ -138,10 +140,10 @@ export function AddNoteDialog({ open, onOpenChange, caseId, caseCode }: AddNoteD
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancelar
+            {t('cancel')}
           </Button>
           <Button onClick={handleSave} disabled={saving || !content.trim()}>
-            {saving ? 'Guardando...' : 'Guardar nota'}
+            {saving ? t('saving') : t('save')}
           </Button>
         </DialogFooter>
       </DialogContent>

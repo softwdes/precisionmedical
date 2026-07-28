@@ -64,7 +64,8 @@ export interface ConsultationAppointment {
   triage: ConsultationTriage | null;
 }
 
-type Tab = 'triage' | 'notes' | 'labs' | 'rx' | 'services';
+type Tab = 'notes' | 'labs' | 'rx';
+type StepView = 1 | 2 | 3 | 4;
 
 function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', {
@@ -117,7 +118,6 @@ function ReadingDivider({ label }: { label: string }): React.ReactElement {
 
 export function ConsultationClient({ appointment: a }: { appointment: ConsultationAppointment }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
-  const [tab, setTab] = React.useState<Tab>('triage');
 
   const hasTriage = !!a.triage;
   const isInRoom = a.status === 'IN_PROGRESS';
@@ -125,20 +125,26 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
   const age = ageOf(a.patient.dateOfBirth);
   const tr = a.triage;
 
+  // Paso actual del flujo (mismo criterio que Day Admission)
+  const currentStep = (isCompleted ? 4 : isInRoom ? 3 : hasTriage ? 3 : 2) as StepView;
+  // Navegación libre entre nodos — arranca en el paso actual
+  const [view, setView] = React.useState<StepView>(currentStep);
+  const [tab, setTab] = React.useState<Tab>('notes');
+  const isCurrent = (n: StepView): boolean => n === currentStep;
+
   // Nodos de flujo — mismos 4 pasos que Day Admission, punto de vista del doctor
-  const steps = [
-    { label: t('stepCheckin'),  desc: t('stepCheckinDesc'),  done: !!a.checkedInAt || isInRoom || isCompleted, current: false },
-    { label: t('stepTriage'),   desc: t('stepTriageDesc'),   done: hasTriage || isInRoom || isCompleted,      current: false },
-    { label: t('stepDoctor'),   desc: t('stepDoctorDesc'),   done: isCompleted,                                current: isInRoom },
-    { label: t('stepServices'), desc: t('stepServicesDesc'), done: false,                                      current: isCompleted },
+  const steps: Array<{ n: StepView; label: string; desc: string; done: boolean; current: boolean }> = [
+    { n: 1, label: t('stepCheckin'),  desc: t('stepCheckinDesc'),  done: !!a.checkedInAt || isInRoom || isCompleted, current: isCurrent(1) },
+    { n: 2, label: t('stepTriage'),   desc: t('stepTriageDesc'),   done: hasTriage || isInRoom || isCompleted,      current: isCurrent(2) },
+    { n: 3, label: t('stepDoctor'),   desc: t('stepDoctorDesc'),   done: isCompleted,                                current: isCurrent(3) },
+    { n: 4, label: t('stepServices'), desc: t('stepServicesDesc'), done: false,                                      current: isCurrent(4) },
   ];
 
+  // Tabs del área de trabajo del doctor (nodo 3)
   const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
-    { id: 'triage',   label: t('tabTriage'),   icon: HeartPulse },
-    { id: 'notes',    label: t('tabNotes'),    icon: FileText },
-    { id: 'labs',     label: t('tabLabs'),     icon: FlaskConical },
-    { id: 'rx',       label: t('tabRx'),       icon: Pill },
-    { id: 'services', label: t('tabServices'), icon: Briefcase },
+    { id: 'notes', label: t('tabNotes'), icon: FileText },
+    { id: 'labs',  label: t('tabLabs'),  icon: FlaskConical },
+    { id: 'rx',    label: t('tabRx'),    icon: Pill },
   ];
 
   return (
@@ -173,12 +179,18 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
         </Link>
       </div>
 
-      {/* Nodos de flujo — estilo Day Admission, identidad violet */}
+      {/* Nodos de flujo — navegación LIBRE, estilo Day Admission (clic para ver cada paso) */}
       <div className="rounded-lg bg-bg-2/30 px-4 py-3 overflow-x-auto">
         <div className="flex items-center min-w-[560px]">
           {steps.map((s, i) => (
             <React.Fragment key={s.label}>
-              <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setView(s.n)}
+                className={`flex items-center gap-2 shrink-0 rounded-md px-2 py-1.5 -mx-1 transition-all text-left ${
+                  view === s.n ? 'bg-bg-2/70 ring-1 ring-violet/40' : 'hover:bg-white/[0.03]'
+                }`}
+              >
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
                     s.done
@@ -196,32 +208,52 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
                   </div>
                   <div className="text-[9.5px] text-text-muted hidden sm:block">{s.desc}</div>
                 </div>
-              </div>
+              </button>
               {i < steps.length - 1 && <div className="flex-1 h-px bg-bg-3 mx-3 min-w-[16px]" />}
             </React.Fragment>
           ))}
         </div>
       </div>
 
-      {/* Tabs — orden confirmado: Triaje · Notas · Laboratorios · Prescripción · Servicios */}
-      <div className="flex gap-1 border-b border-border overflow-x-auto">
-        {TABS.map(({ id, label, icon: Icon }) => (
+      {/* Banner al ver un paso distinto al actual — igual que Day Admission */}
+      {view !== currentStep && (
+        <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-[11px] text-amber">{t('viewingStep', { n: view })}</span>
           <button
-            key={id}
             type="button"
-            onClick={() => setTab(id)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${
-              tab === id ? 'text-violet border-violet' : 'text-text-muted border-transparent hover:text-text-1'
-            }`}
+            onClick={() => setView(currentStep)}
+            className="text-[11px] font-semibold text-amber hover:underline shrink-0"
           >
-            <Icon className="w-3.5 h-3.5" />
-            {label}
+            ← {t('backToCurrent')}
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* ── Tab: Triaje (lectura del TriageRecord del MA) ── */}
-      {tab === 'triage' && (
+      {/* ── Nodo 1: Check-in — resumen de llegada ── */}
+      {view === 1 && (
+        <div className="rounded-lg bg-bg-2/30 p-4 space-y-3 max-w-xl">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
+            <Check className="w-3.5 h-3.5 text-emerald" />
+            {t('stepCheckin')}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <F
+              label={t('stepCheckin')}
+              value={a.checkedInAt ? timeLabel(a.checkedInAt) : null}
+            />
+            <F
+              label={t('attendanceLabel')}
+              value={a.attendanceSignedAt ? timeLabel(a.attendanceSignedAt) : null}
+            />
+          </div>
+          {!a.checkedInAt && (
+            <div className="text-[11px] text-amber">{t('guardrailCheckin')}</div>
+          )}
+        </div>
+      )}
+
+      {/* ── Nodo 2: Triaje y verificación (lectura del TriageRecord del MA) ── */}
+      {view === 2 && (
         <div className="space-y-4">
           {/* Verificación — mismos indicadores que ve el asistente en Day Admission */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -324,17 +356,38 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
         </div>
       )}
 
-      {/* ── Tabs en construcción (D4 — con la información de Erick) ── */}
-      {tab === 'notes' && (
-        <EmptyState.Rich icon={FileText} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
+      {/* ── Nodo 3: área de trabajo del doctor — tabs Notas · Labs · Prescripción ── */}
+      {view === 3 && (
+        <div className="space-y-4">
+          <div className="flex gap-1 border-b border-border overflow-x-auto">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                  tab === id ? 'text-violet border-violet' : 'text-text-muted border-transparent hover:text-text-1'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+          {tab === 'notes' && (
+            <EmptyState.Rich icon={FileText} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
+          )}
+          {tab === 'labs' && (
+            <EmptyState.Rich icon={FlaskConical} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
+          )}
+          {tab === 'rx' && (
+            <EmptyState.Rich icon={Pill} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
+          )}
+        </div>
       )}
-      {tab === 'labs' && (
-        <EmptyState.Rich icon={FlaskConical} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
-      )}
-      {tab === 'rx' && (
-        <EmptyState.Rich icon={Pill} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
-      )}
-      {tab === 'services' && (
+
+      {/* ── Nodo 4: Servicios y pagos (post-consulta) ── */}
+      {view === 4 && (
         <EmptyState.Rich icon={Briefcase} title={t('comingSoonTitle')} subtitle={t('servicesSoon')} />
       )}
     </div>

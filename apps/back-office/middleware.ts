@@ -115,7 +115,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // ── Portal médico (/doctor) — scoping por rol y por host ───────────────────
   const isDoctorArea = pathname === '/doctor' || pathname.startsWith('/doctor/');
   // providers.lienmaster.net (prod) / providers.localhost (dev) → solo mundo doctor
-  const isProvidersHost = (request.headers.get('host') ?? '').startsWith('providers.');
+  const isProvidersHost = (request.headers.get('host') ?? '').startsWith('provider.');
 
   if (dbRole === 'DOCTOR' || dbRole === 'PROVIDER') {
     // Los doctores viven en /doctor/* — cualquier página administrativa redirige

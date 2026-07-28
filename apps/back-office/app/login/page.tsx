@@ -70,7 +70,7 @@ export default function LoginPage(): React.ReactElement {
   // muestra la identidad del Doctor Portal en lugar de la del back-office.
   const [isProvidersHost, setIsProvidersHost] = useState(false);
   useEffect(() => {
-    setIsProvidersHost(window.location.hostname.startsWith('providers.'));
+    setIsProvidersHost(window.location.hostname.startsWith('provider.'));
   }, []);
 
   const [email,        setEmail]        = useState('');

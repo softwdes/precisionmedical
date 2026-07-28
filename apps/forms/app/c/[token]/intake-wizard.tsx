@@ -1505,8 +1505,14 @@ export function IntakeWizard({
     try {
       let body: Record<string, unknown> = {};
       if (stepNum === 2) {
+        // `referralSource` es un enum de Prisma (ReferralSource) — no puede
+        // llevar texto libre. Antes se reemplazaba 'OTHER' por lo que el
+        // paciente escribía (ej. "forgotten") y Prisma rechazaba el update con
+        // un 500 ("Invalid value for argument `referralSource`"). Se manda
+        // 'OTHER' tal cual; el texto libre no tiene dónde guardarse todavía
+        // (no existe columna `referralSourceOther` en Patient) — pendiente
+        // agregarla en la próxima migración, ver pending-tasks.
         const p2 = { ...personal, preferredLanguage: lang };
-        if (p2.referralSource === 'OTHER') p2.referralSource = p2.referralSourceOther || 'OTHER';
         body = { personal: p2 };
       }
       if (stepNum === 3) body = { additional: {

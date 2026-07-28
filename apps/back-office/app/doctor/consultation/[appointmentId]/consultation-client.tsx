@@ -79,13 +79,13 @@ function ageOf(dobIso: string | null): number | null {
   return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
 }
 
-/** Campo read-only — mismo layout que el form de triaje de Day Admission */
-function F({ label, value, accent }: { label: string; value: React.ReactNode; accent?: 'amber' }): React.ReactElement {
+/** Campo read-only — misma caja de valor que los inputs del triaje de Day Admission */
+function F({ label, value, accent, align = 'center' }: { label: string; value: React.ReactNode; accent?: 'amber'; align?: 'center' | 'left' }): React.ReactElement {
   const empty = value === null || value === undefined || value === '';
   return (
     <div className="min-w-0">
-      <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{label}</div>
-      <div className={`rounded-md bg-bg-2/40 px-3 py-2 text-sm font-semibold tabular-nums truncate ${empty ? 'text-text-muted' : accent === 'amber' ? 'text-amber' : 'text-text-1'}`}>
+      <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">{label}</div>
+      <div className={`rounded-lg border border-border bg-bg-0/70 px-3 py-2.5 text-sm font-semibold tabular-nums truncate ${align === 'center' ? 'text-center' : 'text-left'} ${empty ? 'text-text-muted/60' : accent === 'amber' ? 'text-amber' : 'text-text-1'}`}>
         {empty ? '—' : value}
       </div>
     </div>
@@ -254,7 +254,9 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
             </div>
 
             {tr.chiefComplaint && (
-              <F label={t('chiefComplaint')} value={tr.chiefComplaint} />
+              <div className="max-w-xl">
+                <F label={t('chiefComplaint')} value={tr.chiefComplaint} align="left" />
+              </div>
             )}
 
             <ReadingDivider label={t('triage1stReading')} />

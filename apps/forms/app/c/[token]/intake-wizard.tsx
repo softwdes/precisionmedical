@@ -1063,7 +1063,7 @@ export function IntakeWizard({
 
   const [acc, setAcc] = useState({
     date:         isoToInput(accident.date),
-    type:         (['MVA', 'GM'].includes(accident.type ?? '') ? accident.type as CaseType : 'MVA'),
+    type:         (accident.type === 'MVA' ? 'MVA' : (accident.type === 'GM' || accident.type === 'GENERAL') ? 'GM' : 'MVA') as CaseType,
     notes:        accident.notes ?? '',
     lawFirm:      accident.lawFirm ?? '',
     attorney:     accident.attorney ?? '',
@@ -2352,8 +2352,13 @@ export function IntakeWizard({
                     sub={lang === 'es' ? 'Describa correctamente la razón de su visita a la clínica.' : 'Describe correctly the reason for your visit to the clinic.'}
                   >
                     <Field label={t.accidentDate} error={accidentDateError}>
-                      <DateInputMDY style={S.input} value={acc.date}
-                        onChange={v => { setAcc(a => ({ ...a, date: v })); setAccidentDateError(''); }} />
+                      <input
+                        type="date"
+                        style={{ ...S.input, colorScheme: 'dark' }}
+                        value={acc.date}
+                        max={new Date().toISOString().split('T')[0]}
+                        onChange={e => { setAcc(a => ({ ...a, date: e.target.value })); setAccidentDateError(''); }}
+                      />
                     </Field>
 
                     <Field label={t.accidentDesc}>

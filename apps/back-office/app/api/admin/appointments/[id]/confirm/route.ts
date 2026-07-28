@@ -18,6 +18,12 @@ export async function POST(
   if (appt.status === 'COMPLETED' || appt.status === 'CANCELLED') {
     return NextResponse.json({ error: 'INVALID_STATUS' }, { status: 400 });
   }
+  // Máquina de estados: confirmar NUNCA degrada a un paciente que ya llegó.
+  // (Bug real 2026-07-28: un confirm tardío regresó IN_PROGRESS → CONFIRMED y
+  // el paciente "desapareció" de la sala en la vista del doctor.)
+  if (appt.status === 'CHECKED_IN' || appt.status === 'IN_PROGRESS') {
+    return NextResponse.json({ ok: true, appointment: { id: appt.id, status: appt.status }, alreadyArrived: true });
+  }
 
   const updated = await db.appointment.update({
     where: { id },

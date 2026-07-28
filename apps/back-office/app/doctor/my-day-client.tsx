@@ -95,14 +95,18 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
   const sorted = [...appointments].sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
   const completed = sorted.filter(a => a.status === 'COMPLETED');
   const active = sorted.filter(a => ACTIVE.includes(a.status));
-  const waiting = active.filter(a => a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS');
+  // Llegada = status de llegada O checkedInAt registrado — defensa contra
+  // degradaciones de status (bug real: un confirm tardío pisó IN_PROGRESS).
+  const arrived = (a: MyDayAppointment): boolean =>
+    a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS' || !!a.checkedInAt;
+  const waiting = active.filter(arrived);
 
   // Hero solo aplica al día de HOY: en consulta > en espera con triaje > en espera > próxima futura.
   // En días pasados/futuros se muestra la lista completa sin hero ni CTA.
   const hero = isToday
     ? (active.find(a => a.status === 'IN_PROGRESS')
-      ?? active.find(a => a.status === 'CHECKED_IN' && a.hasTriage)
-      ?? active.find(a => a.status === 'CHECKED_IN')
+      ?? active.find(a => arrived(a) && a.hasTriage)
+      ?? active.find(arrived)
       ?? active.find(a => new Date(a.scheduledFor).getTime() >= now - 15 * 60_000)
       ?? active[0]
       ?? null)
@@ -114,8 +118,8 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
   // Si el asistente ya lo pasó a sala (IN_PROGRESS), el doctor SIEMPRE puede atender —
   // el wizard de admisión marca el paso de triaje por status, con o sin vitales.
   // La firma de asistencia (B.14.1) aún no existe en el flujo → solo informativa.
-  const heroArrived = !!hero && (hero.status === 'CHECKED_IN' || hero.status === 'IN_PROGRESS');
-  const heroReady = !!hero && (hero.status === 'IN_PROGRESS' || (hero.status === 'CHECKED_IN' && hero.hasTriage));
+  const heroArrived = !!hero && arrived(hero);
+  const heroReady = !!hero && (hero.status === 'IN_PROGRESS' || (arrived(hero) && hero.hasTriage));
   const noteHref = (apptId: string): string | null =>
     clinicalUrl ? `${clinicalUrl}/visit/${apptId}` : null;
 
@@ -125,7 +129,7 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
     if (!hero) return;
     const href = noteHref(hero.id);
     if (href) window.open(href, '_blank', 'noopener');
-    if (hero.status === 'CHECKED_IN') {
+    if (hero.status !== 'IN_PROGRESS') {
       setAttending(true);
       try {
         await fetch(`/api/admin/admission/${hero.id}/admit`, { method: 'POST' });
@@ -137,7 +141,7 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
 
   const statusPill = (a: MyDayAppointment): React.ReactElement => {
     if (a.status === 'IN_PROGRESS') return <TagPill label={t('statusInProgress')} colorClass="bg-violet/15 text-violet border-violet/30" />;
-    if (a.status === 'CHECKED_IN') {
+    if (arrived(a)) {
       return a.hasTriage
         ? <TagPill label={t('triageDone')} colorClass="bg-cyan/15 text-cyan border-cyan/30" />
         : <TagPill label={t('statusWaiting')} colorClass="bg-amber/15 text-amber border-amber/30" />;

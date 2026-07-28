@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const rec = await db.case.findUnique({
     where: { portalToken: token },
     select: {
-      id: true, caseCode: true, status: true,
+      id: true, caseCode: true, status: true, caseType: true,
       accidentDate: true, accidentType: true,
       accidentNotes: true, accidentLocation: true,
       primaryPolicyNumber: true,
@@ -109,7 +109,14 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     },
     accident: {
       date:         rec.accidentDate?.toISOString() ?? null,
-      type:         rec.accidentType,
+      // OJO: para el wizard `accident.type` es el TIPO DE CASO (MVA | GM), no
+      // el mecanismo del accidente. El POST del step 5 lo guarda en la columna
+      // `caseType` (GM → GENERAL), asi que hay que leerlo de ahi. Antes se leia
+      // de `accidentType` — otra columna, que guarda AUTO/FALL/etc — y por eso
+      // un caso GM se reabria siempre como MVA y arrastraba el lien.
+      type:         rec.caseType === 'GENERAL' ? 'GM' : 'MVA',
+      // Mecanismo real del accidente, por si se necesita mas adelante.
+      mechanism:    rec.accidentType,
       location:     rec.accidentLocation,
       notes:        rec.accidentNotes,
       lawFirm:      (cd.lawFirm as string) ?? null,

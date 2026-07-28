@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { PageHeader, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+import { VisitNoteEditor, type VisitNoteData } from './visit-note-editor';
+import type { PickableTemplate } from './template-picker';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -121,7 +123,14 @@ function ReadingDivider({ label }: { label: string }): React.ReactElement {
   );
 }
 
-export function ConsultationClient({ appointment: a }: { appointment: ConsultationAppointment }): React.ReactElement {
+export function ConsultationClient({
+  appointment: a, note, templates, userId,
+}: {
+  appointment: ConsultationAppointment;
+  note: VisitNoteData | null;
+  templates: PickableTemplate[];
+  userId: string | null;
+}): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
 
@@ -381,7 +390,12 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
             ))}
           </div>
           {tab === 'notes' && (
-            <EmptyState.Rich icon={FileText} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
+            <VisitNoteEditor
+              appointmentId={a.id}
+              note={note}
+              templates={templates}
+              userId={userId}
+            />
           )}
           {tab === 'labs' && (
             <EmptyState.Rich icon={FlaskConical} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />

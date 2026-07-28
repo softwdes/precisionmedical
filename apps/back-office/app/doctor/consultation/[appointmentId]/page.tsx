@@ -52,11 +52,55 @@ export default async function DoctorConsultationPage({
       provider: { select: { id: true, firstName: true, lastName: true, specialty: true } },
       clinic: { select: { id: true, name: true } },
       triageRecord: true,
-      visitNote: { select: { status: true } },
+      visitNote: {
+        include: { diagnoses: { orderBy: { sortOrder: 'asc' } } },
+      },
     },
   });
 
   if (!a) notFound();
+
+  // Plantillas globales disponibles + favoritas del doctor (para autollenar la nota)
+  const tplRows = await db.template.findMany({
+    where: { deletedAt: null, isActive: true },
+    select: {
+      id: true, title: true, description: true, encounterType: true,
+      sections: { select: { sectionKey: true, content: true }, orderBy: { orderIndex: 'asc' } },
+      favorites: provider.userId ? { where: { userId: provider.userId }, select: { id: true } } : false,
+    },
+    orderBy: { title: 'asc' },
+  });
+  const templates = tplRows.map((tpl) => ({
+    id: tpl.id,
+    title: tpl.title,
+    description: tpl.description,
+    encounterType: tpl.encounterType,
+    isFavorite: Array.isArray(tpl.favorites) ? tpl.favorites.length > 0 : false,
+    sections: tpl.sections.map((s) => ({ sectionKey: s.sectionKey, content: s.content })),
+  }));
+
+  const n = a.visitNote;
+  const note = n
+    ? {
+        status: n.status,
+        signedAt: n.signedAt?.toISOString() ?? null,
+        signedByName: n.signedByName,
+        templateId: n.templateId,
+        chiefComplaint: n.chiefComplaint,
+        hpi: n.hpi,
+        ros: n.ros,
+        physicalExam: n.physicalExam,
+        assessment: n.assessment,
+        plan: n.plan,
+        diagnoses: n.diagnoses.map((d) => ({
+          icd10Code: d.icd10Code,
+          icd10Label: d.icd10Label,
+          snomedCode: d.snomedCode,
+          snomedLabel: d.snomedLabel,
+          diagnosisId: d.diagnosisId,
+        })),
+      }
+    : null;
 
   const tr = a.triageRecord;
   // Misma fórmula que Day Admission: consentimientos completos = tratamiento +
@@ -145,6 +189,9 @@ export default async function DoctorConsultationPage({
             }
           : null,
       }}
+      note={note}
+      templates={templates}
+      userId={provider.userId}
     />
   );
 }

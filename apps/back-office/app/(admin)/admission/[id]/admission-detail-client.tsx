@@ -530,7 +530,10 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             { label: t('flowStep4'), done: false,           active: showServices || d.status === 'COMPLETED' },
           ].map((step, i, arr) => {
             const navigable = step.done || step.active;
-            const isSelected = viewStep === i + 1;
+            // Recuadro siempre visible en el paso efectivo: el navegado manualmente
+            // o, en modo auto, el paso actual del flujo (feedback "dónde estoy")
+            const autoStep = !isAlreadyInRoom ? 2 : (d.status === 'COMPLETED' || showServices) ? 4 : 3;
+            const isSelected = (viewStep ?? autoStep) === i + 1;
             return (
               <div key={i} className="flex items-center gap-2 flex-1 min-w-0">
                 <button

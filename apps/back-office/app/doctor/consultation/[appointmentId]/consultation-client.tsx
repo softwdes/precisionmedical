@@ -46,6 +46,13 @@ export interface ConsultationAppointment {
   noteStatus: string | null;
   clinicName: string;
   caseCode: string | null;
+  /** Verificación del caso — mismas fuentes que Day Admission */
+  verification: {
+    healthForm: boolean;
+    consents: boolean;
+    pip: boolean;
+    insuranceName: string | null;
+  };
   patient: {
     firstName: string;
     lastName: string;
@@ -188,9 +195,31 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
 
       {/* ── Tab: Triaje (lectura del TriageRecord del MA) ── */}
       {tab === 'triage' && (
-        !hasTriage || !tr ? (
-          <EmptyState.Rich icon={ClipboardList} title={t('triageEmptyTitle')} subtitle={t('triageEmptySubtitle')} />
-        ) : (
+        <div className="space-y-4">
+          {/* Verificación — mismos indicadores que ve el asistente en Day Admission */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <TagPill
+              label={`${t('docHealthForm')} ${a.verification.healthForm ? '✓' : '· ' + t('pendingLabel')}`}
+              colorClass={a.verification.healthForm ? 'bg-emerald/15 text-emerald border-emerald/30' : 'bg-amber/15 text-amber border-amber/30'}
+            />
+            <TagPill
+              label={`${t('docConsents')} ${a.verification.consents ? '✓' : '· ' + t('pendingLabel')}`}
+              colorClass={a.verification.consents ? 'bg-emerald/15 text-emerald border-emerald/30' : 'bg-amber/15 text-amber border-amber/30'}
+            />
+            <TagPill
+              label={`PIP ${a.verification.pip ? '✓' : '· ' + t('notVerified')}`}
+              colorClass={a.verification.pip ? 'bg-emerald/15 text-emerald border-emerald/30' : 'bg-amber/15 text-amber border-amber/30'}
+            />
+            {a.verification.insuranceName ? (
+              <TagPill label={`${t('insuranceLabel')}: ${a.verification.insuranceName}`} colorClass="bg-cyan/15 text-cyan border-cyan/30" />
+            ) : (
+              <TagPill label={t('insuranceNone')} colorClass="bg-amber/15 text-amber border-amber/30" />
+            )}
+          </div>
+
+          {!hasTriage || !tr ? (
+            <EmptyState.Rich icon={ClipboardList} title={t('triageEmptyTitle')} subtitle={t('triageEmptySubtitle')} />
+          ) : (
           <div className="space-y-4">
             {tr.chiefComplaint && (
               <div className="rounded-lg bg-bg-2/30 p-4">
@@ -240,7 +269,8 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
               </div>
             )}
           </div>
-        )
+          )}
+        </div>
       )}
 
       {/* ── Tabs en construcción (D4 — con la información de Erick) ── */}

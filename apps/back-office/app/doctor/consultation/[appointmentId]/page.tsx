@@ -40,7 +40,13 @@ export default async function DoctorConsultationPage({
       patient: {
         select: { id: true, firstName: true, lastName: true, dateOfBirth: true, sex: true, phone: true },
       },
-      case: { select: { id: true, caseCode: true, caseType: true } },
+      case: {
+        select: {
+          id: true, caseCode: true, caseType: true,
+          pipVerifiedAt: true, intakeFormCompletedAt: true, consentsData: true,
+          primaryInsurance: { select: { name: true } },
+        },
+      },
       clinic: { select: { name: true } },
       triageRecord: true,
       visitNote: { select: { status: true } },
@@ -50,6 +56,15 @@ export default async function DoctorConsultationPage({
   if (!a) notFound();
 
   const tr = a.triageRecord;
+  // Misma fórmula que Day Admission: consentimientos completos = tratamiento +
+  // financiero + firma en archivo (case.consentsData)
+  const cd = (a.case?.consentsData ?? {}) as { treatment?: unknown; financial?: unknown; financialSignatureSvg?: unknown };
+  const verification = {
+    healthForm: !!a.case?.intakeFormCompletedAt,
+    consents: !!(cd.treatment && cd.financial && cd.financialSignatureSvg),
+    pip: !!a.case?.pipVerifiedAt,
+    insuranceName: a.case?.primaryInsurance?.name ?? null,
+  };
 
   return (
     <ConsultationClient
@@ -66,6 +81,7 @@ export default async function DoctorConsultationPage({
         noteStatus: a.visitNote?.status ?? null,
         clinicName: a.clinic.name,
         caseCode: a.case?.caseCode ?? null,
+        verification,
         patient: {
           firstName: dec(a.patient.firstName) ?? '',
           lastName: dec(a.patient.lastName) ?? '',

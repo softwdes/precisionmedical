@@ -19,13 +19,14 @@ import {
 import { PageHeader, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
 
 export interface ConsultationTriage {
-  heightFt: number | null; heightIn: number | null;
-  weightLbs: number | null; weightOz: number | null;
+  heightFt: number | null; heightIn: number | null; heightCm: number | null;
+  weightLbs: number | null; weightOz: number | null; weightKg: number | null;
   systolicMmhg: number | null; diastolicMmhg: number | null;
   systolicMmhg2: number | null; diastolicMmhg2: number | null;
   pulseBpm: number | null; pulseBpm2: number | null;
   respiratoryRate: number | null; respiratoryRate2: number | null;
   tempFahrenheit: number | null; tempFahrenheit2: number | null;
+  tempCelsius: number | null; tempCelsius2: number | null;
   painScale: number | null;
   o2Saturation: number | null; onRoomAir: boolean; o2Comment: string | null;
   visualAcuityRight: string | null; visualAcuityLeft: string | null;
@@ -78,12 +79,37 @@ function ageOf(dobIso: string | null): number | null {
   return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
 }
 
-/** Stat box de vital — solo se muestra si hay valor */
-function Vital({ label, value, accent }: { label: string; value: React.ReactNode; accent?: 'amber' }): React.ReactElement {
+/** Campo read-only — mismo layout que el form de triaje de Day Admission */
+function F({ label, value, accent }: { label: string; value: React.ReactNode; accent?: 'amber' }): React.ReactElement {
+  const empty = value === null || value === undefined || value === '';
   return (
-    <div className="rounded-md bg-bg-2/40 p-3">
-      <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{label}</div>
-      <div className={`text-lg font-bold mt-0.5 tabular-nums ${accent === 'amber' ? 'text-amber' : 'text-text-1'}`}>{value}</div>
+    <div className="min-w-0">
+      <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1">{label}</div>
+      <div className={`rounded-md bg-bg-2/40 px-3 py-2 text-sm font-semibold tabular-nums truncate ${empty ? 'text-text-muted' : accent === 'amber' ? 'text-amber' : 'text-text-1'}`}>
+        {empty ? '—' : value}
+      </div>
+    </div>
+  );
+}
+
+/** Sección de vitales con header cyan + emoji — espejo de Day Admission */
+function VSection({ title, emoji, children }: { title: string; emoji: string; children: React.ReactNode }): React.ReactElement {
+  return (
+    <div>
+      <div className="text-[10px] font-bold text-cyan uppercase tracking-wider flex items-center gap-1.5 mb-2">
+        <span>{emoji}</span>{title}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{children}</div>
+    </div>
+  );
+}
+
+/** Separador de toma (1ª / 2ª) — espejo de Day Admission */
+function ReadingDivider({ label }: { label: string }): React.ReactElement {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-[10px] font-bold text-cyan uppercase tracking-wider shrink-0">{label}</span>
+      <div className="flex-1 h-px bg-bg-3" />
     </div>
   );
 }
@@ -220,54 +246,76 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
           {!hasTriage || !tr ? (
             <EmptyState.Rich icon={ClipboardList} title={t('triageEmptyTitle')} subtitle={t('triageEmptySubtitle')} />
           ) : (
-          <div className="space-y-4">
-            {tr.chiefComplaint && (
-              <div className="rounded-lg bg-bg-2/30 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{t('chiefComplaint')}</div>
-                <div className="text-sm text-text-1">{tr.chiefComplaint}</div>
-              </div>
-            )}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {tr.systolicMmhg != null && tr.diastolicMmhg != null && (
-                <Vital label={t('vitBP')} value={`${tr.systolicMmhg}/${tr.diastolicMmhg} mmHg`} />
-              )}
-              {tr.systolicMmhg2 != null && tr.diastolicMmhg2 != null && (
-                <Vital label={t('vitBP2')} value={`${tr.systolicMmhg2}/${tr.diastolicMmhg2} mmHg`} />
-              )}
-              {tr.pulseBpm != null && <Vital label={t('vitPulse')} value={`${tr.pulseBpm} bpm`} />}
-              {tr.pulseBpm2 != null && <Vital label={t('vitPulse2')} value={`${tr.pulseBpm2} bpm`} />}
-              {tr.respiratoryRate != null && <Vital label={t('vitResp')} value={`${tr.respiratoryRate}/min`} />}
-              {tr.respiratoryRate2 != null && <Vital label={t('vitResp2')} value={`${tr.respiratoryRate2}/min`} />}
-              {tr.tempFahrenheit != null && <Vital label={t('vitTemp')} value={`${tr.tempFahrenheit} °F`} />}
-              {tr.tempFahrenheit2 != null && <Vital label={t('vitTemp2')} value={`${tr.tempFahrenheit2} °F`} />}
-              {tr.painScale != null && (
-                <Vital label={t('vitPain')} value={`${tr.painScale}/10`} accent={tr.painScale >= 7 ? 'amber' : undefined} />
-              )}
-              {tr.o2Saturation != null && (
-                <Vital label={t('vitO2')} value={`${tr.o2Saturation}% ${tr.onRoomAir ? `· ${t('roomAir')}` : ''}`} />
-              )}
-              {(tr.weightLbs != null || tr.weightOz != null) && (
-                <Vital label={t('vitWeight')} value={`${tr.weightLbs ?? 0} lb ${tr.weightOz ? `${tr.weightOz} oz` : ''}`} />
-              )}
-              {(tr.heightFt != null || tr.heightIn != null) && (
-                <Vital label={t('vitHeight')} value={`${tr.heightFt ?? 0}' ${tr.heightIn ?? 0}"`} />
-              )}
-              {(tr.visualAcuityRight ?? tr.visualAcuityLeft ?? tr.visualAcuityBoth) && (
-                <Vital
-                  label={`${t('vitVision')}${tr.visionCorrected ? ` (${t('visionCorrected')})` : ''}`}
-                  value={[
-                    tr.visualAcuityRight && `OD ${tr.visualAcuityRight}`,
-                    tr.visualAcuityLeft && `OI ${tr.visualAcuityLeft}`,
-                    tr.visualAcuityBoth && `AO ${tr.visualAcuityBoth}`,
-                  ].filter(Boolean).join(' · ')}
-                />
-              )}
+          <div className="rounded-lg bg-bg-2/30 p-4 space-y-5">
+            {/* Espejo del formulario TRIAGE VITALS de Day Admission (read-only) */}
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
+              <HeartPulse className="w-3.5 h-3.5 text-cyan" />
+              {t('triageVitalsTitle')}
             </div>
-            {tr.o2Comment && (
-              <div className="rounded-md border border-cyan/30 bg-cyan/10 px-3 py-2 text-[11px] text-cyan">
-                O₂: {tr.o2Comment}
-              </div>
+
+            {tr.chiefComplaint && (
+              <F label={t('chiefComplaint')} value={tr.chiefComplaint} />
             )}
+
+            <ReadingDivider label={t('triage1stReading')} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
+              <VSection title={t('secHeight')} emoji="📏">
+                <F label={t('fFeet')} value={tr.heightFt} />
+                <F label={t('fInches')} value={tr.heightIn} />
+                <F label={t('fCm')} value={tr.heightCm} />
+              </VSection>
+              <VSection title={t('secWeight')} emoji="⚖️">
+                <F label={t('fLbs')} value={tr.weightLbs} />
+                <F label={t('fOz')} value={tr.weightOz} />
+                <F label={t('fKg')} value={tr.weightKg} />
+              </VSection>
+              <VSection title={t('secBP')} emoji="❤️">
+                <F label={t('fSystolic')} value={tr.systolicMmhg} />
+                <F label={t('fDiastolic')} value={tr.diastolicMmhg} />
+              </VSection>
+              <VSection title={t('secHeart')} emoji="🫁">
+                <F label={t('fPulse')} value={tr.pulseBpm} />
+                <F label={t('fResp')} value={tr.respiratoryRate} />
+              </VSection>
+              <VSection title={t('secTempPain')} emoji="🌡️">
+                <F label={t('fTempF')} value={tr.tempFahrenheit} />
+                <F label={t('fTempC')} value={tr.tempCelsius} />
+                <F label={t('fPain')} value={tr.painScale} accent={tr.painScale != null && tr.painScale >= 7 ? 'amber' : undefined} />
+              </VSection>
+              <VSection title={t('secOxygen')} emoji="🫧">
+                <F label={t('fO2')} value={tr.o2Saturation} />
+                <div className="col-span-1 sm:col-span-2 min-w-0">
+                  <F label={t('fComment')} value={tr.o2Comment} />
+                  <div className="text-[10px] text-text-muted mt-1.5">
+                    {tr.onRoomAir ? `✓ ${t('roomAir')}` : `⚠ ${t('onSupplementalO2')}`}
+                  </div>
+                </div>
+              </VSection>
+            </div>
+
+            <ReadingDivider label={t('triage2ndReading')} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
+              <VSection title={`${t('secBP')} (2)`} emoji="❤️">
+                <F label={t('fSystolic')} value={tr.systolicMmhg2} />
+                <F label={t('fDiastolic')} value={tr.diastolicMmhg2} />
+              </VSection>
+              <VSection title={`${t('secHeart')} (2)`} emoji="🫁">
+                <F label={t('fPulse')} value={tr.pulseBpm2} />
+                <F label={t('fResp')} value={tr.respiratoryRate2} />
+              </VSection>
+              <VSection title={`${t('secTempPain')} (2)`} emoji="🌡️">
+                <F label={t('fTempF')} value={tr.tempFahrenheit2} />
+                <F label={t('fTempC')} value={tr.tempCelsius2} />
+              </VSection>
+              <VSection title={t('secVision')} emoji="👁️">
+                <F label={t('fRight')} value={tr.visualAcuityRight} />
+                <F label={t('fLeft')} value={tr.visualAcuityLeft} />
+                <F label={t('fBoth')} value={tr.visualAcuityBoth} />
+                <div className="col-span-2 sm:col-span-3 text-[10px] text-text-muted">
+                  {tr.visionCorrected ? `✓ ${t('visionCorrectedFull')}` : `· ${t('visionNotCorrected')}`}
+                </div>
+              </VSection>
+            </div>
           </div>
           )}
         </div>

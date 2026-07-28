@@ -91,13 +91,14 @@ export default async function DoctorConsultationPage({
         },
         triage: tr
           ? {
-              heightFt: tr.heightFt, heightIn: tr.heightIn,
-              weightLbs: tr.weightLbs, weightOz: tr.weightOz,
+              heightFt: tr.heightFt, heightIn: tr.heightIn, heightCm: tr.heightCm,
+              weightLbs: tr.weightLbs, weightOz: tr.weightOz, weightKg: tr.weightKg,
               systolicMmhg: tr.systolicMmhg, diastolicMmhg: tr.diastolicMmhg,
               systolicMmhg2: tr.systolicMmhg2, diastolicMmhg2: tr.diastolicMmhg2,
               pulseBpm: tr.pulseBpm, pulseBpm2: tr.pulseBpm2,
               respiratoryRate: tr.respiratoryRate, respiratoryRate2: tr.respiratoryRate2,
               tempFahrenheit: tr.tempFahrenheit, tempFahrenheit2: tr.tempFahrenheit2,
+              tempCelsius: tr.tempCelsius, tempCelsius2: tr.tempCelsius2,
               painScale: tr.painScale,
               o2Saturation: tr.o2Saturation, onRoomAir: tr.onRoomAir, o2Comment: tr.o2Comment,
               visualAcuityRight: tr.visualAcuityRight, visualAcuityLeft: tr.visualAcuityLeft,

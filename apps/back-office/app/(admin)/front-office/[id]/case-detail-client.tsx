@@ -293,7 +293,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
           onClick={() => router.push('/patients')}
           className="inline-flex items-center gap-1.5 text-text-2 hover:text-text-1 text-sm transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> Pacientes
+          <ArrowLeft className="w-4 h-4" /> {t('backToPatients')}
         </button>
         <TagPill label={<span><span className="mr-1">{st.icon}</span>{st.label}</span>} colorClass={st.colorClass} />
       </div>
@@ -329,7 +329,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
               href={`/patients/${caseInfo.patient.id}`}
               className="inline-flex items-center gap-1 text-text-muted hover:text-brand text-xs transition-colors"
             >
-              <Pencil className="w-3 h-3" /> Editar paciente
+              <Pencil className="w-3 h-3" /> {t('editPatient')}
             </Link>
           </span>
         }
@@ -343,12 +343,12 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
       <div className="relative -mb-2">
         <div className="flex border-b border-border gap-0 overflow-x-auto scrollbar-none">
           {([
-            { id: 'caso',           label: 'Paciente',       labelShort: 'Paciente',   icon: FileText },
-            { id: 'citas',          label: 'Citas',          labelShort: 'Citas',      icon: Calendar },
-            { id: 'historial',      label: 'Historial médico', labelShort: 'Historial', icon: ClipboardList },
-            { id: 'prescripciones', label: 'Prescripciones y laboratorios', labelShort: 'Labs', icon: Pill },
-            { id: 'finanzas',       label: 'Finanzas',       labelShort: 'Finanzas',   icon: DollarSign },
-            { id: 'documentos',     label: 'Documentos',     labelShort: 'Docs',       icon: FolderOpen },
+            { id: 'caso',           label: t('tabPatient'),      labelShort: t('tabPatient'),      icon: FileText },
+            { id: 'citas',          label: t('tabAppointments'), labelShort: t('tabAppointments'), icon: Calendar },
+            { id: 'historial',      label: t('tabHistory'),      labelShort: t('tabHistoryShort'), icon: ClipboardList },
+            { id: 'prescripciones', label: t('tabLabs'),         labelShort: t('tabLabsShort'),    icon: Pill },
+            { id: 'finanzas',       label: t('tabFinance'),      labelShort: t('tabFinance'),      icon: DollarSign },
+            { id: 'documentos',     label: t('tabDocuments'),    labelShort: t('tabDocumentsShort'), icon: FolderOpen },
           ] as { id: ActiveTab; label: string; labelShort: string; icon: React.ElementType }[]).map(tab => (
             <button
               key={tab.id}
@@ -409,7 +409,7 @@ export function CaseDetailClient({ caseInfo, auditEvents }: Props) {
                 <Link
                   href={`/patients/${caseInfo.patient.id}`}
                   className="text-text-muted hover:text-brand transition-colors shrink-0"
-                  title="Editar paciente"
+                  title={t('editPatient')}
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </Link>

@@ -347,7 +347,7 @@ function PrescriptionModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
           <h2 className="text-text-1 font-semibold text-sm flex items-center gap-2">
-            <Pill className="w-4 h-4 text-violet" /> Nueva prescripción
+            <Pill className="w-4 h-4 text-violet" /> {t('newRx')}
           </h2>
           <button onClick={onClose} className="text-text-muted hover:text-text-1 p-1 rounded">
             <X className="w-4 h-4" />
@@ -358,7 +358,7 @@ function PrescriptionModal({
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4 scroll-thin">
           {/* Estado */}
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-2">Estado</label>
+            <label className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-2">{t('status')}</label>
             <div className="flex gap-4">
               {(['IN_USE', 'HISTORY'] as const).map(s => (
                 <label key={s} className="flex items-center gap-2 cursor-pointer">
@@ -368,7 +368,7 @@ function PrescriptionModal({
                     onChange={() => setStatus(s)}
                     className="accent-brand"
                   />
-                  <span className="text-sm text-text-1">{s === 'IN_USE' ? 'En uso' : 'Historial médico'}</span>
+                  <span className="text-sm text-text-1">{s === 'IN_USE' ? t('statusInUse') : t('statusHistory')}</span>
                 </label>
               ))}
             </div>
@@ -767,13 +767,13 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
       {/* Section header */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border flex-wrap">
         <h3 className="text-text-1 font-semibold text-sm flex items-center gap-2">
-          <Pill className="w-4 h-4 text-violet" /> Prescripciones
+          <Pill className="w-4 h-4 text-violet" /> {t('sectionTitleMeds')}
         </h3>
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => setModalOpen(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Agregar prescripción
+            <Plus className="w-3.5 h-3.5 mr-1" /> {t('addMed')}
           </Button>
-          <button onClick={load} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors" title="Recargar">
+          <button onClick={load} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors" title={t('reload')}>
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -794,7 +794,7 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-12 text-text-muted gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" /> <span className="text-sm">Cargando…</span>
+          <Loader2 className="w-4 h-4 animate-spin" /> <span className="text-sm">{t('loading')}</span>
         </div>
       ) : paged.length === 0 ? (
         <div className="py-4">
@@ -813,9 +813,9 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
                 {p.dose && <span className="text-[11px] text-text-2">{p.dose}{p.quantity ? ` · ${p.quantity} ${p.unit ?? ''}`.trim() : ''}</span>}
                 {p.instructions && <span className="text-[11px] text-text-muted italic line-clamp-2">{p.instructions}</span>}
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                  {p.prescribedBy && <span className="text-[10px] text-text-muted">Dr. {p.prescribedBy}</span>}
+                  {p.prescribedBy && <span className="text-[10px] text-text-muted">{t('drPrefix')} {p.prescribedBy}</span>}
                   {p.startDate && <span className="text-[10px] text-text-muted font-mono">{fmtDate(p.startDate)}</span>}
-                  {p.refills != null && <span className="text-[10px] text-text-muted">{p.refills} repos.</span>}
+                  {p.refills != null && <span className="text-[10px] text-text-muted">{p.refills} {t('refillsSuffix')}</span>}
                 </div>
               </div>
             ))}
@@ -825,7 +825,11 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-bg-2/50">
-                  {['Medicamento', 'Dosis', 'Indicaciones', 'Cantidad', 'Reposiciones', 'Fecha de inicio', 'Expiración', 'Renovación', 'Prescrito por', 'Estado', 'Creado'].map((h, i) => (
+                  {[
+                    t('colMedication'), t('colDose'), t('colInstructions'), t('colQuantity'),
+                    t('colRefills'), t('colStartDate'), t('colExpiration'), t('colRenewal'),
+                    t('colPrescribedBy'), t('colStatus'), t('colCreated'),
+                  ].map((h, i) => (
                     <th key={h} className={`px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap${i === 0 ? ' sticky left-0 z-10 bg-bg-2' : ''}`}>
                       {h}
                     </th>
@@ -841,8 +845,8 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
                     <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.quantity ?? '—'} {p.unit ?? ''}</td>
                     <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.refills ?? '—'}</td>
                     <td className="px-3 py-2.5 text-text-2 whitespace-nowrap font-mono text-xs">{fmtDate(p.startDate)}</td>
-                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.autoExpire ? 'Auto' : '—'}</td>
-                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.autoRenew ? 'Auto' : '—'}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.autoExpire ? t('auto') : '—'}</td>
+                    <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.autoRenew ? t('auto') : '—'}</td>
                     <td className="px-3 py-2.5 text-text-2 whitespace-nowrap">{p.prescribedBy ?? '—'}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap"><StatusPill status={p.status} /></td>
                     <td className="px-3 py-2.5 text-text-muted whitespace-nowrap font-mono text-xs">{fmtDate(p.createdAt)}</td>
@@ -856,7 +860,7 @@ function PrescriptionsSection({ caseId, patientId }: { caseId: string; patientId
 
       {/* Pagination */}
       <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-border/40 text-xs text-text-muted">
-        <span>Página {page} de {totalPages}</span>
+        <span>{t('page', { page, totalPages })}</span>
         <div className="flex items-center gap-1">
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-bg-2 disabled:opacity-40">
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -925,13 +929,13 @@ function LabsSection({ caseId }: { caseId: string }) {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border flex-wrap">
         <h3 className="text-text-1 font-semibold text-sm flex items-center gap-2">
-          <FlaskConical className="w-4 h-4 text-cyan" /> Laboratorios
+          <FlaskConical className="w-4 h-4 text-cyan" /> {t('sectionTitleLabs')}
         </h3>
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => setModalOpen(true)}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Agregar laboratorio
+            <Plus className="w-3.5 h-3.5 mr-1" /> {t('addLab')}
           </Button>
-          <button onClick={load} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors">
+          <button onClick={load} className="p-1.5 rounded-md text-text-muted hover:text-text-1 hover:bg-bg-2 transition-colors" title={t('reload')}>
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -978,7 +982,7 @@ function LabsSection({ caseId }: { caseId: string }) {
       {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-12 text-text-muted gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" /> <span className="text-sm">Cargando…</span>
+          <Loader2 className="w-4 h-4 animate-spin" /> <span className="text-sm">{t('loading')}</span>
         </div>
       ) : paged.length === 0 ? (
         <div className="py-4">
@@ -1008,7 +1012,10 @@ function LabsSection({ caseId }: { caseId: string }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-bg-2/50">
-                  {['Fecha de muestra', 'Tipo de facturación', 'Médico', 'Estado', 'Laboratorios', 'Diagnósticos'].map((h, i) => (
+                  {[
+                    t('colSampleDate'), t('colBillingType'), t('colDoctor'),
+                    t('colStatus'), t('colLabs'), t('colDiagnoses'),
+                  ].map((h, i) => (
                     <th key={h} className={`px-3 py-2 text-left text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap${i === 0 ? ' sticky left-0 z-10 bg-bg-2' : ''}`}>
                       {h}
                     </th>
@@ -1036,7 +1043,7 @@ function LabsSection({ caseId }: { caseId: string }) {
 
       {/* Pagination */}
       <div className="flex items-center justify-end gap-3 px-4 py-2 border-t border-border/40 text-xs text-text-muted">
-        <span>Página {page} de {totalPages}</span>
+        <span>{t('page', { page, totalPages })}</span>
         <div className="flex items-center gap-1">
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-bg-2 disabled:opacity-40">
             <ChevronLeft className="w-3.5 h-3.5" />

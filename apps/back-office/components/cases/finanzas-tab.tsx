@@ -354,16 +354,16 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <DollarSign className="w-4 h-4 text-amber" />
-          <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">Resumen financiero</h3>
+          <h3 className="text-text-1 font-semibold text-sm uppercase tracking-wider">{t('sectionTitle')}</h3>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Actualizar</span>
+            <span className="hidden sm:inline">{t('refresh')}</span>
           </Button>
           {kpis.totalBalance > 0 && (
             <Button size="sm" onClick={openPayModal} className="gap-1.5 bg-amber hover:bg-amber/90 text-black border-0">
-              <CreditCard className="w-3.5 h-3.5" /> Pagar deuda
+              <CreditCard className="w-3.5 h-3.5" /> {t('payDebt')}
             </Button>
           )}
         </div>
@@ -371,15 +371,15 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
 
       {/* KPIs */}
       <div className="flex gap-3 flex-wrap">
-        <KpiCard label="Costo Total"  value={kpis.totalCost}    color="text-text-1" />
-        <KpiCard label="Total Pagado" value={kpis.totalPaid}    color="text-emerald" />
-        <KpiCard label="Deuda Total"  value={kpis.totalBalance} color={kpis.totalBalance > 0 ? 'text-rose' : 'text-text-1'} />
+        <KpiCard label={t('kpiTotalCost')}  value={kpis.totalCost}    color="text-text-1" />
+        <KpiCard label={t('kpiTotalPaid')}  value={kpis.totalPaid}    color="text-emerald" />
+        <KpiCard label={t('kpiTotalDebt')}  value={kpis.totalBalance} color={kpis.totalBalance > 0 ? 'text-rose' : 'text-text-1'} />
       </div>
 
       {/* Tabla */}
       {loading ? (
         <div className="flex items-center justify-center py-12 gap-2 text-text-muted text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" /> Cargando…
+          <Loader2 className="w-4 h-4 animate-spin" /> {t('loading')}
         </div>
       ) : error ? (
         <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-3 text-sm text-rose">{error}</div>

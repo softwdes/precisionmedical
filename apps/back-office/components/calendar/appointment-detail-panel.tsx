@@ -73,6 +73,8 @@ interface Props {
   onRefresh: () => void;
   initialTab?: Tab;
   inline?: boolean;
+  noBorder?: boolean;
+  billingTotal?: number;
 }
 
 type Tab = 'detail' | 'services';
@@ -142,7 +144,7 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
   const locale = useLocale();
@@ -488,7 +490,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                 <div className="flex items-center gap-2">
                   {savingSvc && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
                   {savedOk   && <span className="text-[10px] text-emerald">{t('savedOk')}</span>}
-                  <span className="text-sm font-bold text-cyan">{fmt$(svcTotal)}</span>
+                  <span className="text-sm font-bold text-cyan">{fmt$(billingTotal ?? svcTotal)}</span>
                   {appt.case && (
                     <button
                       type="button"
@@ -748,7 +750,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
   if (inline) {
     return (
-      <div className="flex flex-col overflow-hidden rounded-lg border border-border bg-bg-1 max-h-[600px]">
+      <div className={`flex flex-col overflow-hidden rounded-lg bg-bg-1 max-h-[600px] ${noBorder ? '' : 'border border-border'}`}>
         {panelContent}
       </div>
     );

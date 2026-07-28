@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, PhoneOutgoing, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -1990,9 +1990,10 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           <button
             type="button"
             onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-emerald text-white text-sm font-medium hover:bg-emerald/90 transition-colors whitespace-nowrap"
+            title={t('btnCreatePatientCaseTooltip')}
           >
-            <UserPlus className="w-3.5 h-3.5" />
+            <PhoneOutgoing className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{t('btnCreatePatientCase')}</span>
             <span className="sm:hidden">{t('btnCreateShort')}</span>
           </button>

@@ -324,28 +324,28 @@ export function AdmissionClient() {
         action={
           <div className="flex items-center gap-2 flex-wrap">
             {/* Date navigator */}
-            <div className="flex items-center gap-1 rounded-md border border-border bg-bg-2/40 h-8 px-1">
+            <div className="flex items-center gap-1 rounded-md border border-border bg-bg-2/40 h-9 px-1">
               <button
                 type="button"
                 onClick={() => shiftDate(-1)}
-                className="p-1 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors"
-                title="Día anterior"
+                className="flex items-center gap-1 px-2 h-7 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors text-xs font-medium"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Prev</span>
               </button>
               <DatePicker
                 value={selectedDate}
                 onChange={(k) => setSelectedDate(k)}
                 accent="emerald"
                 todayLabel={t('today')}
-                className="[&>button]:border-0 [&>button]:bg-transparent [&>button]:h-6"
+                className="[&>button]:border-0 [&>button]:bg-transparent [&>button]:h-7 [&>button]:text-sm [&>button]:font-semibold"
               />
               <button
                 type="button"
                 onClick={() => shiftDate(1)}
-                className="p-1 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors"
-                title="Día siguiente"
+                className="flex items-center gap-1 px-2 h-7 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors text-xs font-medium"
               >
+                <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -353,7 +353,7 @@ export function AdmissionClient() {
               <button
                 type="button"
                 onClick={() => setSelectedDate(new Date().toLocaleDateString('en-CA'))}
-                className="h-8 px-2.5 rounded-md border border-emerald/40 text-emerald text-[11px] font-semibold hover:bg-emerald/10 transition-colors"
+                className="h-9 px-3 rounded-md border border-emerald/40 text-emerald text-xs font-semibold hover:bg-emerald/10 transition-colors"
               >
                 {t('today')}
               </button>

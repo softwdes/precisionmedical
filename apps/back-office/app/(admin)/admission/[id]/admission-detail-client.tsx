@@ -309,6 +309,13 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const [admitting, setAdmitting] = useState(false);
   const [portalOpen, setPortalOpen] = useState(false);
   const [showServices, setShowServices] = useState(false);
+  const [viewStep,     setViewStep]     = useState<number | null>(null); // null = auto
+  const [billingHistory, setBillingHistory] = useState<Array<{
+    id: string; serviceCode: string | null; serviceDescription: string | null;
+    totalCost: number; balanceDue: number; amountPaid: number;
+    appointmentDate: string | null;
+  }>>([]);
+  const [billingLoaded, setBillingLoaded] = useState(false);
   const [confirm1,  setConfirm1]  = useState(false);
   const [confirm2,  setConfirm2]  = useState(false);
   const [vitals,    setVitals]    = useState<VitalsState>(EMPTY_VITALS);
@@ -338,6 +345,19 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   }, [appointmentId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // Load billing history once case is known
+  useEffect(() => {
+    const caseId = detail?.case?.id;
+    if (!caseId || billingLoaded) return;
+    setBillingLoaded(true);
+    fetch(`/api/admin/cases/${caseId}/billing`)
+      .then(r => r.json())
+      .then((data: { billings?: typeof billingHistory }) => {
+        setBillingHistory(data.billings ?? []);
+      })
+      .catch(() => {});
+  }, [detail?.case?.id, billingLoaded]);
 
   function dirty() { setVitalsDirty(true); setVitalsSaved(false); }
 
@@ -508,23 +528,46 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             { label: t('flowStep2'), done: isAlreadyInRoom, active: !isAlreadyInRoom },
             { label: t('flowStep3'), done: d.status === 'COMPLETED', active: isAlreadyInRoom && !showServices && d.status !== 'COMPLETED' },
             { label: t('flowStep4'), done: false,           active: showServices || d.status === 'COMPLETED' },
-          ].map((step, i, arr) => (
-            <div key={i} className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${step.done ? 'bg-emerald text-white' : step.active ? 'bg-brand text-white' : 'bg-bg-3 text-text-muted'}`}>
-                  {step.done ? '✓' : i + 1}
-                </div>
-                <span className={`text-[10px] font-semibold hidden sm:inline ${step.done || step.active ? (step.done ? 'text-emerald' : 'text-text-1') : 'text-text-muted'}`}>
-                  {step.label}
-                </span>
+          ].map((step, i, arr) => {
+            const navigable = step.done || step.active;
+            const isSelected = viewStep === i + 1;
+            return (
+              <div key={i} className="flex items-center gap-2 flex-1 min-w-0">
+                <button
+                  type="button"
+                  disabled={!navigable}
+                  onClick={() => navigable ? setViewStep(isSelected ? null : i + 1) : undefined}
+                  className={`flex items-center gap-1.5 shrink-0 rounded-md px-1.5 py-1 transition-all ${navigable ? 'hover:bg-bg-2 cursor-pointer' : 'cursor-default'} ${isSelected ? 'bg-bg-2 ring-1 ring-emerald/40' : ''}`}
+                >
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-all ${step.done ? 'bg-emerald text-white' : step.active ? 'bg-brand text-white' : 'bg-bg-3 text-text-muted'}`}>
+                    {step.done ? '✓' : i + 1}
+                  </div>
+                  <span className={`text-[10px] font-semibold hidden sm:inline ${step.done || step.active ? (step.done ? 'text-emerald' : 'text-text-1') : 'text-text-muted'}`}>
+                    {step.label}
+                  </span>
+                </button>
+                {i < arr.length - 1 && <div className="flex-1 h-px bg-bg-3" />}
               </div>
-              {i < arr.length - 1 && <div className="flex-1 h-px bg-bg-3" />}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
+        {/* ── View-step override banner ── */}
+        {viewStep !== null && (
+          <div className="rounded-lg border border-amber/30 bg-amber/5 px-4 py-2.5 flex items-center gap-3">
+            <span className="text-amber text-[11px] font-semibold">Viewing Step {viewStep} — read-only</span>
+            <button
+              type="button"
+              onClick={() => setViewStep(null)}
+              className="ml-auto text-[11px] text-text-muted hover:text-text-1 border border-border rounded px-2 py-0.5 transition-colors"
+            >
+              ← Back to current step
+            </button>
+          </div>
+        )}
+
         {/* ── Gate banner ── */}
-        {!isAlreadyInRoom && (
+        {!isAlreadyInRoom && viewStep === null && (
           consentsOk ? (
             <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-3 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-emerald/15 flex items-center justify-center text-sm flex-shrink-0">✅</div>
@@ -552,7 +595,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
         )}
 
         {/* ── Docs checklist — full width ── */}
-        {!isAlreadyInRoom && (
+        {(!isAlreadyInRoom || viewStep === 2) && (
           <div>
             <div className="text-[9.5px] uppercase tracking-wider font-bold text-text-muted mb-2 flex items-center gap-1.5">
               <FileText className="w-3 h-3" />{t('sectionDocuments')}
@@ -566,7 +609,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
         )}
 
         {/* ── Step 3: In Room (Doctor) — en construcción ── */}
-        {isAlreadyInRoom && d.status !== 'COMPLETED' && !showServices && (
+        {((isAlreadyInRoom && d.status !== 'COMPLETED' && !showServices) || viewStep === 3) && viewStep !== 2 && (
           <div className="rounded-lg bg-bg-2/40 overflow-hidden">
             {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-bg-3">
@@ -602,7 +645,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
         )}
 
         {/* ── Step 4: Servicios y Pagos ── */}
-        {(d.status === 'COMPLETED' || showServices) && (
+        {((d.status === 'COMPLETED' || showServices) || viewStep === 4) && viewStep !== 2 && viewStep !== 3 && (
           <div className="space-y-3">
             {/* Banner visita completada */}
             <div className="rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-3 flex items-center gap-3">
@@ -651,12 +694,54 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
               }}
               onClose={() => {}}
               onRefresh={load}
+              noBorder
+              billingTotal={billingHistory.reduce((s, b) => s + b.balanceDue, 0) || undefined}
             />
+
+            {/* ── Billing history (migrated records) ── */}
+            {billingHistory.length > 0 && (
+              <div className="rounded-lg border border-border bg-bg-1">
+                <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
+                  <FileText className="w-3.5 h-3.5 text-amber" />
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Billing History</span>
+                  <span className="ml-auto text-[10px] text-text-muted">{billingHistory.length} records</span>
+                </div>
+                <div className="divide-y divide-border/40">
+                  {billingHistory.map(b => {
+                    const date = b.appointmentDate
+                      ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : '—';
+                    const isPaid    = b.balanceDue === 0;
+                    const isPartial = b.amountPaid > 0 && b.balanceDue > 0;
+                    return (
+                      <div key={b.id} className="px-4 py-2.5 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[12px] text-text-1 font-medium">{b.serviceDescription ?? b.serviceCode ?? 'Service'}</span>
+                          {b.serviceCode && (
+                            <span className="ml-2 text-[10px] text-text-muted font-mono">{b.serviceCode}</span>
+                          )}
+                          <span className="ml-2 text-[10px] text-text-muted">{date}</span>
+                        </div>
+                        <div className="text-right shrink-0 space-y-0.5">
+                          <div className="text-[12px] font-semibold text-text-1">${b.totalCost.toFixed(2)}</div>
+                          {isPaid
+                            ? <div className="text-[10px] text-emerald font-medium">Paid</div>
+                            : isPartial
+                              ? <div className="text-[10px] text-amber font-medium">Partial · ${b.balanceDue.toFixed(2)} due</div>
+                              : <div className="text-[10px] text-rose font-medium">${b.balanceDue.toFixed(2)} due</div>
+                          }
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* ── Main 2-col layout ── */}
-        {!isAlreadyInRoom && (
+        {(!isAlreadyInRoom || viewStep === 2) && (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
 
             {/* ── LEFT: Patient info + Vitals form ── */}

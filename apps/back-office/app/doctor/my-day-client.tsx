@@ -111,14 +111,14 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t('greeting', { name: doctorName })}
-        subtitle={t('myDaySubtitle', { count: active.length + completed.length })}
-      />
-
-      {/* Barra de fecha — prominente y táctil (iPad): la fecha completa abre el calendario.
-          Sección sin borde (estándar del sistema) — solo fondo suave violet. */}
-      <div className="rounded-xl bg-violet/[0.06] px-3 py-2 flex items-center justify-center gap-2 flex-wrap">
+      {/* Header + navegación de fecha en la misma línea (gana espacio vertical).
+          Controles táctiles h-10 (iPad); en mobile hacen wrap bajo el título. */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <PageHeader
+          title={t('greeting', { name: doctorName })}
+          subtitle={t('myDaySubtitle', { count: active.length + completed.length })}
+        />
+        <div className="flex items-center gap-2 flex-wrap">
         <Link
           href={`/doctor?date=${prevDate}`}
           aria-label={t('dayPrev')}
@@ -151,6 +151,7 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
             {t('dayToday')}
           </Link>
         )}
+        </div>
       </div>
 
       {/* KPIs */}

@@ -1978,14 +1978,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
         {/* Acciones — derecha (solo admin; el doctor no crea pacientes/casos) */}
         {!doctorMode && (
         <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setQuickRegister(true)}
-            className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-sm text-text-muted hover:border-brand/40 hover:text-brand transition-colors whitespace-nowrap"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {t('btnQuickRegister')}
-          </button>
+          {/* Quick Register deshabilitado temporalmente */}
           <div className="hidden md:block"><PatientCreateDialog /></div>
           <button
             type="button"
@@ -2232,12 +2225,14 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                         <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
                           <Briefcase className="w-3 h-3" /> {t('patientCases')}
                         </span>
-                        <button
-                          onClick={() => setWizardPatient({ id: p.id, firstName: p.firstName, lastName: p.lastName })}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-[11px] font-medium hover:bg-brand/90 transition-colors"
-                        >
-                          <Plus className="w-3 h-3" /> {t('btnAddCase')}
-                        </button>
+                        {!inactiveOnly && (
+                          <button
+                            onClick={() => setWizardPatient({ id: p.id, firstName: p.firstName, lastName: p.lastName })}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand text-white text-[11px] font-medium hover:bg-brand/90 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" /> {t('btnAddCase')}
+                          </button>
+                        )}
                       </div>
 
                       {loadingCases[p.id] && (

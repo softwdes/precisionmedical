@@ -49,6 +49,7 @@ const GRAY1  = '#F2F2F2';
 const GRAY2  = '#D8D8D8';
 const BLACK  = '#1A1A1A';
 const DGRAY  = '#555555';
+const WHITE  = '#FFFFFF';
 const GREEN  = '#2E7D32';
 
 const s = StyleSheet.create({
@@ -200,7 +201,26 @@ const s = StyleSheet.create({
   // Signature
   sigSection: { marginTop: 10 },
   sigLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: DGRAY, marginBottom: 4 },
-  sigImage: { width: 120, height: 50, objectFit: 'contain' },
+  // Caja de fondo blanco explícito + centrada. El PNG del canvas de firma
+  // (paciente, wizard de forms) tiene fondo transparente; esto le da un marco
+  // consistente en el PDF sin depender de que el visor respete la transparencia.
+  //
+  // OJO — hay 19 casos con firma vieja del PERSONAL (`consentSignaturePng`,
+  // capturada con un componente que ya no existe) que tienen el fondo NAVY
+  // horneado en los propios píxeles de la imagen, no transparencia — esta caja
+  // no los arregla porque el color ya es parte de la imagen. Se dejan así a
+  // propósito: son casos históricos y el componente que los causó fue removido.
+  sigBox: {
+    width: 180,
+    height: 60,
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: GRAY2,
+    borderRadius: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sigImage: { width: 160, height: 50, objectFit: 'contain' },
   sigPlaceholder: {
     width: 180,
     height: 50,
@@ -509,10 +529,12 @@ async function buildPDF(data: {
                 : 'Digital Sign:'}
             </Text>
             {sigPng ? (
-              <Image
-                src={sigPng.startsWith('data:') ? sigPng : `data:image/png;base64,${sigPng}`}
-                style={s.sigImage}
-              />
+              <View style={s.sigBox}>
+                <Image
+                  src={sigPng.startsWith('data:') ? sigPng : `data:image/png;base64,${sigPng}`}
+                  style={s.sigImage}
+                />
+              </View>
             ) : (
               <View style={s.sigPlaceholder} />
             )}

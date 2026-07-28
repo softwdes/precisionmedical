@@ -15,7 +15,7 @@ import { useTranslations } from 'next-intl';
 import {
   CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, Sun, Video, FileSignature, ExternalLink,
 } from 'lucide-react';
-import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
+import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
 
 export interface MyDayAppointment {
   id: string;
@@ -60,6 +60,13 @@ function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', {
     hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Denver',
   });
+}
+
+/** Hoy en Denver (YYYY-MM-DD) — para marcar "hoy" en el DatePicker */
+function todayKeyClient(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
 }
 
 export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalUrl, dateKey, dateLabel, isToday, prevDate, nextDate }: Props): React.ReactElement {
@@ -119,12 +126,12 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </Link>
-          <input
-            type="date"
+          <DatePicker
             value={dateKey}
-            onChange={(e) => { if (e.target.value) router.push(`/doctor?date=${e.target.value}`); }}
-            aria-label={t('dayPick')}
-            className="h-7 rounded border border-border bg-bg-1 px-2 text-[12px] text-text-1 focus:outline-none focus:ring-1 focus:ring-violet [color-scheme:dark]"
+            onChange={(k) => router.push(k === todayKeyClient() ? '/doctor' : `/doctor?date=${k}`)}
+            accent="violet"
+            todayLabel={t('dayToday')}
+            todayKey={todayKeyClient()}
           />
           <Link
             href={`/doctor?date=${nextDate}`}

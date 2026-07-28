@@ -21,6 +21,7 @@ import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill }   from '@/components/ui-phoenix/status-pill';
 import { EmptyState }   from '@/components/ui-phoenix/empty-state';
+import { DatePicker }   from '@/components/ui-phoenix/date-picker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface AdmissionAppt {
@@ -256,7 +257,6 @@ export function AdmissionClient() {
     // YYYY-MM-DD in local timezone
     return now.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD
   });
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async (date?: string) => {
     setLoading(true);
@@ -333,21 +333,13 @@ export function AdmissionClient() {
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-              <button
-                type="button"
-                onClick={() => dateInputRef.current?.showPicker?.()}
-                className={`text-[11px] font-semibold px-1.5 min-w-[82px] text-center transition-colors ${isToday ? 'text-emerald' : 'text-text-1'}`}
-              >
-                {isToday ? t('today') : new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  value={selectedDate}
-                  onChange={e => e.target.value && setSelectedDate(e.target.value)}
-                  className="sr-only"
-                  tabIndex={-1}
-                />
-              </button>
+              <DatePicker
+                value={selectedDate}
+                onChange={(k) => setSelectedDate(k)}
+                accent="emerald"
+                todayLabel={t('today')}
+                className="[&>button]:border-0 [&>button]:bg-transparent [&>button]:h-6"
+              />
               <button
                 type="button"
                 onClick={() => shiftDate(1)}

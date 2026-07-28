@@ -49,3 +49,6 @@ export { FormField } from './form-field';
 
 export { InfoCard, InfoRow } from './info-card';
 export type { InfoCardProps } from './info-card';
+
+export { DatePicker } from './date-picker';
+export type { DatePickerProps } from './date-picker';

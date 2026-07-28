@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, Sun, Video, FileSignature, ExternalLink,
+  CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, RefreshCw, Sun, Video, FileSignature, ExternalLink,
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
 
@@ -28,6 +28,8 @@ export interface MyDayAppointment {
   checkedInAt: string | null;
   attendanceSignedAt: string | null;
   hasTriage: boolean;
+  /** Mini-resumen de vitales del triaje (null si no hay registro) */
+  triage: { systolic: number | null; diastolic: number | null; pulse: number | null; pain: number | null } | null;
   noteStatus: string | null; // DRAFT | SIGNED | null
   patientFirstName: string;
   patientLastName: string;
@@ -72,10 +74,23 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
   const [now, setNow] = React.useState(() => Date.now());
+  const [isRefreshing, startRefresh] = React.useTransition();
+  const [attending, setAttending] = React.useState(false);
+
   React.useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  // Sincronización en vivo con Day Admission: el check-in/triaje del asistente
+  // aparece solo — polling 30s (solo viendo HOY) + refresh al recuperar el foco.
+  React.useEffect(() => {
+    if (!isToday) return;
+    const id = setInterval(() => router.refresh(), 30_000);
+    const onFocus = (): void => router.refresh();
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); };
+  }, [isToday, router]);
 
   const sorted = [...appointments].sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor));
   const completed = sorted.filter(a => a.status === 'COMPLETED');
@@ -95,9 +110,30 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
 
   const queue = active.filter(a => a.id !== hero?.id);
   const minsTo = hero ? Math.round((new Date(hero.scheduledFor).getTime() - now) / 60_000) : 0;
-  const heroReady = !!hero && hero.hasTriage && !!hero.attendanceSignedAt;
+  // Regla de negocio (Erick 2026-07-28): listo para atender = check-in + triaje.
+  // Si el asistente ya lo pasó a sala (IN_PROGRESS), el doctor SIEMPRE puede atender —
+  // el wizard de admisión marca el paso de triaje por status, con o sin vitales.
+  // La firma de asistencia (B.14.1) aún no existe en el flujo → solo informativa.
+  const heroArrived = !!hero && (hero.status === 'CHECKED_IN' || hero.status === 'IN_PROGRESS');
+  const heroReady = !!hero && (hero.status === 'IN_PROGRESS' || (hero.status === 'CHECKED_IN' && hero.hasTriage));
   const noteHref = (apptId: string): string | null =>
     clinicalUrl ? `${clinicalUrl}/visit/${apptId}` : null;
+
+  // Atender: abre la nota y, si el paciente sigue en espera, lo pasa a sala
+  // (IN_PROGRESS) — el asistente lo ve como "With Dr." en Day Admission.
+  const handleAttend = async (): Promise<void> => {
+    if (!hero) return;
+    const href = noteHref(hero.id);
+    if (href) window.open(href, '_blank', 'noopener');
+    if (hero.status === 'CHECKED_IN') {
+      setAttending(true);
+      try {
+        await fetch(`/api/admin/admission/${hero.id}/admit`, { method: 'POST' });
+      } catch { /* el refresh mostrará el estado real */ }
+      setAttending(false);
+      router.refresh();
+    }
+  };
 
   const statusPill = (a: MyDayAppointment): React.ReactElement => {
     if (a.status === 'IN_PROGRESS') return <TagPill label={t('statusInProgress')} colorClass="bg-violet/15 text-violet border-violet/30" />;
@@ -120,6 +156,15 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
         />
         {/* Date navigator — mismo patrón que Day Admission, identidad violet */}
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => startRefresh(() => router.refresh())}
+            aria-label={t('refresh')}
+            title={t('refresh')}
+            className="w-9 h-9 rounded-md border border-border hover:bg-white/5 text-text-muted hover:text-text-1 flex items-center justify-center transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
           <div className="flex items-center gap-1 rounded-md border border-border bg-bg-2/40 h-9 px-1">
             <Link
               href={`/doctor?date=${prevDate}`}
@@ -192,27 +237,43 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
                 {hero.isOnline && <Video className="w-3.5 h-3.5 text-cyan" />}
               </div>
               <div className="text-[11px] text-text-muted mt-0.5 flex items-center gap-2 flex-wrap">
-                <span>{hero.hasTriage ? t('triageDone') : t('triagePendingShort')}</span>
+                <span className={hero.hasTriage ? 'text-emerald' : ''}>{hero.hasTriage ? t('triageDone') : t('triagePendingShort')}</span>
                 <span>·</span>
                 <span>{hero.attendanceSignedAt ? t('attendanceSigned') : t('attendancePending')}</span>
                 <span>·</span>
                 <span>{hero.clinicName}</span>
               </div>
+              {/* Mini-resumen del triaje — el doctor ve los vitales sin salir de Mi Día */}
+              {hero.hasTriage && hero.triage && (
+                <div className="flex items-center gap-3 mt-1.5 text-[11px] flex-wrap">
+                  {hero.triage.systolic != null && hero.triage.diastolic != null && (
+                    <span className="text-text-2"><b className="text-text-1">{t('vitBP')}</b> {hero.triage.systolic}/{hero.triage.diastolic}</span>
+                  )}
+                  {hero.triage.pulse != null && (
+                    <span className="text-text-2"><b className="text-text-1">{t('vitPulse')}</b> {hero.triage.pulse} bpm</span>
+                  )}
+                  {hero.triage.pain != null && (
+                    <span className={hero.triage.pain >= 7 ? 'text-amber font-semibold' : 'text-text-2'}>
+                      <b className={hero.triage.pain >= 7 ? 'text-amber' : 'text-text-1'}>{t('vitPain')}</b> {hero.triage.pain}/10
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           {heroReady && noteHref(hero.id) ? (
-            <a
-              href={noteHref(hero.id)!}
-              target="_blank"
-              rel="noreferrer"
-              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-bold w-full sm:w-auto"
+            <button
+              type="button"
+              onClick={() => void handleAttend()}
+              disabled={attending}
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-bold w-full sm:w-auto disabled:opacity-70"
               style={{ background: 'linear-gradient(135deg, #10B981, #14b8a6)', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}
             >
               {t('attendNow')} →
-            </a>
+            </button>
           ) : (
             <div className="shrink-0 rounded-lg border border-amber/30 bg-amber/10 px-4 py-2.5 text-[11px] text-amber max-w-[220px]">
-              {!hero.hasTriage ? t('guardrailTriage') : !hero.attendanceSignedAt ? t('guardrailAttendance') : t('guardrailNoClinical')}
+              {!heroArrived ? t('guardrailCheckin') : t('guardrailTriage')}
             </div>
           )}
         </div>

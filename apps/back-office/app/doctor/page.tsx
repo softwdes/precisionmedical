@@ -72,7 +72,7 @@ export default async function DoctorMyDayPage({
         patient: { select: { firstName: true, lastName: true } },
         case: { select: { caseCode: true } },
         clinic: { select: { name: true } },
-        triageRecord: { select: { id: true } },
+        triageRecord: { select: { id: true, systolicMmhg: true, diastolicMmhg: true, pulseBpm: true, painScale: true } },
         visitNote: { select: { status: true } },
       },
     }),
@@ -103,6 +103,14 @@ export default async function DoctorMyDayPage({
     checkedInAt: a.checkedInAt?.toISOString() ?? null,
     attendanceSignedAt: a.attendanceSignedAt?.toISOString() ?? null,
     hasTriage: !!a.triageRecord,
+    triage: a.triageRecord
+      ? {
+          systolic: a.triageRecord.systolicMmhg,
+          diastolic: a.triageRecord.diastolicMmhg,
+          pulse: a.triageRecord.pulseBpm,
+          pain: a.triageRecord.painScale,
+        }
+      : null,
     noteStatus: a.visitNote?.status ?? null,
     patientFirstName: decryptFieldOrOriginal(a.patient.firstName) ?? '',
     patientLastName: decryptFieldOrOriginal(a.patient.lastName) ?? '',

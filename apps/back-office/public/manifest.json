@@ -1,7 +1,7 @@
 {
-  "name": "Precision Medical — Clínica",
-  "short_name": "PM Clínica",
-  "description": "Sistema de gestión clínica Precision Medical",
+  "name": "Precision Medical — Clinical Management",
+  "short_name": "PM Clinical",
+  "description": "Precision Medical — Clinical management & operations platform",
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",

@@ -11,11 +11,11 @@ const font = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'LM v3 · Back Office',
-  description: 'Precision Medical — Back Office (Front Office + Edson + Brunella + Super Admin clínico)',
+  title: 'Precision Medical · Clinical Management',
+  description: 'Precision Medical — Clinical management & operations platform',
   manifest: '/manifest.json',
   robots: 'noindex,nofollow',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'PM Clínica' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'PM Clinical' },
   other: { 'mobile-web-app-capable': 'yes' },
   icons: {
     apple: [

@@ -21,7 +21,6 @@ export default async function SettingsPage() {
     diagnosisTotal,
     diagnosisPiRelevant,
     diagnosisWithSnomed,
-    templates,
     auditTotal,
     auditToday,
     auditHuman,
@@ -69,14 +68,6 @@ export default async function SettingsPage() {
     db.diagnosis.count(),
     db.diagnosis.count({ where: { piRelevant: true } }),
     db.diagnosis.count({ where: { snomedCode: { not: null } } }),
-    db.template.findMany({
-      where: { deletedAt: null },
-      include: {
-        sections: { orderBy: { orderIndex: 'asc' } },
-        _count: { select: { visitNotes: true, favorites: true } },
-      },
-      orderBy: [{ isActive: 'desc' }, { usageCount: 'desc' }, { title: 'asc' }],
-    }),
     db.auditLog.count(),
     db.auditLog.count({ where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
     db.auditLog.count({ where: { actorType: 'HUMAN_USER' } }),
@@ -196,35 +187,6 @@ export default async function SettingsPage() {
         favorites: diagnosisFavIds.size,
       }}
       diagnosisUserId={userId}
-      initialTemplates={templates.map((t) => ({
-        id:            t.id,
-        title:         t.title,
-        description:   t.description,
-        encounterType: t.encounterType,
-        caseType:      t.caseType,
-        scope:         t.scope,
-        specialty:     t.specialty,
-        isActive:      t.isActive,
-        usageCount:    t.usageCount,
-        sections:      t.sections.map((s) => ({
-          id:               s.id,
-          sectionKey:       s.sectionKey,
-          content:          s.content,
-          enabledByDefault: s.enabledByDefault,
-          orderIndex:       s.orderIndex,
-        })),
-        visitNoteCount: t._count.visitNotes,
-      }))}
-      templateStats={{
-        total:    templates.length,
-        active:   templates.filter((t) => t.isActive).length,
-        shared:   templates.filter((t) => t.scope === 'SHARED').length,
-        personal: templates.filter((t) => t.scope === 'PERSONAL').length,
-        byEncounter: templates.reduce((acc, t) => {
-          acc[t.encounterType] = (acc[t.encounterType] ?? 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
-      }}
       auditKpis={{ total: auditTotal, todayCount: auditToday, humanCount: auditHuman, systemCount: auditSystem }}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       initialAuditLogs={auditLogs.map((l) => ({ ...l, createdAt: l.createdAt.toISOString() })) as any}

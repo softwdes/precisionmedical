@@ -19,7 +19,6 @@ import { ServicesClient }    from '@/app/(admin)/admin/services/services-client'
 import { DiagnosesClient }   from '@/app/(admin)/admin/diagnoses/diagnoses-client';
 import { AuditLogsClient }  from '@/app/(admin)/audit-logs/audit-logs-client';
 import { ProvidersClient }  from '@/app/(admin)/admin/providers/providers-client';
-import { TemplatesClient }  from '@/app/(admin)/admin/templates/templates-client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Clinic {
@@ -28,7 +27,9 @@ interface Clinic {
   appointmentCount: number;
 }
 
-type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'servicios' | 'diagnosticos' | 'plantillas' | 'auditlog';
+// Nota: el tab 'plantillas' se retiró — las plantillas clínicas se gestionan
+// en el portal del doctor (/doctor/templates), con editor rich text y diagnósticos.
+type Tab = 'clinicas' | 'especialidades' | 'doctores' | 'bufetes' | 'aseguradoras' | 'servicios' | 'diagnosticos' | 'auditlog';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
   { id: 'clinicas',       label: 'Clínicas',       icon: Building2   },
@@ -38,7 +39,6 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
   { id: 'aseguradoras',   label: 'Aseguradoras',    icon: ShieldCheck },
   { id: 'servicios',      label: 'Servicios CPT',   icon: DollarSign  },
   { id: 'diagnosticos',   label: 'Diagnósticos',    icon: FileText    },
-  { id: 'plantillas',     label: 'Plantillas',      icon: ClipboardList },
   { id: 'auditlog',       label: 'Audit Log',       icon: Shield      },
 ];
 
@@ -56,8 +56,6 @@ interface Props {
   diagnosisUserId?:   string;
   initialProviders:   React.ComponentProps<typeof ProvidersClient>['providers'];
   providerStats:      React.ComponentProps<typeof ProvidersClient>['stats'];
-  initialTemplates:   React.ComponentProps<typeof TemplatesClient>['templates'];
-  templateStats:      React.ComponentProps<typeof TemplatesClient>['stats'];
   auditKpis:          React.ComponentProps<typeof AuditLogsClient>['kpis'];
   initialAuditLogs:   React.ComponentProps<typeof AuditLogsClient>['initialLogs'];
 }
@@ -84,7 +82,6 @@ export function SettingsClient({
   initialServices,    serviceStats,
   diagnosisStats,     diagnosisUserId,
   initialProviders,   providerStats,
-  initialTemplates,   templateStats,
   auditKpis,          initialAuditLogs,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('clinicas');
@@ -291,7 +288,6 @@ export function SettingsClient({
       {activeTab === 'aseguradoras'   && <InsurancesClient insurances={initialInsurances} stats={insuranceStats} />}
       {activeTab === 'servicios'      && <ServicesClient services={initialServices} stats={serviceStats} />}
       {activeTab === 'diagnosticos'   && <DiagnosesClient stats={diagnosisStats} userId={diagnosisUserId} />}
-      {activeTab === 'plantillas'     && <TemplatesClient templates={initialTemplates} stats={templateStats} />}
       {activeTab === 'auditlog'       && <AuditLogsClient kpis={auditKpis} initialLogs={initialAuditLogs} />}
 
       {/* ── Clinic form dialog (shared for create + edit) ── */}

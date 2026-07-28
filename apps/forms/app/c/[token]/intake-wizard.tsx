@@ -871,14 +871,18 @@ function displayToISO(display: string): string {
 // Input de fecha siempre MM/DD/YYYY sin importar el locale del dispositivo.
 // value/onChange usan YYYY-MM-DD (compatible con el estado existente).
 function DateInputMDY({
-  value, onChange, style, placeholder = 'MM/DD/YYYY',
+  value, onChange, style, placeholder = 'MM/DD/YYYY', min, max, ariaLabel = 'Calendar',
 }: {
   value: string;
   onChange: (iso: string) => void;
   style?: React.CSSProperties;
   placeholder?: string;
+  min?: string;
+  max?: string;
+  ariaLabel?: string;
 }) {
   const [display, setDisplay] = React.useState(() => isoToDisplay(value));
+  const pickerRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => { setDisplay(isoToDisplay(value)); }, [value]);
 
@@ -899,17 +903,72 @@ function DateInputMDY({
     else setDisplay(isoToDisplay(value)); // reset si inválido
   }
 
+  // Abre el calendario nativo. El valor que devuelve es siempre YYYY-MM-DD,
+  // asi que el locale del dispositivo no afecta el dato — solo el texto
+  // visible se mantiene en MM/DD/YYYY.
+  function openPicker() {
+    const el = pickerRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
+    if (!el) return;
+    try {
+      if (typeof el.showPicker === 'function') el.showPicker();
+      else el.click();
+    } catch { /* navegador sin soporte — el campo de texto sigue funcionando */ }
+  }
+
   return (
-    <input
-      type="text"
-      inputMode="numeric"
-      placeholder={placeholder}
-      value={display}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      style={style}
-      maxLength={10}
-    />
+    <div style={{ position: 'relative', width: '100%' }}>
+      <input
+        type="text"
+        inputMode="numeric"
+        placeholder={placeholder}
+        value={display}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        style={{ ...style, paddingRight: 40 }}
+        maxLength={10}
+      />
+
+      <button
+        type="button"
+        onClick={openPicker}
+        aria-label={ariaLabel}
+        title={ariaLabel}
+        style={{
+          position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 32, height: 32, padding: 0,
+          background: 'transparent', border: 'none', borderRadius: 8,
+          color: 'rgba(255,255,255,0.45)', cursor: 'pointer',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.color = CYAN; }}
+        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
+      >
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+      </button>
+
+      {/* Input nativo de 1px — solo existe para que showPicker() ancle el
+          calendario debajo del campo. No recibe clicks ni foco. */}
+      <input
+        ref={pickerRef}
+        type="date"
+        value={value}
+        min={min}
+        max={max}
+        onChange={e => onChange(e.target.value)}
+        tabIndex={-1}
+        aria-hidden="true"
+        style={{
+          position: 'absolute', right: 10, bottom: 0,
+          width: 1, height: 1, opacity: 0,
+          border: 'none', padding: 0, pointerEvents: 'none',
+          colorScheme: 'dark',
+        }}
+      />
+    </div>
   );
 }
 
@@ -972,14 +1031,6 @@ export function IntakeWizard({
   const [step, setStep]           = useState<Step>(1);
   const [lang, setLang]           = useState<Lang>('en');
   const [langChosen, setLangChosen] = useState(false);
-  const [isWide, setIsWide]       = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsWide(window.innerWidth >= 960);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
   const [saving, setSaving]       = useState(false);
   const [saveError, setSaveError] = useState('');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -1655,6 +1706,8 @@ export function IntakeWizard({
 
   // ── Derived values ──────────────────────────────────────────────────────────
   const t             = STRINGS[lang];
+  const todayISO      = new Date().toISOString().slice(0, 10);
+  const calendarLabel = lang === 'es' ? 'Abrir calendario' : 'Open calendar';
   const totalSteps    = 10;
   const progressSteps = Math.min(step, totalSteps);
   const savedLabel    = lastSaved ? t.savedAt(getSavedLabel(lastSaved, lang)) : null;
@@ -1891,12 +1944,9 @@ export function IntakeWizard({
           <div style={{ paddingTop: 28 }}>
             <StepHeader icon="👤" title={t.personalTitle} sub={t.personalSub} />
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isWide ? '1fr 1fr' : '1fr',
-              gap: 16,
-              alignItems: 'start',
-            }}>
+            {/* Columna unica — el contenedor del wizard es de 480px, partirlo en
+                dos columnas aprieta los campos a ~95px y corta el texto. */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
               {/* ── Sección 1: Información personal ── */}
               <FormSection
@@ -1919,6 +1969,7 @@ export function IntakeWizard({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.dob} error={dobError}>
                     <DateInputMDY style={S.input} value={personal.dateOfBirth}
+                      max={todayISO} ariaLabel={calendarLabel}
                       onChange={v => setPersonal(p => ({ ...p, dateOfBirth: v }))} />
                   </Field>
                   <Field label={t.phone}>
@@ -2109,8 +2160,9 @@ export function IntakeWizard({
                   </Field>
                 </div>
 
-                {/* Sexo + Idioma preferido + Estado civil */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                {/* Sexo + Estado civil — 2 columnas: a 3 el contenedor de 480px
+                    deja ~140px por celda, los labels envuelven y descuadran. */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.sexLabel}>
                     <select style={{ ...S.input, backgroundColor: '#1a2236', color: personal.sex ? '#fff' : 'rgba(255,255,255,0.35)' }}
                       value={personal.sex} onChange={e => setPersonal(p => ({ ...p, sex: e.target.value }))}>
@@ -2120,13 +2172,6 @@ export function IntakeWizard({
                       <option value="NON_BINARY">{lang === 'es' ? 'No binario' : 'Non-binary'}</option>
                       <option value="OTHER">{lang === 'es' ? 'Otro' : 'Other'}</option>
                       <option value="PREFER_NOT_TO_SAY">{lang === 'es' ? 'Prefiero no decir' : 'Prefer not to say'}</option>
-                    </select>
-                  </Field>
-                  <Field label={t.preferredLangLabel}>
-                    <select style={{ ...S.input, backgroundColor: '#1a2236' }}
-                      value={lang} onChange={e => setLang(e.target.value as Lang)}>
-                      <option value="es">Español</option>
-                      <option value="en">English</option>
                     </select>
                   </Field>
                   <Field label={t.maritalStatusLabel}>
@@ -2142,6 +2187,16 @@ export function IntakeWizard({
                     </select>
                   </Field>
                 </div>
+
+                {/* Idioma preferido — ancho completo: el label es largo en ambos
+                    idiomas y era el que rompia la fila de 3. */}
+                <Field label={t.preferredLangLabel}>
+                  <select style={{ ...S.input, backgroundColor: '#1a2236' }}
+                    value={lang} onChange={e => setLang(e.target.value as Lang)}>
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                  </select>
+                </Field>
               </FormSection>
 
               {/* ── Sección 2: Contactos de emergencia ── */}
@@ -2151,64 +2206,69 @@ export function IntakeWizard({
                 accent="rgba(99,102,241,0.08)"
                 accentBorder="rgba(99,102,241,0.20)"
               >
-                {/* Contacto 1 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                {/* Contacto 1 — nombre a ancho completo: a 3 columnas quedaba en
+                    ~140px y se cortaba ("E.g., Maria Gar…"). */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <Field label={t.emergencyName}>
                     <input type="text" style={S.input} value={personal.emergencyContactName}
                       placeholder={t.emergencyNamePh}
                       onChange={e => setPersonal(p => ({ ...p, emergencyContactName: e.target.value }))} />
                   </Field>
-                  <Field label={t.emergencyPhone}>
-                    <input type="tel" style={{ ...S.input, ...(emerPhoneError ? { borderColor: '#F43F5E' } : {}) }}
-                      value={personal.emergencyContactPhone} placeholder={t.emergencyPhonePh}
-                      onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: formatPhone(e.target.value) })); setEmerPhoneError(''); }} />
-                    {emerPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emerPhoneError}</span>}
-                  </Field>
-                  <Field label={t.emergencyRelation} error={emerRelOtherError}>
-                    <select
-                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.emergencyContactRelation ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.emergencyContactRelation}
-                      onChange={e => setPersonal(p => ({ ...p, emergencyContactRelation: e.target.value, emergencyContactRelationOther: '' }))}
-                    >
-                      {(lang === 'es' ? RELATION_OPTIONS_ES : RELATION_OPTIONS_EN).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                    {personal.emergencyContactRelation === 'OTHER' && (
-                      <input type="text" style={{ ...S.input, marginTop: 8 }}
-                        placeholder={lang === 'es' ? 'Especifica la relación…' : 'Specify relationship…'}
-                        value={personal.emergencyContactRelationOther}
-                        onChange={e => setPersonal(p => ({ ...p, emergencyContactRelationOther: e.target.value }))} />
-                    )}
-                  </Field>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.emergencyPhone}>
+                      <input type="tel" style={{ ...S.input, ...(emerPhoneError ? { borderColor: '#F43F5E' } : {}) }}
+                        value={personal.emergencyContactPhone} placeholder={t.emergencyPhonePh}
+                        onChange={e => { setPersonal(p => ({ ...p, emergencyContactPhone: formatPhone(e.target.value) })); setEmerPhoneError(''); }} />
+                      {emerPhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emerPhoneError}</span>}
+                    </Field>
+                    <Field label={t.emergencyRelation} error={emerRelOtherError}>
+                      <select
+                        style={{ ...S.input, backgroundColor: '#1a2236', color: personal.emergencyContactRelation ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                        value={personal.emergencyContactRelation}
+                        onChange={e => setPersonal(p => ({ ...p, emergencyContactRelation: e.target.value, emergencyContactRelationOther: '' }))}
+                      >
+                        {(lang === 'es' ? RELATION_OPTIONS_ES : RELATION_OPTIONS_EN).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                      {personal.emergencyContactRelation === 'OTHER' && (
+                        <input type="text" style={{ ...S.input, marginTop: 8 }}
+                          placeholder={lang === 'es' ? 'Especifica la relación…' : 'Specify relationship…'}
+                          value={personal.emergencyContactRelationOther}
+                          onChange={e => setPersonal(p => ({ ...p, emergencyContactRelationOther: e.target.value }))} />
+                      )}
+                    </Field>
+                  </div>
                 </div>
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '2px 0' }} />
-                {/* Contacto 2 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                {/* Contacto 2 — mismo criterio que el contacto 1 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <Field label={t.emergency2Name}>
                     <input type="text" style={S.input} value={personal.emergency2Name}
                       placeholder={t.emergency2NamePh}
                       onChange={e => setPersonal(p => ({ ...p, emergency2Name: e.target.value }))} />
                   </Field>
-                  <Field label={t.emergency2Phone}>
-                    <input type="tel" style={{ ...S.input, ...(emer2PhoneError ? { borderColor: '#F43F5E' } : {}) }}
-                      value={personal.emergency2Phone} placeholder={t.emergency2PhonePh}
-                      onChange={e => { setPersonal(p => ({ ...p, emergency2Phone: formatPhone(e.target.value) })); setEmer2PhoneError(''); }} />
-                    {emer2PhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emer2PhoneError}</span>}
-                  </Field>
-                  <Field label={t.emergency2Relation} error={emer2RelOtherError}>
-                    <select
-                      style={{ ...S.input, backgroundColor: '#1a2236', color: personal.emergency2Relation ? '#fff' : 'rgba(255,255,255,0.35)' }}
-                      value={personal.emergency2Relation}
-                      onChange={e => setPersonal(p => ({ ...p, emergency2Relation: e.target.value, emergency2RelationOther: '' }))}
-                    >
-                      {(lang === 'es' ? RELATION_OPTIONS_ES : RELATION_OPTIONS_EN).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                    {personal.emergency2Relation === 'OTHER' && (
-                      <input type="text" style={{ ...S.input, marginTop: 8 }}
-                        placeholder={lang === 'es' ? 'Especifica la relación…' : 'Specify relationship…'}
-                        value={personal.emergency2RelationOther}
-                        onChange={e => setPersonal(p => ({ ...p, emergency2RelationOther: e.target.value }))} />
-                    )}
-                  </Field>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <Field label={t.emergency2Phone}>
+                      <input type="tel" style={{ ...S.input, ...(emer2PhoneError ? { borderColor: '#F43F5E' } : {}) }}
+                        value={personal.emergency2Phone} placeholder={t.emergency2PhonePh}
+                        onChange={e => { setPersonal(p => ({ ...p, emergency2Phone: formatPhone(e.target.value) })); setEmer2PhoneError(''); }} />
+                      {emer2PhoneError && <span style={{ fontSize: 11, color: '#F43F5E', marginTop: 4, display: 'block' }}>{emer2PhoneError}</span>}
+                    </Field>
+                    <Field label={t.emergency2Relation} error={emer2RelOtherError}>
+                      <select
+                        style={{ ...S.input, backgroundColor: '#1a2236', color: personal.emergency2Relation ? '#fff' : 'rgba(255,255,255,0.35)' }}
+                        value={personal.emergency2Relation}
+                        onChange={e => setPersonal(p => ({ ...p, emergency2Relation: e.target.value, emergency2RelationOther: '' }))}
+                      >
+                        {(lang === 'es' ? RELATION_OPTIONS_ES : RELATION_OPTIONS_EN).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                      {personal.emergency2Relation === 'OTHER' && (
+                        <input type="text" style={{ ...S.input, marginTop: 8 }}
+                          placeholder={lang === 'es' ? 'Especifica la relación…' : 'Specify relationship…'}
+                          value={personal.emergency2RelationOther}
+                          onChange={e => setPersonal(p => ({ ...p, emergency2RelationOther: e.target.value }))} />
+                      )}
+                    </Field>
+                  </div>
                 </div>
               </FormSection>
 
@@ -2277,6 +2337,7 @@ export function IntakeWizard({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <Field label={t.guardianDOB}>
                     <DateInputMDY style={S.input} value={personal.guardianDOB}
+                      max={todayISO} ariaLabel={calendarLabel}
                       onChange={v => setPersonal(p => ({ ...p, guardianDOB: v }))} />
                   </Field>
                   <Field label={t.guardianPhone}>
@@ -2352,13 +2413,9 @@ export function IntakeWizard({
                     sub={lang === 'es' ? 'Describa correctamente la razón de su visita a la clínica.' : 'Describe correctly the reason for your visit to the clinic.'}
                   >
                     <Field label={t.accidentDate} error={accidentDateError}>
-                      <input
-                        type="date"
-                        style={{ ...S.input, colorScheme: 'dark' }}
-                        value={acc.date}
-                        max={new Date().toISOString().split('T')[0]}
-                        onChange={e => { setAcc(a => ({ ...a, date: e.target.value })); setAccidentDateError(''); }}
-                      />
+                      <DateInputMDY style={S.input} value={acc.date}
+                        max={todayISO} ariaLabel={calendarLabel}
+                        onChange={v => { setAcc(a => ({ ...a, date: v })); setAccidentDateError(''); }} />
                     </Field>
 
                     <Field label={t.accidentDesc}>
@@ -2554,6 +2611,7 @@ export function IntakeWizard({
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <Field label={t.insHolderDOB} error={insErrors.holderDOB}>
                       <DateInputMDY style={S.input} value={insModalEntry.holderDOB}
+                        max={todayISO} ariaLabel={calendarLabel}
                         onChange={v => { setInsModalEntry(e => ({ ...e, holderDOB: v })); setInsErrors(er => ({ ...er, holderDOB: '' })); }} />
                     </Field>
                     <Field label={t.insHolderRelation}>
@@ -2564,6 +2622,7 @@ export function IntakeWizard({
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <Field label={t.insEffectiveDate} error={insErrors.effectiveDate}>
                       <DateInputMDY style={S.input} value={insModalEntry.effectiveDate}
+                        ariaLabel={calendarLabel}
                         onChange={v => { setInsModalEntry(e => ({ ...e, effectiveDate: v })); setInsErrors(er => ({ ...er, effectiveDate: '' })); }} />
                     </Field>
                     <Field label={t.insCopay} error={insErrors.copay}>
@@ -2594,6 +2653,7 @@ export function IntakeWizard({
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <Field label={t.insLossDate} error={insErrors.lossDate}>
                       <DateInputMDY style={S.input} value={insModalEntry.lossDate}
+                        max={todayISO} ariaLabel={calendarLabel}
                         onChange={v => { setInsModalEntry(e => ({ ...e, lossDate: v })); setInsErrors(er => ({ ...er, lossDate: '' })); }} />
                     </Field>
                     <Field label={t.insPip}>
@@ -3404,13 +3464,16 @@ function StepHeader({ icon, title, sub }: { icon: string; title: string; sub: st
 
 function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <label style={{
         display: 'block', fontSize: 11, fontWeight: 700,
         letterSpacing: '0.10em', textTransform: 'uppercase',
         color: 'rgba(255,255,255,0.40)', marginBottom: 6,
       }}>{label}</label>
-      {children}
+      {/* marginTop:auto — si en una fila un label envuelve a 2 lineas, los
+          controles de las otras celdas bajan para alinearse con el en vez de
+          quedar desfasados. Sin efecto cuando el Field va solo. */}
+      <div style={{ marginTop: 'auto' }}>{children}</div>
       {error && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#f87171' }}>{error}</p>}
     </div>
   );

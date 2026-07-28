@@ -1402,6 +1402,8 @@
       "kpiDay": "Citas del día",
       "dayPrev": "Día anterior",
       "dayNext": "Día siguiente",
+      "dayPrevShort": "Ant.",
+      "dayNextShort": "Sig.",
       "dayPick": "Elegir fecha",
       "dayToday": "Hoy",
       "heroNext": "Siguiente paciente",

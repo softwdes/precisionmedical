@@ -1402,6 +1402,8 @@
       "kpiDay": "Appointments",
       "dayPrev": "Previous day",
       "dayNext": "Next day",
+      "dayPrevShort": "Prev",
+      "dayNextShort": "Next",
       "dayPick": "Pick a date",
       "dayToday": "Today",
       "heroNext": "Next patient",

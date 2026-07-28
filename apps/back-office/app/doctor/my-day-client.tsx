@@ -118,39 +118,42 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
           title={t('greeting', { name: doctorName })}
           subtitle={t('myDaySubtitle', { count: active.length + completed.length })}
         />
+        {/* Date navigator — mismo patrón que Day Admission, identidad violet */}
         <div className="flex items-center gap-2 flex-wrap">
-        <Link
-          href={`/doctor?date=${prevDate}`}
-          aria-label={t('dayPrev')}
-          className="w-10 h-10 rounded-lg border border-border bg-bg-1 hover:bg-white/5 text-text-1 flex items-center justify-center transition-colors shrink-0"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </Link>
-        <DatePicker
-          value={dateKey}
-          onChange={(k) => router.push(k === todayKeyClient() ? '/doctor' : `/doctor?date=${k}`)}
-          accent="violet"
-          size="lg"
-          labelFormat="long"
-          todayLabel={t('dayToday')}
-          todayKey={todayKeyClient()}
-        />
-        <Link
-          href={`/doctor?date=${nextDate}`}
-          aria-label={t('dayNext')}
-          className="w-10 h-10 rounded-lg border border-border bg-bg-1 hover:bg-white/5 text-text-1 flex items-center justify-center transition-colors shrink-0"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </Link>
-        {!isToday && (
-          <Link
-            href="/doctor"
-            className="h-10 px-4 rounded-lg text-sm font-bold text-white flex items-center transition-opacity hover:opacity-90 shrink-0"
-            style={{ background: 'linear-gradient(135deg,#7C3AED,#A78BFA)', boxShadow: '0 4px 14px rgba(139,92,246,0.35)' }}
-          >
-            {t('dayToday')}
-          </Link>
-        )}
+          <div className="flex items-center gap-1 rounded-md border border-border bg-bg-2/40 h-9 px-1">
+            <Link
+              href={`/doctor?date=${prevDate}`}
+              aria-label={t('dayPrev')}
+              className="flex items-center gap-1 px-2 h-7 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors text-xs font-medium"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t('dayPrevShort')}</span>
+            </Link>
+            <DatePicker
+              value={dateKey}
+              onChange={(k) => router.push(k === todayKeyClient() ? '/doctor' : `/doctor?date=${k}`)}
+              accent="violet"
+              todayLabel={t('dayToday')}
+              todayKey={todayKeyClient()}
+              className="[&>button]:border-0 [&>button]:bg-transparent [&>button]:h-7 [&>button]:text-sm [&>button]:font-semibold"
+            />
+            <Link
+              href={`/doctor?date=${nextDate}`}
+              aria-label={t('dayNext')}
+              className="flex items-center gap-1 px-2 h-7 rounded hover:bg-bg-2 text-text-muted hover:text-text-1 transition-colors text-xs font-medium"
+            >
+              <span className="hidden sm:inline">{t('dayNextShort')}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          {!isToday && (
+            <Link
+              href="/doctor"
+              className="h-9 px-3 rounded-md border border-violet/40 text-violet text-xs font-semibold hover:bg-violet/10 transition-colors flex items-center"
+            >
+              {t('dayToday')}
+            </Link>
+          )}
         </div>
       </div>
 

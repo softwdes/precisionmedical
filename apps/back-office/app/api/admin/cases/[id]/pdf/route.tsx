@@ -433,7 +433,7 @@ async function buildPDF(data: {
           <Text style={s.consentBody}>{CONSENT_TEXTS.c1Body}</Text>
           <View style={s.consentCheck}>
             <Chk checked={!!cd?.hipaa} />
-            <Text style={s.consentCheckText}>[{cd?.hipaa ? 'X' : ' '}] I accept all the terms of this consent</Text>
+            <Text style={s.consentCheckText}>I accept all the terms of this consent</Text>
           </View>
         </View>
 

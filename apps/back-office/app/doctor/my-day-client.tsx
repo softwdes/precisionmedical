@@ -116,8 +116,9 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
         subtitle={t('myDaySubtitle', { count: active.length + completed.length })}
       />
 
-      {/* Barra de fecha — prominente y táctil (iPad): la fecha completa abre el calendario */}
-      <div className="rounded-xl border border-violet/25 bg-violet/[0.06] px-3 py-2 flex items-center justify-center gap-2 flex-wrap">
+      {/* Barra de fecha — prominente y táctil (iPad): la fecha completa abre el calendario.
+          Sección sin borde (estándar del sistema) — solo fondo suave violet. */}
+      <div className="rounded-xl bg-violet/[0.06] px-3 py-2 flex items-center justify-center gap-2 flex-wrap">
         <Link
           href={`/doctor?date=${prevDate}`}
           aria-label={t('dayPrev')}

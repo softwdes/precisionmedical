@@ -11,12 +11,14 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, Check, ClipboardList, FlaskConical, FileText, Pill, Briefcase,
   HeartPulse, Video,
 } from 'lucide-react';
 import { PageHeader, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
+import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -54,6 +56,8 @@ export interface ConsultationAppointment {
     pip: boolean;
     insuranceName: string | null;
   };
+  /** Payload del panel de servicios compartido con Day Admission */
+  servicesPanel: React.ComponentProps<typeof AppointmentDetailPanel>['appointment'];
   patient: {
     firstName: string;
     lastName: string;
@@ -64,8 +68,9 @@ export interface ConsultationAppointment {
   triage: ConsultationTriage | null;
 }
 
-type Tab = 'notes' | 'labs' | 'rx';
-type StepView = 1 | 2 | 3 | 4;
+type Tab = 'notes' | 'labs' | 'rx' | 'services';
+/** El doctor no ve pagos: su flujo termina en el nodo 3 (En sala) */
+type StepView = 1 | 2 | 3;
 
 function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', {
@@ -118,6 +123,7 @@ function ReadingDivider({ label }: { label: string }): React.ReactElement {
 
 export function ConsultationClient({ appointment: a }: { appointment: ConsultationAppointment }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const router = useRouter();
 
   const hasTriage = !!a.triage;
   const isInRoom = a.status === 'IN_PROGRESS';
@@ -126,25 +132,25 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
   const tr = a.triage;
 
   // Paso actual del flujo (mismo criterio que Day Admission)
-  const currentStep = (isCompleted ? 4 : isInRoom ? 3 : hasTriage ? 3 : 2) as StepView;
+  const currentStep = (isInRoom || isCompleted || hasTriage ? 3 : 2) as StepView;
   // Navegación libre entre nodos — arranca en el paso actual
   const [view, setView] = React.useState<StepView>(currentStep);
   const [tab, setTab] = React.useState<Tab>('notes');
   const isCurrent = (n: StepView): boolean => n === currentStep;
 
-  // Nodos de flujo — mismos 4 pasos que Day Admission, punto de vista del doctor
+  // Nodos del flujo del doctor — 3 pasos (el cobro es del asistente, no se muestra)
   const steps: Array<{ n: StepView; label: string; desc: string; done: boolean; current: boolean }> = [
-    { n: 1, label: t('stepCheckin'),  desc: t('stepCheckinDesc'),  done: !!a.checkedInAt || isInRoom || isCompleted, current: isCurrent(1) },
-    { n: 2, label: t('stepTriage'),   desc: t('stepTriageDesc'),   done: hasTriage || isInRoom || isCompleted,      current: isCurrent(2) },
-    { n: 3, label: t('stepDoctor'),   desc: t('stepDoctorDesc'),   done: isCompleted,                                current: isCurrent(3) },
-    { n: 4, label: t('stepServices'), desc: t('stepServicesDesc'), done: false,                                      current: isCurrent(4) },
+    { n: 1, label: t('stepCheckin'), desc: t('stepCheckinDesc'), done: !!a.checkedInAt || isInRoom || isCompleted, current: isCurrent(1) },
+    { n: 2, label: t('stepTriage'),  desc: t('stepTriageDesc'),  done: hasTriage || isInRoom || isCompleted,      current: isCurrent(2) },
+    { n: 3, label: t('stepDoctor'),  desc: t('stepDoctorDesc'),  done: isCompleted,                                current: isCurrent(3) },
   ];
 
-  // Tabs del área de trabajo del doctor (nodo 3)
+  // Tabs del área de trabajo del doctor (nodo 3) — Servicios a la derecha de Prescripción
   const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
-    { id: 'notes', label: t('tabNotes'), icon: FileText },
-    { id: 'labs',  label: t('tabLabs'),  icon: FlaskConical },
-    { id: 'rx',    label: t('tabRx'),    icon: Pill },
+    { id: 'notes',    label: t('tabNotes'),    icon: FileText },
+    { id: 'labs',     label: t('tabLabs'),     icon: FlaskConical },
+    { id: 'rx',       label: t('tabRx'),       icon: Pill },
+    { id: 'services', label: t('tabServices'), icon: Briefcase },
   ];
 
   return (
@@ -383,12 +389,20 @@ export function ConsultationClient({ appointment: a }: { appointment: Consultati
           {tab === 'rx' && (
             <EmptyState.Rich icon={Pill} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
           )}
+          {/* Servicios — mismo panel de Day Admission, SIN botón de pagos
+              (el cobro lo hace el asistente en su lado) */}
+          {tab === 'services' && (
+            <AppointmentDetailPanel
+              inline
+              noBorder
+              hidePayments
+              initialTab="services"
+              appointment={a.servicesPanel}
+              onClose={() => {}}
+              onRefresh={() => router.refresh()}
+            />
+          )}
         </div>
-      )}
-
-      {/* ── Nodo 4: Servicios y pagos (post-consulta) ── */}
-      {view === 4 && (
-        <EmptyState.Rich icon={Briefcase} title={t('comingSoonTitle')} subtitle={t('servicesSoon')} />
       )}
     </div>
   );

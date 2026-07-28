@@ -37,17 +37,20 @@ export default async function DoctorConsultationPage({
       meetingUrl: true,
       checkedInAt: true,
       attendanceSignedAt: true,
+      notes: true,
+      plannedServiceCodes: true,
       patient: {
-        select: { id: true, firstName: true, lastName: true, dateOfBirth: true, sex: true, phone: true },
+        select: { id: true, firstName: true, lastName: true, dateOfBirth: true, sex: true, phone: true, email: true },
       },
       case: {
         select: {
-          id: true, caseCode: true, caseType: true,
+          id: true, caseCode: true, caseType: true, accidentType: true, accidentDate: true,
           pipVerifiedAt: true, intakeFormCompletedAt: true, consentsData: true,
-          primaryInsurance: { select: { name: true } },
+          primaryInsurance: { select: { id: true, name: true } },
         },
       },
-      clinic: { select: { name: true } },
+      provider: { select: { id: true, firstName: true, lastName: true, specialty: true } },
+      clinic: { select: { id: true, name: true } },
       triageRecord: true,
       visitNote: { select: { status: true } },
     },
@@ -82,6 +85,41 @@ export default async function DoctorConsultationPage({
         clinicName: a.clinic.name,
         caseCode: a.case?.caseCode ?? null,
         verification,
+        // Payload para el panel de servicios compartido (mismo de Day Admission)
+        servicesPanel: {
+          id: a.id,
+          scheduledFor: a.scheduledFor.toISOString(),
+          durationMinutes: a.durationMinutes,
+          type: a.type,
+          status: a.status,
+          notes: a.notes,
+          visitNumber: 0,
+          plannedServiceCodes: (a.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string; fee: number; category: string }>,
+          patient: {
+            id: a.patient.id,
+            firstName: dec(a.patient.firstName) ?? '',
+            lastName: dec(a.patient.lastName) ?? '',
+            phone: dec(a.patient.phone) ?? null,
+            email: a.patient.email ?? null,
+            dateOfBirth: a.patient.dateOfBirth?.toISOString() ?? null,
+          },
+          case: a.case
+            ? {
+                id: a.case.id,
+                caseCode: a.case.caseCode,
+                accidentType: a.case.accidentType ?? null,
+                accidentDate: a.case.accidentDate?.toISOString() ?? null,
+                status: 'ACTIVE',
+                intakeFormCompletedAt: a.case.intakeFormCompletedAt?.toISOString() ?? null,
+                attorney: null,
+                primaryInsurance: a.case.primaryInsurance ?? null,
+              }
+            : null,
+          clinic: { id: a.clinic.id, name: a.clinic.name },
+          provider: a.provider
+            ? { id: a.provider.id, firstName: a.provider.firstName, lastName: a.provider.lastName, specialty: a.provider.specialty ?? null }
+            : null,
+        },
         patient: {
           firstName: dec(a.patient.firstName) ?? '',
           lastName: dec(a.patient.lastName) ?? '',

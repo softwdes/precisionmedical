@@ -75,6 +75,11 @@ interface Props {
   inline?: boolean;
   noBorder?: boolean;
   billingTotal?: number;
+  /**
+   * Portal médico: el doctor ordena servicios pero NO cobra — oculta el botón
+   * "Pagar deuda" y su modal. El cobro lo hace el asistente en Day Admission.
+   */
+  hidePayments?: boolean;
 }
 
 type Tab = 'detail' | 'services';
@@ -144,7 +149,7 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
   const locale = useLocale();
@@ -491,7 +496,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   {savingSvc && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
                   {savedOk   && <span className="text-[10px] text-emerald">{t('savedOk')}</span>}
                   <span className="text-sm font-bold text-cyan">{fmt$(billingTotal ?? svcTotal)}</span>
-                  {appt.case && (
+                  {appt.case && !hidePayments && (
                     <button
                       type="button"
                       onClick={() => {
@@ -616,7 +621,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           )}
 
           {/* FinanzasTab oculto — expone modal "Pagar deuda" al botón del header */}
-          {appt.case && (
+          {appt.case && !hidePayments && (
             <div className="h-0 overflow-hidden">
               <FinanzasTab ref={finanzasRef} caseId={appt.case.id} />
             </div>

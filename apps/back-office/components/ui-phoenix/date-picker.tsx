@@ -94,12 +94,16 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
     return { key: keyOf(d.getFullYear(), d.getMonth(), d.getDate()), day: d.getDate(), inMonth: d.getMonth() === view.m };
   });
 
-  const triggerLabel = new Intl.DateTimeFormat(
-    locale,
-    labelFormat === 'long'
-      ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
-      : { day: 'numeric', month: 'short', year: 'numeric' },
-  ).format(new Date(`${value}T12:00:00`));
+  // Viendo el día actual → label "Hoy/Today" en el color del módulo (patrón Day Admission)
+  const isTodayValue = value === today;
+  const triggerLabel = isTodayValue
+    ? todayLabel
+    : new Intl.DateTimeFormat(
+        locale,
+        labelFormat === 'long'
+          ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
+          : { day: 'numeric', month: 'short', year: 'numeric' },
+      ).format(new Date(`${value}T12:00:00`));
 
   const pick = (k: string): void => { onChange(k); setOpen(false); };
 
@@ -110,8 +114,8 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
         onClick={() => setOpen(o => !o)}
         className={
           size === 'lg'
-            ? 'h-10 rounded-lg border border-border bg-bg-1 px-4 text-sm font-semibold text-text-1 hover:bg-white/5 transition-colors flex items-center gap-2 capitalize'
-            : 'h-7 rounded border border-border bg-bg-1 px-2.5 text-[12px] text-text-1 hover:bg-white/5 transition-colors flex items-center gap-1.5'
+            ? `h-10 rounded-lg border border-border bg-bg-1 px-4 text-sm font-semibold hover:bg-white/5 transition-colors flex items-center gap-2 capitalize ${isTodayValue ? a.text : 'text-text-1'}`
+            : `h-7 rounded border border-border bg-bg-1 px-2.5 text-[12px] hover:bg-white/5 transition-colors flex items-center gap-1.5 ${isTodayValue ? `${a.text} font-semibold` : 'text-text-1'}`
         }
       >
         <CalendarDays className={`${size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} ${a.text}`} />

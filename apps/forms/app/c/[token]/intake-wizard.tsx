@@ -1680,18 +1680,25 @@ export function IntakeWizard({
   };
 
   const submitSignature = async () => {
-    if (!hasSig || !signerName.trim() || !agreed) return;
+    // Los casos que no son MVA no llevan lien: se cierra el intake sin firma.
+    const needsLien = acc.type === 'MVA';
+    if (needsLien && (!hasSig || !signerName.trim() || !agreed)) return;
     setSubmitting(true);
     setSaveError('');
     try {
       const canvas  = canvasRef.current;
-      const svgData = lienSigDataUrl || (canvas ? canvas.toDataURL('image/png') : '');
+      const svgData = needsLien
+        ? (lienSigDataUrl || (canvas ? canvas.toDataURL('image/png') : ''))
+        : null;
       const res = await fetch(`/api/intake/${token}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          signerName:   signerName.trim(),
-          signerEmail:  signerEmail.trim() || null,
+          // Sin lien igual se manda el nombre del paciente para el audit log.
+          signerName:   needsLien
+            ? signerName.trim()
+            : `${personal.firstName} ${personal.lastName}`.trim(),
+          signerEmail:  signerEmail.trim() || personal.email.trim() || null,
           signatureSvg: svgData,
         }),
       });
@@ -1708,6 +1715,10 @@ export function IntakeWizard({
   const t             = STRINGS[lang];
   const todayISO      = new Date().toISOString().slice(0, 10);
   const calendarLabel = lang === 'es' ? 'Abrir calendario' : 'Open calendar';
+  // Solo MVA lleva lien. Para GM el step 10 cierra el intake sin firma.
+  // El servidor vuelve a validar esto con el caseType de la DB — aca es solo
+  // para decidir que se muestra.
+  const requiresLien  = acc.type === 'MVA';
   const totalSteps    = 10;
   const progressSteps = Math.min(step, totalSteps);
   const savedLabel    = lastSaved ? t.savedAt(getSavedLabel(lastSaved, lang)) : null;
@@ -1911,10 +1922,11 @@ export function IntakeWizard({
               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.35)', marginBottom: 14 }}>
                 {t.todayStepsLabel}
               </div>
-              {t.todaySteps.map((item, i) => (
+              {/* El lien es el ultimo item — no se le promete a un caso GM */}
+              {(requiresLien ? t.todaySteps : t.todaySteps.slice(0, -1)).map((item, i, arr) => (
                 <div key={i} style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
-                  borderBottom: i < t.todaySteps.length - 1 ? `1px solid ${CARD_BORDER}` : 'none',
+                  borderBottom: i < arr.length - 1 ? `1px solid ${CARD_BORDER}` : 'none',
                 }}>
                   <div style={{
                     width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
@@ -3287,8 +3299,33 @@ export function IntakeWizard({
         {/* ══════ STEP 10 · Firma del Lien (B.8) ═══════════════════════════════ */}
         {step === 10 && (
           <div style={{ paddingTop: 28 }}>
-            <StepHeader icon="✍️" title={t.lienTitle} sub={t.lienSub} />
+            {requiresLien ? (
+              <StepHeader icon="✍️" title={t.lienTitle} sub={t.lienSub} />
+            ) : (
+              <StepHeader
+                icon="✅"
+                title={lang === 'es' ? 'Todo listo' : 'All set'}
+                sub={lang === 'es'
+                  ? 'Revisa que tus datos estén correctos y envía tu registro.'
+                  : 'Check that your information is correct and submit your registration.'}
+              />
+            )}
 
+            {/* GM — sin lien: solo confirmar y enviar */}
+            {!requiresLien && (
+              <div style={{ ...S.card, marginBottom: 20, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.20)' }}>
+                <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', color: EMERALD, marginBottom: 6, textTransform: 'uppercase' }}>
+                  {lang === 'es' ? 'Visita de medicina general' : 'General medical visit'}
+                </div>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.80)', lineHeight: 1.65 }}>
+                  {lang === 'es'
+                    ? 'Tu visita no requiere acuerdo de lien, así que no hay nada más que firmar. Al enviar, tu registro queda completo y la clínica lo recibe.'
+                    : 'Your visit does not require a lien agreement, so there is nothing left to sign. Once you submit, your registration is complete and the clinic receives it.'}
+                </div>
+              </div>
+            )}
+
+            {requiresLien && (<>
             {/* Plain language */}
             <div style={{ ...S.card, marginBottom: 14, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.20)' }}>
               <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.14em', color: EMERALD, marginBottom: 6, textTransform: 'uppercase' }}>
@@ -3397,25 +3434,35 @@ export function IntakeWizard({
                 style={{ width: 18, height: 18, marginTop: 2, accentColor: EMERALD, cursor: 'pointer', flexShrink: 0 }} />
               <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>{t.agreeCheckbox}</span>
             </label>
+            </>)}
 
             {saveError && <SaveError error={saveError} />}
-            <SifoHint hint={t.sifoHint10} />
+            {requiresLien && <SifoHint hint={t.sifoHint10} />}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 20 }}>
-              <button type="button" onClick={submitSignature}
-                disabled={!hasSig || !signerName.trim() || !agreed || submitting}
-                style={{
-                  ...S.btnEmerald,
-                  opacity: (!hasSig || !signerName.trim() || !agreed || submitting) ? 0.45 : 1,
-                  cursor: (!hasSig || !signerName.trim() || !agreed || submitting) ? 'not-allowed' : 'pointer',
-                }}>
-                {submitting ? t.signing : t.signBtn}
-              </button>
+              {(() => {
+                // Sin lien el envio no depende de firma ni checkbox.
+                const bloqueado = submitting || (requiresLien && (!hasSig || !signerName.trim() || !agreed));
+                return (
+                  <button type="button" onClick={submitSignature} disabled={bloqueado}
+                    style={{
+                      ...S.btnEmerald,
+                      opacity: bloqueado ? 0.45 : 1,
+                      cursor: bloqueado ? 'not-allowed' : 'pointer',
+                    }}>
+                    {submitting
+                      ? (requiresLien ? t.signing : (lang === 'es' ? 'Enviando…' : 'Submitting…'))
+                      : (requiresLien ? t.signBtn : (lang === 'es' ? 'Enviar registro →' : 'Submit registration →'))}
+                  </button>
+                );
+              })()}
               <button type="button" style={S.btnOutline} onClick={goBack}>{t.back}</button>
             </div>
-            <p style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.20)' }}>
-              {t.legalNote}
-            </p>
+            {requiresLien && (
+              <p style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.20)' }}>
+                {t.legalNote}
+              </p>
+            )}
           </div>
         )}
 

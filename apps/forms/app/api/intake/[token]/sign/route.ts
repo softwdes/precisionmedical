@@ -23,6 +23,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       id: true,
       caseCode: true,
       status: true,
+      caseType: true,
       intakeFormCompletedAt: true,
       patient: { select: { id: true, firstName: true, lastName: true } },
     },
@@ -38,7 +39,15 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     signatureSvg?: string;
   };
 
-  if (!body.signerName?.trim()) {
+  // Solo los casos MVA llevan lien. Para el resto (GENERAL/GM, etc.) el intake
+  // se cierra sin firma y NO se crea registro en lien_signatures — seria un
+  // documento legal inexistente.
+  //
+  // La decision se toma con el caseType de la DB, no con un flag del cliente:
+  // si viniera del body se podria saltar el lien de un MVA manipulando el POST.
+  const requiresLien = rec.caseType === 'MVA';
+
+  if (requiresLien && !body.signerName?.trim()) {
     return NextResponse.json({ error: 'SIGNER_NAME_REQUIRED' }, { status: 400 });
   }
 
@@ -46,18 +55,20 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const userAgent = req.headers.get('user-agent') ?? null;
 
   // Insert lien signature (append-only — no UPDATE, no DELETE)
-  await db.lienSignature.create({
-    data: {
-      caseId:       rec.id,
-      signerType:   'PATIENT',
-      signerName:   body.signerName.trim(),
-      signerEmail:  body.signerEmail ?? null,
-      signatureSvg: body.signatureSvg ?? null,
-      ipAddress:    ip,
-      userAgent,
-      sessionToken: token.slice(0, 32),
-    },
-  });
+  if (requiresLien) {
+    await db.lienSignature.create({
+      data: {
+        caseId:       rec.id,
+        signerType:   'PATIENT',
+        signerName:   body.signerName.trim(),
+        signerEmail:  body.signerEmail ?? null,
+        signatureSvg: body.signatureSvg ?? null,
+        ipAddress:    ip,
+        userAgent,
+        sessionToken: token.slice(0, 32),
+      },
+    });
+  }
 
   // Mark intake complete + transition status
   const newStatus = rec.status === 'INTAKE_PENDING' || rec.status === 'NEW_REFERRAL'
@@ -72,16 +83,18 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     },
   });
 
-  // Audit log
+  // Audit log — la accion distingue si hubo lien o si el intake se cerro sin el
   await writeAuditLog(db, {
     actorType:    'SYSTEM',
     actorUserId:  null,
-    action:       'PATIENT_SIGN_LIEN',
+    action:       requiresLien ? 'PATIENT_SIGN_LIEN' : 'PATIENT_COMPLETE_INTAKE',
     entityType:   'Case',
     entityId:     rec.id,
     metadata:     {
-      signerName:   body.signerName.trim(),
-      hasSignature: !!body.signatureSvg,
+      signerName:   body.signerName?.trim() ?? null,
+      caseType:     rec.caseType,
+      lienRequired: requiresLien,
+      hasSignature: requiresLien && !!body.signatureSvg,
       ipAddress:    ip,
       token:        token.slice(0, 8) + '…',
     },
@@ -90,6 +103,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   return NextResponse.json({
     ok: true,
     caseCode:    rec.caseCode,
+    lienRequired: requiresLien,
     completedAt: new Date().toISOString(),
   });
 }

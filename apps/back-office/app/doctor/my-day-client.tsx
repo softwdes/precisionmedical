@@ -48,7 +48,6 @@ interface Props {
   clinicalUrl: string | null;
   /** Día visualizado (YYYY-MM-DD, Denver) y navegación */
   dateKey: string;
-  dateLabel: string;
   isToday: boolean;
   prevDate: string;
   nextDate: string;
@@ -69,7 +68,7 @@ function todayKeyClient(): string {
   }).format(new Date());
 }
 
-export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalUrl, dateKey, dateLabel, isToday, prevDate, nextDate }: Props): React.ReactElement {
+export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalUrl, dateKey, isToday, prevDate, nextDate }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
   const [now, setNow] = React.useState(() => Date.now());
@@ -112,44 +111,45 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <PageHeader
-          title={t('greeting', { name: doctorName })}
-          subtitle={`${dateLabel} · ${t('myDaySubtitle', { count: active.length + completed.length })}`}
+      <PageHeader
+        title={t('greeting', { name: doctorName })}
+        subtitle={t('myDaySubtitle', { count: active.length + completed.length })}
+      />
+
+      {/* Barra de fecha — prominente y táctil (iPad): la fecha completa abre el calendario */}
+      <div className="rounded-xl border border-violet/25 bg-violet/[0.06] px-3 py-2 flex items-center justify-center gap-2 flex-wrap">
+        <Link
+          href={`/doctor?date=${prevDate}`}
+          aria-label={t('dayPrev')}
+          className="w-10 h-10 rounded-lg border border-border bg-bg-1 hover:bg-white/5 text-text-1 flex items-center justify-center transition-colors shrink-0"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </Link>
+        <DatePicker
+          value={dateKey}
+          onChange={(k) => router.push(k === todayKeyClient() ? '/doctor' : `/doctor?date=${k}`)}
+          accent="violet"
+          size="lg"
+          labelFormat="long"
+          todayLabel={t('dayToday')}
+          todayKey={todayKeyClient()}
         />
-        {/* Navegación de día — igual que Day Admission */}
-        <div className="flex items-center gap-1 flex-wrap">
+        <Link
+          href={`/doctor?date=${nextDate}`}
+          aria-label={t('dayNext')}
+          className="w-10 h-10 rounded-lg border border-border bg-bg-1 hover:bg-white/5 text-text-1 flex items-center justify-center transition-colors shrink-0"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </Link>
+        {!isToday && (
           <Link
-            href={`/doctor?date=${prevDate}`}
-            aria-label={t('dayPrev')}
-            className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors"
+            href="/doctor"
+            className="h-10 px-4 rounded-lg text-sm font-bold text-white flex items-center transition-opacity hover:opacity-90 shrink-0"
+            style={{ background: 'linear-gradient(135deg,#7C3AED,#A78BFA)', boxShadow: '0 4px 14px rgba(139,92,246,0.35)' }}
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            {t('dayToday')}
           </Link>
-          <DatePicker
-            value={dateKey}
-            onChange={(k) => router.push(k === todayKeyClient() ? '/doctor' : `/doctor?date=${k}`)}
-            accent="violet"
-            todayLabel={t('dayToday')}
-            todayKey={todayKeyClient()}
-          />
-          <Link
-            href={`/doctor?date=${nextDate}`}
-            aria-label={t('dayNext')}
-            className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors"
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-          {!isToday && (
-            <Link
-              href="/doctor"
-              className="ml-1 px-2.5 h-7 rounded text-[12px] font-semibold text-white flex items-center transition-opacity hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg,#7C3AED,#A78BFA)' }}
-            >
-              {t('dayToday')}
-            </Link>
-          )}
-        </div>
+        )}
       </div>
 
       {/* KPIs */}

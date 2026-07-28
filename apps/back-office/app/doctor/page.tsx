@@ -6,7 +6,6 @@
  * Navegable por día: ?date=YYYY-MM-DD (default hoy) — igual que Day Admission.
  */
 
-import { getLocale } from 'next-intl/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
@@ -44,7 +43,6 @@ export default async function DoctorMyDayPage({
   const provider = await getSessionProvider();
   if (!provider) return <></>; // el layout ya renderiza el estado sin perfil
 
-  const locale = await getLocale();
   const { date: dateParam } = await searchParams;
   const requested = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : undefined;
 
@@ -52,9 +50,6 @@ export default async function DoctorMyDayPage({
   const todayKey = dayKeyOf(new Date());
   const prevDate = dayKeyOf(new Date(start.getTime() - DAY_MS / 2));
   const nextDate = dayKeyOf(new Date(end.getTime() + DAY_MS / 2));
-  const dateLabel = new Intl.DateTimeFormat(locale, {
-    timeZone: 'America/Denver', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  }).format(new Date(start.getTime() + DAY_MS / 2));
 
   const [appts, drafts] = await Promise.all([
     db.appointment.findMany({
@@ -128,7 +123,6 @@ export default async function DoctorMyDayPage({
       unsignedNotes={unsignedNotes}
       clinicalUrl={process.env.NEXT_PUBLIC_CLINICAL_URL ?? 'https://clinical.lienmaster.net'}
       dateKey={dateKey}
-      dateLabel={dateLabel}
       isToday={dateKey === todayKey}
       prevDate={prevDate}
       nextDate={nextDate}

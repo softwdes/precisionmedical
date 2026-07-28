@@ -30,6 +30,10 @@ export interface DatePickerProps {
   todayKey?: string;
   /** Clases extra para el botón trigger */
   className?: string;
+  /** Tamaño del trigger: sm (h-7, toolbars) · lg (h-10, táctil/iPad) */
+  size?: 'sm' | 'lg';
+  /** Formato del label del trigger: short "28 jul 2026" · long "lunes, 28 de julio de 2026" */
+  labelFormat?: 'short' | 'long';
 }
 
 const ACCENTS: Record<NonNullable<DatePickerProps['accent']>, { solid: string; ring: string; text: string }> = {
@@ -48,7 +52,7 @@ function localTodayKey(): string {
   return keyOf(n.getFullYear(), n.getMonth(), n.getDate());
 }
 
-export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '' }: DatePickerProps) {
+export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Hoy', todayKey, className = '', size = 'sm', labelFormat = 'short' }: DatePickerProps) {
   const locale = useLocale();
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -90,8 +94,12 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
     return { key: keyOf(d.getFullYear(), d.getMonth(), d.getDate()), day: d.getDate(), inMonth: d.getMonth() === view.m };
   });
 
-  const triggerLabel = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' })
-    .format(new Date(`${value}T12:00:00`));
+  const triggerLabel = new Intl.DateTimeFormat(
+    locale,
+    labelFormat === 'long'
+      ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
+      : { day: 'numeric', month: 'short', year: 'numeric' },
+  ).format(new Date(`${value}T12:00:00`));
 
   const pick = (k: string): void => { onChange(k); setOpen(false); };
 
@@ -100,9 +108,13 @@ export function DatePicker({ value, onChange, accent = 'brand', todayLabel = 'Ho
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="h-7 rounded border border-border bg-bg-1 px-2.5 text-[12px] text-text-1 hover:bg-white/5 transition-colors flex items-center gap-1.5"
+        className={
+          size === 'lg'
+            ? 'h-10 rounded-lg border border-border bg-bg-1 px-4 text-sm font-semibold text-text-1 hover:bg-white/5 transition-colors flex items-center gap-2 capitalize'
+            : 'h-7 rounded border border-border bg-bg-1 px-2.5 text-[12px] text-text-1 hover:bg-white/5 transition-colors flex items-center gap-1.5'
+        }
       >
-        <CalendarDays className={`w-3.5 h-3.5 ${a.text}`} />
+        <CalendarDays className={`${size === 'lg' ? 'w-4 h-4' : 'w-3.5 h-3.5'} ${a.text}`} />
         {triggerLabel}
       </button>
 

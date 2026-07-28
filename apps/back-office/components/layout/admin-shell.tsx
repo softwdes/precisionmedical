@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
-import { FloatingAI } from './floating-ai';
 import { BootAnimation } from './boot-animation';
 import { NavigationProgressProvider } from './navigation-progress';
 import { MobileBottomNav } from './mobile-bottom-nav';
@@ -81,7 +80,7 @@ export function AdminShell({
             <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8 animate-fade-in">{children}</main>
           </div>
           <MobileBottomNav onMenuClick={() => setMobileOpen(v => !v)} variant={variant} allowedModules={allowedModules} />
-          <FloatingAI />
+          {/* FloatingAI (agente) deshabilitado — se reactivará cuando el agente entre en uso */}
         </div>
       </NavigationProgressProvider>
     </BootAnimation>

@@ -10,9 +10,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  CalendarCheck2, CheckCircle2, Clock3, Hourglass, Sun, Video, FileSignature, ExternalLink,
+  CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, Sun, Video, FileSignature, ExternalLink,
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
 
@@ -45,6 +46,12 @@ interface Props {
   appointments: MyDayAppointment[];
   unsignedNotes: UnsignedNote[];
   clinicalUrl: string | null;
+  /** Día visualizado (YYYY-MM-DD, Denver) y navegación */
+  dateKey: string;
+  dateLabel: string;
+  isToday: boolean;
+  prevDate: string;
+  nextDate: string;
 }
 
 const ACTIVE = ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'PENDING'];
@@ -55,8 +62,9 @@ function timeLabel(iso: string): string {
   });
 }
 
-export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalUrl }: Props): React.ReactElement {
+export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalUrl, dateKey, dateLabel, isToday, prevDate, nextDate }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  const router = useRouter();
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
@@ -68,14 +76,16 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
   const active = sorted.filter(a => ACTIVE.includes(a.status));
   const waiting = active.filter(a => a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS');
 
-  // Hero: en consulta > en espera con triaje > en espera > próxima futura
-  const hero =
-    active.find(a => a.status === 'IN_PROGRESS')
-    ?? active.find(a => a.status === 'CHECKED_IN' && a.hasTriage)
-    ?? active.find(a => a.status === 'CHECKED_IN')
-    ?? active.find(a => new Date(a.scheduledFor).getTime() >= now - 15 * 60_000)
-    ?? active[0]
-    ?? null;
+  // Hero solo aplica al día de HOY: en consulta > en espera con triaje > en espera > próxima futura.
+  // En días pasados/futuros se muestra la lista completa sin hero ni CTA.
+  const hero = isToday
+    ? (active.find(a => a.status === 'IN_PROGRESS')
+      ?? active.find(a => a.status === 'CHECKED_IN' && a.hasTriage)
+      ?? active.find(a => a.status === 'CHECKED_IN')
+      ?? active.find(a => new Date(a.scheduledFor).getTime() >= now - 15 * 60_000)
+      ?? active[0]
+      ?? null)
+    : null;
 
   const queue = active.filter(a => a.id !== hero?.id);
   const minsTo = hero ? Math.round((new Date(hero.scheduledFor).getTime() - now) / 60_000) : 0;
@@ -95,14 +105,49 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t('greeting', { name: doctorName })}
-        subtitle={t('myDaySubtitle', { count: active.length + completed.length })}
-      />
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <PageHeader
+          title={t('greeting', { name: doctorName })}
+          subtitle={`${dateLabel} · ${t('myDaySubtitle', { count: active.length + completed.length })}`}
+        />
+        {/* Navegación de día — igual que Day Admission */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <Link
+            href={`/doctor?date=${prevDate}`}
+            aria-label={t('dayPrev')}
+            className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </Link>
+          <input
+            type="date"
+            value={dateKey}
+            onChange={(e) => { if (e.target.value) router.push(`/doctor?date=${e.target.value}`); }}
+            aria-label={t('dayPick')}
+            className="h-7 rounded border border-border bg-bg-1 px-2 text-[12px] text-text-1 focus:outline-none focus:ring-1 focus:ring-violet [color-scheme:dark]"
+          />
+          <Link
+            href={`/doctor?date=${nextDate}`}
+            aria-label={t('dayNext')}
+            className="w-7 h-7 rounded border border-border hover:bg-white/5 text-text-2 flex items-center justify-center transition-colors"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+          {!isToday && (
+            <Link
+              href="/doctor"
+              className="ml-1 px-2.5 h-7 rounded text-[12px] font-semibold text-white flex items-center transition-opacity hover:opacity-90"
+              style={{ background: 'linear-gradient(135deg,#7C3AED,#A78BFA)' }}
+            >
+              {t('dayToday')}
+            </Link>
+          )}
+        </div>
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard compact label={t('kpiToday')} value={active.length + completed.length} color="text-violet" icon={CalendarCheck2} iconBg="bg-violet/10" iconColor="text-violet" />
+        <KpiCard compact label={t(isToday ? 'kpiToday' : 'kpiDay')} value={active.length + completed.length} color="text-violet" icon={CalendarCheck2} iconBg="bg-violet/10" iconColor="text-violet" />
         <KpiCard compact label={t('kpiCompleted')} value={completed.length} color="text-emerald" icon={CheckCircle2} iconBg="bg-emerald/10" iconColor="text-emerald" />
         <KpiCard compact label={t('kpiWaiting')} value={waiting.length} color="text-cyan" icon={Hourglass} iconBg="bg-cyan/10" iconColor="text-cyan" />
         <KpiCard compact label={t('kpiUnsigned')} value={unsignedNotes.length} color={unsignedNotes.length > 0 ? 'text-amber' : 'text-text-1'} icon={Clock3} iconBg="bg-amber/10" iconColor="text-amber" />
@@ -159,9 +204,9 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
             </div>
           )}
         </div>
-      ) : (
+      ) : (active.length + completed.length === 0) ? (
         <EmptyState.Rich icon={Sun} title={t('emptyDayTitle')} subtitle={t('emptyDaySubtitle')} />
-      )}
+      ) : null}
 
       {/* Cola del día */}
       {queue.length > 0 && (

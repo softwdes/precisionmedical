@@ -93,10 +93,14 @@ export default function LoginPage(): React.ReactElement {
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
+    if (loading) return;
     setError('');
     setLockedUntil(null);
     setLoading(true);
+    // Yield to the browser so the spinner renders before the first async call
+    await new Promise(r => setTimeout(r, 0));
 
+    let navigating = false;
     try {
       // 1 — Check lockout before hitting Supabase
       const lockRes = await fetch(`/api/auth/lockout?email=${encodeURIComponent(email)}`);
@@ -134,12 +138,13 @@ export default function LoginPage(): React.ReactElement {
         }
       }
 
+      navigating = true;
       router.push(redirectTo);
       router.refresh();
     } catch {
       setError('Connection error. Check your network and try again.');
     } finally {
-      setLoading(false);
+      if (!navigating) setLoading(false);
     }
   };
 
@@ -147,6 +152,7 @@ export default function LoginPage(): React.ReactElement {
     e.preventDefault();
     setError('');
     setLoading(true);
+    let navigating = false;
     try {
       const supabase = createClient();
       const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
@@ -159,12 +165,13 @@ export default function LoginPage(): React.ReactElement {
       });
       if (verifyError) { setError('Invalid code. Try again.'); return; }
 
+      navigating = true;
       router.push(redirectTo);
       router.refresh();
     } catch {
       setError('Connection error. Check your network and try again.');
     } finally {
-      setLoading(false);
+      if (!navigating) setLoading(false);
     }
   };
 

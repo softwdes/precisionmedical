@@ -116,8 +116,10 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError('');
+    await new Promise(r => setTimeout(r, 0));
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError) {
@@ -130,6 +132,8 @@ export default function LoginPage({ expired }: { expired?: boolean }) {
     // que el SessionGuard expire la nueva sesion al instante — el usuario
     // entra, lo bota, vuelve a loguearse, y asi.
     clearSessionGuard();
+    // No resetear loading — la navegación toma un momento y el spinner debe
+    // mantenerse hasta que la página se desmonte.
     router.push('/');
     router.refresh();
   }

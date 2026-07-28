@@ -42,9 +42,12 @@ function LoginForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setError('');
     setLockedUntil(null);
     setLoading(true);
+    await new Promise(r => setTimeout(r, 0));
+    let navigating = false;
     try {
       const lockRes  = await fetch(`/api/auth/lockout?email=${encodeURIComponent(email)}`);
       const lockData = await lockRes.json() as { locked: boolean; lockedUntil?: string };
@@ -68,12 +71,13 @@ function LoginForm() {
         if (totp) { setMfaFactorId(totp.id); setMfaStep(true); return; }
       }
 
+      navigating = true;
       router.push(redirectTo);
       router.refresh();
     } catch {
       setError('Error de conexión. Verificá tu red.');
     } finally {
-      setLoading(false);
+      if (!navigating) setLoading(false);
     }
   }
 
@@ -81,6 +85,7 @@ function LoginForm() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    let navigating = false;
     try {
       const supabase = createClient();
       const { data: challenge } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
@@ -89,12 +94,13 @@ function LoginForm() {
         factorId: mfaFactorId, challengeId: challenge.id, code: mfaCode.replace(/\s/g, ''),
       });
       if (verifyError) { setError('Código inválido. Intentá de nuevo.'); return; }
+      navigating = true;
       router.push(redirectTo);
       router.refresh();
     } catch {
       setError('Error de conexión.');
     } finally {
-      setLoading(false);
+      if (!navigating) setLoading(false);
     }
   }
 

@@ -82,7 +82,11 @@ export default function LoginPage(): React.ReactElement {
   }, [tokenHandling,router]);
 
   const handleSubmit=async(e:React.FormEvent):Promise<void>=>{
-    e.preventDefault(); setError(''); setLoading(true);
+    e.preventDefault();
+    if (loading) return;
+    setError(''); setLoading(true);
+    await new Promise(r => setTimeout(r, 0));
+    let navigating = false;
     try {
       const {error:ae}=await createBrowserClient().auth.signInWithPassword({email,password});
       if (ae){setError('Invalid credentials. Please try again.');return;}
@@ -91,9 +95,10 @@ export default function LoginPage(): React.ReactElement {
       // viejo de una sesion expulsada externamente (cookie/JWT vencido)
       // hace que la nueva sesion expire al instante.
       clearSessionGuard();
+      navigating = true;
       router.push('/dashboard'); router.refresh();
     } catch {setError('Invalid credentials. Please try again.');}
-    finally {setLoading(false);}
+    finally {if (!navigating) setLoading(false);}
   };
 
   if (tokenHandling) return (

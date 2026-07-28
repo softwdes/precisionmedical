@@ -123,20 +123,18 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
   const noteHref = (apptId: string): string | null =>
     clinicalUrl ? `${clinicalUrl}/visit/${apptId}` : null;
 
-  // Atender: abre la nota y, si el paciente sigue en espera, lo pasa a sala
-  // (IN_PROGRESS) — el asistente lo ve como "With Dr." en Day Admission.
+  // Atender: pasa al paciente a sala si hace falta (el asistente lo ve como
+  // "With Dr." en Day Admission) y abre la Consulta DENTRO del portal.
   const handleAttend = async (): Promise<void> => {
     if (!hero) return;
-    const href = noteHref(hero.id);
-    if (href) window.open(href, '_blank', 'noopener');
     if (hero.status !== 'IN_PROGRESS') {
       setAttending(true);
       try {
         await fetch(`/api/admin/admission/${hero.id}/admit`, { method: 'POST' });
-      } catch { /* el refresh mostrará el estado real */ }
+      } catch { /* la consulta mostrará el estado real */ }
       setAttending(false);
-      router.refresh();
     }
+    router.push(`/doctor/consultation/${hero.id}`);
   };
 
   const statusPill = (a: MyDayAppointment): React.ReactElement => {
@@ -265,7 +263,7 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
               )}
             </div>
           </div>
-          {heroReady && noteHref(hero.id) ? (
+          {heroReady ? (
             <button
               type="button"
               onClick={() => void handleAttend()}

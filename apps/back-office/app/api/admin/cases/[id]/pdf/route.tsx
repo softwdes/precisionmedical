@@ -322,8 +322,18 @@ async function buildPDF(data: {
   } | null;
 }) {
   const { patient, caseData, intake } = data;
-  const cd = caseData.consentsData as Record<string, boolean> | null;
-  const sigPng = caseData.consentSignaturePng; // base64 PNG
+  const cd = caseData.consentsData as Record<string, unknown> | null;
+
+  // La firma del PACIENTE (portal/tablet, wizard step 9) es la que cuenta
+  // legalmente. `consentSignaturePng` es un campo viejo que el back-office
+  // llenaba cuando el personal firmaba en lugar del paciente durante la
+  // creación del caso — eso se saca del wizard interno, ver case-wizard-dialog.
+  // Se deja como fallback solo para no perder los casos que ya quedaron con
+  // esa firma y ninguna otra.
+  const patientSig = (cd?.financialSignatureSvg as string | null) ?? null;
+  const staffSig    = caseData.consentSignaturePng;
+  const sigPng       = patientSig ?? staffSig;
+  const sigIsPatient = !!patientSig;
 
   const fullName = `${patient.firstName} ${patient.lastName}`;
   const address = [patient.addressLine1, patient.addressCity, patient.addressState, patient.addressZip]
@@ -493,7 +503,11 @@ async function buildPDF(data: {
 
           {/* Signature */}
           <View style={s.sigSection}>
-            <Text style={s.sigLabel}>Digital Sign:</Text>
+            <Text style={s.sigLabel}>
+              {sigPng
+                ? `Digital Sign${sigIsPatient ? ' (Patient)' : ' (Staff — patient signature not on file)'}:`
+                : 'Digital Sign:'}
+            </Text>
             {sigPng ? (
               <Image
                 src={sigPng.startsWith('data:') ? sigPng : `data:image/png;base64,${sigPng}`}

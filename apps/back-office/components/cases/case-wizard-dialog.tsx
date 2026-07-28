@@ -20,7 +20,6 @@ import {
   Button,
 } from '@precision/ui';
 import { FormField } from '@/components/ui-phoenix';
-import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 
 // ─── Law firm select nativo ───────────────────────────────────────────────────
 
@@ -278,7 +277,10 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
   }
 
   function canGoStep3() {
-    return !!consents.signatureDataUrl;
+    // La firma es del paciente y se captura en el portal/tablet, no acá — el
+    // personal no debe estar bloqueado esperando algo que no le corresponde
+    // llenar. Este paso quedó informativo.
+    return true;
   }
 
   function acceptAllConsents() {
@@ -646,21 +648,29 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                   <span className="text-[11px] text-text-1">{tc('acceptAll')}</span>
                 </label>
 
-                {/* Firma digital — requerida */}
+                {/* La firma es del PACIENTE — se captura en el portal/tablet
+                    (wizard de intake, step 9), nunca acá. El personal solo
+                    puede VER si ya está firmada; no hay forma de dibujar. */}
                 <div className="space-y-1 pt-1">
                   <label className="text-xs font-medium text-text-muted">
-                    {t('signatureLabel')} <span className="text-rose">*</span>
+                    {t('signatureLabel')}
                   </label>
-                  <SignaturePad
-                    onChange={(dataUrl) => setConsent('signatureDataUrl', dataUrl)}
-                    initialValue={consents.signatureDataUrl}
-                    clearLabel={t('clear')}
-                    hintLabel={t('signHere')}
-                    height={140}
-                  />
-                  {!consents.signatureDataUrl && (
-                    <p className="text-[10px] text-text-muted/60">{tc('signatureRequired')}</p>
-                  )}
+                  <div
+                    className="rounded-lg border border-border bg-bg-2/30 flex items-center justify-center overflow-hidden"
+                    style={{ height: 140 }}
+                  >
+                    {consents.signatureDataUrl ? (
+                      <img
+                        src={consents.signatureDataUrl}
+                        alt={tc('signatureOnFile')}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-[11px] text-text-muted/60 px-3 text-center">
+                        {tc('signaturePendingFromPatient')}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

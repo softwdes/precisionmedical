@@ -1,10 +1,13 @@
 'use client';
 
 import { createClient } from '@precision-medical/auth/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function NoAccessPage() {
   const router = useRouter();
+  const params = useSearchParams();
+  // ?portal=doctor → el usuario intentó entrar al Portal Médico sin permiso
+  const isDoctorPortal = params.get('portal') === 'doctor';
 
   async function handleLogout() {
     const supabase = createClient();
@@ -33,11 +36,12 @@ export default function NoAccessPage() {
       }}>
         <div style={{ fontSize: '40px', marginBottom: '16px' }}>🚫</div>
         <h1 style={{ color: '#f1f5f9', fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>
-          Sin acceso
+          {isDoctorPortal ? 'Portal Médico — sin acceso' : 'Sin acceso'}
         </h1>
         <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: '13px', lineHeight: '1.6', marginBottom: '24px' }}>
-          Tu cuenta no tiene permisos para acceder a este módulo.
-          Contactá al administrador del sistema.
+          {isDoctorPortal
+            ? 'Esta cuenta no es de un doctor. El Portal Médico es exclusivo del personal clínico — si necesitás acceso, pedilo al administrador.'
+            : 'Tu cuenta no tiene permisos para acceder a este módulo. Contactá al administrador del sistema.'}
         </p>
         <button
           onClick={handleLogout}

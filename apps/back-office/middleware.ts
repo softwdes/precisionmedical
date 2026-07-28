@@ -129,11 +129,24 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return response; // PROVIDER no pasa por el check pm_clinic del back-office
   }
 
-  // Staff que entra por el subdominio del portal médico → mandarlo a su dominio
-  // (por providers.* solo existe el mundo doctor)
+  // Por providers.* solo entra quien tiene acceso al portal médico.
+  // SUPER_ADMIN/ADMIN pueden entrar (soporte); el resto del staff recibe
+  // "sin acceso" explícito en el mismo dominio — no se lo rebota en silencio.
   if (isProvidersHost) {
-    const clinicUrl = process.env.NEXT_PUBLIC_CLINIC_URL ?? 'https://clinic.lienmaster.net';
-    return NextResponse.redirect(new URL(pathname === '/' ? '/dashboard' : pathname, clinicUrl));
+    if (dbRole !== 'SUPER_ADMIN' && dbRole !== 'ADMIN') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/no-access';
+      url.search = '?portal=doctor';
+      return pathname === '/no-access' ? response : NextResponse.redirect(url);
+    }
+    // Admin en providers.* → directo al portal médico
+    if (!isDoctorArea && !pathname.startsWith('/api/')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/doctor';
+      url.search = '';
+      return NextResponse.redirect(url);
+    }
+    return response;
   }
 
   // Staff no navega el portal médico (SUPER_ADMIN/ADMIN sí, para soporte)

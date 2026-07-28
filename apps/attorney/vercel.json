@@ -2,5 +2,6 @@
   "buildCommand": "cd ../.. && pnpm --filter=@precision-medical/database db:generate && pnpm --filter=@precision-medical/attorney build",
   "outputDirectory": ".next",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "ignoreCommand": "cd ../.. && npx --yes turbo-ignore @precision-medical/attorney"
 }

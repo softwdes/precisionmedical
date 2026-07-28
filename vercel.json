@@ -8,5 +8,6 @@
       "path": "/api/cron/salary-alerts",
       "schedule": "0 14 * * *"
     }
-  ]
+  ],
+  "ignoreCommand": "npx --yes turbo-ignore @precision-medical/web"
 }

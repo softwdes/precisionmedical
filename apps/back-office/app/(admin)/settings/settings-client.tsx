@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import {
   Building2, Stethoscope, Scale, ShieldCheck, DollarSign,
-  FileText, Plus, Pencil, Trash2, AlertCircle, Shield, UserRound, ClipboardList,
+  FileText, Plus, Pencil, Trash2, AlertCircle, Shield, UserRound,
 } from 'lucide-react';
 import {
   Button, Input, Dialog, DialogContent, DialogHeader,

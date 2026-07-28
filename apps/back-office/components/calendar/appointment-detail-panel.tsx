@@ -12,7 +12,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import {
-  Phone, MessageSquare, RefreshCw, Calendar,
+  Phone, MessageSquare, Calendar,
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
   User, Scale, Shield, Headphones, Check, Edit2, Ban,
   AlertCircle, Search, X, Plus, Trash2, DollarSign,
@@ -164,7 +164,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const [cancelOpen,    setCancelOpen]    = useState(false);
   const [cancelling,    setCancelling]    = useState(false);
   const [cancelError,   setCancelError]   = useState<string | null>(null);
-  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [editOpen,       setEditOpen]       = useState(false);
 
   // ── Services tab ──────────────────────────────────────────────────────────
@@ -446,7 +445,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               {/* Acciones rápidas */}
               <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📞 {t('sectionQuickActions')}</div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {appt.patient.phone && (
                     <a href={`tel:${appt.patient.phone}`}
                       className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
@@ -459,12 +458,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                       <MessageSquare className="w-4 h-4" /> {t('actionSms')}
                     </a>
                   )}
-                  <button type="button"
-                    onClick={() => appt.case && setRescheduleOpen(true)}
-                    disabled={!appt.case}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed">
-                    <RefreshCw className="w-4 h-4" /> {t('actionReschedule')}
-                  </button>
                   <button type="button" onClick={() => setActiveModal('intake')}
                     className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
                     <MessageSquare className="w-4 h-4" /> {t('actionResendForm')}
@@ -687,37 +680,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           type={activeModal}
           appointment={appt}
           onClose={() => setActiveModal(null)}
-        />
-      )}
-
-      {/* Reagendar — pre-poblado con paciente/clínica/doctor/duración; slot vacío para elegir nueva hora */}
-      {appt.case && (
-        <AppointmentDialog
-          mode="free"
-          open={rescheduleOpen}
-          onOpenChange={setRescheduleOpen}
-          isReschedule
-          editAppointment={{
-            id:              appt.id,
-            scheduledFor:    appt.scheduledFor,
-            durationMinutes: appt.durationMinutes,
-            type:            appt.type,
-            notes:           appt.notes,
-            clinicId:        appt.clinic.id,
-            clinicName:      appt.clinic.name,
-            providerId:      appt.provider?.id ?? null,
-            providerFirstName: appt.provider?.firstName,
-            providerLastName:  appt.provider?.lastName,
-            providerSpecialty: appt.provider?.specialty ?? undefined,
-            caseId:          appt.case.id,
-            caseCode:        appt.case.caseCode,
-            patient: {
-              id:        appt.patient.id,
-              firstName: appt.patient.firstName,
-              lastName:  appt.patient.lastName,
-            },
-          }}
-          onSuccess={() => { onRefresh(); onClose(); }}
         />
       )}
 

@@ -22,6 +22,7 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
       id: true,
       caseCode: true,
       status: true,
+      caseType: true,
       accidentDate: true,
       accidentType: true,
       accidentNotes: true,
@@ -143,7 +144,11 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
       }}
       accident={{
         date:         rec.accidentDate?.toISOString() ?? null,
-        type:         rec.accidentType as string | null,
+        // Para el wizard `type` es el TIPO DE CASO (MVA | GM), no el mecanismo
+        // del accidente. Se lee de `caseType`, que es donde lo guarda el POST
+        // del step 5. Antes se pasaba `accidentType` (AUTO/FALL/...) y por eso
+        // un caso GM arrancaba como MVA y al guardar sobreescribia su caseType.
+        type:         rec.caseType === 'GENERAL' ? 'GM' : 'MVA',
         notes:        rec.accidentNotes ?? null,
         location:     rec.accidentLocation ?? null,
         lawFirm:      (cd.lawFirm as string) ?? null,

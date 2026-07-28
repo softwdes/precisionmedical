@@ -82,10 +82,11 @@ function ageOf(dobIso: string | null): number | null {
 /** Campo read-only — misma caja de valor que los inputs del triaje de Day Admission */
 function F({ label, value, accent, align = 'center' }: { label: string; value: React.ReactNode; accent?: 'amber'; align?: 'center' | 'left' }): React.ReactElement {
   const empty = value === null || value === undefined || value === '';
+  // Clases idénticas al VInput del triaje de Day Admission (read-only)
   return (
     <div className="min-w-0">
-      <div className="text-[9px] uppercase tracking-wider font-semibold text-text-muted mb-1.5">{label}</div>
-      <div className={`rounded-lg border border-border bg-bg-0/70 px-3 py-2.5 text-sm font-semibold tabular-nums truncate ${align === 'center' ? 'text-center' : 'text-left'} ${empty ? 'text-text-muted/60' : accent === 'amber' ? 'text-amber' : 'text-text-1'}`}>
+      <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1">{label}</div>
+      <div className={`w-full bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-[13px] font-semibold tabular-nums truncate ${align === 'center' ? 'text-center' : 'text-left'} ${empty ? 'text-text-muted/60' : accent === 'amber' ? 'text-amber' : 'text-text-1'}`}>
         {empty ? '—' : value}
       </div>
     </div>

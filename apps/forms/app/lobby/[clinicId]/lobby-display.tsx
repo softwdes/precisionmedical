@@ -122,8 +122,13 @@ function LiveClock() {
   );
 }
 
+// ─── i18n helper ─────────────────────────────────────────────────────────────
+function tx(lang: 'es' | 'en' | 'both', es: string, en: string) {
+  return lang === 'es' ? es : lang === 'en' ? en : `${es} · ${en}`;
+}
+
 // ─── "Ahora llamando" banner ──────────────────────────────────────────────────
-function NowCallingBanner({ data }: { data: NowCalling }) {
+function NowCallingBanner({ data, lang }: { data: NowCalling; lang: 'es' | 'en' | 'both' }) {
   const isConsult = data.destination === 'consultation';
 
   return (
@@ -146,7 +151,7 @@ function NowCallingBanner({ data }: { data: NowCalling }) {
       {/* Label */}
       <div>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>
-          Ahora llamando · Now calling
+          {tx(lang, 'Ahora llamando', 'Now calling')}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 28, fontWeight: 900, color: '#fff', letterSpacing: '-0.01em' }}>
@@ -155,8 +160,8 @@ function NowCallingBanner({ data }: { data: NowCalling }) {
           <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 22 }}>→</span>
           <span style={{ fontSize: 16, fontWeight: 600, color: '#10B981' }}>
             {isConsult
-              ? (data.doctorName ? `${data.doctorName} · Doctor's Office` : 'Consultorio · Doctor\'s Office')
-              : 'Sala de Triaje · Triage Room'}
+              ? (data.doctorName ? `${data.doctorName} · ${tx(lang, 'Consultorio', "Doctor's Office")}` : tx(lang, 'Consultorio', "Doctor's Office"))
+              : tx(lang, 'Sala de Triaje', 'Triage Room')}
           </span>
         </div>
       </div>
@@ -164,14 +169,14 @@ function NowCallingBanner({ data }: { data: NowCalling }) {
       {/* Pulse dot */}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#10B981', display: 'inline-block', animation: 'ping-dot 1.2s ease-in-out infinite' }} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981' }}>pasar ahora</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981' }}>{tx(lang, 'pasar ahora', 'proceed now')}</span>
       </div>
     </div>
   );
 }
 
 // ─── Consultation card (large TV card) ───────────────────────────────────────
-function ConsultCard({ apt }: { apt: ConsultationPatient }) {
+function ConsultCard({ apt, lang }: { apt: ConsultationPatient; lang: 'es' | 'en' | 'both' }) {
   const color = avatarColor(apt.display);
   const ini   = initials(apt.display);
 
@@ -219,7 +224,7 @@ function ConsultCard({ apt }: { apt: ConsultationPatient }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 11, color }}>⏱</span>
         <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>
-          {apt.elapsedMin} min · En consulta · In consultation
+          {apt.elapsedMin} min · {tx(lang, 'En consulta', 'In consultation')}
         </span>
       </div>
     </div>
@@ -227,7 +232,7 @@ function ConsultCard({ apt }: { apt: ConsultationPatient }) {
 }
 
 // ─── Triage row ───────────────────────────────────────────────────────────────
-function TriageRow({ apt }: { apt: LobbyPatient }) {
+function TriageRow({ apt, lang }: { apt: LobbyPatient; lang: 'es' | 'en' | 'both' }) {
   const color = '#F59E0B'; // amber — triage accent
   const ini   = initials(apt.display);
 
@@ -267,7 +272,7 @@ function TriageRow({ apt }: { apt: LobbyPatient }) {
         )}
       </div>
       <div style={{ fontSize: 12, color, fontWeight: 600, letterSpacing: '0.04em' }}>
-        📈 En triaje · In triage
+        📈 {tx(lang, 'En triaje', 'In triage')}
       </div>
     </div>
   );
@@ -334,10 +339,11 @@ function WaitRow({ apt, index }: { apt: WaitingPatient; index: number }) {
 }
 
 // ─── Section header ───────────────────────────────────────────────────────────
-function SectionHeader({ emoji, es, en, count, color }: {
+function SectionHeader({ emoji, es, en, count, color, lang }: {
   emoji: string; es: string; en: string;
-  count: number; color: string;
+  count: number; color: string; lang: 'es' | 'en' | 'both';
 }) {
+  const label = lang === 'es' ? es : lang === 'en' ? en : `${es} · ${en}`;
   return (
     <div style={{
       display:       'flex',
@@ -349,10 +355,7 @@ function SectionHeader({ emoji, es, en, count, color }: {
     }}>
       <span style={{ fontSize: 18 }}>{emoji}</span>
       <span style={{ fontSize: 13, fontWeight: 700, color, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-        {es}
-      </span>
-      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.30)', marginLeft: 2 }}>
-        · {en}
+        {label}
       </span>
       <span style={{
         marginLeft:    'auto',
@@ -375,7 +378,11 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
   const [data,    setData]    = useState<LobbyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(false);
+  const [lang,    setLang]    = useState<'es' | 'en' | 'both'>('both');
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const t = (es: string, en: string) =>
+    lang === 'es' ? es : lang === 'en' ? en : `${es} · ${en}`;
 
   const poll = useCallback(async () => {
     try {
@@ -481,8 +488,31 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
               animation: !loading ? 'ping-dot 3s ease-in-out infinite' : 'none',
             }} />
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>
-              {error ? 'sin conexión' : 'en vivo · live'}
+              {error ? t('sin conexión', 'offline') : t('en vivo', 'live')}
             </span>
+          </div>
+
+          {/* Lang switcher */}
+          <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.12)' }}>
+            {(['es', 'both', 'en'] as const).map(l => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                style={{
+                  padding:    '5px 10px',
+                  fontSize:   11,
+                  fontWeight: 700,
+                  border:     'none',
+                  cursor:     'pointer',
+                  letterSpacing: '0.05em',
+                  background: lang === l ? '#06B6D4' : 'rgba(255,255,255,0.05)',
+                  color:      lang === l ? '#000' : 'rgba(255,255,255,0.45)',
+                  transition: 'background 0.2s, color 0.2s',
+                }}
+              >
+                {l === 'both' ? 'ES·EN' : l.toUpperCase()}
+              </button>
+            ))}
           </div>
 
           {/* Clock */}
@@ -503,7 +533,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
           {loading && (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
               <span style={{ fontSize: 20, animation: 'spin-slow 1.2s linear infinite', display: 'inline-block' }}>⟳</span>
-              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>Cargando sala de espera…</span>
+              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 14 }}>{t('Cargando sala de espera…', 'Loading waiting room…')}</span>
             </div>
           )}
 
@@ -531,13 +561,13 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
           {!loading && !error && data && (
             <>
               {/* "Ahora llamando" banner */}
-              {data.nowCalling && <NowCallingBanner data={data.nowCalling} />}
+              {data.nowCalling && <NowCallingBanner data={data.nowCalling} lang={lang} />}
 
               {/* ── En Consulta ── */}
               {data.consultation.length > 0 && (
                 <section>
                   <SectionHeader
-                    emoji="🩺" es="En Consulta" en="In Consultation"
+                    emoji="🩺" es="En Consulta" en="In Consultation" lang={lang}
                     count={data.consultation.length} color="#8B5CF6"
                   />
                   <div style={{
@@ -546,7 +576,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
                     gap:                 12,
                   }}>
                     {data.consultation.map((apt: ConsultationPatient) => (
-                      <ConsultCard key={apt.id} apt={apt} />
+                      <ConsultCard key={apt.id} apt={apt} lang={lang} />
                     ))}
                   </div>
                 </section>
@@ -556,12 +586,12 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
               {data.triage.length > 0 && (
                 <section>
                   <SectionHeader
-                    emoji="📈" es="En Triaje" en="In Triage"
+                    emoji="📈" es="En Triaje" en="In Triage" lang={lang}
                     count={data.triage.length} color="#F59E0B"
                   />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {data.triage.map((apt: LobbyPatient) => (
-                      <TriageRow key={apt.id} apt={apt} />
+                      <TriageRow key={apt.id} apt={apt} lang={lang} />
                     ))}
                   </div>
                 </section>
@@ -570,7 +600,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
               {/* ── Esperando ── */}
               <section>
                 <SectionHeader
-                  emoji="⏱" es="Esperando" en="Waiting"
+                  emoji="⏱" es="Esperando" en="Waiting" lang={lang}
                   count={data.waiting.length} color="#06B6D4"
                 />
                 {data.waiting.length === 0 ? (
@@ -583,7 +613,7 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
                     color:        'rgba(255,255,255,0.30)',
                     fontSize:     14,
                   }}>
-                    Sala de espera libre · Waiting room clear
+                    {t('Sala de espera libre', 'Waiting room clear')}
                   </div>
                 ) : (
                   <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -618,14 +648,14 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
               fontSize: 13,
               flexWrap: 'wrap',
             }}>
-              <StatPill value={data.stats.waiting}      label="esperando · waiting"    color="#06B6D4" />
+              <StatPill value={data.stats.waiting}      label={t('esperando', 'waiting')}    color="#06B6D4" />
               <Divider />
-              <StatPill value={data.stats.triage}       label="en triaje · in triage"  color="#F59E0B" />
+              <StatPill value={data.stats.triage}       label={t('en triaje', 'in triage')}  color="#F59E0B" />
               <Divider />
-              <StatPill value={data.stats.consultation} label="en consulta · in consult" color="#8B5CF6" />
+              <StatPill value={data.stats.consultation} label={t('en consulta', 'in consult')} color="#8B5CF6" />
               <Divider />
               <span style={{ color: 'rgba(255,255,255,0.35)' }}>
-                Pacientes hoy · Today:{' '}
+                {t('Pacientes hoy', 'Today')}:{' '}
                 <span style={{ color: '#fff', fontWeight: 700 }}>{data.stats.totalToday}</span>
               </span>
             </div>
@@ -674,10 +704,10 @@ export function LobbyDisplay({ clinicId, clinicName }: Props) {
             </div>
             <div style={{ lineHeight: 1.4 }}>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', fontWeight: 700 }}>
-                Walk-in · Escanea
+                {t('Escanea para registrarte', 'Walk-in · Scan to register')}
               </div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
-                Scan to register
+                {t('Walk-in', 'No appointment needed')}
               </div>
             </div>
           </a>

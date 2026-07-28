@@ -7,7 +7,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
+import { db, writeAuditLog, actorFromHeaders, Prisma, nextPatientCode } from '@precision-medical/database';
 
 const empty = z.literal('').transform(() => null);
 
@@ -44,17 +44,6 @@ const CreateSchema = z.object({
   providerReferrerId:      z.string().cuid().nullable().optional().or(empty),
 });
 
-async function generatePatientCode(): Promise<string> {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const suffix = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    const code = `PAT-${suffix}`;
-    const exists = await db.patient.findUnique({ where: { patientCode: code }, select: { id: true } });
-    if (!exists) return code;
-  }
-  throw new Error('No se pudo generar un código de paciente único');
-}
-
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.json().catch(() => null);
   const parsed = CreateSchema.safeParse(body);
@@ -80,13 +69,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const d = parsed.data;
-  const patientCode = await generatePatientCode();
 
   let patient;
   try {
-    patient = await db.patient.create({
+    // El código va dentro de la transacción: el advisory lock que lo protege
+    // vive con ella, así que generarlo afuera dejaría de serializar nada.
+    patient = await db.$transaction(async (tx) => tx.patient.create({
       data: {
-        patientCode,
+        patientCode: await nextPatientCode(tx),
         firstName:               d.firstName,
         lastName:                d.lastName,
         status:                  'NEW',
@@ -120,7 +110,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ...(d.dateOfBirth ? { dateOfBirth: new Date(d.dateOfBirth) } : {}),
       },
       select: { id: true, patientCode: true, firstName: true, lastName: true },
-    });
+    }));
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       return NextResponse.json(

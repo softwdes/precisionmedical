@@ -16,7 +16,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z }  from 'zod';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, nextCaseCode, nextPatientCode } from '@precision-medical/database';
 import { randomBytes }       from 'crypto';
 
 const BodySchema = z.object({
@@ -30,16 +30,10 @@ function generateToken(): string {
   return randomBytes(24).toString('base64url');
 }
 
-function generateCaseCode(): string {
-  const year = new Date().getFullYear();
-  const rand = Math.floor(Math.random() * 90000) + 10000;
-  return `WI-${year}-${rand}`;
-}
-
-function generatePatientCode(): string {
-  const rand = Math.floor(Math.random() * 900000) + 100000;
-  return `PM-${rand}`;
-}
+// Los códigos de caso y paciente salen de nextCaseCode/nextPatientCode
+// (packages/database/src/codes.ts): consecutivos y compartidos con el resto
+// del sistema. Antes esta ruta tenía sus propios formatos, `WI-2026-12345` y
+// `PM-123456`, ninguno de los dos verificado contra duplicados.
 
 export async function POST(
   req: NextRequest,
@@ -59,38 +53,43 @@ export async function POST(
     return NextResponse.json({ ok: false, error: 'INVALID_INPUT' }, { status: 400 });
   }
 
-  // Find or create patient by phone
-  let patient = await db.patient.findFirst({
-    where: { phone: parsed.phone },
-    select: { id: true },
-  });
-
-  if (!patient) {
-    patient = await db.patient.create({
-      data: {
-        firstName:         parsed.firstName,
-        lastName:          parsed.lastName,
-        phone:             parsed.phone,
-        preferredLanguage: parsed.language,
-        patientCode:       generatePatientCode(),
-      },
-      select: { id: true },
-    });
-  }
-
-  // Create case with WALK_IN source + unique portal token
   const token = generateToken();
 
-  const newCase = await db.case.create({
-    data: {
-      patientId:   patient.id,
-      caseCode:    generateCaseCode(),
-      source:      'WALK_IN',
-      status:      'INTAKE_PENDING',
-      portalToken: token,
-      intakeFormSentAt: new Date(),
-    },
-    select: { id: true, caseCode: true },
+  // Paciente y caso en una sola transacción: es donde vive el advisory lock de
+  // los códigos consecutivos, y además evita que un fallo al crear el caso deje
+  // un paciente huérfano (antes eran dos escrituras sueltas).
+  const newCase = await db.$transaction(async (tx) => {
+    // Find or create patient by phone
+    let patient = await tx.patient.findFirst({
+      where: { phone: parsed.phone },
+      select: { id: true },
+    });
+
+    if (!patient) {
+      patient = await tx.patient.create({
+        data: {
+          firstName:         parsed.firstName,
+          lastName:          parsed.lastName,
+          phone:             parsed.phone,
+          preferredLanguage: parsed.language,
+          patientCode:       await nextPatientCode(tx),
+        },
+        select: { id: true },
+      });
+    }
+
+    // Create case with WALK_IN source + unique portal token
+    return tx.case.create({
+      data: {
+        patientId:   patient.id,
+        caseCode:    await nextCaseCode(tx, 'WI'),
+        source:      'WALK_IN',
+        status:      'INTAKE_PENDING',
+        portalToken: token,
+        intakeFormSentAt: new Date(),
+      },
+      select: { id: true, caseCode: true },
+    });
   });
 
   await writeAuditLog(db, {

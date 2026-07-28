@@ -21,3 +21,7 @@ export * from '@prisma/client';
 // Phoenix 2026-06-05 — Audit log helpers (actorType-aware)
 export { writeAuditLog, actorFromHeaders } from './audit';
 export type { WriteAuditLogInput } from './audit';
+
+// Códigos consecutivos de caso y paciente (estilo v2) — leer las notas de
+// codes.ts antes de usarlas: van dentro de una transacción junto al INSERT.
+export { nextCaseCode, nextPatientCode } from './codes';

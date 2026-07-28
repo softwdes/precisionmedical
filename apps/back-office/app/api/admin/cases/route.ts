@@ -6,12 +6,9 @@
  *
  * Phase 1A: PHI mock-only en local. Phase 2+ con BAA Supabase = data real.
  *
- * Códigos:
- *  - caseCode    → consecutivo global estilo v2 (MVA-3130, CASE-3131, …).
- *                  Ver nextCaseCode(): numeración compartida entre prefijos y
- *                  protegida con advisory lock contra creaciones simultáneas.
- *  - patientCode → todavía timestamp (PT-787285ET9). PENDIENTE decidir si pasa
- *                  a consecutivo continuando la serie P-<n> de los migrados.
+ * Códigos: ambos consecutivos, estilo v2 — caseCode (MVA-3130 / CASE-3131) y
+ * patientCode (P-6993). Se generan con nextCaseCode/nextPatientCode dentro de
+ * la transacción; ver packages/database/src/codes.ts.
  *
  * Status flow:
  *  - Sin appointment      → status NEW_REFERRAL  (flujo asíncrono · agendar después)
@@ -23,7 +20,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
+import { db, writeAuditLog, actorFromHeaders, Prisma, nextCaseCode, nextPatientCode } from '@precision-medical/database';
 
 const InputSchema = z.object({
   // Patient
@@ -110,37 +107,6 @@ const InputSchema = z.object({
     chiropractor:     z.string().nullable().optional(),
   }).optional(),
 });
-
-async function generateNextCode(prefix: string): Promise<string> {
-  // Phase 1A: timestamp-based. Phase 2 con DB sequence proper.
-  const ts = Date.now().toString().slice(-6);
-  const random = Math.random().toString(36).slice(2, 5).toUpperCase();
-  return `${prefix}-${ts}${random}`;
-}
-
-/**
- * Código de caso consecutivo, como en v2: MVA-3130, CASE-3131, MVA-3132, …
- *
- * El número es GLOBAL, compartido entre prefijos. Así lo hacía v2 — MVA-2865
- * cae dentro del rango de CASE-1..3129 — y evita que existan dos casos con el
- * mismo número y distinto prefijo, que en soporte telefónico es un problema.
- *
- * Solo considera códigos de hasta 6 dígitos: los códigos viejos con timestamp
- * (`CASE-787285RX`) pueden salir con la parte aleatoria en dígitos, y uno de
- * 9 cifras envenenaría la secuencia para siempre.
- *
- * OJO — llamar SIEMPRE dentro de la transacción que ya tomó el advisory lock.
- * Sin el lock, dos creaciones simultáneas leen el mismo máximo, arman el mismo
- * código y una revienta contra el @unique de `caseCode`.
- */
-async function nextCaseCode(tx: Prisma.TransactionClient, prefix: string): Promise<string> {
-  const rows = await tx.$queryRaw<{ max_num: number | null }[]>`
-    SELECT MAX(split_part("caseCode", '-', 2)::int) AS max_num
-      FROM cases
-     WHERE "caseCode" ~ '^[A-Z]+-[0-9]{1,6}$'
-  `;
-  return `${prefix}-${(rows[0]?.max_num ?? 0) + 1}`;
-}
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const actor = actorFromHeaders(req.headers);
@@ -288,11 +254,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       : null,
   ]);
 
-  // Generate codes
-  // patientCode sigue con el esquema viejo (timestamp) — pendiente decidir si
-  // tambien pasa a consecutivo, ver nota en el header del archivo.
-  const patientCode = await generateNextCode('PT');
-  const casePrefix  = parsed.caseType === 'MVA' ? 'MVA' : 'CASE';
+  // El prefijo es solo una etiqueta; los códigos se generan dentro de la
+  // transacción porque el advisory lock que los protege vive con ella.
+  const casePrefix = parsed.caseType === 'MVA' ? 'MVA' : 'CASE';
 
   // ─── Determinar status inicial ──────────────────────────────────────
   // Si agendamos cita en la llamada → CONFIRMED (todo listo)
@@ -302,10 +266,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ─── Transacción · Patient + Case (+ Appointment opcional) ──────────
   const result = await db.$transaction(async (tx) => {
-    // El código de caso es consecutivo, así que "leer el máximo y sumar 1" es
-    // una carrera: dos requests simultáneas leerían el mismo número. Este lock
-    // serializa solo esa parte y se libera al cerrar la transacción.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('pm:case_code'))`;
+    // Consecutivo; la función toma su propio advisory lock (ver codes.ts).
     const caseCode = await nextCaseCode(tx, casePrefix);
 
     // Paciente conocido → solo actualizar campos del accidente/caso · nunca tocar
@@ -322,7 +283,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         })
       : await tx.patient.create({
           data: {
-            patientCode,
+            // Solo se pide el código si de verdad hay que crear al paciente.
+            patientCode: await nextPatientCode(tx),
             firstName: parsed.patient.firstName,
             lastName: parsed.patient.lastName,
             email: parsed.patient.email,

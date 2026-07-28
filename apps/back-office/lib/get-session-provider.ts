@@ -16,6 +16,8 @@ export interface SessionProvider {
   specialty: string;
   status: string;
   employeeId: string | null;
+  /** users.id en la base Phoenix — necesario para favoritos (templates, diagnósticos) */
+  userId: string | null;
 }
 
 export async function getSessionProvider(): Promise<SessionProvider | null> {
@@ -36,6 +38,7 @@ export async function getSessionProvider(): Promise<SessionProvider | null> {
       specialty: true,
       status: true,
       employeeId: true,
+      userId: true,
     },
   });
 

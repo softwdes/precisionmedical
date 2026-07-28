@@ -162,3 +162,27 @@ tr.border-b {
 .scroll-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(139,92,246,0.80);
 }
+
+/* ─── RichTextEditor (ui-phoenix) ────────────────────────────────────────────
+   Estilos del área contentEditable. Aquí (no inline) para no duplicar el
+   bloque cuando hay varios editores en la misma pantalla. */
+.rte-content:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.rte-content p { margin: 0 0 0.5rem; }
+.rte-content p:last-child { margin-bottom: 0; }
+.rte-content h3 { font-size: 14px; font-weight: 700; margin: 0.75rem 0 0.4rem; }
+.rte-content ul { list-style: disc; padding-left: 1.25rem; margin: 0 0 0.5rem; }
+.rte-content ol { list-style: decimal; padding-left: 1.4rem; margin: 0 0 0.5rem; }
+.rte-content li { margin-bottom: 0.15rem; }
+.rte-content blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 0.75rem;
+  margin: 0 0 0.5rem;
+  font-style: italic;
+  opacity: 0.85;
+}
+.rte-content a { color: #a78bfa; text-decoration: underline; }
+.rte-content strong { font-weight: 700; }

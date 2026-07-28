@@ -11,6 +11,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
 import { createServerClient } from '@precision-medical/auth/server';
+import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 
 const SectionSchema = z.object({
   id: z.string().optional(),
@@ -167,6 +168,17 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'MISSING_ID' }, { status: 400 });
+
+  // Regla de negocio (Erick 2026-07-28): el doctor crea y edita plantillas
+  // globales, pero SOLO el admin puede eliminarlas.
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+
+  const role = await fetchDbRole(user.email);
+  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+    return NextResponse.json({ error: 'FORBIDDEN_DELETE_TEMPLATE' }, { status: 403 });
+  }
 
   const before = await db.template.findUnique({ where: { id } });
   if (!before) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });

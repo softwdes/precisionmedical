@@ -155,13 +155,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'INVALID_PAYLOAD', message: String(err) }, { status: 400 });
   }
 
-  // ─── Paciente nuevo requiere teléfono válido ────────────────────────
-  if (!parsed.existingPatientId && parsed.patient.phone.replace(/\D/g, '').length < 7) {
-    return NextResponse.json(
-      { error: 'INVALID_PAYLOAD', message: 'El teléfono es requerido para pacientes nuevos.' },
-      { status: 400 },
-    );
-  }
+  // El teléfono NO es obligatorio (decisión de negocio 2026-07-29). Antes acá
+  // había un bloqueo que exigía >=7 dígitos para pacientes nuevos, y como el
+  // cliente nunca lo validaba, recepción completaba los 4 pasos del wizard y
+  // recién al apretar "Save case" se enteraba de que faltaba un dato del paso 1.
+  //
+  // Un caso puede quedar sin email ni teléfono: en ese escenario el formulario
+  // no se puede enviar y la vía es la tablet en clínica. El UI lo refleja
+  // apagando los canales que no se pueden usar, sin impedir el guardado.
 
   // ─── Validaciones de unicidad (solo pacientes nuevos) ───────────────
   if (!parsed.existingPatientId) {

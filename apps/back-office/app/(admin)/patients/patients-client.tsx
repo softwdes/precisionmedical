@@ -7,7 +7,6 @@ import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, PhoneOutgoing, Mail, Cale
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
-import { PatientCreateDialog } from './patient-create-dialog';
 import { MedicalHistoryDialog } from './medical-history-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
@@ -1979,7 +1978,10 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
         {!doctorMode && (
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Quick Register deshabilitado temporalmente */}
-          <div className="hidden md:block"><PatientCreateDialog /></div>
+          {/* "New patient" quitado: "Create Patient / Create Case" es el único
+              camino de creación, y es el que tiene la detección de menor de edad
+              con vínculo real al padre/apoderado. PatientCreateDialog no lo
+              tiene, así que dejarlo permitía crear un menor sin apoderado. */}
           <button
             type="button"
             onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}

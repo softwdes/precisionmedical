@@ -9,7 +9,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db, writeAuditLog } from '@precision-medical/database';
+import { db, writeAuditLog, isMinor } from '@precision-medical/database';
 
 type Ctx = { params: Promise<{ token: string }> };
 
@@ -25,7 +25,12 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       status: true,
       caseType: true,
       intakeFormCompletedAt: true,
-      patient: { select: { id: true, firstName: true, lastName: true } },
+      patient: {
+        select: {
+          id: true, firstName: true, lastName: true, dateOfBirth: true,
+          guardianPatientId: true,
+        },
+      },
     },
   });
 
@@ -54,12 +59,18 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const ip        = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? null;
   const userAgent = req.headers.get('user-agent') ?? null;
 
+  // Quién firma: si el paciente es menor y tiene apoderado vinculado, la firma
+  // se registra como GUARDIAN. Dejarla como PATIENT sería incorrecto en el
+  // registro legal — un menor no puede firmar el lien.
+  // Se decide con datos de la DB, no con lo que manda el cliente.
+  const firmaDeApoderado = isMinor(rec.patient.dateOfBirth) && !!rec.patient.guardianPatientId;
+
   // Insert lien signature (append-only — no UPDATE, no DELETE)
   if (requiresLien) {
     await db.lienSignature.create({
       data: {
         caseId:       rec.id,
-        signerType:   'PATIENT',
+        signerType:   firmaDeApoderado ? 'GUARDIAN' : 'PATIENT',
         signerName:   body.signerName.trim(),
         signerEmail:  body.signerEmail ?? null,
         signatureSvg: body.signatureSvg ?? null,
@@ -92,6 +103,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     entityId:     rec.id,
     metadata:     {
       signerName:   body.signerName?.trim() ?? null,
+      signerType:   firmaDeApoderado ? 'GUARDIAN' : 'PATIENT',
       caseType:     rec.caseType,
       lienRequired: requiresLien,
       hasSignature: requiresLien && !!body.signatureSvg,

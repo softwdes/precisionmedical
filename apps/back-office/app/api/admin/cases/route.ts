@@ -340,7 +340,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             firstName: parsed.patient.firstName,
             lastName: parsed.patient.lastName,
             email: parsed.patient.email,
-            phone: parsed.patient.phone,
+            // null, no '' — un string vacío en la columna se lee como
+            // "teléfono presente pero en blanco" en varias vistas
+            phone: parsed.patient.phone || null,
             dateOfBirth: parsed.patient.dateOfBirth ? new Date(parsed.patient.dateOfBirth) : null,
             accidentDate: parsed.accident.date ? new Date(parsed.accident.date) : null,
             accidentType: parsed.accident.type,

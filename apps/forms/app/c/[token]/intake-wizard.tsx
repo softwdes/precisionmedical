@@ -134,6 +134,13 @@ interface Props {
   savedPhotos: SavedPhotos | null;
   casePolicyNumber: string | null;
   nextAppointment: NextAppointment | null;
+  /**
+   * La clínica ya vinculó al apoderado como ficha de paciente. Los datos vienen
+   * pre-cargados y el step 4 se muestra en SOLO LECTURA: el paciente no debe
+   * poder cambiarlos porque de ahí depende a quién se le manda el formulario y
+   * quién firma los consentimientos.
+   */
+  guardianFromClinic?: boolean;
 }
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
@@ -246,6 +253,8 @@ const STRINGS = {
     guardianSkip: 'Omitir',
     guardianSection: 'Información de la persona responsable',
     guardianSectionSub: 'Complete la información de la persona responsable del menor.',
+    guardianFromClinicNote: 'Datos registrados por la clínica',
+    guardianReadOnlySub: 'Estos datos ya fueron registrados por la clínica. Si hay algún error, comunicate al (801) 375-2207.',
     guardianFirstName: 'Nombre',
     guardianLastName: 'Apellido',
     guardianEmail: 'Email',
@@ -539,6 +548,8 @@ const STRINGS = {
     guardianSkip: 'Skip',
     guardianSection: 'Responsible person information',
     guardianSectionSub: 'Complete the information for the person responsible for the minor.',
+    guardianFromClinicNote: 'Information on file from the clinic',
+    guardianReadOnlySub: 'This information was already recorded by the clinic. If anything is incorrect, please call (801) 375-2207.',
     guardianFirstName: 'First name',
     guardianLastName: 'Last name',
     guardianEmail: 'Email',
@@ -1023,7 +1034,7 @@ function formatPhone(raw: string): string {
 export function IntakeWizard({
   token, caseId: _caseId, caseCode, patient, accident,
   savedInsurances, savedHealth, savedConsents, savedExtra, savedLienSignature,
-  savedPhotos, casePolicyNumber, nextAppointment,
+  savedPhotos, casePolicyNumber, nextAppointment, guardianFromClinic = false,
 }: Props) {
   const router = useRouter();
 
@@ -1269,8 +1280,20 @@ export function IntakeWizard({
   const [lienSigDataUrl, setLienSigDataUrl] = useState(savedLienSignature?.signatureSvg ?? '');
   const [hasSig, setHasSig]             = useState(!!(savedLienSignature?.signatureSvg));
   const [sigTimestamp, setSigTimestamp] = useState<Date | null>(null);
-  const [signerName, setSignerName]     = useState(savedLienSignature?.signerName ?? `${patient.firstName} ${patient.lastName}`);
-  const [signerEmail, setSignerEmail]   = useState(savedLienSignature?.signerEmail ?? patient.email ?? '');
+  // Si el paciente es menor y la clínica vinculó al apoderado, el firmante por
+  // defecto es el APODERADO — un menor no puede firmar consentimientos ni el
+  // lien. Antes se pre-llenaba siempre con el nombre del paciente, así que en
+  // un caso de menor el documento salía firmado a nombre del menor.
+  const [signerName, setSignerName]     = useState(
+    savedLienSignature?.signerName
+    ?? (guardianFromClinic
+      ? `${patient.guardianName ?? ''} ${savedExtra.guardianLastName ?? ''}`.trim()
+      : `${patient.firstName} ${patient.lastName}`.trim())
+  );
+  const [signerEmail, setSignerEmail]   = useState(
+    savedLienSignature?.signerEmail
+    ?? (guardianFromClinic ? (savedExtra.guardianEmail ?? '') : (patient.email ?? ''))
+  );
   const [agreed, setAgreed]             = useState(!!(savedLienSignature?.signatureSvg));
   const [submitting, setSubmitting]     = useState(false);
 
@@ -2303,81 +2326,112 @@ export function IntakeWizard({
           <div style={{ paddingTop: 28 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <StepHeader icon="👤" title={t.guardianStepTitle} sub={t.guardianStepSub} />
-              <button
-                type="button"
-                onClick={() => { setStep(5); window.scrollTo(0, 0); }}
-                style={{
-                  flexShrink: 0, marginTop: 4,
-                  padding: '6px 14px', borderRadius: 8,
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5,
-                }}
-              >
-                ⊘ {t.guardianSkip}
-              </button>
+              {/* Sin "Omitir" cuando la clínica ya cargó al apoderado: esos
+                  datos definen a quién se le manda el form y quién firma, así
+                  que saltearlos no es una opción del paciente. */}
+              {!guardianFromClinic && (
+                <button
+                  type="button"
+                  onClick={() => { setStep(5); window.scrollTo(0, 0); }}
+                  style={{
+                    flexShrink: 0, marginTop: 4,
+                    padding: '6px 14px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5,
+                  }}
+                >
+                  ⊘ {t.guardianSkip}
+                </button>
+              )}
             </div>
 
             {/* Info chip */}
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '5px 12px', borderRadius: 20, marginBottom: 16,
-              background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.20)',
-              fontSize: 11, color: 'rgba(6,182,212,0.80)',
+              background: guardianFromClinic ? 'rgba(16,185,129,0.08)' : 'rgba(6,182,212,0.08)',
+              border: `1px solid ${guardianFromClinic ? 'rgba(16,185,129,0.20)' : 'rgba(6,182,212,0.20)'}`,
+              fontSize: 11, color: guardianFromClinic ? 'rgba(16,185,129,0.85)' : 'rgba(6,182,212,0.80)',
             }}>
-              ℹ {t.guardianStepNote}
+              ℹ {guardianFromClinic ? t.guardianFromClinicNote : t.guardianStepNote}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <FormSection title={t.guardianSection} sub={t.guardianSectionSub}>
-                {/* Nombre + Apellido */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.guardianFirstName}>
-                    <input type="text" style={S.input} value={personal.guardianName}
-                      placeholder={lang === 'es' ? 'Nombre del responsable' : 'Guardian first name'}
-                      onChange={e => setPersonal(p => ({ ...p, guardianName: e.target.value }))} />
-                  </Field>
-                  <Field label={t.guardianLastName}>
-                    <input type="text" style={S.input} value={personal.guardianLastName}
-                      placeholder={lang === 'es' ? 'Apellido del responsable' : 'Guardian last name'}
-                      onChange={e => setPersonal(p => ({ ...p, guardianLastName: e.target.value }))} />
-                  </Field>
-                </div>
+              <FormSection
+                title={t.guardianSection}
+                sub={guardianFromClinic ? t.guardianReadOnlySub : t.guardianSectionSub}
+                {...(guardianFromClinic ? {
+                  accent: 'rgba(16,185,129,0.06)',
+                  accentBorder: 'rgba(16,185,129,0.20)',
+                } : {})}
+              >
+                {/* Solo lectura cuando lo cargó la clínica: borde punteado y
+                    sin foco, para que se lea como dato traído y no como campo
+                    deshabilitado por error. */}
+                {(() => {
+                  const ro = guardianFromClinic;
+                  const roStyle: React.CSSProperties = ro
+                    ? { ...S.input, borderStyle: 'dashed', color: 'rgba(255,255,255,0.70)', cursor: 'default' }
+                    : S.input;
+                  return (
+                    <>
+                      {/* Nombre + Apellido */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <Field label={t.guardianFirstName}>
+                          <input type="text" style={roStyle} value={personal.guardianName} readOnly={ro}
+                            placeholder={lang === 'es' ? 'Nombre del responsable' : 'Guardian first name'}
+                            onChange={e => setPersonal(p => ({ ...p, guardianName: e.target.value }))} />
+                        </Field>
+                        <Field label={t.guardianLastName}>
+                          <input type="text" style={roStyle} value={personal.guardianLastName} readOnly={ro}
+                            placeholder={lang === 'es' ? 'Apellido del responsable' : 'Guardian last name'}
+                            onChange={e => setPersonal(p => ({ ...p, guardianLastName: e.target.value }))} />
+                        </Field>
+                      </div>
 
-                {/* Email */}
-                <Field label={t.guardianEmail}>
-                  <input type="email" style={S.input} value={personal.guardianEmail}
-                    placeholder="correo@ejemplo.com"
-                    onChange={e => setPersonal(p => ({ ...p, guardianEmail: e.target.value }))} />
-                </Field>
+                      {/* Email */}
+                      <Field label={t.guardianEmail}>
+                        <input type="email" style={roStyle} value={personal.guardianEmail} readOnly={ro}
+                          placeholder="correo@ejemplo.com"
+                          onChange={e => setPersonal(p => ({ ...p, guardianEmail: e.target.value }))} />
+                      </Field>
 
-                {/* DOB + Teléfono */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <Field label={t.guardianDOB}>
-                    <DateInputMDY style={S.input} value={personal.guardianDOB}
-                      max={todayISO} ariaLabel={calendarLabel}
-                      onChange={v => setPersonal(p => ({ ...p, guardianDOB: v }))} />
-                  </Field>
-                  <Field label={t.guardianPhone}>
-                    <input type="tel" style={S.input} value={personal.guardianPhone}
-                      placeholder="(801) 555-0100"
-                      onChange={e => setPersonal(p => ({ ...p, guardianPhone: formatPhone(e.target.value) }))} />
-                  </Field>
-                </div>
+                      {/* DOB + Teléfono */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <Field label={t.guardianDOB}>
+                          {ro ? (
+                            <input type="text" style={roStyle} readOnly
+                              value={personal.guardianDOB ? isoToDisplay(personal.guardianDOB) : '—'} />
+                          ) : (
+                            <DateInputMDY style={S.input} value={personal.guardianDOB}
+                              max={todayISO} ariaLabel={calendarLabel}
+                              onChange={v => setPersonal(p => ({ ...p, guardianDOB: v }))} />
+                          )}
+                        </Field>
+                        <Field label={t.guardianPhone}>
+                          <input type="tel" style={roStyle} value={personal.guardianPhone} readOnly={ro}
+                            placeholder="(801) 555-0100"
+                            onChange={e => setPersonal(p => ({ ...p, guardianPhone: formatPhone(e.target.value) }))} />
+                        </Field>
+                      </div>
 
-                {/* Celular */}
-                <Field label={t.guardianCellPhone}>
-                  <input type="tel" style={S.input} value={personal.guardianCellPhone}
-                    placeholder="(801) 555-0100"
-                    onChange={e => setPersonal(p => ({ ...p, guardianCellPhone: formatPhone(e.target.value) }))} />
-                </Field>
+                      {/* Celular */}
+                      <Field label={t.guardianCellPhone}>
+                        <input type="tel" style={roStyle} value={personal.guardianCellPhone} readOnly={ro}
+                          placeholder="(801) 555-0100"
+                          onChange={e => setPersonal(p => ({ ...p, guardianCellPhone: formatPhone(e.target.value) }))} />
+                      </Field>
 
-                {/* Dirección */}
-                <Field label={t.guardianAddress}>
-                  <input type="text" style={S.input} value={personal.guardianAddress}
-                    placeholder={lang === 'es' ? 'Ej: 123 Main St, Provo, UT' : 'E.g.: 123 Main St, Provo, UT'}
-                    onChange={e => setPersonal(p => ({ ...p, guardianAddress: e.target.value }))} />
-                </Field>
+                      {/* Dirección */}
+                      <Field label={t.guardianAddress}>
+                        <input type="text" style={roStyle} value={personal.guardianAddress} readOnly={ro}
+                          placeholder={lang === 'es' ? 'Ej: 123 Main St, Provo, UT' : 'E.g.: 123 Main St, Provo, UT'}
+                          onChange={e => setPersonal(p => ({ ...p, guardianAddress: e.target.value }))} />
+                      </Field>
+                    </>
+                  );
+                })()}
               </FormSection>
             </div>
 

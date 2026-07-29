@@ -319,7 +319,9 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
           patient: {
             firstName: patient.firstName,
             lastName:  patient.lastName,
-            phone:     '0000000000',
+            // Paciente existente: el API ignora el teléfono en el update, así
+            // que no hace falta inventar un placeholder acá.
+            phone:     '',
           },
           accident: {
             date:  accidentDate ? new Date(accidentDate).toISOString() : null,

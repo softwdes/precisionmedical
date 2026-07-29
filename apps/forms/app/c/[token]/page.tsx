@@ -70,6 +70,16 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
           guardianName: true,
           guardianPhone: true,
           guardianRelation: true,
+          // Apoderado como ficha real, cargado por la clínica al crear el caso
+          // de un menor. Es la fuente buena: las columnas guardianName/Phone de
+          // arriba son texto suelto de la data migrada del v2.
+          guardianPatient: {
+            select: {
+              id: true, firstName: true, lastName: true,
+              email: true, phone: true, phone2: true,
+              dateOfBirth: true, addressLine1: true,
+            },
+          },
           insuranceCarrier: true,
           policyNumber: true,
         },
@@ -105,6 +115,13 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
   const appt = rec.appointments[0] ?? null;
   const cd = (rec.consentsData ?? {}) as Record<string, unknown>;
 
+  // ─── Apoderado ──────────────────────────────────────────────────────────
+  // Si la clínica ya vinculó un apoderado al crear el caso, esos datos manan
+  // de su ficha y tienen prioridad sobre lo que haya en las columnas legacy o
+  // en consentsData. El paciente no debería tener que volver a escribirlos.
+  const gp = rec.patient.guardianPatient;
+  const guardianFromClinic = !!gp;
+
   return (
     <IntakeWizard
       token={token}
@@ -136,8 +153,8 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
         emergency2Name:           rec.patient.emergency2Name ?? null,
         emergency2Phone:          rec.patient.emergency2Phone ?? null,
         emergency2Relation:       decryptFieldOrOriginal(rec.patient.emergency2Relation),
-        guardianName:             rec.patient.guardianName ?? null,
-        guardianPhone:            rec.patient.guardianPhone ?? null,
+        guardianName:             gp ? gp.firstName : (rec.patient.guardianName ?? null),
+        guardianPhone:            gp ? (gp.phone ?? gp.phone2 ?? null) : (rec.patient.guardianPhone ?? null),
         guardianRelation:         decryptFieldOrOriginal(rec.patient.guardianRelation),
         insuranceCarrier:         rec.patient.insuranceCarrier ?? null,
         policyNumber:             rec.patient.policyNumber ?? null,
@@ -171,12 +188,16 @@ export default async function PatientPortalPage({ params, searchParams }: Props)
       }}
       savedExtra={{
         referredBy:        (cd.referredBy as string) ?? null,
-        guardianLastName:  (cd.guardianLastName as string) ?? null,
-        guardianEmail:     (cd.guardianEmail as string) ?? null,
-        guardianDOB:       (cd.guardianDOB as string) ?? null,
-        guardianCellPhone: (cd.guardianCellPhone as string) ?? null,
-        guardianAddress:   (cd.guardianAddress as string) ?? null,
+        // La ficha del apoderado gana sobre consentsData cuando existe
+        guardianLastName:  gp ? gp.lastName : ((cd.guardianLastName as string) ?? null),
+        guardianEmail:     gp ? (gp.email ?? null) : ((cd.guardianEmail as string) ?? null),
+        guardianDOB:       gp ? (gp.dateOfBirth ? gp.dateOfBirth.toISOString().slice(0, 10) : null)
+                              : ((cd.guardianDOB as string) ?? null),
+        guardianCellPhone: gp ? (gp.phone2 ?? gp.phone ?? null) : ((cd.guardianCellPhone as string) ?? null),
+        guardianAddress:   gp ? (gp.addressLine1 ?? null) : ((cd.guardianAddress as string) ?? null),
       }}
+      /* Cargado por la clínica → el step 4 se muestra en solo lectura */
+      guardianFromClinic={guardianFromClinic}
       savedPhotos={(cd.photos ?? null) as {
         selfie?: string; insuranceCardFront?: string;
         insuranceCardBack?: string; dlFront?: string;

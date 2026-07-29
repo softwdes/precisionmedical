@@ -451,7 +451,12 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
         body: JSON.stringify({
           patient: {
             firstName: firstName.trim(), lastName: lastName.trim(),
-            phone: phone.trim() || '0000000000',
+            // Vacío se manda vacío. Antes caía a '0000000000' como placeholder,
+            // y eso rompía el formulario del paciente: forms valida NANP y un
+            // área code que empieza en 0 es inválido, así que el paciente
+            // quedaba trabado en el step 2 sin poder avanzar ni entender por
+            // qué. Un teléfono en blanco pasa la validación sin problema.
+            phone: phone.trim(),
             email: email.trim() || null,
             dateOfBirth: dateOfBirth ? new Date(dateOfBirth + 'T12:00:00Z').toISOString() : null,
             preferredLanguage: language,

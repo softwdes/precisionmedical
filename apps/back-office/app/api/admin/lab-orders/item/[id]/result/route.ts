@@ -13,7 +13,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
-import { checkOrderAccess } from '@/lib/lab-order-access';
+import { checkOrderAccess } from '@/lib/appointment-access';
 
 type Ctx = { params: Promise<{ id: string }> };
 

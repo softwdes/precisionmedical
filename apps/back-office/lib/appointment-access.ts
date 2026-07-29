@@ -1,5 +1,5 @@
 /**
- * Guard compartido de las APIs de órdenes de laboratorio (B.20 · L2).
+ * Guard compartido de las APIs del portal médico sobre UNA cita.
  *
  * Misma regla que la nota clínica: pasa el doctor dueño de la cita, o
  * SUPER_ADMIN / ADMIN (soporte y registro del resultado desde el back-office).

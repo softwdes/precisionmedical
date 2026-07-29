@@ -70,6 +70,14 @@ export default async function DoctorConsultationPage({
 
   if (!a) notFound();
 
+  // `doctorDoneAt` con SQL directo: la columna existe (db push aplicado) pero el
+  // cliente de Prisma no se pudo regenerar (otro dev server tenía tomado el
+  // motor en Windows). Pasar a `select` cuando se regenere.
+  const doneRows = await db.$queryRaw<Array<{ doctorDoneAt: Date | null }>>`
+    SELECT "doctorDoneAt" FROM appointments WHERE id = ${appointmentId}
+  `;
+  const doctorDoneAt = doneRows[0]?.doctorDoneAt ?? null;
+
   // Plantillas globales disponibles + favoritas del doctor (para autollenar la nota)
   const tplRows = await db.template.findMany({
     where: { deletedAt: null, isActive: true },
@@ -184,6 +192,7 @@ export default async function DoctorConsultationPage({
         checkedInAt: a.checkedInAt?.toISOString() ?? null,
         attendanceSignedAt: a.attendanceSignedAt?.toISOString() ?? null,
         noteStatus: a.visitNote?.status ?? null,
+        doctorDoneAt: doctorDoneAt?.toISOString() ?? null,
         clinicName: a.clinic.name,
         caseCode: a.case?.caseCode ?? null,
         verification,

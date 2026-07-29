@@ -31,6 +31,8 @@ export interface MyDayAppointment {
   /** Mini-resumen de vitales del triaje (null si no hay registro) */
   triage: { systolic: number | null; diastolic: number | null; pulse: number | null; pain: number | null } | null;
   noteStatus: string | null; // DRAFT | SIGNED | null
+  /** El doctor ya terminó con este paciente (el asistente cierra la cita) */
+  doctorDoneAt: string | null;
   patientFirstName: string;
   patientLastName: string;
   caseCode: string | null;
@@ -98,16 +100,18 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, dateKey, 
   // degradaciones de status (bug real: un confirm tardío pisó IN_PROGRESS).
   const arrived = (a: MyDayAppointment): boolean =>
     a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS' || !!a.checkedInAt;
-  const waiting = active.filter(arrived);
+  const waiting = active.filter(a => arrived(a) && !a.doctorDoneAt);
 
   // Hero solo aplica al día de HOY: en consulta > en espera con triaje > en espera > próxima futura.
+  // Los que el doctor ya terminó salen del hero — le toca al asistente cobrarlos.
   // En días pasados/futuros se muestra la lista completa sin hero ni CTA.
+  const pending = active.filter(a => !a.doctorDoneAt);
   const hero = isToday
-    ? (active.find(a => a.status === 'IN_PROGRESS')
-      ?? active.find(a => arrived(a) && a.hasTriage)
-      ?? active.find(arrived)
-      ?? active.find(a => new Date(a.scheduledFor).getTime() >= now - 15 * 60_000)
-      ?? active[0]
+    ? (pending.find(a => a.status === 'IN_PROGRESS')
+      ?? pending.find(a => arrived(a) && a.hasTriage)
+      ?? pending.find(arrived)
+      ?? pending.find(a => new Date(a.scheduledFor).getTime() >= now - 15 * 60_000)
+      ?? pending[0]
       ?? null)
     : null;
 
@@ -138,6 +142,8 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, dateKey, 
   };
 
   const statusPill = (a: MyDayAppointment): React.ReactElement => {
+    // El doctor ya terminó — falta que el asistente cobre y cierre la cita
+    if (a.doctorDoneAt) return <TagPill label={t('statusDoctorDone')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />;
     if (a.status === 'IN_PROGRESS') return <TagPill label={t('statusInProgress')} colorClass="bg-violet/15 text-violet border-violet/30" />;
     if (arrived(a)) {
       return a.hasTriage

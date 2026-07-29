@@ -23,6 +23,7 @@ import { VisitNoteEditor, type VisitNoteData } from './visit-note-editor';
 import type { PickableTemplate } from './template-picker';
 import { PatientContextPanel, type PatientContext } from './patient-context-panel';
 import { LabsTab } from './labs-tab';
+import { VisitSummary } from './visit-summary';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -51,6 +52,8 @@ export interface ConsultationAppointment {
   checkedInAt: string | null;
   attendanceSignedAt: string | null;
   noteStatus: string | null;
+  /** El doctor ya terminó con el paciente (nodo 4) — no cierra la cita */
+  doctorDoneAt: string | null;
   clinicName: string;
   caseCode: string | null;
   /** Verificación del caso — mismas fuentes que Day Admission */
@@ -73,8 +76,8 @@ export interface ConsultationAppointment {
 }
 
 type Tab = 'notes' | 'labs' | 'rx' | 'services';
-/** El doctor no ve pagos: su flujo termina en el nodo 3 (En sala) */
-type StepView = 1 | 2 | 3;
+/** 4 nodos: el 4 es Resumen y salida (el cobro sigue siendo del asistente) */
+type StepView = 1 | 2 | 3 | 4;
 
 function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', {
@@ -143,18 +146,20 @@ export function ConsultationClient({
   const age = ageOf(a.patient.dateOfBirth);
   const tr = a.triage;
 
-  // Paso actual del flujo (mismo criterio que Day Admission)
-  const currentStep = (isInRoom || isCompleted || hasTriage ? 3 : 2) as StepView;
+  // Paso actual del flujo (mismo criterio que Day Admission).
+  // Si el doctor ya terminó, el paso actual es el Resumen.
+  const currentStep = (a.doctorDoneAt ? 4 : isInRoom || isCompleted || hasTriage ? 3 : 2) as StepView;
   // Navegación libre entre nodos — arranca en el paso actual
   const [view, setView] = React.useState<StepView>(currentStep);
   const [tab, setTab] = React.useState<Tab>('notes');
   const isCurrent = (n: StepView): boolean => n === currentStep;
 
-  // Nodos del flujo del doctor — 3 pasos (el cobro es del asistente, no se muestra)
+  // Nodos del flujo del doctor — 4 pasos (el cobro sigue siendo del asistente)
   const steps: Array<{ n: StepView; label: string; desc: string; done: boolean; current: boolean }> = [
     { n: 1, label: t('stepCheckin'), desc: t('stepCheckinDesc'), done: !!a.checkedInAt || isInRoom || isCompleted, current: isCurrent(1) },
     { n: 2, label: t('stepTriage'),  desc: t('stepTriageDesc'),  done: hasTriage || isInRoom || isCompleted,      current: isCurrent(2) },
-    { n: 3, label: t('stepDoctor'),  desc: t('stepDoctorDesc'),  done: isCompleted,                                current: isCurrent(3) },
+    { n: 3, label: t('stepDoctor'),  desc: t('stepDoctorDesc'),  done: !!a.doctorDoneAt || isCompleted,            current: isCurrent(3) },
+    { n: 4, label: t('stepSummary'), desc: t('stepSummaryDesc'), done: !!a.doctorDoneAt,                           current: isCurrent(4) },
   ];
 
   // Tabs del área de trabajo del doctor (nodo 3) — Servicios a la derecha de Prescripción
@@ -432,6 +437,19 @@ export function ConsultationClient({
           )}
           </div>
         </div>
+      )}
+
+      {/* ── Nodo 4: Resumen y salida ── */}
+      {view === 4 && (
+        <VisitSummary
+          appointmentId={a.id}
+          note={note}
+          triage={a.triage}
+          services={(a.servicesPanel.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string }>}
+          checkedInAt={a.checkedInAt}
+          doctorDoneAt={a.doctorDoneAt}
+          onFix={(target) => { setTab(target); setView(3); }}
+        />
       )}
     </div>
   );

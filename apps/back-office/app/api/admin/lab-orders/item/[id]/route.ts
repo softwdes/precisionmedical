@@ -10,7 +10,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
-import { checkOrderAccess } from '@/lib/lab-order-access';
+import { checkOrderAccess } from '@/lib/appointment-access';
 
 type Ctx = { params: Promise<{ id: string }> };
 

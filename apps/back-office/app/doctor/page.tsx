@@ -92,6 +92,16 @@ export default async function DoctorMyDayPage({
     }),
   ]);
 
+  // `doctorDoneAt` con SQL directo (ver nota en la página de consulta: el
+  // cliente de Prisma quedó sin regenerar por un lock de Windows).
+  const doneRows = await db.$queryRaw<Array<{ id: string; doctorDoneAt: Date | null }>>`
+    SELECT id, "doctorDoneAt" FROM appointments
+     WHERE "providerId" = ${provider.id}
+       AND "scheduledFor" >= ${start} AND "scheduledFor" < ${end}
+       AND "doctorDoneAt" IS NOT NULL
+  `;
+  const doneMap = new Map(doneRows.map((r) => [r.id, r.doctorDoneAt]));
+
   const appointments: MyDayAppointment[] = appts.map((a) => ({
     id: a.id,
     scheduledFor: a.scheduledFor.toISOString(),
@@ -112,6 +122,7 @@ export default async function DoctorMyDayPage({
         }
       : null,
     noteStatus: a.visitNote?.status ?? null,
+    doctorDoneAt: doneMap.get(a.id)?.toISOString() ?? null,
     patientFirstName: decryptFieldOrOriginal(a.patient.firstName) ?? '',
     patientLastName: decryptFieldOrOriginal(a.patient.lastName) ?? '',
     caseCode: a.case?.caseCode ?? null,

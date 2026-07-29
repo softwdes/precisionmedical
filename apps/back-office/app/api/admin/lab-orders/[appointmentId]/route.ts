@@ -16,7 +16,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
-import { checkAppointmentAccess } from '@/lib/lab-order-access';
+import { checkAppointmentAccess } from '@/lib/appointment-access';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 

@@ -18,7 +18,7 @@ import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, CheckCircle2, Clock, AlertTriangle, RefreshCw,
   Stethoscope, Building2, ChevronRight, FileText, Activity,
-  User, ShieldCheck,
+  User, ShieldCheck, Lock,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -143,7 +143,9 @@ function VInput({ value, onChange, placeholder, type = 'number', step }: {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder ?? '0'}
-      className="w-full bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-center text-[13px] font-semibold text-text-1 placeholder:text-text-muted placeholder:font-normal outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-all"
+      /* disabled: aplica cuando el <fieldset> padre está disabled — borde
+         punteado para que se lea como "dato cerrado", no como campo roto */
+      className="w-full bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-center text-[13px] font-semibold text-text-1 placeholder:text-text-muted placeholder:font-normal outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-all disabled:border-dashed disabled:text-text-2 disabled:bg-white/[0.02] disabled:cursor-not-allowed"
     />
   );
 }
@@ -321,6 +323,12 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const [vitals,    setVitals]    = useState<VitalsState>(EMPTY_VITALS);
   const [vitalsDirty, setVitalsDirty] = useState(false);
   const [vitalsSaving, setVitalsSaving] = useState(false);
+  const [vitalsError, setVitalsError] = useState<string | null>(null);
+  // Triaje ya cerrado (paciente en sala): los vitales quedan en solo lectura y
+  // hay que pedir corrección explícitamente. No se bloquea del todo porque en
+  // la clínica los errores de medición pasan, y cerrarlo por completo empuja a
+  // corregirlo por caminos peores. La corrección queda trazada en el audit log.
+  const [correctingVitals, setCorrectingVitals] = useState(false);
   const [vitalsSaved,  setVitalsSaved]  = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -410,18 +418,34 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
     dirty();
   }
 
-  async function saveVitals() {
+  /**
+   * Guarda los vitales. Devuelve true solo si el servidor confirmó.
+   *
+   * Antes no se chequeaba `res.ok`: un 500 o la red caída igual marcaban
+   * "✓ Saved" y limpiaban `vitalsDirty`, o sea le mentía a la MA diciendo que
+   * el dato clínico quedó guardado cuando no.
+   */
+  async function saveVitals(): Promise<boolean> {
     setVitalsSaving(true);
+    setVitalsError(null);
     try {
-      await fetch(`/api/admin/admission/${appointmentId}/triage`, {
+      const res = await fetch(`/api/admin/admission/${appointmentId}/triage`, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(stateToPayload(vitals)),
       });
+      if (!res.ok) {
+        setVitalsError(t('vitalsSaveError'));
+        return false;
+      }
       setVitalsDirty(false);
       setVitalsSaved(true);
       if (savedTimer.current) clearTimeout(savedTimer.current);
       savedTimer.current = setTimeout(() => setVitalsSaved(false), 3000);
+      return true;
+    } catch {
+      setVitalsError(t('vitalsSaveError'));
+      return false;
     } finally {
       setVitalsSaving(false);
     }
@@ -430,6 +454,17 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   async function admit() {
     setAdmitting(true);
     try {
+      // "Pasar a la sala" también guarda: antes solo llamaba a /admit, así que
+      // si la MA cargaba los vitales y apretaba este botón sin pasar por
+      // "Guardar", los signos vitales se perdían en silencio. Había un cartel
+      // "Unsaved" avisando, pero un cartel se ignora cuando hay pacientes
+      // esperando.
+      if (vitalsDirty) {
+        const ok = await saveVitals();
+        // Si el guardado falla NO se admite: mejor que el paciente quede en
+        // triaje que pase a sala con los vitales perdidos.
+        if (!ok) return;
+      }
       await fetch(`/api/admin/admission/${appointmentId}/admit`, { method: 'POST' });
       await load();
     } finally {
@@ -453,6 +488,12 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const isAlreadyInRoom = d.status === 'IN_PROGRESS' || d.status === 'COMPLETED';
   const consentsOk = !!d.case?.consentsCompleted;
   const canAdmit = confirm1 && confirm2 && consentsOk && !isAlreadyInRoom;
+
+  // Solo lectura cuando el triaje ya se cerró, salvo que se pida corregir.
+  // Antes el cartel "Viewing Step N — read-only" era puramente decorativo: los
+  // inputs seguían editables y "Guardar" seguía funcionando, así que se podían
+  // alterar los vitales de un paciente ya admitido sin ninguna traza.
+  const vitalsLocked = isAlreadyInRoom && !correctingVitals;
 
   const cd = d.case?.consentsData ?? {} as ConsentsData;
   const overallState: StatusState = isAlreadyInRoom ? 'success' : consentsOk ? 'success' : 'warning';
@@ -789,16 +830,40 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
 
               {/* Vitals form */}
               <div className="rounded-lg bg-bg-2/30 p-4">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <Activity className="w-4 h-4 text-cyan" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionVitals')}</span>
-                  {vitalsDirty && !vitalsSaved && (
+                  {vitalsLocked && (
+                    <>
+                      <span className="text-[9px] text-text-muted bg-bg-2 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Lock className="w-2.5 h-2.5" />{t('vitalsLockedBadge')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCorrectingVitals(true)}
+                        className="ml-auto text-[9px] text-amber border border-amber/30 bg-amber/10 hover:bg-amber/20 px-2 py-0.5 rounded-full transition-colors"
+                      >
+                        {t('vitalsCorrectBtn')}
+                      </button>
+                    </>
+                  )}
+                  {correctingVitals && (
+                    <span className="ml-auto text-[9px] text-amber bg-amber/10 border border-amber/30 px-2 py-0.5 rounded-full">
+                      {t('vitalsCorrectingBadge')}
+                    </span>
+                  )}
+                  {!vitalsLocked && vitalsDirty && !vitalsSaved && (
                     <span className="ml-auto text-[9px] text-amber bg-amber/10 border border-amber/20 px-2 py-0.5 rounded-full">Unsaved</span>
                   )}
                   {vitalsSaved && (
                     <span className="ml-auto text-[9px] text-emerald bg-emerald/10 border border-emerald/20 px-2 py-0.5 rounded-full">✓ Saved</span>
                   )}
                 </div>
+
+                {/* fieldset disabled propaga a TODOS los controles internos, así
+                    no hay que pasarle un prop a cada uno de los ~30 VInput. Los
+                    inputs matchean :disabled y toman los estilos disabled: */}
+                <fieldset disabled={vitalsLocked} className="contents">
 
                 {/* 1st reading */}
                 <div className="text-[9px] uppercase tracking-wider font-bold text-cyan mb-2 flex items-center gap-2 after:flex-1 after:h-px after:bg-cyan/20">
@@ -880,19 +945,31 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   </VitalGroup>
                 </div>
 
-                {/* Save bar */}
-                <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-                  <span className="text-[10px] text-text-muted">{t('vitalsNote')}</span>
-                  <button
-                    type="button"
-                    onClick={saveVitals}
-                    disabled={vitalsSaving || !vitalsDirty}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan/10 border border-cyan/25 text-cyan text-[11px] font-semibold hover:bg-cyan/18 disabled:opacity-40 transition-colors"
-                  >
-                    {vitalsSaving ? <RefreshCw className="w-3 h-3 animate-spin" /> : '💾'}
-                    {vitalsSaving ? t('processing') : t('vitalsSaveBtn')}
-                  </button>
-                </div>
+                </fieldset>
+
+                {vitalsError && (
+                  <div className="mt-3 rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose flex items-start gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>{vitalsError}</span>
+                  </div>
+                )}
+
+                {/* Save bar — oculta cuando el triaje está cerrado: sin nada que
+                    guardar, el botón solo invitaría a tocar un registro cerrado */}
+                {!vitalsLocked && (
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-border gap-2 flex-wrap">
+                    <span className="text-[10px] text-text-muted">{t('vitalsNote')}</span>
+                    <button
+                      type="button"
+                      onClick={saveVitals}
+                      disabled={vitalsSaving || !vitalsDirty}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan/10 border border-cyan/25 text-cyan text-[11px] font-semibold hover:bg-cyan/18 disabled:opacity-40 transition-colors"
+                    >
+                      {vitalsSaving ? <RefreshCw className="w-3 h-3 animate-spin" /> : '💾'}
+                      {vitalsSaving ? t('processing') : t('vitalsSaveBtn')}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -951,13 +1028,25 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 ].map(item => (
                   <label
                     key={item.id}
-                    onClick={item.onToggle}
-                    className="flex items-center gap-3 rounded-md border border-border px-3 py-2.5 cursor-pointer hover:border-emerald/30 transition-colors group mb-2"
+                    /* Con el paciente ya en sala estos checks no hacen nada
+                       (canAdmit exige !isAlreadyInRoom), pero seguían siendo
+                       clickeables y eso sugería que la acción estaba disponible */
+                    onClick={isAlreadyInRoom ? undefined : item.onToggle}
+                    className={`flex items-center gap-3 rounded-md border border-border px-3 py-2.5 transition-colors group mb-2 ${
+                      isAlreadyInRoom
+                        ? 'opacity-50 cursor-not-allowed'
+                        : 'cursor-pointer hover:border-emerald/30'
+                    }`}
                   >
-                    <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${item.checked ? 'bg-emerald border-emerald' : 'border border-border bg-bg-2 group-hover:border-emerald/40'}`}>
-                      {item.checked && <CheckCircle2 className="w-3 h-3 text-white" />}
+                    <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${
+                      // Ya admitido → se muestran como cumplidos, que es el hecho
+                      (item.checked || isAlreadyInRoom)
+                        ? 'bg-emerald border-emerald'
+                        : `border border-border bg-bg-2 ${isAlreadyInRoom ? '' : 'group-hover:border-emerald/40'}`
+                    }`}>
+                      {(item.checked || isAlreadyInRoom) && <CheckCircle2 className="w-3 h-3 text-white" />}
                     </div>
-                    <span className={`text-[11px] ${item.checked ? 'text-emerald' : 'text-text-2'}`}>{item.label}</span>
+                    <span className={`text-[11px] ${(item.checked || isAlreadyInRoom) ? 'text-emerald' : 'text-text-2'}`}>{item.label}</span>
                   </label>
                 ))}
 

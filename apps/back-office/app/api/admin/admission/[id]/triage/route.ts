@@ -6,7 +6,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { db } from '@precision-medical/database';
+import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 
 export async function PUT(
   req: NextRequest,
@@ -18,8 +18,17 @@ export async function PUT(
     const body = await req.json() as Record<string, unknown>;
 
     // Verify appointment exists
-    const appt = await db.appointment.findUnique({ where: { id }, select: { id: true } });
+    const appt = await db.appointment.findUnique({
+      where: { id },
+      select: { id: true, status: true, patientId: true },
+    });
     if (!appt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+
+    // Corrección después de que el paciente ya pasó a sala. El UI la bloquea
+    // detrás de un botón explícito, pero igual se registra distinto en el audit
+    // log: alterar signos vitales de un triaje ya cerrado tiene que quedar
+    // trazado, no verse igual que la carga original.
+    const esCorreccionPostAdmision = appt.status === 'IN_PROGRESS' || appt.status === 'COMPLETED';
 
     // Auto-convert F→C and lbs+oz→kg when primary value provided
     const tempF = typeof body.tempFahrenheit === 'number' ? body.tempFahrenheit : null;
@@ -83,7 +92,24 @@ export async function PUT(
       update: data,
     });
 
-    return NextResponse.json({ ok: true, triage });
+    // Regla #3: los signos vitales son dato clínico, toda escritura se audita.
+    const actor = actorFromHeaders(req.headers);
+    await writeAuditLog(db, {
+      actorType:   actor.actorType,
+      actorUserId: actor.actorUserId ?? undefined,
+      action:      esCorreccionPostAdmision ? 'TRIAGE_VITALS_CORRECTED' : 'TRIAGE_VITALS_SAVED',
+      entityType:  'TriageRecord',
+      entityId:    triage.id,
+      metadata: {
+        appointmentId:          id,
+        patientId:              appt.patientId,
+        appointmentStatus:      appt.status,
+        postAdmissionCorrection: esCorreccionPostAdmision,
+      },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
+    });
+
+    return NextResponse.json({ ok: true, triage, postAdmissionCorrection: esCorreccionPostAdmision });
   } catch (err) {
     console.error('[PUT /api/admin/admission/[id]/triage]', err);
     return NextResponse.json({ ok: false, error: 'INTERNAL_ERROR' }, { status: 500 });

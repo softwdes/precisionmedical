@@ -142,7 +142,11 @@ function VInput({ value, onChange, placeholder, type = 'number', step }: {
       step={step}
       value={value}
       onChange={e => onChange(e.target.value)}
-      placeholder={placeholder ?? '0'}
+      /* Default '—' y no un número de ejemplo: los placeholders eran "5", "150",
+         "120", "98.6"… indistinguibles de datos reales de un vistazo. En una
+         pantalla clínica eso hace creer que ya se tomaron los signos vitales
+         cuando el formulario está vacío. */
+      placeholder={placeholder ?? '—'}
       /* disabled: aplica cuando el <fieldset> padre está disabled — borde
          punteado para que se lea como "dato cerrado", no como campo roto */
       className="w-full bg-bg-2 border border-border rounded-md px-2.5 py-1.5 text-center text-[13px] font-semibold text-text-1 placeholder:text-text-muted placeholder:font-normal outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-all disabled:border-dashed disabled:text-text-2 disabled:bg-white/[0.02] disabled:cursor-not-allowed"
@@ -872,40 +876,40 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                   <VitalGroup icon={<span>📏</span>} title={t('vitHeight')}>
                     <div className="grid grid-cols-3 gap-2">
-                      <VField label={t('vitFeet')}><VInput value={vitals.heightFt} onChange={setHeightFt} placeholder="5" /></VField>
-                      <VField label={t('vitInches')}><VInput value={vitals.heightIn} onChange={setHeightIn} placeholder="6" /></VField>
+                      <VField label={t('vitFeet')}><VInput value={vitals.heightFt} onChange={setHeightFt} /></VField>
+                      <VField label={t('vitInches')}><VInput value={vitals.heightIn} onChange={setHeightIn} /></VField>
                       <VField label={t('vitCms')}><VInput value={vitals.heightCm} onChange={setHeightCm} placeholder="—" /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>⚖️</span>} title={t('vitWeight')}>
                     <div className="grid grid-cols-3 gap-2">
-                      <VField label={t('vitLbs')}><VInput value={vitals.weightLbs} onChange={setWeightLbs} placeholder="150" /></VField>
-                      <VField label={t('vitOz')}><VInput value={vitals.weightOz} onChange={setWeightOz} placeholder="0" /></VField>
+                      <VField label={t('vitLbs')}><VInput value={vitals.weightLbs} onChange={setWeightLbs} /></VField>
+                      <VField label={t('vitOz')}><VInput value={vitals.weightOz} onChange={setWeightOz} /></VField>
                       <VField label="kg"><VInput value={vitals.weightKg} onChange={setWeightKg} placeholder="—" step="0.1" /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>💓</span>} title={t('vitBloodPressure')}>
                     <div className="grid grid-cols-2 gap-2">
-                      <VField label={t('vitSystolic')}><VInput value={vitals.systolicMmhg} onChange={v => setV('systolicMmhg', v)} placeholder="120" /></VField>
-                      <VField label={t('vitDiastolic')}><VInput value={vitals.diastolicMmhg} onChange={v => setV('diastolicMmhg', v)} placeholder="80" /></VField>
+                      <VField label={t('vitSystolic')}><VInput value={vitals.systolicMmhg} onChange={v => setV('systolicMmhg', v)} /></VField>
+                      <VField label={t('vitDiastolic')}><VInput value={vitals.diastolicMmhg} onChange={v => setV('diastolicMmhg', v)} /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>🫀</span>} title={t('vitHeartLungs')}>
                     <div className="grid grid-cols-2 gap-2">
-                      <VField label={t('vitPulse')}><VInput value={vitals.pulseBpm} onChange={v => setV('pulseBpm', v)} placeholder="72" /></VField>
-                      <VField label={t('vitRespRate')}><VInput value={vitals.respiratoryRate} onChange={v => setV('respiratoryRate', v)} placeholder="16" /></VField>
+                      <VField label={t('vitPulse')}><VInput value={vitals.pulseBpm} onChange={v => setV('pulseBpm', v)} /></VField>
+                      <VField label={t('vitRespRate')}><VInput value={vitals.respiratoryRate} onChange={v => setV('respiratoryRate', v)} /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>🌡️</span>} title={t('vitTempPain')}>
                     <div className="grid grid-cols-3 gap-2">
-                      <VField label={t('vitTempF')}><VInput value={vitals.tempFahrenheit} onChange={setTempF} placeholder="98.6" step="0.1" /></VField>
-                      <VField label={t('vitTempC')}><VInput value={vitals.tempCelsius} onChange={setTempC} placeholder="37.0" step="0.1" /></VField>
-                      <VField label={t('vitPain')}><VInput value={vitals.painScale} onChange={v => setV('painScale', v)} placeholder="0" /></VField>
+                      <VField label={t('vitTempF')}><VInput value={vitals.tempFahrenheit} onChange={setTempF} step="0.1" /></VField>
+                      <VField label={t('vitTempC')}><VInput value={vitals.tempCelsius} onChange={setTempC} step="0.1" /></VField>
+                      <VField label={t('vitPain')}><VInput value={vitals.painScale} onChange={v => setV('painScale', v)} /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>💨</span>} title={t('vitOxygen')}>
                     <div className="grid grid-cols-2 gap-2">
-                      <VField label={t('vitO2')}><VInput value={vitals.o2Saturation} onChange={v => setV('o2Saturation', v)} placeholder="98" /></VField>
+                      <VField label={t('vitO2')}><VInput value={vitals.o2Saturation} onChange={v => setV('o2Saturation', v)} /></VField>
                       <VField label={t('vitO2Comment')}><VInput value={vitals.o2Comment} onChange={v => setV('o2Comment', v)} placeholder="..." type="text" /></VField>
                     </div>
                     <Toggle on={!vitals.onRoomAir} onToggle={() => setV('onRoomAir', !vitals.onRoomAir)} label={t('vitOnOxygen')} />
@@ -919,27 +923,27 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <VitalGroup icon={<span>💓</span>} title={`${t('vitBloodPressure')} (2)`}>
                     <div className="grid grid-cols-2 gap-2">
-                      <VField label={t('vitSystolic')}><VInput value={vitals.systolicMmhg2} onChange={v => setV('systolicMmhg2', v)} placeholder="0" /></VField>
-                      <VField label={t('vitDiastolic')}><VInput value={vitals.diastolicMmhg2} onChange={v => setV('diastolicMmhg2', v)} placeholder="0" /></VField>
+                      <VField label={t('vitSystolic')}><VInput value={vitals.systolicMmhg2} onChange={v => setV('systolicMmhg2', v)} /></VField>
+                      <VField label={t('vitDiastolic')}><VInput value={vitals.diastolicMmhg2} onChange={v => setV('diastolicMmhg2', v)} /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>🫀</span>} title={`${t('vitHeartLungs')} (2)`}>
                     <div className="grid grid-cols-2 gap-2">
-                      <VField label={t('vitPulse')}><VInput value={vitals.pulseBpm2} onChange={v => setV('pulseBpm2', v)} placeholder="0" /></VField>
-                      <VField label={t('vitRespRate')}><VInput value={vitals.respiratoryRate2} onChange={v => setV('respiratoryRate2', v)} placeholder="0" /></VField>
+                      <VField label={t('vitPulse')}><VInput value={vitals.pulseBpm2} onChange={v => setV('pulseBpm2', v)} /></VField>
+                      <VField label={t('vitRespRate')}><VInput value={vitals.respiratoryRate2} onChange={v => setV('respiratoryRate2', v)} /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>🌡️</span>} title={`${t('vitTempPain')} (2)`}>
                     <div className="grid grid-cols-2 gap-2">
-                      <VField label={t('vitTempF')}><VInput value={vitals.tempFahrenheit2} onChange={setTempF2} placeholder="0.0" step="0.1" /></VField>
-                      <VField label={t('vitTempC')}><VInput value={vitals.tempCelsius2} onChange={setTempC2} placeholder="0.0" step="0.1" /></VField>
+                      <VField label={t('vitTempF')}><VInput value={vitals.tempFahrenheit2} onChange={setTempF2} step="0.1" /></VField>
+                      <VField label={t('vitTempC')}><VInput value={vitals.tempCelsius2} onChange={setTempC2} step="0.1" /></VField>
                     </div>
                   </VitalGroup>
                   <VitalGroup icon={<span>👁️</span>} title={t('vitVision')}>
                     <div className="grid grid-cols-3 gap-2">
-                      <VField label={t('vitVisionRight')}><VInput value={vitals.visualAcuityRight} onChange={v => setV('visualAcuityRight', v)} placeholder="20" /></VField>
-                      <VField label={t('vitVisionLeft')}><VInput value={vitals.visualAcuityLeft} onChange={v => setV('visualAcuityLeft', v)} placeholder="20" /></VField>
-                      <VField label={t('vitVisionBoth')}><VInput value={vitals.visualAcuityBoth} onChange={v => setV('visualAcuityBoth', v)} placeholder="20" /></VField>
+                      <VField label={t('vitVisionRight')}><VInput value={vitals.visualAcuityRight} onChange={v => setV('visualAcuityRight', v)} /></VField>
+                      <VField label={t('vitVisionLeft')}><VInput value={vitals.visualAcuityLeft} onChange={v => setV('visualAcuityLeft', v)} /></VField>
+                      <VField label={t('vitVisionBoth')}><VInput value={vitals.visualAcuityBoth} onChange={v => setV('visualAcuityBoth', v)} /></VField>
                     </div>
                     <Toggle on={vitals.visionCorrected} onToggle={() => setV('visionCorrected', !vitals.visionCorrected)} label={t('vitVisionCorrected')} />
                   </VitalGroup>

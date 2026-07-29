@@ -1795,8 +1795,7 @@
       "sumCheckServicesMissing": "Sin servicios registrados en la visita",
       "sumFix": "Resolver",
       "sumCheckout": "Terminé con el paciente",
-      "sumBlockedHint": "Firmá la nota para poder terminar. Es lo único que bloquea la salida.",
-      "sumWarningsHint": "Podés terminar igual — lo de arriba en ámbar es un aviso, no un bloqueo.",
+      "sumWarningsHint": "Podés terminar igual: la nota se puede firmar otro día y te va a seguir apareciendo en Acción requerida.",
       "sumDoneTitle": "Terminaste con este paciente",
       "sumDoneAt": "Cerraste tu parte a las {time}",
       "sumDoneHandoff": "el asistente cobra y cierra la cita",
@@ -1812,7 +1811,6 @@
       "sumAssistantCloses": "La cita la cierra el asistente cuando el paciente pasa por recepción. Vos solo marcás que terminaste tu parte.",
       "sumErrDone": "No se pudo marcar como terminado",
       "sumErrReopen": "No se pudo volver a abrir la visita",
-      "sumErrNoteNotSigned": "Firmá la nota clínica antes de terminar",
       "tabSummary": "Resumen",
       "tabServicesPayments": "Servicios y pagos",
       "stepDoctorAssistantDesc": "Resumen de la consulta, nota, laboratorios y cobro",
@@ -1830,7 +1828,9 @@
       "sumUndoCheckout": "Reabrir la cita",
       "sumErrCheckout": "No se pudo cerrar la cita",
       "sumErrReopenAppt": "No se pudo reabrir la cita",
-      "noteSignDoctorOnly": "Solo el doctor firma la nota"
+      "noteSignDoctorOnly": "Solo el doctor firma la nota",
+      "sumDoneHint": "Al terminar, el paciente pasa a recepción para el cobro.",
+      "unsignedMore": "y {count} más sin firmar"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

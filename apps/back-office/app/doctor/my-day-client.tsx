@@ -49,6 +49,8 @@ interface Props {
   doctorName: string;
   appointments: MyDayAppointment[];
   unsignedNotes: UnsignedNote[];
+  /** Total real de notas sin firmar (la lista viene topeada) */
+  unsignedTotal: number;
   /** Día visualizado (YYYY-MM-DD, Denver) y navegación */
   dateKey: string;
   isToday: boolean;
@@ -71,7 +73,9 @@ function todayKeyClient(): string {
   }).format(new Date());
 }
 
-export function MyDayClient({ doctorName, appointments, unsignedNotes, dateKey, isToday, prevDate, nextDate }: Props): React.ReactElement {
+export function MyDayClient({
+  doctorName, appointments, unsignedNotes, unsignedTotal, dateKey, isToday, prevDate, nextDate,
+}: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
   const [now, setNow] = React.useState(() => Date.now());
@@ -215,7 +219,7 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, dateKey, 
         <KpiCard compact label={t(isToday ? 'kpiToday' : 'kpiDay')} value={active.length + completed.length} color="text-violet" icon={CalendarCheck2} iconBg="bg-violet/10" iconColor="text-violet" />
         <KpiCard compact label={t('kpiCompleted')} value={completed.length} color="text-emerald" icon={CheckCircle2} iconBg="bg-emerald/10" iconColor="text-emerald" />
         <KpiCard compact label={t('kpiWaiting')} value={waiting.length} color="text-cyan" icon={Hourglass} iconBg="bg-cyan/10" iconColor="text-cyan" />
-        <KpiCard compact label={t('kpiUnsigned')} value={unsignedNotes.length} color={unsignedNotes.length > 0 ? 'text-amber' : 'text-text-1'} icon={Clock3} iconBg="bg-amber/10" iconColor="text-amber" />
+        <KpiCard compact label={t('kpiUnsigned')} value={unsignedTotal} color={unsignedTotal > 0 ? 'text-amber' : 'text-text-1'} icon={Clock3} iconBg="bg-amber/10" iconColor="text-amber" />
       </div>
 
       {/* Hero — Siguiente paciente (gradiente emerald→cyan del mockup B.17) */}
@@ -369,6 +373,11 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, dateKey, 
                 </Link>
               </div>
             ))}
+            {unsignedTotal > unsignedNotes.length && (
+              <div className="pt-1.5 border-t border-amber/15 text-[11px] text-amber/80">
+                {t('unsignedMore', { count: unsignedTotal - unsignedNotes.length })}
+              </div>
+            )}
           </div>
         </div>
       )}

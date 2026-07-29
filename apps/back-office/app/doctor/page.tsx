@@ -53,7 +53,7 @@ export default async function DoctorMyDayPage({
 
   // Las tres en paralelo: cada round-trip a la base cuesta ~150 ms, no vale
   // encadenarlas (`doctorDoneAt` va en SQL directo, ver nota más abajo).
-  const [appts, drafts, doneRows] = await Promise.all([
+  const [appts, drafts, draftCount, doneRows] = await Promise.all([
     db.appointment.findMany({
       where: {
         providerId: provider.id,
@@ -81,7 +81,7 @@ export default async function DoctorMyDayPage({
     db.visitNote.findMany({
       where: { status: 'DRAFT', appointment: { providerId: provider.id } },
       orderBy: { createdAt: 'desc' },
-      take: 5,
+      take: 8,
       select: {
         appointmentId: true,
         appointment: {
@@ -91,6 +91,10 @@ export default async function DoctorMyDayPage({
           },
         },
       },
+    }),
+    // Conteo real (la lista de arriba está topeada para no llenar la pantalla)
+    db.visitNote.count({
+      where: { status: 'DRAFT', appointment: { providerId: provider.id } },
     }),
     // `doctorDoneAt` con SQL directo (ver nota en la página de consulta: el
     // cliente de Prisma quedó sin regenerar por un lock de Windows).
@@ -142,6 +146,7 @@ export default async function DoctorMyDayPage({
       doctorName={`${provider.firstName} ${provider.lastName}`}
       appointments={appointments}
       unsignedNotes={unsignedNotes}
+      unsignedTotal={draftCount}
       dateKey={dateKey}
       isToday={dateKey === todayKey}
       prevDate={prevDate}

@@ -7,7 +7,9 @@
  * "Terminé con el paciente" NO cierra la cita: sella `doctorDoneAt` y el
  * asistente sigue viendo al paciente en su cola para cobrar y cerrarla.
  *
- * Guardrail: sin nota FIRMADA no se puede salir (decisión de Erick 2026-07-29).
+ * NADA bloquea la salida (Erick 2026-07-29): la nota se puede firmar otro día.
+ * Lo que falta se muestra en ámbar y la nota en borrador sigue en "Acción
+ * requerida" de Mi Día hasta que el doctor la cierre.
  */
 
 import * as React from 'react';
@@ -51,9 +53,9 @@ interface Props {
   /** Salta al tab que resuelve lo que falta */
   onFix: (tab: 'notes' | 'labs' | 'services') => void;
   /**
-   * 'doctor'    — botón "Terminé con el paciente"; la nota sin firmar BLOQUEA.
-   * 'assistant' — botón "Checkout" que cierra la cita; nada bloquea (el paciente
-   *               se está yendo), solo avisa. Ve el estado del doctor.
+   * 'doctor'    — botón "Terminé con el paciente": sella doctorDoneAt, no cierra la cita.
+   * 'assistant' — botón "Checkout": cierra la cita (COMPLETED) y ve el estado del doctor.
+   * Ninguno de los dos se bloquea por lo que falte; solo avisa.
    */
   variant?: 'doctor' | 'assistant';
   /** variant assistant: estado actual de la cita */
@@ -126,29 +128,27 @@ export function VisitSummary({
   const dxCount = note?.diagnoses.length ?? 0;
   const timeInRoom = elapsed(checkedInAt, doneAt ? new Date(doneAt) : new Date());
 
-  // Checklist de salida. Al doctor la nota sin firmar lo bloquea; al asistente
-  // NUNCA se lo bloquea — el paciente se está yendo, cerrar siempre es posible.
+  // Checklist de salida — NADA bloquea (decisión de Erick 2026-07-29). La nota
+  // clínica se puede firmar otro día: la documentación tiene una ventana de
+  // días, no de horas, y trabar la salida obliga a una nota apurada o a una
+  // visita sin cerrar. Lo que falta queda en ámbar y, si es la firma, sigue
+  // apareciendo en "Acción requerida" de Mi Día hasta que se resuelva.
   const checks: Array<{
-    key: string; ok: boolean; blocking: boolean; label: string; fix?: 'notes' | 'labs' | 'services';
+    key: string; ok: boolean; label: string; fix?: 'notes' | 'labs' | 'services';
   }> = [
-    { key: 'note', ok: isSigned, blocking: !isAssistant, label: isSigned ? t('sumCheckNoteOk') : t('sumCheckNoteMissing'), fix: 'notes' },
-    { key: 'dx', ok: dxCount > 0, blocking: false, label: dxCount > 0 ? t('sumCheckDxOk', { count: dxCount }) : t('sumCheckDxMissing'), fix: 'notes' },
-    { key: 'services', ok: services.length > 0, blocking: false, label: services.length > 0 ? t('sumCheckServicesOk', { count: services.length }) : t('sumCheckServicesMissing'), fix: 'services' },
+    { key: 'note', ok: isSigned, label: isSigned ? t('sumCheckNoteOk') : t('sumCheckNoteMissing'), fix: 'notes' },
+    { key: 'dx', ok: dxCount > 0, label: dxCount > 0 ? t('sumCheckDxOk', { count: dxCount }) : t('sumCheckDxMissing'), fix: 'notes' },
+    { key: 'services', ok: services.length > 0, label: services.length > 0 ? t('sumCheckServicesOk', { count: services.length }) : t('sumCheckServicesMissing'), fix: 'services' },
   ];
-  const blockers = checks.filter((c) => c.blocking && !c.ok);
   const warnings = checks.filter((c) => !c.ok);
-  const canCheckout = blockers.length === 0;
   const isCompleted = appointmentStatus === 'COMPLETED';
 
   const handleDone = async (): Promise<void> => {
     setSaving(true); setError(null);
     try {
       const res = await fetch(`/api/admin/appointments/${appointmentId}/doctor-done`, { method: 'POST' });
-      const d = await res.json() as { doctorDoneAt?: string; error?: string };
-      if (!res.ok) {
-        setError(d.error === 'NOTE_NOT_SIGNED' ? t('sumErrNoteNotSigned') : t('sumErrDone'));
-        return;
-      }
+      const d = await res.json() as { doctorDoneAt?: string };
+      if (!res.ok) { setError(t('sumErrDone')); return; }
       setDoneAt(d.doctorDoneAt ?? new Date().toISOString());
       router.refresh();
     } catch {
@@ -308,13 +308,13 @@ export function VisitSummary({
           </button>
         </div>
       ) : (
-        <div className={`rounded-lg border p-4 ${canCheckout ? 'border-violet/30 bg-violet/[0.06]' : 'border-amber/30 bg-amber/[0.07]'}`}>
+        <div className={`rounded-lg border p-4 ${warnings.length === 0 ? 'border-violet/30 bg-violet/[0.06]' : 'border-amber/30 bg-amber/[0.07]'}`}>
           <div className="flex items-center gap-2 mb-3">
-            {canCheckout
+            {warnings.length === 0
               ? <CheckCircle2 className="w-4 h-4 text-violet shrink-0" />
               : <AlertTriangle className="w-4 h-4 text-amber shrink-0" />}
-            <div className={`font-semibold text-[12px] uppercase tracking-wider ${canCheckout ? 'text-violet' : 'text-amber'}`}>
-              {canCheckout ? t('sumReadyTitle') : t('sumNotReadyTitle')}
+            <div className={`font-semibold text-[12px] uppercase tracking-wider ${warnings.length === 0 ? 'text-violet' : 'text-amber'}`}>
+              {warnings.length === 0 ? t('sumReadyTitle') : t('sumNotReadyTitle')}
             </div>
           </div>
 
@@ -322,14 +322,10 @@ export function VisitSummary({
           <div className="space-y-1.5 mb-3">
             {checks.map((c) => (
               <div key={c.key} className="flex items-center gap-2 text-[12.5px] flex-wrap">
-                {c.ok ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald shrink-0" />
-                ) : c.blocking ? (
-                  <AlertTriangle className="w-3.5 h-3.5 text-rose shrink-0" />
-                ) : (
-                  <Clock3 className="w-3.5 h-3.5 text-amber shrink-0" />
-                )}
-                <span className={c.ok ? 'text-text-2' : c.blocking ? 'text-rose' : 'text-amber'}>{c.label}</span>
+                {c.ok
+                  ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald shrink-0" />
+                  : <Clock3 className="w-3.5 h-3.5 text-amber shrink-0" />}
+                <span className={c.ok ? 'text-text-2' : 'text-amber'}>{c.label}</span>
                 {!c.ok && c.fix && (
                   <button
                     type="button"
@@ -343,16 +339,13 @@ export function VisitSummary({
             ))}
           </div>
 
-          <Button onClick={() => void handleDone()} disabled={!canCheckout || saving} className="h-10 gap-1.5 w-full sm:w-auto">
+          <Button onClick={() => void handleDone()} disabled={saving} className="h-10 gap-1.5 w-full sm:w-auto">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
             {t('sumCheckout')}
           </Button>
-          {!canCheckout && (
-            <div className="text-[11px] text-text-muted mt-2">{t('sumBlockedHint')}</div>
-          )}
-          {warnings.length > 0 && canCheckout && (
-            <div className="text-[11px] text-text-muted mt-2">{t('sumWarningsHint')}</div>
-          )}
+          <div className="text-[11px] text-text-muted mt-2">
+            {warnings.length > 0 ? t('sumWarningsHint') : t('sumDoneHint')}
+          </div>
         </div>
       )}
 

@@ -8,7 +8,9 @@
  * pasa a COMPLETED cuando cobra (decisión de Erick 2026-07-29). Son dos actos
  * de dos personas distintas.
  *
- * Requiere nota FIRMADA — es el guardrail contra notas que quedan en borrador.
+ * NO exige nota firmada (decisión de Erick 2026-07-29): la nota clínica se puede
+ * firmar otro día, la documentación tiene una ventana de días. La nota en
+ * borrador le sigue apareciendo al doctor en "Acción requerida" de Mi Día.
  *
  * NOTA: `doctorDoneAt` se lee y escribe con SQL directo. La columna ya existe
  * en la DB (db push aplicado) pero el cliente de Prisma no se pudo regenerar
@@ -32,10 +34,6 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     select: { status: true },
   });
 
-  if (note?.status !== 'SIGNED') {
-    return NextResponse.json({ error: 'NOTE_NOT_SIGNED' }, { status: 409 });
-  }
-
   const rows = await db.$queryRaw<Array<{ doctorDoneAt: Date | null }>>`
     UPDATE appointments
        SET "doctorDoneAt" = COALESCE("doctorDoneAt", now()), "updatedAt" = now()
@@ -48,7 +46,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     action: 'DOCTOR_DONE_WITH_PATIENT',
     entityType: 'Appointment',
     entityId: id,
-    metadata: { doctorName: actor.name },
+    metadata: { doctorName: actor.name, noteStatus: note?.status ?? 'NONE' },
   }).catch(() => undefined);
 
   return NextResponse.json({ doctorDoneAt: rows[0]?.doctorDoneAt ?? null });

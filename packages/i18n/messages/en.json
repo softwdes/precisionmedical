@@ -1795,8 +1795,7 @@
       "sumCheckServicesMissing": "No services recorded on this visit",
       "sumFix": "Fix it",
       "sumCheckout": "I'm done with the patient",
-      "sumBlockedHint": "Sign the note to finish. That's the only thing blocking checkout.",
-      "sumWarningsHint": "You can finish anyway — the amber items above are warnings, not blockers.",
+      "sumWarningsHint": "You can finish anyway: the note can be signed another day and it will keep showing under Action required.",
       "sumDoneTitle": "You're done with this patient",
       "sumDoneAt": "You closed your part at {time}",
       "sumDoneHandoff": "the assistant collects payment and closes the appointment",
@@ -1812,7 +1811,6 @@
       "sumAssistantCloses": "The assistant closes the appointment when the patient stops at the front desk. You only mark that your part is done.",
       "sumErrDone": "Could not mark as finished",
       "sumErrReopen": "Could not reopen the visit",
-      "sumErrNoteNotSigned": "Sign the clinical note before finishing",
       "tabSummary": "Summary",
       "tabServicesPayments": "Services & payments",
       "stepDoctorAssistantDesc": "Visit summary, note, labs and payment",
@@ -1830,7 +1828,9 @@
       "sumUndoCheckout": "Reopen appointment",
       "sumErrCheckout": "Could not close the appointment",
       "sumErrReopenAppt": "Could not reopen the appointment",
-      "noteSignDoctorOnly": "Only the doctor signs the note"
+      "noteSignDoctorOnly": "Only the doctor signs the note",
+      "sumDoneHint": "When you finish, the patient goes to the front desk for payment.",
+      "unsignedMore": "and {count} more unsigned"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

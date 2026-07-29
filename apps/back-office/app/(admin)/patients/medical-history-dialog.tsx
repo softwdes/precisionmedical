@@ -33,6 +33,9 @@ export type MedicalHistoryData = {
     startDate?: string; autoExpire?: boolean; autoRenew?: boolean;
     prescribedBy?: string; diagnosisCode?: string; diagnosisLabel?: string;
     pharmacy?: string; pharmacyNote?: string;
+    /** true = el paciente refiere tomarlo, pero no lo prescribió esta clínica.
+     *  Nota de conciliación de medicamentos, no una receta electrónica. */
+    externalPrescriber?: boolean;
   }>;
   surgeries?:        Array<{ id: string; procedure: string; date?: string; notes?: string }>;
   familyHistory?:    Array<{ id: string; relation: string; condition: string }>;

@@ -22,6 +22,7 @@ import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 export interface PatientContext {
+  id: string;
   firstName: string;
   lastName: string;
   dateOfBirth: string | null;
@@ -48,7 +49,10 @@ export interface PatientContext {
   history: {
     allergies: string | null;
     problems: Array<{ condition: string; status?: string; diagnosedAt?: string }>;
-    medications: Array<{ name: string; dose?: string; instructions?: string; status: string }>;
+    medications: Array<{
+      id?: string; name: string; dose?: string; instructions?: string; status: string;
+      prescribedBy?: string; externalPrescriber?: boolean;
+    }>;
     surgeries: Array<{ procedure: string; date?: string }>;
     familyHistory: Array<{ relation: string; condition: string }>;
     socialHistory: { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string } | null;
@@ -228,8 +232,15 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
         {activeMeds.length === 0 ? <EmptyNote text={t('ctxNoMedications')} /> : (
           <div className="space-y-1">
             {activeMeds.map((m, i) => (
-              <div key={i} className="rounded-md bg-bg-2/40 px-3 py-2">
-                <div className="text-[11.5px] text-text-1 font-medium">{m.name}</div>
+              <div key={m.id ?? i} className="rounded-md bg-bg-2/40 px-3 py-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11.5px] text-text-1 font-medium">{m.name}</span>
+                  {m.externalPrescriber && (
+                    <span className="text-[9px] font-semibold uppercase tracking-wide text-text-muted border border-dashed border-border rounded px-1 py-px shrink-0">
+                      {t('ctxNotPrescribedByMe')}
+                    </span>
+                  )}
+                </div>
                 {(m.dose || m.instructions) && (
                   <div className="text-[10px] text-text-muted mt-0.5">
                     {[m.dose, m.instructions].filter(Boolean).join(' · ')}

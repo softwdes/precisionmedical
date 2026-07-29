@@ -105,7 +105,10 @@ export default async function DoctorConsultationPage({
   type MH = {
     allergies?: string;
     problems?: Array<{ condition: string; status?: string; diagnosedAt?: string }>;
-    medications?: Array<{ name: string; dose?: string; instructions?: string; status: string }>;
+    medications?: Array<{
+      id?: string; name: string; dose?: string; instructions?: string; status: string;
+      prescribedBy?: string; externalPrescriber?: boolean;
+    }>;
     surgeries?: Array<{ procedure: string; date?: string }>;
     familyHistory?: Array<{ relation: string; condition: string }>;
     socialHistory?: { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string };
@@ -114,6 +117,7 @@ export default async function DoctorConsultationPage({
   const mh = (a.patient.medicalHistory ?? {}) as MH;
 
   const patientContext = {
+    id: a.patient.id,
     firstName: dec(a.patient.firstName) ?? '',
     lastName: dec(a.patient.lastName) ?? '',
     dateOfBirth: a.patient.dateOfBirth?.toISOString() ?? null,

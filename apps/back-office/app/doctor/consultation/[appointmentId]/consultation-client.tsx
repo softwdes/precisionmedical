@@ -24,6 +24,7 @@ import type { PickableTemplate } from '@/components/visit/template-picker';
 import { PatientContextPanel, type PatientContext } from './patient-context-panel';
 import { LabsTab } from '@/components/visit/labs-tab';
 import { VisitSummary } from '@/components/visit/visit-summary';
+import { MedicationHistory } from '@/components/visit/medication-history';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -420,7 +421,10 @@ export function ConsultationClient({
             />
           )}
           {tab === 'rx' && (
-            <EmptyState.Rich icon={Pill} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
+            <div className="space-y-4">
+              <EmptyState.Rich icon={Pill} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
+              <MedicationHistory appointmentId={a.id} medications={patientContext.history.medications} />
+            </div>
           )}
           {/* Servicios — mismo panel de Day Admission, SIN botón de pagos
               (el cobro lo hace el asistente en su lado) */}

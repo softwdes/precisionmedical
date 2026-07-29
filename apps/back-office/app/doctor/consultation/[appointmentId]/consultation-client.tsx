@@ -21,6 +21,7 @@ import { PageHeader, EmptyState, TagPill, PersonAvatar } from '@/components/ui-p
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { VisitNoteEditor, type VisitNoteData } from './visit-note-editor';
 import type { PickableTemplate } from './template-picker';
+import { PatientContextPanel, type PatientContext } from './patient-context-panel';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -124,12 +125,13 @@ function ReadingDivider({ label }: { label: string }): React.ReactElement {
 }
 
 export function ConsultationClient({
-  appointment: a, note, templates, userId,
+  appointment: a, note, templates, userId, patientContext,
 }: {
   appointment: ConsultationAppointment;
   note: VisitNoteData | null;
   templates: PickableTemplate[];
   userId: string | null;
+  patientContext: PatientContext;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
@@ -371,9 +373,16 @@ export function ConsultationClient({
         </div>
       )}
 
-      {/* ── Nodo 3: área de trabajo del doctor — tabs Notas · Labs · Prescripción ── */}
+      {/* ── Nodo 3: área de trabajo del doctor ──
+          Layout de 2 columnas como el v2: contexto clínico del paciente a la
+          izquierda (solo lectura) + tabs de trabajo a la derecha.
+          En mobile/iPad vertical el contexto se apila arriba. */}
       {view === 3 && (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-4 items-start">
+          <div className="lg:sticky lg:top-4">
+            <PatientContextPanel patient={patientContext} />
+          </div>
+          <div className="space-y-4 min-w-0">
           <div className="flex gap-1 border-b border-border overflow-x-auto">
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
@@ -416,6 +425,7 @@ export function ConsultationClient({
               onRefresh={() => router.refresh()}
             />
           )}
+          </div>
         </div>
       )}
     </div>

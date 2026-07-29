@@ -40,13 +40,23 @@ export default async function DoctorConsultationPage({
       notes: true,
       plannedServiceCodes: true,
       patient: {
-        select: { id: true, firstName: true, lastName: true, dateOfBirth: true, sex: true, phone: true, email: true },
+        select: {
+          id: true, firstName: true, lastName: true, dateOfBirth: true, sex: true,
+          phone: true, phone2: true, email: true,
+          maritalStatus: true, preferredLanguage: true,
+          guardianName: true, emergencyContactName: true, emergencyContactPhone: true,
+          preferredPharmacy: true, employer: true, referralSource: true,
+          medicalHistory: true,
+          providerReferrer: { select: { firstName: true, lastName: true } },
+        },
       },
       case: {
         select: {
           id: true, caseCode: true, caseType: true, accidentType: true, accidentDate: true,
           pipVerifiedAt: true, intakeFormCompletedAt: true, consentsData: true,
-          primaryInsurance: { select: { id: true, name: true } },
+          primaryPolicyNumber: true, secondaryPolicyNumber: true,
+          primaryInsurance: { select: { id: true, name: true, type: true } },
+          secondaryInsurance: { select: { id: true, name: true } },
         },
       },
       provider: { select: { id: true, firstName: true, lastName: true, specialty: true } },
@@ -78,6 +88,54 @@ export default async function DoctorConsultationPage({
     isFavorite: Array.isArray(tpl.favorites) ? tpl.favorites.length > 0 : false,
     sections: tpl.sections.map((s) => ({ sectionKey: s.sectionKey, content: s.content })),
   }));
+
+  // ── Contexto clínico del paciente (N2) — historial en Patient.medicalHistory ──
+  type MH = {
+    allergies?: string;
+    problems?: Array<{ condition: string; status?: string; diagnosedAt?: string }>;
+    medications?: Array<{ name: string; dose?: string; instructions?: string; status: string }>;
+    surgeries?: Array<{ procedure: string; date?: string }>;
+    familyHistory?: Array<{ relation: string; condition: string }>;
+    socialHistory?: { work?: string; children?: string; tobacco?: string; alcohol?: string; drugs?: string };
+    visitInfo?: { referredBy?: string };
+  };
+  const mh = (a.patient.medicalHistory ?? {}) as MH;
+
+  const patientContext = {
+    firstName: dec(a.patient.firstName) ?? '',
+    lastName: dec(a.patient.lastName) ?? '',
+    dateOfBirth: a.patient.dateOfBirth?.toISOString() ?? null,
+    sex: a.patient.sex ?? null,
+    maritalStatus: a.patient.maritalStatus ?? null,
+    preferredLanguage: a.patient.preferredLanguage ?? null,
+    phone: dec(a.patient.phone) ?? null,
+    phone2: dec(a.patient.phone2) ?? null,
+    email: a.patient.email ?? null,
+    guardianName: a.patient.guardianName ?? null,
+    emergencyContactName: a.patient.emergencyContactName ?? null,
+    emergencyContactPhone: a.patient.emergencyContactPhone ?? null,
+    referredBy: mh.visitInfo?.referredBy ?? a.patient.referralSource ?? null,
+    preferredPharmacy: a.patient.preferredPharmacy ?? null,
+    employer: a.patient.employer ?? null,
+    providerName: a.patient.providerReferrer
+      ? `Dr. ${a.patient.providerReferrer.firstName} ${a.patient.providerReferrer.lastName}`
+      : null,
+    insurance: {
+      primaryName: a.case?.primaryInsurance?.name ?? null,
+      primaryPolicy: a.case?.primaryPolicyNumber ?? null,
+      primaryType: a.case?.primaryInsurance?.type ?? null,
+      secondaryName: a.case?.secondaryInsurance?.name ?? null,
+      secondaryPolicy: a.case?.secondaryPolicyNumber ?? null,
+    },
+    history: {
+      allergies: mh.allergies ?? null,
+      problems: mh.problems ?? [],
+      medications: mh.medications ?? [],
+      surgeries: mh.surgeries ?? [],
+      familyHistory: mh.familyHistory ?? [],
+      socialHistory: mh.socialHistory ?? null,
+    },
+  };
 
   const n = a.visitNote;
   const note = n
@@ -192,6 +250,7 @@ export default async function DoctorConsultationPage({
       note={note}
       templates={templates}
       userId={provider.userId}
+      patientContext={patientContext}
     />
   );
 }

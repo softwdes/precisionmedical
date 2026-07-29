@@ -412,6 +412,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const doctorRef  = useRef<HTMLDivElement>(null);
   const slotRef    = useRef<HTMLDivElement>(null);
 
+  // El error de validación se limpiaba solo al abrir el dialog y al reintentar
+  // el submit, no al corregir el campo que faltaba. Resultado: si alguien
+  // apretaba "Agendar" sin caso, elegía el caso después y el cartel rojo
+  // "Selecciona un caso para continuar" quedaba visible aunque ya estuviera
+  // todo completo — y el guardado funcionaba igual, así que el mensaje mentía.
+  useEffect(() => {
+    setError(null);
+  }, [caseId, clinicId, providerId, scheduledForIso]);
+
   // ─── Submit ──────────────────────────────────────────────────────────────────
 
   const handleSchedule = async () => {
@@ -419,22 +428,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     if (!canSubmit) {
       // Identify first missing field and scroll to it
       if (props.mode === 'free' && !caseId) {
-        setError('Selecciona un caso para continuar.');
+        setError(t('validationSelectCase'));
         caseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
       if (!clinicId) {
-        setError('Selecciona una clínica.');
+        setError(t('validationSelectClinic'));
         clinicRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
       if (!providerId) {
-        setError('Selecciona un doctor.');
+        setError(t('validationSelectDoctor'));
         doctorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
       if (!scheduledForIso || !isFuture) {
-        setError('Selecciona un horario disponible.');
+        setError(t('validationSelectSlot'));
         slotRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
@@ -530,7 +539,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               <div><strong className="text-text-1">{t('successPatient')}</strong> {patientName}</div>
               <div><strong className="text-text-1">{t('successDoctor')}</strong> {t('drPrefix')} {success.providerName}</div>
               <div><strong className="text-text-1">{t('successClinic')}</strong> {success.clinicName}</div>
-              <div><strong className="text-text-1">{t('successWhen')}</strong> {new Date(success.scheduledFor).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+              {/* timeZone obligatorio: sin fijarlo se formatea en la zona del
+                  navegador y cada persona ve una hora distinta para la misma
+                  cita (un tester en Eastern veía 10:00 AM donde se agendaron
+                  las 8:00 AM). El resto del archivo ya fija Denver. */}
+              <div><strong className="text-text-1">{t('successWhen')}</strong> {new Date(success.scheduledFor).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Denver' })}</div>
             </div>
             <Button onClick={() => onOpenChange(false)}>{t('actionClose')}</Button>
           </div>

@@ -25,6 +25,7 @@ import { PatientContextPanel, type PatientContext } from './patient-context-pane
 import { LabsTab } from '@/components/visit/labs-tab';
 import { VisitSummary } from '@/components/visit/visit-summary';
 import { MedicationHistory } from '@/components/visit/medication-history';
+import { RxIntegrationStatus } from '@/components/visit/rx-integration-status';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -422,7 +423,7 @@ export function ConsultationClient({
           )}
           {tab === 'rx' && (
             <div className="space-y-4">
-              <EmptyState.Rich icon={Pill} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
+              <RxIntegrationStatus />
               <MedicationHistory appointmentId={a.id} medications={patientContext.history.medications} />
             </div>
           )}

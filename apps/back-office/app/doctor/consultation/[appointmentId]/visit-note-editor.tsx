@@ -285,13 +285,14 @@ export function VisitNoteEditor({ appointmentId, note, templates, userId }: Prop
             </>
           )}
           {isSigned && (
-            <button
-              type="button"
-              onClick={() => window.print()}
+            <a
+              href={`/doctor-print/visit-note/${appointmentId}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="h-9 px-3 rounded-md border border-border text-text-2 text-[12px] font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5"
             >
               <Printer className="w-3.5 h-3.5" /> {t('notePrint')}
-            </button>
+            </a>
           )}
         </div>
       </div>

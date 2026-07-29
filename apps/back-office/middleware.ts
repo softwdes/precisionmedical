@@ -113,7 +113,11 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Portal médico (/doctor) — scoping por rol y por host ───────────────────
-  const isDoctorArea = pathname === '/doctor' || pathname.startsWith('/doctor/');
+  // /doctor-print/* son documentos imprimibles del portal (sin shell) — mismo scoping
+  const isDoctorArea =
+    pathname === '/doctor' ||
+    pathname.startsWith('/doctor/') ||
+    pathname.startsWith('/doctor-print/');
   // providers.lienmaster.net (prod) / providers.localhost (dev) → solo mundo doctor
   const isProvidersHost = /^providers?\./.test(request.headers.get('host') ?? '');
 

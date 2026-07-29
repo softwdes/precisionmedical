@@ -18,7 +18,7 @@ import {
 } from '@precision/ui';
 import { Search, X, Plus, Loader2, FlaskConical, Scan, HeartPulse, AlertTriangle } from 'lucide-react';
 import { DatePicker } from '@/components/ui-phoenix/date-picker';
-import { DiagnosisPicker, type DiagnosisRow } from '@/app/doctor/templates/diagnosis-picker';
+import { DiagnosisPicker, type DiagnosisRow } from './diagnosis-picker';
 
 export type LabCategory = 'LABORATORY' | 'IMAGING' | 'CARDIOLOGY';
 

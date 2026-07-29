@@ -1812,7 +1812,25 @@
       "sumAssistantCloses": "The assistant closes the appointment when the patient stops at the front desk. You only mark that your part is done.",
       "sumErrDone": "Could not mark as finished",
       "sumErrReopen": "Could not reopen the visit",
-      "sumErrNoteNotSigned": "Sign the clinical note before finishing"
+      "sumErrNoteNotSigned": "Sign the clinical note before finishing",
+      "tabSummary": "Summary",
+      "tabServicesPayments": "Services & payments",
+      "stepDoctorAssistantDesc": "Visit summary, note, labs and payment",
+      "sumLoading": "Loading the visit...",
+      "sumDoctorFinishedAt": "{name} finished with the patient at {time}",
+      "sumDoctorStillWorking": "{name} is still with the patient",
+      "sumApptReadyTitle": "Ready to close the appointment",
+      "sumApptPendingTitle": "You can close it, but something's missing",
+      "sumComplete": "Complete",
+      "sumApptCheckout": "Checkout - close appointment",
+      "sumApptCloseHint": "Closing marks the appointment Completed and takes it out of the day's queue.",
+      "sumApptWarnHint": "You can close anyway. What's missing still shows up for the doctor under Action required.",
+      "sumApptClosedTitle": "Appointment closed",
+      "sumApptClosedHint": "It's marked Completed. If it was closed by mistake, it can be reopened.",
+      "sumUndoCheckout": "Reopen appointment",
+      "sumErrCheckout": "Could not close the appointment",
+      "sumErrReopenAppt": "Could not reopen the appointment",
+      "noteSignDoctorOnly": "Only the doctor signs the note"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",
@@ -2809,7 +2827,8 @@
       "step4ServicesDesc": "CPT codes assigned",
       "step4PaymentsLabel": "Payments",
       "step4PaymentsDesc": "PIP / MedPay / Patient",
-      "step4AvailableAfter": "Available once status changes to Completed"
+      "step4AvailableAfter": "Available once status changes to Completed",
+      "flowStep3AssistantDesc": "Note, labs, services and appointment checkout"
     },
     "dashboard": {
       "title": "Reception Dashboard",

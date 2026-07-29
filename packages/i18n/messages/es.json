@@ -1812,7 +1812,25 @@
       "sumAssistantCloses": "La cita la cierra el asistente cuando el paciente pasa por recepción. Vos solo marcás que terminaste tu parte.",
       "sumErrDone": "No se pudo marcar como terminado",
       "sumErrReopen": "No se pudo volver a abrir la visita",
-      "sumErrNoteNotSigned": "Firmá la nota clínica antes de terminar"
+      "sumErrNoteNotSigned": "Firmá la nota clínica antes de terminar",
+      "tabSummary": "Resumen",
+      "tabServicesPayments": "Servicios y pagos",
+      "stepDoctorAssistantDesc": "Resumen de la consulta, nota, laboratorios y cobro",
+      "sumLoading": "Cargando la consulta…",
+      "sumDoctorFinishedAt": "{name} terminó con el paciente a las {time}",
+      "sumDoctorStillWorking": "{name} todavía está con el paciente",
+      "sumApptReadyTitle": "Listo para cerrar la cita",
+      "sumApptPendingTitle": "Se puede cerrar, pero falta algo",
+      "sumComplete": "Completar",
+      "sumApptCheckout": "Checkout — cerrar la cita",
+      "sumApptCloseHint": "Al cerrar, la cita queda como Completada y sale de la cola del día.",
+      "sumApptWarnHint": "Podés cerrar igual. Lo que falta le sigue apareciendo al doctor en Acción requerida.",
+      "sumApptClosedTitle": "Cita cerrada",
+      "sumApptClosedHint": "Quedó como Completada. Si se cerró por error, se puede reabrir.",
+      "sumUndoCheckout": "Reabrir la cita",
+      "sumErrCheckout": "No se pudo cerrar la cita",
+      "sumErrReopenAppt": "No se pudo reabrir la cita",
+      "noteSignDoctorOnly": "Solo el doctor firma la nota"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -2809,7 +2827,8 @@
       "step4ServicesDesc": "Códigos CPT asignados",
       "step4PaymentsLabel": "Pagos",
       "step4PaymentsDesc": "PIP / MedPay / Paciente",
-      "step4AvailableAfter": "Disponible cuando el estado cambia a Completado"
+      "step4AvailableAfter": "Disponible cuando el estado cambia a Completado",
+      "flowStep3AssistantDesc": "Nota, laboratorios, servicios y cierre de la cita"
     },
     "dashboard": {
       "title": "Dashboard de Recepción",

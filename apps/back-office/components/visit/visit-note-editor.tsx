@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { RichTextEditor, TagPill } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
-import { DiagnosisPicker, type DiagnosisRow } from '@/app/doctor/templates/diagnosis-picker';
+import { DiagnosisPicker, type DiagnosisRow } from './diagnosis-picker';
 import { TemplatePicker, type PickableTemplate } from './template-picker';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -54,6 +54,14 @@ interface Props {
   note: VisitNoteData | null;
   templates: PickableTemplate[];
   userId: string | null;
+  /**
+   * false para el asistente en Day Admission: puede escribir el borrador (flujo
+   * de escriba) pero NO firmar — la firma es del médico y el servidor también
+   * la rechaza. Default true (portal médico).
+   */
+  canSign?: boolean;
+  /** Aviso al padre tras guardar, para que recargue la nota */
+  onSaved?: () => void;
 }
 
 /** Campo de la nota ↔ sectionKey de la plantilla */
@@ -89,7 +97,9 @@ function parseDx(content: string): NoteDx[] {
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-export function VisitNoteEditor({ appointmentId, note, templates, userId }: Props): React.ReactElement {
+export function VisitNoteEditor({
+  appointmentId, note, templates, userId, canSign = true, onSaved,
+}: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
 
@@ -143,13 +153,14 @@ export function VisitNoteEditor({ appointmentId, note, templates, userId }: Prop
       setDirty(false);
       setSavedAt(new Date());
       setSaving(false);
+      onSaved?.();
       return true;
     } catch {
       setError(t('noteSaveError'));
       setSaving(false);
       return false;
     }
-  }, [appointmentId, isSigned, t]);
+  }, [appointmentId, isSigned, t, onSaved]);
 
   // Autoguardado periódico mientras haya cambios pendientes
   React.useEffect(() => {
@@ -279,9 +290,17 @@ export function VisitNoteEditor({ appointmentId, note, templates, userId }: Prop
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 {t('noteSave')}
               </Button>
-              <Button onClick={() => setConfirmSign(true)} disabled={signing} className="h-9 gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" /> {t('noteFinish')}
-              </Button>
+              {/* Firmar es del médico: el asistente escribe el borrador y el
+                  doctor lo cierra desde su portal (el servidor también lo exige) */}
+              {canSign ? (
+                <Button onClick={() => setConfirmSign(true)} disabled={signing} className="h-9 gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5" /> {t('noteFinish')}
+                </Button>
+              ) : (
+                <span className="text-[11px] text-text-muted flex items-center gap-1.5">
+                  <Lock className="w-3 h-3" /> {t('noteSignDoctorOnly')}
+                </span>
+              )}
             </>
           )}
           {isSigned && (

@@ -21,7 +21,18 @@ import {
 import { TagPill } from '@/components/ui-phoenix';
 import type { VisitNoteData } from './visit-note-editor';
 import type { LabOrderRow } from './labs-tab';
-import type { ConsultationTriage } from './consultation-client';
+
+/** Solo los vitales que el resumen muestra — el triaje completo vive en su nodo */
+export interface SummaryTriage {
+  systolicMmhg: number | null;
+  diastolicMmhg: number | null;
+  pulseBpm: number | null;
+  respiratoryRate: number | null;
+  tempFahrenheit: number | null;
+  painScale: number | null;
+  o2Saturation: number | null;
+  chiefComplaint: string | null;
+}
 
 interface ServiceCode {
   id: string;
@@ -33,12 +44,24 @@ interface ServiceCode {
 interface Props {
   appointmentId: string;
   note: VisitNoteData | null;
-  triage: ConsultationTriage | null;
+  triage: SummaryTriage | null;
   services: ServiceCode[];
   checkedInAt: string | null;
   doctorDoneAt: string | null;
-  /** Salta al nodo 3 y al tab que resuelve lo que falta */
+  /** Salta al tab que resuelve lo que falta */
   onFix: (tab: 'notes' | 'labs' | 'services') => void;
+  /**
+   * 'doctor'    — botón "Terminé con el paciente"; la nota sin firmar BLOQUEA.
+   * 'assistant' — botón "Checkout" que cierra la cita; nada bloquea (el paciente
+   *               se está yendo), solo avisa. Ve el estado del doctor.
+   */
+  variant?: 'doctor' | 'assistant';
+  /** variant assistant: estado actual de la cita */
+  appointmentStatus?: string;
+  /** variant assistant: nombre del doctor, para "el Dr. X terminó a las…" */
+  providerName?: string | null;
+  /** variant assistant: se llama al cerrar/reabrir para refrescar la pantalla */
+  onStatusChange?: () => void;
 }
 
 function fmtTime(iso: string | null): string {
@@ -79,9 +102,11 @@ function Card({
 
 export function VisitSummary({
   appointmentId, note, triage, services, checkedInAt, doctorDoneAt, onFix,
+  variant = 'doctor', appointmentStatus, providerName, onStatusChange,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
+  const isAssistant = variant === 'assistant';
 
   const [labs, setLabs] = React.useState<LabOrderRow[]>([]);
   const [loadingLabs, setLoadingLabs] = React.useState(true);
@@ -101,17 +126,19 @@ export function VisitSummary({
   const dxCount = note?.diagnoses.length ?? 0;
   const timeInRoom = elapsed(checkedInAt, doneAt ? new Date(doneAt) : new Date());
 
-  // Checklist de salida — bloquea solo la nota sin firmar; el resto avisa
+  // Checklist de salida. Al doctor la nota sin firmar lo bloquea; al asistente
+  // NUNCA se lo bloquea — el paciente se está yendo, cerrar siempre es posible.
   const checks: Array<{
     key: string; ok: boolean; blocking: boolean; label: string; fix?: 'notes' | 'labs' | 'services';
   }> = [
-    { key: 'note', ok: isSigned, blocking: true, label: isSigned ? t('sumCheckNoteOk') : t('sumCheckNoteMissing'), fix: 'notes' },
+    { key: 'note', ok: isSigned, blocking: !isAssistant, label: isSigned ? t('sumCheckNoteOk') : t('sumCheckNoteMissing'), fix: 'notes' },
     { key: 'dx', ok: dxCount > 0, blocking: false, label: dxCount > 0 ? t('sumCheckDxOk', { count: dxCount }) : t('sumCheckDxMissing'), fix: 'notes' },
     { key: 'services', ok: services.length > 0, blocking: false, label: services.length > 0 ? t('sumCheckServicesOk', { count: services.length }) : t('sumCheckServicesMissing'), fix: 'services' },
   ];
   const blockers = checks.filter((c) => c.blocking && !c.ok);
-  const warnings = checks.filter((c) => !c.blocking && !c.ok);
+  const warnings = checks.filter((c) => !c.ok);
   const canCheckout = blockers.length === 0;
+  const isCompleted = appointmentStatus === 'COMPLETED';
 
   const handleDone = async (): Promise<void> => {
     setSaving(true); setError(null);
@@ -145,6 +172,36 @@ export function VisitSummary({
     }
   };
 
+  /** Asistente: cierra la cita (COMPLETED). Nunca bloquea. */
+  const handleCheckout = async (): Promise<void> => {
+    setSaving(true); setError(null);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appointmentId}/checkout`, { method: 'POST' });
+      if (!res.ok) { setError(t('sumErrCheckout')); return; }
+      onStatusChange?.();
+      router.refresh();
+    } catch {
+      setError(t('sumErrCheckout'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Asistente: deshace el cierre (se cerró por error). */
+  const handleUndoCheckout = async (): Promise<void> => {
+    setSaving(true); setError(null);
+    try {
+      const res = await fetch(`/api/admin/appointments/${appointmentId}/checkout`, { method: 'DELETE' });
+      if (!res.ok) { setError(t('sumErrReopenAppt')); return; }
+      onStatusChange?.();
+      router.refresh();
+    } catch {
+      setError(t('sumErrReopenAppt'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const vitalLine = triage
     ? [
         triage.systolicMmhg != null && triage.diastolicMmhg != null ? `${t('vitBP')} ${triage.systolicMmhg}/${triage.diastolicMmhg}` : null,
@@ -159,8 +216,79 @@ export function VisitSummary({
   return (
     <div className="space-y-4">
 
+      {/* Asistente: qué hizo el doctor. Cierra el círculo — antes no tenía forma
+          de saber si el doctor ya había terminado con el paciente. */}
+      {isAssistant && (
+        <div className={`rounded-md px-3 py-2 text-[12px] flex items-center gap-2 flex-wrap ${
+          doneAt ? 'border border-emerald/25 bg-emerald/[0.06] text-emerald' : 'border border-violet/25 bg-violet/[0.06] text-violet'
+        }`}>
+          {doneAt ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <Stethoscope className="w-3.5 h-3.5 shrink-0" />}
+          {doneAt
+            ? t('sumDoctorFinishedAt', { name: providerName ?? t('prDoctor'), time: fmtTime(doneAt) })
+            : t('sumDoctorStillWorking', { name: providerName ?? t('prDoctor') })}
+        </div>
+      )}
+
       {/* Estado de salida */}
-      {doneAt ? (
+      {isAssistant ? (
+        isCompleted ? (
+          <div className="rounded-lg border border-emerald/30 bg-emerald/[0.07] p-4 flex items-start gap-3 flex-wrap">
+            <CheckCircle2 className="w-5 h-5 text-emerald shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-[200px]">
+              <div className="text-emerald font-semibold text-sm">{t('sumApptClosedTitle')}</div>
+              <div className="text-text-2 text-[12px] mt-0.5">{t('sumApptClosedHint')}</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleUndoCheckout()}
+              disabled={saving}
+              className="h-9 px-3 rounded-md border border-border text-text-2 text-[12px] font-semibold hover:bg-white/5 transition-colors flex items-center gap-1.5"
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+              {t('sumUndoCheckout')}
+            </button>
+          </div>
+        ) : (
+          <div className={`rounded-lg border p-4 ${warnings.length === 0 ? 'border-emerald/30 bg-emerald/[0.06]' : 'border-amber/30 bg-amber/[0.07]'}`}>
+            <div className="flex items-center gap-2 mb-3">
+              {warnings.length === 0
+                ? <CheckCircle2 className="w-4 h-4 text-emerald shrink-0" />
+                : <AlertTriangle className="w-4 h-4 text-amber shrink-0" />}
+              <div className={`font-semibold text-[12px] uppercase tracking-wider ${warnings.length === 0 ? 'text-emerald' : 'text-amber'}`}>
+                {warnings.length === 0 ? t('sumApptReadyTitle') : t('sumApptPendingTitle')}
+              </div>
+            </div>
+
+            <div className="space-y-1.5 mb-3">
+              {checks.map((c) => (
+                <div key={c.key} className="flex items-center gap-2 text-[12.5px] flex-wrap">
+                  {c.ok
+                    ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald shrink-0" />
+                    : <Clock3 className="w-3.5 h-3.5 text-amber shrink-0" />}
+                  <span className={c.ok ? 'text-text-2' : 'text-amber'}>{c.label}</span>
+                  {!c.ok && c.fix && (
+                    <button
+                      type="button"
+                      onClick={() => onFix(c.fix!)}
+                      className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-emerald hover:underline"
+                    >
+                      {t('sumComplete')} <ChevronRight className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <Button onClick={() => void handleCheckout()} disabled={saving} className="h-10 gap-1.5 w-full sm:w-auto">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+              {t('sumApptCheckout')}
+            </Button>
+            <div className="text-[11px] text-text-muted mt-2">
+              {warnings.length > 0 ? t('sumApptWarnHint') : t('sumApptCloseHint')}
+            </div>
+          </div>
+        )
+      ) : doneAt ? (
         <div className="rounded-lg border border-emerald/30 bg-emerald/[0.07] p-4 flex items-start gap-3 flex-wrap">
           <CheckCircle2 className="w-5 h-5 text-emerald shrink-0 mt-0.5" />
           <div className="flex-1 min-w-[200px]">
@@ -363,11 +491,13 @@ export function VisitSummary({
         </div>
       )}
 
-      {/* Recordatorio de quién cierra la cita */}
-      <div className="rounded-md border border-cyan/25 bg-cyan/[0.06] px-3 py-2 text-[11.5px] text-cyan flex items-start gap-1.5">
-        <FileText className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-        {t('sumAssistantCloses')}
-      </div>
+      {/* Recordatorio de quién cierra la cita — solo al doctor */}
+      {!isAssistant && (
+        <div className="rounded-md border border-cyan/25 bg-cyan/[0.06] px-3 py-2 text-[11.5px] text-cyan flex items-start gap-1.5">
+          <FileText className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          {t('sumAssistantCloses')}
+        </div>
+      )}
     </div>
   );
 }

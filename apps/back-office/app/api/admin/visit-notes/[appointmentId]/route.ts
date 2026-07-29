@@ -12,8 +12,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
-import { createServerClient } from '@precision-medical/auth/server';
-import { fetchDbRole } from '@precision-medical/auth/v2-apps';
+import { checkAppointmentAccess } from '@/lib/appointment-access';
 
 type Ctx = { params: Promise<{ appointmentId: string }> };
 
@@ -37,27 +36,14 @@ const NoteSchema = z.object({
 });
 
 /**
- * Verifica sesión y acceso a la cita.
+ * Verifica sesión y acceso a la cita — pasa el doctor de la cita, los admins y
+ * el staff del back-office (los asistentes completan la nota en borrador cuando
+ * el doctor no lo hace). La FIRMA es otra ruta y ahí sí se exige al doctor.
  * Devuelve la respuesta de error si no pasa, o null si está autorizado.
  */
 async function denyAccess(appointmentId: string): Promise<NextResponse | null> {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-
-  const appt = await db.appointment.findUnique({
-    where: { id: appointmentId },
-    select: { provider: { select: { email: true } } },
-  });
-  if (!appt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
-
-  const isOwner = appt.provider?.email?.toLowerCase() === user.email.toLowerCase();
-  if (isOwner) return null;
-
-  const role = await fetchDbRole(user.email);
-  if (role === 'SUPER_ADMIN' || role === 'ADMIN') return null;
-
-  return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
+  const { deny } = await checkAppointmentAccess(appointmentId);
+  return deny ?? null;
 }
 
 export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {

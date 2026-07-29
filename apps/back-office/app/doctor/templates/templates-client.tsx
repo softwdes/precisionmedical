@@ -24,7 +24,7 @@ import {
   PageHeader, DataTable, TableFooter, EmptyState, IconAction, TagPill, RichTextEditor,
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
-import { DiagnosisPicker, type DiagnosisRow } from './diagnosis-picker';
+import { DiagnosisPicker, type DiagnosisRow } from '@/components/visit/diagnosis-picker';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 

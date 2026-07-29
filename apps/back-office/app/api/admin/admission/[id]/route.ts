@@ -100,6 +100,9 @@ export async function GET(
         status:          appt.status,
         notes:           appt.notes,
         checkedInAt:     (appt as { checkedInAt?: Date | null }).checkedInAt?.toISOString() ?? null,
+        // El doctor marcó que terminó con el paciente (portal médico) — el
+        // asistente lo usa para saber que puede cobrar y cerrar la cita.
+        doctorDoneAt:    (appt as { doctorDoneAt?: Date | null }).doctorDoneAt?.toISOString() ?? null,
         patient: {
           id:          appt.patient.id,
           firstName:   appt.patient.firstName,

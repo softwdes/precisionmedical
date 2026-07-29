@@ -25,6 +25,7 @@ import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+import { DoctorStepPanel } from './doctor-step-panel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TriageRecord {
@@ -57,6 +58,8 @@ interface ApptDetail {
   type: string;
   status: string;
   checkedInAt: string | null;
+  /** El doctor marcó que terminó con el paciente (portal médico) */
+  doctorDoneAt?: string | null;
   notes: string | null;
   triageRecord: TriageRecord | null;
   patient: {
@@ -522,6 +525,19 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
 
   // Patient intake info (from consentsData or case)
   const intakeChiefComplaint = vitals.chiefComplaint || d.notes || null;
+
+  // Vitales para el resumen del step 3: en esta pantalla son strings de inputs
+  const numOrNull = (v: string): number | null => (v.trim() === '' ? null : Number(v));
+  const summaryTriage = {
+    systolicMmhg:    numOrNull(vitals.systolicMmhg),
+    diastolicMmhg:   numOrNull(vitals.diastolicMmhg),
+    pulseBpm:        numOrNull(vitals.pulseBpm),
+    respiratoryRate: numOrNull(vitals.respiratoryRate),
+    tempFahrenheit:  numOrNull(vitals.tempFahrenheit),
+    painScale:       numOrNull(vitals.painScale),
+    o2Saturation:    numOrNull(vitals.o2Saturation),
+    chiefComplaint:  intakeChiefComplaint,
+  };
   const accidentInfo = d.case?.accidentDate
     ? `${fmtDate(d.case.accidentDate)}${d.case.accidentType ? ` · ${d.case.accidentType}` : ''}`
     : null;
@@ -546,12 +562,11 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
       <div className="px-4 sm:px-6 pb-8 space-y-4">
 
         {/* ── Flow diagram ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-bg-2 rounded-lg overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-bg-2 rounded-lg overflow-hidden">
           {[
             { num: 1, done: true,             active: false,                                          title: t('flowStep1'), desc: t('flowStep1Desc') },
             { num: 2, done: isAlreadyInRoom, active: !isAlreadyInRoom,                              title: t('flowStep2'), desc: t('flowStep2Desc') },
-            { num: 3, done: d.status === 'COMPLETED', active: isAlreadyInRoom && !showServices && d.status !== 'COMPLETED', title: t('flowStep3'), desc: t('flowStep3Desc') },
-            { num: 4, done: false,           active: showServices || d.status === 'COMPLETED',      title: t('flowStep4'), desc: t('flowStep4Desc') },
+            { num: 3, done: d.status === 'COMPLETED', active: isAlreadyInRoom && d.status !== 'COMPLETED', title: t('flowStep3'), desc: t('flowStep3AssistantDesc') },
           ].map(step => (
             <div
               key={step.num}
@@ -571,13 +586,12 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
           {[
             { label: t('flowStep1'), done: true,             active: false },
             { label: t('flowStep2'), done: isAlreadyInRoom, active: !isAlreadyInRoom },
-            { label: t('flowStep3'), done: d.status === 'COMPLETED', active: isAlreadyInRoom && !showServices && d.status !== 'COMPLETED' },
-            { label: t('flowStep4'), done: false,           active: showServices || d.status === 'COMPLETED' },
+            { label: t('flowStep3'), done: d.status === 'COMPLETED', active: isAlreadyInRoom && d.status !== 'COMPLETED' },
           ].map((step, i, arr) => {
             const navigable = step.done || step.active;
             // Recuadro siempre visible en el paso efectivo: el navegado manualmente
             // o, en modo auto, el paso actual del flujo (feedback "dónde estoy")
-            const autoStep = !isAlreadyInRoom ? 2 : (d.status === 'COMPLETED' || showServices) ? 4 : 3;
+            const autoStep = !isAlreadyInRoom ? 2 : 3;
             const isSelected = (viewStep ?? autoStep) === i + 1;
             return (
               <div key={i} className="flex items-center gap-2 flex-1 min-w-0">
@@ -656,137 +670,53 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
           </div>
         )}
 
-        {/* ── Step 3: In Room (Doctor) — en construcción ── */}
-        {((isAlreadyInRoom && d.status !== 'COMPLETED' && !showServices) || viewStep === 3) && viewStep !== 2 && (
-          <div className="rounded-lg bg-bg-2/40 overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-bg-3">
-              <div className="w-7 h-7 rounded-full bg-violet flex items-center justify-center text-white font-bold text-[11px] shrink-0">3</div>
-              <div className="flex-1">
-                <div className="text-violet font-bold text-[13px]">{t('flowStep3')}</div>
-                <div className="text-violet/60 text-[10px]">{t('flowStep3Desc')}</div>
-              </div>
-              <div className="text-[10px] font-semibold text-violet bg-violet/15 border border-violet/25 px-2 py-0.5 rounded-full">
-                {d.provider ? `Dr. ${d.provider.lastName}` : t('noProviderAssigned')}
-              </div>
-            </div>
-            {/* Body */}
-            <div className="px-4 py-5 flex flex-col items-center gap-3 text-center">
-              <div className="text-3xl">🏗️</div>
-              <div>
-                <div className="font-semibold text-text-1 text-[13px] mb-1">Módulo del doctor — en construcción</div>
-                <div className="text-[11px] text-text-muted max-w-sm">
-                  La nota clínica SOAP, prescripciones y órdenes de laboratorio estarán disponibles en la siguiente fase del proyecto.
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowServices(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald text-white text-[11px] font-semibold hover:bg-emerald/90 transition-colors"
-                >
-                  Servicios y Pagos <ChevronRight className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 4: Servicios y Pagos ── */}
-        {((d.status === 'COMPLETED' || showServices) || viewStep === 4) && viewStep !== 2 && viewStep !== 3 && (
-          <div className="space-y-3">
-            {/* Banner visita completada */}
-            <div className="rounded-lg border border-emerald/30 bg-emerald/5 px-4 py-3 flex items-center gap-3">
-              <CheckCircle2 className="w-4 h-4 text-emerald shrink-0" />
-              <div className="flex-1">
-                <div className="text-emerald font-bold text-[13px]">{t('visitCompleted')}</div>
-                <div className="text-emerald/70 text-[11px]">
-                  {d.provider ? t('withDoctorName', { firstName: d.provider.firstName, lastName: d.provider.lastName }) : ''}
-                </div>
-              </div>
-              <div className="w-6 h-6 rounded-full bg-amber flex items-center justify-center text-black font-bold text-[11px] shrink-0">4</div>
-            </div>
-            {/* Panel de servicios y pagos inline */}
-            <AppointmentDetailPanel
-              inline
-              initialTab="services"
-              appointment={{
-                id:                  d.id,
-                scheduledFor:        d.scheduledFor,
-                durationMinutes:     d.durationMinutes,
-                type:                d.type,
-                status:              d.status,
-                notes:               d.notes,
-                visitNumber:         0,
-                plannedServiceCodes: d.plannedServiceCodes ?? [],
-                patient:         d.patient,
-                provider:        d.provider,
-                clinic:          d.clinic,
-                case: d.case ? {
-                  id:                    d.case.id,
-                  caseCode:              d.case.caseCode,
-                  accidentType:          d.case.accidentType,
-                  accidentDate:          d.case.accidentDate,
-                  status:                'ACTIVE',
-                  intakeFormCompletedAt: d.case.intakeFormCompletedAt,
-                  attorney:              d.case.attorney ? {
-                    id: d.case.attorney.id,
-                    firmName:  d.case.lawFirm?.firmName ?? null,
-                    firstName: d.case.attorney.firstName ?? '',
-                    lastName:  d.case.attorney.lastName ?? '',
-                    phone:     null,
-                    email:     d.case.attorney.email,
-                  } : null,
-                  primaryInsurance: d.case.primaryInsurance ?? null,
+        {/* Step 3: In Room (Doctor) — resumen, nota, labs, servicios y checkout.
+            Absorbe el viejo step 4: el asistente completa lo que el doctor no
+            hizo, cobra y cierra la cita desde el mismo lugar. */}
+        {(isAlreadyInRoom || d.status === 'COMPLETED' || viewStep === 3) && viewStep !== 2 && (
+          <DoctorStepPanel
+            appointmentId={d.id}
+            appointmentStatus={d.status}
+            checkedInAt={d.checkedInAt}
+            doctorDoneAt={d.doctorDoneAt ?? null}
+            providerName={d.provider ? `Dr. ${d.provider.firstName} ${d.provider.lastName}` : null}
+            triage={summaryTriage}
+            servicesPanel={{
+              id:                  d.id,
+              scheduledFor:        d.scheduledFor,
+              durationMinutes:     d.durationMinutes,
+              type:                d.type,
+              status:              d.status,
+              notes:               d.notes,
+              visitNumber:         0,
+              plannedServiceCodes: d.plannedServiceCodes ?? [],
+              patient:         d.patient,
+              provider:        d.provider,
+              clinic:          d.clinic,
+              case: d.case ? {
+                id:                    d.case.id,
+                caseCode:              d.case.caseCode,
+                accidentType:          d.case.accidentType,
+                accidentDate:          d.case.accidentDate,
+                status:                'ACTIVE',
+                intakeFormCompletedAt: d.case.intakeFormCompletedAt,
+                attorney:              d.case.attorney ? {
+                  id: d.case.attorney.id,
+                  firmName:  d.case.lawFirm?.firmName ?? null,
+                  firstName: d.case.attorney.firstName ?? '',
+                  lastName:  d.case.attorney.lastName ?? '',
+                  phone:     null,
+                  email:     d.case.attorney.email,
                 } : null,
-              }}
-              onClose={() => {}}
-              onRefresh={load}
-              noBorder
-              billingTotal={billingHistory.reduce((s, b) => s + b.balanceDue, 0) || undefined}
-            />
-
-            {/* ── Billing history (migrated records) ── */}
-            {billingHistory.length > 0 && (
-              <div className="rounded-lg border border-border bg-bg-1">
-                <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5 text-amber" />
-                  <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Billing History</span>
-                  <span className="ml-auto text-[10px] text-text-muted">{billingHistory.length} records</span>
-                </div>
-                <div className="divide-y divide-border/40">
-                  {billingHistory.map(b => {
-                    const date = b.appointmentDate
-                      ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                      : '—';
-                    const isPaid    = b.balanceDue === 0;
-                    const isPartial = b.amountPaid > 0 && b.balanceDue > 0;
-                    return (
-                      <div key={b.id} className="px-4 py-2.5 flex items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[12px] text-text-1 font-medium">{b.serviceDescription ?? b.serviceCode ?? 'Service'}</span>
-                          {b.serviceCode && (
-                            <span className="ml-2 text-[10px] text-text-muted font-mono">{b.serviceCode}</span>
-                          )}
-                          <span className="ml-2 text-[10px] text-text-muted">{date}</span>
-                        </div>
-                        <div className="text-right shrink-0 space-y-0.5">
-                          <div className="text-[12px] font-semibold text-text-1">${b.totalCost.toFixed(2)}</div>
-                          {isPaid
-                            ? <div className="text-[10px] text-emerald font-medium">Paid</div>
-                            : isPartial
-                              ? <div className="text-[10px] text-amber font-medium">Partial · ${b.balanceDue.toFixed(2)} due</div>
-                              : <div className="text-[10px] text-rose font-medium">${b.balanceDue.toFixed(2)} due</div>
-                          }
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+                primaryInsurance: d.case.primaryInsurance ?? null,
+              } : null,
+            }}
+            billingTotal={billingHistory.reduce((s, b) => s + b.balanceDue, 0) || undefined}
+            servicesExtra={<BillingHistoryList rows={billingHistory} />}
+            onRefresh={load}
+          />
         )}
+
 
         {/* ── Main 2-col layout ── */}
         {(!isAlreadyInRoom || viewStep === 2) && (
@@ -1088,23 +1018,6 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 </div>
               </div>
 
-              {/* Step 4 preview */}
-              <div className="rounded-lg bg-bg-2/30 p-4">
-                <div className="text-[9.5px] uppercase tracking-wider font-bold text-text-muted mb-2">{t('step4AfterTitle')}</div>
-                <div className="text-[11px] text-text-2 leading-relaxed mb-3">{t('step4AfterDesc')}</div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: t('step4ServicesLabel'), sub: t('step4ServicesDesc') },
-                    { label: t('step4PaymentsLabel'), sub: t('step4PaymentsDesc') },
-                  ].map(card => (
-                    <div key={card.label} className="bg-bg-3/50 rounded-md p-2.5 text-center">
-                      <div className="text-[10px] text-text-muted uppercase tracking-wider mb-0.5">{card.label}</div>
-                      <div className="text-[11px] font-semibold text-text-2">{card.sub}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="text-[10px] text-text-muted mt-2">{t('step4AvailableAfter')}</div>
-              </div>
 
             </div>
           </div>
@@ -1129,6 +1042,60 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
           }}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Historial de facturación (registros migrados del v2) ─────────────────────
+// Vivía dentro del viejo step 4; ahora se inyecta en el tab Servicios del step 3.
+interface BillingRow {
+  id: string;
+  serviceCode: string | null;
+  serviceDescription: string | null;
+  totalCost: number;
+  balanceDue: number;
+  amountPaid: number;
+  appointmentDate: string | null;
+}
+
+function BillingHistoryList({ rows }: { rows: BillingRow[] }): React.ReactElement | null {
+  if (rows.length === 0) return null;
+  return (
+    <div className="rounded-lg border border-border bg-bg-1 mt-3">
+      <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
+        <FileText className="w-3.5 h-3.5 text-amber" />
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Billing History</span>
+        <span className="ml-auto text-[10px] text-text-muted">{rows.length} records</span>
+      </div>
+      <div className="divide-y divide-border/40">
+        {rows.map(b => {
+          const date = b.appointmentDate
+            ? new Date(b.appointmentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : '—';
+          const isPaid    = b.balanceDue === 0;
+          const isPartial = b.amountPaid > 0 && b.balanceDue > 0;
+          return (
+            <div key={b.id} className="px-4 py-2.5 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <span className="text-[12px] text-text-1 font-medium">{b.serviceDescription ?? b.serviceCode ?? 'Service'}</span>
+                {b.serviceCode && (
+                  <span className="ml-2 text-[10px] text-text-muted font-mono">{b.serviceCode}</span>
+                )}
+                <span className="ml-2 text-[10px] text-text-muted">{date}</span>
+              </div>
+              <div className="text-right shrink-0 space-y-0.5">
+                <div className="text-[12px] font-semibold text-text-1">${b.totalCost.toFixed(2)}</div>
+                {isPaid
+                  ? <div className="text-[10px] text-emerald font-medium">Paid</div>
+                  : isPartial
+                    ? <div className="text-[10px] text-amber font-medium">Partial · ${b.balanceDue.toFixed(2)} due</div>
+                    : <div className="text-[10px] text-rose font-medium">${b.balanceDue.toFixed(2)} due</div>
+                }
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

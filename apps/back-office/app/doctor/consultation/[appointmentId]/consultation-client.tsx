@@ -19,11 +19,11 @@ import {
 } from 'lucide-react';
 import { PageHeader, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
-import { VisitNoteEditor, type VisitNoteData } from './visit-note-editor';
-import type { PickableTemplate } from './template-picker';
+import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
+import type { PickableTemplate } from '@/components/visit/template-picker';
 import { PatientContextPanel, type PatientContext } from './patient-context-panel';
-import { LabsTab } from './labs-tab';
-import { VisitSummary } from './visit-summary';
+import { LabsTab } from '@/components/visit/labs-tab';
+import { VisitSummary } from '@/components/visit/visit-summary';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;

@@ -7,6 +7,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { getSessionUser } from '@/lib/session';
 
 export async function PUT(
   req: NextRequest,
@@ -93,7 +94,23 @@ export async function PUT(
     });
 
     // Regla #3: los signos vitales son dato clínico, toda escritura se audita.
+    // En una corrección post-admisión guardamos también QUIÉN la hizo: la
+    // pantalla muestra "vitales corregidos {hora} · {nombre}" para que el doctor
+    // sepa que los números cambiaron después de que él los vio.
     const actor = actorFromHeaders(req.headers);
+    let correctedByName: string | null = null;
+    if (esCorreccionPostAdmision) {
+      const user = await getSessionUser();
+      if (user?.email) {
+        const dbUser = await db.user.findFirst({
+          where: { email: { equals: user.email, mode: 'insensitive' } },
+          select: { firstName: true, lastName: true },
+        });
+        correctedByName = dbUser
+          ? `${dbUser.firstName ?? ''} ${dbUser.lastName ?? ''}`.trim() || user.email
+          : user.email;
+      }
+    }
     await writeAuditLog(db, {
       actorType:   actor.actorType,
       actorUserId: actor.actorUserId ?? undefined,
@@ -105,6 +122,7 @@ export async function PUT(
         patientId:              appt.patientId,
         appointmentStatus:      appt.status,
         postAdmissionCorrection: esCorreccionPostAdmision,
+        correctedByName,
       },
       ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
     });

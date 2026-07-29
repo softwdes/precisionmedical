@@ -70,6 +70,24 @@ export async function GET(
 
     if (!appt) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
+    // Ultima correccion de vitales despues de que el paciente paso a sala. Sale
+    // del audit log (no hay columna en TriageRecord) y la pantalla la muestra
+    // junto al titulo, para que el doctor sepa que los numeros cambiaron.
+    const triageId = (appt as { triageRecord?: { id?: string } | null }).triageRecord?.id;
+    const lastCorrection = triageId
+      ? await db.auditLog.findFirst({
+          where: { action: 'TRIAGE_VITALS_CORRECTED', entityType: 'TriageRecord', entityId: triageId },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true, metadata: true },
+        })
+      : null;
+    const triageCorrection = lastCorrection
+      ? {
+          at: lastCorrection.createdAt.toISOString(),
+          by: (lastCorrection.metadata as { correctedByName?: string } | null)?.correctedByName ?? null,
+        }
+      : null;
+
     const c = appt.case;
     const isMVA      = c?.caseType === 'MVA';
     const pipActive  = isMVA && !!c?.pipVerifiedAt;
@@ -103,6 +121,7 @@ export async function GET(
         // El doctor marcó que terminó con el paciente (portal médico) — el
         // asistente lo usa para saber que puede cobrar y cerrar la cita.
         doctorDoneAt:    (appt as { doctorDoneAt?: Date | null }).doctorDoneAt?.toISOString() ?? null,
+        triageCorrection,
         patient: {
           id:          appt.patient.id,
           firstName:   appt.patient.firstName,

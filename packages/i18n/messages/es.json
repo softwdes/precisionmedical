@@ -2828,7 +2828,9 @@
       "step4PaymentsLabel": "Pagos",
       "step4PaymentsDesc": "PIP / MedPay / Paciente",
       "step4AvailableAfter": "Disponible cuando el estado cambia a Completado",
-      "flowStep3AssistantDesc": "Nota, laboratorios, servicios y cierre de la cita"
+      "flowStep3AssistantDesc": "Nota, laboratorios, servicios y cierre de la cita",
+      "vitalsCorrectedAt": "vitales corregidos {time}",
+      "vitalsCorrectedByAt": "vitales corregidos {time} · {name}"
     },
     "dashboard": {
       "title": "Dashboard de Recepción",

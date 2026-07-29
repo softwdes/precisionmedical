@@ -2828,7 +2828,9 @@
       "step4PaymentsLabel": "Payments",
       "step4PaymentsDesc": "PIP / MedPay / Patient",
       "step4AvailableAfter": "Available once status changes to Completed",
-      "flowStep3AssistantDesc": "Note, labs, services and appointment checkout"
+      "flowStep3AssistantDesc": "Note, labs, services and appointment checkout",
+      "vitalsCorrectedAt": "vitals corrected at {time}",
+      "vitalsCorrectedByAt": "vitals corrected at {time} · {name}"
     },
     "dashboard": {
       "title": "Reception Dashboard",

@@ -18,7 +18,7 @@ import { useTranslations } from 'next-intl';
 import {
   ArrowLeft, CheckCircle2, Clock, AlertTriangle, RefreshCw,
   Stethoscope, Building2, ChevronRight, FileText, Activity,
-  User, ShieldCheck, Lock,
+  User, ShieldCheck,
 } from 'lucide-react';
 import { PageHeader }   from '@/components/ui-phoenix/page-header';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
@@ -60,6 +60,8 @@ interface ApptDetail {
   checkedInAt: string | null;
   /** El doctor marcó que terminó con el paciente (portal médico) */
   doctorDoneAt?: string | null;
+  /** Última corrección de vitales después de que el paciente pasó a sala */
+  triageCorrection?: { at: string; by: string | null } | null;
   notes: string | null;
   triageRecord: TriageRecord | null;
   patient: {
@@ -335,7 +337,6 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   // hay que pedir corrección explícitamente. No se bloquea del todo porque en
   // la clínica los errores de medición pasan, y cerrarlo por completo empuja a
   // corregirlo por caminos peores. La corrección queda trazada en el audit log.
-  const [correctingVitals, setCorrectingVitals] = useState(false);
   const [vitalsSaved,  setVitalsSaved]  = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -496,11 +497,12 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
   const consentsOk = !!d.case?.consentsCompleted;
   const canAdmit = confirm1 && confirm2 && consentsOk && !isAlreadyInRoom;
 
-  // Solo lectura cuando el triaje ya se cerró, salvo que se pida corregir.
-  // Antes el cartel "Viewing Step N — read-only" era puramente decorativo: los
-  // inputs seguían editables y "Guardar" seguía funcionando, así que se podían
-  // alterar los vitales de un paciente ya admitido sin ninguna traza.
-  const vitalsLocked = isAlreadyInRoom && !correctingVitals;
+  // Los vitales quedan SIEMPRE editables (decisión de Erick 2026-07-29): en la
+  // clínica el encargado corrige después de que el paciente pasó a sala y no
+  // tiene sentido pedirle un clic extra. Lo que importa es la traza, y esa vive
+  // en el servidor: toda escritura post-admisión se audita como
+  // TRIAGE_VITALS_CORRECTED y la pantalla muestra quién y cuándo la hizo.
+  const vitalsCorrection = d.triageCorrection ?? null;
 
   const cd = d.case?.consentsData ?? {} as ConsentsData;
   const overallState: StatusState = isAlreadyInRoom ? 'success' : consentsOk ? 'success' : 'warning';
@@ -767,26 +769,15 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <Activity className="w-4 h-4 text-cyan" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionVitals')}</span>
-                  {vitalsLocked && (
-                    <>
-                      <span className="text-[9px] text-text-muted bg-bg-2 border border-border px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Lock className="w-2.5 h-2.5" />{t('vitalsLockedBadge')}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setCorrectingVitals(true)}
-                        className="ml-auto text-[9px] text-amber border border-amber/30 bg-amber/10 hover:bg-amber/20 px-2 py-0.5 rounded-full transition-colors"
-                      >
-                        {t('vitalsCorrectBtn')}
-                      </button>
-                    </>
-                  )}
-                  {correctingVitals && (
-                    <span className="ml-auto text-[9px] text-amber bg-amber/10 border border-amber/30 px-2 py-0.5 rounded-full">
-                      {t('vitalsCorrectingBadge')}
+                  {vitalsCorrection && (
+                    <span className="text-[9px] text-amber bg-amber/10 border border-amber/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" />
+                      {vitalsCorrection.by
+                        ? t('vitalsCorrectedByAt', { name: vitalsCorrection.by, time: fmtTime(vitalsCorrection.at) })
+                        : t('vitalsCorrectedAt', { time: fmtTime(vitalsCorrection.at) })}
                     </span>
                   )}
-                  {!vitalsLocked && vitalsDirty && !vitalsSaved && (
+                  {vitalsDirty && !vitalsSaved && (
                     <span className="ml-auto text-[9px] text-amber bg-amber/10 border border-amber/20 px-2 py-0.5 rounded-full">Unsaved</span>
                   )}
                   {vitalsSaved && (
@@ -797,7 +788,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                 {/* fieldset disabled propaga a TODOS los controles internos, así
                     no hay que pasarle un prop a cada uno de los ~30 VInput. Los
                     inputs matchean :disabled y toman los estilos disabled: */}
-                <fieldset disabled={vitalsLocked} className="contents">
+                <fieldset className="contents">
 
                 {/* 1st reading */}
                 <div className="text-[9px] uppercase tracking-wider font-bold text-cyan mb-2 flex items-center gap-2 after:flex-1 after:h-px after:bg-cyan/20">
@@ -888,9 +879,9 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   </div>
                 )}
 
-                {/* Save bar — oculta cuando el triaje está cerrado: sin nada que
-                    guardar, el botón solo invitaría a tocar un registro cerrado */}
-                {!vitalsLocked && (
+                {/* Save bar — siempre visible: el triaje se puede corregir en
+                    cualquier momento y el cambio queda auditado */}
+                {(
                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-border gap-2 flex-wrap">
                     <span className="text-[10px] text-text-muted">{t('vitalsNote')}</span>
                     <button

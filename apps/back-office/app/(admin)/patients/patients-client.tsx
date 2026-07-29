@@ -1978,10 +1978,13 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
         {!doctorMode && (
         <div className="flex items-center gap-1.5 flex-wrap">
           {/* Quick Register deshabilitado temporalmente */}
-          {/* "New patient" quitado: "Create Patient / Create Case" es el único
-              camino de creación, y es el que tiene la detección de menor de edad
-              con vínculo real al padre/apoderado. PatientCreateDialog no lo
-              tiene, así que dejarlo permitía crear un menor sin apoderado. */}
+          {/* "New patient" (patient-create-dialog.tsx) fue eliminado del todo:
+              "Create Patient / Create Case" es el único camino de creación, y
+              es el que tiene la detección de menor de edad con vínculo real al
+              padre/apoderado. El otro dialog había quedado huérfano (nadie lo
+              importaba) y mantenerlo habría sido una segunda implementación del
+              mismo flujo lista para desviarse — el mismo patrón que ya causó
+              bugs con calcAge y los generadores de código duplicados. */}
           <button
             type="button"
             onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}

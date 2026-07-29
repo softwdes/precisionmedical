@@ -55,6 +55,18 @@ const InputSchema = z.object({
     primaryInsuranceId: z.string().nullable().optional(),
     primaryPolicyNumber: z.string().max(50).nullable().optional(),
   }),
+  // Padre / apoderado — solo viene si el paciente es menor de edad.
+  // `patientId` con valor → linkear a un paciente que ya existe.
+  // `patientId` null      → crear un Patient nuevo (sin caso) con estos datos.
+  guardian: z.object({
+    patientId:   z.string().nullable().optional(),
+    firstName:   z.string().max(100).default(''),
+    lastName:    z.string().max(100).default(''),
+    email:       z.string().email().nullable().optional().or(z.literal('').transform(() => null)),
+    phone:       z.string().max(30).default(''),
+    dateOfBirth: z.string().nullable().optional(),
+    relation:    z.enum(['MOTHER', 'FATHER', 'LEGAL_GUARDIAN', 'OTHER']).default('MOTHER'),
+  }).nullable().optional(),
   // Workflow
   specialtyId: z.string().nullable().optional(),
   caseType: z.enum(['MVA', 'GENERAL', 'WORKERS_COMP', 'NURSING_HOME']).default('MVA'),
@@ -269,6 +281,42 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Consecutivo; la función toma su propio advisory lock (ver codes.ts).
     const caseCode = await nextCaseCode(tx, casePrefix);
 
+    // ─── Padre / apoderado (paciente menor de edad) ────────────────────────
+    // El apoderado siempre termina siendo un Patient: si ya existe se linkea,
+    // si no se crea uno nuevo SIN caso, para que quede disponible para sus
+    // propias citas y casos futuros. Va en la misma transacción que el menor
+    // para que no pueda quedar un apoderado huérfano si algo falla después.
+    let guardianPatientId: string | null = null;
+    if (parsed.guardian) {
+      const g = parsed.guardian;
+      if (g.patientId) {
+        guardianPatientId = g.patientId;
+      } else if (g.firstName.trim() && g.lastName.trim()) {
+        // Si ya hay alguien con ese email, se reutiliza en vez de duplicar —
+        // el buscador del UI puede haberse salteado.
+        const yaExiste = g.email
+          ? await tx.patient.findFirst({ where: { email: g.email }, select: { id: true } })
+          : null;
+        if (yaExiste) {
+          guardianPatientId = yaExiste.id;
+        } else {
+          const nuevoApoderado = await tx.patient.create({
+            data: {
+              patientCode: await nextPatientCode(tx),
+              firstName:   g.firstName.trim(),
+              lastName:    g.lastName.trim(),
+              email:       g.email ?? null,
+              phone:       g.phone || null,
+              dateOfBirth: g.dateOfBirth ? new Date(`${g.dateOfBirth}T12:00:00Z`) : null,
+              status:      'NEW',
+            },
+            select: { id: true },
+          });
+          guardianPatientId = nuevoApoderado.id;
+        }
+      }
+    }
+
     // Paciente conocido → solo actualizar campos del accidente/caso · nunca tocar
     //                     demografía (nombre, teléfono) para evitar corrupción
     // Paciente nuevo    → crear con código generado
@@ -279,6 +327,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             ...(parsed.accident.date && { accidentDate: new Date(parsed.accident.date) }),
             accidentType: parsed.accident.type,
             ...(parsed.legal.lawFirmId && { lawyerReferrerId: parsed.legal.lawFirmId }),
+            ...(guardianPatientId ? {
+              guardianPatientId,
+              guardianRelation: parsed.guardian?.relation ?? null,
+            } : {}),
           },
         })
       : await tx.patient.create({
@@ -294,6 +346,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             accidentType: parsed.accident.type,
             lawyerReferrerId: parsed.legal.lawFirmId ?? null,
             status: 'NEW',
+            ...(guardianPatientId ? {
+              guardianPatientId,
+              guardianRelation: parsed.guardian?.relation ?? null,
+            } : {}),
           },
         });
 

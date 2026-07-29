@@ -10,6 +10,7 @@ import {
   PhoneCall, PhoneOff, User, Car, Scale, ShieldCheck, Check, AlertCircle, Search as SearchIcon,
   CalendarCheck, Send, Pause, ArrowRight, ArrowLeft, Phone, ClipboardList,
   Copy, Download, ChevronRight, Shield, X, RefreshCw, Mail, MessageSquare, Tablet,
+  Users, Link as LinkIcon,
 } from 'lucide-react';
 import {
   Button,
@@ -26,6 +27,8 @@ import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoe
 import { DoctorCombobox } from '@/components/ui-phoenix/doctor-combobox';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { PreCallStep, type PreCallResult, type PreCallMode } from './precall-step';
+// Subpath, no el barrel: el barrel instancia PrismaClient y esto es client-side
+import { calcAge, isMinor } from '@precision-medical/database/age';
 import { ActiveCallBar } from './active-call-bar';
 import { useTwilioDevice } from '@/lib/use-twilio-device';
 
@@ -65,7 +68,20 @@ interface AutoResult {
   subtitle?: string;
   shortCode?: string;
   color?: string;
+  /** Campos extra del autocomplete de pacientes (apoderado de un menor) */
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  patientCode?: string;
+  age?: number | null;
+  /** Un apoderado menor de edad no puede firmar — el UI lo marca y bloquea */
+  isMinor?: boolean;
 }
+
+/** Mismos valores que el enum del schema y que patient-create-dialog. */
+const GUARDIAN_RELATION_OPTIONS = ['MOTHER', 'FATHER', 'LEGAL_GUARDIAN', 'OTHER'] as const;
 
 type CaseType    = 'MVA' | 'GENERAL';
 type LawyerStatus = 'HAS' | 'SEEKING' | 'DECLINED';
@@ -160,6 +176,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const [language, setLanguage]   = useState<'es' | 'en'>('es');
   const [referralSource, setReferralSource] = useState<ReferralSource>('LAW_FIRM');
 
+  // ─── Section 1b: Padre / apoderado (solo si el paciente es menor) ───────
+  // Si `guardianLinked` tiene valor, el apoderado ya existe como paciente y se
+  // linkea; si es null, los campos de abajo crean uno nuevo (sin caso).
+  const [guardianLinked, setGuardianLinked] = useState<AutoResult | null>(null);
+  const [gFirstName, setGFirstName] = useState('');
+  const [gLastName,  setGLastName]  = useState('');
+  const [gEmail,     setGEmail]     = useState('');
+  const [gPhone,     setGPhone]     = useState('');
+  const [gDob,       setGDob]       = useState('');
+  const [gRelation,  setGRelation]  = useState('MOTHER');
+
   // ─── Section 2: Case type + accident + lawyer + insurance ─────────────
   const [caseType, setCaseType] = useState<CaseType>('MVA');
   const [accidentDate, setAccidentDate] = useState('');
@@ -214,6 +241,8 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     if (didResetRef.current) return;
     didResetRef.current = true;
     setWizardStep(1);
+    setGuardianLinked(null);
+    setGFirstName(''); setGLastName(''); setGEmail(''); setGPhone(''); setGDob(''); setGRelation('MOTHER');
     setCaseType('MVA');
     setAccidentDate(''); setAccidentType('AUTO'); setAccidentLocation(''); setAccidentNotes('');
     setLawyerStatus('HAS'); setLawFirm(null); setAttorney(null); setChiropractor('');
@@ -377,8 +406,28 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
   const isPrevWeekDisabled = weekStart.getTime() <= minWeekStart;
   const isNextWeekDisabled = weekStart.getTime() >= minWeekStart + 28 * 24 * 60 * 60 * 1000;
 
+  // ─── Menor de edad → requiere apoderado ────────────────────────────────
+  // La fecha de nacimiento es obligatoria justamente para poder decidir esto:
+  // si el paciente es menor, el formulario va al apoderado y es él quien firma
+  // los consentimientos.
+  const patientAge     = calcAge(dateOfBirth);
+  const patientIsMinor = isMinor(dateOfBirth);
+
+  // Con apoderado vinculado los datos salen de su ficha; si no, hay que
+  // cargarlos a mano y se crea como paciente nuevo (sin caso).
+  const guardianComplete = guardianLinked
+    ? true
+    : gFirstName.trim() !== '' && gLastName.trim() !== ''
+      && gEmail.trim() !== '' && gPhone.trim() !== ''
+      && gDob.trim() !== '' && !isMinor(gDob);
+
   // ─── Step validation ───────────────────────────────────────────────────
-  const canGoToStep2 = firstName.trim() !== '' && lastName.trim() !== '';
+  const canGoToStep2 =
+    firstName.trim() !== ''
+    && lastName.trim() !== ''
+    && dateOfBirth.trim() !== ''
+    && patientAge !== null
+    && (!patientIsMinor || guardianComplete);
   const accidentDateIsValid = !accidentDate || accidentDate <= todayDenver;
   const canGoToStep3 = canGoToStep2 && (caseType !== 'MVA' || lawyerStatus !== 'HAS' || !!lawFirm) && accidentDateIsValid;
   const canGoToStep4 = canGoToStep3 && (!scheduleNow || (!!clinicId && !!providerId && !!slotIso));
@@ -422,6 +471,17 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             primaryPolicyNumber: policyNumber.trim() || null,
           },
           existingPatientId: existingPatientId ?? null,
+          // Solo se manda si el paciente es menor. `patientId` presente = linkear
+          // a un paciente existente; ausente = crear uno nuevo con estos datos.
+          guardian: patientIsMinor ? {
+            patientId: guardianLinked?.id ?? null,
+            firstName: guardianLinked?.firstName ?? gFirstName.trim(),
+            lastName:  guardianLinked?.lastName  ?? gLastName.trim(),
+            email:     guardianLinked?.email     ?? gEmail.trim(),
+            phone:     guardianLinked?.phone     ?? gPhone.trim(),
+            dateOfBirth: (guardianLinked?.dateOfBirth ?? gDob) || null,
+            relation:  gRelation,
+          } : null,
           specialtyId: specialtyId || null,
           caseType,
           source: (['PHONE_CALL','WALK_IN','LAW_FIRM_REFERRAL','PATIENT_REFERRAL','WEB_FORM','AI_AGENT'] as const).includes(referralSource as never)
@@ -904,7 +964,14 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 <FormField.Input label={t('lastName')}  required value={lastName}  onChange={setLastName} />
                 <FormField.Phone label={t('phone')}     value={phone}    onChange={(v) => setPhone(v)} />
                 <FormField.Input label={t('email')}     value={email}    onChange={setEmail} type="email" />
-                <FormField.Input label={t('dob')}       value={dateOfBirth} onChange={setDateOfBirth} type="date" />
+                <div className="space-y-1">
+                  <FormField.Input label={t('dob')} required value={dateOfBirth} onChange={setDateOfBirth} type="date" />
+                  {patientAge !== null && (
+                    <p className={`text-[11px] ${patientIsMinor ? 'text-amber font-semibold' : 'text-text-muted'}`}>
+                      {patientIsMinor ? t('ageMinor', { age: patientAge }) : t('ageYears', { age: patientAge })}
+                    </p>
+                  )}
+                </div>
                 <FormField.Select label={t('language')} value={language} onChange={(v) => setLanguage(v as 'es' | 'en')}
                   options={[{ value: 'es', label: t('langEs') }, { value: 'en', label: t('langEn') }]} />
               </div>
@@ -933,9 +1000,113 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
                 hint={t('patientHint')}
               />
               {!canGoToStep2 && (
-                <Note tone="amber">Nombre y apellido son requeridos para continuar.</Note>
+                <Note tone="amber">{t('requiredToContinue')}</Note>
               )}
             </InfoCard>
+          )}
+
+          {/* ══ STEP 1b — PADRE / APODERADO (solo si el paciente es menor) ══ */}
+          {wizardStep === 1 && patientIsMinor && (
+            <div className="mt-3">
+              <InfoCard
+                title={t('guardianSection')}
+                icon={Users}
+                number={2}
+                tone={guardianLinked ? 'emerald' : 'amber'}
+              >
+                {!guardianLinked && (
+                  <Note tone="amber">{t('guardianWhy')}</Note>
+                )}
+
+                {guardianLinked ? (
+                  <>
+                    {/* Vinculado a un paciente existente — sus datos salen de su
+                        ficha, así que se muestran en lectura para no editarla
+                        sin querer desde acá. */}
+                    <div className="flex items-center gap-3 flex-wrap rounded-md border border-emerald/30 bg-emerald/[0.06] px-3 py-2.5">
+                      <LinkIcon className="w-4 h-4 text-emerald shrink-0" />
+                      <span className="text-[12.5px] text-text-2 flex-1 min-w-[180px]">
+                        {t('guardianLinkedTo')}{' '}
+                        <strong className="text-emerald">{guardianLinked.label}</strong>
+                        {guardianLinked.patientCode && (
+                          <span className="ml-1 font-mono text-[11px] text-emerald">· {guardianLinked.patientCode}</span>
+                        )}
+                      </span>
+                      <button type="button" onClick={() => setGuardianLinked(null)}
+                        className="shrink-0 text-[11.5px] text-text-muted hover:text-rose border border-border-strong rounded-md px-2.5 py-1 transition-colors">
+                        {t('guardianUnlink')}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <FormField.Input label={t('guardianFirstName')} value={guardianLinked.firstName ?? ''} onChange={() => {}} disabled />
+                      <FormField.Input label={t('guardianLastName')}  value={guardianLinked.lastName ?? ''}  onChange={() => {}} disabled />
+                      <FormField.Input label={t('email')}             value={guardianLinked.email ?? ''}     onChange={() => {}} disabled />
+                      <FormField.Input label={t('phone')}             value={guardianLinked.phone ?? ''}     onChange={() => {}} disabled />
+                      <FormField.Input label={t('dob')}               value={guardianLinked.dateOfBirth ?? ''} onChange={() => {}} type="date" disabled />
+                      {/* La relación sí es editable: es un dato DE ESTA relación,
+                          no de la ficha del apoderado. */}
+                      <FormField.Select label={t('guardianRelation')} required value={gRelation} onChange={setGRelation}
+                        options={GUARDIAN_RELATION_OPTIONS.map(o => ({ value: o, label: t(`guardianRelationOpt.${o}`) }))} />
+                    </div>
+
+                    <Note tone="emerald">
+                      {t('guardianNoDuplicate', { email: guardianLinked.email || '—' })}
+                    </Note>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <Label>{t('guardianSearchLabel')}</Label>
+                      <Autocomplete
+                        endpoint="/api/admin/patients/autocomplete"
+                        {...(existingPatientId ? { extraParams: { excludeId: existingPatientId } } : {})}
+                        placeholder={t('guardianSearchPlaceholder')}
+                        selected={null}
+                        showAge
+                        blockMinors
+                        emptyHint={t('guardianSearchEmpty')}
+                        onSelect={(r) => {
+                          if (!r) return;
+                          setGuardianLinked(r);
+                          // Espejar en los campos sueltos por si después se desvincula
+                          setGFirstName(r.firstName ?? '');
+                          setGLastName(r.lastName ?? '');
+                          setGEmail(r.email ?? '');
+                          setGPhone(r.phone ?? '');
+                          setGDob(r.dateOfBirth ?? '');
+                        }}
+                      />
+                      <p className="text-[11px] text-text-muted italic">{t('guardianSearchHint')}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <FormField.Input label={t('guardianFirstName')} required value={gFirstName} onChange={setGFirstName} />
+                      <FormField.Input label={t('guardianLastName')}  required value={gLastName}  onChange={setGLastName} />
+                      <FormField.Input label={t('email')} required value={gEmail} onChange={setGEmail} type="email" />
+                      <FormField.Phone label={t('phone')} required value={gPhone} onChange={(v) => setGPhone(v)} />
+                      <div className="space-y-1">
+                        <FormField.Input label={t('dob')} required value={gDob} onChange={setGDob} type="date" />
+                        {(() => {
+                          const gAge = calcAge(gDob);
+                          if (gAge === null) return null;
+                          const gMinor = gAge < 18;
+                          return (
+                            <p className={`text-[11px] ${gMinor ? 'text-rose font-semibold' : 'text-text-muted'}`}>
+                              {gMinor ? t('guardianMustBeAdult', { age: gAge }) : t('ageYears', { age: gAge })}
+                            </p>
+                          );
+                        })()}
+                      </div>
+                      <FormField.Select label={t('guardianRelation')} required value={gRelation} onChange={setGRelation}
+                        options={GUARDIAN_RELATION_OPTIONS.map(o => ({ value: o, label: t(`guardianRelationOpt.${o}`) }))} />
+                    </div>
+
+                    <Note tone="cyan">{t('guardianWillBeCreated')}</Note>
+                  </>
+                )}
+              </InfoCard>
+            </div>
           )}
 
           {/* ══ STEP 2 — CASO ════════════════════════════════════════════ */}
@@ -1555,12 +1726,13 @@ function SegmentedOption({ selected, onClick, icon, label }: {
   );
 }
 
-function Note({ children, tone = 'default' }: { children: React.ReactNode; tone?: 'default' | 'emerald' | 'amber' | 'rose' | 'muted' }) {
+function Note({ children, tone = 'default' }: { children: React.ReactNode; tone?: 'default' | 'emerald' | 'amber' | 'rose' | 'cyan' | 'muted' }) {
   const toneClasses: Record<string, string> = {
     default: 'bg-bg-2/40 border-border text-text-2',
     emerald: 'bg-emerald/10 border-emerald/30 text-emerald',
     amber:   'bg-amber/10 border-amber/30 text-amber',
     rose:    'bg-rose/10 border-rose/30 text-rose',
+    cyan:    'bg-cyan/10 border-cyan/30 text-cyan',
     muted:   'bg-bg-2/40 border-border text-text-muted',
   };
   return (
@@ -1570,10 +1742,17 @@ function Note({ children, tone = 'default' }: { children: React.ReactNode; tone?
 
 function Autocomplete({
   endpoint, extraParams, placeholder, selected, onSelect, renderAvatar,
+  showAge = false, blockMinors = false, emptyHint,
 }: {
   endpoint: string; extraParams?: Record<string, string>; placeholder: string;
   selected: AutoResult | null; onSelect: (result: AutoResult | null) => void;
   renderAvatar?: (r: AutoResult) => React.ReactNode;
+  /** Muestra la edad de cada resultado — usado al elegir apoderado */
+  showAge?: boolean;
+  /** Impide seleccionar resultados menores de edad (no pueden firmar) */
+  blockMinors?: boolean;
+  /** Mensaje cuando la búsqueda no trae nada (por defecto no se muestra nada) */
+  emptyHint?: string;
 }) {
   const t = useTranslations('phoenix.frontOffice.newCase');
   const [query, setQuery] = useState('');
@@ -1667,20 +1846,38 @@ function Autocomplete({
         <Input value={query} onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)} placeholder={placeholder} className="pl-9" />
       </div>
-      {mounted && open && (results.length > 0 || loading) && createPortal(
+      {mounted && open && (results.length > 0 || loading || (!!emptyHint && query.length >= 2)) && createPortal(
         <div ref={dropRef} style={dropStyle} className="z-[9999] bg-bg-1 border border-border-strong rounded-md shadow-xl max-h-60 overflow-y-auto">
           {loading && results.length === 0 ? (
             <div className="px-3 py-2 text-text-muted text-xs">{t('autocompleteSearching')}</div>
-          ) : results.map((r) => (
-            <button key={r.id} type="button" onMouseDown={(e) => { e.preventDefault(); onSelect(r); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left text-sm transition-colors">
-              {renderAvatar?.(r)}
-              <div className="flex-1 min-w-0">
-                <div className="text-text-1 truncate">{r.label}</div>
-                {r.subtitle && <div className="text-text-muted text-xs truncate">{r.subtitle}</div>}
-              </div>
-            </button>
-          ))}
+          ) : results.length === 0 && emptyHint ? (
+            <div className="px-3 py-3 text-text-muted text-xs text-center">{emptyHint}</div>
+          ) : results.map((r) => {
+            // Un menor no puede ser apoderado: se muestra pero no se puede elegir
+            const disabled = blockMinors && r.isMinor === true;
+            return (
+              <button key={r.id} type="button" disabled={disabled}
+                onMouseDown={(e) => { e.preventDefault(); if (disabled) return; onSelect(r); setOpen(false); }}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                  disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/5'
+                }`}>
+                {renderAvatar?.(r)}
+                <div className="flex-1 min-w-0">
+                  <div className="text-text-1 truncate">{r.label}</div>
+                  {r.subtitle && <div className="text-text-muted text-xs truncate">{r.subtitle}</div>}
+                </div>
+                {showAge && r.age !== null && r.age !== undefined && (
+                  <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                    r.isMinor
+                      ? 'bg-rose/10 border-rose/30 text-rose'
+                      : 'bg-emerald/10 border-emerald/30 text-emerald'
+                  }`}>
+                    {r.age} {r.age === 1 ? 'año' : 'años'}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>,
         document.body
       )}

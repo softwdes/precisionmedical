@@ -25,3 +25,6 @@ export type { WriteAuditLogInput } from './audit';
 // Códigos consecutivos de caso y paciente (estilo v2) — leer las notas de
 // codes.ts antes de usarlas: van dentro de una transacción junto al INSERT.
 export { nextCaseCode, nextPatientCode } from './codes';
+
+// Edad / menor de edad — define quién firma los consentimientos y el lien.
+export { calcAge, isMinor, EDAD_ADULTO } from './age';

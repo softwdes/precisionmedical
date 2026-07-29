@@ -16,7 +16,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog, actorFromHeaders, isMinor } from '@precision-medical/database';
 
 const InputSchema = z.object({
   via:           z.enum(['SMS', 'EMAIL']).default('SMS'),
@@ -43,22 +43,48 @@ export async function POST(
     );
   }
 
-  // Find case + patient
+  // Find case + patient (+ apoderado si el paciente es menor)
   const caseRecord = await db.case.findUnique({
     where: { id: caseId },
-    include: { patient: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } } },
+    include: {
+      patient: {
+        select: {
+          id: true, firstName: true, lastName: true, phone: true, email: true, dateOfBirth: true,
+          guardianPatient: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+        },
+      },
+    },
   });
 
   if (!caseRecord) {
     return NextResponse.json({ error: 'CASE_NOT_FOUND' }, { status: 404 });
   }
 
-  // Validation
-  if (parsed.via === 'SMS' && !caseRecord.patient.phone) {
-    return NextResponse.json({ error: 'NO_PHONE', message: 'Paciente no tiene teléfono registrado' }, { status: 400 });
+  // ─── A quién se le manda ───────────────────────────────────────────────
+  // Si el paciente es menor y tiene apoderado vinculado, el link va al
+  // apoderado: es quien tiene que llenar el intake y firmar los
+  // consentimientos. Mandárselo al menor no serviría legalmente.
+  const esMenor    = isMinor(caseRecord.patient.dateOfBirth);
+  const apoderado  = esMenor ? caseRecord.patient.guardianPatient : null;
+  const destino    = apoderado ?? caseRecord.patient;
+  const paraMenor  = !!apoderado;
+
+  // Validation — contra los datos de quien realmente va a recibir el link
+  if (parsed.via === 'SMS' && !destino.phone) {
+    return NextResponse.json({
+      error: 'NO_PHONE',
+      message: paraMenor
+        ? 'El apoderado no tiene teléfono registrado'
+        : 'Paciente no tiene teléfono registrado',
+    }, { status: 400 });
   }
-  if (parsed.via === 'EMAIL' && !caseRecord.patient.email) {
-    return NextResponse.json({ error: 'NO_EMAIL', message: 'Paciente no tiene email registrado' }, { status: 400 });
+  if (parsed.via === 'EMAIL' && !destino.email) {
+    return NextResponse.json({
+      error: 'NO_EMAIL',
+      message: paraMenor
+        ? 'El apoderado no tiene email registrado'
+        : 'Paciente no tiene email registrado',
+    }, { status: 400 });
   }
 
   // Generate magic token — CUID-style único por caso
@@ -72,10 +98,17 @@ export async function POST(
   const portalUrl = `${portalBase}/c/${magicToken}`;
 
   // SMS template
-  const recipient = parsed.via === 'SMS' ? caseRecord.patient.phone! : caseRecord.patient.email!;
+  const recipient = parsed.via === 'SMS' ? destino.phone! : destino.email!;
+  // Al apoderado se le habla de "tu hijo/a" y se lo nombra: si recibiera el
+  // mismo texto que el paciente, no entendería de quién es el caso.
+  const nombreMenor = `${caseRecord.patient.firstName} ${caseRecord.patient.lastName}`.trim();
   const messageBody = parsed.language === 'es'
-    ? `Hola ${caseRecord.patient.firstName}, soy de Precision Medical. Para completar tu intake del caso ${caseRecord.caseCode}, click: ${portalUrl}. Expira en 24h. Dudas: (801) 375-2207.`
-    : `Hi ${caseRecord.patient.firstName}, this is Precision Medical. To complete intake for case ${caseRecord.caseCode}, click: ${portalUrl}. Expires in 24h. Questions: (801) 375-2207.`;
+    ? paraMenor
+      ? `Hola ${destino.firstName}, soy de Precision Medical. Para completar el intake de ${nombreMenor} (caso ${caseRecord.caseCode}), click: ${portalUrl}. Expira en 24h. Dudas: (801) 375-2207.`
+      : `Hola ${caseRecord.patient.firstName}, soy de Precision Medical. Para completar tu intake del caso ${caseRecord.caseCode}, click: ${portalUrl}. Expira en 24h. Dudas: (801) 375-2207.`
+    : paraMenor
+      ? `Hi ${destino.firstName}, this is Precision Medical. To complete the intake for ${nombreMenor} (case ${caseRecord.caseCode}), click: ${portalUrl}. Expires in 24h. Questions: (801) 375-2207.`
+      : `Hi ${caseRecord.patient.firstName}, this is Precision Medical. To complete intake for case ${caseRecord.caseCode}, click: ${portalUrl}. Expires in 24h. Questions: (801) 375-2207.`;
 
   // Si el paciente ya completó el form y se re-envía, limpiar intakeFormCompletedAt
   // para que el portal lo permita llenar de nuevo.

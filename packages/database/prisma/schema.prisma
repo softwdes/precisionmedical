@@ -746,6 +746,17 @@ model Patient {
   emergency2Relation     String?
 
   // ─── Responsable legal (requerido si es menor de edad) ───────────────────
+  //
+  // Vínculo real al apoderado, que SIEMPRE es otro Patient: si ya existía se
+  // linkea, si no se crea uno nuevo (sin caso). Así sus datos de contacto,
+  // fecha de nacimiento, etc. viven en su propia ficha y no duplicados acá —
+  // y queda disponible para sus propias citas y casos futuros.
+  //
+  // `guardianName` / `guardianPhone` quedan por compatibilidad con la data
+  // migrada del v2, que los tiene como texto suelto sin ficha asociada.
+  guardianPatientId  String?
+  guardianPatient    Patient?        @relation("PatientGuardian", fields: [guardianPatientId], references: [id])
+  dependents         Patient[]       @relation("PatientGuardian")
   guardianName       String?
   guardianPhone      String?
   guardianRelation   String?
@@ -2341,6 +2352,7 @@ model DoctorSpecialtyAssignment {
 
 enum LienSignerType {
   PATIENT
+  GUARDIAN // Padre o apoderado firmando en representación de un paciente menor
   ATTORNEY
   DOCTOR
   CLINIC

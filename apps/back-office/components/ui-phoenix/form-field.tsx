@@ -25,13 +25,14 @@ function FieldLabel({ children, required }: { children: React.ReactNode } & Requ
 }
 
 function DateInputField({
-  label, required, value, onChange, hint, error,
+  label, required, value, onChange, hint, error, disabled,
 }: Required & {
   label: React.ReactNode;
   value: string; // YYYY-MM-DD
   onChange: (v: string) => void; // emits YYYY-MM-DD
   hint?: React.ReactNode;
   error?: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -40,10 +41,14 @@ function DateInputField({
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
         className={[
           'w-full bg-bg-2 border rounded-md px-3 py-2 text-sm text-text-1',
           'focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand',
           '[color-scheme:dark]',
+          // Solo lectura: borde punteado para que se lea como "dato traído de
+          // otra ficha", no como campo deshabilitado por error
+          disabled ? 'border-dashed border-border text-text-2 bg-white/[0.02] cursor-not-allowed' : '',
           error ? 'border-rose focus:ring-rose/30 focus:border-rose' : 'border-border',
         ].join(' ')}
       />
@@ -54,7 +59,7 @@ function DateInputField({
 }
 
 function InputField({
-  label, required, value, onChange, onBlur, placeholder, type = 'text', autoFocus, hint, maxLength, error,
+  label, required, value, onChange, onBlur, placeholder, type = 'text', autoFocus, hint, maxLength, error, disabled,
 }: Required & {
   label: React.ReactNode;
   value: string;
@@ -66,9 +71,11 @@ function InputField({
   hint?: React.ReactNode;
   maxLength?: number;
   error?: string;
+  /** Solo lectura — para datos que vienen de otra ficha y no deben editarse acá */
+  disabled?: boolean;
 }) {
   if (type === 'date') {
-    return <DateInputField label={label} required={required} value={value} onChange={onChange} hint={hint} error={error} />;
+    return <DateInputField label={label} required={required} value={value} onChange={onChange} hint={hint} error={error} disabled={disabled} />;
   }
   return (
     <div>
@@ -81,7 +88,11 @@ function InputField({
         type={type}
         autoFocus={autoFocus}
         maxLength={maxLength}
-        className={error ? 'border-rose focus-visible:ring-rose/30' : undefined}
+        disabled={disabled}
+        className={[
+          error ? 'border-rose focus-visible:ring-rose/30' : '',
+          disabled ? 'border-dashed text-text-2 bg-white/[0.02]' : '',
+        ].filter(Boolean).join(' ') || undefined}
       />
       {error && <p className="text-[10px] text-rose mt-1">{error}</p>}
       {!error && hint && <div className="text-text-muted text-[10px] mt-1">{hint}</div>}

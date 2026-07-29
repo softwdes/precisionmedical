@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, RefreshCw, Sun, Video, FileSignature, ExternalLink,
+  CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, RefreshCw, Sun, Video, FileSignature,
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
 
@@ -47,7 +47,6 @@ interface Props {
   doctorName: string;
   appointments: MyDayAppointment[];
   unsignedNotes: UnsignedNote[];
-  clinicalUrl: string | null;
   /** Día visualizado (YYYY-MM-DD, Denver) y navegación */
   dateKey: string;
   isToday: boolean;
@@ -70,7 +69,7 @@ function todayKeyClient(): string {
   }).format(new Date());
 }
 
-export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalUrl, dateKey, isToday, prevDate, nextDate }: Props): React.ReactElement {
+export function MyDayClient({ doctorName, appointments, unsignedNotes, dateKey, isToday, prevDate, nextDate }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
   const [now, setNow] = React.useState(() => Date.now());
@@ -120,8 +119,9 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
   // La firma de asistencia (B.14.1) aún no existe en el flujo → solo informativa.
   const heroArrived = !!hero && arrived(hero);
   const heroReady = !!hero && (hero.status === 'IN_PROGRESS' || (arrived(hero) && hero.hasTriage));
-  const noteHref = (apptId: string): string | null =>
-    clinicalUrl ? `${clinicalUrl}/visit/${apptId}` : null;
+  // La consulta vive DENTRO del portal (antes apuntaba a clinical.lienmaster.net,
+  // que no está deployado y devolvía error de DNS).
+  const consultHref = (apptId: string): string => `/doctor/consultation/${apptId}`;
 
   // Atender: pasa al paciente a sala si hace falta (el asistente lo ve como
   // "With Dr." en Day Admission) y abre la Consulta DENTRO del portal.
@@ -287,11 +287,16 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
       {queue.length > 0 && (
         <div>
           <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-2">
-            {t('upcomingTitle')}
+            {t(isToday ? 'upcomingTitle' : 'dayAppointmentsTitle')}
           </div>
           <div className="space-y-1.5">
             {queue.map(a => (
-              <div key={a.id} className="rounded-lg border border-border bg-bg-1 px-3 py-2 flex items-center gap-3">
+              <Link
+                key={a.id}
+                href={consultHref(a.id)}
+                title={t('openConsultation')}
+                className="rounded-lg border border-border bg-bg-1 px-3 py-2 flex items-center gap-3 hover:border-violet/40 hover:bg-violet/[0.04] transition-colors group"
+              >
                 <span className="font-mono text-[11px] text-text-muted w-[64px] shrink-0">{timeLabel(a.scheduledFor)}</span>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-text-1 truncate">
@@ -301,7 +306,8 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
                   {a.isOnline && <Video className="w-3 h-3 text-cyan inline ml-1.5 -mt-0.5" />}
                 </div>
                 {statusPill(a)}
-              </div>
+                <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-violet shrink-0 transition-colors" />
+              </Link>
             ))}
           </div>
         </div>
@@ -315,13 +321,19 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
           </div>
           <div className="space-y-1.5">
             {completed.map(a => (
-              <div key={a.id} className="rounded-lg border border-border bg-bg-1 px-3 py-2 flex items-center gap-3 opacity-60">
+              <Link
+                key={a.id}
+                href={consultHref(a.id)}
+                title={t('openConsultation')}
+                className="rounded-lg border border-border bg-bg-1 px-3 py-2 flex items-center gap-3 opacity-60 hover:opacity-100 hover:border-violet/40 hover:bg-violet/[0.04] transition-all group"
+              >
                 <span className="font-mono text-[11px] text-text-muted w-[64px] shrink-0">{timeLabel(a.scheduledFor)}</span>
                 <span className="flex-1 min-w-0 text-sm text-text-1 truncate">
                   {a.patientFirstName} {a.patientLastName}
                 </span>
                 <TagPill label={t('statusDone')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
-              </div>
+                <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-violet shrink-0 transition-colors" />
+              </Link>
             ))}
           </div>
         </div>
@@ -343,16 +355,12 @@ export function MyDayClient({ doctorName, appointments, unsignedNotes, clinicalU
                     date: new Date(n.date).toLocaleDateString('es-US', { day: 'numeric', month: 'short', timeZone: 'America/Denver' }),
                   })}
                 </span>
-                {noteHref(n.appointmentId) && (
-                  <a
-                    href={noteHref(n.appointmentId)!}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-amber hover:underline"
-                  >
-                    {t('signNow')} <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
+                <Link
+                  href={consultHref(n.appointmentId)}
+                  className="shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-amber hover:underline"
+                >
+                  {t('signNow')} <ChevronRight className="w-3 h-3" />
+                </Link>
               </div>
             ))}
           </div>

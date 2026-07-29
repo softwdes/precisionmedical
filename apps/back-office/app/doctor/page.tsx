@@ -129,7 +129,6 @@ export default async function DoctorMyDayPage({
       doctorName={`${provider.firstName} ${provider.lastName}`}
       appointments={appointments}
       unsignedNotes={unsignedNotes}
-      clinicalUrl={process.env.NEXT_PUBLIC_CLINICAL_URL ?? 'https://clinical.lienmaster.net'}
       dateKey={dateKey}
       isToday={dateKey === todayKey}
       prevDate={prevDate}

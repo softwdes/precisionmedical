@@ -95,10 +95,20 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   // La orden se cuelga de la nota de la visita si ya existe (no la crea:
   // el doctor puede pedir estudios sin haber empezado a escribir).
-  const note = await db.visitNote.findUnique({
-    where: { appointmentId },
-    select: { id: true },
-  });
+  const [note, appt] = await Promise.all([
+    db.visitNote.findUnique({ where: { appointmentId }, select: { id: true } }),
+    db.appointment.findUnique({
+      where: { id: appointmentId },
+      select: { provider: { select: { firstName: true, lastName: true } } },
+    }),
+  ]);
+
+  // La orden es del MÉDICO aunque la cargue el asistente desde admisión: ese es
+  // el nombre que se imprime y va al laboratorio. Quién la tecleó queda en el
+  // audit log, no en el documento.
+  const orderedByName = appt?.provider
+    ? `Dr. ${appt.provider.firstName} ${appt.provider.lastName}`.trim()
+    : actor.name;
 
   const groupId = randomUUID();
   const sampleDate = body.sampleDate ? new Date(`${body.sampleDate}T12:00:00-06:00`) : null;
@@ -119,7 +129,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       sampleDate,
       preferredCenter: body.preferredCenter ?? null,
       icd10Codes: body.icd10Codes,
-      orderedByName: actor.name,
+      orderedByName,
     })),
   });
 
@@ -139,7 +149,10 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       studies: body.studies.length,
       urgency: body.urgency,
       collectionSite: body.collectionSite,
-      orderedBy: actor.name,
+      orderedFor: orderedByName,
+      // Quien la cargó (puede ser el asistente desde admisión)
+      enteredBy: actor.email,
+      enteredByRole: actor.role,
     },
   }).catch(() => undefined);
 

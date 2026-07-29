@@ -7,8 +7,8 @@
 
 import { NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
-import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
+import { getSessionUser } from './session';
 
 export interface LabActor {
   email: string;
@@ -17,10 +17,9 @@ export interface LabActor {
   isProviderOwner: boolean;
 }
 
-/** Sesión + nombre para snapshots. Null si no hay sesión. */
+/** Email de la sesión (memorizado por request). Null si no hay sesión. */
 async function sessionEmail(): Promise<string | null> {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   return user?.email ?? null;
 }
 

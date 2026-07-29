@@ -1,5 +1,6 @@
-import { createServerClient } from '@precision-medical/auth/server';
+import { cache } from 'react';
 import { db } from '@precision-medical/database';
+import { getSessionUser } from './session';
 
 /**
  * Resuelve el Provider (doctor) de la sesión actual.
@@ -20,9 +21,12 @@ export interface SessionProvider {
   userId: string | null;
 }
 
-export async function getSessionProvider(): Promise<SessionProvider | null> {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+/**
+ * Memorizado por request: el layout y la página del portal lo llamaban cada uno
+ * por su cuenta, duplicando la llamada de Auth y la query del Provider.
+ */
+export const getSessionProvider = cache(async (): Promise<SessionProvider | null> => {
+  const user = await getSessionUser();
   if (!user?.email) return null;
 
   const provider = await db.provider.findFirst({
@@ -43,4 +47,4 @@ export async function getSessionProvider(): Promise<SessionProvider | null> {
   });
 
   return provider;
-}
+});

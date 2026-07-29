@@ -25,7 +25,10 @@ export default async function DoctorConsultationPage({
 
   const { appointmentId } = await params;
 
-  const a = await db.appointment.findFirst({
+  // Las tres queries en paralelo — antes iban en cadena y cada round-trip a la
+  // base cuesta ~150 ms.
+  const [a, tplRows, doneRows] = await Promise.all([
+    db.appointment.findFirst({
     where: { id: appointmentId, providerId: provider.id },
     select: {
       id: true,
@@ -66,28 +69,29 @@ export default async function DoctorConsultationPage({
         include: { diagnoses: { orderBy: { sortOrder: 'asc' } } },
       },
     },
-  });
+    }),
+    // Plantillas globales disponibles + favoritas del doctor (autollenan la nota)
+    db.template.findMany({
+      where: { deletedAt: null, isActive: true },
+      select: {
+        id: true, title: true, description: true, encounterType: true,
+        sections: { select: { sectionKey: true, content: true }, orderBy: { orderIndex: 'asc' } },
+        favorites: provider.userId ? { where: { userId: provider.userId }, select: { id: true } } : false,
+      },
+      orderBy: { title: 'asc' },
+    }),
+    // `doctorDoneAt` con SQL directo: la columna existe (db push aplicado) pero el
+    // cliente de Prisma no se pudo regenerar (otro dev server tenía tomado el
+    // motor en Windows). Pasar a `select` cuando se regenere.
+    db.$queryRaw<Array<{ doctorDoneAt: Date | null }>>`
+      SELECT "doctorDoneAt" FROM appointments WHERE id = ${appointmentId}
+    `,
+  ]);
 
   if (!a) notFound();
 
-  // `doctorDoneAt` con SQL directo: la columna existe (db push aplicado) pero el
-  // cliente de Prisma no se pudo regenerar (otro dev server tenía tomado el
-  // motor en Windows). Pasar a `select` cuando se regenere.
-  const doneRows = await db.$queryRaw<Array<{ doctorDoneAt: Date | null }>>`
-    SELECT "doctorDoneAt" FROM appointments WHERE id = ${appointmentId}
-  `;
   const doctorDoneAt = doneRows[0]?.doctorDoneAt ?? null;
 
-  // Plantillas globales disponibles + favoritas del doctor (para autollenar la nota)
-  const tplRows = await db.template.findMany({
-    where: { deletedAt: null, isActive: true },
-    select: {
-      id: true, title: true, description: true, encounterType: true,
-      sections: { select: { sectionKey: true, content: true }, orderBy: { orderIndex: 'asc' } },
-      favorites: provider.userId ? { where: { userId: provider.userId }, select: { id: true } } : false,
-    },
-    orderBy: { title: 'asc' },
-  });
   const templates = tplRows.map((tpl) => ({
     id: tpl.id,
     title: tpl.title,

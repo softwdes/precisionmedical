@@ -51,7 +51,9 @@ export default async function DoctorMyDayPage({
   const prevDate = dayKeyOf(new Date(start.getTime() - DAY_MS / 2));
   const nextDate = dayKeyOf(new Date(end.getTime() + DAY_MS / 2));
 
-  const [appts, drafts] = await Promise.all([
+  // Las tres en paralelo: cada round-trip a la base cuesta ~150 ms, no vale
+  // encadenarlas (`doctorDoneAt` va en SQL directo, ver nota más abajo).
+  const [appts, drafts, doneRows] = await Promise.all([
     db.appointment.findMany({
       where: {
         providerId: provider.id,
@@ -90,16 +92,16 @@ export default async function DoctorMyDayPage({
         },
       },
     }),
+    // `doctorDoneAt` con SQL directo (ver nota en la página de consulta: el
+    // cliente de Prisma quedó sin regenerar por un lock de Windows).
+    db.$queryRaw<Array<{ id: string; doctorDoneAt: Date | null }>>`
+      SELECT id, "doctorDoneAt" FROM appointments
+       WHERE "providerId" = ${provider.id}
+         AND "scheduledFor" >= ${start} AND "scheduledFor" < ${end}
+         AND "doctorDoneAt" IS NOT NULL
+    `,
   ]);
 
-  // `doctorDoneAt` con SQL directo (ver nota en la página de consulta: el
-  // cliente de Prisma quedó sin regenerar por un lock de Windows).
-  const doneRows = await db.$queryRaw<Array<{ id: string; doctorDoneAt: Date | null }>>`
-    SELECT id, "doctorDoneAt" FROM appointments
-     WHERE "providerId" = ${provider.id}
-       AND "scheduledFor" >= ${start} AND "scheduledFor" < ${end}
-       AND "doctorDoneAt" IS NOT NULL
-  `;
   const doneMap = new Map(doneRows.map((r) => [r.id, r.doctorDoneAt]));
 
   const appointments: MyDayAppointment[] = appts.map((a) => ({

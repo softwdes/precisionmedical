@@ -7,9 +7,9 @@
  */
 
 import { db } from '@precision-medical/database';
-import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { getSessionUser } from '@/lib/session';
 import { TemplatesClient, type DoctorTemplate } from './templates-client';
 
 export const metadata = { title: 'Plantillas · Portal Médico' };
@@ -52,8 +52,7 @@ export default async function DoctorTemplatesPage(): Promise<React.ReactElement>
   }));
 
   // Solo el admin puede eliminar plantillas (el doctor crea y edita)
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   const role = user?.email ? await fetchDbRole(user.email) : 'DOCTOR';
   const canDelete = role === 'SUPER_ADMIN' || role === 'ADMIN';
 

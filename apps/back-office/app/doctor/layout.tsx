@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { createServerClient } from '@precision-medical/auth/server';
 import { Stethoscope } from 'lucide-react';
 import { AdminShell } from '@/components/layout/admin-shell';
 import { UpdateBanner } from '@/components/ui-phoenix/update-banner';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { getSessionUser } from '@/lib/session';
 
 /**
  * Portal Médico · Layout (B.17–B.18 · identidad violet, Regla #5)
@@ -15,12 +15,14 @@ import { getSessionProvider } from '@/lib/get-session-provider';
  */
 
 export default async function DoctorLayout({ children }: { children: ReactNode }): Promise<React.ReactElement> {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Ambas están memorizadas por request (lib/session.ts) — el usuario se
+  // resuelve una sola vez para todo el árbol, no una por componente.
+  const [user, provider, t] = await Promise.all([
+    getSessionUser(),
+    getSessionProvider(),
+    getTranslations('phoenix.doctor'),
+  ]);
   if (!user) redirect('/login');
-
-  const provider = await getSessionProvider();
-  const t = await getTranslations('phoenix.doctor');
 
   // Sin perfil de doctor vinculado (ej. admin en soporte, o cuenta mal configurada)
   if (!provider) {

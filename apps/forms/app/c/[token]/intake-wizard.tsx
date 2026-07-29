@@ -1014,8 +1014,23 @@ function getSavedLabel(d: Date, locale: string): string {
   });
 }
 
+/**
+ * Dígitos aprovechables de un teléfono NANP.
+ *
+ * Un `+1` o un `1` inicial es el código de país de Norteamérica, no parte del
+ * número: `+1-801-555-2944` son 11 dígitos pero es un teléfono válido. Antes se
+ * rechazaba por longitud, y como la clínica tiene varios pacientes guardados en
+ * ese formato (más `18012145476`, etc.), esos pacientes abrían el formulario y
+ * veían "teléfono inválido" en un dato que nunca habían tocado.
+ */
+function nanpDigits(raw: string): string {
+  let d = raw.replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
+  return d;
+}
+
 function isValidNANP(raw: string): boolean {
-  const digits = raw.replace(/\D/g, '');
+  const digits = nanpDigits(raw);
   if (digits.length !== 10) return false;
   const area = digits[0];
   const exchange = digits[3];
@@ -1023,10 +1038,30 @@ function isValidNANP(raw: string): boolean {
 }
 
 function formatPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 10);
+  const digits = nanpDigits(raw).slice(0, 10);
   if (digits.length <= 3) return digits.length ? `(${digits}` : '';
   if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+/**
+ * Teléfono venido de la DB, listo para precargar en el formulario.
+ *
+ * La data migrada del v2 tiene el campo teléfono con cosas que no son números:
+ * `NONE`, `N/A`, `NA`, `GERENTE DE PISO`, y el `0000000000` que dejaba el
+ * placeholder viejo del back-office. Precargar eso dejaba al paciente trabado
+ * con un error de validación sobre un valor que él no escribió.
+ *
+ * Si no hay 10 dígitos aprovechables, el campo arranca VACÍO — es opcional, así
+ * que vacío es un estado válido y el paciente puede escribir el suyo.
+ */
+function phoneFromDb(raw: string | null | undefined): string {
+  if (!raw) return '';
+  // Se valida con isValidNANP, no solo la longitud: `0000000000` tiene 10
+  // dígitos y pasaría un chequeo de largo, pero un área code que empieza en 0
+  // es inválido y volvería a trabar al paciente.
+  if (!isValidNANP(raw)) return '';
+  return formatPhone(raw);
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -1060,8 +1095,10 @@ export function IntakeWizard({
     firstName:                patient.firstName,
     lastName:                 patient.lastName,
     dateOfBirth:              isoToInput(patient.dateOfBirth),
-    phone:                    patient.phone ?? '',
-    cellPhone:                patient.cellPhone ?? '',
+    // phoneFromDb: descarta valores que no son teléfonos (NONE, N/A,
+    // 0000000000) en vez de precargarlos y trabar al paciente con un error
+    phone:                    phoneFromDb(patient.phone),
+    cellPhone:                phoneFromDb(patient.cellPhone),
     email:                    patient.email ?? '',
     addressLine1:             patient.addressLine1 ?? '',
     addressCity:              patient.addressCity ?? '',
@@ -1080,19 +1117,19 @@ export function IntakeWizard({
     sex:                      patient.sex ?? '',
     maritalStatus:            patient.maritalStatus ?? '',
     emergencyContactName:     patient.emergencyContactName ?? '',
-    emergencyContactPhone:    patient.emergencyContactPhone ?? '',
+    emergencyContactPhone:    phoneFromDb(patient.emergencyContactPhone),
     emergencyContactRelation:      rel1IsKnown ? rawRel1 : (rawRel1 ? 'OTHER' : ''),
     emergencyContactRelationOther: rel1IsKnown ? '' : rawRel1,
     emergency2Name:                patient.emergency2Name ?? '',
-    emergency2Phone:               patient.emergency2Phone ?? '',
+    emergency2Phone:               phoneFromDb(patient.emergency2Phone),
     emergency2Relation:            rel2IsKnown ? rawRel2 : (rawRel2 ? 'OTHER' : ''),
     emergency2RelationOther:       rel2IsKnown ? '' : rawRel2,
     guardianName:             patient.guardianName ?? '',
     guardianLastName:         savedExtra.guardianLastName ?? '',
     guardianEmail:            savedExtra.guardianEmail ?? '',
     guardianDOB:              savedExtra.guardianDOB ?? '',
-    guardianPhone:            patient.guardianPhone ?? '',
-    guardianCellPhone:        savedExtra.guardianCellPhone ?? '',
+    guardianPhone:            phoneFromDb(patient.guardianPhone),
+    guardianCellPhone:        phoneFromDb(savedExtra.guardianCellPhone),
     guardianAddress:          savedExtra.guardianAddress ?? '',
     guardianRelation:         patient.guardianRelation ?? '',
   });

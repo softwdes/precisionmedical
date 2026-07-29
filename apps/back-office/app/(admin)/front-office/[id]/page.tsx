@@ -170,14 +170,31 @@ export default async function CaseDetailPage({ params }: PageProps) {
         specialty: caseRecord.specialty,
         notes: caseRecord.notes,
         appointments: caseRecord.appointments,
-        lienSignatures: caseRecord.lienSignatures.map((s) => ({
-          id: s.id,
-          signerType: s.signerType,
-          signerName: s.signerName,
-          signerEmail: s.signerEmail,
-          signatureSvg: s.signatureSvg,
-          signedAt: s.signedAt,
-        })),
+        // La tabla es append-only por diseño (documento legal, nunca se
+        // actualiza ni borra — ver comentario en el schema). Re-firmar crea una
+        // fila nueva, así que un caso reabierto varias veces puede acumular
+        // varias firmas del mismo tipo. Acá se reduce a la ÚLTIMA por
+        // signerType para la vista — el historial completo sigue en la DB y en
+        // el audit log, no se pierde, solo se deja de mostrar por defecto.
+        lienSignatures: (() => {
+          const porTipo = new Map<string, typeof caseRecord.lienSignatures[number]>();
+          const conteoPorTipo = new Map<string, number>();
+          // El query ya viene ordenado por signedAt asc → la última iteración
+          // de cada tipo es la más reciente.
+          for (const s of caseRecord.lienSignatures) {
+            porTipo.set(s.signerType, s);
+            conteoPorTipo.set(s.signerType, (conteoPorTipo.get(s.signerType) ?? 0) + 1);
+          }
+          return [...porTipo.values()].map((s) => ({
+            id: s.id,
+            signerType: s.signerType,
+            signerName: s.signerName,
+            signerEmail: s.signerEmail,
+            signatureSvg: s.signatureSvg,
+            signedAt: s.signedAt,
+            previousCount: (conteoPorTipo.get(s.signerType) ?? 1) - 1,
+          }));
+        })(),
       }}
       auditEvents={auditEvents.map((e) => ({
         id: e.id,

@@ -126,6 +126,7 @@ interface CaseInfo {
     signerEmail: string | null;
     signatureSvg: string | null;
     signedAt: Date;
+    previousCount: number;
   }>;
 }
 
@@ -1280,7 +1281,7 @@ const SIGNER_COLORS: Record<string, string> = {
 function LienSignatureRow({
   sig,
 }: {
-  sig: { id: string; signerType: string; signerName: string; signerEmail: string | null; signatureSvg: string | null; signedAt: Date };
+  sig: { id: string; signerType: string; signerName: string; signerEmail: string | null; signatureSvg: string | null; signedAt: Date; previousCount: number };
 }) {
   const [expanded, setExpanded] = useState(false);
   const colorClass = SIGNER_COLORS[sig.signerType] ?? 'bg-bg-2 border-border text-text-2';
@@ -1302,8 +1303,13 @@ function LienSignatureRow({
               <span className="text-[11px] text-text-muted truncate hidden sm:inline">{sig.signerEmail}</span>
             )}
           </div>
-          <div className="text-[10px] text-text-muted mt-0.5 font-mono">
-            Firmado: {new Date(sig.signedAt).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          <div className="text-[10px] text-text-muted mt-0.5 font-mono flex items-center gap-1.5 flex-wrap">
+            <span>Firmado: {new Date(sig.signedAt).toLocaleDateString('es-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            {sig.previousCount > 0 && (
+              <span className="font-sans px-1.5 py-0.5 rounded border border-amber/30 bg-amber/10 text-amber">
+                {sig.previousCount === 1 ? '1 firma anterior reemplazada' : `${sig.previousCount} firmas anteriores reemplazadas`}
+              </span>
+            )}
           </div>
         </div>
         {imgSrc && (

@@ -153,6 +153,15 @@ export function DoctorStepPanel({
                 doctorDoneAt={doctorDoneAt}
                 onFix={(target) => setTab(target)}
                 onStatusChange={onRefresh}
+                followUp={servicesPanel.case ? {
+                  caseId: servicesPanel.case.id,
+                  caseCode: servicesPanel.case.caseCode,
+                  patient: {
+                    firstName: servicesPanel.patient.firstName,
+                    lastName: servicesPanel.patient.lastName,
+                  },
+                  defaultProviderId: servicesPanel.provider?.id ?? null,
+                } : null}
               />
             )}
 

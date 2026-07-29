@@ -19,8 +19,10 @@ import { Button } from '@precision/ui';
 import {
   CheckCircle2, AlertTriangle, Clock3, FileText, FlaskConical, Briefcase,
   HeartPulse, Stethoscope, Loader2, LogOut, RotateCcw, Printer, ChevronRight,
+  CalendarPlus, CalendarCheck2,
 } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
+import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 import type { VisitNoteData } from './visit-note-editor';
 import type { LabOrderRow } from './labs-tab';
 
@@ -64,6 +66,39 @@ interface Props {
   providerName?: string | null;
   /** variant assistant: se llama al cerrar/reabrir para refrescar la pantalla */
   onStatusChange?: () => void;
+  /**
+   * Datos para agendar la recita bajo el MISMO caso. null si la visita no tiene
+   * caso vinculado (sin caso no se puede crear una cita del caso).
+   */
+  followUp?: {
+    caseId: string;
+    caseCode: string;
+    patient: { firstName: string; lastName: string };
+    /** Doctor de esta visita — pre-seleccionado y cambiable */
+    defaultProviderId: string | null;
+  } | null;
+}
+
+interface UpcomingAppt {
+  id: string;
+  scheduledFor: string;
+  status: string;
+  provider: { firstName: string; lastName: string } | null;
+}
+
+/** YYYY-MM-DD (Denver) a N días de hoy — para los atajos de recita */
+function dayKeyIn(days: number): string {
+  const d = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(d);
+}
+
+function fmtDayTime(iso: string): string {
+  return new Date(iso).toLocaleString('es-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
+  });
 }
 
 function fmtTime(iso: string | null): string {
@@ -104,7 +139,7 @@ function Card({
 
 export function VisitSummary({
   appointmentId, note, triage, services, checkedInAt, doctorDoneAt, onFix,
-  variant = 'doctor', appointmentStatus, providerName, onStatusChange,
+  variant = 'doctor', appointmentStatus, providerName, onStatusChange, followUp = null,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
@@ -115,6 +150,9 @@ export function VisitSummary({
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [doneAt, setDoneAt] = React.useState<string | null>(doctorDoneAt);
+  const [upcoming, setUpcoming] = React.useState<UpcomingAppt[]>([]);
+  const [apptOpen, setApptOpen] = React.useState(false);
+  const [apptDate, setApptDate] = React.useState<string | undefined>(undefined);
 
   React.useEffect(() => {
     fetch(`/api/admin/lab-orders/${appointmentId}`)
@@ -123,6 +161,28 @@ export function VisitSummary({
       .catch(() => undefined)
       .finally(() => setLoadingLabs(false));
   }, [appointmentId]);
+
+  // Próximas citas del caso: si ya hay recita agendada hay que mostrarla, o el
+  // doctor y el asistente la agendan dos veces sin saberlo.
+  const loadUpcoming = React.useCallback(async (): Promise<void> => {
+    if (!followUp) return;
+    try {
+      const res = await fetch(`/api/admin/cases/${followUp.caseId}/appointments`);
+      const d = await res.json() as { appointments?: Array<UpcomingAppt & { scheduledFor: string }> };
+      const now = Date.now();
+      setUpcoming((d.appointments ?? []).filter((a) =>
+        a.id !== appointmentId &&
+        new Date(a.scheduledFor).getTime() > now &&
+        a.status !== 'CANCELLED' && a.status !== 'NO_SHOW'));
+    } catch { /* la sección solo deja de mostrar la próxima cita */ }
+  }, [followUp, appointmentId]);
+
+  React.useEffect(() => { void loadUpcoming(); }, [loadUpcoming]);
+
+  const openAppt = (days: number | null): void => {
+    setApptDate(days === null ? undefined : dayKeyIn(days));
+    setApptOpen(true);
+  };
 
   const isSigned = note?.status === 'SIGNED';
   const dxCount = note?.diagnoses.length ?? 0;
@@ -349,6 +409,71 @@ export function VisitSummary({
         </div>
       )}
 
+      {/* ── Recita ── Bajo el botón de salida: la próxima cita se agenda con el
+          paciente delante, no después. Aparece igual para el doctor y para el
+          asistente porque cualquiera de los dos la puede agendar. */}
+      {followUp && (
+        <div className="rounded-lg border border-border bg-bg-1 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CalendarPlus className="w-4 h-4 text-violet shrink-0" />
+            <div className="text-text-1 font-semibold text-[12px] uppercase tracking-wider flex-1">
+              {t('fuTitle')}
+            </div>
+            <span className="font-mono text-[10.5px] text-cyan">{followUp.caseCode}</span>
+          </div>
+
+          {/* Ya hay recita agendada */}
+          {upcoming.length > 0 && (
+            <div className="rounded-md border border-emerald/25 bg-emerald/[0.06] px-3 py-2 mb-3 space-y-1">
+              {upcoming.slice(0, 3).map((a) => (
+                <div key={a.id} className="flex items-center gap-2 text-[12px] text-emerald flex-wrap">
+                  <CalendarCheck2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="font-semibold">{fmtDayTime(a.scheduledFor)}</span>
+                  {a.provider && (
+                    <span className="text-text-2">
+                      · Dr. {a.provider.firstName} {a.provider.lastName}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="text-[11.5px] text-text-muted mb-2">
+            {upcoming.length > 0 ? t('fuHasNext') : t('fuNoNext')}
+          </div>
+
+          {/* Atajos: en seguimiento la recita casi siempre cae en 1 sem / 2 sem / 1 mes */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => openAppt(7)}
+              className="h-9 px-3 rounded-md border border-violet/40 text-violet text-[12px] font-semibold hover:bg-violet/10 transition-colors"
+            >
+              {t('fuIn1Week')}
+            </button>
+            <button
+              type="button"
+              onClick={() => openAppt(14)}
+              className="h-9 px-3 rounded-md border border-violet/40 text-violet text-[12px] font-semibold hover:bg-violet/10 transition-colors"
+            >
+              {t('fuIn2Weeks')}
+            </button>
+            <button
+              type="button"
+              onClick={() => openAppt(30)}
+              className="h-9 px-3 rounded-md border border-violet/40 text-violet text-[12px] font-semibold hover:bg-violet/10 transition-colors"
+            >
+              {t('fuIn1Month')}
+            </button>
+            <Button onClick={() => openAppt(null)} className="h-9 gap-1.5">
+              <CalendarPlus className="w-3.5 h-3.5" />
+              {upcoming.length > 0 ? t('fuScheduleAnother') : t('fuSchedule')}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose flex items-center gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5" /> {error}
@@ -482,6 +607,25 @@ export function VisitSummary({
             <Printer className="w-3.5 h-3.5" /> {t('sumPrintNote')}
           </a>
         </div>
+      )}
+
+      {/* Modal de cita en modo case: paciente y caso fijos, doctor pre-elegido
+          pero cambiable, tipo Follow-up por defecto */}
+      {followUp && (
+        <AppointmentDialog
+          mode="case"
+          open={apptOpen}
+          onOpenChange={setApptOpen}
+          caseInfo={{
+            id: followUp.caseId,
+            caseCode: followUp.caseCode,
+            patient: followUp.patient,
+          }}
+          defaultProviderId={followUp.defaultProviderId}
+          defaultType="FOLLOW_UP"
+          initialDate={apptDate}
+          onSuccess={() => { void loadUpcoming(); router.refresh(); }}
+        />
       )}
 
       {/* Recordatorio de quién cierra la cita — solo al doctor */}

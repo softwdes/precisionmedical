@@ -1830,7 +1830,15 @@
       "sumErrReopenAppt": "No se pudo reabrir la cita",
       "noteSignDoctorOnly": "Solo el doctor firma la nota",
       "sumDoneHint": "Al terminar, el paciente pasa a recepción para el cobro.",
-      "unsignedMore": "y {count} más sin firmar"
+      "unsignedMore": "y {count} más sin firmar",
+      "fuTitle": "Próxima cita (recita)",
+      "fuNoNext": "Este caso no tiene citas futuras. Agendala con el paciente presente.",
+      "fuHasNext": "Ya hay una cita agendada. Revisá antes de agregar otra.",
+      "fuIn1Week": "En 1 semana",
+      "fuIn2Weeks": "En 2 semanas",
+      "fuIn1Month": "En 1 mes",
+      "fuSchedule": "Agendar recita",
+      "fuScheduleAnother": "Agendar otra"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

@@ -94,6 +94,13 @@ type AppointmentDialogProps = (CaseModeProps | FreeModeProps) & {
   editAppointment?: EditAppointmentData; // si viene, abre en modo edición
   /** Reagendar: pre-llena todo excepto el slot (usuario elige nueva hora) */
   isReschedule?: boolean;
+  /**
+   * Recita desde la consulta: doctor y tipo pre-seleccionados. El doctor queda
+   * cambiable — la recita la puede agendar el mismo médico o el asistente, y no
+   * siempre con el mismo profesional.
+   */
+  defaultProviderId?: string | null;
+  defaultType?: 'AUTO_ACCIDENT' | 'FAMILY_PRACTICE' | 'URGENT_CARE' | 'FOLLOW_UP';
 };
 
 // ─── Types (internal) ────────────────────────────────────────────────────────
@@ -265,13 +272,16 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         }]);
       }
     } else {
-      // Modo crear: limpiar todo
+      // Modo crear: limpiar todo (respetando los defaults de una recita)
       setCaseId(props.mode === 'case' ? (props.caseInfo?.id ?? '') : '');
       setClinicId('');
-      setProviderId('');
+      setProviderId(props.defaultProviderId ?? '');
       setSlotIso(null);
       setDuration(15);
-      setType('AUTO_ACCIDENT');
+      setType(props.defaultType ?? 'AUTO_ACCIDENT');
+      // Un tipo pre-elegido cuenta como decisión tomada: la auto-inferencia por
+      // accidentType no debe pisarlo
+      userChangedType.current = !!props.defaultType;
       setNotes('');
       setIsOnline(false);
       setMeetingUrl('');

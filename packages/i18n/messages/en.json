@@ -1830,7 +1830,15 @@
       "sumErrReopenAppt": "Could not reopen the appointment",
       "noteSignDoctorOnly": "Only the doctor signs the note",
       "sumDoneHint": "When you finish, the patient goes to the front desk for payment.",
-      "unsignedMore": "and {count} more unsigned"
+      "unsignedMore": "and {count} more unsigned",
+      "fuTitle": "Next appointment (follow-up)",
+      "fuNoNext": "This case has no upcoming appointments. Schedule it while the patient is here.",
+      "fuHasNext": "There's already an appointment scheduled. Check before adding another.",
+      "fuIn1Week": "In 1 week",
+      "fuIn2Weeks": "In 2 weeks",
+      "fuIn1Month": "In 1 month",
+      "fuSchedule": "Schedule follow-up",
+      "fuScheduleAnother": "Schedule another"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

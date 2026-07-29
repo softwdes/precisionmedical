@@ -449,6 +449,12 @@ export function ConsultationClient({
           checkedInAt={a.checkedInAt}
           doctorDoneAt={a.doctorDoneAt}
           onFix={(target) => { setTab(target); setView(3); }}
+          followUp={a.servicesPanel.case ? {
+            caseId: a.servicesPanel.case.id,
+            caseCode: a.servicesPanel.case.caseCode,
+            patient: { firstName: a.patient.firstName, lastName: a.patient.lastName },
+            defaultProviderId: a.servicesPanel.provider?.id ?? null,
+          } : null}
         />
       )}
     </div>

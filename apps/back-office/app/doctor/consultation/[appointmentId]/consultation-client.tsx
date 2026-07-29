@@ -22,6 +22,7 @@ import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail
 import { VisitNoteEditor, type VisitNoteData } from './visit-note-editor';
 import type { PickableTemplate } from './template-picker';
 import { PatientContextPanel, type PatientContext } from './patient-context-panel';
+import { LabsTab } from './labs-tab';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -407,7 +408,11 @@ export function ConsultationClient({
             />
           )}
           {tab === 'labs' && (
-            <EmptyState.Rich icon={FlaskConical} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />
+            <LabsTab
+              appointmentId={a.id}
+              userId={userId}
+              seedDiagnoses={note?.diagnoses ?? []}
+            />
           )}
           {tab === 'rx' && (
             <EmptyState.Rich icon={Pill} title={t('comingSoonTitle')} subtitle={t('comingSoonD4')} />

@@ -1133,6 +1133,24 @@ enum LabOrderStatus {
   VOIDED
 }
 
+/// Quién paga el estudio (los labels del v2: Cliente, Paciente, Privado,
+/// Medicaid, Medicare, Compensación laboral). Se guarda el enum, no el texto.
+enum LabBillingType {
+  CLIENT
+  PATIENT
+  PRIVATE
+  MEDICAID
+  MEDICARE
+  WORKERS_COMP
+}
+
+/// Dónde se toma la muestra: en la clínica (queda en cola para el MA) o
+/// el paciente va al laboratorio / centro de imagen con la orden impresa.
+enum LabCollectionSite {
+  IN_HOUSE
+  EXTERNAL
+}
+
 model LabOrder {
   id            String          @id @default(cuid())
   appointmentId String
@@ -1140,11 +1158,20 @@ model LabOrder {
   visitNoteId   String?
   visitNote     VisitNote?      @relation(fields: [visitNoteId], references: [id], onDelete: SetNull)
 
+  /// Agrupa los estudios pedidos en la MISMA orden — se imprimen en una sola
+  /// hoja, pero cada estudio sigue su propio estado y resultado.
+  groupId       String?
+
   orderType          LabOrderType
   studyName          String
+  studyCode          String?      // código del catálogo (LabCorp / interno)
   loincCode          String?
   clinicalIndication String       @db.Text
   urgency            LabOrderUrgency @default(ROUTINE)
+  billingType        LabBillingType?
+  collectionSite     LabCollectionSite @default(EXTERNAL)
+  /// Fecha de toma de muestra (labs) o de la cita del estudio (imagen)
+  sampleDate         DateTime?
   preferredCenter    String?
   icd10Codes         String[]    @default([])
 
@@ -1152,11 +1179,19 @@ model LabOrder {
   orderedAt     DateTime       @default(now())
   orderedByName String?
 
+  // ─── Resultado (PDF que sube el asistente cuando llega del laboratorio) ──
+  resultFileUrl        String?
+  resultFileName       String?
+  resultUploadedAt     DateTime?
+  resultUploadedByName String?
+  resultNotes          String?   @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([appointmentId])
   @@index([visitNoteId])
+  @@index([groupId])
   @@map("lab_orders")
 }
 

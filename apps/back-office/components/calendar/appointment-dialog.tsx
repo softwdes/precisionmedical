@@ -197,6 +197,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.mode, (props as CaseModeProps).caseInfo, caseId, patientCases]);
 
+  // Código de caso a mostrar en el badge persistente — cubre los 3 caminos:
+  // mode='case' (viene fijo), free-mode tras elegir un caso, y editar (el
+  // dato ya viene en editAppointment, sin depender del fetch de patientCases).
+  const badgeCaseCode = props.mode === 'case'
+    ? props.caseInfo?.caseCode
+    : isEditMode
+      ? editAppointment?.caseCode
+      : patientCases.find((c) => c.id === caseId)?.caseCode;
+
   // ─── Derived: filtered providers ────────────────────────────────────────────
 
   const filteredProviders = useMemo(() => {
@@ -271,6 +280,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           specialtyCatalogIds: [],
         }]);
       }
+      // Cargar los casos del paciente para poder mostrar la especialidad real
+      // del caso (effectiveSpecialty la deriva de patientCases en modo free,
+      // y editar siempre usa mode="free" — ver AppointmentDialog usages).
+      setLoadingCases(true);
+      fetch(`/api/admin/patients/${editAppointment.patient.id}/cases`)
+        .then((r) => r.json())
+        .then((d) => setPatientCases(d.cases ?? []))
+        .catch(() => {})
+        .finally(() => setLoadingCases(false));
     } else {
       // Modo crear: limpiar todo (respetando los defaults de una recita)
       setCaseId(props.mode === 'case' ? (props.caseInfo?.id ?? '') : '');
@@ -755,11 +773,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             </div>
           )}
 
-          {/* ── CASE MODE: caso + specialty badge ── */}
-          {!isEditMode && props.mode === 'case' && props.caseInfo && (
+          {/* ── Badge persistente: caso + especialidad ──
+               Antes solo se mostraba en mode='case' recién creando. Se
+               extiende a free-mode (una vez elegido el caso) y a editar,
+               para que la especialidad no desaparezca de la vista al bajar
+               a elegir clínica/doctor. ── */}
+          {!!badgeCaseCode && (
             <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2 flex-wrap">
               <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('caseLabel')}</span>
-              <span className="text-text-1 font-mono text-xs font-semibold">{props.caseInfo.caseCode}</span>
+              <span className="text-text-1 font-mono text-xs font-semibold">{badgeCaseCode}</span>
               {effectiveSpecialty && (
                 <>
                   <span className="text-border">·</span>

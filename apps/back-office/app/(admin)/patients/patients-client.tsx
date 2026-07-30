@@ -2635,7 +2635,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
 
       {/* ─── Seguros ─────────────────────────────────────────────────────────── */}
       {segurosTarget && (
-        <SegurosDialog patient={segurosTarget} onClose={() => setSegurosTarget(null)} />
+        <SegurosDialog patient={segurosTarget} onClose={() => { setSegurosTarget(null); router.refresh(); }} />
       )}
 
       {/* ─── QR Paciente ─────────────────────────────────────────────────────── */}

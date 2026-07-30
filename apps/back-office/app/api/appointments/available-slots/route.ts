@@ -22,6 +22,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@precision-medical/database';
+import { isWeekendInDenver } from '@/lib/scheduling-rules';
 
 const TIMEZONE = 'America/Denver';
 const WORK_HOUR_START = 8;   // 8:00 AM MT
@@ -46,17 +47,9 @@ function mtHour(date: Date): number {
   );
 }
 
-/** Devuelve el día de semana en America/Denver (Mon, Tue, ...) */
-function mtWeekday(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: TIMEZONE, weekday: 'short',
-  }).format(date);
-}
-
-/** ¿El timestamp UTC cae en horario laboral MT? (L-V 8:00-17:00) */
+/** ¿El timestamp UTC cae en horario laboral MT? (L-V, dentro del rango de horas) */
 function isBusinessSlot(date: Date, durationMinutes: number): boolean {
-  const weekday = mtWeekday(date);
-  if (weekday === 'Sat' || weekday === 'Sun') return false;
+  if (isWeekendInDenver(date)) return false;
   const h = mtHour(date);
   return h >= WORK_HOUR_START && h + durationMinutes / 60 <= WORK_HOUR_END;
 }

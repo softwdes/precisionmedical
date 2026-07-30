@@ -14,6 +14,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { isWeekendInDenver } from '@/lib/scheduling-rules';
 
 const InputSchema = z.object({
   clinicId: z.string().min(1),
@@ -91,6 +92,14 @@ export async function POST(
   if (scheduledForDate.getTime() < Date.now()) {
     return NextResponse.json(
       { error: 'INVALID_DATE', message: 'La fecha/hora debe ser futura.' },
+      { status: 400 },
+    );
+  }
+
+  // Ninguna clínica atiende sábado/domingo (ver /api/admin/appointments POST)
+  if (isWeekendInDenver(scheduledForDate)) {
+    return NextResponse.json(
+      { error: 'WEEKEND_NOT_ALLOWED', message: 'No se pueden agendar citas en fin de semana.' },
       { status: 400 },
     );
   }

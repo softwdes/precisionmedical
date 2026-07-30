@@ -10,6 +10,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { isWeekendInDenver } from '@/lib/scheduling-rules';
 
 export async function GET(
   _req: NextRequest,
@@ -75,6 +76,14 @@ export async function PATCH(
     if (!onlyServices) {
       return NextResponse.json({ error: 'IMMUTABLE', message: 'No se puede modificar una cita completada' }, { status: 422 });
     }
+  }
+
+  // Ninguna clínica atiende sábado/domingo (ver /api/admin/appointments POST)
+  if (parsed.scheduledFor !== undefined && isWeekendInDenver(new Date(parsed.scheduledFor))) {
+    return NextResponse.json({
+      error: 'WEEKEND_NOT_ALLOWED',
+      message: 'No se pueden agendar citas en fin de semana.',
+    }, { status: 400 });
   }
 
   let updated;

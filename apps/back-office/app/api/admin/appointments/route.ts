@@ -17,6 +17,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { isWeekendInDenver } from '@/lib/scheduling-rules';
 
 // ─── Include shape (typed via satisfies para que Prisma infiera GetPayload) ──
 const APPT_INCLUDE = {
@@ -233,6 +234,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({
       error: 'DATE_IN_PAST',
       message: 'El horario seleccionado ya pasó. Por favor selecciona un nuevo horario disponible.',
+    }, { status: 400 });
+  }
+
+  // Ninguna clínica atiende sábado/domingo — antes solo el sugeridor de
+  // horarios (available-slots) respetaba esto; agendar a mano un fin de
+  // semana se guardaba sin ningún chequeo.
+  if (isWeekendInDenver(new Date(parsed.scheduledFor))) {
+    return NextResponse.json({
+      error: 'WEEKEND_NOT_ALLOWED',
+      message: 'No se pueden agendar citas en fin de semana.',
     }, { status: 400 });
   }
 

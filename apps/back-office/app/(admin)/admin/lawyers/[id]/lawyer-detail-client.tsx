@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { ArrowLeft, Phone, Mail, MapPin, Pencil, Plus, Trash2, UserCircle, Briefcase, ExternalLink, MoreHorizontal, FileText, Clock, CheckCircle2, PenLine, Users, Ban, History, X, AlertTriangle } from 'lucide-react';
 import { SignaturePad } from '@/components/ui-phoenix/signature-pad';
 import { KpiCard } from '@/components/ui-phoenix/kpi-card';
+import { FormField } from '@/components/ui-phoenix/form-field';
+import { LocationSelect } from '@/components/ui-phoenix/location-select';
+import { US_STATES, CITIES_BY_STATE, CITY_ZIP } from '@/lib/us-locations';
 import {
   Button,
   Input,
@@ -1484,9 +1487,12 @@ function MemberDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
 
-  const editingId = editing?.id ?? null;
-  const [lastEditingId, setLastEditingId] = useState<string | null>(null);
-  if (open && editingId !== lastEditingId) {
+  // Reset al ABRIR (no al cambiar editingId) — reabrir "Agregar miembro" dos
+  // veces seguidas siempre tiene editingId=null, así que comparar contra el
+  // valor anterior nunca detectaba el segundo open() y quedaban los datos
+  // del miembro recién creado.
+  useEffect(() => {
+    if (!open) return;
     setFirstName(editing?.firstName ?? '');
     setLastName(editing?.lastName ?? '');
     setEmail(editing?.email ?? '');
@@ -1499,8 +1505,8 @@ function MemberDialog({
     setBarNumber(editing?.barNumber ?? '');
     setRecoveryRate(editing?.recoveryRate != null ? String(editing.recoveryRate) : '');
     setError(null);
-    setLastEditingId(editingId);
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editing?.id]);
 
   const handleSave = async () => {
     setError(null);
@@ -1566,8 +1572,7 @@ function MemberDialog({
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="phone">Teléfono</Label>
-              <Input id="phone" value={phone ?? ''} onChange={(e) => setPhone(e.target.value)} placeholder="+1-801-..." />
+              <FormField.Phone label="Teléfono" value={phone ?? ''} onChange={(v) => setPhone(v)} />
             </div>
           </div>
 
@@ -1577,14 +1582,21 @@ function MemberDialog({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-1">
-              <Label htmlFor="city">Ciudad</Label>
-              <Input id="city" value={city ?? ''} onChange={(e) => setCity(e.target.value)} placeholder="Provo" />
-            </div>
-            <div>
-              <Label htmlFor="state">Estado</Label>
-              <Input id="state" value={state ?? ''} onChange={(e) => setState(e.target.value)} placeholder="UT" maxLength={2} />
-            </div>
+            <LocationSelect
+              label="Estado"
+              value={state ?? ''}
+              onChange={(v) => { setState(v); setCity(''); }}
+              options={['Utah', ...US_STATES.filter(s => s.code !== 'UT').map(s => s.name)]}
+              placeholder="Seleccionar estado..."
+            />
+            <LocationSelect
+              label="Ciudad"
+              value={city ?? ''}
+              onChange={(v) => { setCity(v); setZip((prev) => CITY_ZIP[v] ?? prev); }}
+              options={state ? (CITIES_BY_STATE[US_STATES.find(s => s.name === state)?.code ?? ''] ?? []) : []}
+              placeholder={state ? 'Seleccionar ciudad...' : 'Primero elige un estado'}
+              disabled={!state}
+            />
             <div>
               <Label htmlFor="zip">ZIP</Label>
               <Input id="zip" value={zip ?? ''} onChange={(e) => setZip(e.target.value)} placeholder="84601" maxLength={10} />

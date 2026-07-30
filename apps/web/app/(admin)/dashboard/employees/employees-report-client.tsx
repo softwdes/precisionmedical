@@ -8,7 +8,7 @@ import {
   Button, Label, Card, CardContent,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  PillToggle, MonthPicker,
+  MonthPicker,
 } from '@precision/ui';
 import {
   Download, Printer, DollarSign, Users, TrendingUp, Calendar,
@@ -34,36 +34,12 @@ function fmtAmount(amount: number, currency: string): string {
   return `${sym} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function ymdToday(): string {
-  return new Date().toISOString().split('T')[0]!;
-}
-
 function ymdMonthStart(date = new Date()): string {
   return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0]!;
 }
 
 function ymdMonthEnd(date = new Date()): string {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0]!;
-}
-
-type RangePreset = 'thisMonth' | 'lastMonth' | 'quarter' | 'year' | 'allTime' | 'custom';
-
-function computeRange(preset: RangePreset): { from: string; to: string } {
-  const now = new Date();
-  switch (preset) {
-    case 'thisMonth':  return { from: ymdMonthStart(now), to: ymdMonthEnd(now) };
-    case 'lastMonth': {
-      const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      return { from: ymdMonthStart(last), to: ymdMonthEnd(last) };
-    }
-    case 'quarter': {
-      const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-      return { from: ymdMonthStart(start), to: ymdMonthEnd(now) };
-    }
-    case 'year':      return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31` };
-    case 'allTime':   return { from: '2020-01-01', to: ymdToday() };
-    default:          return { from: ymdMonthStart(now), to: ymdMonthEnd(now) };
-  }
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
@@ -76,21 +52,11 @@ export function EmployeesReportClient({
   const t      = useTranslations();
   const locale = useLocale();
 
-  const [rangePreset, setRangePreset] = useState<RangePreset>('thisMonth');
-  const initialRange = computeRange('thisMonth');
-  const [from, setFrom]                 = useState(initialRange.from);
-  const [to,   setTo]                   = useState(initialRange.to);
+  const now = React.useMemo(() => new Date(), []);
+  const [from, setFrom]                 = useState(ymdMonthStart(now));
+  const [to,   setTo]                   = useState(ymdMonthEnd(now));
   const [departmentId, setDepartmentId] = useState<string>('');
   const [country,      setCountry]      = useState<string>('');
-
-  const onPresetChange = (preset: RangePreset): void => {
-    setRangePreset(preset);
-    if (preset !== 'custom') {
-      const r = computeRange(preset);
-      setFrom(r.from);
-      setTo(r.to);
-    }
-  };
 
   // Print CSS scoped to this component
   useEffect(() => {
@@ -213,22 +179,6 @@ export function EmployeesReportClient({
         </div>
       </div>
 
-      {/* Range pills */}
-      <div className="flex flex-wrap gap-2 items-center print:hidden">
-        <PillToggle<RangePreset>
-          options={[
-            { value: 'thisMonth',  label: t('employees.rangeThisMonth') },
-            { value: 'lastMonth',  label: t('employees.rangeLastMonth') },
-            { value: 'quarter',    label: t('employees.rangeQuarter') },
-            { value: 'year',       label: t('employees.rangeYear') },
-            { value: 'allTime',    label: t('employees.rangeAllTime') },
-            { value: 'custom',     label: t('employees.rangeCustom') },
-          ]}
-          value={rangePreset}
-          onChange={onPresetChange}
-        />
-      </div>
-
       {/* Filters */}
       <Card className="print:hidden">
         <CardContent className="p-4">
@@ -243,7 +193,7 @@ export function EmployeesReportClient({
                 value={from.slice(0, 7)}
                 onChange={(v) => {
                   const [y, m] = v.split('-').map(Number);
-                  if (y && m) { setFrom(ymdMonthStart(new Date(y, m - 1, 1))); setRangePreset('custom'); }
+                  if (y && m) setFrom(ymdMonthStart(new Date(y, m - 1, 1)));
                 }}
                 placeholder={t('payments.periodFilterPlaceholder')}
                 clearLabel={t('common.clear')}
@@ -258,7 +208,7 @@ export function EmployeesReportClient({
                 value={to.slice(0, 7)}
                 onChange={(v) => {
                   const [y, m] = v.split('-').map(Number);
-                  if (y && m) { setTo(ymdMonthEnd(new Date(y, m - 1, 1))); setRangePreset('custom'); }
+                  if (y && m) setTo(ymdMonthEnd(new Date(y, m - 1, 1)));
                 }}
                 placeholder={t('payments.periodFilterPlaceholder')}
                 clearLabel={t('common.clear')}
@@ -545,7 +495,7 @@ function MonthlyTrendChart({
           const hBOB = (d.BOB / maxValue) * 100;
           const hPEN = (d.PEN / maxValue) * 100;
           return (
-            <div key={i} className="flex-1 flex flex-col items-center justify-end gap-px" style={{ minWidth: `${barWidth}%` }} title={`${d.month}\nUSD: ${d.USD}\nBOB: ${d.BOB}\nPEN: ${d.PEN}`}>
+            <div key={i} className="flex-1 h-full flex flex-col items-center justify-end gap-px" style={{ minWidth: `${barWidth}%` }} title={`${d.month}\nUSD: ${d.USD}\nBOB: ${d.BOB}\nPEN: ${d.PEN}`}>
               <div className="w-full flex items-end justify-center gap-px h-full">
                 {d.USD > 0 && <div className="flex-1 bg-emerald-500/70 hover:bg-emerald-500 transition-colors rounded-t-sm" style={{ height: `${hUSD}%` }} />}
                 {d.BOB > 0 && <div className="flex-1 bg-amber-400/70 hover:bg-amber-400 transition-colors rounded-t-sm" style={{ height: `${hBOB}%` }} />}

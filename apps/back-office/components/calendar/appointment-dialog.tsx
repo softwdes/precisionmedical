@@ -635,18 +635,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             </div>
           )}
 
-          {/* ── EDIT MODE: Patient badge read-only ── */}
-          {isEditMode && editAppointment && (
-            <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2 flex-wrap">
-              <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('caseLabel')}</span>
-              <span className="text-text-1 font-mono text-xs font-semibold">{editAppointment.caseCode}</span>
-              <span className="text-border">·</span>
-              <span className="text-text-muted text-[10px]">
-                {editAppointment.patient.firstName} {editAppointment.patient.lastName}
-              </span>
-            </div>
-          )}
-
           {/* ── FREE MODE: Patient search ── */}
           {!isEditMode && props.mode === 'free' && (
             <div className="space-y-3">
@@ -782,6 +770,14 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2 flex-wrap">
               <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('caseLabel')}</span>
               <span className="text-text-1 font-mono text-xs font-semibold">{badgeCaseCode}</span>
+              {isEditMode && editAppointment && (
+                <>
+                  <span className="text-border">·</span>
+                  <span className="text-text-muted text-[10px]">
+                    {editAppointment.patient.firstName} {editAppointment.patient.lastName}
+                  </span>
+                </>
+              )}
               {effectiveSpecialty && (
                 <>
                   <span className="text-border">·</span>

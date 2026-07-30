@@ -128,7 +128,7 @@ export async function PatientsData({
         id: true, firstName: true, lastName: true, email: true, phone: true, phone2: true,
         patientCode: true, status: true, preferredLanguage: true,
         sex: true, maritalStatus: true, employer: true, preferredPharmacy: true,
-        communicationPreference: true, referralSource: true,
+        communicationPreference: true, referralSource: true, referralSourceOther: true,
         race: true, ethnicity: true, socialSecurityNumber: true,
         addressLine1: true, addressCity: true, addressState: true, addressZip: true,
         emergencyContactName: true, emergencyContactPhone: true, emergencyContactRelation: true,

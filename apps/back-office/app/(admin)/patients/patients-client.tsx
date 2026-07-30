@@ -829,6 +829,7 @@ export interface PatientRow {
   preferredPharmacy: string | null;
   communicationPreference: string | null;
   referralSource: string | null;
+  referralSourceOther: string | null;
   race: string | null;
   ethnicity: string | null;
   socialSecurityNumber: string | null;

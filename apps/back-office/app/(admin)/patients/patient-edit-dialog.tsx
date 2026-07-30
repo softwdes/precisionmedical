@@ -37,6 +37,7 @@ export interface EditablePatient {
   preferredPharmacy?:          string | null;
   communicationPreference?:    string | null;
   referralSource?:             string | null;
+  referralSourceOther?:        string | null;
   race?:                       string | null;
   ethnicity?:                  string | null;
   socialSecurityNumber?:       string | null;
@@ -114,7 +115,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const [confirmExit,  setConfirmExit]  = useState(false);
   const [emailError,   setEmailError]   = useState('');
   const [phoneError,   setPhoneError]   = useState('');
-  const [referralSourceOther,      setReferralSourceOther]      = useState('');
+  const [referralSourceOther,      setReferralSourceOther]      = useState(patient.referralSourceOther ?? '');
   const [emergency1RelationOther,  setEmergency1RelationOther]  = useState(
     () => normalizeRelation(patient.emergencyContactRelation ?? '').otherVal
   );
@@ -238,6 +239,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
           maritalStatus:           form.maritalStatus           || null,
           communicationPreference: form.communicationPreference || null,
           referralSource:          form.referralSource          || null,
+          referralSourceOther:     form.referralSource === 'OTHER' ? (referralSourceOther.trim() || null) : null,
           race:                    form.race                    || null,
           ethnicity:               form.ethnicity               || null,
           guardianRelation:        form.guardianRelation        || null,

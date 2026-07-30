@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
           dateOfBirth: true,
           phone: true, phone2: true, email: true,
           addressLine1: true, addressCity: true, addressState: true, addressZip: true,
-          referralSource: true, communicationPreference: true,
+          referralSource: true, referralSourceOther: true, communicationPreference: true,
           preferredPharmacy: true, employer: true,
           race: true, ethnicity: true, sex: true, maritalStatus: true,
           emergencyContactName: true, emergencyContactPhone: true, emergencyContactRelation: true,
@@ -90,6 +90,7 @@ export async function GET(_req: NextRequest, ctx: Ctx): Promise<NextResponse> {
       addressState:             decryptFieldOrOriginal(rec.patient.addressState),
       addressZip:               decryptFieldOrOriginal(rec.patient.addressZip),
       referralSource:           rec.patient.referralSource ?? null,
+      referralSourceOther:      rec.patient.referralSourceOther ?? null,
       communicationPreference:  rec.patient.communicationPreference ?? null,
       preferredPharmacy:        decryptFieldOrOriginal(rec.patient.preferredPharmacy),
       employer:                 decryptFieldOrOriginal(rec.patient.employer),
@@ -185,7 +186,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         firstName?: string; lastName?: string; dateOfBirth?: string;
         phone?: string; cellPhone?: string; email?: string; preferredLanguage?: string;
         addressLine1?: string; addressCity?: string; addressState?: string; addressZip?: string;
-        referralSource?: string; communicationPreference?: string;
+        referralSource?: string; referralSourceOther?: string; communicationPreference?: string;
       };
       additional?: {
         emergencyContactName?: string; emergencyContactPhone?: string; emergencyContactRelation?: string;
@@ -242,6 +243,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if (p.addressState !== undefined) patientData.addressState           = p.addressState || null;
     if (p.addressZip !== undefined)   patientData.addressZip             = p.addressZip || null;
     if (p.referralSource)         patientData.referralSource             = p.referralSource;
+    if (p.referralSource === 'OTHER') patientData.referralSourceOther    = p.referralSourceOther?.trim() || null;
+    else if (p.referralSource)   patientData.referralSourceOther        = null;
     if (p.communicationPreference) patientData.communicationPreference   = p.communicationPreference;
 
     if (Object.keys(patientData).length > 0) {

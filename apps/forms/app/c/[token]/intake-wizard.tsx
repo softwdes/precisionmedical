@@ -40,6 +40,7 @@ interface PatientData {
   addressState: string | null;
   addressZip: string | null;
   referralSource: string | null;
+  referralSourceOther: string | null;
   communicationPreference: string | null;
   preferredPharmacy: string | null;
   employer: string | null;
@@ -1106,7 +1107,10 @@ export function IntakeWizard({
     addressZip:               patient.addressZip ?? '',
     // Información clínica Step 2
     referralSource:           referralIsKnown ? rawReferral : (rawReferral ? 'OTHER' : ''),
-    referralSourceOther:      referralIsKnown ? '' : rawReferral,
+    // Data nueva ya trae referralSourceOther real; data v2 legacy metía el
+    // texto libre directo en referralSource (sin columna propia todavía) —
+    // se mantiene ese fallback para no perder lo ya guardado.
+    referralSourceOther:      patient.referralSourceOther ?? (referralIsKnown ? '' : rawReferral),
     communicationPreference:  patient.communicationPreference ?? '',
     // Información clínica Step 3
     referredBy:               savedExtra.referredBy ?? '',
@@ -1566,12 +1570,9 @@ export function IntakeWizard({
       let body: Record<string, unknown> = {};
       if (stepNum === 2) {
         // `referralSource` es un enum de Prisma (ReferralSource) — no puede
-        // llevar texto libre. Antes se reemplazaba 'OTHER' por lo que el
-        // paciente escribía (ej. "forgotten") y Prisma rechazaba el update con
-        // un 500 ("Invalid value for argument `referralSource`"). Se manda
-        // 'OTHER' tal cual; el texto libre no tiene dónde guardarse todavía
-        // (no existe columna `referralSourceOther` en Patient) — pendiente
-        // agregarla en la próxima migración, ver pending-tasks.
+        // llevar texto libre. El texto de "Otro" va en la columna aparte
+        // referralSourceOther (agregada 2026-07-30); el servidor decide cuál
+        // de las dos escribir según referralSource === 'OTHER'.
         const p2 = { ...personal, preferredLanguage: lang };
         body = { personal: p2 };
       }

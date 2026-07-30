@@ -735,6 +735,8 @@ model Patient {
   preferredPharmacy       String?
   communicationPreference CommunicationPreference?
   referralSource          ReferralSource?
+  // Texto libre cuando referralSource = OTHER — el enum no puede llevarlo.
+  referralSourceOther     String?
   race                    PatientRace?
   ethnicity               PatientEthnicity?
   socialSecurityNumber    String?

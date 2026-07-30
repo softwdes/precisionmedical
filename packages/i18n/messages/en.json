@@ -267,6 +267,7 @@
     "filters": "Filters",
     "from": "From",
     "to": "To",
+    "reportMonth": "Month",
     "allCountries": "All countries",
     "kpiTotal": "Total payroll",
     "kpiBonuses": "Bonuses",

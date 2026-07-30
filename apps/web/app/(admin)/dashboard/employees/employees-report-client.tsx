@@ -53,10 +53,17 @@ export function EmployeesReportClient({
   const locale = useLocale();
 
   const now = React.useMemo(() => new Date(), []);
-  const [from, setFrom]                 = useState(ymdMonthStart(now));
-  const [to,   setTo]                   = useState(ymdMonthEnd(now));
+  // El reporte siempre es de UN mes puntual — Desde/Hasta era un rango de dos
+  // selectores que confundía. `month` es 'YYYY-MM'; from/to se derivan de ahí.
+  const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const [departmentId, setDepartmentId] = useState<string>('');
   const [country,      setCountry]      = useState<string>('');
+
+  const { from, to } = React.useMemo(() => {
+    const [y, m] = month.split('-').map(Number);
+    const d = y && m ? new Date(y, m - 1, 1) : now;
+    return { from: ymdMonthStart(d), to: ymdMonthEnd(d) };
+  }, [month, now]);
 
   // Print CSS scoped to this component
   useEffect(() => {
@@ -188,28 +195,10 @@ export function EmployeesReportClient({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="space-y-1">
-              <Label className="text-tiny">{t('employees.from')}</Label>
+              <Label className="text-tiny">{t('employees.reportMonth')}</Label>
               <MonthPicker
-                value={from.slice(0, 7)}
-                onChange={(v) => {
-                  const [y, m] = v.split('-').map(Number);
-                  if (y && m) setFrom(ymdMonthStart(new Date(y, m - 1, 1)));
-                }}
-                placeholder={t('payments.periodFilterPlaceholder')}
-                clearLabel={t('common.clear')}
-                todayLabel={t('payments.thisMonth')}
-                locale={locale === 'en' ? 'en' : 'es'}
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-tiny">{t('employees.to')}</Label>
-              <MonthPicker
-                value={to.slice(0, 7)}
-                onChange={(v) => {
-                  const [y, m] = v.split('-').map(Number);
-                  if (y && m) setTo(ymdMonthEnd(new Date(y, m - 1, 1)));
-                }}
+                value={month}
+                onChange={(v) => { if (v) setMonth(v); }}
                 placeholder={t('payments.periodFilterPlaceholder')}
                 clearLabel={t('common.clear')}
                 todayLabel={t('payments.thisMonth')}

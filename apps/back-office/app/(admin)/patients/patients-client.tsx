@@ -920,13 +920,16 @@ function emptyInsEntry(insType: 'MEDICAL' | 'AUTO'): InsuranceEntry {
 const insLabel = 'text-[11px] font-semibold uppercase tracking-wider text-text-muted block mb-1.5';
 const insInput = 'w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand';
 
-function NuevoSeguroDialog({ onClose, onSave }: {
+function NuevoSeguroDialog({ onClose, onSave, initialEntry }: {
   onClose: () => void;
   onSave: (entry: InsuranceEntry) => void;
+  /** Si viene, el diálogo edita este seguro en vez de crear uno nuevo. */
+  initialEntry?: InsuranceEntry;
 }) {
   const t = useTranslations('phoenix.patients');
-  const [tab, setTab] = useState<'MEDICAL' | 'AUTO'>('MEDICAL');
-  const [entry, setEntry] = useState<InsuranceEntry>(() => emptyInsEntry('MEDICAL'));
+  const isEditing = !!initialEntry;
+  const [tab, setTab] = useState<'MEDICAL' | 'AUTO'>(initialEntry?.insType ?? 'MEDICAL');
+  const [entry, setEntry] = useState<InsuranceEntry>(() => initialEntry ?? emptyInsEntry('MEDICAL'));
   const [errors, setErrors] = useState<Partial<Record<keyof InsuranceEntry, string>>>({});
 
   const today = new Date().toISOString().split('T')[0];
@@ -966,21 +969,23 @@ function NuevoSeguroDialog({ onClose, onSave }: {
       <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="w-4 h-4 text-brand" /> {t('segurosNewTitle')}
+            <Plus className="w-4 h-4 text-brand" /> {isEditing ? t('segurosEditTitle') : t('segurosNewTitle')}
           </DialogTitle>
-          <DialogDescription className="text-text-muted text-xs">{t('segurosNewDesc')}</DialogDescription>
+          <DialogDescription className="text-text-muted text-xs">{isEditing ? t('segurosEditDesc') : t('segurosNewDesc')}</DialogDescription>
         </DialogHeader>
 
-        {/* Tabs */}
-        <div className="flex px-6 pt-4 gap-2 shrink-0">
-          {(['MEDICAL', 'AUTO'] as const).map(tp => (
-            <button key={tp} onClick={() => switchTab(tp)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === tp ? 'bg-brand text-white' : 'bg-bg-2 text-text-2 hover:bg-bg-2/80 border border-border'}`}
-            >
-              {tp === 'MEDICAL' ? t('segurosTabMedico') : t('segurosTabAuto')}
-            </button>
-          ))}
-        </div>
+        {/* Tabs — el tipo de seguro no se cambia al editar, ya define la forma del registro */}
+        {!isEditing && (
+          <div className="flex px-6 pt-4 gap-2 shrink-0">
+            {(['MEDICAL', 'AUTO'] as const).map(tp => (
+              <button key={tp} onClick={() => switchTab(tp)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${tab === tp ? 'bg-brand text-white' : 'bg-bg-2 text-text-2 hover:bg-bg-2/80 border border-border'}`}
+              >
+                {tp === 'MEDICAL' ? t('segurosTabMedico') : t('segurosTabAuto')}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {tab === 'MEDICAL' ? (
@@ -1126,7 +1131,8 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
   const cd = patient.latestCase?.consentsData as Record<string, unknown> | null;
   const initialIns = Array.isArray(cd?.insurances) ? (cd!.insurances as InsuranceEntry[]) : [];
   const [insurances, setInsurances] = useState<InsuranceEntry[]>(initialIns);
-  const [showNuevo, setShowNuevo]   = useState(false);
+  // 'new' = formulario vacío · InsuranceEntry = editando ese seguro existente
+  const [formTarget, setFormTarget] = useState<'new' | InsuranceEntry | null>(null);
   const [saving, setSaving]         = useState(false);
   const [error, setError]           = useState('');
 
@@ -1148,7 +1154,10 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
 
   const insTypeLabel = { MEDICAL: t('segurosTypeMedical'), AUTO: t('segurosTypeAuto') };
 
-  async function handleAdd(entry: InsuranceEntry) { await saveInsurances([...insurances, entry]); }
+  async function handleUpsert(entry: InsuranceEntry) {
+    const exists = insurances.some(i => i.id === entry.id);
+    await saveInsurances(exists ? insurances.map(i => i.id === entry.id ? entry : i) : [...insurances, entry]);
+  }
   async function handleDelete(id: string) { await saveInsurances(insurances.filter(i => i.id !== id)); }
 
   return (
@@ -1199,14 +1208,24 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
                     />
                     <span className="text-sm font-medium text-text-1">{ins.carrier || '—'}</span>
                   </div>
-                  <button
-                    onClick={() => handleDelete(ins.id)}
-                    disabled={saving}
-                    className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors shrink-0"
-                    title={t('segurosDelete')}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setFormTarget(ins)}
+                      disabled={saving}
+                      className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
+                      title={t('segurosEditTooltip')}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(ins.id)}
+                      disabled={saving}
+                      className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
+                      title={t('segurosDelete')}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
@@ -1235,7 +1254,7 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
           <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
             <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>{t('btnClose')}</Button>
             {patient.latestCase && (
-              <Button className="w-full sm:w-auto" onClick={() => setShowNuevo(true)} disabled={saving}>
+              <Button className="w-full sm:w-auto" onClick={() => setFormTarget('new')} disabled={saving}>
                 <Plus className="w-3.5 h-3.5 mr-1" /> {t('segurosAdd')}
               </Button>
             )}
@@ -1243,10 +1262,11 @@ function SegurosDialog({ patient, onClose }: { patient: PatientRow; onClose: () 
         </DialogContent>
       </Dialog>
 
-      {showNuevo && (
+      {formTarget && (
         <NuevoSeguroDialog
-          onClose={() => setShowNuevo(false)}
-          onSave={handleAdd}
+          onClose={() => setFormTarget(null)}
+          onSave={handleUpsert}
+          initialEntry={formTarget === 'new' ? undefined : formTarget}
         />
       )}
     </>

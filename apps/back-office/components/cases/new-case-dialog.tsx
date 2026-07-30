@@ -273,6 +273,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
     if (result.existingPatient) {
       setExistingPatientId(result.existingPatient.id);
       setEmail(result.existingPatient.email ?? '');
+      setDateOfBirth(result.existingPatient.dateOfBirth ?? '');
     }
     if (result.mode === 'manual') setReferralSource('LAW_FIRM');
     setCallMode(result.mode); setCallElapsed(0);

@@ -55,6 +55,7 @@ export interface PreCallResult {
     lastName: string;
     phone: string | null;
     email: string | null;
+    dateOfBirth: string | null;
     casesCount: number;
   };
   /** Datos iniciales para prellenar el modal de captura */
@@ -70,6 +71,7 @@ interface PatientSearchResult {
   lastName: string;
   phone: string | null;
   email: string | null;
+  dateOfBirth: string | null;
   casesCount: number;
   lastCaseCode: string | null;
   lastCaseStatus: string | null;
@@ -145,6 +147,7 @@ export function PreCallStep({
           lastName: selectedPatient.lastName,
           phone: selectedPatient.phone,
           email: selectedPatient.email,
+          dateOfBirth: selectedPatient.dateOfBirth,
           casesCount: selectedPatient.casesCount,
         },
         firstName: selectedPatient.firstName,
@@ -175,6 +178,7 @@ export function PreCallStep({
         lastName: selectedPatient.lastName,
         phone: selectedPatient.phone,
         email: selectedPatient.email,
+        dateOfBirth: selectedPatient.dateOfBirth,
         casesCount: selectedPatient.casesCount,
       },
       firstName: selectedPatient.firstName,

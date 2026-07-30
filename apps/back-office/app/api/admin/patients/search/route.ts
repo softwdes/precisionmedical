@@ -51,6 +51,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       lastName: true,
       phone: true,
       email: true,
+      dateOfBirth: true,
       cases: {
         orderBy: { createdAt: 'desc' },
         take: 1,
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       lastName: p.lastName,
       phone: p.phone,
       email: p.email,
+      dateOfBirth: p.dateOfBirth ? p.dateOfBirth.toISOString().slice(0, 10) : null,
       casesCount: p._count.cases,
       lastCaseCode: p.cases[0]?.caseCode ?? null,
       lastCaseStatus: p.cases[0]?.status ?? null,

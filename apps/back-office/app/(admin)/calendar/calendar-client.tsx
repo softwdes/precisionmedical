@@ -112,8 +112,17 @@ function timeToMinutes(t: string): number {
   return h * 60 + m;
 }
 
+// Denver-aware: usa timezone del browser (.getFullYear()/.getMonth()) llevaba
+// a que el grid mostrara un mes distinto al que decía el label de arriba
+// (ese sí ya usaba dMonth/dYear, Denver-correcto) — visto en producción como
+// "el mes mostrado no concuerda con las fechas mostradas".
 function getFirstDayOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
+  const [y, m] = denverDateStr(d).split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, 1, 12, 0, 0));
+}
+
+function denverMonthOf(d: Date): number {
+  return parseInt(denverDateStr(d).slice(5, 7), 10) - 1;
 }
 
 /** Devuelve un array de semanas (7 días c/u) que cubren el mes completo. */
@@ -122,6 +131,7 @@ function getMonthGrid(monthRef: Date): Date[][] {
   const gridStart = getMondayOf(firstDay);
   const weeks: Date[][] = [];
   const cursor = new Date(gridStart);
+  const targetMonth = denverMonthOf(monthRef);
   while (weeks.length < 6) {
     const week: Date[] = [];
     for (let i = 0; i < 7; i++) {
@@ -130,7 +140,7 @@ function getMonthGrid(monthRef: Date): Date[][] {
     }
     weeks.push(week);
     // Terminamos cuando salimos del mes y tenemos al menos 4 semanas
-    if (cursor.getMonth() !== monthRef.getMonth() && weeks.length >= 4) break;
+    if (denverMonthOf(cursor) !== targetMonth && weeks.length >= 4) break;
   }
   return weeks;
 }
@@ -534,12 +544,18 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const goToPrev = () => {
     if (calView === 'day')        setWeekStart(w => addDays(w, -1));
     else if (calView === 'week')  setWeekStart(w => addDays(w, -7));
-    else setWeekStart(w => getFirstDayOfMonth(new Date(w.getFullYear(), w.getMonth() - 1, 1)));
+    else setWeekStart(w => {
+      const [y, m] = denverDateStr(w).split('-').map(Number) as [number, number, number];
+      return getFirstDayOfMonth(new Date(Date.UTC(y, m - 2, 1, 12, 0, 0)));
+    });
   };
   const goToNext = () => {
     if (calView === 'day')        setWeekStart(w => addDays(w, 1));
     else if (calView === 'week')  setWeekStart(w => addDays(w, 7));
-    else setWeekStart(w => getFirstDayOfMonth(new Date(w.getFullYear(), w.getMonth() + 1, 1)));
+    else setWeekStart(w => {
+      const [y, m] = denverDateStr(w).split('-').map(Number) as [number, number, number];
+      return getFirstDayOfMonth(new Date(Date.UTC(y, m, 1, 12, 0, 0)));
+    });
   };
   const goToToday = () => {
     const now = new Date();
@@ -679,8 +695,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     calView === 'day'
       ? `${WEEKDAYS_ALL[(weekStart.getDay() + 6) % 7]} · ${t('viewDailySuffix')}`
       : calView === 'week'
-        ? t('weekRangeLabel', { start: weekStart.getDate(), end: viewEnd4.getDate(), month: MONTHS[viewEnd4.getMonth()] })
-        : `${MONTHS[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
+        ? t('weekRangeLabel', { start: dNum(weekStart), end: dNum(viewEnd4), month: dMonth(viewEnd4) })
+        : `${dMonth(weekStart)} ${dYear(weekStart)}`;
 
   return (
     <div className="flex flex-col h-full min-h-0">

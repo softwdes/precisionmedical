@@ -9,7 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-  Card, CardContent,
+  Card, CardContent, MonthPicker,
 } from '@precision/ui';
 import { Plus, CheckCircle, RotateCcw, Clock, TrendingUp, Star, Pencil, X, Trash2, QrCode, Wallet, ArrowRightLeft } from 'lucide-react';
 import { ToastPortal, useToastManager } from '@/components/notifications/ToastManager';
@@ -94,6 +94,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
   const locale = useLocale();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
+  const [periodFilter, setPeriodFilter] = useState(''); // 'YYYY-MM', igual formato que guarda `period` en la DB
   const [showCreate, setShowCreate] = useState(false);
   const [showMarkPaid, setShowMarkPaid] = useState<string | null>(null);
   const [showReverse, setShowReverse] = useState<string | null>(null);
@@ -112,9 +113,20 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
     PARTIAL: t('payments.statuses.PARTIAL'),
   };
 
+  // `initial` viene del render de servidor para page=1 sin filtro de estado.
+  // Solo debe usarse como initialData cuando el input calza EXACTO con eso —
+  // si no, cambiar de página o de estado reutiliza esos mismos datos viejos
+  // como si ya fueran la respuesta fresca (con staleTime de 60s no vuelve a
+  // pedir nada), y la lista parece congelada al tocar "Siguiente".
+  const isDefaultQuery = page === 1 && !statusFilter && !periodFilter;
   const { data, refetch } = trpc.payments.list.useQuery(
-    { page, pageSize: 15, status: (statusFilter as 'PENDING' | 'SCHEDULED' | 'PAID' | 'PARTIAL' | 'CANCELLED' | 'REVERSED' | undefined) || undefined },
-    { initialData: initial },
+    {
+      page,
+      pageSize: 15,
+      status: (statusFilter as 'PENDING' | 'SCHEDULED' | 'PAID' | 'PARTIAL' | 'CANCELLED' | 'REVERSED' | undefined) || undefined,
+      period: periodFilter || undefined,
+    },
+    { initialData: isDefaultQuery ? initial : undefined },
   );
 
   const { data: summaryData, refetch: refetchSummary } = trpc.payments.getSummary.useQuery(
@@ -292,7 +304,7 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
       )}
 
       {/* Filter */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <div className="w-full sm:w-auto">
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === 'ALL' ? '' : v); setPage(1); }}>
             <SelectTrigger className="w-full sm:w-40 min-h-[38px]"><SelectValue placeholder={t('common.status')} /></SelectTrigger>
@@ -302,6 +314,15 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
             </SelectContent>
           </Select>
         </div>
+        <MonthPicker
+          value={periodFilter}
+          onChange={(v) => { setPeriodFilter(v); setPage(1); }}
+          placeholder={t('payments.periodFilterPlaceholder')}
+          clearLabel={t('common.clear')}
+          todayLabel={t('payments.thisMonth')}
+          locale={locale === 'en' ? 'en' : 'es'}
+          className="min-h-[38px]"
+        />
       </div>
 
       {/* List / Table */}
@@ -356,18 +377,18 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
                         {payment.status === 'PENDING' && (
                           <>
                             <button
+                              onClick={() => setShowMarkPaid(payment.id)}
+                              className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg border border-emerald/30 bg-emerald/10 text-emerald hover:bg-emerald hover:text-white hover:border-emerald transition-colors"
+                              title={t('payments.markAsPaid')}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </button>
+                            <button
                               onClick={() => setShowEdit(payment.id)}
                               className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-brand/10 text-text-muted hover:text-brand transition-colors"
                               title={t('payments.editPayment')}
                             >
                               <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => setShowMarkPaid(payment.id)}
-                              className="flex h-8 w-8 min-w-[44px] items-center justify-center rounded-lg hover:bg-emerald/10 text-text-muted hover:text-emerald transition-colors"
-                              title={t('payments.markAsPaid')}
-                            >
-                              <CheckCircle className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => setShowCancel(payment.id)}
@@ -525,18 +546,18 @@ export function PaymentsClient({ initial, summary, planillaBolivia }: { initial:
                           {payment.status === 'PENDING' && (
                             <>
                               <button
+                                onClick={() => setShowMarkPaid(payment.id)}
+                                className="p-1.5 rounded border border-emerald/30 bg-emerald/10 text-emerald hover:bg-emerald hover:text-white hover:border-emerald transition-colors"
+                                title={t('payments.markAsPaid')}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                              <button
                                 onClick={() => setShowEdit(payment.id)}
                                 className="p-1.5 text-text-muted hover:text-brand transition-colors rounded"
                                 title={t('payments.editPayment')}
                               >
                                 <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => setShowMarkPaid(payment.id)}
-                                className="p-1.5 text-text-muted hover:text-emerald transition-colors rounded"
-                                title={t('payments.markAsPaid')}
-                              >
-                                <CheckCircle className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={() => setShowCancel(payment.id)}

@@ -33,7 +33,12 @@ export {
   SelectLabel,
   SelectItem,
   SelectSeparator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
 } from './components/select';
+
+export { MonthPicker } from './components/month-picker';
+export type { MonthPickerProps } from './components/month-picker';
 
 export {
   Dialog,

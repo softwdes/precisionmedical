@@ -343,13 +343,21 @@ export const employeesRouter = router({
       const { from, to, departmentId, country } = input;
 
       // 1) Pagos PAID en rango con datos del empleado + departamento + pais
+      //
+      // El embed `country` solo se fuerza a !inner cuando se va a filtrar por
+      // país — si fuera siempre !inner, un empleado sin country asignado
+      // desaparecería del reporte incluso sin ese filtro activo. PostgREST
+      // exige !inner en el embed exacto que se está filtrando (no alcanza con
+      // que `employee` ya sea !inner), si no el filtro `.eq('employee.country.code', …)`
+      // no tiene efecto.
+      const countryEmbed = country ? 'country:countries!inner(id, code, name)' : 'country:countries(id, code, name)';
       let q = supabaseAdmin
         .from('payments')
         .select(
           'id, period, amountLocal, base_salary, bonus_amount, bonus_reason, currencyLocal, ' +
           'status, paidDate, scheduledDate, ' +
           'employee:employees!inner(id, firstName, lastName, employeeCode, departmentId, countryId, ' +
-          '  department:departments(id, name), country:countries(id, code, name))',
+          `  department:departments(id, name), ${countryEmbed})`,
         )
         .eq('status', 'PAID')
         .gte('paidDate', from)

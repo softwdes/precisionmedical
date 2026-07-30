@@ -5,10 +5,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { api as trpc } from '@/lib/trpc/client';
 import {
-  Button, Input, Label, Card, CardContent,
+  Button, Label, Card, CardContent,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  PillToggle,
+  PillToggle, MonthPicker,
 } from '@precision/ui';
 import {
   Download, Printer, DollarSign, Users, TrendingUp, Calendar,
@@ -120,8 +120,11 @@ export function EmployeesReportClient({
     country:      country || undefined,
   });
 
+  // paidDate llega como timestamp completo (columna DateTime sin @db.Date), no
+  // solo YYYY-MM-DD — hay que quedarse con la parte de fecha antes de armar el
+  // string local, si no `new Date(d + 'T00:00:00')` queda inválido.
   const fmtDate = (d: string | null | undefined): string =>
-    d ? new Date(d + 'T00:00:00').toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    d ? new Date(d.slice(0, 10) + 'T00:00:00').toLocaleDateString(locale === 'en' ? 'en-US' : 'es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
   const fmtMonth = (ym: string): string => {
     const [y, m] = ym.split('-');
@@ -236,11 +239,33 @@ export function EmployeesReportClient({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="space-y-1">
               <Label className="text-tiny">{t('employees.from')}</Label>
-              <Input type="date" value={from} onChange={(e) => { setFrom(e.target.value); setRangePreset('custom'); }} />
+              <MonthPicker
+                value={from.slice(0, 7)}
+                onChange={(v) => {
+                  const [y, m] = v.split('-').map(Number);
+                  if (y && m) { setFrom(ymdMonthStart(new Date(y, m - 1, 1))); setRangePreset('custom'); }
+                }}
+                placeholder={t('payments.periodFilterPlaceholder')}
+                clearLabel={t('common.clear')}
+                todayLabel={t('payments.thisMonth')}
+                locale={locale === 'en' ? 'en' : 'es'}
+                className="w-full"
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-tiny">{t('employees.to')}</Label>
-              <Input type="date" value={to} onChange={(e) => { setTo(e.target.value); setRangePreset('custom'); }} />
+              <MonthPicker
+                value={to.slice(0, 7)}
+                onChange={(v) => {
+                  const [y, m] = v.split('-').map(Number);
+                  if (y && m) { setTo(ymdMonthEnd(new Date(y, m - 1, 1))); setRangePreset('custom'); }
+                }}
+                placeholder={t('payments.periodFilterPlaceholder')}
+                clearLabel={t('common.clear')}
+                todayLabel={t('payments.thisMonth')}
+                locale={locale === 'en' ? 'en' : 'es'}
+                className="w-full"
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-tiny">Departamento</Label>

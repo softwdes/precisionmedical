@@ -1,0 +1,130 @@
+import crypto from 'crypto';
+import { db } from '@precision-medical/database';
+
+/**
+ * Cliente ScriptSure / DAW Systems (D4 — prescripción electrónica).
+ * Solo staging por ahora — hosts de producción se agregan recién al certificar
+ * (ver [[scriptsure-daw-integration]] en memoria).
+ */
+
+const HOSTS = {
+  staging: {
+    backendPlatform: 'https://spa.scriptsure.com',
+    backendScriptSure: 'https://ssa.scriptsure.com',
+    frontend: 'https://ssu.scriptsure.com',
+    frontendPlatform: 'https://spu.scriptsure.com',
+  },
+} as const;
+
+function hosts() {
+  return HOSTS.staging;
+}
+
+function apiKey(): string {
+  const key = process.env.SCRIPTSURE_API_KEY;
+  if (!key) throw new Error('SCRIPTSURE_API_KEY no está configurado en .env.local');
+  return key;
+}
+
+function secret(): string {
+  const s = process.env.SCRIPTSURE_SECRET;
+  if (!s) throw new Error('SCRIPTSURE_SECRET no está configurado en .env.local');
+  return s;
+}
+
+/** apikey header: `<apiKey>~<hmac-sha1 hex de apiKey_secret_epochMs>~<epochMs>` */
+function buildApiKeyHeader(): string {
+  const key = apiKey();
+  const epochMs = Date.now();
+  const payload = `${key}_${secret()}_${epochMs}`;
+  const hash = crypto.createHmac('sha1', secret()).update(payload).digest('hex');
+  return `${key}~${hash}~${epochMs}`;
+}
+
+interface ScriptSureLoginResponse {
+  sessionToken: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Login real contra ScriptSure (Vendor Login). El sessionToken dura 12h y
+ * queda atado a la identidad del `loginEmail` — no es intercambiable entre
+ * usuarios. Se cachea en `ScriptSureSession` (obligatorio: prohibido re-loguear
+ * si ya hay uno vigente).
+ */
+async function login(loginEmail: string): Promise<string> {
+  const res = await fetch(`${hosts().backendPlatform}/v3/login/byapp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: buildApiKeyHeader(),
+    },
+    body: JSON.stringify({ apikey: buildApiKeyHeader(), email: loginEmail }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`ScriptSure login falló (${res.status}): ${text}`);
+  }
+
+  const data = (await res.json()) as ScriptSureLoginResponse;
+  if (!data.sessionToken) throw new Error('ScriptSure login no devolvió sessionToken');
+
+  await db.scriptSureSession.upsert({
+    where: { loginEmail },
+    create: {
+      loginEmail,
+      sessionToken: data.sessionToken,
+      expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+    },
+    update: {
+      sessionToken: data.sessionToken,
+      expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+    },
+  });
+
+  return data.sessionToken;
+}
+
+/**
+ * Devuelve un sessionToken vigente para `loginEmail`, reusando el cacheado si
+ * todavía no vence (con 5 min de margen) — nunca relogueamos de más.
+ */
+export async function getSessionToken(loginEmail: string): Promise<string> {
+  const cached = await db.scriptSureSession.findUnique({ where: { loginEmail } });
+  const marginMs = 5 * 60 * 1000;
+  if (cached && cached.expiresAt.getTime() - marginMs > Date.now()) {
+    return cached.sessionToken;
+  }
+  return login(loginEmail);
+}
+
+/**
+ * Set Practice & Prescriber — obligatorio antes de cualquier otra llamada de
+ * paciente/receta, y hay que repetirlo cada vez que cambia el prescriptor.
+ */
+export async function setPracticePrescriber(
+  loginEmail: string,
+  practiceId: number,
+  prescriberId: number,
+): Promise<void> {
+  const sessionToken = await getSessionToken(loginEmail);
+  const res = await fetch(
+    `${hosts().backendPlatform}/v3/user/practice/prescriber?sessiontoken=${sessionToken}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ practiceId, prescriberId }),
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`ScriptSure set practice/prescriber falló (${res.status}): ${text}`);
+  }
+
+  await db.scriptSureSession.update({
+    where: { loginEmail },
+    data: { practiceId, prescriberId },
+  });
+}

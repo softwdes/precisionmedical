@@ -32,44 +32,44 @@ model User {
   email           String    @unique
   emailVerifiedAt DateTime?
   passwordHash    String?
-  
-  firstName       String
-  lastName        String
-  avatarUrl       String?
-  phone           String?
-  
-  role            UserRole
-  status          UserStatus @default(ACTIVE)
-  
-  preferredLocale Locale     @default(es)
-  preferredTheme  Theme      @default(dark)
-  
-  mfaEnabled      Boolean    @default(false)
-  mfaSecret       String?
-  
-  employee        Employee?
-  lawyer          Lawyer?
-  provider        Provider?
-  
-  lastLoginAt          DateTime?
-  lastLoginIp          String?
-  failedLoginAttempts  Int       @default(0)
-  lockedUntil          DateTime?
-  lastFailedAttemptAt  DateTime?
-  
-  sessions        Session[]
-  notifications   Notification[]
-  agentActions    AgentAction[]  @relation("ReviewedBy")
-  auditLogs       AuditLog[]     @relation("ActorUser")
+
+  firstName String
+  lastName  String
+  avatarUrl String?
+  phone     String?
+
+  role   UserRole
+  status UserStatus @default(ACTIVE)
+
+  preferredLocale Locale @default(es)
+  preferredTheme  Theme  @default(dark)
+
+  mfaEnabled Boolean @default(false)
+  mfaSecret  String?
+
+  employee Employee?
+  lawyer   Lawyer?
+  provider Provider?
+
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastFailedAttemptAt DateTime?
+
+  sessions      Session[]
+  notifications Notification[]
+  agentActions  AgentAction[]  @relation("ReviewedBy")
+  auditLogs     AuditLog[]     @relation("ActorUser")
 
   // Phoenix 2026-06-05: relations a clinical catalogs (Templates + Diagnoses)
-  createdTemplates    Template[]              @relation("TemplateCreatedBy")
-  templateFavorites   TemplateFavorite[]      @relation("TemplateFavorites")
-  diagnosisFavorites  UserDiagnosisFavorite[] @relation("DiagnosisFavorites")
+  createdTemplates   Template[]              @relation("TemplateCreatedBy")
+  templateFavorites  TemplateFavorite[]      @relation("TemplateFavorites")
+  diagnosisFavorites UserDiagnosisFavorite[] @relation("DiagnosisFavorites")
 
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  deletedAt       DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([email])
   @@index([role])
@@ -107,20 +107,20 @@ enum Theme {
 }
 
 model Session {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   ipAddress String?
   userAgent String?
   device    String?
-  
+
   expiresAt DateTime
   revokedAt DateTime?
-  
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
@@ -131,69 +131,69 @@ model Session {
 // =====================================================
 
 model Country {
-  id        String     @id @default(cuid())
-  code      String     @unique  // "US", "BO", "PE"
-  name      String
-  currency  Currency
-  
+  id       String   @id @default(cuid())
+  code     String   @unique // "US", "BO", "PE"
+  name     String
+  currency Currency
+
   employees Employee[]
   wallets   Wallet[]
-  
+
   @@map("countries")
 }
 
 model Department {
-  id          String     @id @default(cuid())
-  name        String     @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
   description String?
-  
-  employees   Employee[]
-  
+
+  employees Employee[]
+
   @@map("departments")
 }
 
 model Employee {
-  id              String          @id @default(cuid())
-  userId          String?         @unique
-  user            User?           @relation(fields: [userId], references: [id])
-  
-  employeeCode    String          @unique
-  externalId      String?         // ID from external attendance DB
-  
-  firstName       String
-  lastName        String
-  email           String
-  phone           String?
-  photoUrl        String?
-  
-  countryId       String
-  country         Country         @relation(fields: [countryId], references: [id])
-  city            String?
-  
-  type            EmploymentType
-  startDate       DateTime
-  endDate         DateTime?
-  
-  departmentId    String
-  department      Department      @relation(fields: [departmentId], references: [id])
-  position        String
-  
-  supervisorId    String?
-  supervisor      Employee?       @relation("Supervision", fields: [supervisorId], references: [id])
-  reports         Employee[]      @relation("Supervision")
-  
-  baseSalary      Decimal?        @db.Decimal(12, 2)
-  baseCurrency    Currency
-  hourlyRate      Decimal?        @db.Decimal(10, 2)
-  paymentMethod   PaymentMethod?
-  bankAccount     String?         // encrypted at app level
-  bankQrUrl       String?
-  
-  status          EmployeeStatus  @default(ACTIVE)
-  
+  id     String  @id @default(cuid())
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
+
+  employeeCode String  @unique
+  externalId   String? // ID from external attendance DB
+
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+  photoUrl  String?
+
+  countryId String
+  country   Country @relation(fields: [countryId], references: [id])
+  city      String?
+
+  type      EmploymentType
+  startDate DateTime
+  endDate   DateTime?
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  position     String
+
+  supervisorId String?
+  supervisor   Employee?  @relation("Supervision", fields: [supervisorId], references: [id])
+  reports      Employee[] @relation("Supervision")
+
+  baseSalary    Decimal?       @db.Decimal(12, 2)
+  baseCurrency  Currency
+  hourlyRate    Decimal?       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod?
+  bankAccount   String? // encrypted at app level
+  bankQrUrl     String?
+
+  status EmployeeStatus @default(ACTIVE)
+
   payments        Payment[]
-  tasks           Task[]          @relation("AssignedTo")
-  reviewedTasks   Task[]          @relation("Supervisor")
+  tasks           Task[]             @relation("AssignedTo")
+  reviewedTasks   Task[]             @relation("Supervisor")
   attendanceSync  AttendanceSync[]
   metricSnapshots MetricSnapshot[]
   documents       EmployeeDocument[]
@@ -204,11 +204,11 @@ model Employee {
 
   // Vínculo con el perfil clínico Provider (citas/labs/prescripciones).
   // Solo relevante cuando position=DOCTOR.
-  providerProfile   Provider?
+  providerProfile Provider?
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  deletedAt       DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([countryId])
   @@index([type])
@@ -240,17 +240,17 @@ enum PaymentMethod {
 }
 
 model EmployeeDocument {
-  id         String       @id @default(cuid())
+  id         String   @id @default(cuid())
   employeeId String
-  employee   Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
   type       DocumentType
   name       String
   fileUrl    String
   uploadedBy String
-  
-  createdAt  DateTime     @default(now())
-  
+
+  createdAt DateTime @default(now())
+
   @@map("employee_documents")
 }
 
@@ -263,24 +263,24 @@ enum DocumentType {
 }
 
 model AttendanceSync {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   employeeId String
-  employee   Employee  @relation(fields: [employeeId], references: [id])
-  
-  date       DateTime  @db.Date
-  
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  date DateTime @db.Date
+
   clockIn    DateTime?
   breakStart DateTime?
   breakEnd   DateTime?
   clockOut   DateTime?
-  
-  totalHours Decimal?  @db.Decimal(5, 2)
-  isLate     Boolean   @default(false)
-  isAbsent   Boolean   @default(false)
-  
+
+  totalHours Decimal? @db.Decimal(5, 2)
+  isLate     Boolean  @default(false)
+  isAbsent   Boolean  @default(false)
+
   externalId String?
-  syncedAt   DateTime  @default(now())
-  
+  syncedAt   DateTime @default(now())
+
   @@unique([employeeId, date])
   @@index([employeeId])
   @@index([date])
@@ -288,30 +288,30 @@ model AttendanceSync {
 }
 
 model Task {
-  id              String       @id @default(cuid())
-  
-  title           String
-  description     String?
-  
-  assigneeId      String
-  assignee        Employee     @relation("AssignedTo", fields: [assigneeId], references: [id])
-  
-  supervisorId    String?
-  supervisor      Employee?    @relation("Supervisor", fields: [supervisorId], references: [id])
-  
-  status          TaskStatus   @default(ASSIGNED)
-  priority        TaskPriority @default(NORMAL)
-  
-  assignedDate    DateTime     @default(now())
-  dueDate         DateTime
-  completedDate   DateTime?
-  
+  id String @id @default(cuid())
+
+  title       String
+  description String?
+
+  assigneeId String
+  assignee   Employee @relation("AssignedTo", fields: [assigneeId], references: [id])
+
+  supervisorId String?
+  supervisor   Employee? @relation("Supervisor", fields: [supervisorId], references: [id])
+
+  status   TaskStatus   @default(ASSIGNED)
+  priority TaskPriority @default(NORMAL)
+
+  assignedDate  DateTime  @default(now())
+  dueDate       DateTime
+  completedDate DateTime?
+
   qualityRating   Int?
   qualityFeedback String?
-  
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([assigneeId])
   @@index([status])
   @@index([dueDate])
@@ -335,23 +335,23 @@ enum TaskPriority {
 }
 
 model MetricSnapshot {
-  id                String   @id @default(cuid())
-  employeeId        String
-  employee          Employee @relation(fields: [employeeId], references: [id])
-  
-  date              DateTime @db.Date
-  
-  punctualityScore  Decimal  @db.Decimal(5, 2)
-  taskOnTimeScore   Decimal  @db.Decimal(5, 2)
-  productivityScore Decimal  @db.Decimal(5, 2)
-  qualityScore      Decimal  @db.Decimal(5, 2)
-  attendanceScore   Decimal  @db.Decimal(5, 2)
-  
-  globalScore       Decimal  @db.Decimal(5, 2)
-  grade             Grade
-  
-  computedAt        DateTime @default(now())
-  
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  date DateTime @db.Date
+
+  punctualityScore  Decimal @db.Decimal(5, 2)
+  taskOnTimeScore   Decimal @db.Decimal(5, 2)
+  productivityScore Decimal @db.Decimal(5, 2)
+  qualityScore      Decimal @db.Decimal(5, 2)
+  attendanceScore   Decimal @db.Decimal(5, 2)
+
+  globalScore Decimal @db.Decimal(5, 2)
+  grade       Grade
+
+  computedAt DateTime @default(now())
+
   @@unique([employeeId, date])
   @@index([date])
   @@index([globalScore])
@@ -377,55 +377,55 @@ enum Currency {
 }
 
 model Wallet {
-  id               String        @id @default(cuid())
-  currency         Currency
-  countryId        String
-  country          Country       @relation(fields: [countryId], references: [id])
-  
-  name             String
-  balance          Decimal       @db.Decimal(15, 2) @default(0)
-  
+  id        String   @id @default(cuid())
+  currency  Currency
+  countryId String
+  country   Country  @relation(fields: [countryId], references: [id])
+
+  name    String
+  balance Decimal @default(0) @db.Decimal(15, 2)
+
   lastReconciledAt DateTime?
   lastReconciledBy String?
   lastMovementAt   DateTime?
-  isActive         Boolean       @default(true)
+  isActive         Boolean   @default(true)
 
-  fxFromOps        FxOperation[] @relation("FromWallet")
-  fxToOps          FxOperation[] @relation("ToWallet")
-  payments         Payment[]
-  
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  
+  fxFromOps FxOperation[] @relation("FromWallet")
+  fxToOps   FxOperation[] @relation("ToWallet")
+  payments  Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([currency, countryId])
   @@map("wallets")
 }
 
 model FxOperation {
-  id            String   @id @default(cuid())
-  
-  fromWalletId  String
-  fromWallet    Wallet   @relation("FromWallet", fields: [fromWalletId], references: [id])
-  
-  toWalletId    String
-  toWallet      Wallet   @relation("ToWallet", fields: [toWalletId], references: [id])
-  
-  amountFrom    Decimal  @db.Decimal(15, 2)
-  amountTo      Decimal  @db.Decimal(15, 2)
-  rate          Decimal  @db.Decimal(12, 6)
-  fee           Decimal  @db.Decimal(10, 2) @default(0)
-  
+  id String @id @default(cuid())
+
+  fromWalletId String
+  fromWallet   Wallet @relation("FromWallet", fields: [fromWalletId], references: [id])
+
+  toWalletId String
+  toWallet   Wallet @relation("ToWallet", fields: [toWalletId], references: [id])
+
+  amountFrom Decimal @db.Decimal(15, 2)
+  amountTo   Decimal @db.Decimal(15, 2)
+  rate       Decimal @db.Decimal(12, 6)
+  fee        Decimal @default(0) @db.Decimal(10, 2)
+
   exchangeHouse String?
   receiptUrl    String?
   notes         String?
-  
+
   performedById String
   performedAt   DateTime @default(now())
-  
-  reversedById  String?  // Append-only: edits create reversals
-  
-  createdAt     DateTime @default(now())
-  
+
+  reversedById String? // Append-only: edits create reversals
+
+  createdAt DateTime @default(now())
+
   @@index([fromWalletId])
   @@index([toWalletId])
   @@index([performedAt])
@@ -433,38 +433,38 @@ model FxOperation {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  
-  employeeId      String
-  employee        Employee      @relation(fields: [employeeId], references: [id])
-  
-  walletId        String
-  wallet          Wallet        @relation(fields: [walletId], references: [id])
-  
-  period          String
-  
-  amountLocal     Decimal       @db.Decimal(12, 2)
-  currencyLocal   Currency
-  amountUsdEquiv  Decimal       @db.Decimal(12, 2)
-  rateApplied     Decimal       @db.Decimal(12, 6)
-  
-  status          PaymentStatus @default(PENDING)
-  
-  scheduledDate   DateTime
-  paidDate        DateTime?
-  
-  proofUrl        String?
-  notes           String?
+  id String @id @default(cuid())
 
-  baseSalary      Decimal?      @db.Decimal(12, 2) @map("base_salary")
-  bonusAmount     Decimal?      @db.Decimal(12, 2) @map("bonus_amount")
-  bonusReason     String?                           @map("bonus_reason")
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
 
-  reversedById    String?  // Append-only
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  walletId String
+  wallet   Wallet @relation(fields: [walletId], references: [id])
+
+  period String
+
+  amountLocal    Decimal  @db.Decimal(12, 2)
+  currencyLocal  Currency
+  amountUsdEquiv Decimal  @db.Decimal(12, 2)
+  rateApplied    Decimal  @db.Decimal(12, 6)
+
+  status PaymentStatus @default(PENDING)
+
+  scheduledDate DateTime
+  paidDate      DateTime?
+
+  proofUrl String?
+  notes    String?
+
+  baseSalary  Decimal? @map("base_salary") @db.Decimal(12, 2)
+  bonusAmount Decimal? @map("bonus_amount") @db.Decimal(12, 2)
+  bonusReason String?  @map("bonus_reason")
+
+  reversedById String? // Append-only
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([employeeId])
   @@index([period])
   @@index([status])
@@ -481,49 +481,49 @@ enum PaymentStatus {
 }
 
 model CashBox {
-  id                  String            @id @default(cuid())
-  name                String            @unique
-  clinicId            String?
+  id       String  @id @default(cuid())
+  name     String  @unique
+  clinicId String?
 
-  currency            Currency          @default(USD)
-  balance             Decimal           @db.Decimal(12, 2) @default(0)
-  lowBalanceThreshold Decimal           @db.Decimal(12, 2) @default(100)
+  currency            Currency @default(USD)
+  balance             Decimal  @default(0) @db.Decimal(12, 2)
+  lowBalanceThreshold Decimal  @default(100) @db.Decimal(12, 2)
 
-  responsibleUserId   String?
-  qrDepositUrl        String?           @map("qr_deposit_url")
+  responsibleUserId String?
+  qrDepositUrl      String? @map("qr_deposit_url")
 
-  transactions        CashTransaction[]
+  transactions CashTransaction[]
 
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("cash_boxes")
 }
 
 model CashTransaction {
-  id            String              @id @default(cuid())
-  cashBoxId     String
-  cashBox       CashBox             @relation(fields: [cashBoxId], references: [id])
-  
-  type          CashTransactionType
-  amount        Decimal             @db.Decimal(12, 2)
-  
-  category      CashCategory
-  description   String
-  
-  receiptUrl    String?
+  id        String  @id @default(cuid())
+  cashBoxId String
+  cashBox   CashBox @relation(fields: [cashBoxId], references: [id])
+
+  type   CashTransactionType
+  amount Decimal             @db.Decimal(12, 2)
+
+  category    CashCategory
+  description String
+
+  receiptUrl String?
 
   performedById String
-  performedAt   DateTime            @default(now())
+  performedAt   DateTime @default(now())
 
-  reversedById  String?  // Append-only
+  reversedById String? // Append-only
 
   // Fase 4 — Caja Chica ↔ Wallet: si un DEPÓSITO se financió desde una
   // cartera, aquí guardamos cuál. Ese monto cuenta como salida de esa wallet
   // (en su misma moneda). Opcional: depósitos sin origen no afectan wallets.
   sourceWalletId String?
 
-  createdAt     DateTime            @default(now())
+  createdAt DateTime @default(now())
 
   @@index([cashBoxId])
   @@index([performedAt])
@@ -555,51 +555,51 @@ enum CashCategory {
 // =====================================================
 
 model Lawyer {
-  id               String            @id @default(cuid())
-  userId           String?           @unique
-  user             User?             @relation(fields: [userId], references: [id])
+  id     String  @id @default(cuid())
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
 
-  entityType       LawyerEntityType
+  entityType LawyerEntityType
 
-  firstName        String?
-  lastName         String?
-  firmName         String?
+  firstName String?
+  lastName  String?
+  firmName  String?
 
-  parentFirmId     String?
-  parentFirm       Lawyer?           @relation("FirmMembers", fields: [parentFirmId], references: [id])
-  members          Lawyer[]          @relation("FirmMembers")
+  parentFirmId String?
+  parentFirm   Lawyer?  @relation("FirmMembers", fields: [parentFirmId], references: [id])
+  members      Lawyer[] @relation("FirmMembers")
 
-  email            String?           @unique
-  phone            String?
-  address          String?
+  email   String? @unique
+  phone   String?
+  address String?
 
   // Phoenix 2026-06-06 (B.30/B.31): campos extra para catálogo de Bufetes
-  city             String?           // Provo, West Valley, etc.
-  state            String?           // ISO state code (UT)
-  zip              String?           // ZIP code del member (puede diferir del bufete)
-  barNumber        String?           // Número de colegiado (solo ATTORNEY)
-  recoveryRate     Float?            // % de honorarios típico, ej. 33.3 = 33.3% (solo ATTORNEY)
-  memberRole       LawyerMemberRole? // solo aplica si parentFirmId is set
-  notes            String?           // notas internas de Edson (privadas)
-  paymentSpeed     PaymentSpeed?     // marca rápido/lento para badge en B.30
-  caseflowFlags    String[]          @default([]) // PIP-COVERED, MED-PAY, etc.
+  city          String? // Provo, West Valley, etc.
+  state         String? // ISO state code (UT)
+  zip           String? // ZIP code del member (puede diferir del bufete)
+  barNumber     String? // Número de colegiado (solo ATTORNEY)
+  recoveryRate  Float? // % de honorarios típico, ej. 33.3 = 33.3% (solo ATTORNEY)
+  memberRole    LawyerMemberRole? // solo aplica si parentFirmId is set
+  notes         String? // notas internas de Edson (privadas)
+  paymentSpeed  PaymentSpeed? // marca rápido/lento para badge en B.30
+  caseflowFlags String[]          @default([]) // PIP-COVERED, MED-PAY, etc.
 
-  status           ExternalStatus    @default(ACTIVE)
+  status ExternalStatus @default(ACTIVE)
 
   commissionConfig CommissionConfig?
 
-  referrals        Patient[]         @relation("LawyerReferrer")
-  commissions      Commission[]      @relation("LawyerCommission")
+  referrals   Patient[]    @relation("LawyerReferrer")
+  commissions Commission[] @relation("LawyerCommission")
 
   // Phoenix 2026-06-06: relaciones a Case
-  casesAsLawFirm      Case[]            @relation("CaseLawFirm")
-  casesAsAttorney     Case[]            @relation("CaseAttorney")
-  casesAsParalegal    Case[]            @relation("CaseParalegal")
-  casesAsLegalAssist  Case[]            @relation("CaseLegalAssistant")
+  casesAsLawFirm     Case[] @relation("CaseLawFirm")
+  casesAsAttorney    Case[] @relation("CaseAttorney")
+  casesAsParalegal   Case[] @relation("CaseParalegal")
+  casesAsLegalAssist Case[] @relation("CaseLegalAssistant")
 
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  deletedAt        DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([entityType])
   @@index([parentFirmId])
@@ -609,19 +609,19 @@ model Lawyer {
 
 // Phoenix 2026-06-06: rol del member dentro del bufete (B.31)
 enum LawyerMemberRole {
-  ATTORNEY        // Abogado titular
-  CASE_MANAGER    // Manejador de casos · contacto operativo
-  PARALEGAL       // Asistente legal certificado
+  ATTORNEY // Abogado titular
+  CASE_MANAGER // Manejador de casos · contacto operativo
+  PARALEGAL // Asistente legal certificado
   LEGAL_ASSISTANT // Asistente legal
   OTHER
 }
 
 // Phoenix 2026-06-06: badge de velocidad de pago para listado B.30
 enum PaymentSpeed {
-  FAST       // < 90 días promedio
-  AVERAGE    // 90-150 días
-  SLOW       // > 150 días (warn badge)
-  UNKNOWN    // sin data aún
+  FAST // < 90 días promedio
+  AVERAGE // 90-150 días
+  SLOW // > 150 días (warn badge)
+  UNKNOWN // sin data aún
 }
 
 enum LawyerEntityType {
@@ -631,34 +631,39 @@ enum LawyerEntityType {
 }
 
 model Provider {
-  id             String          @id @default(cuid())
-  userId         String?         @unique
-  user           User?           @relation(fields: [userId], references: [id])
+  id     String  @id @default(cuid())
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
 
   // Vínculo opcional con el registro HR del doctor en Employee
-  employeeId     String?         @unique
-  employee       Employee?       @relation(fields: [employeeId], references: [id])
+  employeeId String?   @unique
+  employee   Employee? @relation(fields: [employeeId], references: [id])
 
-  firstName      String
-  lastName       String
+  firstName String
+  lastName  String
 
-  email          String          @unique
-  phone          String?
+  email String  @unique
+  phone String?
 
-  specialty      Specialty
-  licenseNumber  String?
+  specialty     Specialty
+  licenseNumber String?
+  npi           String?
+  dea           String?
 
-  status         ExternalStatus  @default(ACTIVE)
+  // ScriptSure / DAW (D4 — prescripción electrónica)
+  scriptsureUserId String?
+
+  status ExternalStatus @default(ACTIVE)
 
   serviceTariffs ServiceTariff[]
 
-  referrals      Patient[]       @relation("ProviderReferrer")
-  commissions    Commission[]    @relation("ProviderCommission")
-  appointments   Appointment[]
+  referrals    Patient[]     @relation("ProviderReferrer")
+  commissions  Commission[]  @relation("ProviderCommission")
+  appointments Appointment[]
 
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  deletedAt      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@map("providers")
 }
@@ -683,67 +688,67 @@ enum Specialty {
 }
 
 model ServiceTariff {
-  id          String   @id @default(cuid())
-  providerId  String
-  provider    Provider @relation(fields: [providerId], references: [id])
-  
+  id         String   @id @default(cuid())
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id])
+
   serviceName String
   amount      Decimal  @db.Decimal(10, 2)
   currency    Currency @default(USD)
-  
+
   @@map("service_tariffs")
 }
 
 model Patient {
-  id                 String          @id @default(cuid())
-  
-  patientCode        String          @unique
-  
-  firstName          String
-  lastName           String
-  email              String?   @unique
-  phone              String?
-  dateOfBirth        DateTime?
-  
-  accidentDate       DateTime?
-  accidentType       AccidentType?
-  insuranceCarrier   String?
-  policyNumber       String?
-  
-  lawyerReferrerId   String?
-  lawyerReferrer     Lawyer?         @relation("LawyerReferrer", fields: [lawyerReferrerId], references: [id])
-  
+  id String @id @default(cuid())
+
+  patientCode String @unique
+
+  firstName   String
+  lastName    String
+  email       String?   @unique
+  phone       String?
+  dateOfBirth DateTime?
+
+  accidentDate     DateTime?
+  accidentType     AccidentType?
+  insuranceCarrier String?
+  policyNumber     String?
+
+  lawyerReferrerId String?
+  lawyerReferrer   Lawyer? @relation("LawyerReferrer", fields: [lawyerReferrerId], references: [id])
+
   providerReferrerId String?
-  providerReferrer   Provider?       @relation("ProviderReferrer", fields: [providerReferrerId], references: [id])
-  
-  status             PatientStatus   @default(NEW)
+  providerReferrer   Provider? @relation("ProviderReferrer", fields: [providerReferrerId], references: [id])
+
+  status PatientStatus @default(NEW)
 
   // ─── Demografía ──────────────────────────────────────────────────────────
-  phone2                 String?   // celular / segundo teléfono
-  addressLine1           String?
-  addressCity            String?
-  addressState           String?
-  addressZip             String?
-  sex                    PatientSex?
-  maritalStatus          MaritalStatus?
-  employer               String?
-  preferredPharmacy      String?
+  phone2                  String? // celular / segundo teléfono
+  addressLine1            String?
+  addressCity             String?
+  addressState            String?
+  addressZip              String?
+  sex                     PatientSex?
+  maritalStatus           MaritalStatus?
+  employer                String?
+  preferredPharmacy       String?
   communicationPreference CommunicationPreference?
-  referralSource         ReferralSource?
-  race                   PatientRace?
-  ethnicity              PatientEthnicity?
-  socialSecurityNumber   String?
+  referralSource          ReferralSource?
+  race                    PatientRace?
+  ethnicity               PatientEthnicity?
+  socialSecurityNumber    String?
 
   // ─── Intake preferences (capturadas en B.6 portal) ───────────────────────
-  preferredLanguage      String?
-  emergencyContactName   String?
-  emergencyContactPhone  String?
+  preferredLanguage        String?
+  emergencyContactName     String?
+  emergencyContactPhone    String?
   emergencyContactRelation String?
 
   // ─── Segundo contacto de emergencia ──────────────────────────────────────
-  emergency2Name         String?
-  emergency2Phone        String?
-  emergency2Relation     String?
+  emergency2Name     String?
+  emergency2Phone    String?
+  emergency2Relation String?
 
   // ─── Responsable legal (requerido si es menor de edad) ───────────────────
   //
@@ -754,26 +759,30 @@ model Patient {
   //
   // `guardianName` / `guardianPhone` quedan por compatibilidad con la data
   // migrada del v2, que los tiene como texto suelto sin ficha asociada.
-  guardianPatientId  String?
-  guardianPatient    Patient?        @relation("PatientGuardian", fields: [guardianPatientId], references: [id])
-  dependents         Patient[]       @relation("PatientGuardian")
-  guardianName       String?
-  guardianPhone      String?
-  guardianRelation   String?
+  guardianPatientId String?
+  guardianPatient   Patient?  @relation("PatientGuardian", fields: [guardianPatientId], references: [id])
+  dependents        Patient[] @relation("PatientGuardian")
+  guardianName      String?
+  guardianPhone     String?
+  guardianRelation  String?
 
   // ─── EMR / Historial médico (JSON blob, Phase 1A) ───────────────────────
-  medicalHistory     Json?
+  medicalHistory Json?
 
-  appointments       Appointment[]
-  commissions        Commission[]
+  // ─── ScriptSure / DAW (D4 — prescripción electrónica) ────────────────────
+  scriptsurePatientId  String?
+  consentToDrugHistory Boolean?
+
+  appointments Appointment[]
+  commissions  Commission[]
 
   // Phoenix 2026-06-06: un paciente puede tener varios cases (varios MVAs)
-  cases              Case[]          @relation("PatientCases")
-  documents          PatientDocument[]
-  callLogs           CallLog[]
+  cases     Case[]            @relation("PatientCases")
+  documents PatientDocument[]
+  callLogs  CallLog[]
 
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([lawyerReferrerId])
   @@index([providerReferrerId])
@@ -839,84 +848,101 @@ enum AccidentType {
 }
 
 model Clinic {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  address      String?
-  phone        String?
-  cellPhone    String?
-  email        String?
-  zipCode      String?
-  state        String?
-  city         String?
-  color        String?       @default("#6366F1")
+  id        String  @id @default(cuid())
+  name      String  @unique
+  address   String?
+  phone     String?
+  cellPhone String?
+  email     String?
+  zipCode   String?
+  state     String?
+  city      String?
+  color     String? @default("#6366F1")
+
+  // ScriptSure / DAW (D4 — prescripción electrónica)
+  scriptsurePracticeId String?
 
   appointments Appointment[]
 
   @@map("clinics")
 }
 
-model Appointment {
-  id              String            @id @default(cuid())
+// ScriptSure / DAW — cache del sessionToken (12h, por usuario que loguea).
+// Serverless (Vercel) no puede guardarlo en memoria entre invocaciones.
+model ScriptSureSession {
+  id           String   @id @default(cuid())
+  loginEmail   String   @unique
+  sessionToken String
+  practiceId   Int?
+  prescriberId Int?
+  expiresAt    DateTime
+  updatedAt    DateTime @updatedAt
 
-  patientId       String
-  patient         Patient           @relation(fields: [patientId], references: [id])
+  @@map("scriptsure_sessions")
+}
+
+model Appointment {
+  id String @id @default(cuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
 
   // Phoenix 2026-06-06: link al Case del paciente
-  caseId          String?
-  case            Case?             @relation("CaseAppointments", fields: [caseId], references: [id])
+  caseId String?
+  case   Case?   @relation("CaseAppointments", fields: [caseId], references: [id])
 
-  clinicId        String
-  clinic          Clinic            @relation(fields: [clinicId], references: [id])
+  clinicId String
+  clinic   Clinic @relation(fields: [clinicId], references: [id])
 
-  providerId      String?
-  provider        Provider?         @relation(fields: [providerId], references: [id])
+  providerId String?
+  provider   Provider? @relation(fields: [providerId], references: [id])
 
   scheduledFor    DateTime
-  durationMinutes Int               @default(30)
+  durationMinutes Int      @default(30)
 
-  type            AppointmentType
-  status          AppointmentStatus @default(SCHEDULED)
+  type   AppointmentType
+  status AppointmentStatus @default(SCHEDULED)
 
-  notes           String?
+  notes String?
 
   // Telemedicine / online consultation toggle (FEATURE-006)
-  isOnline        Boolean           @default(false)
-  meetingUrl      String?           // optional video link (Zoom, Teams, etc.)
+  isOnline   Boolean @default(false)
+  meetingUrl String? // optional video link (Zoom, Teams, etc.)
 
   // B.15 Admisión — servicios planificados seleccionados por recepción antes de pasar al doctor
   // JSON snapshot: [{code, description, fee}]
   plannedServiceCodes Json @default("[]")
 
   // B.14 Check-in: timestamp cuando recepción confirma la llegada del paciente
-  checkedInAt     DateTime?
+  checkedInAt DateTime?
 
   /// B.18 · El doctor terminó con el paciente (nodo Resumen del portal médico).
   /// NO cierra la cita: el asistente sigue viéndola en su cola y la pasa a
   /// COMPLETED cuando cobra. Son dos actos de dos personas distintas.
-  doctorDoneAt    DateTime?
+  doctorDoneAt DateTime?
 
   // B.14.1 Firma de asistencia (paciente firma en tablet al llegar)
   attendanceSignedAt      DateTime?
-  attendanceSignatureSvg  String?   @db.Text  // PNG base64 del canvas
-  attendanceSignatureHash String?             // SHA-256(svg+appointmentId+timestamp)
+  attendanceSignatureSvg  String?   @db.Text // PNG base64 del canvas
+  attendanceSignatureHash String? // SHA-256(svg+appointmentId+timestamp)
 
   // B.16 Triaje — registro de signos vitales capturados por MA
-  triageRecord    TriageRecord?
+  triageRecord TriageRecord?
 
   // B.18 Nota de visita — firmada por el doctor
-  visitNote       VisitNote?
+  visitNote VisitNote?
 
   // Billing clínico (costs + payments migrados de v2)
-  billing         AppointmentBilling[]
+  billing AppointmentBilling[]
 
   // B.20 Órdenes de laboratorio / imaging
-  labOrders       LabOrder[]
+  labOrders LabOrder[]
 
   // B.19 Prescripciones electrónicas
-  prescriptions   Prescription[]
+  prescriptions Prescription[]
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([patientId])
   @@index([caseId])
@@ -938,8 +964,8 @@ enum AppointmentType {
 enum AppointmentStatus {
   SCHEDULED
   CONFIRMED
-  CHECKED_IN   // B.14: paciente llegó físicamente y hizo check-in en recepción
-  IN_PROGRESS  // B.15: pasó a sala con el doctor
+  CHECKED_IN // B.14: paciente llegó físicamente y hizo check-in en recepción
+  IN_PROGRESS // B.15: pasó a sala con el doctor
   COMPLETED
   CANCELLED
   NO_SHOW
@@ -952,61 +978,61 @@ enum AppointmentStatus {
 // Uno por Appointment. Se auto-sincroniza al abrir la nota del doctor (B.18).
 //
 model TriageRecord {
-  id             String      @id @default(cuid())
-  appointmentId  String      @unique
-  appointment    Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   // ─── Height ──────────────────────────────────────────────────────────────
-  heightFt       Int?        // pies
-  heightIn       Int?        // pulgadas
-  heightCm       Float?      // cms auto-calculado (stored for audit)
+  heightFt Int? // pies
+  heightIn Int? // pulgadas
+  heightCm Float? // cms auto-calculado (stored for audit)
 
   // ─── Weight ───────────────────────────────────────────────────────────────
-  weightLbs      Int?
-  weightOz       Int?
-  weightKg       Float?      // kgs auto-calculado
+  weightLbs Int?
+  weightOz  Int?
+  weightKg  Float? // kgs auto-calculado
 
   // ─── Blood Pressure (1st) ────────────────────────────────────────────────
-  systolicMmhg   Int?
-  diastolicMmhg  Int?
+  systolicMmhg  Int?
+  diastolicMmhg Int?
 
   // ─── Pulse, Resp Rate & Temperature (1st) ────────────────────────────────
-  pulseBpm           Int?
-  respiratoryRate    Int?    // respiraciones/min
-  tempFahrenheit     Float?
-  tempCelsius        Float?  // auto-calculado
+  pulseBpm        Int?
+  respiratoryRate Int? // respiraciones/min
+  tempFahrenheit  Float?
+  tempCelsius     Float? // auto-calculado
 
   // ─── Pain ─────────────────────────────────────────────────────────────────
-  painScale      Int?        // 0-10
+  painScale Int? // 0-10
 
   // ─── Oxygen ───────────────────────────────────────────────────────────────
-  o2Saturation   Int?        // porcentaje (e.g., 98)
-  o2Comment      String?     // texto libre
-  onRoomAir      Boolean     @default(true)
+  o2Saturation Int? // porcentaje (e.g., 98)
+  o2Comment    String? // texto libre
+  onRoomAir    Boolean @default(true)
 
   // ─── 2nd Reading ──────────────────────────────────────────────────────────
-  systolicMmhg2   Int?
-  diastolicMmhg2  Int?
-  pulseBpm2       Int?
+  systolicMmhg2    Int?
+  diastolicMmhg2   Int?
+  pulseBpm2        Int?
   respiratoryRate2 Int?
   tempFahrenheit2  Float?
   tempCelsius2     Float?
 
   // ─── Vision Acuity ────────────────────────────────────────────────────────
-  visualAcuityRight String?  // "20" (denominator de 20/X)
+  visualAcuityRight String? // "20" (denominator de 20/X)
   visualAcuityLeft  String?
   visualAcuityBoth  String?
-  visionCorrected   Boolean  @default(false) // false=Uncorrected, true=Corrected
+  visionCorrected   Boolean @default(false) // false=Uncorrected, true=Corrected
 
   // ─── Chief Complaint ──────────────────────────────────────────────────────
-  chiefComplaint String?     @db.Text
+  chiefComplaint String? @db.Text
 
   // ─── Meta ─────────────────────────────────────────────────────────────────
   capturedByUserId String?
-  capturedByName   String?   @default("MA")
+  capturedByName   String? @default("MA")
 
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("triage_records")
 }
@@ -1014,21 +1040,21 @@ model TriageRecord {
 // ─── B.18 VisitNote ───────────────────────────────────────────────────────────
 
 enum VisitNoteStatus {
-  DRAFT   // Auto-guardado, no firmado
-  SIGNED  // Firmado por doctor — inmutable
-  VOIDED  // Anulado (solo Super Admin)
+  DRAFT // Auto-guardado, no firmado
+  SIGNED // Firmado por doctor — inmutable
+  VOIDED // Anulado (solo Super Admin)
 }
 
 /// Nota clínica SOAP generada por el doctor durante la visita.
 /// Se crea como DRAFT al abrir B.18 y queda SIGNED al firmar.
 model VisitNote {
-  id             String          @id @default(cuid())
-  appointmentId  String          @unique
-  appointment    Appointment     @relation(fields: [appointmentId], references: [id])
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
 
   // Plantilla usada al inicio de la visita (snapshot reference)
-  templateId     String?
-  template       Template?       @relation(fields: [templateId], references: [id])
+  templateId String?
+  template   Template? @relation(fields: [templateId], references: [id])
 
   // ─── Vitales (copia editable del triaje, separada de TriageRecord) ──────
   heightFt       Int?
@@ -1040,38 +1066,38 @@ model VisitNote {
   systolicMmhg   Int?
   diastolicMmhg  Int?
   pulseBpm       Int?
-  respRate       Int?            // Frecuencia respiratoria
+  respRate       Int? // Frecuencia respiratoria
   tempFahrenheit Float?
   tempCelsius    Float?
-  painScale      Int?            // 0–10
+  painScale      Int? // 0–10
   o2Saturation   Int?
   onRoomAir      Boolean?
 
   // ─── Secciones SOAP ─────────────────────────────────────────────────────
-  chiefComplaint String?         @db.Text   // QUEJA_PRINCIPAL
-  hpi            String?         @db.Text   // HPI
-  ros            String?         @db.Text   // ROS
-  physicalExam   String?         @db.Text   // EXAMEN_FISICO
-  assessment     String?         @db.Text   // EVALUACIONES
-  plan           String?         @db.Text   // PLAN
+  chiefComplaint String? @db.Text // QUEJA_PRINCIPAL
+  hpi            String? @db.Text // HPI
+  ros            String? @db.Text // ROS
+  physicalExam   String? @db.Text // EXAMEN_FISICO
+  assessment     String? @db.Text // EVALUACIONES
+  plan           String? @db.Text // PLAN
 
   // ─── Diagnósticos (1:N) ─────────────────────────────────────────────────
-  diagnoses      VisitNoteDiagnosis[]
+  diagnoses VisitNoteDiagnosis[]
 
   // ─── B.21 CPT services assigned to this visit ───────────────────────────
-  serviceCodes   VisitServiceCode[]
+  serviceCodes VisitServiceCode[]
 
   // ─── B.20 Lab/imaging orders ────────────────────────────────────────────
-  labOrders      LabOrder[]
+  labOrders LabOrder[]
 
   // ─── B.19 Prescripciones electrónicas ───────────────────────────────────
-  prescriptions  Prescription[]
+  prescriptions Prescription[]
 
   // ─── Estado y firma ─────────────────────────────────────────────────────
-  status         VisitNoteStatus @default(DRAFT)
-  signedAt       DateTime?
-  signedById     String?         // userId snapshot
-  signedByName   String?         // nombre snapshot
+  status       VisitNoteStatus @default(DRAFT)
+  signedAt     DateTime?
+  signedById   String? // userId snapshot
+  signedByName String? // nombre snapshot
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1095,14 +1121,14 @@ model VisitServiceCode {
   serviceCode   ServiceCode? @relation(fields: [serviceCodeId], references: [id], onDelete: SetNull)
 
   // Snapshot al asignar
-  cptCode       String
-  description   String
-  feeCatalog    Decimal  @db.Decimal(10,2)
-  feeOverride   Decimal? @db.Decimal(10,2)  // null = usar feeCatalog
+  cptCode        String
+  description    String
+  feeCatalog     Decimal  @db.Decimal(10, 2)
+  feeOverride    Decimal? @db.Decimal(10, 2) // null = usar feeCatalog
   overrideReason String?
 
-  modifier      String?
-  units         Int      @default(1)
+  modifier String?
+  units    Int     @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1157,28 +1183,28 @@ enum LabCollectionSite {
 }
 
 model LabOrder {
-  id            String          @id @default(cuid())
+  id            String      @id @default(cuid())
   appointmentId String
-  appointment   Appointment     @relation(fields: [appointmentId], references: [id])
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
   visitNoteId   String?
-  visitNote     VisitNote?      @relation(fields: [visitNoteId], references: [id], onDelete: SetNull)
+  visitNote     VisitNote?  @relation(fields: [visitNoteId], references: [id], onDelete: SetNull)
 
   /// Agrupa los estudios pedidos en la MISMA orden — se imprimen en una sola
   /// hoja, pero cada estudio sigue su propio estado y resultado.
-  groupId       String?
+  groupId String?
 
   orderType          LabOrderType
   studyName          String
-  studyCode          String?      // código del catálogo (LabCorp / interno)
+  studyCode          String? // código del catálogo (LabCorp / interno)
   loincCode          String?
-  clinicalIndication String       @db.Text
-  urgency            LabOrderUrgency @default(ROUTINE)
+  clinicalIndication String            @db.Text
+  urgency            LabOrderUrgency   @default(ROUTINE)
   billingType        LabBillingType?
   collectionSite     LabCollectionSite @default(EXTERNAL)
   /// Fecha de toma de muestra (labs) o de la cita del estudio (imagen)
   sampleDate         DateTime?
   preferredCenter    String?
-  icd10Codes         String[]    @default([])
+  icd10Codes         String[]          @default([])
 
   status        LabOrderStatus @default(ORDERED)
   orderedAt     DateTime       @default(now())
@@ -1212,39 +1238,39 @@ enum RxStatus {
 /// Prescripción electrónica DAW/EPCS.
 /// Phase 1A: almacena localmente. Phase 2: integración real DAW.
 model Prescription {
-  id            String       @id @default(cuid())
+  id            String      @id @default(cuid())
   appointmentId String
-  appointment   Appointment  @relation(fields: [appointmentId], references: [id])
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
   visitNoteId   String?
-  visitNote     VisitNote?   @relation(fields: [visitNoteId], references: [id], onDelete: SetNull)
+  visitNote     VisitNote?  @relation(fields: [visitNoteId], references: [id], onDelete: SetNull)
 
   // Drug snapshot
-  drugName      String
-  drugGeneric   String?
-  deaSchedule   String?       // 'II' | 'III' | 'IV' | 'V' | null (non-controlled)
+  drugName    String
+  drugGeneric String?
+  deaSchedule String? // 'II' | 'III' | 'IV' | 'V' | null (non-controlled)
 
   // Rx details
-  dose              String
-  frequency         String
-  durationStr       String
-  quantityTotal     Int
-  refills           Int       @default(0)
-  clinicalIndication String   @db.Text
+  dose               String
+  frequency          String
+  durationStr        String
+  quantityTotal      Int
+  refills            Int    @default(0)
+  clinicalIndication String @db.Text
 
   // Pharmacy
   pharmacyName    String?
   pharmacyAddress String?
 
   // Prescriber snapshot
-  prescriberName  String?
-  prescriberDea   String?
+  prescriberName String?
+  prescriberDea  String?
 
   // Status
-  status          RxStatus  @default(DRAFT)
+  status RxStatus @default(DRAFT)
 
   // DAW integration (Phase 2)
-  dawRxId         String?
-  dawSentAt       DateTime?
+  dawRxId   String?
+  dawSentAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1257,9 +1283,9 @@ model Prescription {
 
 /// Diagnóstico asociado a una nota de visita (ICD-10 + SNOMED dual).
 model VisitNoteDiagnosis {
-  id          String     @id @default(cuid())
-  noteId      String
-  note        VisitNote  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  id     String    @id @default(cuid())
+  noteId String
+  note   VisitNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   icd10Code   String?
   icd10Label  String?
@@ -1270,7 +1296,7 @@ model VisitNoteDiagnosis {
   diagnosisId String?
   diagnosis   Diagnosis? @relation(fields: [diagnosisId], references: [id])
 
-  sortOrder   Int        @default(0)
+  sortOrder Int @default(0)
 
   @@index([noteId])
   @@map("visit_note_diagnoses")
@@ -1281,23 +1307,23 @@ model VisitNoteDiagnosis {
 // =====================================================
 
 model CommissionConfig {
-  id            String           @id @default(cuid())
-  lawyerId      String           @unique
-  lawyer        Lawyer           @relation(fields: [lawyerId], references: [id])
-  
-  scheme        CommissionScheme
-  
-  flatAmount    Decimal?         @db.Decimal(10, 2)
-  percentage    Decimal?         @db.Decimal(5, 2)
-  tiers         Json?
-  hybridConfig  Json?
-  
+  id       String @id @default(cuid())
+  lawyerId String @unique
+  lawyer   Lawyer @relation(fields: [lawyerId], references: [id])
+
+  scheme CommissionScheme
+
+  flatAmount   Decimal? @db.Decimal(10, 2)
+  percentage   Decimal? @db.Decimal(5, 2)
+  tiers        Json?
+  hybridConfig Json?
+
   effectiveFrom DateTime
   effectiveTo   DateTime?
-  
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("commission_configs")
 }
 
@@ -1309,32 +1335,32 @@ enum CommissionScheme {
 }
 
 model Commission {
-  id           String           @id @default(cuid())
-  
-  lawyerId     String?
-  lawyer       Lawyer?          @relation("LawyerCommission", fields: [lawyerId], references: [id])
-  
-  providerId   String?
-  provider     Provider?        @relation("ProviderCommission", fields: [providerId], references: [id])
-  
-  patientId    String
-  patient      Patient          @relation(fields: [patientId], references: [id])
-  
-  amount       Decimal          @db.Decimal(12, 2)
-  currency     Currency         @default(USD)
-  
+  id String @id @default(cuid())
+
+  lawyerId String?
+  lawyer   Lawyer? @relation("LawyerCommission", fields: [lawyerId], references: [id])
+
+  providerId String?
+  provider   Provider? @relation("ProviderCommission", fields: [providerId], references: [id])
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+
+  amount   Decimal  @db.Decimal(12, 2)
+  currency Currency @default(USD)
+
   status       CommissionStatus @default(EARNED)
   earnedAt     DateTime         @default(now())
   paidAt       DateTime?
   paidProofUrl String?
-  
-  reversedById String?  // Append-only
-  
-  notes        String?
-  
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  
+
+  reversedById String? // Append-only
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([lawyerId])
   @@index([providerId])
   @@index([status])
@@ -1355,39 +1381,39 @@ enum CommissionStatus {
 // =====================================================
 
 model Agent {
-  id                 String         @id @default(cuid())
-  
-  name               String         @unique
-  type               AgentType
-  description        String
-  
-  status             AgentStatus    @default(IDLE)
-  mode               AgentMode      @default(MANUAL)
-  
-  schedule           String?
-  
-  permissions        String[]
-  budgetMonthlyUsd   Decimal        @db.Decimal(10, 2) @default(100)
-  
-  llmProvider        LlmProvider    @default(ANTHROPIC)
-  llmModel           String         @default("claude-3-5-sonnet")
-  
-  voiceEnabled       Boolean        @default(false)
-  voiceProvider      VoiceProvider?
-  voiceConfig        Json?
-  
-  totalActions       Int            @default(0)
-  totalTokensUsed    BigInt         @default(0)
-  totalCostUsd       Decimal        @db.Decimal(10, 4) @default(0)
-  
-  lastRunAt          DateTime?
-  nextRunAt          DateTime?
-  
-  actions            AgentAction[]
-  
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  
+  id String @id @default(cuid())
+
+  name        String    @unique
+  type        AgentType
+  description String
+
+  status AgentStatus @default(IDLE)
+  mode   AgentMode   @default(MANUAL)
+
+  schedule String?
+
+  permissions      String[]
+  budgetMonthlyUsd Decimal  @default(100) @db.Decimal(10, 2)
+
+  llmProvider LlmProvider @default(ANTHROPIC)
+  llmModel    String      @default("claude-3-5-sonnet")
+
+  voiceEnabled  Boolean        @default(false)
+  voiceProvider VoiceProvider?
+  voiceConfig   Json?
+
+  totalActions    Int     @default(0)
+  totalTokensUsed BigInt  @default(0)
+  totalCostUsd    Decimal @default(0) @db.Decimal(10, 4)
+
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+
+  actions AgentAction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("agents")
 }
 
@@ -1426,30 +1452,30 @@ enum VoiceProvider {
 }
 
 model AgentAction {
-  id            String          @id @default(cuid())
-  agentId       String
-  agent         Agent           @relation(fields: [agentId], references: [id])
-  
-  type          AgentActionType
-  severity      ActionSeverity  @default(INFO)
-  status        ActionStatus    @default(PENDING_REVIEW)
-  
-  payload       Json
-  summary       String
-  
+  id      String @id @default(cuid())
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  type     AgentActionType
+  severity ActionSeverity  @default(INFO)
+  status   ActionStatus    @default(PENDING_REVIEW)
+
+  payload Json
+  summary String
+
   appliedAt     DateTime?
   appliedResult Json?
-  
-  reviewedById  String?
-  reviewer      User?           @relation("ReviewedBy", fields: [reviewedById], references: [id])
-  reviewedAt    DateTime?
-  reviewNotes   String?
-  
-  tokensUsed    Int             @default(0)
-  costUsd       Decimal         @db.Decimal(10, 6) @default(0)
-  
-  createdAt     DateTime        @default(now())
-  
+
+  reviewedById String?
+  reviewer     User?     @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNotes  String?
+
+  tokensUsed Int     @default(0)
+  costUsd    Decimal @default(0) @db.Decimal(10, 6)
+
+  createdAt DateTime @default(now())
+
   @@index([agentId])
   @@index([status])
   @@index([severity])
@@ -1482,15 +1508,15 @@ enum ActionStatus {
 }
 
 model AgentConversation {
-  id        String   @id @default(cuid())
-  agentId   String
-  userId    String
-  
-  messages  Json
-  
-  startedAt DateTime @default(now())
+  id      String @id @default(cuid())
+  agentId String
+  userId  String
+
+  messages Json
+
+  startedAt DateTime  @default(now())
   endedAt   DateTime?
-  
+
   @@index([userId])
   @@index([startedAt])
   @@map("agent_conversations")
@@ -1519,23 +1545,23 @@ enum FreelancerPaymentStatus {
 }
 
 model Freelancer {
-  id         String             @id @default(cuid())
+  id         String              @id @default(cuid())
   nombre     String
   email      String?
   phone      String?
   pais       String
   modalidad  FreelancerModalidad
-  tarifaBase Decimal?           @db.Decimal(10, 2)
-  moneda     Currency           @default(USD)
-  status     FreelancerStatus   @default(ACTIVE)
+  tarifaBase Decimal?            @db.Decimal(10, 2)
+  moneda     Currency            @default(USD)
+  status     FreelancerStatus    @default(ACTIVE)
   notas      String?
   bankQrUrl  String?
 
-  payments   FreelancerPayment[]
+  payments FreelancerPayment[]
 
-  createdAt  DateTime           @default(now())
-  updatedAt  DateTime           @updatedAt
-  deletedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([status])
   @@index([modalidad])
@@ -1543,31 +1569,31 @@ model Freelancer {
 }
 
 model FreelancerPayment {
-  id            String             @id @default(cuid())
-  freelancerId  String
-  freelancer    Freelancer         @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  freelancerId String
+  freelancer   Freelancer @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
 
-  descripcion   String
-  modalidad     FreelancerModalidad
-  horas         Decimal?           @db.Decimal(8, 2)
-  tarifaHora    Decimal?           @db.Decimal(10, 2)
-  monto         Decimal            @db.Decimal(12, 2)
-  moneda        Currency           @default(USD)
+  descripcion String
+  modalidad   FreelancerModalidad
+  horas       Decimal?            @db.Decimal(8, 2)
+  tarifaHora  Decimal?            @db.Decimal(10, 2)
+  monto       Decimal             @db.Decimal(12, 2)
+  moneda      Currency            @default(USD)
 
   status        FreelancerPaymentStatus @default(PENDING)
-  fechaServicio DateTime           @db.Date
-  scheduledDate DateTime?          @db.Date
-  fechaPago     DateTime?          @db.Date
-  paidDate      DateTime?          @db.Date
+  fechaServicio DateTime                @db.Date
+  scheduledDate DateTime?               @db.Date
+  fechaPago     DateTime?               @db.Date
+  paidDate      DateTime?               @db.Date
 
-  bonusAmount   Decimal?           @db.Decimal(12, 2)
-  bonusReason   String?
+  bonusAmount Decimal? @db.Decimal(12, 2)
+  bonusReason String?
 
-  reversedById  String?            // Append-only — points to the reversal pair
+  reversedById String? // Append-only — points to the reversal pair
 
-  notas         String?
+  notas String?
 
-  createdAt     DateTime           @default(now())
+  createdAt DateTime @default(now())
 
   @@index([freelancerId])
   @@index([fechaPago])
@@ -1581,33 +1607,33 @@ model FreelancerPayment {
 // =====================================================
 
 model AuditLog {
-  id              String    @id @default(cuid())
+  id String @id @default(cuid())
 
   // Phoenix 2026-06-05: actorType hook obligatorio para AI Receptionist Phase 3+.
   // Hoy todos los registros son HUMAN_USER; el schema lo soporta para que en
   // Phase 3 podamos auditar acciones del AI agent sin migration breaking.
-  actorType       ActorType @default(HUMAN_USER)
+  actorType ActorType @default(HUMAN_USER)
 
-  actorUserId     String?
-  actor           User?     @relation("ActorUser", fields: [actorUserId], references: [id])
-  actorRole       UserRole?
+  actorUserId String?
+  actor       User?     @relation("ActorUser", fields: [actorUserId], references: [id])
+  actorRole   UserRole?
 
   // Phoenix 2026-06-05: idempotency-key opcional para reintentos del AI agent.
   // AI puede reintentar la misma llamada si pierde conexión; este key previene duplicados.
-  idempotencyKey  String?
+  idempotencyKey String?
 
-  action          String
-  entityType      String?
-  entityId        String?
+  action     String
+  entityType String?
+  entityId   String?
 
-  ipAddress       String?
-  userAgent       String?
+  ipAddress String?
+  userAgent String?
 
-  before          Json?
-  after           Json?
-  metadata        Json?
+  before   Json?
+  after    Json?
+  metadata Json?
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([actorUserId])
   @@index([actorType])
@@ -1629,20 +1655,20 @@ enum ActorType {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  type      NotificationType
-  title     String
-  body      String?
-  
-  linkUrl   String?
-  
-  readAt    DateTime?
-  
-  createdAt DateTime         @default(now())
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type  NotificationType
+  title String
+  body  String?
+
+  linkUrl String?
+
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
   @@index([userId, readAt])
   @@map("notifications")
 }
@@ -1658,8 +1684,8 @@ enum NotificationType {
 }
 
 model Setting {
-  id          String   @id @default(cuid())
-  key         String   @unique
+  id          String  @id @default(cuid())
+  key         String  @unique
   value       Json
   description String?
 
@@ -1686,33 +1712,33 @@ model Setting {
 // clinical fields for the 90% of employees who are not doctors.
 // All fields are clinical credentials — NOT PHI (provider data).
 model DoctorCredentials {
-  id                    String     @id @default(cuid())
-  employeeId            String     @unique
-  employee              Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   // National Provider Identifier — mandatory for HCFA (CMS-1500) claim submission.
   // Source: NPPES (https://npiregistry.cms.hhs.gov). Public registry.
-  npiNumber             String?    @unique
+  npiNumber String? @unique
 
   // DEA (Drug Enforcement Administration) number — required to prescribe
   // controlled substances via DAW EPCS (B.19). Restricted access.
-  deaNumber             String?    @unique
+  deaNumber String? @unique
 
   // State medical license — required to practice. State must match
   // clinic state for non-telehealth visits.
-  medicalLicenseNumber  String?
-  medicalLicenseState   String?    // ISO state code (e.g. "UT")
+  medicalLicenseNumber String?
+  medicalLicenseState  String? // ISO state code (e.g. "UT")
 
-  specialty             Specialty  // Legacy enum — backward compat. Primary specialty también va en DoctorSpecialtyAssignment.
-  signatureUrl          String?    // Digital signature for SOAP notes (B.21 firma)
+  specialty    Specialty // Legacy enum — backward compat. Primary specialty también va en DoctorSpecialtyAssignment.
+  signatureUrl String? // Digital signature for SOAP notes (B.21 firma)
 
-  isActive              Boolean    @default(true)
+  isActive Boolean @default(true)
 
   // Phoenix 2026-06-06: many-to-many con SpecialtyCatalog (B.36)
-  specialtyAssignments  DoctorSpecialtyAssignment[]
+  specialtyAssignments DoctorSpecialtyAssignment[]
 
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([npiNumber])
   @@index([deaNumber])
@@ -1729,8 +1755,8 @@ model DoctorCredentials {
 // at signing for closing case notes → demand letter B.28).
 
 enum TemplateScope {
-  PERSONAL  // Owned by single doctor (default for new templates)
-  SHARED    // Available to all doctors across all clinics
+  PERSONAL // Owned by single doctor (default for new templates)
+  SHARED // Available to all doctors across all clinics
   SPECIALTY // Available only to doctors of a specific specialty
 }
 
@@ -1738,57 +1764,57 @@ enum EncounterType {
   FOLLOW_UP
   NEW_PATIENT
   RE_EVAL
-  URI          // Upper Respiratory Infection
-  PHYSICAL     // Annual physical
+  URI // Upper Respiratory Infection
+  PHYSICAL // Annual physical
   NURSING_HOME
-  CLOSING      // MMI / discharge case (with future-care prices)
+  CLOSING // MMI / discharge case (with future-care prices)
   OTHER
 }
 
 enum CaseType {
-  MVA      // Motor Vehicle Accident — primary at Precision Medical
+  MVA // Motor Vehicle Accident — primary at Precision Medical
   GENERAL
   NURSING_HOME
 }
 
 enum TemplateSectionKey {
-  QUEJA_PRINCIPAL  // Chief Complaint
-  HPI              // Historia de la Enfermedad Actual (History of Present Illness)
-  ROS              // Revisión de Sistemas (Review of Systems)
-  EXAMEN_FISICO    // Physical Exam
-  EVALUACIONES     // Assessment (tiered + causation statement for PI)
-  PLAN             // Treatment plan (with variants + procedural + prices)
-  DIAGNOSTICOS     // Diagnoses (ICD-10 + SNOMED dual)
+  QUEJA_PRINCIPAL // Chief Complaint
+  HPI // Historia de la Enfermedad Actual (History of Present Illness)
+  ROS // Revisión de Sistemas (Review of Systems)
+  EXAMEN_FISICO // Physical Exam
+  EVALUACIONES // Assessment (tiered + causation statement for PI)
+  PLAN // Treatment plan (with variants + procedural + prices)
+  DIAGNOSTICOS // Diagnoses (ICD-10 + SNOMED dual)
 }
 
 model Template {
-  id            String          @id @default(cuid())
+  id String @id @default(cuid())
 
-  title         String          // e.g. "NG-MVA F/U" (prefix=doctor, suffix=encounter type)
-  description   String?         // e.g. "Motor Vehicle Accident Follow-up"
+  title       String // e.g. "NG-MVA F/U" (prefix=doctor, suffix=encounter type)
+  description String? // e.g. "Motor Vehicle Accident Follow-up"
 
   encounterType EncounterType
-  caseType      CaseType        @default(GENERAL)
-  scope         TemplateScope   @default(PERSONAL)
+  caseType      CaseType      @default(GENERAL)
+  scope         TemplateScope @default(PERSONAL)
 
   // For SPECIALTY scope: which specialty owns this template.
   // Null for PERSONAL/SHARED.
   // NOTE: Specialty enum exists in this schema (Provider model uses it).
-  specialty     Specialty?
+  specialty Specialty?
 
-  createdById   String
-  createdBy     User            @relation("TemplateCreatedBy", fields: [createdById], references: [id])
+  createdById String
+  createdBy   User   @relation("TemplateCreatedBy", fields: [createdById], references: [id])
 
-  sections      TemplateSection[]
-  favorites     TemplateFavorite[]
-  visitNotes    VisitNote[]
+  sections   TemplateSection[]
+  favorites  TemplateFavorite[]
+  visitNotes VisitNote[]
 
-  usageCount    Int             @default(0)
-  isActive      Boolean         @default(true)
+  usageCount Int     @default(0)
+  isActive   Boolean @default(true)
 
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  deletedAt     DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([scope])
   @@index([encounterType])
@@ -1799,18 +1825,18 @@ model Template {
 }
 
 model TemplateSection {
-  id              String              @id @default(cuid())
-  templateId      String
-  template        Template            @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  templateId String
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
-  sectionKey      TemplateSectionKey
-  content         String              @db.Text  // HTML rich text with placeholders
+  sectionKey       TemplateSectionKey
+  content          String             @db.Text // HTML rich text with placeholders
   enabledByDefault Boolean            @default(true)
 
   // Tiered options inline (e.g. Evaluaciones Básica/Intermedia/Severa).
   // Doctor deletes variants that don't apply. JSON shape:
   // [{ label: string, content: string }]
-  variants         Json?
+  variants Json?
 
   // Reusable procedural notes (e.g. trigger point injection narrative).
   // Conditionally activated by doctor. JSON shape:
@@ -1820,14 +1846,14 @@ model TemplateSection {
   // Price references for Closing Case notes. Snapshot taken at signing
   // (B.18 firma) — feeds demand letter (B.28). JSON shape:
   // [{ label: string, cpt_code: string }]
-  priceReferences  Json?
+  priceReferences Json?
 
   // Locked content blocks that require confirm to delete (e.g. PI causation
   // statement: "reasonable degree of medical certainty..."). JSON shape:
   // [{ content_substring: string, warning_message: string }]
-  lockedBlocks     Json?
+  lockedBlocks Json?
 
-  orderIndex       Int                 @default(0)
+  orderIndex Int @default(0)
 
   @@unique([templateId, sectionKey])
   @@index([templateId])
@@ -1835,17 +1861,17 @@ model TemplateSection {
 }
 
 model TemplateFavorite {
-  id          String   @id @default(cuid())
-  templateId  String
-  template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User     @relation("TemplateFavorites", fields: [userId], references: [id])
+  id         String   @id @default(cuid())
+  templateId String
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation("TemplateFavorites", fields: [userId], references: [id])
 
   // Personal usage tracking for autocomplete ranking
-  usageCount  Int      @default(0)
-  lastUsedAt  DateTime?
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([templateId, userId])
   @@index([userId])
@@ -1868,40 +1894,40 @@ model TemplateFavorite {
 // 1-to-many alternates if needed beyond the primary pair.
 
 enum DiagnosisCategory {
-  S        // Lesiones (Injuries) — S00-T98 in ICD-10
-  T        // (continuation of S range)
-  M        // Musculoesqueléticas / Musculoskeletal — M00-M99
-  R        // Síntomas / Symptoms — R00-R99
-  G        // Neurológicas / Neurological — G00-G99
-  F        // Mental / Behavioral — F00-F99
-  V_W      // External cause (accident) — V00-W99 (e.g. V43.52XA MVA codes)
-  Z        // Factors influencing health — Z00-Z99
+  S // Lesiones (Injuries) — S00-T98 in ICD-10
+  T // (continuation of S range)
+  M // Musculoesqueléticas / Musculoskeletal — M00-M99
+  R // Síntomas / Symptoms — R00-R99
+  G // Neurológicas / Neurological — G00-G99
+  F // Mental / Behavioral — F00-F99
+  V_W // External cause (accident) — V00-W99 (e.g. V43.52XA MVA codes)
+  Z // Factors influencing health — Z00-Z99
   OTHER
 }
 
 model Diagnosis {
-  id                String                 @id @default(cuid())
+  id String @id @default(cuid())
 
   // Dual coding — primary pair
-  icd10Code         String                 @unique
+  icd10Code         String  @unique
   icd10Description  String
   snomedCode        String?
   snomedDescription String?
 
-  category          DiagnosisCategory
-  bodySystem        String?                // e.g. "Cervical spine", "Lumbar spine", "Head"
-  piRelevant        Boolean                @default(false)  // Flag for PI workflow
+  category   DiagnosisCategory
+  bodySystem String? // e.g. "Cervical spine", "Lumbar spine", "Head"
+  piRelevant Boolean           @default(false) // Flag for PI workflow
 
   // Usage tracking for autocomplete ranking
-  usageCount        Int                    @default(0)
-  isActive          Boolean                @default(true)
+  usageCount Int     @default(0)
+  isActive   Boolean @default(true)
 
-  favorites              UserDiagnosisFavorite[]
-  mappings               DiagnosisMapping[]
-  visitNoteDiagnoses     VisitNoteDiagnosis[]
+  favorites          UserDiagnosisFavorite[]
+  mappings           DiagnosisMapping[]
+  visitNoteDiagnoses VisitNoteDiagnosis[]
 
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([icd10Code])
   @@index([snomedCode])
@@ -1914,18 +1940,18 @@ model Diagnosis {
 // primary pair on Diagnosis. Useful when one ICD-10 has multiple valid
 // SNOMED concepts of varying specificity.
 model DiagnosisMapping {
-  id              String     @id @default(cuid())
-  diagnosisId     String
-  diagnosis       Diagnosis  @relation(fields: [diagnosisId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  diagnosisId String
+  diagnosis   Diagnosis @relation(fields: [diagnosisId], references: [id], onDelete: Cascade)
 
   alternateIcd10  String?
   alternateSnomed String?
 
   // EXACT (1:1), BROADER (alternate is more general),
   // NARROWER (alternate is more specific), RELATED (lateral concept)
-  mappingType     String
+  mappingType String
 
-  notes           String?    @db.Text
+  notes String? @db.Text
 
   @@index([diagnosisId])
   @@map("diagnosis_mappings")
@@ -1939,10 +1965,10 @@ model UserDiagnosisFavorite {
   diagnosis   Diagnosis @relation(fields: [diagnosisId], references: [id], onDelete: Cascade)
 
   // Personal usage tracking for autocomplete ranking
-  usageCount  Int       @default(0)
-  lastUsedAt  DateTime?
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([userId, diagnosisId])
   @@index([userId])
@@ -1962,36 +1988,36 @@ model UserDiagnosisFavorite {
 // agregadas · soft delete · cardinalidad muchos-a-muchos con doctores.
 
 model SpecialtyCatalog {
-  id          String    @id @default(cuid())
+  id String @id @default(cuid())
 
-  name        String    @unique  // "Auto Accidents", "Pain Management", etc.
+  name        String   @unique // "Auto Accidents", "Pain Management", etc.
   description String?
-  color       String              // hex "#F43F5E" — consumido en B.10 calendar, B.17 Mi día, B.29 dashboard
-  caseType    CaseType  @default(GENERAL)
+  color       String // hex "#F43F5E" — consumido en B.10 calendar, B.17 Mi día, B.29 dashboard
+  caseType    CaseType @default(GENERAL)
 
   // CPT codes sugeridos — pre-cargan en B.21 al firmar nota
-  cptSuggested String[]  @default([])
+  cptSuggested String[] @default([])
 
   // Workflow type asociado:
   // - 'MVA' → flujo PI con lien
   // - 'GM'  → general medicine, no lien
   // - 'SELFPAY' → membership / direct pay
-  workflowType String    @default("MVA")  // MVA | GM | SELFPAY | NURSING_HOME
+  workflowType String @default("MVA") // MVA | GM | SELFPAY | NURSING_HOME
 
-  isActive    Boolean   @default(true)
+  isActive Boolean @default(true)
 
   // Order for UI display
-  sortOrder   Int       @default(0)
+  sortOrder Int @default(0)
 
   // Many-to-many: doctors assigned to this specialty
   doctorAssignments DoctorSpecialtyAssignment[]
 
   // Phoenix 2026-06-06: cases con esta specialty
-  cases             Case[]
+  cases Case[]
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([isActive])
   @@index([workflowType])
@@ -2005,61 +2031,61 @@ model SpecialtyCatalog {
 // Versionado por año fiscal — fee_schedule cambia cada Enero.
 
 enum ServiceType {
-  CPT          // Códigos AMA · cambian anualmente
-  HCPCS        // CMS Level II · drugs/DME · gratis
-  CUSTOM_PM    // Internos con prefijo PM-* · no van a aseguradora
+  CPT // Códigos AMA · cambian anualmente
+  HCPCS // CMS Level II · drugs/DME · gratis
+  CUSTOM_PM // Internos con prefijo PM-* · no van a aseguradora
 }
 
 enum ServiceCategory {
-  EM                    // Evaluation & Management (99213, 99214, etc.)
-  CHIROPRACTIC          // 98941, 98942
-  PHYSICAL_THERAPY      // 97110, 97140
-  IMAGING               // 70010-79999
-  INJECTIONS            // 20552, 64483, 64633
-  SURGERY               // 10000-69999
-  DME                   // Durable Medical Equipment
-  DRUGS                 // J-codes
-  LAB                   // Laboratorio
-  REPORTS               // Narrativas legales, depo prep
-  CUSTOM                // PM- internos
+  EM // Evaluation & Management (99213, 99214, etc.)
+  CHIROPRACTIC // 98941, 98942
+  PHYSICAL_THERAPY // 97110, 97140
+  IMAGING // 70010-79999
+  INJECTIONS // 20552, 64483, 64633
+  SURGERY // 10000-69999
+  DME // Durable Medical Equipment
+  DRUGS // J-codes
+  LAB // Laboratorio
+  REPORTS // Narrativas legales, depo prep
+  CUSTOM // PM- internos
   OTHER
 }
 
 model ServiceCode {
-  id              String          @id @default(cuid())
+  id String @id @default(cuid())
 
-  code            String                       // "98941", "J3301", "PM-DIRECT"
-  type            ServiceType
-  shortDescription String                       // Display name corto
-  longDescription  String?         @db.Text     // Full AMA description
+  code             String // "98941", "J3301", "PM-DIRECT"
+  type             ServiceType
+  shortDescription String // Display name corto
+  longDescription  String?     @db.Text // Full AMA description
 
-  category        ServiceCategory
+  category ServiceCategory
 
   // Fee schedule actual (Phase 1A: un solo fee per code · Phase 2: tabla historical)
-  currentFee      Decimal         @db.Decimal(10, 2)
-  fiscalYear      Int             @default(2026)
+  currentFee Decimal @db.Decimal(10, 2)
+  fiscalYear Int     @default(2026)
 
   // Modificadores CPT permitidos (e.g. "-25", "-59")
-  modifiersAllowed String[]       @default([])
+  modifiersAllowed String[] @default([])
 
   // Notas de bundling (códigos que NO pueden facturarse juntos)
-  bundlingNotes   String?         @db.Text
+  bundlingNotes String? @db.Text
 
   // Metadata
-  isActive        Boolean         @default(true)
-  isInternalOnly  Boolean         @default(false)  // True para CUSTOM_PM
-  sortOrder       Int             @default(0)
-  notes           String?         @db.Text
+  isActive       Boolean @default(true)
+  isInternalOnly Boolean @default(false) // True para CUSTOM_PM
+  sortOrder      Int     @default(0)
+  notes          String? @db.Text
 
   // Sugerido por especialidades (links a SpecialtyCatalog vía SpecialtyCatalog.cptSuggested array)
   // No FK directo porque ya se almacena en SpecialtyCatalog.cptSuggested[] como strings.
 
-  favorites       UserServiceFavorite[]
+  favorites        UserServiceFavorite[]
   visitAssignments VisitServiceCode[]
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  deletedAt       DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@unique([code, fiscalYear])
   @@index([type])
@@ -2070,14 +2096,14 @@ model ServiceCode {
 
 model UserServiceFavorite {
   id            String      @id @default(cuid())
-  userId        String      // Sin FK a User Phase 1A (no auth todavía) · Phase 1B FK real
+  userId        String // Sin FK a User Phase 1A (no auth todavía) · Phase 1B FK real
   serviceCodeId String
   serviceCode   ServiceCode @relation(fields: [serviceCodeId], references: [id], onDelete: Cascade)
 
-  usageCount    Int         @default(0)
-  lastUsedAt    DateTime?
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
 
-  createdAt     DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([userId, serviceCodeId])
   @@index([userId])
@@ -2100,74 +2126,74 @@ model UserServiceFavorite {
 // CONFIRMED → ACTIVE → MMI → CLOSED → SETTLED → ARCHIVED.
 
 enum CaseStatus {
-  NEW_REFERRAL          // Recién creado · cita aún no confirmada
-  INTAKE_PENDING        // Magic link enviado · esperando paciente complete B.5-B.9
-  INTAKE_COMPLETED      // Paciente completó portal
-  CONFIRMED             // Primera cita confirmada (llamada 24h antes)
-  ACTIVE                // Tratamiento en curso
-  MMI                   // Maximum Medical Improvement
-  CLOSED                // Caso cerrado · pendiente settlement
-  SETTLED               // Settlement recibido por Brunella
-  ARCHIVED              // Histórico
-  CANCELLED             // No prosperó · no-show inicial · otros
+  NEW_REFERRAL // Recién creado · cita aún no confirmada
+  INTAKE_PENDING // Magic link enviado · esperando paciente complete B.5-B.9
+  INTAKE_COMPLETED // Paciente completó portal
+  CONFIRMED // Primera cita confirmada (llamada 24h antes)
+  ACTIVE // Tratamiento en curso
+  MMI // Maximum Medical Improvement
+  CLOSED // Caso cerrado · pendiente settlement
+  SETTLED // Settlement recibido por Brunella
+  ARCHIVED // Histórico
+  CANCELLED // No prosperó · no-show inicial · otros
 }
 
 enum ReferralSource {
   // Legacy — mantener para datos existentes
-  PHONE_CALL            // Recepción humana en B.1
-  WALK_IN               // Paciente camina sin cita
-  WEB_FORM              // Form público
-  AI_AGENT              // Phase 3+ Vapi/Retell
+  PHONE_CALL // Recepción humana en B.1
+  WALK_IN // Paciente camina sin cita
+  WEB_FORM // Form público
+  AI_AGENT // Phase 3+ Vapi/Retell
   // Activos en UI
-  LAW_FIRM              // Abogado / Bufete de abogados
-  LAW_FIRM_REFERRAL     // alias legacy → mismo concepto
-  WEB_SEARCH            // Búsqueda web
-  ACCIDENT_CENTER       // Centro de accidentes (ej. Axcess)
+  LAW_FIRM // Abogado / Bufete de abogados
+  LAW_FIRM_REFERRAL // alias legacy → mismo concepto
+  WEB_SEARCH // Búsqueda web
+  ACCIDENT_CENTER // Centro de accidentes (ej. Axcess)
   FACEBOOK
-  FAMILY                // Familiar
+  FAMILY // Familiar
   GOOGLE
   GOOGLE_MAPS
   INSTAGRAM
-  WEBSITE               // Página web
-  CLINIC_STAFF          // Personal de la clínica
-  CHIROPRACTOR          // Quiropráctico
-  REFERRAL              // Recomendación general
-  PATIENT_REFERRAL      // Recomendación de paciente existente
-  INSURANCE             // Seguro
-  MEDICAL_INSURANCE     // Seguro médico
+  WEBSITE // Página web
+  CLINIC_STAFF // Personal de la clínica
+  CHIROPRACTOR // Quiropráctico
+  REFERRAL // Recomendación general
+  PATIENT_REFERRAL // Recomendación de paciente existente
+  INSURANCE // Seguro
+  MEDICAL_INSURANCE // Seguro médico
   TIKTOK
   OTHER
 }
 
 enum CaseTypeWorkflow {
-  MVA                   // Motor Vehicle Accident — PI con lien
-  GENERAL               // Medicina general (no lien)
-  WORKERS_COMP          // Workers' compensation
-  NURSING_HOME          // Visitas domiciliarias
+  MVA // Motor Vehicle Accident — PI con lien
+  GENERAL // Medicina general (no lien)
+  WORKERS_COMP // Workers' compensation
+  NURSING_HOME // Visitas domiciliarias
 }
 
 model Case {
-  id                String              @id @default(cuid())
-  caseCode          String              @unique  // "MVA-2962" auto-generado
+  id       String @id @default(cuid())
+  caseCode String @unique // "MVA-2962" auto-generado
 
   // Patient (existing Patient model · puede tener varios Cases)
-  patientId         String
-  patient           Patient             @relation("PatientCases", fields: [patientId], references: [id])
+  patientId String
+  patient   Patient @relation("PatientCases", fields: [patientId], references: [id])
 
   // Workflow type + Specialty
-  caseType          CaseTypeWorkflow    @default(MVA)
-  specialtyId       String?
-  specialty         SpecialtyCatalog?   @relation(fields: [specialtyId], references: [id])
+  caseType    CaseTypeWorkflow  @default(MVA)
+  specialtyId String?
+  specialty   SpecialtyCatalog? @relation(fields: [specialtyId], references: [id])
 
   // Legal: firm + attorney + paralegal + legal assistant
-  lawFirmId           String?
-  lawFirm             Lawyer?             @relation("CaseLawFirm", fields: [lawFirmId], references: [id])
-  attorneyId          String?
-  attorney            Lawyer?             @relation("CaseAttorney", fields: [attorneyId], references: [id])
-  paralegalId         String?
-  paralegal           Lawyer?             @relation("CaseParalegal", fields: [paralegalId], references: [id])
-  legalAssistantId    String?
-  legalAssistant      Lawyer?             @relation("CaseLegalAssistant", fields: [legalAssistantId], references: [id])
+  lawFirmId        String?
+  lawFirm          Lawyer? @relation("CaseLawFirm", fields: [lawFirmId], references: [id])
+  attorneyId       String?
+  attorney         Lawyer? @relation("CaseAttorney", fields: [attorneyId], references: [id])
+  paralegalId      String?
+  paralegal        Lawyer? @relation("CaseParalegal", fields: [paralegalId], references: [id])
+  legalAssistantId String?
+  legalAssistant   Lawyer? @relation("CaseLegalAssistant", fields: [legalAssistantId], references: [id])
 
   // Insurance — primary (PIP) + optional secondary (Med Pay)
   primaryInsuranceId    String?
@@ -2178,56 +2204,56 @@ model Case {
   secondaryPolicyNumber String?
 
   // Accident details (Phoenix prefiere acá vs Patient.accidentDate legacy)
-  accidentDate      DateTime?
-  accidentType      AccidentType?
-  accidentLocation  String?
-  accidentNotes     String?             @db.Text
+  accidentDate     DateTime?
+  accidentType     AccidentType?
+  accidentLocation String?
+  accidentNotes    String?       @db.Text
 
   // Status + flow tracking
-  status            CaseStatus          @default(NEW_REFERRAL)
+  status CaseStatus @default(NEW_REFERRAL)
 
   // Intake tracking (B.3 → B.5-B.9 portal)
-  intakeFormSentAt        DateTime?
-  intakeFormSentVia       String?       // "SMS" | "EMAIL"
-  intakeFormCompletedAt   DateTime?
+  intakeFormSentAt      DateTime?
+  intakeFormSentVia     String? // "SMS" | "EMAIL"
+  intakeFormCompletedAt DateTime?
   // Token único para el magic link del portal del paciente (B.5-B.9)
   // Phase 1A: visible en respuesta de send-portal-link para testing local
   // Phase 2: hash almacenado + Supabase Auth magic links después de BAA
-  portalToken             String?       @unique
+  portalToken           String?   @unique
 
-  signatureExempt         Boolean             @default(false)
-  pipVerifiedAt           DateTime?
-  pipVerifiedById         String?       // userId Edson
+  signatureExempt Boolean   @default(false)
+  pipVerifiedAt   DateTime?
+  pipVerifiedById String? // userId Edson
 
   // Confirmation tracking (24h antes de primera cita)
-  firstAppointmentConfirmedAt DateTime?
+  firstAppointmentConfirmedAt   DateTime?
   firstAppointmentConfirmedById String?
 
   // Creation context
-  source            ReferralSource      @default(PHONE_CALL)
-  createdByUserId   String?             // FK opcional (Phase 1A user stub)
+  source          ReferralSource @default(PHONE_CALL)
+  createdByUserId String? // FK opcional (Phase 1A user stub)
 
   // Consentimientos firmados en el wizard de creación de caso
   consentsSignedAt    DateTime?
-  consentsData        Json?             // { hipaa, assignedParties, assignedPartiesOpts, treatment, financial, medicalHistory }
-  consentSignaturePng String?           @db.Text  // base64 PNG de la firma digital
+  consentsData        Json? // { hipaa, assignedParties, assignedPartiesOpts, treatment, financial, medicalHistory }
+  consentSignaturePng String?   @db.Text // base64 PNG de la firma digital
 
   // Twilio: duración de la llamada que originó el caso
   callDurationSeconds Int?
 
   // Appointments, notas y firmas del lien
-  appointments      Appointment[]       @relation("CaseAppointments")
-  notes             CaseNote[]
-  lienSignatures    LienSignature[]
-  intakeSubmission  IntakeSubmission?   @relation("CaseIntakeSubmission")
-  documents         PatientDocument[]
-  consents          CaseConsent[]
+  appointments         Appointment[]         @relation("CaseAppointments")
+  notes                CaseNote[]
+  lienSignatures       LienSignature[]
+  intakeSubmission     IntakeSubmission?     @relation("CaseIntakeSubmission")
+  documents            PatientDocument[]
+  consents             CaseConsent[]
   authorizedDependents AuthorizedDependent[]
-  callLogs          CallLog[]
+  callLogs             CallLog[]
 
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  deletedAt         DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([caseCode])
   @@index([status])
@@ -2242,43 +2268,43 @@ model Case {
 // Historial médico + preferencias capturadas en el portal B.5-B.9
 // Phase 1A: almacenamiento en claro · Phase 2: encriptar PHI tras BAA Supabase
 model IntakeSubmission {
-  id                  String   @id @default(cuid())
-  caseId              String   @unique
-  case                Case     @relation("CaseIntakeSubmission", fields: [caseId], references: [id])
+  id     String @id @default(cuid())
+  caseId String @unique
+  case   Case   @relation("CaseIntakeSubmission", fields: [caseId], references: [id])
 
   // Step 5 — Historial médico (B.7)
   healthStatus        String?
-  hasMedications      Boolean  @default(false)
-  medications         String?  @db.Text
-  hasAllergies        Boolean  @default(false)
-  allergies           String?  @db.Text
-  hasPreviousInjuries Boolean  @default(false)
-  previousInjuries    String?  @db.Text
+  hasMedications      Boolean @default(false)
+  medications         String? @db.Text
+  hasAllergies        Boolean @default(false)
+  allergies           String? @db.Text
+  hasPreviousInjuries Boolean @default(false)
+  previousInjuries    String? @db.Text
 
   // Step 6 — Fotos ID
-  takePhotosAtClinic  Boolean  @default(false)
+  takePhotosAtClinic Boolean @default(false)
 
   // Idioma elegido en el wizard
-  language            String   @default("es")
+  language String @default("es")
 
-  submittedAt         DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  submittedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("intake_submissions")
 }
 
 model CaseNote {
-  id          String   @id @default(cuid())
-  caseId      String
-  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
-  content     String   @db.Text
-  isPrivate   Boolean  @default(true)  // Privada (Front Office/Edson) vs compartida (Doctor también ve)
+  content   String  @db.Text
+  isPrivate Boolean @default(true) // Privada (Front Office/Edson) vs compartida (Doctor también ve)
 
-  authorUserId String?               // userId del que escribió la nota
-  authorName   String                // Snapshot del nombre del autor (legible en historial)
+  authorUserId String? // userId del que escribió la nota
+  authorName   String // Snapshot del nombre del autor (legible en historial)
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([caseId])
   @@index([authorUserId])
@@ -2295,67 +2321,67 @@ model CaseNote {
 // MVA. Med Pay — coverage adicional. Health — seguro principal del paciente.
 
 enum InsuranceType {
-  PIP      // Personal Injury Protection (Utah no-fault state) — primario para MVA
-  MED_PAY  // Medical Payments — adicional, complementario
-  HEALTH   // Health insurance (BCBS, UnitedHealth, etc.)
-  WORKERS  // Workers' compensation
+  PIP // Personal Injury Protection (Utah no-fault state) — primario para MVA
+  MED_PAY // Medical Payments — adicional, complementario
+  HEALTH // Health insurance (BCBS, UnitedHealth, etc.)
+  WORKERS // Workers' compensation
   OTHER
 }
 
 enum HcfaChannel {
-  EMAIL    // Submit via email attachment
-  FAX      // Traditional fax
-  PORTAL   // Carrier's online portal
-  PAPER    // Snail mail
-  EDI      // Electronic Data Interchange (preferred for high-volume)
+  EMAIL // Submit via email attachment
+  FAX // Traditional fax
+  PORTAL // Carrier's online portal
+  PAPER // Snail mail
+  EDI // Electronic Data Interchange (preferred for high-volume)
 }
 
 enum ResponseSpeed {
-  FAST       // < 15 días
-  AVERAGE    // 15-30 días
-  SLOW       // > 30 días (warn badge)
-  UNKNOWN    // sin data
+  FAST // < 15 días
+  AVERAGE // 15-30 días
+  SLOW // > 30 días (warn badge)
+  UNKNOWN // sin data
 }
 
 model InsuranceCarrier {
-  id              String        @id @default(cuid())
+  id String @id @default(cuid())
 
-  name            String        @unique  // "GEICO", "State Farm", "Progressive"
-  legalName       String?                  // "Government Employees Insurance"
-  shortCode       String                   // "G", "SF", "PR" (max 4 chars para avatar)
-  color           String        @default("#0EA5E9") // hex para avatar bg
+  name      String  @unique // "GEICO", "State Farm", "Progressive"
+  legalName String? // "Government Employees Insurance"
+  shortCode String // "G", "SF", "PR" (max 4 chars para avatar)
+  color     String  @default("#0EA5E9") // hex para avatar bg
 
-  type            InsuranceType
+  type InsuranceType
 
   // Claims contact
-  claimsPhone     String?
-  claimsEmail     String?
-  claimsFax       String?
-  claimsAddress   String?       @db.Text
-  portalUrl       String?       // URL si tiene portal
+  claimsPhone   String?
+  claimsEmail   String?
+  claimsFax     String?
+  claimsAddress String? @db.Text
+  portalUrl     String? // URL si tiene portal
 
   // HCFA submission preferences
-  hcfaChannel     HcfaChannel   @default(EMAIL)
-  preauthRequired Boolean       @default(false)
+  hcfaChannel     HcfaChannel @default(EMAIL)
+  preauthRequired Boolean     @default(false)
 
   // Métricas (manual override Phase 1A · auto-computed Phase 2+)
   avgResponseDays Int?
   responseSpeed   ResponseSpeed @default(UNKNOWN)
 
   // Internal notes (Edson/Brunella privadas)
-  notes           String?       @db.Text
+  notes String? @db.Text
 
-  isActive        Boolean       @default(true)
-  sortOrder       Int           @default(0)
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
 
   // Phoenix 2026-06-06: relaciones inversas a Case
-  casesAsPrimary    Case[]      @relation("CasePrimaryInsurance")
-  casesAsSecondary  Case[]      @relation("CaseSecondaryInsurance")
-  billingPayments   BillingPayment[]
+  casesAsPrimary   Case[]           @relation("CasePrimaryInsurance")
+  casesAsSecondary Case[]           @relation("CaseSecondaryInsurance")
+  billingPayments  BillingPayment[]
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  deletedAt       DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([type])
   @@index([isActive])
@@ -2367,16 +2393,16 @@ model InsuranceCarrier {
 // Un doctor puede pertenecer a varias especialidades (e.g. Auto Accidents + Pain Management).
 // Una especialidad tiene varios doctores.
 model DoctorSpecialtyAssignment {
-  id                  String              @id @default(cuid())
+  id                  String            @id @default(cuid())
   doctorCredentialsId String
-  doctorCredentials   DoctorCredentials   @relation(fields: [doctorCredentialsId], references: [id], onDelete: Cascade)
+  doctorCredentials   DoctorCredentials @relation(fields: [doctorCredentialsId], references: [id], onDelete: Cascade)
   specialtyId         String
-  specialty           SpecialtyCatalog    @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+  specialty           SpecialtyCatalog  @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
 
   // Una de las especialidades del doctor debe ser primary (la principal)
-  isPrimary           Boolean             @default(false)
+  isPrimary Boolean @default(false)
 
-  createdAt           DateTime            @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([doctorCredentialsId, specialtyId])
   @@index([specialtyId])
@@ -2403,24 +2429,24 @@ enum LienSignerType {
 /// Firma digital del lien médico.
 /// Append-only — no UPDATE, no DELETE. Legalmente vinculante.
 model LienSignature {
-  id           String          @id @default(cuid())
-  caseId       String
-  case         Case            @relation(fields: [caseId], references: [id])
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
 
-  signerType   LienSignerType
-  signerName   String
-  signerEmail  String?
+  signerType  LienSignerType
+  signerName  String
+  signerEmail String?
 
-  signatureSvg String?         @db.Text  // base64 PNG o SVG path data
+  signatureSvg String? @db.Text // base64 PNG o SVG path data
 
-  signedAt     DateTime        @default(now())
+  signedAt DateTime @default(now())
 
   // Audit trail
   ipAddress    String?
   userAgent    String?
   sessionToken String?
 
-  createdAt    DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([caseId])
   @@index([signerType])
@@ -2434,7 +2460,7 @@ model Drug {
   name     String
   generic  String
   schedule String? // 'II' | 'III' | 'IV' | 'V' | null
-  category String  // 'NSAID' | 'RELAXANT' | 'OPIOID' | 'NEURO' | 'TOPICAL' | 'STEROID' | 'OTHER'
+  category String // 'NSAID' | 'RELAXANT' | 'OPIOID' | 'NEURO' | 'TOPICAL' | 'STEROID' | 'OTHER'
 
   @@index([category])
   @@index([generic])
@@ -2442,10 +2468,10 @@ model Drug {
 }
 
 model DrugInteraction {
-  id           Int    @id @default(autoincrement())
-  drug         String // generic name
+  id            Int    @id @default(autoincrement())
+  drug          String // generic name
   interactsWith String
-  warning      String @db.Text
+  warning       String @db.Text
 
   @@index([drug])
   @@map("drug_interactions")
@@ -2458,7 +2484,7 @@ model LabCatalog {
   code     String  @unique
   name     String
   loinc    String?
-  category String  // 'IMAGING' | 'LABORATORY' | 'CARDIOLOGY'
+  category String // 'IMAGING' | 'LABORATORY' | 'CARDIOLOGY'
 
   @@index([category])
   @@map("lab_catalog")
@@ -2496,26 +2522,26 @@ enum BillingPaymentStatus {
 /// Ledger de facturación por cita (1:1 con Appointment).
 /// Un registro por cita, generado al asignar servicios CPT.
 model AppointmentBilling {
-  id             String      @id @default(cuid())
+  id String @id @default(cuid())
 
-  appointmentId  String
-  appointment    Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
-  caseId         String?     // denormalizado para queries de billing por caso
+  caseId String? // denormalizado para queries de billing por caso
 
-  serviceCode        String?  // CPT code, ej: "97814"
-  serviceDescription String?  // Descripción del servicio
+  serviceCode        String? // CPT code, ej: "97814"
+  serviceDescription String? // Descripción del servicio
 
-  totalCost      Decimal     @db.Decimal(10, 2) @default(0)
-  discount       Decimal     @db.Decimal(10, 2) @default(0)
-  insuranceCovered Decimal   @db.Decimal(10, 2) @default(0)
-  amountPaid     Decimal     @db.Decimal(10, 2) @default(0)
-  balanceDue     Decimal     @db.Decimal(10, 2) @default(0)
+  totalCost        Decimal @default(0) @db.Decimal(10, 2)
+  discount         Decimal @default(0) @db.Decimal(10, 2)
+  insuranceCovered Decimal @default(0) @db.Decimal(10, 2)
+  amountPaid       Decimal @default(0) @db.Decimal(10, 2)
+  balanceDue       Decimal @default(0) @db.Decimal(10, 2)
 
-  payments       BillingPayment[]
+  payments BillingPayment[]
 
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([caseId])
   @@index([appointmentId])
@@ -2525,13 +2551,13 @@ model AppointmentBilling {
 /// Un pago recibido contra un billing de cita.
 /// Fuente: seguro PIP, copago del paciente, o pago de bufete de abogados.
 model BillingPayment {
-  id          String               @id @default(cuid())
+  id String @id @default(cuid())
 
-  billingId   String
-  billing     AppointmentBilling   @relation(fields: [billingId], references: [id], onDelete: Cascade)
+  billingId String
+  billing   AppointmentBilling @relation(fields: [billingId], references: [id], onDelete: Cascade)
 
   source      BillingPaymentSource
-  paymentType String?              // "direct_insurance" | "copay" | "contractual_obligation" | etc.
+  paymentType String? // "direct_insurance" | "copay" | "contractual_obligation" | etc.
   amount      Decimal              @db.Decimal(10, 2)
   method      BillingPaymentMethod @default(NONE)
   status      BillingPaymentStatus @default(COMPLETED)
@@ -2540,11 +2566,11 @@ model BillingPayment {
   insuranceCarrierId String?
   insuranceCarrier   InsuranceCarrier? @relation(fields: [insuranceCarrierId], references: [id], onDelete: SetNull)
 
-  notes       String?  @db.Text
-  paidAt      DateTime?
+  notes  String?   @db.Text
+  paidAt DateTime?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([billingId])
   @@index([source])
@@ -2558,28 +2584,28 @@ model BillingPayment {
 // Migrado desde v2 (minioKey → s3Key). Carpetas virtuales via isFolder flag.
 
 model PatientDocument {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  name        String                       // Nombre visible del archivo o carpeta
-  s3Key       String?                      // Ruta en S3 (nulo si isFolder=true)
-  isFolder    Boolean  @default(false)
-  size        Int?                         // Bytes (nulo si isFolder)
-  mimeType    String?                      // "application/pdf", "image/jpeg", etc.
+  name     String // Nombre visible del archivo o carpeta
+  s3Key    String? // Ruta en S3 (nulo si isFolder=true)
+  isFolder Boolean @default(false)
+  size     Int? // Bytes (nulo si isFolder)
+  mimeType String? // "application/pdf", "image/jpeg", etc.
 
-  patientId   String?
-  patient     Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
 
-  caseId      String?
-  case        Case?    @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  caseId String?
+  case   Case?   @relation(fields: [caseId], references: [id], onDelete: SetNull)
 
-  parentId    String?
-  parent      PatientDocument?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: SetNull)
-  children    PatientDocument[] @relation("FolderChildren")
+  parentId String?
+  parent   PatientDocument?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children PatientDocument[] @relation("FolderChildren")
 
   createdByUserId String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([patientId])
   @@index([caseId])
@@ -2603,20 +2629,20 @@ enum ConsentCode {
 }
 
 model CaseConsent {
-  id          String      @id @default(cuid())
+  id String @id @default(cuid())
 
-  caseId      String
-  case        Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
-  code        ConsentCode
-  accepted    Boolean     @default(false)
+  code     ConsentCode
+  accepted Boolean     @default(false)
 
   // Firma — puede ser URL en Supabase Storage (v3 nuevos) o blob legacy (v2)
-  signatureUrl    String?  @db.Text  // URL pública o presigned (v3)
-  signatureLegacy String?  @db.Text  // base64 blob cifrado migrado de v2
+  signatureUrl    String? @db.Text // URL pública o presigned (v3)
+  signatureLegacy String? @db.Text // base64 blob cifrado migrado de v2
 
-  signedAt    DateTime?
-  createdAt   DateTime    @default(now())
+  signedAt  DateTime?
+  createdAt DateTime  @default(now())
 
   @@unique([caseId, code])
   @@index([caseId])
@@ -2639,8 +2665,8 @@ enum CallOutcome {
 }
 
 model CallLog {
-  id              String        @id @default(cuid())
-  twilioCallSid   String?       @unique
+  id            String  @id @default(cuid())
+  twilioCallSid String? @unique
 
   direction       CallDirection
   fromNumber      String
@@ -2648,17 +2674,17 @@ model CallLog {
   outcome         CallOutcome   @default(IN_PROGRESS)
   durationSeconds Int?
 
-  patientId       String?
-  patient         Patient?      @relation(fields: [patientId], references: [id])
-  caseId          String?
-  case            Case?         @relation(fields: [caseId], references: [id])
-  agentUserId     String?       // userId del agente que hizo/tomó la llamada
-  agentName       String?       // nombre denormalizado para reportes rápidos
+  patientId   String?
+  patient     Patient? @relation(fields: [patientId], references: [id])
+  caseId      String?
+  case        Case?    @relation(fields: [caseId], references: [id])
+  agentUserId String? // userId del agente que hizo/tomó la llamada
+  agentName   String? // nombre denormalizado para reportes rápidos
 
-  recordingUrl    String?
+  recordingUrl String?
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([patientId])
   @@index([caseId])
@@ -2675,17 +2701,16 @@ model CallLog {
 // Nombre y relación cifrados con AES-256-GCM (PHI).
 
 model AuthorizedDependent {
-  id           String  @id @default(cuid())
+  id String @id @default(cuid())
 
-  caseId       String
-  case         Case    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
-  nameEncrypted         String  @db.Text  // AES-GCM cifrado
-  relationshipEncrypted String  @db.Text  // AES-GCM cifrado
+  nameEncrypted         String @db.Text // AES-GCM cifrado
+  relationshipEncrypted String @db.Text // AES-GCM cifrado
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([caseId])
   @@map("authorized_dependents")
 }
-

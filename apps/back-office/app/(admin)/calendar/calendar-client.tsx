@@ -597,23 +597,41 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
   const [filterSpecialty, setFilterSpecialty] = useState('');
 
+  // ─── Catálogo real de especialidades (SpecialtyCatalog) + mapa doctor→especialidades ──
+  // El filtro no puede depender de lo que haya cargado en pantalla (eso solo
+  // muestra las especialidades de la semana visible, nunca las 6-7 reales) ni
+  // del enum legacy Provider.specialty (nombres clínicos que nadie reconoce,
+  // ej. "GENERAL" en vez de "Family Practice"). Se reutiliza el mismo
+  // catálogo + mapeo que ya usa AppointmentDialog vía /api/admin/scheduling/resources.
+  const [specialtyCatalog, setSpecialtyCatalog] = useState<Array<{ id: string; name: string; color: string }>>([]);
+  const [providerSpecialtyMap, setProviderSpecialtyMap] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    fetch('/api/admin/scheduling/resources')
+      .then((r) => r.json())
+      .then((d) => {
+        setSpecialtyCatalog(d.specialties ?? []);
+        const map: Record<string, string[]> = {};
+        for (const p of d.providers ?? []) map[p.id] = p.specialtyCatalogIds ?? [];
+        setProviderSpecialtyMap(map);
+      })
+      .catch(() => {});
+  }, []);
+
   // ─── Filter appointments by selected patient + specialty (client-side) ────────
   const visibleAppointments = useMemo(() => {
     let result = patientQuery ? appointments.filter(a => a.patient.id === patientQuery) : appointments;
-    if (filterSpecialty) result = result.filter(a => a.provider?.specialty === filterSpecialty);
-    return result;
-  }, [appointments, patientQuery, filterSpecialty]);
-
-  // Unique specialty options derived from loaded appointments
-  const specialtyOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const opts: Array<{ value: string; label: string }> = [];
-    for (const a of appointments) {
-      const s = a.provider?.specialty;
-      if (s && !seen.has(s)) { seen.add(s); opts.push({ value: s, label: s }); }
+    if (filterSpecialty) {
+      result = result.filter(a => a.provider?.id && (providerSpecialtyMap[a.provider.id] ?? []).includes(filterSpecialty));
     }
-    return opts.sort((a, b) => a.label.localeCompare(b.label));
-  }, [appointments]);
+    return result;
+  }, [appointments, patientQuery, filterSpecialty, providerSpecialtyMap]);
+
+  // Opciones del filtro: el catálogo completo, no lo derivado de citas visibles
+  const specialtyOptions = useMemo(
+    () => specialtyCatalog.map((s) => ({ value: s.id, label: s.name })),
+    [specialtyCatalog],
+  );
 
   // ─── Derived state ───────────────────────────────────────────────────────────
   // 5-day header array (week view)

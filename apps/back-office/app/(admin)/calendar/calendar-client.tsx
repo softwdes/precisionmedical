@@ -735,8 +735,11 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           )}
           <FilterChip emoji="🚗" placeholder={t('filterAllTypes')} value={filterType}
             options={[
-              { value: 'AUTO_ACCIDENT',   label: 'MVA · Auto' },
-              { value: 'FAMILY_PRACTICE', label: 'GP · General' },
+              { value: 'AUTO_ACCIDENT',   label: t('typeAutoAccident') },
+              { value: 'FAMILY_PRACTICE', label: t('typeFamilyPractice') },
+              { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
+              { value: 'URGENT_CARE',     label: t('typeUrgentCare') },
+              { value: 'CONSULTATION',    label: t('typeConsultation') },
             ]}
             onChange={setFilterType} />
           <FilterChip emoji="🩺" placeholder={t('filterAllSpecialties')} value={filterSpecialty}
@@ -795,8 +798,11 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             placeholder={t('filterAllTypes')}
             value={filterType}
             options={[
-              { value: 'AUTO_ACCIDENT',   label: 'MVA · Auto' },
-              { value: 'FAMILY_PRACTICE', label: 'GP · General' },
+              { value: 'AUTO_ACCIDENT',   label: t('typeAutoAccident') },
+              { value: 'FAMILY_PRACTICE', label: t('typeFamilyPractice') },
+              { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
+              { value: 'URGENT_CARE',     label: t('typeUrgentCare') },
+              { value: 'CONSULTATION',    label: t('typeConsultation') },
             ]}
             onChange={setFilterType}
           />

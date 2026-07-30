@@ -189,13 +189,41 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   // ─── Derived: effective specialty ──────────────────────────────────────────
 
+  // Si el caso no tenía especialidad y el usuario recién la eligió acá (ver
+  // saveCaseSpecialty), este override gana hasta que se refetchee el caso.
+  const [specialtyOverride, setSpecialtyOverride] = useState<Specialty | null>(null);
+  useEffect(() => { setSpecialtyOverride(null); }, [caseId]);
+
   const effectiveSpecialty = useMemo((): Specialty | null => {
+    if (specialtyOverride) return specialtyOverride;
     if (props.mode === 'case') return props.caseInfo?.specialty ?? null;
     // Free mode: derive from selected case
     const found = patientCases.find((c) => c.id === caseId);
     return found?.specialty ?? null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.mode, (props as CaseModeProps).caseInfo, caseId, patientCases]);
+  }, [specialtyOverride, props.mode, (props as CaseModeProps).caseInfo, caseId, patientCases]);
+
+  const [savingSpecialty, setSavingSpecialty] = useState(false);
+
+  const saveCaseSpecialty = useCallback(async (specialtyId: string) => {
+    if (!caseId) return;
+    const picked = specialties.find((s) => s.id === specialtyId);
+    if (!picked) return;
+    setSavingSpecialty(true);
+    setSpecialtyOverride(picked); // optimista — se revierte si falla
+    try {
+      const res = await fetch(`/api/admin/cases/${caseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specialtyId }),
+      });
+      if (!res.ok) setSpecialtyOverride(null);
+    } catch {
+      setSpecialtyOverride(null);
+    } finally {
+      setSavingSpecialty(false);
+    }
+  }, [caseId, specialties]);
 
   // Código de caso a mostrar en el badge persistente — cubre los 3 caminos:
   // mode='case' (viene fijo), free-mode tras elegir un caso, y editar (el
@@ -778,7 +806,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   </span>
                 </>
               )}
-              {effectiveSpecialty && (
+              {effectiveSpecialty ? (
                 <>
                   <span className="text-border">·</span>
                   <span
@@ -787,6 +815,22 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   >
                     {effectiveSpecialty.name}
                   </span>
+                </>
+              ) : caseId && specialties.length > 0 && (
+                <>
+                  <span className="text-border">·</span>
+                  <span className="text-text-muted text-[10px]">{t('caseSpecialtyLabel')}</span>
+                  <select
+                    value=""
+                    disabled={savingSpecialty}
+                    onChange={(e) => { if (e.target.value) saveCaseSpecialty(e.target.value); }}
+                    className="bg-bg-2 border border-border rounded px-1.5 py-0.5 text-[11px] text-text-1 focus:outline-none focus:border-brand disabled:opacity-50"
+                  >
+                    <option value="">{t('chooseSpecialtyPlaceholder')}</option>
+                    {specialties.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
                 </>
               )}
             </div>

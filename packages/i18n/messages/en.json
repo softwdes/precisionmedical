@@ -36,7 +36,8 @@
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
     "processing": "Processing…",
-    "or": "or"
+    "or": "or",
+    "clear": "Clear"
   },
   "auth": {
     "login": "Log in",
@@ -3166,6 +3167,7 @@
       "patientNoCases": "This patient has no registered cases",
       "selectCasePlaceholder": "Select case...",
       "caseSpecialtyLabel": "Case specialty:",
+      "chooseSpecialtyPlaceholder": "Choose specialty...",
       "fieldClinic": "Clinic",
       "selectClinicPlaceholder": "Select clinic...",
       "fieldDoctor": "Doctor",

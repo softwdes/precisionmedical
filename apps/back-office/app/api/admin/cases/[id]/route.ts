@@ -51,6 +51,7 @@ const PatchSchema = z.object({
   attorneyId:       z.string().nullable().optional(),
   paralegalId:      z.string().nullable().optional(),
   legalAssistantId: z.string().nullable().optional(),
+  specialtyId:      z.string().nullable().optional(),
   // text fields stored in consentsData JSON
   chiropractor:     z.string().nullable().optional(),
   lawFirmLabel:     z.string().nullable().optional(),

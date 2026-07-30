@@ -2657,7 +2657,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
 
       {/* ─── Menú acciones (fixed, escapa overflow-hidden de la tabla) ────────── */}
       {openMenuId && (() => {
-        const p = patients.find(x => x.id === openMenuId);
+        const p = localPatients.find(x => x.id === openMenuId);
         if (!p) return null;
         return (
           <div

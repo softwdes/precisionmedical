@@ -35,6 +35,7 @@ const APPT_INCLUDE = {
     select: {
       id: true,
       caseCode: true,
+      caseType: true,
       accidentType: true,
       accidentDate: true,
       status: true,
@@ -162,6 +163,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       case: appt.case ? {
         id:                     appt.case.id,
         caseCode:               appt.case.caseCode,
+        caseType:               appt.case.caseType,
         accidentType:           appt.case.accidentType,
         accidentDate:           appt.case.accidentDate?.toISOString() ?? null,
         status:                 appt.case.status,

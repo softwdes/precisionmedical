@@ -49,6 +49,7 @@ interface CalendarAppointment {
   case: {
     id: string;
     caseCode: string;
+    caseType: string;
     accidentType: string | null;
     accidentDate: string | null;
     status: string;
@@ -510,7 +511,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
       ...(lockedProviderId
         ? { providerId: lockedProviderId }
         : filterProvider ? { providerId: filterProvider } : {}),
-      ...(filterType     ? { type:       filterType }     : {}),
+      // filterType es el tipo de CASO (MVA/GENERAL), no el tipo de cita —
+      // se filtra client-side en visibleAppointments junto con specialty.
     });
 
     fetch(`/api/admin/appointments?${params}`, { signal: controller.signal })
@@ -526,7 +528,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
     // Cleanup: cancela la petición en vuelo si el efecto se re-dispara
     return () => controller.abort();
-  }, [weekStart, calView, mobileDate, mobileView, filterClinic, filterProvider, filterType, refreshKey]); // eslint-disable-line
+  }, [weekStart, calView, mobileDate, mobileView, filterClinic, filterProvider, refreshKey]); // eslint-disable-line
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
   const goToPrev = () => {
@@ -618,14 +620,19 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
       .catch(() => {});
   }, []);
 
-  // ─── Filter appointments by selected patient + specialty (client-side) ────────
+  // ─── Filter appointments by selected patient + case type + specialty (client-side) ──
+  // filterType es el tipo de CASO (MVA/GENERAL) — igual que v2 — no el tipo
+  // de cita (Appointment.type tiene 5 valores: auto/familia/urgencia/
+  // seguimiento/consulta, que pueden darse dentro de un caso MVA o GENERAL
+  // por igual, así que no son una categoría propia del filtro).
   const visibleAppointments = useMemo(() => {
     let result = patientQuery ? appointments.filter(a => a.patient.id === patientQuery) : appointments;
+    if (filterType) result = result.filter(a => a.case?.caseType === filterType);
     if (filterSpecialty) {
       result = result.filter(a => a.provider?.id && (providerSpecialtyMap[a.provider.id] ?? []).includes(filterSpecialty));
     }
     return result;
-  }, [appointments, patientQuery, filterSpecialty, providerSpecialtyMap]);
+  }, [appointments, patientQuery, filterType, filterSpecialty, providerSpecialtyMap]);
 
   // Opciones del filtro: el catálogo completo, no lo derivado de citas visibles
   const specialtyOptions = useMemo(
@@ -753,11 +760,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           )}
           <FilterChip emoji="🚗" placeholder={t('filterAllTypes')} value={filterType}
             options={[
-              { value: 'AUTO_ACCIDENT',   label: t('typeAutoAccident') },
-              { value: 'FAMILY_PRACTICE', label: t('typeFamilyPractice') },
-              { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
-              { value: 'URGENT_CARE',     label: t('typeUrgentCare') },
-              { value: 'CONSULTATION',    label: t('typeConsultation') },
+              { value: 'MVA',     label: t('filterTypeMva') },
+              { value: 'GENERAL', label: t('filterTypeGm') },
             ]}
             onChange={setFilterType} />
           <FilterChip emoji="🩺" placeholder={t('filterAllSpecialties')} value={filterSpecialty}
@@ -816,11 +820,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             placeholder={t('filterAllTypes')}
             value={filterType}
             options={[
-              { value: 'AUTO_ACCIDENT',   label: t('typeAutoAccident') },
-              { value: 'FAMILY_PRACTICE', label: t('typeFamilyPractice') },
-              { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
-              { value: 'URGENT_CARE',     label: t('typeUrgentCare') },
-              { value: 'CONSULTATION',    label: t('typeConsultation') },
+              { value: 'MVA',     label: t('filterTypeMva') },
+              { value: 'GENERAL', label: t('filterTypeGm') },
             ]}
             onChange={setFilterType}
           />

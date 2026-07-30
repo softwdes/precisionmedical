@@ -1769,23 +1769,20 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
   useEffect(() => {
     const val = searchValue.trim();
 
-    // Si está vacío restaurar datos originales y limpiar URL
-    if (!val) {
-      setIsSearching(false);
-      setLocalPatients(patients);
-      setLocalTotal(total);
-      setLocalPages(totalPages);
-      history.replaceState(null, '', `${basePath}${inactiveOnly ? '?showInactive=1' : ''}`);
-      return;
-    }
+    // Spinner inmediato solo si hay término; limpiar debe sentirse instantáneo
+    setIsSearching(!!val);
 
-    // Spinner inmediato
-    setIsSearching(true);
-
+    // Nota: no se puede "restaurar" con la prop `patients` — si la página se
+    // cargó con `?q=...` en la URL (p.ej. quedó pegado de una búsqueda
+    // anterior por el replaceState de abajo), esa prop YA viene filtrada por
+    // el servidor y no hay a qué volver. Limpiar pide siempre la lista real
+    // al servidor, igual que cualquier otro término de búsqueda — sin
+    // debounce, para que se sienta inmediato.
     const timer = setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ q: val });
-        if (inactiveOnly) params.set('showInactive', '1');
+        const params = new URLSearchParams();
+        if (val) params.set('q', val);
+        if (inactiveOnly) params.set('inactive', '1');
         if (scopeProviderId) params.set('providerId', scopeProviderId);
         const res  = await fetch(`/api/admin/patients/list?${params}`);
         const data = await res.json();
@@ -1796,11 +1793,12 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
         });
         // Actualizar URL sin navegar (para compartir) — sin exponer providerId
         params.delete('providerId');
-        history.replaceState(null, '', `${basePath}?${params}`);
+        const qs = params.toString();
+        history.replaceState(null, '', `${basePath}${qs ? `?${qs}` : ''}`);
       } finally {
         setIsSearching(false);
       }
-    }, 350);
+    }, val ? 350 : 0);
 
     return () => clearTimeout(timer);
   }, [searchValue, inactiveOnly]); // eslint-disable-line react-hooks/exhaustive-deps

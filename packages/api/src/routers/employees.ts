@@ -342,7 +342,16 @@ export const employeesRouter = router({
     .query(async ({ input }) => {
       const { from, to, departmentId, country } = input;
 
-      // 1) Pagos PAID en rango con datos del empleado + departamento + pais
+      // El reporte filtra por `period` (el sueldo AL QUE corresponde el pago,
+      // ej. "2026-06"), no por `paidDate` (cuándo se desembolsó de verdad).
+      // Un pago de período junio puede pagarse a fin de junio o recién en
+      // julio — filtrar por paidDate hacía que "Junio" mostrara menos pagos
+      // de los que en realidad son de junio. `period` se guarda 'YYYY-MM' y
+      // compara bien como string.
+      const periodFrom = from.slice(0, 7);
+      const periodTo   = to.slice(0, 7);
+
+      // 1) Pagos PAID del período, con datos del empleado + departamento + pais
       //
       // El embed `country` solo se fuerza a !inner cuando se va a filtrar por
       // país — si fuera siempre !inner, un empleado sin country asignado
@@ -360,8 +369,8 @@ export const employeesRouter = router({
           `  department:departments(id, name), ${countryEmbed})`,
         )
         .eq('status', 'PAID')
-        .gte('paidDate', from)
-        .lte('paidDate', to)
+        .gte('period', periodFrom)
+        .lte('period', periodTo)
         .gt('amountLocal', 0); // exclude reversal records
 
       if (departmentId) q = q.eq('employee.departmentId', departmentId);
@@ -416,21 +425,23 @@ export const employeesRouter = router({
       }));
 
       // 3) Tendencia mensual ultimos 12 meses (separado del rango) por moneda
+      // Por consistencia con el reporte principal, se agrupa por `period`
+      // (a qué sueldo corresponde), no por `paidDate`.
       const trendStart = new Date();
       trendStart.setUTCDate(1);
       trendStart.setUTCMonth(trendStart.getUTCMonth() - 11);
-      const trendStartIso = trendStart.toISOString().split('T')[0]!;
+      const trendStartPeriod = `${trendStart.getUTCFullYear()}-${String(trendStart.getUTCMonth() + 1).padStart(2, '0')}`;
 
       const { data: trendRaw } = await supabaseAdmin
         .from('payments')
-        .select('amountLocal, currencyLocal, paidDate')
+        .select('amountLocal, currencyLocal, period')
         .eq('status', 'PAID')
-        .gte('paidDate', trendStartIso)
+        .gte('period', trendStartPeriod)
         .gt('amountLocal', 0);
 
       const monthlyTrendMap: Record<string, Record<string, number>> = {};
-      for (const p of (trendRaw ?? []) as Array<{ amountLocal: number | string; currencyLocal: string; paidDate: string }>) {
-        const ym = (p.paidDate ?? '').slice(0, 7);
+      for (const p of (trendRaw ?? []) as Array<{ amountLocal: number | string; currencyLocal: string; period: string }>) {
+        const ym = p.period;
         if (!ym) continue;
         if (!monthlyTrendMap[ym]) monthlyTrendMap[ym] = {};
         monthlyTrendMap[ym]![p.currencyLocal] = (monthlyTrendMap[ym]![p.currencyLocal] ?? 0) + Number(p.amountLocal);

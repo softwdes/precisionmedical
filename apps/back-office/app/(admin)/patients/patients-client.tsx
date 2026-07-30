@@ -1809,8 +1809,18 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpenMenuId(null);
     };
+    // El menú se posiciona con `position: fixed` calculado una sola vez al
+    // abrir (coordenadas de viewport). Si la página o la tabla scrollean
+    // después, el botón se mueve pero el menú no — queda flotando
+    // desconectado de la fila. Se cierra al primer scroll para no mostrar
+    // un menú "huérfano".
+    const closeOnScroll = () => setOpenMenuId(null);
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    window.addEventListener('scroll', closeOnScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      window.removeEventListener('scroll', closeOnScroll, true);
+    };
   }, [openMenuId]);
 
   const openMenu = (id: string, btn: HTMLButtonElement) => {

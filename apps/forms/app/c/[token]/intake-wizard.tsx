@@ -745,7 +745,11 @@ const STRINGS = {
 
 // ─── Style constants ──────────────────────────────────────────────────────────
 
-const REFERRAL_OPTIONS = [
+// Antes era una sola lista en español, usada sin importar `lang` — por eso
+// este select se veía en español aunque el resto del wizard estuviera en
+// inglés. Mismo patrón que RELATION_OPTIONS_ES/EN de abajo. Wording igual al
+// de phoenix.patients.referral (back-office) para que ambos lados digan lo mismo.
+const REFERRAL_OPTIONS_ES = [
   { value: '', label: '—' },
   { value: 'LAW_FIRM', label: 'Abogado / Bufete de abogados' },
   { value: 'WEB_SEARCH', label: 'Búsqueda web' },
@@ -763,6 +767,26 @@ const REFERRAL_OPTIONS = [
   { value: 'INSURANCE', label: 'Seguro' },
   { value: 'TIKTOK', label: 'TikTok' },
   { value: 'OTHER', label: 'Otro' },
+];
+
+const REFERRAL_OPTIONS_EN = [
+  { value: '', label: '—' },
+  { value: 'LAW_FIRM', label: 'Attorney / Law firm' },
+  { value: 'WEB_SEARCH', label: 'Web search' },
+  { value: 'ACCIDENT_CENTER', label: 'Axcess Accident Center' },
+  { value: 'FACEBOOK', label: 'Facebook' },
+  { value: 'FAMILY', label: 'Family' },
+  { value: 'GOOGLE', label: 'Google' },
+  { value: 'GOOGLE_MAPS', label: 'Google Maps' },
+  { value: 'INSTAGRAM', label: 'Instagram' },
+  { value: 'WEBSITE', label: 'Website' },
+  { value: 'CLINIC_STAFF', label: 'Clinic staff' },
+  { value: 'CHIROPRACTOR', label: 'Chiropractor' },
+  { value: 'REFERRAL', label: 'Referral' },
+  { value: 'PATIENT_REFERRAL', label: 'Referral from patient' },
+  { value: 'INSURANCE', label: 'Insurance' },
+  { value: 'TIKTOK', label: 'TikTok' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 const RELATION_OPTIONS_ES = [
@@ -789,12 +813,20 @@ const RELATION_OPTIONS_EN = [
 ];
 const RELATION_VALUES = ['', 'SPOUSE', 'PARENT', 'CHILD', 'SIBLING', 'FRIEND', 'EMPLOYER', 'NEIGHBOR', 'OTHER'];
 
-const COMM_OPTIONS = [
+const COMM_OPTIONS_ES = [
   { value: '', label: '—' },
   { value: 'PHONE', label: 'Teléfono' },
   { value: 'EMAIL', label: 'Email' },
   { value: 'TEXT', label: 'Mensaje de texto' },
   { value: 'ANY', label: 'Cualquiera' },
+];
+
+const COMM_OPTIONS_EN = [
+  { value: '', label: '—' },
+  { value: 'PHONE', label: 'Phone' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'TEXT', label: 'Text message' },
+  { value: 'ANY', label: 'Any' },
 ];
 
 const BG           = '#0a1224';
@@ -1083,7 +1115,7 @@ export function IntakeWizard({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // ── Form state ──────────────────────────────────────────────────────────────
-  const knownReferralValues = REFERRAL_OPTIONS.map(o => o.value);
+  const knownReferralValues = REFERRAL_OPTIONS_ES.map(o => o.value);
   const rawReferral = patient.referralSource ?? '';
   const referralIsKnown = knownReferralValues.includes(rawReferral);
 
@@ -2149,7 +2181,7 @@ export function IntakeWizard({
                       value={personal.communicationPreference}
                       onChange={e => setPersonal(p => ({ ...p, communicationPreference: e.target.value }))}
                     >
-                      {COMM_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {(lang === 'es' ? COMM_OPTIONS_ES : COMM_OPTIONS_EN).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </Field>
                   <Field label={t.howHeard} error={referralOtherError}>
@@ -2158,7 +2190,7 @@ export function IntakeWizard({
                       value={personal.referralSource}
                       onChange={e => setPersonal(p => ({ ...p, referralSource: e.target.value, referralSourceOther: '' }))}
                     >
-                      {REFERRAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {(lang === 'es' ? REFERRAL_OPTIONS_ES : REFERRAL_OPTIONS_EN).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                     {personal.referralSource === 'OTHER' && (
                       <input

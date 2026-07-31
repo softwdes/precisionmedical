@@ -191,8 +191,9 @@ const s = StyleSheet.create({
     borderBottomColor: GRAY2,
     paddingVertical: 3,
   },
-  authLabel: { width: '40%', fontSize: 8, color: DGRAY },
-  authRelLabel: { width: '20%', fontSize: 8, color: DGRAY },
+  authLabel: { width: '12%', fontSize: 8, color: DGRAY },
+  authNameBlank: { width: '38%' },
+  authRelLabel: { width: '18%', fontSize: 8, color: DGRAY },
   authValue: { flex: 1, fontSize: 8, color: '#AAAAAA', fontStyle: 'italic' },
 
   // Divider
@@ -468,7 +469,7 @@ async function buildPDF(data: {
           {CONSENT_TEXTS.c2AuthRows.map((_, i) => (
             <View key={i} style={s.authRow}>
               <Text style={s.authLabel}>Name:</Text>
-              <Text style={s.authLabel}>   </Text>
+              <Text style={s.authNameBlank}> </Text>
               <Text style={s.authRelLabel}>Relationship:</Text>
               <Text style={s.authValue}> </Text>
             </View>

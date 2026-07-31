@@ -423,7 +423,7 @@ export function ConsultationClient({
           )}
           {tab === 'rx' && (
             <div className="space-y-4">
-              <RxIntegrationStatus />
+              <RxIntegrationStatus appointmentId={a.id} />
               <MedicationHistory appointmentId={a.id} medications={patientContext.history.medications} />
             </div>
           )}

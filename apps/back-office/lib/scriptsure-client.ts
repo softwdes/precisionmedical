@@ -128,3 +128,119 @@ export async function setPracticePrescriber(
     data: { practiceId, prescriberId },
   });
 }
+
+/** Nombres/apellidos: solo ASCII, letras/espacio/apóstrofe/guion — igual regla que usan para pacientes y prescriptores. */
+function asciiName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z '-]/g, '')
+    .trim();
+}
+
+const GENDER_MAP: Record<string, 'M' | 'F' | 'U'> = {
+  MALE: 'M',
+  FEMALE: 'F',
+  NON_BINARY: 'U',
+  OTHER: 'U',
+  PREFER_NOT_TO_SAY: 'U',
+};
+
+export interface ScriptSurePatientInput {
+  firstName: string;
+  lastName: string;
+  dob: Date;
+  sex: string | null;
+  addressLine1: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+  addressZip: string | null;
+  phone: string | null;
+  phone2: string | null;
+}
+
+/**
+ * Create Patient — obligatorio antes de lanzar cualquier widget atado a un
+ * paciente (Drug List, Pharmacy, etc). Devuelve el `patientId` propio de
+ * ScriptSure. NO se manda ningún campo sin valor (la API lo exige así).
+ */
+async function createScriptSurePatient(
+  loginEmail: string,
+  practiceId: number,
+  prescriberId: number,
+  patient: ScriptSurePatientInput,
+): Promise<number> {
+  const sessionToken = await getSessionToken(loginEmail);
+
+  const payload: Record<string, unknown> = {
+    preferredCommunicationId: 0,
+    consent: true,
+    patientStatusId: 0,
+    practiceId,
+    doctorId: prescriberId,
+    firstName: asciiName(patient.firstName),
+    lastName: asciiName(patient.lastName),
+    dob: patient.dob.toISOString().slice(0, 10),
+    gender: (patient.sex && GENDER_MAP[patient.sex]) || 'U',
+  };
+  if (patient.addressLine1) payload.addressLine1 = patient.addressLine1.slice(0, 40);
+  if (patient.addressCity) payload.city = patient.addressCity;
+  if (patient.addressState) payload.state = patient.addressState;
+  if (patient.addressZip) payload.zip = patient.addressZip.replace(/[^0-9]/g, '').slice(0, 9);
+  const cell = (patient.phone ?? patient.phone2 ?? '').replace(/[^0-9]/g, '');
+  if (cell) payload.cell = cell;
+
+  const res = await fetch(`${hosts().backendScriptSure}/v3/patient?sessiontoken=${sessionToken}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`ScriptSure create patient falló (${res.status}): ${text}`);
+  }
+
+  const data = (await res.json()) as { savedPatientObj?: { patientId?: number } };
+  const patientId = data.savedPatientObj?.patientId;
+  if (!patientId) throw new Error('ScriptSure create patient no devolvió patientId');
+  return patientId;
+}
+
+/**
+ * Devuelve el `scriptsurePatientId` del paciente, creándolo en ScriptSure la
+ * primera vez que haga falta (sync on-demand, nunca masivo — regla de uso de
+ * DAW). Persiste el id devuelto para no volver a crear el mismo paciente.
+ */
+export async function getOrCreateScriptSurePatientId(
+  loginEmail: string,
+  practiceId: number,
+  prescriberId: number,
+  patient: { id: string; scriptsurePatientId: string | null } & ScriptSurePatientInput,
+): Promise<number> {
+  if (patient.scriptsurePatientId) return Number(patient.scriptsurePatientId);
+
+  const patientId = await createScriptSurePatient(loginEmail, practiceId, prescriberId, patient);
+
+  await db.patient.update({
+    where: { id: patient.id },
+    data: { scriptsurePatientId: String(patientId) },
+  });
+
+  return patientId;
+}
+
+export type ScriptSureWidget = 'drug-list' | 'pharmacy';
+
+/**
+ * URL para embeber un widget de ScriptSure (iframe). Requiere que ya se haya
+ * hecho login + Set Practice/Prescriber para `loginEmail` en esta sesión.
+ */
+export async function getScriptSureWidgetUrl(
+  loginEmail: string,
+  widget: ScriptSureWidget,
+  patientId: number,
+): Promise<string> {
+  const sessionToken = await getSessionToken(loginEmail);
+  return `${hosts().frontend}/widgets/${widget}/${patientId}?sessiontoken=${sessionToken}&darkmode=on`;
+}

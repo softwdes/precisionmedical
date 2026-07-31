@@ -263,7 +263,14 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
             treatment:             !!(cd.treatment),
             financial:             !!(cd.financial),
             medicalHistory:        !!(cd.medicalHistory),
-            signatureDataUrl:      (cd.signatureDataUrl as string | null) ?? null,
+            // La firma real del paciente (portal/tablet, wizard de forms) vive
+            // en consentsData.financialSignatureSvg. `signatureDataUrl` nunca
+            // se escribe ahí — es el nombre del campo del formulario legacy de
+            // personal, que se guardaba en Case.consentSignaturePng (columna
+            // aparte, no en consentsData). Antes esto solo leía la clave que
+            // no existe y siempre mostraba "Pending" aunque el paciente ya
+            // hubiera firmado. Mismo orden de prioridad que ya usa el PDF.
+            signatureDataUrl:      (cd.financialSignatureSvg as string | null) ?? (c.consentSignaturePng as string | null) ?? null,
           });
         })
         .catch(() => {});
@@ -663,7 +670,9 @@ export function CaseWizardDialog({ open, onOpenChange, patient, onCreated, editC
                   >
                     {consents.signatureDataUrl ? (
                       <img
-                        src={consents.signatureDataUrl}
+                        src={consents.signatureDataUrl.startsWith('data:')
+                          ? consents.signatureDataUrl
+                          : `data:image/png;base64,${consents.signatureDataUrl}`}
                         alt={tc('signatureOnFile')}
                         className="max-h-full max-w-full object-contain"
                       />

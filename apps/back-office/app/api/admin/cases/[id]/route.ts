@@ -25,6 +25,7 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
       accidentLocation: true,
       accidentNotes: true,
       consentsData: true,
+      consentSignaturePng: true,
       portalToken: true,
       createdAt: true,
       patient: { select: { id: true, firstName: true, lastName: true } },

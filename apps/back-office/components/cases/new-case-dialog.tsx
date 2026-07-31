@@ -676,7 +676,7 @@ export function NewCaseDialog({ open, onOpenChange, specialties, clinics, provid
             {twilio.callStatus === 'in-call' && (
               <button
                 type="button"
-                onClick={() => setStep('capturing')}
+                onClick={() => { twilio.stopRingback(); setStep('capturing'); }}
                 className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 bg-emerald/15 border border-emerald/30 text-emerald hover:bg-emerald/25 transition-colors text-sm font-semibold"
               >
                 <PhoneCall className="w-4 h-4 flex-shrink-0" />

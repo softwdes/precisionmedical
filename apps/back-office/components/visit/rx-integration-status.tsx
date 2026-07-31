@@ -13,6 +13,7 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Lock, ShieldCheck, ExternalLink, X, Plus, MapPin, Loader2, AlertTriangle } from 'lucide-react';
+import { TagPill } from '@/components/ui-phoenix';
 
 export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -43,31 +44,34 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
   }
 
   return (
-    <div className="rounded-lg border border-dashed border-violet/30 bg-violet/[0.04]">
-      <div className="flex items-start gap-3 p-5 pb-4">
+    <div className="rounded-lg border border-border bg-bg-1">
+      <div className="flex items-start gap-3 p-5">
         <div className="w-9 h-9 rounded-lg bg-violet/10 border border-violet/25 flex items-center justify-center shrink-0">
           <ShieldCheck className="w-4 h-4 text-violet" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-text-1 font-semibold text-sm">{t('rxStatusTitle')}</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-text-1 font-semibold text-sm">{t('rxStatusTitle')}</span>
+            <TagPill label={t('rxConnected')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
+          </div>
           <p className="text-[12.5px] text-text-2 mt-1 leading-relaxed">{t('rxStatusDesc')}</p>
         </div>
       </div>
 
-      <div className="px-5 pb-5 flex flex-wrap gap-2">
+      <div className="px-5 pb-5 pt-1 flex flex-wrap gap-2.5">
         <button
           type="button"
           onClick={() => openWidget('drug-list')}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold bg-violet text-white rounded-md px-3.5 py-2 hover:bg-violet/90 transition-colors"
+          className="inline-flex items-center gap-1.5 text-[13px] font-semibold bg-violet text-white rounded-md px-4 py-2.5 hover:bg-violet/90 transition-colors"
         >
-          <Plus className="w-3.5 h-3.5" /> {t('rxNewPrescription')}
+          <Plus className="w-4 h-4" /> {t('rxNewPrescription')}
         </button>
         <button
           type="button"
           onClick={() => openWidget('pharmacy')}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold bg-bg-1 border border-border text-text-1 rounded-md px-3.5 py-2 hover:bg-bg-2 transition-colors"
+          className="inline-flex items-center gap-1.5 text-[13px] font-semibold bg-bg-2/60 border border-border text-text-1 rounded-md px-4 py-2.5 hover:bg-bg-2 transition-colors"
         >
-          <MapPin className="w-3.5 h-3.5 text-cyan" /> {t('rxOpenPharmacy')}
+          <MapPin className="w-4 h-4 text-cyan" /> {t('rxOpenPharmacy')}
         </button>
       </div>
 

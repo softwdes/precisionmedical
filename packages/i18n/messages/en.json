@@ -1864,6 +1864,7 @@
       "medHxErrSave": "Could not save the medication",
       "ctxNotPrescribedByMe": "Not prescribed by me",
       "rxStatusTitle": "Electronic prescribing — ScriptSure",
+      "rxConnected": "Connected",
       "rxStatusDesc": "Search the medication and the patient's pharmacy right here — interaction checks, PDMP and EPCS signing for controlled substances are handled by ScriptSure on their side.",
       "rxNewPrescription": "New prescription",
       "rxOpenPharmacy": "Patient's pharmacy",

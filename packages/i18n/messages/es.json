@@ -1864,6 +1864,7 @@
       "medHxErrSave": "No se pudo guardar el medicamento",
       "ctxNotPrescribedByMe": "No recetado por mí",
       "rxStatusTitle": "Prescripción electrónica — ScriptSure",
+      "rxConnected": "Conectado",
       "rxStatusDesc": "Buscá el medicamento y la farmacia directamente acá — interacciones, PDMP y firma EPCS para controladas los resuelve ScriptSure de su lado.",
       "rxNewPrescription": "Nueva prescripción",
       "rxOpenPharmacy": "Farmacia del paciente",

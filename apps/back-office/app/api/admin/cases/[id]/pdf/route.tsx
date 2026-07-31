@@ -473,7 +473,7 @@ async function buildPDF(data: {
           <TableRow2 l1="Case type:" v1={caseData.caseType} l2="Entry date:" v2={completedDate ?? fmtDate(new Date())} last />
         </View>
 
-        <View style={s.footer}>
+        <View style={s.footer} fixed>
           <Text style={s.footerText}>Precision Medical Care · Confidential document</Text>
           <Text style={s.footerText}>{caseData.caseCode}</Text>
         </View>
@@ -540,7 +540,7 @@ async function buildPDF(data: {
           </View>
         </View>
 
-        <View style={s.footer}>
+        <View style={s.footer} fixed>
           <Text style={s.footerText}>Precision Medical Care · Confidential document</Text>
           <Text style={s.footerText}>{caseData.caseCode}</Text>
         </View>
@@ -591,7 +591,7 @@ async function buildPDF(data: {
           </View>
         </View>
 
-        <View style={s.footer}>
+        <View style={s.footer} fixed>
           <Text style={s.footerText}>Precision Medical Care · Confidential document</Text>
           <Text style={s.footerText}>{caseData.caseCode} · {completedDate ?? 'Pending'}</Text>
         </View>

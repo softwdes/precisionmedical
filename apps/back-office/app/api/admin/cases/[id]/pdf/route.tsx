@@ -324,9 +324,14 @@ function TableRow2({
 async function buildPDF(data: {
   patient: {
     firstName: string; lastName: string;
-    dateOfBirth: Date | null; phone: string | null; email: string | null;
+    dateOfBirth: Date | null; phone: string | null; phone2: string | null; email: string | null;
     addressLine1: string | null; addressCity: string | null; addressState: string | null; addressZip: string | null;
     emergencyContactName: string | null; emergencyContactPhone: string | null; emergencyContactRelation: string | null;
+    emergency2Name: string | null; emergency2Phone: string | null; emergency2Relation: string | null;
+    sex: string | null; race: string | null; ethnicity: string | null; maritalStatus: string | null;
+    employer: string | null; preferredLanguage: string | null; preferredPharmacy: string | null;
+    referralSource: string | null; referralSourceOther: string | null;
+    communicationPreference: string | null;
   };
   caseData: {
     caseCode: string; caseType: string; accidentDate: Date | null; accidentType: string | null;
@@ -362,10 +367,43 @@ async function buildPDF(data: {
   const emergencyContact = patient.emergencyContactName
     ? `${patient.emergencyContactName} (${patient.emergencyContactRelation ?? ''}) ${patient.emergencyContactPhone ?? ''}`
     : null;
+  const emergencyContact2 = patient.emergency2Name
+    ? `${patient.emergency2Name} (${patient.emergency2Relation ?? ''}) ${patient.emergency2Phone ?? ''}`
+    : null;
 
   const HEALTH_LABEL: Record<string, string> = {
     excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor',
   };
+  const SEX_LABEL: Record<string, string> = {
+    MALE: 'Male', FEMALE: 'Female', NON_BINARY: 'Non-binary', OTHER: 'Other', PREFER_NOT_TO_SAY: 'Prefer not to say',
+  };
+  const RACE_LABEL: Record<string, string> = {
+    AFRICAN_AMERICAN: 'African American', AMERICAN_INDIAN_ALASKA_NATIVE: 'American Indian / Alaska Native',
+    ASIAN: 'Asian', NATIVE_HAWAIIAN: 'Native Hawaiian', PACIFIC_ISLANDER: 'Pacific Islander',
+    WHITE: 'White', OTHER: 'Other', PREFER_NOT_TO_SAY: 'Prefer not to say',
+  };
+  const ETHNICITY_LABEL: Record<string, string> = {
+    HISPANIC_LATINO: 'Hispanic / Latino', NOT_HISPANIC_LATINO: 'Not Hispanic / Latino', PREFER_NOT_TO_SAY: 'Prefer not to say',
+  };
+  const MARITAL_LABEL: Record<string, string> = {
+    SINGLE: 'Single', MARRIED: 'Married', DIVORCED: 'Divorced', WIDOWED: 'Widowed', SEPARATED: 'Separated', OTHER: 'Other',
+  };
+  const COMM_LABEL: Record<string, string> = {
+    PHONE: 'Phone', EMAIL: 'Email', TEXT: 'Text message', ANY: 'Any',
+  };
+  const REFERRAL_LABEL: Record<string, string> = {
+    LAW_FIRM: 'Attorney / Law firm', LAW_FIRM_REFERRAL: 'Attorney / Law firm', WEB_SEARCH: 'Web search',
+    ACCIDENT_CENTER: 'Axcess Accident Center', FACEBOOK: 'Facebook', FAMILY: 'Family', GOOGLE: 'Google',
+    GOOGLE_MAPS: 'Google Maps', INSTAGRAM: 'Instagram', WEBSITE: 'Website', CLINIC_STAFF: 'Clinic staff',
+    CHIROPRACTOR: 'Chiropractor', REFERRAL: 'Referral', PATIENT_REFERRAL: 'Referral from patient',
+    INSURANCE: 'Insurance', MEDICAL_INSURANCE: 'Medical insurance', TIKTOK: 'TikTok', OTHER: 'Other',
+    PHONE_CALL: 'Direct call', WALK_IN: 'Walk-in', WEB_FORM: 'Web form', AI_AGENT: 'AI agent',
+  };
+  const referredByLabel = patient.referralSource
+    ? (patient.referralSource === 'OTHER' && patient.referralSourceOther
+        ? patient.referralSourceOther
+        : REFERRAL_LABEL[patient.referralSource] ?? patient.referralSource)
+    : null;
   const ACCIDENT_LABEL: Record<string, string> = {
     AUTO_ACCIDENT: 'Auto Accident (MVA)',
     SLIP_AND_FALL: 'Slip & Fall',
@@ -392,18 +430,18 @@ async function buildPDF(data: {
         <View style={s.sectionHeader}><Text style={s.sectionTitle}>Patient Information</Text></View>
         <View style={s.sectionBody}>
           <TableRow2 l1="Name:" v1={fullName} l2="Address:" v2={address} />
-          <TableRow2 l1="Sex:" v1={null} l2="Phone:" v2={patient.phone} />
-          <TableRow2 l1="Date of Birth:" v1={fmtDate(patient.dateOfBirth)} l2="Cellphone:" v2={patient.phone} />
+          <TableRow2 l1="Sex:" v1={SEX_LABEL[patient.sex ?? ''] ?? null} l2="Phone:" v2={patient.phone} />
+          <TableRow2 l1="Date of Birth:" v1={fmtDate(patient.dateOfBirth)} l2="Cellphone:" v2={patient.phone2} />
           <TableRow2 l1="Age:" v1={age(patient.dateOfBirth)} l2="Email:" v2={patient.email} />
-          <TableRow2 l1="Ethnicity:" v1={null} l2="Employer:" v2={null} />
-          <TableRow2 l1="Race:" v1={null} l2="Preferred Language:" v2={null} />
-          <TableRow2 l1="Marital Status:" v1={null} l2="Preferred Pharmacy:" v2={null} />
-          <TableRow2 l1="Referred By:" v1={null} l2="Notification Method:" v2="email" />
+          <TableRow2 l1="Ethnicity:" v1={ETHNICITY_LABEL[patient.ethnicity ?? ''] ?? null} l2="Employer:" v2={patient.employer} />
+          <TableRow2 l1="Race:" v1={RACE_LABEL[patient.race ?? ''] ?? null} l2="Preferred Language:" v2={patient.preferredLanguage === 'en' ? 'English' : patient.preferredLanguage === 'es' ? 'Spanish' : null} />
+          <TableRow2 l1="Marital Status:" v1={MARITAL_LABEL[patient.maritalStatus ?? ''] ?? null} l2="Preferred Pharmacy:" v2={patient.preferredPharmacy} />
+          <TableRow2 l1="Referred By:" v1={referredByLabel} l2="Notification Method:" v2={COMM_LABEL[patient.communicationPreference ?? ''] ?? null} />
           <TableRow2
             l1="Emergency Contact 1:"
             v1={emergencyContact}
             l2="Emergency Contact 2:"
-            v2={null}
+            v2={emergencyContact2}
             last
           />
         </View>
@@ -586,9 +624,13 @@ export async function GET(
       patient: {
         select: {
           firstName: true, lastName: true,
-          dateOfBirth: true, phone: true, email: true,
+          dateOfBirth: true, phone: true, phone2: true, email: true,
           addressLine1: true, addressCity: true, addressState: true, addressZip: true,
           emergencyContactName: true, emergencyContactPhone: true, emergencyContactRelation: true,
+          emergency2Name: true, emergency2Phone: true, emergency2Relation: true,
+          sex: true, race: true, ethnicity: true, maritalStatus: true,
+          employer: true, preferredLanguage: true, preferredPharmacy: true,
+          referralSource: true, referralSourceOther: true, communicationPreference: true,
         },
       },
       intakeSubmission: {

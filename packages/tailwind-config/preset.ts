@@ -1,4 +1,6 @@
 import type { Config } from 'tailwindcss';
+import tailwindcssAnimate from 'tailwindcss-animate';
+import tailwindcssForms from '@tailwindcss/forms';
 
 const config: Omit<Config, 'content'> = {
   darkMode: ['class', '[data-theme="dark"]'],
@@ -124,8 +126,8 @@ const config: Omit<Config, 'content'> = {
     },
   },
   plugins: [
-    require('tailwindcss-animate'),
-    require('@tailwindcss/forms')({ strategy: 'class' }),
+    tailwindcssAnimate,
+    tailwindcssForms({ strategy: 'class' }),
   ],
 };
 

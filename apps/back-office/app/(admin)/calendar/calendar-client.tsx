@@ -386,16 +386,16 @@ function LegendStats({
           { color: 'rgba(99,102,241,0.50)',                             label: t('legendAttended') },
         ] as { color: string; label: string; glow?: boolean }[]).map(item => (
           <div key={item.label} className="flex items-center gap-1.5">
-            <div className="w-3.5 h-1.5 rounded-sm shrink-0"
+            <div className="w-4 h-2 rounded-sm shrink-0"
               style={{ background: item.color, boxShadow: item.glow ? '0 0 4px rgba(244,63,94,0.40)' : undefined }} />
-            <span className="text-[10px] text-text-muted">{item.label}</span>
+            <span className="text-[12px] text-text-2 font-medium">{item.label}</span>
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-3 text-[10px] text-text-muted shrink-0">
-        <span><span className="text-text-2 font-semibold">{appointments.length}</span> {t('statAppointments')}</span>
-        {firstVisitCount > 0 && <span className="text-rose font-semibold">{firstVisitCount} {t('statFirstVisits')} 🆕</span>}
-        {pendingConfirm  > 0 && <span className="text-amber">{pendingConfirm} {t('statUnconfirmed')}</span>}
+      <div className="flex items-center gap-3 text-[12px] text-text-2 font-medium shrink-0">
+        <span><span className="text-text-1 font-bold">{appointments.length}</span> {t('statAppointments')}</span>
+        {firstVisitCount > 0 && <span className="text-rose font-bold">{firstVisitCount} {t('statFirstVisits')} 🆕</span>}
+        {pendingConfirm  > 0 && <span className="text-amber font-bold">{pendingConfirm} {t('statUnconfirmed')}</span>}
       </div>
     </div>
   );
@@ -1081,7 +1081,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             <>
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
                 {/* Header row */}
-                <div className="grid grid-cols-[52px_repeat(5,1fr)] border-b border-white/[0.07]">
+                <div className="grid grid-cols-[58px_repeat(5,1fr)] border-b border-white/[0.07]">
                   <div className="border-r border-white/[0.07]" />
                   {days.map((day, i) => {
                     const dKey = denverDateStr(day);
@@ -1101,9 +1101,9 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                   </div>
                 )}
                 {TIME_SLOTS.map(slot => (
-                  <div key={slot} className="grid grid-cols-[52px_repeat(5,1fr)] border-b border-white/[0.04] last:border-b-0 min-h-[26px]">
+                  <div key={slot} className="grid grid-cols-[58px_repeat(5,1fr)] border-b border-white/[0.04] last:border-b-0 min-h-[26px]">
                     <div className="border-r border-white/[0.04] flex items-center justify-end pr-2">
-                      <span className={`font-mono tabular-nums ${slot.endsWith(':00') ? 'text-[10.5px] text-text-2 font-semibold' : 'text-[9.5px] text-text-muted'}`}>{slotLabel(slot)}</span>
+                      <span className={`font-mono tabular-nums ${slot.endsWith(':00') ? 'text-[13px] text-text-1 font-bold' : 'text-[11px] text-text-2 font-semibold'}`}>{slotLabel(slot)}</span>
                     </div>
                     {days.map((day, di) => {
                       const dayKey = denverDateStr(day);
@@ -1190,7 +1190,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             <>
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden max-w-[640px] relative">
                 {/* Header */}
-                <div className="grid grid-cols-[52px_1fr] border-b border-white/[0.07]">
+                <div className="grid grid-cols-[58px_1fr] border-b border-white/[0.07]">
                   <div className="border-r border-white/[0.07]" />
                   <div className={`py-3 text-center ${isToday ? 'bg-cyan/[0.06]' : ''}`}>
                     <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>
@@ -1209,9 +1209,9 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                 {TIME_SLOTS.map(slot => {
                   const cellAppts = apptMap[dayKey]?.[slot] ?? [];
                   return (
-                    <div key={slot} className="grid grid-cols-[52px_1fr] border-b border-white/[0.04] last:border-b-0 min-h-[28px]">
+                    <div key={slot} className="grid grid-cols-[58px_1fr] border-b border-white/[0.04] last:border-b-0 min-h-[28px]">
                       <div className="border-r border-white/[0.04] flex items-center justify-end pr-2">
-                        <span className={`font-mono tabular-nums ${slot.endsWith(':00') ? 'text-[10.5px] text-text-2 font-semibold' : 'text-[9.5px] text-text-muted'}`}>{slotLabel(slot)}</span>
+                        <span className={`font-mono tabular-nums ${slot.endsWith(':00') ? 'text-[13px] text-text-1 font-bold' : 'text-[11px] text-text-2 font-semibold'}`}>{slotLabel(slot)}</span>
                       </div>
                       <div
                         onClick={() => openSlot(dayKey, slot)}

@@ -559,94 +559,98 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               </div>
             </div>
 
-            {/* Distribution table */}
-            <div className="overflow-x-auto max-h-72 overflow-y-auto">
-              <table className="w-full text-sm table-fixed">
-                <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
-                  <tr>
-                    <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-36">Servicio / Fecha</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-16">Costo</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-16 hidden lg:table-cell">Descuento %</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-20 hidden lg:table-cell">Monto desc.</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-16">Pagado</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-20">Pendiente</th>
-                    <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-32">Pagar</th>
-                    <th className="sticky right-0 z-10 bg-bg-2 px-3 py-2.5 w-10 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {pending.map(b => {
-                    const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
-                    return (
-                      <tr key={b.id} className="hover:bg-white/[0.02]">
-                        <td className="sticky left-0 z-10 bg-bg-1 px-4 py-3 text-xs max-w-36">
-                          {b.serviceCode ? (
-                            <div className="min-w-0">
-                              <div className="flex items-baseline gap-1.5 min-w-0">
-                                <span className="font-mono font-semibold text-cyan shrink-0">{b.serviceCode}</span>
-                                <span className="text-text-muted text-[11px] truncate">{b.serviceDescription}</span>
+            {/* Distribution table — grid en vez de <table>: con fr las columnas
+                SIEMPRE suman exactamente el 100% del ancho disponible, sin la
+                ambiguedad de table-layout (fixed/auto) combinado con celdas
+                sticky, que nunca terminaba de encajar sin scroll. */}
+            {(() => {
+              const GRID_COLS = 'grid-cols-[minmax(110px,1.3fr)_minmax(55px,0.55fr)_minmax(50px,0.5fr)_minmax(60px,0.6fr)_minmax(55px,0.55fr)_minmax(65px,0.65fr)_minmax(140px,1.1fr)_40px]';
+              return (
+                <div className="overflow-x-auto max-h-72 overflow-y-auto">
+                  <div className={`sticky top-0 z-20 grid ${GRID_COLS} bg-bg-2/95 backdrop-blur-sm border-b border-border`}>
+                    <div className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</div>
+                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Costo</div>
+                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Descuento %</div>
+                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Monto desc.</div>
+                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Pagado</div>
+                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Pendiente</div>
+                    <div className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagar</div>
+                    <div className="sticky right-0 z-10 bg-bg-2 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</div>
+                  </div>
+                  <div className="divide-y divide-border/40">
+                    {pending.map(b => {
+                      const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
+                      return (
+                        <div key={b.id} className={`grid ${GRID_COLS} hover:bg-white/[0.02]`}>
+                          <div className="sticky left-0 z-10 bg-bg-1 px-4 py-3 text-xs">
+                            {b.serviceCode ? (
+                              <div className="min-w-0">
+                                <div className="flex items-baseline gap-1.5 min-w-0">
+                                  <span className="font-mono font-semibold text-cyan shrink-0">{b.serviceCode}</span>
+                                  <span className="text-text-muted text-[11px] truncate">{b.serviceDescription}</span>
+                                </div>
+                                <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
                               </div>
-                              <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
+                            ) : (
+                              <span className="font-mono text-text-1">{fmtDate(b.appointmentDate)}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-end px-3 py-3 text-right font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</div>
+                          <div className="flex items-center justify-end px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap">{discPct}%</div>
+                          <div className="flex items-center justify-end px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap">{fmt$(b.discount)}</div>
+                          <div className="flex items-center justify-end px-3 py-3 text-right text-emerald font-mono text-xs whitespace-nowrap">{fmt$(b.amountPaid)}</div>
+                          <div className="flex items-center justify-end px-3 py-3 text-right">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap">
+                              {fmt$(b.balanceDue)}
+                            </span>
+                          </div>
+                          <div className="flex items-center px-3 py-3">
+                            <div className="flex items-center gap-1 w-full">
+                              <input
+                                type="number"
+                                min="0"
+                                max={b.balanceDue}
+                                step="0.01"
+                                value={payAmounts[b.id] ?? ''}
+                                onChange={e => {
+                                  const raw = e.target.value;
+                                  setPayAmounts(prev => ({ ...prev, [b.id]: raw }));
+                                }}
+                                onBlur={e => {
+                                  const raw = parseFloat(e.target.value);
+                                  if (!isNaN(raw)) {
+                                    const clamped = Math.min(Math.max(0, raw), b.balanceDue);
+                                    setPayAmounts(prev => ({ ...prev, [b.id]: clamped.toFixed(2) }));
+                                  }
+                                }}
+                                className={`w-full rounded-md bg-bg-2 border px-2 py-1 text-xs font-mono text-right outline-none transition-colors ${
+                                  parseFloat(payAmounts[b.id] ?? '0') > b.balanceDue
+                                    ? 'border-rose text-rose focus:border-rose'
+                                    : 'border-border text-text-1 focus:border-brand'
+                                }`}
+                                placeholder="0.00"
+                              />
+                              <button
+                                onClick={() => setPayAmounts(prev => ({ ...prev, [b.id]: b.balanceDue.toFixed(2) }))}
+                                className="text-[10px] text-brand hover:text-brand/70 transition-colors font-semibold flex-shrink-0"
+                                title={t('colMax')}
+                              >
+                                MAX
+                              </button>
                             </div>
-                          ) : (
-                            <span className="font-mono text-text-1">{fmtDate(b.appointmentDate)}</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
-                        <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden lg:table-cell">{discPct}%</td>
-                        <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden lg:table-cell">{fmt$(b.discount)}</td>
-                        <td className="px-3 py-3 text-right text-emerald font-mono text-xs whitespace-nowrap">{fmt$(b.amountPaid)}</td>
-                        <td className="px-3 py-3 text-right">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap">
-                            {fmt$(b.balanceDue)}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              min="0"
-                              max={b.balanceDue}
-                              step="0.01"
-                              value={payAmounts[b.id] ?? ''}
-                              onChange={e => {
-                                const raw = e.target.value;
-                                setPayAmounts(prev => ({ ...prev, [b.id]: raw }));
-                              }}
-                              onBlur={e => {
-                                const raw = parseFloat(e.target.value);
-                                if (!isNaN(raw)) {
-                                  const clamped = Math.min(Math.max(0, raw), b.balanceDue);
-                                  setPayAmounts(prev => ({ ...prev, [b.id]: clamped.toFixed(2) }));
-                                }
-                              }}
-                              className={`w-full rounded-md bg-bg-2 border px-2 py-1 text-xs font-mono text-right outline-none transition-colors ${
-                                parseFloat(payAmounts[b.id] ?? '0') > b.balanceDue
-                                  ? 'border-rose text-rose focus:border-rose'
-                                  : 'border-border text-text-1 focus:border-brand'
-                              }`}
-                              placeholder="0.00"
-                            />
-                            <button
-                              onClick={() => setPayAmounts(prev => ({ ...prev, [b.id]: b.balanceDue.toFixed(2) }))}
-                              className="text-[10px] text-brand hover:text-brand/70 transition-colors font-semibold flex-shrink-0"
-                              title={t('colMax')}
-                            >
-                              MAX
+                          </div>
+                          <div className="sticky right-0 z-10 bg-bg-1 px-3 py-3 flex items-center justify-center">
+                            <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Agregar nota">
+                              <FileText className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                        </td>
-                        <td className="sticky right-0 z-10 bg-bg-1 px-3 py-3">
-                          <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Agregar nota">
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Registrar pago — footer */}
             <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">

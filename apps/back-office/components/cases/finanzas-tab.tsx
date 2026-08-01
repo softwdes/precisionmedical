@@ -579,7 +579,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                     <div className="min-w-0 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Pagar</div>
                     <div className="min-w-0 sticky right-0 z-10 bg-bg-2 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Notas</div>
                   </div>
-                  <div className="divide-y divide-border/40">
+                  <div className="divide-y divide-row-sep">
                     {pending.map(b => {
                       const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
                       return (
@@ -607,39 +607,30 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                             </span>
                           </div>
                           <div className="min-w-0 flex items-center px-3 py-3">
-                            <div className="flex items-center gap-1 w-full">
-                              <input
-                                type="number"
-                                min="0"
-                                max={b.balanceDue}
-                                step="0.01"
-                                value={payAmounts[b.id] ?? ''}
-                                onChange={e => {
-                                  const raw = e.target.value;
-                                  setPayAmounts(prev => ({ ...prev, [b.id]: raw }));
-                                }}
-                                onBlur={e => {
-                                  const raw = parseFloat(e.target.value);
-                                  if (!isNaN(raw)) {
-                                    const clamped = Math.min(Math.max(0, raw), b.balanceDue);
-                                    setPayAmounts(prev => ({ ...prev, [b.id]: clamped.toFixed(2) }));
-                                  }
-                                }}
-                                className={`w-full rounded-md bg-bg-2 border px-2 py-1 text-xs font-mono text-right outline-none transition-colors ${
-                                  parseFloat(payAmounts[b.id] ?? '0') > b.balanceDue
-                                    ? 'border-rose text-rose focus:border-rose'
-                                    : 'border-border text-text-1 focus:border-brand'
-                                }`}
-                                placeholder="0.00"
-                              />
-                              <button
-                                onClick={() => setPayAmounts(prev => ({ ...prev, [b.id]: b.balanceDue.toFixed(2) }))}
-                                className="text-[10px] text-brand hover:text-brand/70 transition-colors font-semibold flex-shrink-0"
-                                title={t('colMax')}
-                              >
-                                MAX
-                              </button>
-                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              max={b.balanceDue}
+                              step="0.01"
+                              value={payAmounts[b.id] ?? ''}
+                              onChange={e => {
+                                const raw = e.target.value;
+                                setPayAmounts(prev => ({ ...prev, [b.id]: raw }));
+                              }}
+                              onBlur={e => {
+                                const raw = parseFloat(e.target.value);
+                                if (!isNaN(raw)) {
+                                  const clamped = Math.min(Math.max(0, raw), b.balanceDue);
+                                  setPayAmounts(prev => ({ ...prev, [b.id]: clamped.toFixed(2) }));
+                                }
+                              }}
+                              className={`w-full rounded-md bg-bg-2 border px-2 py-1 text-xs font-mono text-right outline-none transition-colors ${
+                                parseFloat(payAmounts[b.id] ?? '0') > b.balanceDue
+                                  ? 'border-rose text-rose focus:border-rose'
+                                  : 'border-border text-text-1 focus:border-brand'
+                              }`}
+                              placeholder="0.00"
+                            />
                           </div>
                           <div className="min-w-0 sticky right-0 z-10 bg-bg-1 px-3 py-3 flex items-center justify-center">
                             <button

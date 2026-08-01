@@ -382,6 +382,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
             <button
               type="button"
               onClick={() => {
+                // Cerramos este modal antes de abrir el de pago — son dos overlays
+                // independientes (Dialog vs. el modal propio de FinanzasTab) y
+                // apilarlos se veía mal (doble fondo oscurecido, bordes encimados).
+                if (!inline) setServicesModalOpen(false);
                 // sync-billing en background — no bloqueamos apertura del modal
                 fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
                   method: 'POST',

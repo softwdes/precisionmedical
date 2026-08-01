@@ -232,10 +232,6 @@ function apptTimeShort(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
 }
 
-/** Citas que se cruzan en el mismo bloque van lado a lado hasta este límite;
- *  el resto se resume en un chip "+N" en vez de seguir apilando y estirando la fila. */
-const MAX_VISIBLE_LANES = 2;
-
 // ─── Color por tipo + primera cita ───────────────────────────────────────────
 function getEventStyle(appt: CalendarAppointment): {
   bg: string; border: string; text: string; glow?: string; badge?: string;
@@ -1115,21 +1111,21 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
                           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
                           onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
-                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-row gap-0.5 items-stretch cursor-pointer group transition-colors min-w-0 overflow-hidden ${
+                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-wrap content-start gap-0.5 cursor-pointer group transition-colors min-w-0 overflow-hidden ${
                             dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
                             isToday ? 'bg-cyan/[0.025]' : 'hover:bg-white/[0.015]'
                           }`}>
                           {cellAppts.length === 0 && !slotIsPast(dayKey, slot) && dropTarget !== `${dayKey}|${slot}` && (
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center py-0.5">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center py-0.5 w-full">
                               <Plus className="w-2.5 h-2.5 text-cyan/40" />
                             </div>
                           )}
                           {dropTarget === `${dayKey}|${slot}` && cellAppts.length === 0 && (
-                            <div className="flex items-center justify-center py-1">
+                            <div className="flex items-center justify-center py-1 w-full">
                               <Plus className="w-2.5 h-2.5 text-cyan/60" />
                             </div>
                           )}
-                          {cellAppts.slice(0, MAX_VISIBLE_LANES).map(appt => {
+                          {cellAppts.map(appt => {
                             const s = getEventStyle(appt);
                             const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                             const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
@@ -1140,14 +1136,14 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                                 onDragStart={(e) => { e.stopPropagation(); setDraggingId(appt.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', appt.id); }}
                                 onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
                                 onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
-                                className={`flex-1 min-w-0 text-left rounded px-1.5 py-[2px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
+                                className={`grow basis-[calc(50%-2px)] min-w-0 text-left rounded px-1.5 py-[2px] transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
                                 style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
                                 <div className="flex items-baseline gap-1 leading-tight">
                                   <span className="text-[10px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
                                     {appt.patient.firstName} {appt.patient.lastName}
                                   </span>
                                   {appt.isOnline && <span className="text-[8px] opacity-80 shrink-0">📹</span>}
-                                  {s.badge && <span className="text-[8px] shrink-0">{s.badge}</span>}
+                                  {s.badge && <span className="text-[11px] leading-none shrink-0">{s.badge}</span>}
                                   <span className="text-[8.5px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.85 }}>{apptTimeShort(appt.scheduledFor)}</span>
                                 </div>
                                 <div className="text-[8.5px] leading-tight truncate" style={{ color: s.text, opacity: 0.65 }}>
@@ -1156,16 +1152,6 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                               </button>
                             );
                           })}
-                          {cellAppts.length > MAX_VISIBLE_LANES && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); setSelectedAppt(cellAppts[MAX_VISIBLE_LANES]!); }}
-                              title={cellAppts.slice(MAX_VISIBLE_LANES).map(a => `${a.patient.firstName} ${a.patient.lastName}`).join(', ')}
-                              className="shrink-0 w-6 rounded px-0.5 py-[2px] text-[9px] font-bold text-cyan bg-cyan/[0.16] border border-cyan/40 hover:bg-cyan/[0.28] transition-colors"
-                            >
-                              +{cellAppts.length - MAX_VISIBLE_LANES}
-                            </button>
-                          )}
                         </div>
                       );
                     })}
@@ -1218,17 +1204,17 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
                         onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
                         onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
-                        className={`p-0.5 flex flex-row gap-0.5 items-stretch cursor-pointer group transition-colors min-w-0 overflow-hidden ${
+                        className={`p-0.5 flex flex-wrap content-start gap-0.5 cursor-pointer group transition-colors min-w-0 overflow-hidden ${
                           dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
                           isToday ? 'bg-cyan/[0.015]' : 'hover:bg-white/[0.015]'
                         }`}>
                         {cellAppts.length === 0 && !slotIsPast(dayKey, slot) && dropTarget !== `${dayKey}|${slot}` && (
-                          <div className="flex items-center px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity w-full">
                             <Plus className="w-2.5 h-2.5 text-cyan/50 mr-1 shrink-0" />
                             <span className="text-[10px] text-cyan/50 font-medium">Available</span>
                           </div>
                         )}
-                        {cellAppts.slice(0, MAX_VISIBLE_LANES).map(appt => {
+                        {cellAppts.map(appt => {
                           const s = getEventStyle(appt);
                           const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
                           const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
@@ -1240,14 +1226,14 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                               onDragStart={(e) => { e.stopPropagation(); setDraggingId(appt.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', appt.id); }}
                               onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
                               onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
-                              className={`flex-1 min-w-0 text-left rounded px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
+                              className={`grow basis-[calc(50%-2px)] min-w-0 text-left rounded px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
                               style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
                               <div className="flex items-baseline gap-1 leading-tight">
                                 <span className="text-[11px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
                                   {appt.patient.firstName} {appt.patient.lastName}
                                 </span>
                                 {appt.isOnline && <span className="text-[10px] opacity-80 shrink-0">📹</span>}
-                                {s.badge && <span className="text-[10px] shrink-0">{s.badge}</span>}
+                                {s.badge && <span className="text-[13px] leading-none shrink-0">{s.badge}</span>}
                                 <span className="text-[9.5px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.85 }}>{timeRange}</span>
                               </div>
                               <div className="text-[9.5px] leading-tight truncate" style={{ color: s.text, opacity: 0.65 }}>
@@ -1256,16 +1242,6 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             </button>
                           );
                         })}
-                        {cellAppts.length > MAX_VISIBLE_LANES && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setSelectedAppt(cellAppts[MAX_VISIBLE_LANES]!); }}
-                            title={cellAppts.slice(MAX_VISIBLE_LANES).map(a => `${a.patient.firstName} ${a.patient.lastName}`).join(', ')}
-                            className="shrink-0 w-8 rounded px-1 py-1 text-[10px] font-bold text-cyan bg-cyan/[0.16] border border-cyan/40 hover:bg-cyan/[0.28] transition-colors"
-                          >
-                            +{cellAppts.length - MAX_VISIBLE_LANES}
-                          </button>
-                        )}
                       </div>
                     </div>
                   );

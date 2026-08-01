@@ -415,6 +415,48 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                 </div>
               </div>
 
+              {/* Accesos directos a Servicios y Pagos — bien visibles, no escondidos
+                  atrás de un tab que pasaba desapercibido. Un clic y se ve el
+                  contenido (Servicios cambia de tab; Pagos abre el modal real). */}
+              <div className={`grid grid-cols-1 ${appt.case && !hidePayments ? 'sm:grid-cols-2' : ''} gap-3`}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('services')}
+                  className="flex items-center gap-3 rounded-lg border border-cyan/30 bg-cyan/5 hover:bg-cyan/10 p-4 transition-colors text-left"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-cyan/15 flex items-center justify-center shrink-0">
+                    <Stethoscope className="w-4 h-4 text-cyan" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-text-1 font-semibold text-sm">{t('tabServices')}</div>
+                    <div className="text-text-muted text-[11px]">{t('quickAccessServicesHint')}</div>
+                  </div>
+                </button>
+
+                {appt.case && !hidePayments && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ caseId: appt.case?.id }),
+                      }).catch(() => {});
+                      finanzasRef.current?.reloadAndOpen();
+                    }}
+                    className="flex items-center gap-3 rounded-lg border border-amber/30 bg-amber/5 hover:bg-amber/10 p-4 transition-colors text-left"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-amber/15 flex items-center justify-center shrink-0">
+                      <DollarSign className="w-4 h-4 text-amber" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-text-1 font-semibold text-sm">{t('quickAccessPayments')}</div>
+                      <div className="text-text-muted text-[11px]">{t('quickAccessPaymentsHint')}</div>
+                    </div>
+                  </button>
+                )}
+              </div>
+
               {/* Info de la cita + Checklist pre-cita — lado a lado en pantallas anchas */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="rounded-lg border border-border bg-bg-1 p-4">
@@ -496,7 +538,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                         type="button"
                         disabled={twilio.callStatus === 'connecting' || twilio.callStatus === 'in-call'}
                         onClick={() => setCallConfirmOpen(true)}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-emerald/10 hover:border-emerald/40 text-text-2 hover:text-emerald transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Phone className="w-4 h-4" /> {t('actionCall')}
                       </button>

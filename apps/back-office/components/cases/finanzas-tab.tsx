@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import {
   DollarSign, ChevronRight, ChevronDown, Loader2, RefreshCw,
@@ -531,9 +532,16 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
         </div>
       )}
 
-      {/* ── Modal: Pagar deuda ─────────────────────────────────────────────────── */}
-      {payOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-4 overflow-y-auto">
+      {/* ── Modal: Pagar deuda ───────────────────────────────────────────────────
+          Va en un portal a document.body a proposito: este modal se abre desde
+          dentro del DialogContent de la cita, que tiene translate-x/y-[-50%]
+          para centrarse. Un ancestro con `transform` se vuelve el bloque
+          contenedor de sus descendientes `position: fixed` (spec CSS), asi que
+          sin el portal este overlay quedaba encerrado en los 768px del dialogo
+          padre en vez de ocupar el viewport -- de ahi el scroll horizontal
+          permanente y el input de Pagar recortado, sin importar el max-w. */}
+      {payOpen && typeof document !== 'undefined' && createPortal((
+        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/70 p-4 overflow-y-auto">
           <div className="relative bg-bg-1 border border-border rounded-xl w-full max-w-6xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
 
             {/* Modal header */}
@@ -788,7 +796,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
 
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 });

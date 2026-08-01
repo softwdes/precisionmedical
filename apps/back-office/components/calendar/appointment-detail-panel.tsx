@@ -318,8 +318,6 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     if (services.find(s => s.id === svc.id)) return;
     const next = [...services, { id: svc.id, code: svc.code, description: svc.description, fee: svc.fee, category: svc.category }];
     setServices(next);
-    setServiceSearch('');
-    setServiceResults([]);
     patchServices(next);
   }, [services, patchServices]);
 

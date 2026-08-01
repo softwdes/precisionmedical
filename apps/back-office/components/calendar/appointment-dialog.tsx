@@ -129,6 +129,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
 
+  // Editar (no reagendar) una cita cuya fecha ya pasó: el selector de
+  // horarios solo genera candidatos hacia adelante desde "ahora", así que
+  // mostraría la semana entera vacía y el horario original nunca aparecería
+  // marcado — no es un bug, pero confunde. En ese caso se muestra el
+  // horario original fijo (solo lectura); para cambiar la hora hay que usar
+  // "Reagendar", no "Editar".
+  const isPastAppointment = isEditMode && !isReschedule && !!editAppointment
+    && new Date(editAppointment.scheduledFor).getTime() < Date.now();
+
   const TYPE_OPTIONS: Array<{ value: AppointmentType; label: string }> = [
     { value: 'AUTO_ACCIDENT',   label: 'Auto Accident (MVA)' },
     { value: 'FOLLOW_UP',       label: t('typeFollowUp') },
@@ -423,8 +432,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       skipDurationReset.current = false;
       return;
     }
-    if (slotIsoRef.current) pendingDurationCheck.current = true;
-  }, [duration]);
+    // Cita pasada: WeeklySlotPicker ni se monta (ver render), así que
+    // nunca llegaría onSlotsFetched a resolver este flag.
+    if (slotIsoRef.current && !isPastAppointment) pendingDurationCheck.current = true;
+  }, [duration, isPastAppointment]);
 
   // El horario elegido sigue siendo válido para la duración actual — la
   // "última duración válida" queda anotada por si una futura duración
@@ -953,7 +964,15 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               {t('fieldAvailableSchedule')} <span className="text-rose">*</span>
             </Label>
 
-            {!providerId || !clinicId ? (
+            {isPastAppointment ? (
+              <div className="mt-1.5 rounded-md border border-border bg-bg-2/40 px-3 py-2.5">
+                <div className="flex items-center gap-2 text-text-1 text-sm font-semibold capitalize">
+                  <Check className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                  {scheduledLabel} <span className="text-text-muted font-normal">({duration} min)</span>
+                </div>
+                <p className="text-[11px] text-text-muted mt-1">{t('pastAppointmentHint')}</p>
+              </div>
+            ) : !providerId || !clinicId ? (
               <p className="mt-1.5 text-[11px] text-text-muted italic">
                 {t('selectClinicAndDoctorHint')}
               </p>

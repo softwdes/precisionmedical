@@ -3186,6 +3186,7 @@
       "durationConflictDescription": "Se cruza con otra cita ya agendada. Volvimos la duración a {duration} min, que sí funciona para el horario que elegiste.",
       "durationConflictAccept": "Entendido",
       "selectClinicAndDoctorHint": "Selecciona clínica y doctor para ver los horarios disponibles.",
+      "pastAppointmentHint": "Esta cita ya pasó — la fecha/hora no se puede cambiar acá. Para reprogramarla, usa \"Reagendar\" desde el calendario.",
       "fieldOnlineConsultation": "Consulta en línea",
       "fieldOnlineConsultationHint": "Telemedicina — la cita se realiza por videollamada",
       "meetingUrlLabel": "Enlace de la reunión",

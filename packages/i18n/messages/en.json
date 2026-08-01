@@ -3186,6 +3186,7 @@
       "durationConflictDescription": "It overlaps another scheduled appointment. We reverted the duration to {duration} min, which does work for the time you picked.",
       "durationConflictAccept": "Got it",
       "selectClinicAndDoctorHint": "Select clinic and doctor to see available time slots.",
+      "pastAppointmentHint": "This appointment already happened — the date/time can't be changed here. To reschedule it, use \"Reschedule\" from the calendar.",
       "fieldOnlineConsultation": "Online consultation",
       "fieldOnlineConsultationHint": "Telemedicine — appointment conducted via video call",
       "meetingUrlLabel": "Meeting link",

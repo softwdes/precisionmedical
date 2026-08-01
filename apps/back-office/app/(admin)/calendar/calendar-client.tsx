@@ -980,17 +980,18 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           const todayDenver = denverDateStr(new Date());
           const selectedDenver = denverDateStr(mobileDate);
           const mobileMonthKey = denverDateStr(mobileDate).slice(0, 7); // "YYYY-MM"
-          const dayNames = ['M','T','W','T','F','S','S'];
+          // Solo Lun-Vie, igual que la vista de mes de desktop y la de semana.
+          const dayNames = ['M','T','W','T','F'];
           return (
             <div className="mb-3">
-              <div className="grid grid-cols-7 gap-0.5 mb-1">
-                {dayNames.map(d => (
-                  <div key={d} className="text-center text-[9px] font-bold uppercase tracking-wider text-text-muted py-1">{d}</div>
+              <div className="grid grid-cols-5 gap-0.5 mb-1">
+                {dayNames.map((d, i) => (
+                  <div key={`${d}-${i}`} className="text-center text-[9px] font-bold uppercase tracking-wider text-text-muted py-1">{d}</div>
                 ))}
               </div>
               {grid.map((week, wi) => (
-                <div key={wi} className="grid grid-cols-7 gap-0.5 mb-0.5">
-                  {week.map((d, di) => {
+                <div key={wi} className="grid grid-cols-5 gap-0.5 mb-0.5">
+                  {week.slice(0, 5).map((d, di) => {
                     const dKey = denverDateStr(d);
                     const isCurrentMonth = dKey.slice(0, 7) === mobileMonthKey;
                     const isSelected = dKey === selectedDenver;
@@ -1259,9 +1260,10 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           return (
             <>
               <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden min-w-[640px] relative">
-                {/* Day-of-week headers (7 cols) */}
-                <div className="grid grid-cols-7 border-b border-white/[0.07]">
-                  {WEEKDAYS_ALL.map(d => (
+                {/* Day-of-week headers — solo Lun-Vie: la clinica no atiende
+                    fines de semana, igual que la vista de semana. */}
+                <div className="grid grid-cols-5 border-b border-white/[0.07]">
+                  {WEEKDAYS.map(d => (
                     <div key={d} className="py-2.5 text-center border-r border-white/[0.07] last:border-r-0">
                       <span className="text-[9px] uppercase tracking-widest font-bold text-text-muted/60">{d}</span>
                     </div>
@@ -1274,8 +1276,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                 )}
                 {/* Week rows */}
                 {grid.map((week, wi) => (
-                  <div key={wi} className="grid grid-cols-7 border-b border-white/[0.04] last:border-b-0" style={{ minHeight: '96px' }}>
-                    {week.map((day, di) => {
+                  <div key={wi} className="grid grid-cols-5 border-b border-white/[0.04] last:border-b-0" style={{ minHeight: '96px' }}>
+                    {week.slice(0, 5).map((day, di) => {
                       const dayStr         = localDateStr(day);
                       const isCurrentMonth = day.getMonth() === weekStart.getMonth();
                       const isToday        = dayStr === todayStr;

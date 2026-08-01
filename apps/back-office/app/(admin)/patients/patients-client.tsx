@@ -146,11 +146,42 @@ function calcIntakeProgress(c: CaseRow, p: PatientRow): {
 
 type TFunc = ReturnType<typeof useTranslations<'phoenix.patients'>>;
 
+/**
+ * El badge nombra QUE falta, no un "Incompleto X%" generico — asi la columna
+ * dice de una que hay que ir a buscar (mismo criterio que v2). Cuando falta
+ * mas de una cosa se muestra la de mayor prioridad; la lista completa sigue
+ * en el texto "Falta: ..." y en el tooltip.
+ * Orden: primero lo que bloquea de verdad (sin consentimientos firmados no se
+ * puede tratar), despues lo clinico/facturable, al final completitud de datos.
+ */
+const BADGE_PRIORITY: MissingKey[] = [
+  'missingConsents',
+  'missingMedicalHistory',
+  'missingInsurance',
+  'missingPersonal',
+  'missingAccident',
+  'missingEmergency',
+  'missingDemographics',
+];
+
+const BADGE_LABEL_KEY: Record<MissingKey, string> = {
+  missingConsents:       'badgeMissingConsents',
+  missingMedicalHistory: 'badgeMissingMedicalHistory',
+  missingInsurance:      'badgeMissingInsurance',
+  missingPersonal:       'badgeMissingPersonal',
+  missingAccident:       'badgeMissingAccident',
+  missingEmergency:      'badgeMissingEmergency',
+  missingDemographics:   'badgeMissingDemographics',
+};
+
 function formatProgress(prog: ReturnType<typeof calcIntakeProgress>, t: TFunc) {
   const { pct, missingKeys } = prog;
+  const topMissing = BADGE_PRIORITY.find(k => missingKeys.includes(k));
   const badge = pct === 100
     ? t('progressComplete')
-    : t('progressIncomplete', { pct });
+    : topMissing
+      ? t(BADGE_LABEL_KEY[topMissing] as Parameters<typeof t>[0])
+      : t('progressIncomplete', { pct });
   const missingItems = missingKeys.map(k => t(k as Parameters<typeof t>[0]));
   const sub = missingItems.length > 0
     ? `${t('progressMissingLabel')} ${missingItems.join(', ')}`
@@ -2098,9 +2129,9 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
             )}
             {localPatients.map((p) => (
               <Fragment key={p.id}>
-              <tr className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
+              <tr className="border-b border-row-sep hover:bg-white/[0.02] transition-colors">
                 {/* Chevron expand */}
-                <td className="sticky left-0 z-10 bg-bg-0 px-4 py-3.5 w-[200px]">
+                <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2 w-[200px]">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleExpand(p.id)}
@@ -2117,34 +2148,44 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                     <div className="min-w-0">
                       <button
                         onClick={() => router.push(`${basePath}/${p.id}`)}
-                        className="text-text-1 text-[13px] font-medium hover:text-brand transition-colors text-left truncate block w-full"
+                        className="text-text-1 text-sm font-medium hover:text-brand transition-colors text-left truncate block w-full"
                         title={`${p.firstName} ${p.lastName}`}
                         aria-label={`Ver perfil de ${p.firstName} ${p.lastName}`}
                       >
                         {p.firstName} {p.lastName}
                       </button>
                       {p.patientCode && (
-                        <div className="text-text-muted text-[10px] font-mono">{p.patientCode}</div>
+                        <div className="text-text-muted text-[11px] font-mono leading-tight">{p.patientCode}</div>
                       )}
                     </div>
                   </div>
                 </td>
 
                 {/* Contact */}
-                <td className="px-4 py-3.5 hidden sm:table-cell w-[160px]">
-                  <div className="text-text-2 text-[12px] space-y-0.5">
+                <td className="px-4 py-2 hidden sm:table-cell w-[160px]">
+                  {/* Una sola linea (estandar de listas §4): el telefono manda y
+                      email/idioma pasan a iconos inline, en vez de apilar 3
+                      lineas que estiraban toda la fila. */}
+                  <div className="flex items-center gap-1.5 text-[13px] text-text-2 min-w-0">
                     {p.phone
-                      ? <div className="font-mono truncate">{p.phone}</div>
+                      ? <span className="font-mono truncate">{p.phone}</span>
                       : <span className="text-text-muted">—</span>}
-                    {p.email && <div className="text-text-muted text-[11px] truncate">{p.email}</div>}
+                    {p.email && (
+                      <a href={`mailto:${p.email}`} onClick={e => e.stopPropagation()} title={p.email}
+                        className="shrink-0 text-text-muted hover:text-brand transition-colors">
+                        <Mail className="w-3 h-3" />
+                      </a>
+                    )}
                     {p.preferredLanguage && (
-                      <div className="text-[10px] text-text-muted">{p.preferredLanguage === 'es' ? '🇪🇸 ES' : '🇺🇸 EN'}</div>
+                      <span className="shrink-0 text-[10px] text-text-muted" title={p.preferredLanguage === 'es' ? 'Español' : 'English'}>
+                        {p.preferredLanguage === 'es' ? '🇪🇸' : '🇺🇸'}
+                      </span>
                     )}
                   </div>
                 </td>
 
                 {/* Casos */}
-                <td className="px-3 py-3.5 hidden md:table-cell w-[56px] text-center">
+                <td className="px-3 py-2 hidden md:table-cell w-[56px] text-center">
                   <button
                     onClick={() => toggleExpand(p.id)}
                     className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
@@ -2156,7 +2197,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Estado */}
-                <td className="px-4 py-3.5 hidden sm:table-cell w-[90px]">
+                <td className="px-4 py-2 hidden sm:table-cell w-[90px]">
                   <TagPill
                     label={STATUS_LABEL[p.status] ?? p.status}
                     colorClass={STATUS_COLORS[p.status] ?? 'bg-bg-2 text-text-2 border-border'}
@@ -2164,7 +2205,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Admisión */}
-                <td className="px-4 py-3.5 hidden lg:table-cell w-[200px]">
+                <td className="px-4 py-2 hidden lg:table-cell w-[200px]">
                   {p.latestCase ? (() => {
                     const prog = calcIntakeProgress(
                       {
@@ -2194,7 +2235,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Formulario */}
-                <td className="px-3 py-3.5 hidden lg:table-cell w-[64px]">
+                <td className="px-3 py-2 hidden lg:table-cell w-[64px]">
                   <div className="flex items-center gap-1.5">
                     {/* Ícono email — clickeable si hay caso + email (solo admin) */}
                     {p.latestCase && p.email && !doctorMode ? (
@@ -2229,12 +2270,12 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Created */}
-                <td className="hidden xl:table-cell px-4 py-3.5 text-[11px] text-text-muted tabular-nums whitespace-nowrap">
+                <td className="hidden xl:table-cell px-4 py-2 text-[11px] text-text-muted tabular-nums whitespace-nowrap">
                   {fmtLocalDate(p.createdAt instanceof Date ? p.createdAt.toISOString() : String(p.createdAt))}
                 </td>
 
                 {/* Acciones */}
-                <td className="sticky right-0 z-10 bg-bg-0 px-4 py-3.5">
+                <td className="sticky right-0 z-10 bg-bg-0 px-4 py-2">
                   <div className="flex justify-end">
                     <button
                       onClick={(e) => openMenu(p.id, e.currentTarget)}
@@ -2252,7 +2293,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
 
               {/* ── Fila expandida: casos del paciente ── */}
               {expandedId === p.id && (
-                <tr key={`${p.id}-cases`} id={`cases-row-${p.id}`} className="bg-white/[0.03] border-b border-white/[0.06]">
+                <tr key={`${p.id}-cases`} id={`cases-row-${p.id}`} className="bg-white/[0.03] border-b border-row-sep">
                   <td colSpan={7} className="px-6 py-2 overflow-x-auto">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5">
@@ -2323,7 +2364,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                         <div className="hidden md:block overflow-x-auto">
                           <table className="w-full min-w-[640px] border-collapse">
                             <thead>
-                              <tr className="bg-bg-0 border-b border-white/[0.06]">
+                              <tr className="bg-bg-0 border-b border-row-sep">
                                 <th className="sticky left-0 z-10 bg-bg-0 text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">{t('colType')}</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('colDescription')}</th>
@@ -2341,7 +2382,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                                 return (
                                   <tr
                                     key={c.id}
-                                    className="bg-bg-0 border-b border-white/[0.06] last:border-0 hover:bg-white/[0.02] transition-colors"
+                                    className="bg-bg-0 border-b border-row-sep last:border-0 hover:bg-white/[0.02] transition-colors"
                                   >
                                     {/* Código caso */}
                                     <td className="sticky left-0 z-10 bg-bg-0 px-3 py-2">

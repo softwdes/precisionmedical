@@ -1115,7 +1115,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
                           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
                           onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
-                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-row gap-0.5 items-stretch cursor-pointer group transition-colors ${
+                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-row gap-0.5 items-stretch cursor-pointer group transition-colors min-w-0 overflow-hidden ${
                             dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
                             isToday ? 'bg-cyan/[0.025]' : 'hover:bg-white/[0.015]'
                           }`}>
@@ -1161,7 +1161,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setSelectedAppt(cellAppts[MAX_VISIBLE_LANES]!); }}
                               title={cellAppts.slice(MAX_VISIBLE_LANES).map(a => `${a.patient.firstName} ${a.patient.lastName}`).join(', ')}
-                              className="shrink-0 w-6 rounded px-0.5 py-[2px] text-[9px] font-bold text-text-muted bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] transition-colors"
+                              className="shrink-0 w-6 rounded px-0.5 py-[2px] text-[9px] font-bold text-cyan bg-cyan/[0.16] border border-cyan/40 hover:bg-cyan/[0.28] transition-colors"
                             >
                               +{cellAppts.length - MAX_VISIBLE_LANES}
                             </button>
@@ -1218,7 +1218,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
                         onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
                         onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
-                        className={`p-0.5 flex flex-row gap-0.5 items-stretch cursor-pointer group transition-colors ${
+                        className={`p-0.5 flex flex-row gap-0.5 items-stretch cursor-pointer group transition-colors min-w-0 overflow-hidden ${
                           dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
                           isToday ? 'bg-cyan/[0.015]' : 'hover:bg-white/[0.015]'
                         }`}>
@@ -1261,7 +1261,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setSelectedAppt(cellAppts[MAX_VISIBLE_LANES]!); }}
                             title={cellAppts.slice(MAX_VISIBLE_LANES).map(a => `${a.patient.firstName} ${a.patient.lastName}`).join(', ')}
-                            className="shrink-0 w-8 rounded px-1 py-1 text-[10px] font-bold text-text-muted bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] transition-colors"
+                            className="shrink-0 w-8 rounded px-1 py-1 text-[10px] font-bold text-cyan bg-cyan/[0.16] border border-cyan/40 hover:bg-cyan/[0.28] transition-colors"
                           >
                             +{cellAppts.length - MAX_VISIBLE_LANES}
                           </button>

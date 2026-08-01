@@ -494,10 +494,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                         <MessageSquare className="w-4 h-4" /> {t('actionSms')}
                       </a>
                     )}
-                    {appt.case && !intakeDone && (
-                      <button type="button" onClick={() => setIntakeLinkOpen(true)}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
-                        <MessageSquare className="w-4 h-4" /> {t('actionResendForm')}
+                    {appt.case && (
+                      <button
+                        type="button"
+                        onClick={() => setIntakeLinkOpen(true)}
+                        title={intakeDone ? t('resendFormDoneHint') : undefined}
+                        className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-colors text-[11px] font-medium ${
+                          intakeDone
+                            ? 'border-emerald/30 bg-emerald/5 text-emerald hover:bg-emerald/10'
+                            : 'border-border text-text-2 hover:bg-white/5 hover:text-text-1'
+                        }`}
+                      >
+                        {intakeDone ? <CheckCircle2 className="w-4 h-4" /> : <MessageSquare className="w-4 h-4" />}
+                        {intakeDone ? t('checklistCompleted') : t('actionResendForm')}
                       </button>
                     )}
                   </div>

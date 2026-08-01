@@ -3074,6 +3074,7 @@
       "actionSms": "SMS",
       "actionReschedule": "Reschedule",
       "actionResendForm": "Resend form",
+      "resendFormDoneHint": "The patient already completed the form — you can still view the link/QR or resend it if needed.",
       "sectionDetailedInfo": "View detailed info",
       "secondaryBtnPersonal": "Personal info",
       "secondaryBtnLawyer": "Lawyer and firm",

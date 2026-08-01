@@ -209,6 +209,12 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
   const nextWeek = () => { setWeekStart(d => addDays(d, +7)); setSelectedDay(null); };
 
   const selectedSlot = value ? slots.find(s => s.iso === value) : null;
+  // Rango completo (inicio–fin) para la confirmación — mostrar solo la hora
+  // de inicio no dejaba claro cuánto durará realmente la cita (15/30/45min...).
+  const selectedSlotEndLabel = selectedSlot
+    ? new Date(new Date(selectedSlot.iso).getTime() + duration * 60_000)
+        .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })
+    : null;
 
   return (
     <div className="space-y-3">
@@ -332,11 +338,14 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
         </p>
       )}
 
-      {/* ── Confirmación del slot seleccionado ── */}
+      {/* ── Confirmación del slot seleccionado — rango completo, no solo el inicio ── */}
       {selectedSlot && (
         <div className="rounded-md border border-cyan/30 bg-cyan/5 px-3 py-2 text-[11px] text-cyan flex items-center gap-2">
           <Check className="w-3.5 h-3.5 shrink-0" />
-          <span><strong className="capitalize">{selectedSlot.dayLabel} · {selectedSlot.label}</strong></span>
+          <span>
+            <strong className="capitalize">{selectedSlot.dayLabel} · {selectedSlot.label} – {selectedSlotEndLabel}</strong>
+            <span className="opacity-70 font-normal"> ({duration} min)</span>
+          </span>
         </div>
       )}
     </div>

@@ -341,7 +341,26 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       .then((r) => r.json())
       .then((d) => {
         setClinics(d.clinics ?? []);
-        setAllProviders(d.providers ?? []);
+        const fetchedProviders: Provider[] = d.providers ?? [];
+        // /scheduling/resources solo trae doctores ACTIVOS — si el doctor de
+        // esta cita quedó inactivo después de agendarla, desaparecía de la
+        // lista al editar (se veía como si no hubiera doctor seleccionado,
+        // aunque la cita sí lo tenía). Se agrega igual para que siga viéndose.
+        if (
+          editAppointment?.providerId &&
+          editAppointment.providerFirstName &&
+          !fetchedProviders.some((p) => p.id === editAppointment.providerId)
+        ) {
+          fetchedProviders.push({
+            id: editAppointment.providerId,
+            firstName: editAppointment.providerFirstName,
+            lastName: editAppointment.providerLastName ?? '',
+            specialty: editAppointment.providerSpecialty ?? '',
+            licenseNumber: null,
+            specialtyCatalogIds: [],
+          });
+        }
+        setAllProviders(fetchedProviders);
         setSpecialties(d.specialties ?? []);
       })
       .catch(() => setError(t('errorLoadResources')))

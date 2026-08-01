@@ -190,6 +190,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
   const [payInsuranceId, setPayInsuranceId] = useState<string>('');
   const [paying, setPaying]           = useState(false);
   const [deletingPay, setDeletingPay] = useState<string | null>(null);
+  const [noteDialogFor, setNoteDialogFor] = useState<string | null>(null); // billingId de la fila con "Nota de pago" abierta
+  const [noteDraft, setNoteDraft]         = useState('');
   const openAfterLoad = useRef(false);
 
   // Cuando se abre desde una cita puntual (calendario), el modal de pago
@@ -532,7 +534,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       {/* ── Modal: Pagar deuda ─────────────────────────────────────────────────── */}
       {payOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-4 overflow-y-auto">
-          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-5xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-bg-1 border border-border rounded-xl w-full max-w-5xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
 
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -640,7 +642,15 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                             </div>
                           </div>
                           <div className="min-w-0 sticky right-0 z-10 bg-bg-1 px-3 py-3 flex items-center justify-center">
-                            <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Agregar nota">
+                            <button
+                              type="button"
+                              disabled={!(parseFloat(payAmounts[b.id] ?? '0') > 0)}
+                              onClick={() => { setNoteDraft(payNotes[b.id] ?? ''); setNoteDialogFor(b.id); }}
+                              className={`p-1 rounded transition-colors hover:text-cyan disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-text-muted ${
+                                payNotes[b.id] ? 'text-cyan' : 'text-text-muted'
+                              }`}
+                              title={payAmounts[b.id] ? 'Nota de pago' : 'Ingresa un monto a pagar para agregar una nota'}
+                            >
                               <FileText className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -731,6 +741,59 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                 </Button>
               </div>
             </div>
+
+            {/* Nota de pago — overlay dentro del modal (no un segundo fixed
+                encima, para no repetir el problema de dos fondos oscuros
+                apilados que ya tuvimos con Servicios + Pagar deuda). */}
+            {noteDialogFor && (() => {
+              const b = billings.find(x => x.id === noteDialogFor);
+              if (!b) return null;
+              return (
+                <div
+                  className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-4"
+                  onClick={() => setNoteDialogFor(null)}
+                >
+                  <div
+                    className="bg-bg-1 border border-border rounded-xl w-full max-w-md shadow-2xl"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                      <div>
+                        <h3 className="text-text-1 font-semibold text-base">Nota de pago</h3>
+                        <p className="text-text-muted text-xs mt-0.5">Agrega una nota para el pago aplicado al DOS {fmtDate(b.appointmentDate)}</p>
+                      </div>
+                      <button onClick={() => setNoteDialogFor(null)} className="text-text-muted hover:text-text-1 transition-colors p-1">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="p-5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-text-1">Notas</label>
+                        <span className="text-[10px] text-text-muted">{noteDraft.length} caracteres</span>
+                      </div>
+                      <textarea
+                        value={noteDraft}
+                        onChange={e => setNoteDraft(e.target.value)}
+                        rows={4}
+                        placeholder="Agrega detalles del pago, número de cheque, referencia, etc..."
+                        className="w-full rounded-md bg-bg-2 border border-border px-3 py-2 text-sm text-text-1 placeholder:text-text-muted outline-none focus:border-brand resize-none"
+                      />
+                    </div>
+                    <div className="px-5 py-4 border-t border-border flex justify-end">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setPayNotes(prev => ({ ...prev, [noteDialogFor]: noteDraft }));
+                          setNoteDialogFor(null);
+                        }}
+                      >
+                        Guardar nota
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
           </div>
         </div>

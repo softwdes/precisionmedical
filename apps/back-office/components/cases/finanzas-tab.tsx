@@ -532,7 +532,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       {/* ── Modal: Pagar deuda ─────────────────────────────────────────────────── */}
       {payOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-4 overflow-y-auto">
-          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-4xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-bg-1 border border-border rounded-xl w-full max-w-5xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
 
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -570,7 +570,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Monto desc.</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
-                    <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28">Pagar</th>
+                    <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-40">Pagar</th>
                     <th className="sticky right-0 z-10 bg-bg-2 px-3 py-2.5 w-12 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
                   </tr>
                 </thead>
@@ -579,7 +579,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                     const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
                     return (
                       <tr key={b.id} className="hover:bg-white/[0.02]">
-                        <td className="sticky left-0 z-10 bg-bg-0 px-4 py-3 text-xs max-w-56">
+                        <td className="sticky left-0 z-10 bg-bg-1 px-4 py-3 text-xs max-w-56">
                           {b.serviceCode ? (
                             <div className="min-w-0">
                               <div className="flex items-baseline gap-1.5 min-w-0">
@@ -636,7 +636,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                             </button>
                           </div>
                         </td>
-                        <td className="sticky right-0 z-10 bg-bg-0 px-3 py-3">
+                        <td className="sticky right-0 z-10 bg-bg-1 px-3 py-3">
                           <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Agregar nota">
                             <FileText className="w-3.5 h-3.5" />
                           </button>

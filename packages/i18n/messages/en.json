@@ -3188,6 +3188,7 @@
       "selectClinicAndDoctorHint": "Select clinic and doctor to see available time slots.",
       "fieldOnlineConsultation": "Online consultation",
       "fieldOnlineConsultationHint": "Telemedicine — appointment conducted via video call",
+      "meetingUrlLabel": "Meeting link",
       "meetingUrlPlaceholder": "https://zoom.us/j/... (optional)",
       "desiredTime": "Desired time",
       "slotConfirmed": "Appointment confirmed",

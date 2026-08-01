@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   CalendarCheck, AlertCircle, Check, Building2, Stethoscope,
-  FileText, ChevronRight, Calendar as CalendarIcon, User, Search, X,
+  FileText, ChevronRight, Calendar as CalendarIcon, User, Search, X, Link2,
 } from 'lucide-react';
 import { WeeklySlotPicker } from './weekly-slot-picker';
 import {
@@ -1052,14 +1052,21 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                 </button>
               </div>
               {isOnline && (
-                <div className="mt-2.5 pt-2.5 border-t border-cyan/20">
-                  <input
-                    type="url"
-                    value={meetingUrl}
-                    onChange={(e) => setMeetingUrl(e.target.value)}
-                    placeholder={t('meetingUrlPlaceholder')}
-                    className="w-full bg-bg-1 border border-cyan/30 rounded-md px-3 py-1.5 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan"
-                  />
+                <div className="mt-3 pt-3 border-t border-border">
+                  <label htmlFor="appt-meeting-url" className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5 block">
+                    {t('meetingUrlLabel')}
+                  </label>
+                  <div className="relative">
+                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                    <input
+                      id="appt-meeting-url"
+                      type="url"
+                      value={meetingUrl}
+                      onChange={(e) => setMeetingUrl(e.target.value)}
+                      placeholder={t('meetingUrlPlaceholder')}
+                      className="w-full bg-bg-1 border border-cyan/30 rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan"
+                    />
+                  </div>
                 </div>
               )}
             </div>

@@ -3188,6 +3188,7 @@
       "selectClinicAndDoctorHint": "Selecciona clínica y doctor para ver los horarios disponibles.",
       "fieldOnlineConsultation": "Consulta en línea",
       "fieldOnlineConsultationHint": "Telemedicina — la cita se realiza por videollamada",
+      "meetingUrlLabel": "Enlace de la reunión",
       "meetingUrlPlaceholder": "https://zoom.us/j/... (opcional)",
       "desiredTime": "Horario deseado",
       "slotConfirmed": "Cita confirmada",

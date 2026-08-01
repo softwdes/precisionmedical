@@ -129,7 +129,9 @@ function slotLabel(slot: string): string {
   const period = h! < 12 ? 'AM' : 'PM';
   const h12    = h! % 12 === 0 ? 12 : h! % 12;
   if (m === 0) return `${h12} ${period}`;
-  return `${h12}:30`;
+  // Usar los minutos reales: con la grilla de 15 min de la vista de día hay
+  // slots :15 y :45. (Para los de 30 min de semana/mes el resultado es igual.)
+  return `${h12}:${String(m).padStart(2, '0')}`;
 }
 
 function timeToMinutes(t: string): number {
@@ -1262,12 +1264,13 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
           const allSlots: string[] = [];
           for (let m = fromMin; m < toMin; m += DAY_SLOT_MIN) allSlots.push(minToSlot(m));
-          // Cortamos por la mitad, redondeando a hora en punto (multiplo de 4
-          // slots) para que la 2da columna arranque prolija.
-          const splitIdx = Math.min(
+          // Cortamos al mediodia: la 1ra columna termina 11:45 y la 2da arranca
+          // 12:00, asi los encabezados "mañana"/"tarde" son literales y las dos
+          // columnas quedan alineadas a la hora en punto.
+          const splitIdx = Math.max(0, Math.min(
             allSlots.length,
-            Math.round(Math.ceil(allSlots.length / 2) / 4) * 4,
-          );
+            Math.ceil((12 * 60 - fromMin) / DAY_SLOT_MIN),
+          ));
           const columns = [allSlots.slice(0, splitIdx), allSlots.slice(splitIdx)];
 
           const renderSlotRow = (slot: string) => {

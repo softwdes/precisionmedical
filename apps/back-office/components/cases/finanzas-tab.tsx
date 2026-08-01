@@ -170,7 +170,7 @@ function KpiCard({ label, value, color }: { label: string; value: number; color:
 
 export interface FinanzasTabHandle { openPayModal: () => void; reload: () => void; reloadAndOpen: () => void }
 
-export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(function FinanzasTab({ caseId }, ref) {
+export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filterAppointmentId?: string }>(function FinanzasTab({ caseId, filterAppointmentId }, ref) {
   const t  = useTranslations('phoenix.caseTabs.finanzas');
   const tc = useTranslations('phoenix.common');
   const [billings, setBillings]     = useState<BillingRecord[]>([]);
@@ -192,6 +192,12 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
   const [deletingPay, setDeletingPay] = useState<string | null>(null);
   const openAfterLoad = useRef(false);
 
+  // Cuando se abre desde una cita puntual (calendario), el modal de pago
+  // solo debe mostrar los servicios de ESA cita, no todo el caso.
+  const pendingOf = useCallback((list: BillingRecord[]) => (
+    list.filter(b => b.balanceDue > 0 && (!filterAppointmentId || b.appointmentId === filterAppointmentId))
+  ), [filterAppointmentId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -208,7 +214,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
       // Open pay modal with fresh data if flagged
       if (openAfterLoad.current) {
         openAfterLoad.current = false;
-        const pending = freshBillings.filter(b => b.balanceDue > 0);
+        const pending = pendingOf(freshBillings);
         const init: Record<string, string> = {};
         pending.forEach(b => { init[b.id] = ''; });
         setPayAmounts(init);
@@ -224,12 +230,12 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
     } finally {
       setLoading(false);
     }
-  }, [caseId]);
+  }, [caseId, pendingOf]);
 
   useEffect(() => { load(); }, [load]);
 
   function openPayModal() {
-    const pending = billings.filter(b => b.balanceDue > 0);
+    const pending = pendingOf(billings);
     const init: Record<string, string> = {};
     pending.forEach(b => { init[b.id] = ''; });
     setPayAmounts(init);
@@ -263,12 +269,12 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
   function autoDistribute(totalStr: string) {
     const raw = parseFloat(totalStr);
     if (isNaN(raw) || raw <= 0) {
-      const pending = billings.filter(b => b.balanceDue > 0);
+      const pending = pendingOf(billings);
       setPayAmounts(prev => { const n = { ...prev }; pending.forEach(b => { n[b.id] = ''; }); return n; });
       return;
     }
     const total = Math.min(raw, totalPending);
-    const pending = billings.filter(b => b.balanceDue > 0);
+    const pending = pendingOf(billings);
     const newAmounts: Record<string, string> = {};
     let remaining = total;
     for (const b of pending) {
@@ -325,7 +331,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
     }
   }
 
-  const pending     = billings.filter(b => b.balanceDue > 0);
+  const pending     = pendingOf(billings);
   const totalPending = pending.reduce((s, b) => s + b.balanceDue, 0);
   const payTotal    = Object.values(payAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0);
   const hasOverpay  = pending.some(b => (parseFloat(payAmounts[b.id] ?? '0') || 0) > b.balanceDue);
@@ -399,7 +405,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
               <thead>
                 <tr className="border-b border-border/60 bg-bg-2/40">
                   <th className="sticky left-0 z-10 bg-bg-2 w-6 px-2" />
-                  <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</th>
+                  <th className="text-left px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-56">Servicio / Fecha</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Desc. %</th>
                   <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell">Monto desc.</th>
@@ -421,11 +427,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                         <td className="sticky left-0 z-10 bg-bg-0 px-2 py-3 text-text-muted">
                           {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
-                        <td className="px-3 py-3 text-xs">
+                        <td className="px-3 py-3 text-xs max-w-56">
                           {b.serviceCode ? (
-                            <div>
-                              <span className="font-mono font-semibold text-cyan">{b.serviceCode}</span>
-                              <span className="text-text-muted ml-1.5">{b.serviceDescription}</span>
+                            <div className="min-w-0">
+                              <div className="flex items-baseline gap-1.5 min-w-0">
+                                <span className="font-mono font-semibold text-cyan shrink-0">{b.serviceCode}</span>
+                                <span className="text-text-muted text-[11px] truncate">{b.serviceDescription}</span>
+                              </div>
                               <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
                             </div>
                           ) : (
@@ -556,7 +564,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
                   <tr>
-                    <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</th>
+                    <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-56">Servicio / Fecha</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Descuento %</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Monto desc.</th>
@@ -571,11 +579,13 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string }>(fun
                     const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
                     return (
                       <tr key={b.id} className="hover:bg-white/[0.02]">
-                        <td className="sticky left-0 z-10 bg-bg-0 px-4 py-3 text-xs">
+                        <td className="sticky left-0 z-10 bg-bg-0 px-4 py-3 text-xs max-w-56">
                           {b.serviceCode ? (
-                            <div>
-                              <span className="font-mono font-semibold text-cyan">{b.serviceCode}</span>
-                              <span className="text-text-muted ml-1.5 text-[11px]">{b.serviceDescription}</span>
+                            <div className="min-w-0">
+                              <div className="flex items-baseline gap-1.5 min-w-0">
+                                <span className="font-mono font-semibold text-cyan shrink-0">{b.serviceCode}</span>
+                                <span className="text-text-muted text-[11px] truncate">{b.serviceDescription}</span>
+                              </div>
                               <div className="text-[10px] text-text-muted/60 mt-0.5">{fmtDate(b.appointmentDate)}</div>
                             </div>
                           ) : (

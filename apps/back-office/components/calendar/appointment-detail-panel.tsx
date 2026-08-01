@@ -821,7 +821,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           {/* FinanzasTab oculto — expone modal "Pagar deuda" al botón del header */}
           {appt.case && !hidePayments && (
             <div className="h-0 overflow-hidden">
-              <FinanzasTab ref={finanzasRef} caseId={appt.case.id} />
+              <FinanzasTab ref={finanzasRef} caseId={appt.case.id} filterAppointmentId={appt.id} />
             </div>
           )}
 

@@ -568,21 +568,21 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               return (
                 <div className="overflow-x-auto max-h-72 overflow-y-auto">
                   <div className={`sticky top-0 z-20 grid ${GRID_COLS} bg-bg-2/95 backdrop-blur-sm border-b border-border`}>
-                    <div className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</div>
-                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Costo</div>
-                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Descuento %</div>
-                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Monto desc.</div>
-                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Pagado</div>
-                    <div className="flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Pendiente</div>
-                    <div className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagar</div>
-                    <div className="sticky right-0 z-10 bg-bg-2 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</div>
+                    <div className="min-w-0 sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Costo</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Descuento %</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Monto desc.</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Pagado</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Pendiente</div>
+                    <div className="min-w-0 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagar</div>
+                    <div className="min-w-0 sticky right-0 z-10 bg-bg-2 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</div>
                   </div>
                   <div className="divide-y divide-border/40">
                     {pending.map(b => {
                       const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
                       return (
                         <div key={b.id} className={`grid ${GRID_COLS} hover:bg-white/[0.02]`}>
-                          <div className="sticky left-0 z-10 bg-bg-1 px-4 py-3 text-xs">
+                          <div className="min-w-0 sticky left-0 z-10 bg-bg-1 px-4 py-3 text-xs">
                             {b.serviceCode ? (
                               <div className="min-w-0">
                                 <div className="flex items-baseline gap-1.5 min-w-0">
@@ -595,16 +595,16 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                               <span className="font-mono text-text-1">{fmtDate(b.appointmentDate)}</span>
                             )}
                           </div>
-                          <div className="flex items-center justify-end px-3 py-3 text-right font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</div>
-                          <div className="flex items-center justify-end px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap">{discPct}%</div>
-                          <div className="flex items-center justify-end px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap">{fmt$(b.discount)}</div>
-                          <div className="flex items-center justify-end px-3 py-3 text-right text-emerald font-mono text-xs whitespace-nowrap">{fmt$(b.amountPaid)}</div>
-                          <div className="flex items-center justify-end px-3 py-3 text-right">
+                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</div>
+                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap">{discPct}%</div>
+                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap">{fmt$(b.discount)}</div>
+                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right text-emerald font-mono text-xs whitespace-nowrap">{fmt$(b.amountPaid)}</div>
+                          <div className="min-w-0 flex items-center justify-end px-3 py-3 text-right">
                             <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap">
                               {fmt$(b.balanceDue)}
                             </span>
                           </div>
-                          <div className="flex items-center px-3 py-3">
+                          <div className="min-w-0 flex items-center px-3 py-3">
                             <div className="flex items-center gap-1 w-full">
                               <input
                                 type="number"
@@ -639,7 +639,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                               </button>
                             </div>
                           </div>
-                          <div className="sticky right-0 z-10 bg-bg-1 px-3 py-3 flex items-center justify-center">
+                          <div className="min-w-0 sticky right-0 z-10 bg-bg-1 px-3 py-3 flex items-center justify-center">
                             <button className="p-1 rounded text-text-muted hover:text-cyan transition-colors" title="Agregar nota">
                               <FileText className="w-3.5 h-3.5" />
                             </button>

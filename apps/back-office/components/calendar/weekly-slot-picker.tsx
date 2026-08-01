@@ -210,7 +210,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           type="button"
           disabled={isPrevDisabled}
           onClick={prevWeek}
-          className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+          className="px-2.5 py-1.5 rounded-md border border-border-strong text-[11.5px] font-medium text-text-2 hover:text-brand hover:border-brand/50 hover:bg-brand/5 disabled:opacity-30 disabled:hover:text-text-2 disabled:hover:border-border-strong disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors flex items-center gap-1"
         >
           <ArrowLeft className="w-3 h-3" /> {t('prevWeek')}
         </button>
@@ -221,7 +221,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           type="button"
           disabled={isNextDisabled}
           onClick={nextWeek}
-          className="px-2 py-1 rounded-md border border-border text-[11px] text-text-muted hover:text-text-1 hover:border-border-strong disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+          className="px-2.5 py-1.5 rounded-md border border-border-strong text-[11.5px] font-medium text-text-2 hover:text-brand hover:border-brand/50 hover:bg-brand/5 disabled:opacity-30 disabled:hover:text-text-2 disabled:hover:border-border-strong disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors flex items-center gap-1"
         >
           {t('nextWeek')} <ArrowRight className="w-3 h-3" />
         </button>

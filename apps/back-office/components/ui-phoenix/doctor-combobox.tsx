@@ -66,8 +66,8 @@ export function DoctorCombobox({
     <div className="space-y-1">
       {/* Badge del doctor seleccionado */}
       {selected && (
-        <div className="flex items-center gap-2 rounded-md border border-cyan/40 bg-cyan/5 px-3 py-2 text-sm">
-          <PersonAvatar firstName={selected.firstName} lastName={selected.lastName} size={8} gradientClass="bg-gradient-brand" />
+        <div className="flex items-center gap-2 rounded-md border border-cyan/40 bg-cyan/5 px-3 py-[7px] text-sm">
+          <PersonAvatar firstName={selected.firstName} lastName={selected.lastName} size={6} gradientClass="bg-gradient-brand" />
           <span className="flex-1 min-w-0 truncate text-text-1 font-medium text-[12.5px]">
             {drPrefix} {selected.firstName} {selected.lastName}
           </span>

@@ -8,7 +8,9 @@
  *   lawyer      → Abogado & bufete
  *   insurance   → Seguro PIP
  *   callHandler → Quién atendió la llamada inicial
- *   intake      → (acción) Reenviar formulario portal
+ *
+ * "Reenviar formulario" ya no vive acá — abre IntakeFormLinkDialog
+ * directamente (link real + QR + envío), ver AppointmentDetailPanel.
  */
 
 import { X, User, Scale, Shield, Headphones, Phone, Mail, MapPin, ExternalLink } from 'lucide-react';
@@ -16,7 +18,7 @@ import { useTranslations } from 'next-intl';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type SecondaryModalType = 'personal' | 'lawyer' | 'insurance' | 'callHandler' | 'intake';
+export type SecondaryModalType = 'personal' | 'lawyer' | 'insurance' | 'callHandler';
 
 interface CalendarAppointment {
   id: string;
@@ -83,7 +85,6 @@ export function AppointmentSecondaryModals({ type, appointment: appt, onClose }:
         {type === 'lawyer'      && <LawyerModal      appt={appt} onClose={onClose} />}
         {type === 'insurance'   && <InsuranceModal   appt={appt} onClose={onClose} />}
         {type === 'callHandler' && <CallHandlerModal appt={appt} onClose={onClose} />}
-        {type === 'intake'      && <IntakeModal      appt={appt} onClose={onClose} />}
       </div>
     </>
   );
@@ -321,42 +322,3 @@ function CallHandlerModal({ appt, onClose }: { appt: CalendarAppointment; onClos
   );
 }
 
-// ─── 5. Intake resend ────────────────────────────────────────────────────────
-
-function IntakeModal({ appt, onClose }: { appt: CalendarAppointment; onClose: () => void }) {
-  const t = useTranslations('phoenix.calendar');
-  const intakeDone = !!appt.case?.intakeFormCompletedAt;
-  if (intakeDone) {
-    return (
-      <ModalShell title={t('modalIntakeTitle')} icon={<Mail className="w-4 h-4" />} accentColor="#10b981" onClose={onClose}>
-        <div className="text-center py-4 space-y-2">
-          <div className="text-3xl">✅</div>
-          <div className="text-text-1 font-semibold">{t('intakeAlreadyDone')}</div>
-          <div className="text-text-muted text-xs">
-            {appt.patient.firstName} {t('intakeAlreadySentBy')}
-          </div>
-        </div>
-      </ModalShell>
-    );
-  }
-  return (
-    <ModalShell
-      title={t('modalResendTitle')}
-      onClose={onClose}
-      icon={<Mail className="w-4 h-4" />}
-      accentColor="#06b6d4"
-    >
-      <p className="text-text-2 text-sm">
-        {t('intakeResendDescription', { name: appt.patient.firstName })}
-      </p>
-      <div className="rounded-lg p-3 border border-border bg-bg-2/30 space-y-1 text-[12.5px]">
-        <DataRow label={t('rowPatient')} value={`${appt.patient.firstName} ${appt.patient.lastName}`} highlight />
-        {appt.patient.phone && <DataRow label={t('rowSmsTo')} value={appt.patient.phone} />}
-        {appt.patient.email && <DataRow label={t('rowEmailTo')} value={appt.patient.email} />}
-      </div>
-      <p className="text-[11px] text-amber">
-        ⚠️ {t('intakeResendNote')}
-      </p>
-    </ModalShell>
-  );
-}

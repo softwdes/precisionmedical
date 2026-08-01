@@ -25,6 +25,9 @@ import { AppointmentSecondaryModals, type SecondaryModalType } from './appointme
 import { AppointmentDialog, type EditAppointmentData } from './appointment-dialog';
 import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
+import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
+import { useTwilioDevice } from '@/lib/use-twilio-device';
+import { ActiveCallBar } from '@/components/cases/active-call-bar';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -167,6 +170,17 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const [cancelling,    setCancelling]    = useState(false);
   const [cancelError,   setCancelError]   = useState<string | null>(null);
   const [editOpen,       setEditOpen]       = useState(false);
+  const [intakeLinkOpen, setIntakeLinkOpen] = useState(false);
+  const [callConfirmOpen, setCallConfirmOpen] = useState(false);
+
+  // ── Llamada real por Twilio (mismo hook/widget que new-case-dialog) ──────
+  const twilio = useTwilioDevice();
+  const [callElapsed, setCallElapsed] = useState(0);
+  useEffect(() => {
+    if (twilio.callStatus !== 'in-call') { setCallElapsed(0); return; }
+    const id = setInterval(() => setCallElapsed((p) => p + 1), 1000);
+    return () => clearInterval(id);
+  }, [twilio.callStatus]);
 
   // ── Services tab ──────────────────────────────────────────────────────────
   const [services,       setServices]       = useState<PlannedService[]>([]);
@@ -302,8 +316,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     <>
 
           {/* ─── Header (solo en modal, no inline) ──────────────── */}
+          {/* pr-9 en vez de pr-5: el botón de cerrar (X) del Dialog vive
+              aparte, absolute right-4, y sin este espacio extra quedaba
+              pegado al StatusPill. */}
           {!inline && (
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+            <div className="flex items-center justify-between pl-5 pr-9 py-4 border-b border-border shrink-0">
               <div className="flex items-center gap-3">
                 <Calendar className="w-4 h-4 text-cyan" />
                 <div>
@@ -445,12 +462,31 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
                 <div className="rounded-lg border border-border bg-bg-1 p-4">
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📞 {t('sectionQuickActions')}</div>
+
+                  {(twilio.callStatus === 'connecting' || twilio.callStatus === 'in-call') && (
+                    <div className="mb-2">
+                      <ActiveCallBar
+                        status={twilio.callStatus}
+                        patientName={`${appt.patient.firstName} ${appt.patient.lastName}`}
+                        phone={appt.patient.phone ?? ''}
+                        elapsed={callElapsed}
+                        muted={twilio.muted}
+                        onMuteToggle={twilio.toggleMute}
+                        onHangUp={twilio.hangUp}
+                      />
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {appt.patient.phone && (
-                      <a href={`tel:${appt.patient.phone}`}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                      <button
+                        type="button"
+                        disabled={twilio.callStatus === 'connecting' || twilio.callStatus === 'in-call'}
+                        onClick={() => setCallConfirmOpen(true)}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
                         <Phone className="w-4 h-4" /> {t('actionCall')}
-                      </a>
+                      </button>
                     )}
                     {appt.patient.phone && (
                       <a href={`sms:${appt.patient.phone}`}
@@ -458,10 +494,12 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                         <MessageSquare className="w-4 h-4" /> {t('actionSms')}
                       </a>
                     )}
-                    <button type="button" onClick={() => setActiveModal('intake')}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
-                      <MessageSquare className="w-4 h-4" /> {t('actionResendForm')}
-                    </button>
+                    {appt.case && !intakeDone && (
+                      <button type="button" onClick={() => setIntakeLinkOpen(true)}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                        <MessageSquare className="w-4 h-4" /> {t('actionResendForm')}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -647,6 +685,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-rose/30 text-rose hover:bg-rose/10 text-xs font-medium transition-colors sm:mr-auto">
                     <Ban className="w-3.5 h-3.5" /> {t('actionCancelAppointment')}
                   </button>
+                  <button type="button" onClick={() => { twilio.hangUp(); onClose(); }}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
+                    <X className="w-3.5 h-3.5" /> {t('actionClose')}
+                  </button>
                   <button type="button" onClick={() => setEditOpen(true)}
                     className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
                     <Edit2 className="w-3.5 h-3.5" /> {t('actionEdit')}
@@ -673,6 +715,18 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         cancelLabel="Cancel"
         onConfirm={() => { if (confirmDeleteSvc) removeService(confirmDeleteSvc); setConfirmDeleteSvc(null); }}
         onCancel={() => setConfirmDeleteSvc(null)}
+      />
+
+      {/* Confirm call — llamar de verdad es una accion real (Twilio), no solo abrir un link */}
+      <ConfirmDialog
+        open={callConfirmOpen}
+        variant="info"
+        title={t('confirmCallTitle', { name: `${appt.patient.firstName} ${appt.patient.lastName}` })}
+        description={t('confirmCallDescription', { phone: appt.patient.phone ?? '' })}
+        confirmLabel={t('confirmCallAccept')}
+        cancelLabel={t('actionCancel')}
+        onConfirm={() => { setCallConfirmOpen(false); twilio.connect(appt.patient.phone!); }}
+        onCancel={() => setCallConfirmOpen(false)}
       />
 
       {/* Secondary modals */}
@@ -713,6 +767,24 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           onSuccess={() => { onRefresh(); setEditOpen(false); }}
         />
       )}
+
+      {/* Reenviar formulario — link real + QR (mismo flujo que Day Admission) */}
+      {appt.case && (
+        <IntakeFormLinkDialog
+          open={intakeLinkOpen}
+          onOpenChange={setIntakeLinkOpen}
+          caseInfo={{
+            id:       appt.case.id,
+            caseCode: appt.case.caseCode,
+            patient: {
+              firstName: appt.patient.firstName,
+              lastName:  appt.patient.lastName,
+              phone:     appt.patient.phone,
+              email:     appt.patient.email,
+            },
+          }}
+        />
+      )}
     </>
   );
 
@@ -725,7 +797,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   }
 
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog open onOpenChange={(v) => { if (!v) { twilio.hangUp(); onClose(); } }}>
       <DialogContent className="max-w-3xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
         <DialogTitle className="sr-only">Appointment detail</DialogTitle>
         {panelContent}

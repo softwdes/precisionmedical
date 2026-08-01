@@ -541,7 +541,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
           pointer-events/focus trap -- un portal manual a body quedaba fuera de
           su subarbol y el modal se veia pero no se podia clickear. */}
       <Dialog open={payOpen} onOpenChange={setPayOpen}>
-        <DialogContent className="max-w-5xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
 
             {/* Modal header */}
             <div className="px-5 py-4 border-b border-border shrink-0">
@@ -573,7 +573,12 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                 ambiguedad de table-layout (fixed/auto) combinado con celdas
                 sticky, que nunca terminaba de encajar sin scroll. */}
             {(() => {
-              const GRID_COLS = 'grid-cols-[minmax(160px,1.3fr)_minmax(70px,0.5fr)_minmax(90px,0.55fr)_minmax(90px,0.6fr)_minmax(70px,0.5fr)_minmax(90px,0.6fr)_minmax(160px,1.1fr)_48px]';
+              // Pisos elegidos a partir del ancho real de cada header (10px
+              // uppercase + tracking + px-3) mas holgura: suman ~794px contra
+              // los 896px del max-w-4xl, asi que sobra espacio y el scroll
+              // horizontal no puede aparecer en desktop. En pantallas angostas
+              // si aparece, que es cuando las columnas sticky sirven.
+              const GRID_COLS = 'grid-cols-[minmax(170px,1.5fr)_minmax(85px,0.6fr)_minmax(100px,0.7fr)_minmax(105px,0.75fr)_minmax(85px,0.6fr)_minmax(95px,0.7fr)_minmax(110px,0.8fr)_44px]';
               return (
                 <div className="overflow-x-auto max-h-72 overflow-y-auto">
                   <div className={`sticky top-0 z-20 grid ${GRID_COLS} bg-bg-2/95 backdrop-blur-sm border-b border-border`}>
@@ -591,7 +596,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                       const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
                       return (
                         <div key={b.id} className={`grid ${GRID_COLS} hover:bg-white/[0.02]`}>
-                          <div className="min-w-0 sticky left-0 z-10 bg-bg-1 px-4 py-3 text-xs">
+                          <div className="min-w-0 sticky left-0 z-10 bg-surface px-4 py-3 text-xs">
                             {b.serviceCode ? (
                               <div className="min-w-0">
                                 <div className="flex items-baseline gap-1.5 min-w-0">
@@ -639,7 +644,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                               placeholder="0.00"
                             />
                           </div>
-                          <div className="min-w-0 sticky right-0 z-10 bg-bg-1 px-3 py-3 flex items-center justify-center">
+                          <div className="min-w-0 sticky right-0 z-10 bg-surface px-3 py-3 flex items-center justify-center">
                             <button
                               type="button"
                               disabled={!(parseFloat(payAmounts[b.id] ?? '0') > 0)}

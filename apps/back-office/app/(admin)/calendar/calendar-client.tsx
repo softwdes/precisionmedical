@@ -91,6 +91,31 @@ function addDays(date: Date, n: number): Date {
   return d;
 }
 
+/**
+ * La clínica solo atiende de lunes a viernes. Si `date` cae sábado o domingo,
+ * devuelve el siguiente día hábil (lunes); si ya es hábil, lo devuelve igual.
+ * El día de la semana se calcula en America/Denver, igual que getMondayOf(),
+ * para no desfasarse si el browser está en otra timezone.
+ */
+function nextWeekday(date: Date): Date {
+  const [y, m, d] = date.toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
+    .split('-').map(Number) as [number, number, number];
+  const noonUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const dow = noonUtc.getUTCDay(); // 0=Dom, 6=Sáb
+  const shift = dow === 6 ? 2 : dow === 0 ? 1 : 0;
+  return shift === 0 ? noonUtc : new Date(Date.UTC(y, m - 1, d + shift, 12, 0, 0));
+}
+
+/** Igual que nextWeekday pero hacia atrás: sábado/domingo → viernes anterior. */
+function prevWeekday(date: Date): Date {
+  const [y, m, d] = date.toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
+    .split('-').map(Number) as [number, number, number];
+  const noonUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const dow = noonUtc.getUTCDay();
+  const shift = dow === 6 ? -1 : dow === 0 ? -2 : 0;
+  return shift === 0 ? noonUtc : new Date(Date.UTC(y, m - 1, d + shift, 12, 0, 0));
+}
+
 const TIME_SLOTS = [
   '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
   '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
@@ -434,7 +459,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const [slotTime,    setSlotTime]        = useState('');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   // Mobile agenda has its own date (starts at TODAY, not Monday of week)
-  const [mobileDate, setMobileDate] = useState<Date>(() => new Date());
+  const [mobileDate, setMobileDate] = useState<Date>(() => nextWeekday(new Date()));
   type MobileView = 'day' | 'week' | 'month';
   const [mobileView, setMobileView] = useState<MobileView>('day');
 
@@ -547,7 +572,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
   const goToPrev = () => {
-    if (calView === 'day')        setWeekStart(w => addDays(w, -1));
+    // En vista día saltamos el fin de semana: lunes ← viernes.
+    if (calView === 'day')        setWeekStart(w => prevWeekday(addDays(w, -1)));
     else if (calView === 'week')  setWeekStart(w => addDays(w, -7));
     else setWeekStart(w => {
       const [y, m] = denverDateStr(w).split('-').map(Number) as [number, number, number];
@@ -555,7 +581,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     });
   };
   const goToNext = () => {
-    if (calView === 'day')        setWeekStart(w => addDays(w, 1));
+    // En vista día saltamos el fin de semana: viernes → lunes.
+    if (calView === 'day')        setWeekStart(w => nextWeekday(addDays(w, 1)));
     else if (calView === 'week')  setWeekStart(w => addDays(w, 7));
     else setWeekStart(w => {
       const [y, m] = denverDateStr(w).split('-').map(Number) as [number, number, number];
@@ -564,7 +591,8 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   };
   const goToToday = () => {
     const now = new Date();
-    if (calView === 'day')        setWeekStart(now);
+    // Si hoy es sábado/domingo no hay agenda: mostramos el lunes siguiente.
+    if (calView === 'day')        setWeekStart(nextWeekday(now));
     else if (calView === 'week')  setWeekStart(getMondayOf(now));
     else                          setWeekStart(getFirstDayOfMonth(now));
   };
@@ -572,19 +600,19 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const mobileGoToPrev = () => {
     if (mobileView === 'week')       setMobileDate(d => addDays(d, -7));
     else if (mobileView === 'month') setMobileDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-    else                             setMobileDate(d => addDays(d, -1));
+    else                             setMobileDate(d => prevWeekday(addDays(d, -1)));
   };
   const mobileGoToNext = () => {
     if (mobileView === 'week')       setMobileDate(d => addDays(d, 7));
     else if (mobileView === 'month') setMobileDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
-    else                             setMobileDate(d => addDays(d, 1));
+    else                             setMobileDate(d => nextWeekday(addDays(d, 1)));
   };
-  const mobileGoToToday = () => setMobileDate(new Date());
+  const mobileGoToToday = () => setMobileDate(nextWeekday(new Date()));
   /** Cambia de vista ajustando weekStart al ancla correcta para esa vista. */
   const switchView = (v: CalendarView) => {
     setCalView(v);
     if (v === 'week')       setWeekStart(w => getMondayOf(w));
-    else if (v === 'day')   setWeekStart(new Date()); // siempre muestra HOY al cambiar a día
+    else if (v === 'day')   setWeekStart(nextWeekday(new Date())); // HOY, o el lunes si hoy es finde
     else if (v === 'month') setWeekStart(w => getFirstDayOfMonth(w));
     // day: mantiene el weekStart actual como "día seleccionado"
   };

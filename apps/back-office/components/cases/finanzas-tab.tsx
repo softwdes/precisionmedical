@@ -564,14 +564,14 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               <table className="w-full text-sm table-fixed">
                 <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
                   <tr>
-                    <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-56">Servicio / Fecha</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-24">Costo</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-24 hidden md:table-cell">Descuento %</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28 hidden md:table-cell">Monto desc.</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-24">Pagado</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28">Pendiente</th>
-                    <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-40">Pagar</th>
-                    <th className="sticky right-0 z-10 bg-bg-2 px-3 py-2.5 w-12 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
+                    <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-40">Servicio / Fecha</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-20">Costo</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-20 hidden md:table-cell">Descuento %</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-24 hidden md:table-cell">Monto desc.</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-20">Pagado</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-24">Pendiente</th>
+                    <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-36">Pagar</th>
+                    <th className="sticky right-0 z-10 bg-bg-2 px-3 py-2.5 w-10 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
@@ -579,7 +579,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                     const discPct = b.totalCost > 0 ? ((b.discount / b.totalCost) * 100).toFixed(2) : '0.00';
                     return (
                       <tr key={b.id} className="hover:bg-white/[0.02]">
-                        <td className="sticky left-0 z-10 bg-bg-1 px-4 py-3 text-xs max-w-56">
+                        <td className="sticky left-0 z-10 bg-bg-1 px-4 py-3 text-xs max-w-40">
                           {b.serviceCode ? (
                             <div className="min-w-0">
                               <div className="flex items-baseline gap-1.5 min-w-0">

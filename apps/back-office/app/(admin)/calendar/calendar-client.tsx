@@ -1295,18 +1295,25 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                     slot.endsWith(':00') ? 'bg-white/[0.012]' : ''
                   } ${!isDrop && !isCont ? 'hover:bg-white/[0.015]' : ''}`}>
 
-                  {/* Slot que una cita anterior sigue ocupando */}
-                  {isCont && !isDrop && (
-                    <div className="flex-1 min-w-0 rounded flex items-center px-2 border border-dashed"
-                      style={{
-                        borderColor: 'rgba(245,158,11,0.28)',
-                        background: 'repeating-linear-gradient(135deg,rgba(245,158,11,0.07) 0 6px,transparent 6px 12px)',
-                      }}>
-                      <span className="text-[9.5px] truncate" style={{ color: 'rgba(251,191,36,0.65)' }}>
-                        ↳ {t('slotContinues', { name: `${contAppts[0]!.patient.firstName} ${contAppts[0]!.patient.lastName}` })}
-                      </span>
-                    </div>
-                  )}
+                  {/* Slots que citas anteriores siguen ocupando — una banda por
+                      cita, con el color de cada una, para que se vea cuando son
+                      dos pacientes distintos a la misma hora. */}
+                  {isCont && !isDrop && contAppts.map(appt => {
+                    const s = getEventStyle(appt);
+                    return (
+                      <div key={appt.id}
+                        title={`${appt.patient.firstName} ${appt.patient.lastName} · ${apptTimeRange(appt.scheduledFor, appt.durationMinutes)}`}
+                        className="flex-1 min-w-0 rounded flex items-center px-2 border border-dashed"
+                        style={{
+                          borderColor: s.border,
+                          background: 'repeating-linear-gradient(135deg,rgba(255,255,255,0.05) 0 6px,transparent 6px 12px)',
+                        }}>
+                        <span className="text-[9.5px] truncate" style={{ color: s.text, opacity: 0.7 }}>
+                          ↳ {t('slotContinues', { name: `${appt.patient.firstName} ${appt.patient.lastName}` })}
+                        </span>
+                      </div>
+                    );
+                  })}
 
                   {/* Slot libre */}
                   {cellAppts.length === 0 && !isCont && !slotIsPast(dayKey, slot) && !isDrop && (

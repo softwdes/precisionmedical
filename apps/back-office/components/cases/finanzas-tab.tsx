@@ -624,7 +624,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                                   setPayAmounts(prev => ({ ...prev, [b.id]: clamped.toFixed(2) }));
                                 }
                               }}
-                              className={`w-full rounded-md bg-bg-2 border px-2 py-1 text-xs font-mono text-right outline-none transition-colors ${
+                              className={`min-w-0 w-full rounded-md bg-bg-2 border px-2 py-1 text-xs font-mono text-right outline-none transition-colors ${
                                 parseFloat(payAmounts[b.id] ?? '0') > b.balanceDue
                                   ? 'border-rose text-rose focus:border-rose'
                                   : 'border-border text-text-1 focus:border-brand'

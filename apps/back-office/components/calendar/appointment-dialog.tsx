@@ -533,9 +533,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             durationMinutes: duration,
             type,
             notes: notes.trim() || null,
-            // Only send isOnline/meetingUrl when non-default — Prisma client regeneration needed for these fields
-            ...(isOnline && { isOnline }),
-            ...(meetingUrl.trim() && { meetingUrl: meetingUrl.trim() }),
+            isOnline,
+            // Si se apaga "consulta en línea", el link se limpia también —
+            // evita que quede un meetingUrl viejo colgado tras desactivar.
+            meetingUrl: isOnline ? (meetingUrl.trim() || null) : null,
           }),
         });
         if (!res.ok) {
@@ -560,7 +561,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             type,
             notes: notes.trim() || undefined,
             isOnline,
-            meetingUrl: meetingUrl.trim() || undefined,
+            meetingUrl: isOnline ? (meetingUrl.trim() || undefined) : undefined,
           }),
         });
         if (!res.ok) {

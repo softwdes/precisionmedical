@@ -68,7 +68,7 @@ export function DoctorCombobox({
       {selected && (
         <div className="flex items-center gap-2 rounded-md border border-cyan/40 bg-cyan/5 px-3 py-2 text-sm">
           <PersonAvatar firstName={selected.firstName} lastName={selected.lastName} size={8} gradientClass="bg-gradient-brand" />
-          <span className="flex-1 text-text-1 font-medium text-[12.5px]">
+          <span className="flex-1 min-w-0 truncate text-text-1 font-medium text-[12.5px]">
             {drPrefix} {selected.firstName} {selected.lastName}
           </span>
           <button
@@ -108,11 +108,11 @@ export function DoctorCombobox({
                     className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-row-sep last:border-0 flex items-center gap-2"
                   >
                     <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-brand" />
-                    <div className="min-w-0">
-                      <div className="text-text-1 text-sm font-medium">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-text-1 text-sm font-medium truncate">
                         {drPrefix} {p.firstName} {p.lastName}
                       </div>
-                      <div className="text-text-muted text-[10px] capitalize">
+                      <div className="text-text-muted text-[10px] capitalize truncate">
                         {p.specialty.toLowerCase().replace(/_/g, ' ')}
                       </div>
                     </div>

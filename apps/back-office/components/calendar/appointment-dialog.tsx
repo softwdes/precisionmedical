@@ -802,12 +802,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           )}
 
           {/* ── Badge persistente: caso ──
-               Antes solo se mostraba en mode='case' recién creando. Se
-               extiende a free-mode (una vez elegido el caso) y a editar,
-               para que el código de caso no desaparezca de la vista al bajar
-               a elegir clínica/doctor. La especialidad ahora es su propio
-               campo más abajo, no vive acá. ── */}
-          {!!badgeCaseCode && (
+               Solo hace falta en mode='case' (nunca se ve la lista de casos)
+               y al editar (tampoco se ve). En free-mode creando, el caso ya
+               se ve clarísimo en la tarjeta seleccionada de arriba — repetirlo
+               acá era puro relleno apretando el modal sin agregar info. ── */}
+          {!!badgeCaseCode && !(props.mode === 'free' && !isEditMode) && (
             <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2 flex-wrap">
               <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('caseLabel')}</span>
               <span className="text-text-1 font-mono text-xs font-semibold">{badgeCaseCode}</span>
@@ -823,8 +822,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
           )}
 
           {/* ── Clínica · Especialidad · Doctor · Duración — una sola fila,
-               aprovechando el ancho del modal (antes 9 secciones apiladas) ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+               aprovechando el ancho del modal (antes 9 secciones apiladas).
+               Columnas desiguales: Doctor necesita más espacio (combobox +
+               nombre completo) que Duración (un número corto). ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.1fr_1fr_1.5fr_0.9fr] gap-3">
             <div ref={clinicRef}>
               <Label htmlFor="appt-clinic">
                 <Building2 className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
@@ -868,9 +869,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               )}
             </div>
 
-            <div ref={doctorRef} className="sm:col-span-2 lg:col-span-1">
-              <div className="flex items-center justify-between mb-1">
-                <Label htmlFor="appt-provider">
+            <div ref={doctorRef}>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <Label htmlFor="appt-provider" className="shrink-0">
                   <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
                   {t('fieldDoctor')} <span className="text-rose">*</span>
                 </Label>
@@ -878,12 +879,21 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   <button
                     type="button"
                     onClick={() => { setShowAll((v) => !v); setProviderId(''); }}
-                    className="text-[10px] text-brand hover:underline"
+                    className="text-[10px] text-brand hover:underline whitespace-nowrap"
                   >
                     {showAll ? t('filterBySpecialty', { specialty: effectiveSpecialty.name }) : t('showAllDoctors')}
                   </button>
                 )}
               </div>
+
+              {/* Contextual al campo — arriba del combobox, para que el
+                  dropdown (que se abre hacia abajo) no la tape. ── */}
+              {noProvidersForSpecialty && !showAll && (
+                <div className="mb-1.5 rounded-md border border-amber/30 bg-amber/10 px-2.5 py-1.5 text-[10.5px] text-amber leading-snug">
+                  {t('noProvidersForSpecialty', { specialty: effectiveSpecialty?.name })}
+                  {' '}<button onClick={() => setShowAll(true)} className="underline">{t('showAll')}</button>
+                </div>
+              )}
 
               <DoctorCombobox
                 providers={filteredProviders}
@@ -909,13 +919,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               </select>
             </div>
           </div>
-
-          {noProvidersForSpecialty && !showAll && (
-            <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
-              {t('noProvidersForSpecialty', { specialty: effectiveSpecialty?.name })}
-              {' '}<button onClick={() => setShowAll(true)} className="underline">{t('showAll')}</button>
-            </div>
-          )}
 
           {hasSpecialtyMismatch && (
             <div className="text-[11px] text-amber flex items-start gap-1 -mt-1">

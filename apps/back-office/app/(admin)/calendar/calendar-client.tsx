@@ -887,7 +887,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                       key={p.id}
                       type="button"
                       onClick={() => selectPatient(p)}
-                      className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-border/50 last:border-0"
+                      className="w-full text-left px-3 py-2 hover:bg-bg-2 transition-colors border-b border-row-sep last:border-0"
                     >
                       <div className="text-text-1 text-xs font-medium">{p.firstName} {p.lastName}</div>
                       {p.phone && <div className="text-text-muted text-[10px]">{p.phone}</div>}

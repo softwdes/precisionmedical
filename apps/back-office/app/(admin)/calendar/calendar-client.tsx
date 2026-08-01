@@ -210,6 +210,36 @@ function slotOf(isoString: string): string {
  * Convert a Denver local date+time (dayKey=YYYY-MM-DD, slot=HH:MM) to a UTC ISO string.
  * Handles DST automatically by probing both MDT (UTC-6) and MST (UTC-7).
  */
+// ─── Vista día: grilla de 15 min ──────────────────────────────────────────────
+// La vista de día usa slots de 15 min (no 30 como semana/mes) porque el 75% de
+// las citas dura 15 min y ~880 empiezan a los :15 o :45 — con 30 min se
+// dibujaban en la hora equivocada y dos citas consecutivas parecian chocar.
+// semana/mes siguen con slotOf()/TIME_SLOTS de 30 min, sin cambios.
+
+const DAY_SLOT_MIN     = 15;
+const DAY_DEFAULT_FROM = 7 * 60;   // 07:00
+const DAY_DEFAULT_TO   = 18 * 60;  // 18:00 (exclusivo → ultimo slot 17:45)
+
+function slotToMin(slot: string): number {
+  const [h, m] = slot.split(':').map(Number) as [number, number];
+  return h * 60 + m;
+}
+
+function minToSlot(min: number): string {
+  const h = Math.floor(min / 60), m = min % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** Igual que slotOf() pero redondeando a bloques de 15 min. */
+function slotOf15(isoString: string): string {
+  const t = new Date(isoString).toLocaleTimeString('en-US', {
+    timeZone: 'America/Denver', hour12: false, hour: '2-digit', minute: '2-digit',
+  });
+  const [rawH, m] = t.split(':').map(Number) as [number, number];
+  const h = rawH % 24; // en-US + hour12:false devuelve "24:00" para medianoche
+  return minToSlot(h * 60 + Math.floor(m / DAY_SLOT_MIN) * DAY_SLOT_MIN);
+}
+
 function denverSlotToISO(dayKey: string, slot: string): string {
   const y = +dayKey.slice(0, 4);
   const mo = +dayKey.slice(5, 7) - 1;
@@ -1201,80 +1231,165 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           // Weekday index from Denver date to avoid local-tz mismatch
           const [dy, dm, dd] = dayKey.split('-').map(Number) as [number,number,number];
           const dowIdx = (new Date(Date.UTC(dy, dm - 1, dd, 12)).getUTCDay() + 6) % 7; // 0=Mon…6=Sun
+
+          const dayAppts = visibleAppointments.filter(
+            a => denverDateStr(new Date(a.scheduledFor)) === dayKey,
+          );
+
+          // Rango dinamico: 07:00-18:00 por defecto, pero se estira (a la hora
+          // en punto) si el dia tiene algo fuera — asi nunca se esconde una cita.
+          let fromMin = DAY_DEFAULT_FROM;
+          let toMin   = DAY_DEFAULT_TO;
+          for (const a of dayAppts) {
+            const s = slotToMin(slotOf15(a.scheduledFor));
+            const e = s + Math.max(DAY_SLOT_MIN, a.durationMinutes);
+            if (s < fromMin) fromMin = Math.floor(s / 60) * 60;
+            if (e > toMin)   toMin   = Math.ceil(e / 60) * 60;
+          }
+
+          // starts: citas que ARRANCAN en el slot · covers: slots que una cita
+          // ya iniciada sigue ocupando (ej. una de 30 min tapa 2 slots de 15).
+          const starts: Record<string, CalendarAppointment[]> = {};
+          const covers: Record<string, CalendarAppointment[]> = {};
+          for (const a of dayAppts) {
+            const s = slotToMin(slotOf15(a.scheduledFor));
+            const dur = Math.max(DAY_SLOT_MIN, a.durationMinutes);
+            (starts[minToSlot(s)] ??= []).push(a);
+            for (let m = s + DAY_SLOT_MIN; m < s + dur; m += DAY_SLOT_MIN) {
+              (covers[minToSlot(m)] ??= []).push(a);
+            }
+          }
+
+          const allSlots: string[] = [];
+          for (let m = fromMin; m < toMin; m += DAY_SLOT_MIN) allSlots.push(minToSlot(m));
+          // Cortamos por la mitad, redondeando a hora en punto (multiplo de 4
+          // slots) para que la 2da columna arranque prolija.
+          const splitIdx = Math.min(
+            allSlots.length,
+            Math.round(Math.ceil(allSlots.length / 2) / 4) * 4,
+          );
+          const columns = [allSlots.slice(0, splitIdx), allSlots.slice(splitIdx)];
+
+          const renderSlotRow = (slot: string) => {
+            const cellAppts = starts[slot] ?? [];
+            const contAppts = covers[slot] ?? [];
+            const isCont    = cellAppts.length === 0 && contAppts.length > 0;
+            const isDrop    = dropTarget === `${dayKey}|${slot}`;
+            return (
+              <div key={slot} className="grid grid-cols-[58px_1fr] border-b border-row-sep last:border-b-0 min-h-[30px]">
+                <div className="border-r border-row-sep flex items-center justify-end pr-2">
+                  <span className={`font-mono tabular-nums ${
+                    slot.endsWith(':00') ? 'text-[12.5px] text-text-1 font-bold' : 'text-[10.5px] text-text-3 font-semibold'
+                  }`}>{slotLabel(slot)}</span>
+                </div>
+                <div
+                  onClick={() => { if (!isCont) openSlot(dayKey, slot); }}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
+                  onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
+                  className={`p-0.5 flex gap-0.5 items-stretch group transition-colors min-w-0 ${isCont ? '' : 'cursor-pointer'} ${
+                    isDrop ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
+                    slot.endsWith(':00') ? 'bg-white/[0.012]' : ''
+                  } ${!isDrop && !isCont ? 'hover:bg-white/[0.015]' : ''}`}>
+
+                  {/* Slot que una cita anterior sigue ocupando */}
+                  {isCont && !isDrop && (
+                    <div className="flex-1 min-w-0 rounded flex items-center px-2 border border-dashed"
+                      style={{
+                        borderColor: 'rgba(245,158,11,0.28)',
+                        background: 'repeating-linear-gradient(135deg,rgba(245,158,11,0.07) 0 6px,transparent 6px 12px)',
+                      }}>
+                      <span className="text-[9.5px] truncate" style={{ color: 'rgba(251,191,36,0.65)' }}>
+                        ↳ {t('slotContinues', { name: `${contAppts[0]!.patient.firstName} ${contAppts[0]!.patient.lastName}` })}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Slot libre */}
+                  {cellAppts.length === 0 && !isCont && !slotIsPast(dayKey, slot) && !isDrop && (
+                    <div className="flex items-center px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity w-full">
+                      <Plus className="w-2.5 h-2.5 text-cyan/50 mr-1 shrink-0" />
+                      <span className="text-[10px] text-cyan/50 font-medium">{t('slotAvailable')}</span>
+                    </div>
+                  )}
+
+                  {cellAppts.map(appt => {
+                    const s = getEventStyle(appt);
+                    const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
+                    const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                    const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
+                    const isDragging = draggingId === appt.id;
+                    return (
+                      <button key={appt.id} type="button"
+                        draggable
+                        onDragStart={(e) => { e.stopPropagation(); setDraggingId(appt.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', appt.id); }}
+                        onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
+                        onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
+                        className={`flex-1 min-w-0 text-left rounded px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
+                        style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
+                        <div className="flex items-baseline gap-1 leading-tight">
+                          <span className="text-[11px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
+                            {appt.patient.firstName} {appt.patient.lastName}
+                          </span>
+                          {appt.isOnline && <span className="text-[10px] opacity-80 shrink-0">📹</span>}
+                          {s.badge && <span className="text-[13px] leading-none shrink-0">{s.badge}</span>}
+                          <span className="text-[9.5px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.85 }}>{timeRange}</span>
+                        </div>
+                        <div className="text-[9.5px] leading-tight truncate" style={{ color: s.text, opacity: 0.65 }}>
+                          {drName}{appt.case?.caseCode && ` · #${appt.case.caseCode.replace('PMC-','')}`}{visitLabel && ` · ${visitLabel}`}
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {/* "+" para sumar otra cita a la misma hora (como v2) */}
+                  {cellAppts.length > 0 && !slotIsPast(dayKey, slot) && (
+                    <button type="button"
+                      onClick={(e) => { e.stopPropagation(); openSlot(dayKey, slot); }}
+                      title={t('slotAddAnother')}
+                      className="shrink-0 w-[26px] rounded border border-dashed border-cyan/30 text-cyan/60 flex items-center justify-center transition-colors hover:bg-cyan/10 hover:border-cyan/60 hover:text-cyan">
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          };
+
           return (
             <>
-              <div className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden max-w-[640px] relative">
-                {/* Header */}
-                <div className="grid grid-cols-[58px_1fr] border-b border-white/[0.07]">
-                  <div className="border-r border-white/[0.07]" />
-                  <div className={`py-3 text-center ${isToday ? 'bg-cyan/[0.06]' : ''}`}>
-                    <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>
-                      {WEEKDAYS_ALL[dowIdx]}
-                    </div>
-                    <div className={`text-[28px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>
-                      {dayNum}
-                    </div>
+              {/* Cabecera del día */}
+              <div className={`rounded-xl border border-white/[0.07] overflow-hidden mb-3 max-w-[280px] ${isToday ? 'bg-cyan/[0.06]' : 'bg-bg-1'}`}>
+                <div className="py-2.5 text-center">
+                  <div className={`text-[9px] uppercase tracking-widest font-bold ${isToday ? 'text-cyan' : 'text-text-muted/60'}`}>
+                    {WEEKDAYS_ALL[dowIdx]}
+                  </div>
+                  <div className={`text-[26px] font-black leading-none mt-0.5 ${isToday ? 'text-cyan' : 'text-text-1'}`}>
+                    {dayNum}
                   </div>
                 </div>
+              </div>
+
+              {/* Dos columnas en desktop · una sola en mobile/tablet (Regla #4) */}
+              <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {loading && (
                   <div className="absolute inset-0 bg-bg-1/70 flex items-center justify-center z-10 rounded-xl">
                     <Clock className="w-4 h-4 animate-spin text-text-2" />
                   </div>
                 )}
-                {TIME_SLOTS.map(slot => {
-                  const cellAppts = apptMap[dayKey]?.[slot] ?? [];
-                  return (
-                    <div key={slot} className="grid grid-cols-[58px_1fr] border-b border-white/[0.04] last:border-b-0 min-h-[28px]">
-                      <div className="border-r border-white/[0.04] flex items-center justify-end pr-2">
-                        <span className={`font-mono tabular-nums ${slot.endsWith(':00') ? 'text-[13px] text-text-1 font-bold' : 'text-[11px] text-text-2 font-semibold'}`}>{slotLabel(slot)}</span>
+                {columns.map((slots, ci) => slots.length > 0 && (
+                  <div key={ci} className="rounded-xl border border-white/[0.07] bg-bg-1 overflow-hidden">
+                    <div className="grid grid-cols-[58px_1fr] border-b border-white/[0.07] bg-bg-2">
+                      <div className="border-r border-white/[0.07] py-1.5 text-center text-[9px] uppercase tracking-widest font-bold text-text-muted/60">
+                        {t('colHour')}
                       </div>
-                      <div
-                        onClick={() => openSlot(dayKey, slot)}
-                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
-                        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
-                        onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
-                        className={`p-0.5 flex flex-wrap content-start gap-0.5 cursor-pointer group transition-colors min-w-0 ${
-                          dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
-                          isToday ? 'bg-cyan/[0.015]' : 'hover:bg-white/[0.015]'
-                        }`}>
-                        {cellAppts.length === 0 && !slotIsPast(dayKey, slot) && dropTarget !== `${dayKey}|${slot}` && (
-                          <div className="flex items-center px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity w-full">
-                            <Plus className="w-2.5 h-2.5 text-cyan/50 mr-1 shrink-0" />
-                            <span className="text-[10px] text-cyan/50 font-medium">Available</span>
-                          </div>
-                        )}
-                        {cellAppts.map(appt => {
-                          const s = getEventStyle(appt);
-                          const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
-                          const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
-                          const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
-                          const isDragging = draggingId === appt.id;
-                          return (
-                            <button key={appt.id} type="button"
-                              draggable
-                              onDragStart={(e) => { e.stopPropagation(); setDraggingId(appt.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', appt.id); }}
-                              onDragEnd={() => { setDraggingId(null); setDropTarget(null); }}
-                              onClick={(e) => { e.stopPropagation(); if (!draggingId) setSelectedAppt(appt); }}
-                              className={`grow basis-[calc(50%-2px)] min-w-0 text-left rounded px-2 py-1 transition-all hover:brightness-110 cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40 scale-[0.97]' : ''}`}
-                              style={{ background: s.bg, border: `1px solid ${s.border}`, boxShadow: s.glow }}>
-                              <div className="flex items-baseline gap-1 leading-tight">
-                                <span className="text-[11px] font-bold truncate flex-1 min-w-0" style={{ color: s.text }}>
-                                  {appt.patient.firstName} {appt.patient.lastName}
-                                </span>
-                                {appt.isOnline && <span className="text-[10px] opacity-80 shrink-0">📹</span>}
-                                {s.badge && <span className="text-[13px] leading-none shrink-0">{s.badge}</span>}
-                                <span className="text-[9.5px] font-bold tabular-nums shrink-0" style={{ color: s.text, opacity: 0.85 }}>{timeRange}</span>
-                              </div>
-                              <div className="text-[9.5px] leading-tight truncate" style={{ color: s.text, opacity: 0.65 }}>
-                                {drName}{appt.case?.caseCode && ` · #${appt.case.caseCode.replace('PMC-','')}`}{visitLabel && ` · ${visitLabel}`}
-                              </div>
-                            </button>
-                          );
-                        })}
+                      <div className="py-1.5 text-center text-[9px] uppercase tracking-widest font-bold text-text-muted/60">
+                        {ci === 0 ? t('colApptsMorning') : t('colApptsAfternoon')}
                       </div>
                     </div>
-                  );
-                })}
+                    {slots.map(renderSlotRow)}
+                  </div>
+                ))}
               </div>
               <LegendStats appointments={visibleAppointments} firstVisitCount={firstVisitCount} pendingConfirm={pendingConfirm} t={t} />
             </>

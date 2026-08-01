@@ -168,17 +168,6 @@ function PersonalModal({ appt, onClose }: { appt: CalendarAppointment; onClose: 
       icon={<User className="w-4 h-4" />}
       accentColor="#6366f1"
       onClose={onClose}
-      footer={
-        <>
-          {p.phone && <ActionBtn href={p.phone} label="Call" color="#a5b4fc" tel />}
-          {p.email && (
-            <a href={`mailto:${p.email}`}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-brand/30 text-brand text-xs font-medium">
-              <Mail className="w-3.5 h-3.5" /> Email
-            </a>
-          )}
-        </>
-      }
     >
       <DataRow label={t('rowFullName')}      value={`${p.firstName} ${p.lastName}`} highlight />
       <DataRow label={t('rowDateOfBirth')}   value={`${formatDOB(p.dateOfBirth)} (${ageFromISO(p.dateOfBirth)} yrs)`} />

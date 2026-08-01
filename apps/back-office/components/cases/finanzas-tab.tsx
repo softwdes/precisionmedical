@@ -566,8 +566,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                   <tr>
                     <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-36">Servicio / Fecha</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-16">Costo</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-16 hidden md:table-cell">Descuento %</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-20 hidden md:table-cell">Monto desc.</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-16 hidden lg:table-cell">Descuento %</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-20 hidden lg:table-cell">Monto desc.</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-16">Pagado</th>
                     <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-20">Pendiente</th>
                     <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-32">Pagar</th>
@@ -593,8 +593,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                           )}
                         </td>
                         <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">{fmt$(b.totalCost)}</td>
-                        <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">{discPct}%</td>
-                        <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden md:table-cell">{fmt$(b.discount)}</td>
+                        <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden lg:table-cell">{discPct}%</td>
+                        <td className="px-3 py-3 text-right text-text-muted font-mono text-xs whitespace-nowrap hidden lg:table-cell">{fmt$(b.discount)}</td>
                         <td className="px-3 py-3 text-right text-emerald font-mono text-xs whitespace-nowrap">{fmt$(b.amountPaid)}</td>
                         <td className="px-3 py-3 text-right">
                           <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose/10 text-rose text-xs font-mono font-bold whitespace-nowrap">

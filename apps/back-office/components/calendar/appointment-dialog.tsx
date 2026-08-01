@@ -159,8 +159,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [notes,         setNotes]         = useState('');
   const [isOnline,      setIsOnline]      = useState(false);
   const [meetingUrl,    setMeetingUrl]    = useState('');
-  const [showAll,       setShowAll]       = useState(false); // override specialty filter
 
+  // Aviso: "cambiaste la duración y el horario elegido ya no aplica"
+  const [durationResetNotice, setDurationResetNotice] = useState(false);
 
   const [saving,         setSaving]         = useState(false);
   const [error,          setError]          = useState<string | null>(null);
@@ -169,6 +170,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   // Prevents the clinic/provider change effect from clearing the pre-populated slot
   const skipSlotReset  = useRef(false);
+  const skipDurationReset = useRef(false); // idem, pero para el efecto de duración (ver más abajo)
+  const slotIsoRef = useRef(slotIso);
+  slotIsoRef.current = slotIso; // "última foto" de slotIso, legible desde el efecto de duración sin agregarlo como dependencia
   const userChangedType = useRef(false); // true cuando el usuario eligió el tipo manualmente
 
   // ─── Auto-inferir tipo de cita desde el caso seleccionado ─────────────────
@@ -203,12 +207,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [apptSpecialtyId, setApptSpecialtyId] = useState('');
   useEffect(() => { setApptSpecialtyId(caseSpecialty?.id ?? ''); }, [caseSpecialty?.id, caseId]);
 
-  const effectiveSpecialty = useMemo((): Specialty | null => {
-    if (!apptSpecialtyId) return null;
-    if (caseSpecialty?.id === apptSpecialtyId) return caseSpecialty;
-    return specialties.find((s) => s.id === apptSpecialtyId) ?? null;
-  }, [apptSpecialtyId, caseSpecialty, specialties]);
-
   const [savingSpecialty, setSavingSpecialty] = useState(false);
 
   // Solo persiste al caso cuando el caso no tenía especialidad — si ya tenía
@@ -232,7 +230,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   const handleSpecialtyChange = useCallback((newId: string) => {
     setApptSpecialtyId(newId);
-    setProviderId(''); // el filtro de doctores cambia con la especialidad
+    // No filtra/limpia el doctor: cualquier doctor atiende cualquier
+    // especialidad (decisión explícita de Erick, no hay restricción real).
     if (!caseSpecialty && newId) saveCaseSpecialty(newId);
   }, [caseSpecialty, saveCaseSpecialty]);
 
@@ -245,33 +244,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       ? editAppointment?.caseCode
       : patientCases.find((c) => c.id === caseId)?.caseCode;
 
-  // ─── Derived: filtered providers ────────────────────────────────────────────
-
-  const filteredProviders = useMemo(() => {
-    if (showAll || !effectiveSpecialty?.id) return allProviders;
-    const matched = allProviders.filter((p) => p.specialtyCatalogIds.includes(effectiveSpecialty.id!));
-    return matched.length > 0 ? matched : allProviders;
-  }, [allProviders, effectiveSpecialty, showAll]);
-
-  const hasSpecialtyMismatch = useMemo(() => {
-    if (!effectiveSpecialty?.id || !providerId) return false;
-    const p = allProviders.find((p) => p.id === providerId);
-    if (!p) return false;
-    return !p.specialtyCatalogIds.includes(effectiveSpecialty.id);
-  }, [allProviders, providerId, effectiveSpecialty]);
-
-  const noProvidersForSpecialty = useMemo(() => {
-    if (!effectiveSpecialty?.id) return false;
-    return !showAll && allProviders.filter((p) => p.specialtyCatalogIds.includes(effectiveSpecialty.id!)).length === 0;
-  }, [allProviders, effectiveSpecialty, showAll]);
-
   // ─── Reset on open ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!open) return;
     setError(null);
     setSuccess(null);
-    setShowAll(false);
+    setDurationResetNotice(false);
     userChangedType.current = false;
     setPatientQuery('');
     setPatientResults([]);
@@ -282,6 +261,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       // Modo edición / reagendar: pre-llenar con datos existentes.
       // skipSlotReset prevents the clinic/provider change effect from wiping the slot.
       skipSlotReset.current = true;
+      skipDurationReset.current = true;
       setCaseId(editAppointment.caseId);
       setClinicId(editAppointment.clinicId);
       setProviderId(editAppointment.providerId ?? '');
@@ -320,7 +300,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         }]);
       }
       // Cargar los casos del paciente para poder mostrar la especialidad real
-      // del caso (effectiveSpecialty la deriva de patientCases en modo free,
+      // del caso (caseSpecialty la deriva de patientCases en modo free,
       // y editar siempre usa mode="free" — ver AppointmentDialog usages).
       setLoadingCases(true);
       fetch(`/api/admin/patients/${editAppointment.patient.id}/cases`)
@@ -403,7 +383,20 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       return;
     }
     setSlotIso(null);
-  }, [providerId, clinicId, duration]);
+  }, [providerId, clinicId]);
+
+  // Reset de horario al cambiar duración — en efecto aparte porque acá SÍ
+  // avisamos: el horario elegido puede dejar de entrar (available-slots ya
+  // lo filtra si se solapa con otra cita a la nueva duración) y sin este
+  // aviso el horario "desaparecía" solo sin que quedara claro por qué.
+  useEffect(() => {
+    if (skipDurationReset.current) {
+      skipDurationReset.current = false;
+      return;
+    }
+    if (slotIsoRef.current) setDurationResetNotice(true);
+    setSlotIso(null);
+  }, [duration]);
 
   // ─── Duplicate check: reactive, inline ─────────────────────────────────────
   // Fires when the user picks a slot. Shows a warning banner — does NOT block submit.
@@ -432,6 +425,9 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slotIso, selectedPatient?.id]);
+
+  // Al elegir un horario nuevo, el aviso de "la duración cambió" ya cumplió su función
+  useEffect(() => { if (slotIso) setDurationResetNotice(false); }, [slotIso]);
 
   // ─── Computed: scheduledFor ──────────────────────────────────────────────────
 
@@ -870,34 +866,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             </div>
 
             <div ref={doctorRef}>
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <Label htmlFor="appt-provider" className="shrink-0">
-                  <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                  {t('fieldDoctor')} <span className="text-rose">*</span>
-                </Label>
-                {effectiveSpecialty && (
-                  <button
-                    type="button"
-                    onClick={() => { setShowAll((v) => !v); setProviderId(''); }}
-                    className="text-[10px] text-brand hover:underline whitespace-nowrap"
-                  >
-                    {showAll ? t('filterBySpecialty', { specialty: effectiveSpecialty.name }) : t('showAllDoctors')}
-                  </button>
-                )}
-              </div>
-
-              {/* Contextual al campo — arriba del combobox, para que el
-                  dropdown (que se abre hacia abajo) no la tape. ── */}
-              {noProvidersForSpecialty && !showAll && (
-                <div className="mb-1.5 rounded-md border border-amber/30 bg-amber/10 px-2.5 py-1.5 text-[10.5px] text-amber leading-snug">
-                  {t('noProvidersForSpecialty', { specialty: effectiveSpecialty?.name })}
-                  {' '}<button onClick={() => setShowAll(true)} className="underline">{t('showAll')}</button>
-                </div>
-              )}
+              <Label htmlFor="appt-provider">
+                <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
+                {t('fieldDoctor')} <span className="text-rose">*</span>
+              </Label>
 
               <DoctorCombobox
-                providers={filteredProviders}
-                allProviders={allProviders}
+                providers={allProviders}
                 value={providerId}
                 onChange={setProviderId}
                 loading={loadingRes}
@@ -910,7 +885,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               <select
                 id="appt-duration"
                 value={String(duration)}
-                onChange={(e) => { setDuration(parseInt(e.target.value, 10)); setSlotIso(null); }}
+                onChange={(e) => setDuration(parseInt(e.target.value, 10))}
                 className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
                 {DURATION_OPTIONS.map((d) => (
@@ -920,19 +895,19 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             </div>
           </div>
 
-          {hasSpecialtyMismatch && (
-            <div className="text-[11px] text-amber flex items-start gap-1 -mt-1">
-              <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
-              <span>{t('specialtyMismatchWarning', { specialty: effectiveSpecialty?.name })}</span>
-            </div>
-          )}
-
           {/* ── Horarios disponibles ── */}
           <div ref={slotRef}>
             <Label>
               <CalendarIcon className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
               {t('fieldAvailableSchedule')} <span className="text-rose">*</span>
             </Label>
+
+            {durationResetNotice && (
+              <div className="mt-1.5 rounded-md border border-amber/30 bg-amber/10 px-2.5 py-1.5 text-[11px] text-amber flex items-start gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{t('durationChangedResetSlot')}</span>
+              </div>
+            )}
 
             {!providerId || !clinicId ? (
               <p className="mt-1.5 text-[11px] text-text-muted italic">

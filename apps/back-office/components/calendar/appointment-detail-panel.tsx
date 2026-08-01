@@ -385,89 +385,91 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                 </div>
               </div>
 
-              {/* Info de la cita */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📅 {t('sectionAppointmentInfo')}</div>
-                <div className="space-y-2 text-[12.5px]">
-                  <Row label={t('rowDateAndTime')}  value={`${dt.dayName} ${dt.date} · ${dt.time} MT`} highlight />
-                  {appt.isOnline && (
-                    <div className="flex items-center gap-2 py-0.5">
-                      <span className="text-text-muted text-[11px] w-24 shrink-0">{t('rowOnline')}</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan/15 border border-cyan/30 text-cyan font-semibold">📹 {t('onlineBadge')}</span>
-                        {appt.meetingUrl && (
-                          <a href={appt.meetingUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-[11px] text-cyan underline truncate max-w-[160px]">
-                            {t('joinMeeting')}
-                          </a>
-                        )}
+              {/* Info de la cita + Checklist pre-cita — lado a lado en pantallas anchas */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-lg border border-border bg-bg-1 p-4">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📅 {t('sectionAppointmentInfo')}</div>
+                  <div className="space-y-2 text-[12.5px]">
+                    <Row label={t('rowDateAndTime')}  value={`${dt.dayName} ${dt.date} · ${dt.time} MT`} highlight />
+                    {appt.isOnline && (
+                      <div className="flex items-center gap-2 py-0.5">
+                        <span className="text-text-muted text-[11px] w-24 shrink-0">{t('rowOnline')}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan/15 border border-cyan/30 text-cyan font-semibold">📹 {t('onlineBadge')}</span>
+                          {appt.meetingUrl && (
+                            <a href={appt.meetingUrl} target="_blank" rel="noopener noreferrer"
+                              className="text-[11px] text-cyan underline truncate max-w-[160px]">
+                              {t('joinMeeting')}
+                            </a>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  <Row label={t('rowDuration')}      value={`${appt.durationMinutes} min`} />
-                  <Row label={t('rowClinic')}        value={appt.clinic.name} />
-                  {appt.provider && <Row label={t('rowDoctor')} value={`${t('drPrefix')} ${appt.provider.firstName} ${appt.provider.lastName}`} />}
-                  {appt.provider?.specialty && <Row label={t('rowSpecialty')} value={SPECIALTY_LABEL[appt.provider.specialty] ?? appt.provider.specialty} />}
-                  <Row label={t('rowType')} value={TYPE_LABEL[appt.type] ?? appt.type} chip chipColor={appt.type === 'AUTO_ACCIDENT' ? 'rose' : 'emerald'} />
-                  {appt.case?.accidentDate && (
-                    <Row label={t('rowAccidentDate')}
-                      value={new Date(appt.case.accidentDate).toLocaleDateString(locale, { dateStyle: 'medium', timeZone: 'America/Denver' })} highlight />
-                  )}
+                    )}
+                    <Row label={t('rowDuration')}      value={`${appt.durationMinutes} min`} />
+                    <Row label={t('rowClinic')}        value={appt.clinic.name} />
+                    {appt.provider && <Row label={t('rowDoctor')} value={`${t('drPrefix')} ${appt.provider.firstName} ${appt.provider.lastName}`} />}
+                    {appt.provider?.specialty && <Row label={t('rowSpecialty')} value={SPECIALTY_LABEL[appt.provider.specialty] ?? appt.provider.specialty} />}
+                    <Row label={t('rowType')} value={TYPE_LABEL[appt.type] ?? appt.type} chip chipColor={appt.type === 'AUTO_ACCIDENT' ? 'rose' : 'emerald'} />
+                    {appt.case?.accidentDate && (
+                      <Row label={t('rowAccidentDate')}
+                        value={new Date(appt.case.accidentDate).toLocaleDateString(locale, { dateStyle: 'medium', timeZone: 'America/Denver' })} highlight />
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border bg-bg-1 p-4">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">🎯 {t('sectionPreVisitStatus')}</div>
+                  <div className="space-y-2">
+                    <CheckItem done={intakeDone}    label={t('checklistIntakeForm')}             sublabel={intakeDone ? t('checklistCompleted') : t('checklistIntakePending')} />
+                    <CheckItem done={lawyerDone}    label={t('checklistLawyerVerified')}         sublabel={lawyerDone ? (appt.case?.attorney?.firmName ?? (`${appt.case?.attorney?.firstName ?? ''} ${appt.case?.attorney?.lastName ?? ''}`.trim() || '—')) : t('checklistNoLawyer')} />
+                    <CheckItem done={insuranceDone} label={t('checklistInsuranceVerified')}      sublabel={insuranceDone ? (appt.case?.primaryInsurance?.name ?? '—') : t('checklistInsurancePending')} />
+                    <CheckItem done={appt.status === 'CONFIRMED'} label={t('checklistConfirmationCall')} sublabel={appt.status === 'CONFIRMED' ? t('checklistCallConfirmed') : t('checklistCallNotDone')} />
+                  </div>
                 </div>
               </div>
 
-              {/* Checklist pre-cita */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">🎯 {t('sectionPreVisitStatus')}</div>
-                <div className="space-y-2">
-                  <CheckItem done={intakeDone}    label={t('checklistIntakeForm')}             sublabel={intakeDone ? t('checklistCompleted') : t('checklistIntakePending')} />
-                  <CheckItem done={lawyerDone}    label={t('checklistLawyerVerified')}         sublabel={lawyerDone ? (appt.case?.attorney?.firmName ?? (`${appt.case?.attorney?.firstName ?? ''} ${appt.case?.attorney?.lastName ?? ''}`.trim() || '—')) : t('checklistNoLawyer')} />
-                  <CheckItem done={insuranceDone} label={t('checklistInsuranceVerified')}      sublabel={insuranceDone ? (appt.case?.primaryInsurance?.name ?? '—') : t('checklistInsurancePending')} />
-                  <CheckItem done={appt.status === 'CONFIRMED'} label={t('checklistConfirmationCall')} sublabel={appt.status === 'CONFIRMED' ? t('checklistCallConfirmed') : t('checklistCallNotDone')} />
+              {/* Notas + Acciones rápidas — lado a lado */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-lg border border-border bg-bg-1 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">📝 {t('sectionNotes')}</div>
+                    <button type="button" onClick={() => setEditOpen(true)}
+                      className="text-[10px] text-brand hover:underline flex items-center gap-1">
+                      <Edit2 className="w-3 h-3" /> {t('actionEdit')}
+                    </button>
+                  </div>
+                  <p className="text-text-2 text-[12.5px] leading-relaxed min-h-[40px]">
+                    {appt.notes || <span className="text-text-muted italic">{t('notesEmpty')}</span>}
+                  </p>
                 </div>
-              </div>
 
-              {/* Notas */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">📝 {t('sectionNotes')}</div>
-                  <button type="button" onClick={() => setEditOpen(true)}
-                    className="text-[10px] text-brand hover:underline flex items-center gap-1">
-                    <Edit2 className="w-3 h-3" /> {t('actionEdit')}
-                  </button>
-                </div>
-                <p className="text-text-2 text-[12.5px] leading-relaxed min-h-[40px]">
-                  {appt.notes || <span className="text-text-muted italic">{t('notesEmpty')}</span>}
-                </p>
-              </div>
-
-              {/* Acciones rápidas */}
-              <div className="rounded-lg border border-border bg-bg-1 p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📞 {t('sectionQuickActions')}</div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {appt.patient.phone && (
-                    <a href={`tel:${appt.patient.phone}`}
+                <div className="rounded-lg border border-border bg-bg-1 p-4">
+                  <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📞 {t('sectionQuickActions')}</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {appt.patient.phone && (
+                      <a href={`tel:${appt.patient.phone}`}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                        <Phone className="w-4 h-4" /> {t('actionCall')}
+                      </a>
+                    )}
+                    {appt.patient.phone && (
+                      <a href={`sms:${appt.patient.phone}`}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
+                        <MessageSquare className="w-4 h-4" /> {t('actionSms')}
+                      </a>
+                    )}
+                    <button type="button" onClick={() => setActiveModal('intake')}
                       className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
-                      <Phone className="w-4 h-4" /> {t('actionCall')}
-                    </a>
-                  )}
-                  {appt.patient.phone && (
-                    <a href={`sms:${appt.patient.phone}`}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
-                      <MessageSquare className="w-4 h-4" /> {t('actionSms')}
-                    </a>
-                  )}
-                  <button type="button" onClick={() => setActiveModal('intake')}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border hover:bg-white/5 text-text-2 hover:text-text-1 transition-colors text-[11px] font-medium">
-                    <MessageSquare className="w-4 h-4" /> {t('actionResendForm')}
-                  </button>
+                      <MessageSquare className="w-4 h-4" /> {t('actionResendForm')}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Info detallada */}
+              {/* Info detallada — 4 en fila con el ancho nuevo */}
               <div className="rounded-lg border border-border bg-bg-1 p-4">
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-3">📂 {t('sectionDetailedInfo')}</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <SecondaryBtn icon={<User className="w-4 h-4" />}       label={t('secondaryBtnPersonal')}    color="brand"   onClick={() => setActiveModal('personal')} />
                   <SecondaryBtn icon={<Scale className="w-4 h-4" />}      label={t('secondaryBtnLawyer')}      color="rose"    done={lawyerDone}    onClick={() => setActiveModal('lawyer')} />
                   <SecondaryBtn icon={<Shield className="w-4 h-4" />}     label={t('secondaryBtnInsurance')}   color="emerald" done={insuranceDone} onClick={() => setActiveModal('insurance')} />
@@ -545,7 +547,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                             type="button"
                             onClick={() => !already && addService(svc)}
                             disabled={already}
-                            className={`w-full text-left px-3 py-2.5 flex items-center gap-3 border-b border-border last:border-0 transition-colors ${
+                            className={`w-full text-left px-3 py-2.5 flex items-center gap-3 border-b border-row-sep last:border-0 transition-colors ${
                               already ? 'opacity-40 cursor-not-allowed' : 'hover:bg-bg-2'
                             }`}
                           >
@@ -583,7 +585,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                     <span />
                   </div>
                   {services.map(svc => (
-                    <div key={svc.id} className="grid grid-cols-[60px_1fr_90px_36px] items-center px-3 py-2 border-b border-border last:border-0 hover:bg-bg-2/30 transition-colors">
+                    <div key={svc.id} className="grid grid-cols-[60px_1fr_90px_36px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
                       <span className="font-mono text-[11px] text-cyan">{svc.code}</span>
                       <span className="text-xs text-text-1 pr-2 truncate">{svc.description}</span>
                       <input
@@ -724,7 +726,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
+      <DialogContent className="max-w-3xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
         <DialogTitle className="sr-only">Appointment detail</DialogTitle>
         {panelContent}
       </DialogContent>

@@ -16,7 +16,7 @@ import {
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
   User, Scale, Shield, Headphones, Check, Edit2, Ban,
   AlertCircle, Search, X, Plus, Trash2, DollarSign,
-  Stethoscope, Loader2, Clock,
+  Stethoscope, Loader2, Clock, Star,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
@@ -70,6 +70,11 @@ interface PlannedService {
   description: string;
   fee: number;
   category: string;
+}
+
+/** Fila del catálogo completo (modal de búsqueda) — trae isFavorite, a diferencia de PlannedService */
+interface CatalogService extends PlannedService {
+  isFavorite: boolean;
 }
 
 interface Props {
@@ -199,15 +204,22 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     }).catch(() => {});
   }, [twilio.callSid, appt.patient.id, appt.case?.id]);
 
-  // ── Services tab ──────────────────────────────────────────────────────────
+  // ── Services (modal A: lo ya agregado a esta cita) ────────────────────────
   const [services,       setServices]       = useState<PlannedService[]>([]);
   const [svcLoaded,      setSvcLoaded]      = useState(false);
-  const [serviceSearch,  setServiceSearch]  = useState('');
-  const [serviceResults, setServiceResults] = useState<PlannedService[]>([]);
-  const [searchingSvc,   setSearchingSvc]   = useState(false);
   const [savingSvc,      setSavingSvc]      = useState(false);
   const [savedOk,        setSavedOk]        = useState(false);
   const [confirmDeleteSvc, setConfirmDeleteSvc] = useState<string | null>(null);
+
+  // ── Catálogo de servicios (modal B: buscar/agregar, con favoritos) ────────
+  const [catalogOpen,         setCatalogOpen]         = useState(false);
+  const [serviceSearch,       setServiceSearch]       = useState('');
+  const [serviceResults,      setServiceResults]      = useState<CatalogService[]>([]);
+  const [searchingSvc,        setSearchingSvc]        = useState(false);
+  const [catalogFavoritesOnly, setCatalogFavoritesOnly] = useState(false);
+  const [catalogPage,         setCatalogPage]         = useState(1);
+  const [catalogTotalPages,   setCatalogTotalPages]   = useState(1);
+  const [togglingFavId,       setTogglingFavId]       = useState<string | null>(null);
 
 
   const isFirst   = appt.visitNumber === 0;
@@ -237,22 +249,45 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       .catch(() => setSvcLoaded(true));
   }, [servicesVisible, appt.id, svcLoaded, appt.plannedServiceCodes]);
 
-  // ── Service search — con la caja vacía ya muestra un listado navegable
-  // (los mismos códigos del catálogo, orden por defecto), no hace falta
-  // escribir nada primero. Al escribir, filtra igual que antes.
+  // Volver a página 1 cuando cambia la búsqueda o el filtro de favoritos
+  useEffect(() => { setCatalogPage(1); }, [serviceSearch, catalogFavoritesOnly]);
+
+  // ── Catálogo (modal B) — con la caja vacía ya muestra un listado navegable
+  // (favoritos primero, orden por defecto), no hace falta escribir nada
+  // primero. Al escribir, filtra igual; paginado real de a 10.
   useEffect(() => {
-    if (!servicesVisible) return;
+    if (!catalogOpen) return;
     const delay = serviceSearch ? 300 : 0;
     const timer = setTimeout(() => {
       setSearchingSvc(true);
-      fetch(`/api/admin/service-codes?search=${encodeURIComponent(serviceSearch)}`)
+      const params = new URLSearchParams({ page: String(catalogPage) });
+      if (serviceSearch) params.set('search', serviceSearch);
+      if (catalogFavoritesOnly) params.set('favoritesOnly', 'true');
+      fetch(`/api/admin/service-codes?${params}`)
         .then(r => r.json())
-        .then(d => setServiceResults((d.codes ?? []).slice(0, 10)))
+        .then(d => {
+          setServiceResults(d.codes ?? []);
+          setCatalogTotalPages(d.totalPages ?? 1);
+        })
         .catch(() => {})
         .finally(() => setSearchingSvc(false));
     }, delay);
     return () => clearTimeout(timer);
-  }, [serviceSearch, servicesVisible]);
+  }, [serviceSearch, catalogOpen, catalogPage, catalogFavoritesOnly]);
+
+  const toggleCatalogFavorite = useCallback(async (svc: CatalogService) => {
+    setTogglingFavId(svc.id);
+    // optimista — se revierte si falla
+    setServiceResults(prev => prev.map(s => s.id === svc.id ? { ...s, isFavorite: !s.isFavorite } : s));
+    try {
+      const res = await fetch(`/api/admin/services/${svc.id}/favorite`, { method: svc.isFavorite ? 'DELETE' : 'POST' });
+      if (!res.ok) throw new Error('failed');
+    } catch {
+      setServiceResults(prev => prev.map(s => s.id === svc.id ? { ...s, isFavorite: svc.isFavorite } : s));
+    } finally {
+      setTogglingFavId(null);
+    }
+  }, []);
 
   // ── Service helpers ───────────────────────────────────────────────────────
   const patchServices = useCallback(async (list: PlannedService[]) => {
@@ -364,68 +399,21 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         </div>
       </div>
 
-      {/* Buscador inline */}
+      {/* Agregar servicio — abre el catálogo completo (modal B) */}
+      <button
+        type="button"
+        onClick={() => setCatalogOpen(true)}
+        className="w-full flex items-center gap-2 justify-center rounded-lg border border-dashed border-cyan/40 text-cyan hover:bg-cyan/5 py-2.5 text-sm font-semibold transition-colors"
+      >
+        <Plus className="w-4 h-4" /> {t('actionAddService')}
+      </button>
+
+      {/* Lista de servicios ya agregados a esta cita */}
       {!svcLoaded ? (
         <div className="flex items-center justify-center py-6 text-text-muted text-xs gap-2">
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
         </div>
-      ) : (
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
-          <input
-            type="text"
-            value={serviceSearch}
-            onChange={e => setServiceSearch(e.target.value)}
-            placeholder={t('searchServicePlaceholder')}
-            className="w-full bg-bg-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan transition-colors"
-          />
-          {serviceSearch && (
-            <button type="button" onClick={() => { setServiceSearch(''); setServiceResults([]); }}
-              className="absolute right-3 top-2.5 text-text-muted hover:text-text-1">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* Resultados dropdown */}
-          {(searchingSvc || serviceResults.length > 0) && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-lg shadow-xl z-20 overflow-hidden">
-              {searchingSvc && (
-                <div className="px-3 py-2 text-text-muted text-xs flex items-center gap-1.5">
-                  <Loader2 className="w-3 h-3 animate-spin" /> {t('searching')}
-                </div>
-              )}
-              {serviceResults.map(svc => {
-                const already = !!services.find(s => s.id === svc.id);
-                return (
-                  <button
-                    key={svc.id}
-                    type="button"
-                    onClick={() => !already && addService(svc)}
-                    disabled={already}
-                    className={`w-full text-left px-3 py-2.5 flex items-center gap-3 border-b border-row-sep last:border-0 transition-colors ${
-                      already ? 'opacity-40 cursor-not-allowed' : 'hover:bg-bg-2'
-                    }`}
-                  >
-                    <span className="font-mono text-[11px] text-cyan shrink-0 w-14">{svc.code}</span>
-                    <span className="flex-1 text-xs text-text-1 truncate">{svc.description}</span>
-                    <span className="text-xs font-semibold text-text-2 shrink-0">{fmt$(svc.fee)}</span>
-                    {already
-                      ? <Check className="w-3.5 h-3.5 text-emerald shrink-0" />
-                      : <Plus className="w-3.5 h-3.5 text-brand shrink-0" />
-                    }
-                  </button>
-                );
-              })}
-              {!searchingSvc && serviceResults.length === 0 && serviceSearch.length >= 2 && (
-                <div className="px-3 py-2 text-text-muted text-xs">{t('noResultsFor', { query: serviceSearch })}</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Lista de servicios seleccionados */}
-      {services.length === 0 ? (
+      ) : services.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center">
           <Stethoscope className="w-8 h-8 text-text-muted/40 mb-3" />
           <div className="text-text-muted text-sm">{t('emptyServicesTitle')}</div>
@@ -463,6 +451,98 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           <div className="px-3 py-2.5 bg-bg-2/50 flex justify-between items-center">
             <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('totalEstimated')}</span>
             <span className="text-sm font-bold text-cyan">{fmt$(svcTotal)}</span>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  // Contenido del catálogo (modal B) — buscar/filtrar/paginar y agregar a
+  // la cita. Favoritos primero por defecto (⭐ toggle real, ver
+  // UserServiceFavorite / B.33 — no es decorativo).
+  const catalogBody = (
+    <>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+          <input
+            type="text"
+            value={serviceSearch}
+            onChange={e => setServiceSearch(e.target.value)}
+            placeholder={t('searchServicePlaceholder')}
+            className="w-full bg-bg-2 border border-border rounded-lg pl-9 pr-9 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan transition-colors"
+          />
+          {serviceSearch && (
+            <button type="button" onClick={() => setServiceSearch('')}
+              className="absolute right-3 top-2.5 text-text-muted hover:text-text-1">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setCatalogFavoritesOnly(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors shrink-0 ${
+            catalogFavoritesOnly ? 'bg-amber/15 border-amber/40 text-amber' : 'border-border text-text-2 hover:bg-white/5'
+          }`}
+        >
+          <Star className={`w-3.5 h-3.5 ${catalogFavoritesOnly ? 'fill-amber' : ''}`} /> {t('favoritesOnly')}
+        </button>
+      </div>
+
+      <div className="rounded-lg border border-border overflow-hidden">
+        <div className="grid grid-cols-[32px_60px_1fr_80px_90px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
+          <span />
+          <span>{t('colCode')}</span>
+          <span>{t('colDescription')}</span>
+          <span className="text-right">{t('colCost')}</span>
+          <span className="text-right">{t('colAction')}</span>
+        </div>
+        {searchingSvc ? (
+          <div className="flex items-center justify-center py-8 text-text-muted text-xs gap-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('searching')}
+          </div>
+        ) : serviceResults.length === 0 ? (
+          <div className="px-3 py-8 text-center text-text-muted text-xs">{t('noResultsFor', { query: serviceSearch })}</div>
+        ) : (
+          serviceResults.map(svc => {
+            const already = !!services.find(s => s.id === svc.id);
+            return (
+              <div key={svc.id} className="grid grid-cols-[32px_60px_1fr_80px_90px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
+                <button type="button" onClick={() => toggleCatalogFavorite(svc)} disabled={togglingFavId === svc.id}
+                  title={svc.isFavorite ? t('removeFavorite') : t('addFavorite')}
+                  className="flex items-center justify-center text-text-muted hover:text-amber transition-colors disabled:opacity-40">
+                  <Star className={`w-3.5 h-3.5 ${svc.isFavorite ? 'fill-amber text-amber' : ''}`} />
+                </button>
+                <span className="font-mono text-[11px] text-cyan">{svc.code}</span>
+                <span className="text-xs text-text-1 pr-2 truncate">{svc.description}</span>
+                <span className="text-xs font-semibold text-text-2 text-right">{fmt$(svc.fee)}</span>
+                <div className="flex justify-end">
+                  <button type="button" onClick={() => !already && addService(svc)} disabled={already}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                      already ? 'bg-emerald/15 text-emerald cursor-not-allowed' : 'bg-cyan text-black hover:bg-cyan/90'
+                    }`}>
+                    {already ? t('added') : t('select')}
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {catalogTotalPages > 1 && (
+        <div className="flex items-center justify-between text-[11px] text-text-muted">
+          <span>{t('pageOf', { page: catalogPage, total: catalogTotalPages })}</span>
+          <div className="flex gap-2">
+            <button type="button" disabled={catalogPage <= 1} onClick={() => setCatalogPage(p => p - 1)}
+              className="px-3 py-1.5 rounded-md border border-border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors">
+              {t('previous')}
+            </button>
+            <button type="button" disabled={catalogPage >= catalogTotalPages} onClick={() => setCatalogPage(p => p + 1)}
+              className="px-3 py-1.5 rounded-md border border-border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors">
+              {t('next')}
+            </button>
           </div>
         </div>
       )}
@@ -887,6 +967,22 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Catálogo de servicios (modal B) — se abre desde "Agregar servicio",
+          tanto en modo inline (consulta del doctor) como en el modal de
+          Detalle, por eso no está condicionado por `inline`. */}
+      <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
+          <DialogTitle className="sr-only">{t('actionAddService')}</DialogTitle>
+          <div className="px-5 py-4 border-b border-border shrink-0 flex items-center gap-2">
+            <Search className="w-4 h-4 text-cyan" />
+            <h2 className="text-text-1 font-semibold text-base">{t('actionAddService')}</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-5 space-y-3">
+            {catalogBody}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 

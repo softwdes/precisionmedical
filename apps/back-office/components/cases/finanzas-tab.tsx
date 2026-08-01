@@ -6,13 +6,12 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import {
   DollarSign, ChevronRight, ChevronDown, Loader2, RefreshCw,
   Trash2, CreditCard, FileText, X, ChevronUp,
 } from 'lucide-react';
-import { Button } from '@precision/ui';
+import { Button, Dialog, DialogContent, DialogTitle } from '@precision/ui';
 import { EmptyState } from '@/components/ui-phoenix';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -533,29 +532,29 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       )}
 
       {/* ── Modal: Pagar deuda ───────────────────────────────────────────────────
-          Va en un portal a document.body a proposito: este modal se abre desde
-          dentro del DialogContent de la cita, que tiene translate-x/y-[-50%]
-          para centrarse. Un ancestro con `transform` se vuelve el bloque
-          contenedor de sus descendientes `position: fixed` (spec CSS), asi que
-          sin el portal este overlay quedaba encerrado en los 768px del dialogo
-          padre en vez de ocupar el viewport -- de ahi el scroll horizontal
-          permanente y el input de Pagar recortado, sin importar el max-w. */}
-      {payOpen && typeof document !== 'undefined' && createPortal((
-        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/70 p-4 overflow-y-auto">
-          <div className="relative bg-bg-1 border border-border rounded-xl w-full max-w-6xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+          Usa el primitivo Dialog (Regla #0) en vez de un overlay `fixed` propio.
+          Importa por dos razones concretas: (1) DialogContent portalea solo a
+          body, asi que escapa del translate-x/y-[-50%] del dialogo de la cita
+          -- un ancestro con `transform` se vuelve el bloque contenedor de sus
+          descendientes `fixed` (spec CSS), y por eso antes quedaba encerrado en
+          los 768px del padre; (2) Radix maneja dialogos anidados, incluyendo el
+          pointer-events/focus trap -- un portal manual a body quedaba fuera de
+          su subarbol y el modal se veia pero no se podia clickear. */}
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogContent className="max-w-5xl p-0 overflow-hidden flex flex-col max-h-[90vh]">
 
             {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <div>
-                <h2 className="text-text-1 font-semibold text-base flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-amber" /> Pago del caso
-                </h2>
-                <p className="text-text-muted text-xs mt-0.5">Complete el pago para el caso seleccionado abajo.</p>
-              </div>
-              <button onClick={() => setPayOpen(false)} className="text-text-muted hover:text-text-1 transition-colors p-1">
-                <X className="w-5 h-5" />
-              </button>
+            <div className="px-5 py-4 border-b border-border shrink-0">
+              <DialogTitle className="text-text-1 font-semibold text-base flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-amber" /> Pago del caso
+              </DialogTitle>
+              <p className="text-text-muted text-xs mt-0.5">Complete el pago para el caso seleccionado abajo.</p>
             </div>
+
+            {/* Zona scrolleable — si la ventana es baja, el contenido scrollea
+                en vez de quedar recortado por el max-h del dialogo. El footer
+                de "Registrar pago" queda siempre visible abajo. */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
 
             {/* Summary bar */}
             <div className="grid grid-cols-2 border-b border-border">
@@ -661,8 +660,10 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               );
             })()}
 
+            </div>{/* /zona scrolleable */}
+
             {/* Registrar pago — footer */}
-            <div className="px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
+            <div className="shrink-0 px-5 py-4 border-t border-border bg-bg-2/30 space-y-3">
               <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">Registrar pago</div>
 
               {/* Fila selects: Source | Método | Tipo  (para Seguro: Source | Método | Carrier) */}
@@ -794,9 +795,8 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
               );
             })()}
 
-          </div>
-        </div>
-      ), document.body)}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });

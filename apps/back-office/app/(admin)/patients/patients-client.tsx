@@ -1986,9 +1986,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
   return (
     <>
-      {/* Título + conteo unificado */}
-      <div className="flex items-baseline gap-2 mb-3">
-        <h1 className="text-2xl font-bold text-text-1">{t('listTitle')}</h1>
+      {/* Título + conteo unificado — compacto para que la grilla entre en
+          pantalla sin scroll (v2 tampoco gasta una fila alta en el titulo). */}
+      <div className="flex items-baseline gap-2 mb-2">
+        <h1 className="text-xl font-bold text-text-1">{t('listTitle')}</h1>
         {localTotal > 0 && (
           <span className="text-sm font-medium text-text-muted tabular-nums">
             · {localTotal.toLocaleString()}
@@ -2060,10 +2061,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       </div>
 
       {/* Tabs: Activos / Archivados */}
-      <div className="flex items-center gap-1 border-b border-border mb-3">
+      <div className="flex items-center gap-1 border-b border-border mb-2">
         <a
           href={`${basePath}${q ? `?q=${q}` : ''}`}
-          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
             !inactiveOnly
               ? 'border-brand text-brand'
               : 'border-transparent text-text-muted hover:text-text-1'
@@ -2079,7 +2080,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         </a>
         <a
           href={`${basePath}?showInactive=1${q ? `&q=${q}` : ''}`}
-          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
             inactiveOnly
               ? 'border-amber text-amber'
               : 'border-transparent text-text-muted hover:text-text-1'
@@ -2223,11 +2224,11 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                     );
                     const { badge, missingItems } = formatProgress(prog, t);
                     return (
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
+                      <div className="leading-tight">
+                        <div className="flex items-center gap-2 mb-0.5">
                           <TagPill label={badge} colorClass={prog.colorClass} />
                         </div>
-                        <div className="h-1 rounded-full bg-bg-2 overflow-hidden w-full mb-0.5">
+                        <div className="h-1 rounded-full bg-bg-2 overflow-hidden w-full">
                           <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
                         </div>
                         <MissingTooltip items={missingItems} pct={prog.pct < 100 ? prog.pct : undefined} missingLabel={t('progressMissingLabel')} />

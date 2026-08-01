@@ -4052,7 +4052,12 @@
             "other": "Otro"
           }
         }
-      }
+      },
+      "tooltipCallPatient": "Llamar al {phone}",
+      "tooltipNoPhone": "Sin teléfono registrado",
+      "confirmCallTitle": "¿Llamar a {name}?",
+      "confirmCallDescription": "Se iniciará una llamada real por Twilio al {phone}.",
+      "confirmCallAccept": "Llamar"
     },
     "edson": {
       "title": "Bandeja Edson",

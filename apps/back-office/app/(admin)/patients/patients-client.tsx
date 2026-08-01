@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useTransition, Fragment } from 'react';
+import { useTwilioDevice } from '@/lib/use-twilio-device';
+import { ActiveCallBar } from '@/components/cases/active-call-bar';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
@@ -1880,6 +1883,34 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   };
 
   const [sendPortalTarget, setSendPortalTarget] = useState<{ id: string; caseCode: string; patient: { firstName: string; lastName: string; phone: string | null; email: string | null; preferredLanguage?: 'es' | 'en' } } | null>(null);
+
+  // ─── Llamar al paciente (Twilio real) ───────────────────────────────────
+  const twilio = useTwilioDevice();
+  const [callTarget, setCallTarget] = useState<{ name: string; phone: string; patientId: string; caseId: string | null } | null>(null);
+  // A quien pertenece la llamada en curso — se usa para vincular el CallLog
+  // cuando Twilio nos devuelve el SID (el webhook crea la fila sin dueño).
+  const callOwnerRef = useRef<{ patientId: string; caseId: string | null } | null>(null);
+  // Nombre/telefono de la llamada en curso, para mostrarlos en la barra.
+  const [activeCallInfo, setActiveCallInfo] = useState<{ name: string; phone: string } | null>(null);
+  const [callElapsed, setCallElapsed] = useState(0);
+
+  useEffect(() => {
+    if (twilio.callStatus !== 'in-call') { setCallElapsed(0); return; }
+    const id = setInterval(() => setCallElapsed(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [twilio.callStatus]);
+
+  useEffect(() => {
+    const sid   = twilio.callSid;
+    const owner = callOwnerRef.current;
+    if (!sid || !owner) return;
+    callOwnerRef.current = null;
+    void fetch('/api/twilio/link-call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ twilioCallSid: sid, patientId: owner.patientId, caseId: owner.caseId ?? undefined }),
+    }).catch(() => {});
+  }, [twilio.callSid]);
   const [deletingCase, setDeletingCase]    = useState(false);
   const [deleteCaseError, setDeleteCaseError] = useState('');
 
@@ -2249,6 +2280,26 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 {/* Formulario */}
                 <td className="px-3 py-2 hidden lg:table-cell w-[100px]">
                   <div className="flex items-center gap-1.5">
+                    {/* Llamar — va primero. Solo habilitado si hay telefono. */}
+                    {p.phone && !doctorMode ? (
+                      <button
+                        onClick={() => setCallTarget({
+                          name:   `${p.firstName} ${p.lastName}`,
+                          phone:  p.phone!,
+                          patientId: p.id,
+                          caseId: p.latestCase?.id ?? null,
+                        })}
+                        className="p-1.5 rounded hover:bg-emerald/10 transition-colors group"
+                        title={t('tooltipCallPatient', { phone: p.phone })}
+                        aria-label={t('tooltipCallPatient', { phone: p.phone })}
+                      >
+                        <PhoneCall className="w-3.5 h-3.5 text-text-muted group-hover:text-emerald transition-colors" />
+                      </button>
+                    ) : (
+                      <span title={t('tooltipNoPhone')}>
+                        <PhoneCall className="w-3.5 h-3.5 text-text-muted opacity-25" />
+                      </span>
+                    )}
                     {/* Ícono email — clickeable si hay caso + email (solo admin) */}
                     {p.latestCase && p.email && !doctorMode ? (
                       <button
@@ -2274,10 +2325,6 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                         <Mail className="w-3.5 h-3.5 text-text-muted opacity-25" />
                       </span>
                     )}
-                    {/* Form completed icon */}
-                    <span title={p.latestCase?.intakeFormCompletedAt ? t('tooltipFormCompleted', { date: fmtLocalDate(p.latestCase.intakeFormCompletedAt) }) : t('tooltipFormPending')}>
-                      <CheckCircle2 className={`w-3.5 h-3.5 ${p.latestCase?.intakeFormCompletedAt ? 'text-emerald' : 'text-text-muted opacity-25'}`} />
-                    </span>
                   </div>
                 </td>
 
@@ -2706,6 +2753,43 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         onOpenChange={(o) => { if (!o) setSendPortalTarget(null); }}
         caseInfo={sendPortalTarget}
       />
+
+      {/* ─── Llamar al paciente ──────────────────────────────────────────────
+          Confirmacion explicita antes de marcar: es una llamada real por
+          Twilio, no un link tel:. Al confirmar guardamos a quien pertenece
+          para vincular el CallLog cuando llegue el SID. */}
+      <ConfirmDialog
+        open={!!callTarget}
+        variant="info"
+        title={t('confirmCallTitle', { name: callTarget?.name ?? '' })}
+        description={t('confirmCallDescription', { phone: callTarget?.phone ?? '' })}
+        confirmLabel={t('confirmCallAccept')}
+        cancelLabel={t('btnCancel')}
+        onConfirm={() => {
+          if (!callTarget) return;
+          callOwnerRef.current = { patientId: callTarget.patientId, caseId: callTarget.caseId };
+          setActiveCallInfo({ name: callTarget.name, phone: callTarget.phone });
+          twilio.connect(callTarget.phone);
+          setCallTarget(null);
+        }}
+        onCancel={() => setCallTarget(null)}
+      />
+
+      {/* ActiveCallBar no es overlay: lo fijamos abajo a la derecha para que
+          se vea mientras se sigue navegando la lista. */}
+      {activeCallInfo && (twilio.callStatus === 'connecting' || twilio.callStatus === 'in-call') && (
+        <div className="fixed bottom-4 right-4 z-50 shadow-2xl rounded-lg">
+          <ActiveCallBar
+            status={twilio.callStatus}
+            phone={activeCallInfo.phone}
+            patientName={activeCallInfo.name}
+            elapsed={callElapsed}
+            muted={twilio.muted}
+            onMuteToggle={twilio.toggleMute}
+            onHangUp={() => { twilio.hangUp(); setActiveCallInfo(null); }}
+          />
+        </div>
+      )}
 
       {/* ─── Seguros ─────────────────────────────────────────────────────────── */}
       {segurosTarget && (

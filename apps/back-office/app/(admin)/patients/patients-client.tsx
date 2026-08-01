@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, Phone, PhoneCall, PhoneOutgoing, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -2226,7 +2226,16 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                     return (
                       <div className="leading-tight">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <TagPill label={badge} colorClass={prog.colorClass} />
+                          {/* Icono dentro del badge (como v2): el color solo no
+                              alcanza — con ⚠ / ✓ el estado se lee de un vistazo
+                              y funciona tambien para daltonismo rojo-verde. */}
+                          <TagPill
+                            label={badge}
+                            colorClass={prog.colorClass}
+                            icon={prog.pct === 100
+                              ? <CheckCircle2 className="w-3 h-3 shrink-0" />
+                              : <AlertTriangle className="w-3 h-3 shrink-0" />}
+                          />
                         </div>
                         <div className="h-1 rounded-full bg-bg-2 overflow-hidden w-full">
                           <div className={`h-full rounded-full transition-all ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />

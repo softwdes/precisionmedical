@@ -1051,26 +1051,29 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${isOnline ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </button>
               </div>
-              {isOnline && (
-                <div className="mt-3 pt-3 border-t border-border">
-                  <label htmlFor="appt-meeting-url" className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5 block">
-                    {t('meetingUrlLabel')}
-                  </label>
-                  <div className="relative">
-                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
-                    <input
-                      id="appt-meeting-url"
-                      type="url"
-                      value={meetingUrl}
-                      onChange={(e) => setMeetingUrl(e.target.value)}
-                      placeholder={t('meetingUrlPlaceholder')}
-                      className="w-full bg-bg-1 border border-cyan/30 rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
+
+          {/* ── Enlace de la reunión — fila propia a todo el ancho, no
+               metida adentro de la tarjeta de Consulta en línea ── */}
+          {isOnline && (
+            <div>
+              <label htmlFor="appt-meeting-url" className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mb-1.5 block">
+                📹 {t('meetingUrlLabel')}
+              </label>
+              <div className="relative">
+                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                <input
+                  id="appt-meeting-url"
+                  type="url"
+                  value={meetingUrl}
+                  onChange={(e) => setMeetingUrl(e.target.value)}
+                  placeholder={t('meetingUrlPlaceholder')}
+                  className="w-full bg-bg-2 border border-cyan/30 rounded-md pl-8 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan"
+                />
+              </div>
+            </div>
+          )}
 
           {/* ── Notas ── */}
           <div>

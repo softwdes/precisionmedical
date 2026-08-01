@@ -573,12 +573,15 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                 ambiguedad de table-layout (fixed/auto) combinado con celdas
                 sticky, que nunca terminaba de encajar sin scroll. */}
             {(() => {
-              // Pisos elegidos a partir del ancho real de cada header (10px
-              // uppercase + tracking + px-3) mas holgura: suman ~794px contra
-              // los 896px del max-w-4xl, asi que sobra espacio y el scroll
-              // horizontal no puede aparecer en desktop. En pantallas angostas
-              // si aparece, que es cuando las columnas sticky sirven.
-              const GRID_COLS = 'grid-cols-[minmax(170px,1.5fr)_minmax(85px,0.6fr)_minmax(100px,0.7fr)_minmax(105px,0.75fr)_minmax(85px,0.6fr)_minmax(95px,0.7fr)_minmax(110px,0.8fr)_44px]';
+              // Cada piso sale del ancho real de su header (10px uppercase +
+              // tracking + px-3), con holgura. Ojo con la ultima columna: es la
+              // unica de ancho FIJO, asi que es la unica que puede desbordar --
+              // las demas son fr y se expanden por encima de su piso. Con 44px
+              // el texto "NOTAS" (~62px con padding) se salia, y ese desborde
+              // alimentaba el area scrolleable del overflow-x-auto: de ahi la
+              // barra horizontal que no se iba. Suman ~828px contra los 896px
+              // del max-w-4xl, ~68px de holgura.
+              const GRID_COLS = 'grid-cols-[minmax(170px,1.5fr)_minmax(85px,0.6fr)_minmax(105px,0.7fr)_minmax(110px,0.75fr)_minmax(85px,0.6fr)_minmax(95px,0.7fr)_minmax(110px,0.8fr)_68px]';
               return (
                 <div className="overflow-x-auto max-h-72 overflow-y-auto">
                   <div className={`sticky top-0 z-20 grid ${GRID_COLS} bg-bg-2/95 backdrop-blur-sm border-b border-border`}>

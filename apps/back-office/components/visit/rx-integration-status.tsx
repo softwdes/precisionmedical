@@ -18,7 +18,7 @@ import { TagPill } from '@/components/ui-phoenix';
 export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const [active, setActive] = React.useState<'drug-list' | 'pharmacy' | null>(null);
-  const [status, setStatus] = React.useState<'idle' | 'loading' | 'ready' | 'not_onboarded' | 'error'>('idle');
+  const [status, setStatus] = React.useState<'idle' | 'loading' | 'ready' | 'not_onboarded' | 'missing_address' | 'missing_dob' | 'error'>('idle');
   const [url, setUrl] = React.useState<string | null>(null);
 
   async function openWidget(widget: 'drug-list' | 'pharmacy'): Promise<void> {
@@ -28,6 +28,11 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
     try {
       const res = await fetch(`/api/admin/scriptsure/widget/${appointmentId}?widget=${widget}`);
       if (res.status === 409) { setStatus('not_onboarded'); return; }
+      if (res.status === 422) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setStatus(body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob' : 'missing_address');
+        return;
+      }
       if (!res.ok) { setStatus('error'); return; }
       const data = (await res.json()) as { url: string };
       setUrl(data.url);
@@ -111,6 +116,30 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
               <div className="text-[12.5px] text-text-2 leading-relaxed">
                 <p className="text-text-1 font-medium mb-1">{t('rxNotOnboardedTitle')}</p>
                 <p>{t('rxNotOnboardedDesc')}</p>
+              </div>
+            </div>
+          )}
+
+          {status === 'missing_address' && (
+            <div className="p-5 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-amber" />
+              </div>
+              <div className="text-[12.5px] text-text-2 leading-relaxed">
+                <p className="text-text-1 font-medium mb-1">{t('rxMissingAddressTitle')}</p>
+                <p>{t('rxMissingAddressDesc')}</p>
+              </div>
+            </div>
+          )}
+
+          {status === 'missing_dob' && (
+            <div className="p-5 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-amber" />
+              </div>
+              <div className="text-[12.5px] text-text-2 leading-relaxed">
+                <p className="text-text-1 font-medium mb-1">{t('rxMissingDobTitle')}</p>
+                <p>{t('rxMissingDobDesc')}</p>
               </div>
             </div>
           )}

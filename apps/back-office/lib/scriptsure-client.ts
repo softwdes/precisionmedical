@@ -160,9 +160,22 @@ export interface ScriptSurePatientInput {
 }
 
 /**
+ * ScriptSure exige calle+ciudad+estado+ZIP para crear un paciente — no son
+ * opcionales pese a que la doc dice "no manden campos vacíos" (eso aplica a
+ * los campos que SÍ tenés, no los vuelve opcionales). Mucha data migrada del
+ * v2 no tiene calle — ver [[scriptsure-daw-integration]].
+ */
+export class ScriptSurePatientDataError extends Error {
+  constructor(public readonly missingFields: string[]) {
+    super(`Al paciente le faltan campos obligatorios para ScriptSure: ${missingFields.join(', ')}`);
+    this.name = 'ScriptSurePatientDataError';
+  }
+}
+
+/**
  * Create Patient — obligatorio antes de lanzar cualquier widget atado a un
  * paciente (Drug List, Pharmacy, etc). Devuelve el `patientId` propio de
- * ScriptSure. NO se manda ningún campo sin valor (la API lo exige así).
+ * ScriptSure.
  */
 async function createScriptSurePatient(
   loginEmail: string,
@@ -170,6 +183,13 @@ async function createScriptSurePatient(
   prescriberId: number,
   patient: ScriptSurePatientInput,
 ): Promise<number> {
+  const missingFields: string[] = [];
+  if (!patient.addressLine1) missingFields.push('addressLine1');
+  if (!patient.addressCity) missingFields.push('city');
+  if (!patient.addressState) missingFields.push('state');
+  if (!patient.addressZip) missingFields.push('zip');
+  if (missingFields.length > 0) throw new ScriptSurePatientDataError(missingFields);
+
   const sessionToken = await getSessionToken(loginEmail);
 
   const payload: Record<string, unknown> = {
@@ -182,11 +202,11 @@ async function createScriptSurePatient(
     lastName: asciiName(patient.lastName),
     dob: patient.dob.toISOString().slice(0, 10),
     gender: (patient.sex && GENDER_MAP[patient.sex]) || 'U',
+    addressLine1: patient.addressLine1!.slice(0, 40),
+    city: patient.addressCity,
+    state: patient.addressState,
+    zip: patient.addressZip!.replace(/[^0-9]/g, '').slice(0, 9),
   };
-  if (patient.addressLine1) payload.addressLine1 = patient.addressLine1.slice(0, 40);
-  if (patient.addressCity) payload.city = patient.addressCity;
-  if (patient.addressState) payload.state = patient.addressState;
-  if (patient.addressZip) payload.zip = patient.addressZip.replace(/[^0-9]/g, '').slice(0, 9);
   const cell = (patient.phone ?? patient.phone2 ?? '').replace(/[^0-9]/g, '');
   if (cell) payload.cell = cell;
 

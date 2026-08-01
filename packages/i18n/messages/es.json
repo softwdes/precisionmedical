@@ -1875,6 +1875,10 @@
       "rxWidgetLoading": "Conectando con ScriptSure…",
       "rxNotOnboardedTitle": "Todavía no estás habilitado como prescriptor en ScriptSure",
       "rxNotOnboardedDesc": "Falta completar tu alta como prescriptor (verificación de identidad y aprobación EPCS). Pedile a administración que te invite desde ScriptSure.",
+      "rxMissingAddressTitle": "Falta la dirección del paciente",
+      "rxMissingAddressDesc": "ScriptSure exige calle, ciudad, estado y ZIP para crear al paciente. Completá su dirección en la ficha del paciente y volvé a intentar.",
+      "rxMissingDobTitle": "Falta la fecha de nacimiento del paciente",
+      "rxMissingDobDesc": "ScriptSure la exige para crear al paciente. Completala en su ficha y volvé a intentar.",
       "rxWidgetError": "No se pudo conectar con ScriptSure. Intentá de nuevo en un momento."
     },
     "topbar": {
@@ -3167,6 +3171,10 @@
       "chooseSpecialtyPlaceholder": "Elegir especialidad...",
       "fieldClinic": "Clínica",
       "selectClinicPlaceholder": "Seleccionar clínica...",
+      "fieldSpecialty": "Especialidad",
+      "selectSpecialtyPlaceholder": "Seleccionar especialidad...",
+      "specialtyOverrideHint": "Solo para esta cita — el caso mantiene su especialidad.",
+      "specialtySavedToCase": "Guardada en el caso.",
       "fieldDoctor": "Doctor",
       "filterBySpecialty": "Filtrar por {specialty}",
       "showAllDoctors": "Ver todos los doctores",

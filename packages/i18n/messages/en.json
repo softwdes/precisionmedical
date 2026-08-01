@@ -1875,6 +1875,10 @@
       "rxWidgetLoading": "Connecting to ScriptSure…",
       "rxNotOnboardedTitle": "You're not enabled as a prescriber in ScriptSure yet",
       "rxNotOnboardedDesc": "Your prescriber registration (identity verification and EPCS approval) still needs to be completed. Ask an administrator to invite you from ScriptSure.",
+      "rxMissingAddressTitle": "Patient address is missing",
+      "rxMissingAddressDesc": "ScriptSure requires street, city, state and ZIP to create the patient. Complete their address in the patient record and try again.",
+      "rxMissingDobTitle": "Patient date of birth is missing",
+      "rxMissingDobDesc": "ScriptSure requires it to create the patient. Complete it in their record and try again.",
       "rxWidgetError": "Couldn't connect to ScriptSure. Please try again in a moment."
     },
     "topbar": {
@@ -3167,6 +3171,10 @@
       "chooseSpecialtyPlaceholder": "Choose specialty...",
       "fieldClinic": "Clinic",
       "selectClinicPlaceholder": "Select clinic...",
+      "fieldSpecialty": "Specialty",
+      "selectSpecialtyPlaceholder": "Select specialty...",
+      "specialtyOverrideHint": "For this appointment only — the case keeps its specialty.",
+      "specialtySavedToCase": "Saved to the case.",
       "fieldDoctor": "Doctor",
       "filterBySpecialty": "Filter by {specialty}",
       "showAllDoctors": "Show all doctors",

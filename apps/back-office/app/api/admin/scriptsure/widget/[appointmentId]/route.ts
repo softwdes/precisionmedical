@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@precision-medical/database';
 import { checkAppointmentAccess } from '@/lib/appointment-access';
-import { setPracticePrescriber, getOrCreateScriptSurePatientId, getScriptSureWidgetUrl, type ScriptSureWidget } from '@/lib/scriptsure-client';
+import {
+  setPracticePrescriber,
+  getOrCreateScriptSurePatientId,
+  getScriptSureWidgetUrl,
+  ScriptSurePatientDataError,
+  type ScriptSureWidget,
+} from '@/lib/scriptsure-client';
 
 const VALID_WIDGETS: ScriptSureWidget[] = ['drug-list', 'pharmacy'];
 
@@ -77,6 +83,9 @@ export async function GET(
     const url = await getScriptSureWidgetUrl(loginEmail, widget, scriptsurePatientId);
     return NextResponse.json({ url });
   } catch (err) {
+    if (err instanceof ScriptSurePatientDataError) {
+      return NextResponse.json({ error: 'PATIENT_MISSING_ADDRESS', missingFields: err.missingFields }, { status: 422 });
+    }
     return NextResponse.json({ error: 'SCRIPTSURE_ERROR', message: (err as Error).message }, { status: 502 });
   }
 }

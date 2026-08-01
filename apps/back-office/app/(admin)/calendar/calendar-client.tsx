@@ -1111,7 +1111,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
                           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
                           onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
-                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-wrap content-start gap-0.5 cursor-pointer group transition-colors min-w-0 overflow-hidden ${
+                          className={`border-r border-white/[0.04] last:border-r-0 p-0.5 flex flex-wrap content-start gap-0.5 cursor-pointer group transition-colors min-w-0 ${
                             dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
                             isToday ? 'bg-cyan/[0.025]' : 'hover:bg-white/[0.015]'
                           }`}>
@@ -1204,7 +1204,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDropTarget(`${dayKey}|${slot}`); }}
                         onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropTarget(null); }}
                         onDrop={(e) => { e.preventDefault(); void handleDrop(dayKey, slot); }}
-                        className={`p-0.5 flex flex-wrap content-start gap-0.5 cursor-pointer group transition-colors min-w-0 overflow-hidden ${
+                        className={`p-0.5 flex flex-wrap content-start gap-0.5 cursor-pointer group transition-colors min-w-0 ${
                           dropTarget === `${dayKey}|${slot}` ? 'bg-cyan/[0.12] ring-1 ring-inset ring-cyan/50' :
                           isToday ? 'bg-cyan/[0.015]' : 'hover:bg-white/[0.015]'
                         }`}>

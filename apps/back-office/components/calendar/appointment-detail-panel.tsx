@@ -162,6 +162,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const finanzasRef = useRef<FinanzasTabHandle>(null);
+  // En modo NO inline, "Servicios" abre como modal sobre el Detalle (como
+  // Pagos ya hacia) en vez de navegar a otro tab — en inline (embebido en
+  // consulta/admision) sigue siendo un tab de verdad, sin modal de por medio.
+  const [servicesModalOpen, setServicesModalOpen] = useState(false);
 
   // ── Detail tab ────────────────────────────────────────────────────────────
   const [activeModal,   setActiveModal]   = useState<SecondaryModalType | null>(null);
@@ -214,9 +218,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const lawyerDone    = !!appt.case?.attorney;
   const insuranceDone = !!appt.case?.primaryInsurance;
 
-  // ── Load services when tab opens ──────────────────────────────────────────
+  // ── Load services when tab/modal opens ────────────────────────────────────
+  const servicesVisible = inline ? activeTab === 'services' : servicesModalOpen;
   useEffect(() => {
-    if (activeTab !== 'services' || svcLoaded) return;
+    if (!servicesVisible || svcLoaded) return;
     // Si el appointment ya trae los servicios en el prop, usarlos directamente
     if (appt.plannedServiceCodes) {
       setServices(appt.plannedServiceCodes);
@@ -230,7 +235,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         setSvcLoaded(true);
       })
       .catch(() => setSvcLoaded(true));
-  }, [activeTab, appt.id, svcLoaded, appt.plannedServiceCodes]);
+  }, [servicesVisible, appt.id, svcLoaded, appt.plannedServiceCodes]);
 
   // ── Service search debounce ───────────────────────────────────────────────
   useEffect(() => {
@@ -325,6 +330,142 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     { id: 'services', label: t('tabServices'), icon: <Stethoscope className="w-3.5 h-3.5" /> },
   ];
 
+  // Contenido de Servicios — se usa tanto embebido (inline, ej. consulta del
+  // doctor) como dentro del modal que se abre desde el boton "Servicios" del
+  // Detalle, para no duplicar la logica de busqueda/lista en dos lugares.
+  const servicesBody = (
+    <>
+      {/* Header con total + Pagar deuda */}
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionCptServices')}</div>
+        <div className="flex items-center gap-2">
+          {savingSvc && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
+          {savedOk   && <span className="text-[10px] text-emerald">{t('savedOk')}</span>}
+          <span className="text-sm font-bold text-cyan">{fmt$(billingTotal ?? svcTotal)}</span>
+          {appt.case && !hidePayments && (
+            <button
+              type="button"
+              onClick={() => {
+                // sync-billing en background — no bloqueamos apertura del modal
+                fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ caseId: appt.case?.id }),
+                }).catch(() => {});
+                finanzasRef.current?.reloadAndOpen();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors">
+              <DollarSign className="w-3.5 h-3.5" /> {t('actionPayDebt')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Buscador inline */}
+      {!svcLoaded ? (
+        <div className="flex items-center justify-center py-6 text-text-muted text-xs gap-2">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
+        </div>
+      ) : (
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+          <input
+            type="text"
+            value={serviceSearch}
+            onChange={e => setServiceSearch(e.target.value)}
+            placeholder={t('searchServicePlaceholder')}
+            className="w-full bg-bg-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan transition-colors"
+          />
+          {serviceSearch && (
+            <button type="button" onClick={() => { setServiceSearch(''); setServiceResults([]); }}
+              className="absolute right-3 top-2.5 text-text-muted hover:text-text-1">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Resultados dropdown */}
+          {(searchingSvc || serviceResults.length > 0) && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-lg shadow-xl z-20 overflow-hidden">
+              {searchingSvc && (
+                <div className="px-3 py-2 text-text-muted text-xs flex items-center gap-1.5">
+                  <Loader2 className="w-3 h-3 animate-spin" /> {t('searching')}
+                </div>
+              )}
+              {serviceResults.map(svc => {
+                const already = !!services.find(s => s.id === svc.id);
+                return (
+                  <button
+                    key={svc.id}
+                    type="button"
+                    onClick={() => !already && addService(svc)}
+                    disabled={already}
+                    className={`w-full text-left px-3 py-2.5 flex items-center gap-3 border-b border-row-sep last:border-0 transition-colors ${
+                      already ? 'opacity-40 cursor-not-allowed' : 'hover:bg-bg-2'
+                    }`}
+                  >
+                    <span className="font-mono text-[11px] text-cyan shrink-0 w-14">{svc.code}</span>
+                    <span className="flex-1 text-xs text-text-1 truncate">{svc.description}</span>
+                    <span className="text-xs font-semibold text-text-2 shrink-0">{fmt$(svc.fee)}</span>
+                    {already
+                      ? <Check className="w-3.5 h-3.5 text-emerald shrink-0" />
+                      : <Plus className="w-3.5 h-3.5 text-brand shrink-0" />
+                    }
+                  </button>
+                );
+              })}
+              {!searchingSvc && serviceResults.length === 0 && serviceSearch.length >= 2 && (
+                <div className="px-3 py-2 text-text-muted text-xs">{t('noResultsFor', { query: serviceSearch })}</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Lista de servicios seleccionados */}
+      {services.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <Stethoscope className="w-8 h-8 text-text-muted/40 mb-3" />
+          <div className="text-text-muted text-sm">{t('emptyServicesTitle')}</div>
+          <div className="text-text-muted/60 text-xs mt-1">{t('emptyServicesHint')}</div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="grid grid-cols-[60px_1fr_90px_36px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
+            <span>{t('colCode')}</span>
+            <span>{t('colDescription')}</span>
+            <span className="text-right">{t('colCost')}</span>
+            <span />
+          </div>
+          {services.map(svc => (
+            <div key={svc.id} className="grid grid-cols-[60px_1fr_90px_36px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
+              <span className="font-mono text-[11px] text-cyan">{svc.code}</span>
+              <span className="text-xs text-text-1 pr-2 truncate">{svc.description}</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={svc.fee}
+                onBlur={e => {
+                  const v = parseFloat(e.target.value);
+                  if (!isNaN(v) && v !== svc.fee) updateServiceFee(svc.id, v);
+                }}
+                className="w-full text-right bg-transparent border border-transparent hover:border-border focus:border-cyan rounded px-1.5 py-0.5 text-xs font-semibold text-text-1 focus:outline-none focus:bg-bg-2 transition-colors"
+              />
+              <button type="button" onClick={() => setConfirmDeleteSvc(svc.id)}
+                className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors ml-auto">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+          <div className="px-3 py-2.5 bg-bg-2/50 flex justify-between items-center">
+            <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('totalEstimated')}</span>
+            <span className="text-sm font-bold text-cyan">{fmt$(svcTotal)}</span>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   const panelContent = (
     <>
 
@@ -345,9 +486,12 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
             </div>
           )}
 
-          {/* ─── Tabs (inline: solo services y payments) ─────────── */}
+          {/* ─── Tabs — solo existen en modo inline. En el modal completo,
+               Detalle es la unica vista y Servicios/Pagos son botones que
+               abren su propio modal encima, no un tab a donde navegar. ── */}
+          {inline && (
           <div className="flex border-b border-border shrink-0">
-            {TABS.filter(tab => !inline || tab.id !== 'detail').map(tab => (
+            {TABS.filter(tab => tab.id !== 'detail').map(tab => (
               <button
                 key={tab.id}
                 type="button"
@@ -367,6 +511,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               </button>
             ))}
           </div>
+          )}
 
           {/* ─── Tab: Detalle ────────────────────────────────────── */}
           {activeTab === 'detail' && (
@@ -421,7 +566,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               <div className={`grid grid-cols-1 ${appt.case && !hidePayments ? 'sm:grid-cols-2' : ''} gap-3`}>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('services')}
+                  onClick={() => setServicesModalOpen(true)}
                   className="flex items-center gap-3 rounded-lg border border-cyan/30 bg-cyan/5 hover:bg-cyan/10 p-4 transition-colors text-left"
                 >
                   <div className="w-9 h-9 rounded-lg bg-cyan/15 flex items-center justify-center shrink-0">
@@ -581,138 +726,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
             </div>
           )}
 
-          {/* ─── Tab: Servicios ──────────────────────────────────── */}
-          {activeTab === 'services' && (
+          {/* ─── Tab: Servicios (solo inline — en modal no, ver abajo) ──── */}
+          {inline && activeTab === 'services' && (
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
-
-              {/* Header con total + Pagar deuda */}
-              <div className="flex items-center justify-between">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionCptServices')}</div>
-                <div className="flex items-center gap-2">
-                  {savingSvc && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
-                  {savedOk   && <span className="text-[10px] text-emerald">{t('savedOk')}</span>}
-                  <span className="text-sm font-bold text-cyan">{fmt$(billingTotal ?? svcTotal)}</span>
-                  {appt.case && !hidePayments && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // sync-billing en background — no bloqueamos apertura del modal
-                        fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ caseId: appt.case?.id }),
-                        }).catch(() => {});
-                        finanzasRef.current?.reloadAndOpen();
-                      }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber text-black text-xs font-semibold hover:bg-amber/90 transition-colors">
-                      <DollarSign className="w-3.5 h-3.5" /> {t('actionPayDebt')}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Buscador inline */}
-              {!svcLoaded ? (
-                <div className="flex items-center justify-center py-6 text-text-muted text-xs gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
-                </div>
-              ) : (
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
-                  <input
-                    type="text"
-                    value={serviceSearch}
-                    onChange={e => setServiceSearch(e.target.value)}
-                    placeholder={t('searchServicePlaceholder')}
-                    className="w-full bg-bg-2 border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan transition-colors"
-                  />
-                  {serviceSearch && (
-                    <button type="button" onClick={() => { setServiceSearch(''); setServiceResults([]); }}
-                      className="absolute right-3 top-2.5 text-text-muted hover:text-text-1">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-
-                  {/* Resultados dropdown */}
-                  {(searchingSvc || serviceResults.length > 0) && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-bg-1 border border-border rounded-lg shadow-xl z-20 overflow-hidden">
-                      {searchingSvc && (
-                        <div className="px-3 py-2 text-text-muted text-xs flex items-center gap-1.5">
-                          <Loader2 className="w-3 h-3 animate-spin" /> {t('searching')}
-                        </div>
-                      )}
-                      {serviceResults.map(svc => {
-                        const already = !!services.find(s => s.id === svc.id);
-                        return (
-                          <button
-                            key={svc.id}
-                            type="button"
-                            onClick={() => !already && addService(svc)}
-                            disabled={already}
-                            className={`w-full text-left px-3 py-2.5 flex items-center gap-3 border-b border-row-sep last:border-0 transition-colors ${
-                              already ? 'opacity-40 cursor-not-allowed' : 'hover:bg-bg-2'
-                            }`}
-                          >
-                            <span className="font-mono text-[11px] text-cyan shrink-0 w-14">{svc.code}</span>
-                            <span className="flex-1 text-xs text-text-1 truncate">{svc.description}</span>
-                            <span className="text-xs font-semibold text-text-2 shrink-0">{fmt$(svc.fee)}</span>
-                            {already
-                              ? <Check className="w-3.5 h-3.5 text-emerald shrink-0" />
-                              : <Plus className="w-3.5 h-3.5 text-brand shrink-0" />
-                            }
-                          </button>
-                        );
-                      })}
-                      {!searchingSvc && serviceResults.length === 0 && serviceSearch.length >= 2 && (
-                        <div className="px-3 py-2 text-text-muted text-xs">{t('noResultsFor', { query: serviceSearch })}</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Lista de servicios seleccionados */}
-              {services.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <Stethoscope className="w-8 h-8 text-text-muted/40 mb-3" />
-                  <div className="text-text-muted text-sm">{t('emptyServicesTitle')}</div>
-                  <div className="text-text-muted/60 text-xs mt-1">{t('emptyServicesHint')}</div>
-                </div>
-              ) : (
-                <div className="rounded-lg border border-border overflow-hidden">
-                  <div className="grid grid-cols-[60px_1fr_90px_36px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
-                    <span>{t('colCode')}</span>
-                    <span>{t('colDescription')}</span>
-                    <span className="text-right">{t('colCost')}</span>
-                    <span />
-                  </div>
-                  {services.map(svc => (
-                    <div key={svc.id} className="grid grid-cols-[60px_1fr_90px_36px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
-                      <span className="font-mono text-[11px] text-cyan">{svc.code}</span>
-                      <span className="text-xs text-text-1 pr-2 truncate">{svc.description}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        defaultValue={svc.fee}
-                        onBlur={e => {
-                          const v = parseFloat(e.target.value);
-                          if (!isNaN(v) && v !== svc.fee) updateServiceFee(svc.id, v);
-                        }}
-                        className="w-full text-right bg-transparent border border-transparent hover:border-border focus:border-cyan rounded px-1.5 py-0.5 text-xs font-semibold text-text-1 focus:outline-none focus:bg-bg-2 transition-colors"
-                      />
-                      <button type="button" onClick={() => setConfirmDeleteSvc(svc.id)}
-                        className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors ml-auto">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                  <div className="px-3 py-2.5 bg-bg-2/50 flex justify-between items-center">
-                    <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('totalEstimated')}</span>
-                    <span className="text-sm font-bold text-cyan">{fmt$(svcTotal)}</span>
-                  </div>
-                </div>
-              )}
+              {servicesBody}
             </div>
           )}
 
@@ -848,6 +865,24 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
             },
           }}
         />
+      )}
+
+      {/* Servicios como modal sobre el Detalle (no inline) — un clic y se ve
+          ahí mismo, sin navegar a otro tab (mismo criterio que Pagos, que ya
+          abre su propio modal desde FinanzasTab). */}
+      {!inline && (
+        <Dialog open={servicesModalOpen} onOpenChange={setServicesModalOpen}>
+          <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
+            <DialogTitle className="sr-only">{t('tabServices')}</DialogTitle>
+            <div className="px-5 py-4 border-b border-border shrink-0 flex items-center gap-2">
+              <Stethoscope className="w-4 h-4 text-cyan" />
+              <h2 className="text-text-1 font-semibold text-base">{t('tabServices')}</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {servicesBody}
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );

@@ -220,7 +220,7 @@ function slotOf(isoString: string): string {
 
 const DAY_SLOT_MIN     = 15;
 const DAY_DEFAULT_FROM = 7 * 60;   // 07:00
-const DAY_DEFAULT_TO   = 18 * 60;  // 18:00 (exclusivo → ultimo slot 17:45)
+const DAY_DEFAULT_TO   = 22 * 60;  // 22:00 (exclusivo → ultimo slot 21:45)
 
 function slotToMin(slot: string): number {
   const [h, m] = slot.split(':').map(Number) as [number, number];
@@ -1264,12 +1264,13 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
 
           const allSlots: string[] = [];
           for (let m = fromMin; m < toMin; m += DAY_SLOT_MIN) allSlots.push(minToSlot(m));
-          // Cortamos al mediodia: la 1ra columna termina 11:45 y la 2da arranca
-          // 12:00, asi los encabezados "mañana"/"tarde" son literales y las dos
-          // columnas quedan alineadas a la hora en punto.
-          const splitIdx = Math.max(0, Math.min(
+          // Corte balanceado (mitad de las filas, redondeado a la hora en punto
+          // = multiplo de 4 slots). Con el rango largo 07:00-22:00 cortar al
+          // mediodia dejaba 20 filas contra 40; v2 tampoco corta al mediodia
+          // por lo mismo. Asi las dos columnas quedan parejas.
+          const splitIdx = Math.max(4, Math.min(
             allSlots.length,
-            Math.ceil((12 * 60 - fromMin) / DAY_SLOT_MIN),
+            Math.round(Math.ceil(allSlots.length / 2) / 4) * 4,
           ));
           const columns = [allSlots.slice(0, splitIdx), allSlots.slice(splitIdx)];
 
@@ -1315,11 +1316,13 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                     );
                   })}
 
-                  {/* Slot libre */}
+                  {/* Slot libre — la pildora se ve SIEMPRE (no solo en hover):
+                      que cada fila tenga la misma caja es lo que hace que la
+                      grilla se lea ordenada, igual que v2. */}
                   {cellAppts.length === 0 && !isCont && !slotIsPast(dayKey, slot) && !isDrop && (
-                    <div className="flex items-center px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity w-full">
-                      <Plus className="w-2.5 h-2.5 text-cyan/50 mr-1 shrink-0" />
-                      <span className="text-[10px] text-cyan/50 font-medium">{t('slotAvailable')}</span>
+                    <div className="flex-1 min-w-0 flex items-center px-2 rounded border border-dashed border-cyan/[0.18] bg-cyan/[0.02] text-cyan/40 group-hover:border-cyan/40 group-hover:bg-cyan/[0.06] group-hover:text-cyan/70 transition-colors">
+                      <Plus className="w-2.5 h-2.5 mr-1 shrink-0" />
+                      <span className="text-[10px] font-medium uppercase tracking-wide">{t('slotAvailable')}</span>
                     </div>
                   )}
 
@@ -1394,7 +1397,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                         {t('colHour')}
                       </div>
                       <div className="py-1.5 text-center text-[9px] uppercase tracking-widest font-bold text-text-muted/60">
-                        {ci === 0 ? t('colApptsMorning') : t('colApptsAfternoon')}
+                        {t('colAppts')}
                       </div>
                     </div>
                     {slots.map(renderSlotRow)}

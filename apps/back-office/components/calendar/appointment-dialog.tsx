@@ -947,6 +947,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   value={slotIso}
                   onChange={setSlotIso}
                   onSlotsFetched={handleSlotsFetched}
+                  excludeAppointmentId={isEditMode ? editAppointment?.id : undefined}
                   maxWeeks={8}
                   initialDate={isEditMode && editAppointment && !isReschedule
                     ? new Date(editAppointment.scheduledFor).toLocaleDateString('en-CA', { timeZone: 'America/Denver' })

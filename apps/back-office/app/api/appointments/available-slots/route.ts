@@ -35,6 +35,10 @@ const QuerySchema = z.object({
   toDate:          z.string().datetime().optional(),
   durationMinutes: z.coerce.number().int().min(15).max(240).default(45),
   limit:           z.coerce.number().int().min(1).max(200).default(12),
+  /** Al editar una cita existente, excluirla del chequeo de conflictos —
+   *  si no, su propio horario se ve a sí mismo como "ocupado" y desaparece
+   *  de la lista, así que al editar nunca aparecía marcado su horario actual. */
+  excludeAppointmentId: z.string().optional(),
 });
 
 /** Devuelve el número de hora local en America/Denver para una fecha UTC */
@@ -86,6 +90,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       toDate:          searchParams.get('toDate')          ?? undefined,
       durationMinutes: searchParams.get('durationMinutes') ?? undefined,
       limit:           searchParams.get('limit')           ?? undefined,
+      excludeAppointmentId: searchParams.get('excludeAppointmentId') ?? undefined,
     });
   } catch (err) {
     return NextResponse.json(
@@ -108,6 +113,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         gte: fromDate,
         lt:  toDate,
       },
+      ...(query.excludeAppointmentId ? { id: { not: query.excludeAppointmentId } } : {}),
     },
     select: {
       scheduledFor:    true,

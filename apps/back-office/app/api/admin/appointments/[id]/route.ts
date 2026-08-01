@@ -65,7 +65,7 @@ export async function PATCH(
 
   const existing = await db.appointment.findUnique({
     where: { id },
-    select: { id: true, status: true, caseId: true },
+    select: { id: true, status: true, caseId: true, providerId: true, scheduledFor: true, durationMinutes: true },
   });
   if (!existing) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
@@ -84,6 +84,43 @@ export async function PATCH(
       error: 'WEEKEND_NOT_ALLOWED',
       message: 'No se pueden agendar citas en fin de semana.',
     }, { status: 400 });
+  }
+
+  // Chequeo de conflicto (mismo criterio que POST /api/admin/appointments) —
+  // faltaba acá: se podía editar hora/doctor/duración a un horario que ya
+  // tenía otra cita sin ningún aviso, porque el PATCH nunca revalidaba.
+  // Solo corre si algo relacionado al horario realmente cambió, y excluye
+  // esta misma cita del chequeo (si no, siempre "chocaría" consigo misma).
+  const timingChanged = parsed.scheduledFor !== undefined || parsed.providerId !== undefined || parsed.durationMinutes !== undefined;
+  if (timingChanged) {
+    const effectiveProviderId = parsed.providerId !== undefined ? parsed.providerId : existing.providerId;
+    const effectiveDuration   = parsed.durationMinutes ?? existing.durationMinutes;
+    const newStart = parsed.scheduledFor !== undefined ? new Date(parsed.scheduledFor) : new Date(existing.scheduledFor);
+    const newEnd   = new Date(newStart.getTime() + effectiveDuration * 60 * 1000);
+
+    if (effectiveProviderId) {
+      const bufferStart = new Date(newStart.getTime() - 240 * 60 * 1000);
+      const conflict = await db.appointment.findFirst({
+        where: {
+          id:           { not: id },
+          providerId:   effectiveProviderId,
+          status:       { not: 'CANCELLED' },
+          scheduledFor: { gte: bufferStart, lt: newEnd },
+        },
+        select: { id: true, scheduledFor: true, durationMinutes: true },
+      });
+      if (conflict) {
+        const conflictEnd = new Date(conflict.scheduledFor.getTime() + conflict.durationMinutes * 60 * 1000);
+        if (conflict.scheduledFor < newEnd && conflictEnd > newStart) {
+          const conflictTime = conflict.scheduledFor.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+          return NextResponse.json({
+            error: 'SLOT_CONFLICT',
+            message: `El doctor ya tiene una cita a las ${conflictTime} que se cruza con este horario.`,
+            conflictAppointmentId: conflict.id,
+          }, { status: 409 });
+        }
+      }
+    }
   }
 
   let updated;

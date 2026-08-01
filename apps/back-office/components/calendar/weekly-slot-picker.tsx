@@ -54,11 +54,15 @@ interface Props {
   initialTime?: string;
   /** Se llama cada vez que llega una lista nueva de slots (cambió duration/provider/clinic/semana) — el padre decide qué hacer con eso (ej. detectar que el slot elegido ya no aplica) */
   onSlotsFetched?: (slots: Slot[]) => void;
+  /** Al editar una cita existente: excluirla del chequeo de conflictos para
+   *  que su propio horario actual no se vea a sí mismo como "ocupado" y
+   *  desaparezca de la lista de disponibles. */
+  excludeAppointmentId?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime, onSlotsFetched }: Props) {
+export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime, onSlotsFetched, excludeAppointmentId }: Props) {
   const t = useTranslations('phoenix.calendar');
   const [weekStart,   setWeekStart]   = useState<Date>(() => {
     if (initialDate) {
@@ -96,6 +100,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
     const fromDate = weekStart.toISOString();
     const toDate   = addDays(weekStart, 5).toISOString();
     const params   = new URLSearchParams({ clinicId, providerId, fromDate, toDate, durationMinutes: String(duration), limit: '200' });
+    if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId);
 
     fetch(`/api/appointments/available-slots?${params}`, { signal: controller.signal })
       .then(r => r.json())
@@ -116,7 +121,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [providerId, clinicId, duration, weekStart]);
+  }, [providerId, clinicId, duration, weekStart, excludeAppointmentId]);
 
   // Auto-seleccionar slot más cercano a initialTime cuando cargan los slots
   useEffect(() => {

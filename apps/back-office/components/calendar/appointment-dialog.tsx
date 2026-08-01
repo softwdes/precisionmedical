@@ -187,43 +187,54 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId, patientCases]);
 
-  // ─── Derived: effective specialty ──────────────────────────────────────────
+  // ─── Derived: specialty (campo propio, siempre visible) ────────────────────
 
-  // Si el caso no tenía especialidad y el usuario recién la eligió acá (ver
-  // saveCaseSpecialty), este override gana hasta que se refetchee el caso.
-  const [specialtyOverride, setSpecialtyOverride] = useState<Specialty | null>(null);
-  useEffect(() => { setSpecialtyOverride(null); }, [caseId]);
-
-  const effectiveSpecialty = useMemo((): Specialty | null => {
-    if (specialtyOverride) return specialtyOverride;
+  // Especialidad real del caso — no cambia por elegir un override para la cita.
+  const caseSpecialty = useMemo((): Specialty | null => {
     if (props.mode === 'case') return props.caseInfo?.specialty ?? null;
-    // Free mode: derive from selected case
     const found = patientCases.find((c) => c.id === caseId);
     return found?.specialty ?? null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [specialtyOverride, props.mode, (props as CaseModeProps).caseInfo, caseId, patientCases]);
+  }, [props.mode, (props as CaseModeProps).caseInfo, caseId, patientCases]);
+
+  // Especialidad activa para ESTA cita — precargada de caseSpecialty, pero
+  // editable sin tocar el caso (a menos que el caso no tuviera ninguna, ver
+  // handleSpecialtyChange).
+  const [apptSpecialtyId, setApptSpecialtyId] = useState('');
+  useEffect(() => { setApptSpecialtyId(caseSpecialty?.id ?? ''); }, [caseSpecialty?.id, caseId]);
+
+  const effectiveSpecialty = useMemo((): Specialty | null => {
+    if (!apptSpecialtyId) return null;
+    if (caseSpecialty?.id === apptSpecialtyId) return caseSpecialty;
+    return specialties.find((s) => s.id === apptSpecialtyId) ?? null;
+  }, [apptSpecialtyId, caseSpecialty, specialties]);
 
   const [savingSpecialty, setSavingSpecialty] = useState(false);
 
+  // Solo persiste al caso cuando el caso no tenía especialidad — si ya tenía
+  // una y el usuario elige otra acá, es un override puntual para esta cita.
   const saveCaseSpecialty = useCallback(async (specialtyId: string) => {
     if (!caseId) return;
-    const picked = specialties.find((s) => s.id === specialtyId);
-    if (!picked) return;
     setSavingSpecialty(true);
-    setSpecialtyOverride(picked); // optimista — se revierte si falla
     try {
       const res = await fetch(`/api/admin/cases/${caseId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ specialtyId }),
       });
-      if (!res.ok) setSpecialtyOverride(null);
+      if (!res.ok) setApptSpecialtyId('');
     } catch {
-      setSpecialtyOverride(null);
+      setApptSpecialtyId('');
     } finally {
       setSavingSpecialty(false);
     }
-  }, [caseId, specialties]);
+  }, [caseId]);
+
+  const handleSpecialtyChange = useCallback((newId: string) => {
+    setApptSpecialtyId(newId);
+    setProviderId(''); // el filtro de doctores cambia con la especialidad
+    if (!caseSpecialty && newId) saveCaseSpecialty(newId);
+  }, [caseSpecialty, saveCaseSpecialty]);
 
   // Código de caso a mostrar en el badge persistente — cubre los 3 caminos:
   // mode='case' (viene fijo), free-mode tras elegir un caso, y editar (el
@@ -612,7 +623,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarCheck className="w-5 h-5 text-emerald" />
@@ -732,7 +743,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   ) : patientCases.length === 0 ? (
                     <div className="rounded-md border border-amber/30 bg-amber/5 px-3 py-2 text-amber text-xs">{t('patientNoCases')}</div>
                   ) : (
-                    <div className="grid grid-cols-1 gap-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                       {patientCases.map((c) => {
                         const isSelected = caseId === c.id;
                         const statusColor = c.status === 'ACTIVE' ? 'cyan' : c.status === 'CONFIRMED' ? 'emerald' : c.status === 'INTAKE_COMPLETED' ? 'brand' : c.status === 'CLOSED' || c.status === 'SETTLED' ? 'text-muted' : 'amber';
@@ -789,11 +800,12 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             </div>
           )}
 
-          {/* ── Badge persistente: caso + especialidad ──
+          {/* ── Badge persistente: caso ──
                Antes solo se mostraba en mode='case' recién creando. Se
                extiende a free-mode (una vez elegido el caso) y a editar,
-               para que la especialidad no desaparezca de la vista al bajar
-               a elegir clínica/doctor. ── */}
+               para que el código de caso no desaparezca de la vista al bajar
+               a elegir clínica/doctor. La especialidad ahora es su propio
+               campo más abajo, no vive acá. ── */}
           {!!badgeCaseCode && (
             <div className="flex items-center gap-2 rounded-md border border-border bg-bg-2/40 px-3 py-2 flex-wrap">
               <span className="text-text-muted text-[10px] uppercase tracking-wider font-semibold">{t('caseLabel')}</span>
@@ -806,83 +818,72 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   </span>
                 </>
               )}
-              {effectiveSpecialty ? (
-                <>
-                  <span className="text-border">·</span>
-                  <span
-                    className="inline-flex items-center px-2 py-0.5 rounded border text-[11px] font-medium"
-                    style={{ backgroundColor: `${effectiveSpecialty.color}20`, borderColor: `${effectiveSpecialty.color}50`, color: effectiveSpecialty.color }}
-                  >
-                    {effectiveSpecialty.name}
-                  </span>
-                </>
-              ) : caseId && specialties.length > 0 && (
-                <>
-                  <span className="text-border">·</span>
-                  <span className="text-text-muted text-[10px]">{t('caseSpecialtyLabel')}</span>
-                  <select
-                    value=""
-                    disabled={savingSpecialty}
-                    onChange={(e) => { if (e.target.value) saveCaseSpecialty(e.target.value); }}
-                    className="bg-bg-2 border border-border rounded px-1.5 py-0.5 text-[11px] text-text-1 focus:outline-none focus:border-brand disabled:opacity-50"
-                  >
-                    <option value="">{t('chooseSpecialtyPlaceholder')}</option>
-                    {specialties.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </>
-              )}
             </div>
           )}
 
-          {/* ── Clínica ── */}
-          <div ref={clinicRef}>
-            <Label htmlFor="appt-clinic">
-              <Building2 className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-              {t('fieldClinic')} <span className="text-rose">*</span>
-            </Label>
-            <select
-              id="appt-clinic"
-              value={clinicId}
-              onChange={(e) => setClinicId(e.target.value)}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-              disabled={loadingRes}
-            >
-              <option value="">{loadingRes ? 'Cargando...' : t('selectClinicPlaceholder')}</option>
-              {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            {selectedClinic?.address && (
-              <div className="text-text-muted text-[11px] mt-1">📍 {selectedClinic.address}</div>
-            )}
-          </div>
-
-          {/* ── Doctor ── */}
-          <div ref={doctorRef}>
-            <div className="flex items-center justify-between mb-1">
-              <Label htmlFor="appt-provider">
-                <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
-                {t('fieldDoctor')} <span className="text-rose">*</span>
+          {/* ── Clínica · Especialidad · Doctor · Duración — una sola fila,
+               aprovechando el ancho del modal (antes 9 secciones apiladas) ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div ref={clinicRef}>
+              <Label htmlFor="appt-clinic">
+                <Building2 className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
+                {t('fieldClinic')} <span className="text-rose">*</span>
               </Label>
-              {effectiveSpecialty && (
-                <button
-                  type="button"
-                  onClick={() => { setShowAll((v) => !v); setProviderId(''); }}
-                  className="text-[10px] text-brand hover:underline"
-                >
-                  {showAll ? t('filterBySpecialty', { specialty: effectiveSpecialty.name }) : t('showAllDoctors')}
-                </button>
+              <select
+                id="appt-clinic"
+                value={clinicId}
+                onChange={(e) => setClinicId(e.target.value)}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                disabled={loadingRes}
+              >
+                <option value="">{loadingRes ? 'Cargando...' : t('selectClinicPlaceholder')}</option>
+                {clinics.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              {selectedClinic?.address && (
+                <div className="text-text-muted text-[11px] mt-1">📍 {selectedClinic.address}</div>
               )}
             </div>
 
-            {noProvidersForSpecialty && !showAll && (
-              <div className="mb-2 rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
-                {t('noProvidersForSpecialty', { specialty: effectiveSpecialty?.name })}
-                {' '}<button onClick={() => setShowAll(true)} className="underline">{t('showAll')}</button>
-              </div>
-            )}
+            <div>
+              <Label htmlFor="appt-specialty">
+                <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
+                {t('fieldSpecialty')}
+              </Label>
+              <select
+                id="appt-specialty"
+                value={apptSpecialtyId}
+                onChange={(e) => handleSpecialtyChange(e.target.value)}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+                disabled={loadingRes || savingSpecialty}
+              >
+                <option value="">{loadingRes ? 'Cargando...' : t('selectSpecialtyPlaceholder')}</option>
+                {specialties.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              {caseSpecialty && apptSpecialtyId && apptSpecialtyId !== caseSpecialty.id && (
+                <div className="text-[10px] text-brand mt-1">{t('specialtyOverrideHint')}</div>
+              )}
+              {!caseSpecialty && apptSpecialtyId && (
+                <div className="text-[10px] text-emerald mt-1">{t('specialtySavedToCase')}</div>
+              )}
+            </div>
 
-            <div className="mt-1">
+            <div ref={doctorRef} className="sm:col-span-2 lg:col-span-1">
+              <div className="flex items-center justify-between mb-1">
+                <Label htmlFor="appt-provider">
+                  <Stethoscope className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
+                  {t('fieldDoctor')} <span className="text-rose">*</span>
+                </Label>
+                {effectiveSpecialty && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowAll((v) => !v); setProviderId(''); }}
+                    className="text-[10px] text-brand hover:underline"
+                  >
+                    {showAll ? t('filterBySpecialty', { specialty: effectiveSpecialty.name }) : t('showAllDoctors')}
+                  </button>
+                )}
+              </div>
+
               <DoctorCombobox
                 providers={filteredProviders}
                 allProviders={allProviders}
@@ -893,28 +894,34 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               />
             </div>
 
-            {hasSpecialtyMismatch && (
-              <div className="mt-1.5 text-[11px] text-amber flex items-start gap-1">
-                <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
-                <span>{t('specialtyMismatchWarning', { specialty: effectiveSpecialty?.name })}</span>
-              </div>
-            )}
+            <div>
+              <Label htmlFor="appt-duration">{t('fieldDuration')}</Label>
+              <select
+                id="appt-duration"
+                value={String(duration)}
+                onChange={(e) => { setDuration(parseInt(e.target.value, 10)); setSlotIso(null); }}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
+              >
+                {DURATION_OPTIONS.map((d) => (
+                  <option key={d} value={String(d)}>{d} min</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* ── Duración ── */}
-          <div>
-            <Label htmlFor="appt-duration">{t('fieldDuration')}</Label>
-            <select
-              id="appt-duration"
-              value={String(duration)}
-              onChange={(e) => { setDuration(parseInt(e.target.value, 10)); setSlotIso(null); }}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-            >
-              {DURATION_OPTIONS.map((d) => (
-                <option key={d} value={String(d)}>{d} min</option>
-              ))}
-            </select>
-          </div>
+          {noProvidersForSpecialty && !showAll && (
+            <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+              {t('noProvidersForSpecialty', { specialty: effectiveSpecialty?.name })}
+              {' '}<button onClick={() => setShowAll(true)} className="underline">{t('showAll')}</button>
+            </div>
+          )}
+
+          {hasSpecialtyMismatch && (
+            <div className="text-[11px] text-amber flex items-start gap-1 -mt-1">
+              <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+              <span>{t('specialtyMismatchWarning', { specialty: effectiveSpecialty?.name })}</span>
+            </div>
+          )}
 
           {/* ── Horarios disponibles ── */}
           <div ref={slotRef}>
@@ -984,52 +991,53 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
             </div>
           )}
 
-          {/* ── Tipo de cita ── */}
-          <div>
-            <Label htmlFor="appt-type">{t('fieldAppointmentType')}</Label>
-            <select
-              id="appt-type"
-              value={type}
-              onChange={(e) => { userChangedType.current = true; setType(e.target.value as AppointmentType); }}
-              className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
-            >
-              {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-
-          {/* ── Online consultation toggle ── */}
-          <div className={`rounded-lg border p-3 transition-colors ${isOnline ? 'border-cyan/40 bg-cyan/5' : 'border-border bg-bg-2/30'}`}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">📹</span>
-                <div>
-                  <div className="text-sm font-medium text-text-1">{t('fieldOnlineConsultation')}</div>
-                  <div className="text-[11px] text-text-muted">{t('fieldOnlineConsultationHint')}</div>
-                </div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isOnline}
-                onClick={() => setIsOnline(v => !v)}
-                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors focus:outline-none ${
-                  isOnline ? 'bg-cyan border-cyan/80' : 'bg-bg-2 border-border'
-                }`}
+          {/* ── Tipo de cita · Consulta en línea — misma fila ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="appt-type">{t('fieldAppointmentType')}</Label>
+              <select
+                id="appt-type"
+                value={type}
+                onChange={(e) => { userChangedType.current = true; setType(e.target.value as AppointmentType); }}
+                className="w-full bg-bg-2 border border-border rounded-md px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand"
               >
-                <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${isOnline ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
+                {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </div>
-            {isOnline && (
-              <div className="mt-2.5 pt-2.5 border-t border-cyan/20">
-                <input
-                  type="url"
-                  value={meetingUrl}
-                  onChange={(e) => setMeetingUrl(e.target.value)}
-                  placeholder={t('meetingUrlPlaceholder')}
-                  className="w-full bg-bg-1 border border-cyan/30 rounded-md px-3 py-1.5 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan"
-                />
+
+            <div className={`rounded-lg border p-3 transition-colors ${isOnline ? 'border-cyan/40 bg-cyan/5' : 'border-border bg-bg-2/30'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📹</span>
+                  <div>
+                    <div className="text-sm font-medium text-text-1">{t('fieldOnlineConsultation')}</div>
+                    <div className="text-[11px] text-text-muted">{t('fieldOnlineConsultationHint')}</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isOnline}
+                  onClick={() => setIsOnline(v => !v)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 transition-colors focus:outline-none ${
+                    isOnline ? 'bg-cyan border-cyan/80' : 'bg-bg-2 border-border'
+                  }`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform mt-px ${isOnline ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </button>
               </div>
-            )}
+              {isOnline && (
+                <div className="mt-2.5 pt-2.5 border-t border-cyan/20">
+                  <input
+                    type="url"
+                    value={meetingUrl}
+                    onChange={(e) => setMeetingUrl(e.target.value)}
+                    placeholder={t('meetingUrlPlaceholder')}
+                    className="w-full bg-bg-1 border border-cyan/30 rounded-md px-3 py-1.5 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ── Notas ── */}

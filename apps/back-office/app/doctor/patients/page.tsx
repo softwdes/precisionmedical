@@ -23,7 +23,7 @@ export default async function DoctorPatientsPage({
   const { q, page: pageParam, showInactive, size: sizeParam } = await searchParams;
   const page = Math.max(0, parseInt(pageParam ?? '0', 10) || 0);
   const inactiveOnly = showInactive === '1';
-  const PAGE_SIZE = Math.min(50, Math.max(5, parseInt(sizeParam ?? '15', 10) || 15));
+  const PAGE_SIZE = Math.min(50, Math.max(5, parseInt(sizeParam ?? '10', 10) || 10));
 
   return (
     <div className="p-0 sm:p-2">

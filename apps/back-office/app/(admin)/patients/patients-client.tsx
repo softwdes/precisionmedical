@@ -1771,7 +1771,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
   );
 }
 
-export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, scopeProviderId, basePath = '/patients' }: Props) {
+export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, scopeProviderId, basePath = '/patients' }: Props) {
   const doctorMode = !!scopeProviderId;
   const t      = useTranslations('phoenix.patients');
   const router = useRouter();
@@ -2105,17 +2105,20 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
           </div>
         )}
         <div className="overflow-x-auto rounded-lg">
-        <table className={`w-full min-w-[820px] table-fixed text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
+        <table className={`w-full min-w-[980px] table-fixed text-sm transition-opacity duration-150 ${isSearching || isPending ? 'opacity-40' : 'opacity-100'}`}>
           <thead className="bg-bg-2 border-b border-border">
             <tr>
-              <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-[200px]">{t('colPatient')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[160px]">{t('colContact')}</th>
-              <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell w-[56px]">{t('colCases')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[90px]">{t('colStatus')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[200px]">{t('colAdmission')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[64px]">{t('colForm')}</th>
-              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell w-[96px]">{t('colCreated')}</th>
-              <th className="sticky right-0 z-10 bg-bg-2 w-[48px] px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
+              {/* Anchos parejos a proposito: las 3 columnas de texto miden lo
+                  mismo (220px) y las 5 compactas comparten 100px, asi la tabla
+                  se lee cuadrada en vez de con saltos de 56px a 200px. */}
+              <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-[220px]">{t('colPatient')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[220px]">{t('colContact')}</th>
+              <th className="text-center px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell w-[100px]">{t('colCases')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden sm:table-cell w-[100px]">{t('colStatus')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[220px]">{t('colAdmission')}</th>
+              <th className="text-center px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden lg:table-cell w-[100px]">{t('colForm')}</th>
+              <th className="text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden xl:table-cell w-[100px]">{t('colCreated')}</th>
+              <th className="sticky right-0 z-10 bg-bg-2 w-[100px] px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">{t('colActions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -2131,7 +2134,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
               <Fragment key={p.id}>
               <tr className="border-b border-row-sep hover:bg-white/[0.02] transition-colors">
                 {/* Chevron expand */}
-                <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2 w-[200px]">
+                <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2 w-[220px]">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => toggleExpand(p.id)}
@@ -2162,19 +2165,18 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Contact */}
-                <td className="px-4 py-2 hidden sm:table-cell w-[160px]">
-                  {/* Una sola linea (estandar de listas §4): el telefono manda y
-                      email/idioma pasan a iconos inline, en vez de apilar 3
-                      lineas que estiraban toda la fila. */}
-                  <div className="flex items-center gap-1.5 text-[13px] text-text-2 min-w-0">
-                    {p.phone
-                      ? <span className="font-mono truncate">{p.phone}</span>
-                      : <span className="text-text-muted">—</span>}
-                    {p.email && (
+                <td className="px-4 py-2 hidden sm:table-cell w-[220px]">
+                  {/* Una sola linea (estandar de listas §4). Muestra el CORREO,
+                      no el telefono: llamar va a ser una accion del menu "..."
+                      (igual que v2, que en esta columna pone el email). */}
+                  <div className="flex items-center gap-1.5 text-[13px] min-w-0">
+                    {p.email ? (
                       <a href={`mailto:${p.email}`} onClick={e => e.stopPropagation()} title={p.email}
-                        className="shrink-0 text-text-muted hover:text-brand transition-colors">
-                        <Mail className="w-3 h-3" />
+                        className="text-text-2 hover:text-brand transition-colors truncate">
+                        {p.email}
                       </a>
+                    ) : (
+                      <span className="text-text-muted">—</span>
                     )}
                     {p.preferredLanguage && (
                       <span className="shrink-0 text-[10px] text-text-muted" title={p.preferredLanguage === 'es' ? 'Español' : 'English'}>
@@ -2185,7 +2187,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Casos */}
-                <td className="px-3 py-2 hidden md:table-cell w-[56px] text-center">
+                <td className="px-3 py-2 hidden md:table-cell w-[100px] text-center">
                   <button
                     onClick={() => toggleExpand(p.id)}
                     className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-bg-2 border border-border text-[11px] font-semibold text-text-2 hover:bg-brand/10 hover:border-brand/40 hover:text-brand transition-colors tabular-nums"
@@ -2197,7 +2199,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Estado */}
-                <td className="px-4 py-2 hidden sm:table-cell w-[90px]">
+                <td className="px-4 py-2 hidden sm:table-cell w-[100px]">
                   <TagPill
                     label={STATUS_LABEL[p.status] ?? p.status}
                     colorClass={STATUS_COLORS[p.status] ?? 'bg-bg-2 text-text-2 border-border'}
@@ -2205,7 +2207,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Admisión */}
-                <td className="px-4 py-2 hidden lg:table-cell w-[200px]">
+                <td className="px-4 py-2 hidden lg:table-cell w-[220px]">
                   {p.latestCase ? (() => {
                     const prog = calcIntakeProgress(
                       {
@@ -2235,7 +2237,7 @@ export function PatientsClient({ patients, q, page, pageSize = 15, totalPages, t
                 </td>
 
                 {/* Formulario */}
-                <td className="px-3 py-2 hidden lg:table-cell w-[64px]">
+                <td className="px-3 py-2 hidden lg:table-cell w-[100px]">
                   <div className="flex items-center gap-1.5">
                     {/* Ícono email — clickeable si hay caso + email (solo admin) */}
                     {p.latestCase && p.email && !doctorMode ? (

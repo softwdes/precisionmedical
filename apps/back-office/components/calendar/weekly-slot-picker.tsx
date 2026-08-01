@@ -302,7 +302,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 max-h-[168px] overflow-y-auto pr-1">
             {visibleSlots.map(s => (
               <button
                 key={s.iso}

@@ -534,7 +534,7 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
       {/* ── Modal: Pagar deuda ─────────────────────────────────────────────────── */}
       {payOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-4 overflow-y-auto">
-          <div className="relative bg-bg-1 border border-border rounded-xl w-full max-w-5xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-bg-1 border border-border rounded-xl w-full max-w-6xl my-8 overflow-hidden" onClick={e => e.stopPropagation()}>
 
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -566,18 +566,18 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
                 ambiguedad de table-layout (fixed/auto) combinado con celdas
                 sticky, que nunca terminaba de encajar sin scroll. */}
             {(() => {
-              const GRID_COLS = 'grid-cols-[minmax(110px,1.3fr)_minmax(55px,0.55fr)_minmax(50px,0.5fr)_minmax(60px,0.6fr)_minmax(55px,0.55fr)_minmax(65px,0.65fr)_minmax(140px,1.1fr)_40px]';
+              const GRID_COLS = 'grid-cols-[minmax(160px,1.3fr)_minmax(70px,0.5fr)_minmax(90px,0.55fr)_minmax(90px,0.6fr)_minmax(70px,0.5fr)_minmax(90px,0.6fr)_minmax(160px,1.1fr)_48px]';
               return (
                 <div className="overflow-x-auto max-h-72 overflow-y-auto">
                   <div className={`sticky top-0 z-20 grid ${GRID_COLS} bg-bg-2/95 backdrop-blur-sm border-b border-border`}>
-                    <div className="min-w-0 sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Servicio / Fecha</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Costo</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Descuento %</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Monto desc.</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Pagado</div>
-                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right">Pendiente</div>
-                    <div className="min-w-0 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagar</div>
-                    <div className="min-w-0 sticky right-0 z-10 bg-bg-2 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</div>
+                    <div className="min-w-0 sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Servicio / Fecha</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Costo</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Descuento %</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Monto desc.</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Pagado</div>
+                    <div className="min-w-0 flex items-center justify-end px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted text-right whitespace-nowrap">Pendiente</div>
+                    <div className="min-w-0 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Pagar</div>
+                    <div className="min-w-0 sticky right-0 z-10 bg-bg-2 px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted whitespace-nowrap">Notas</div>
                   </div>
                   <div className="divide-y divide-border/40">
                     {pending.map(b => {

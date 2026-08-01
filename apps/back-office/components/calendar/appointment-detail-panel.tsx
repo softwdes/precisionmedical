@@ -237,19 +237,22 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
       .catch(() => setSvcLoaded(true));
   }, [servicesVisible, appt.id, svcLoaded, appt.plannedServiceCodes]);
 
-  // ── Service search debounce ───────────────────────────────────────────────
+  // ── Service search — con la caja vacía ya muestra un listado navegable
+  // (los mismos códigos del catálogo, orden por defecto), no hace falta
+  // escribir nada primero. Al escribir, filtra igual que antes.
   useEffect(() => {
-    if (serviceSearch.length < 2) { setServiceResults([]); return; }
-    const t = setTimeout(() => {
+    if (!servicesVisible) return;
+    const delay = serviceSearch ? 300 : 0;
+    const timer = setTimeout(() => {
       setSearchingSvc(true);
       fetch(`/api/admin/service-codes?search=${encodeURIComponent(serviceSearch)}`)
         .then(r => r.json())
-        .then(d => setServiceResults((d.codes ?? []).slice(0, 8)))
+        .then(d => setServiceResults((d.codes ?? []).slice(0, 10)))
         .catch(() => {})
         .finally(() => setSearchingSvc(false));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [serviceSearch]);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [serviceSearch, servicesVisible]);
 
   // ── Service helpers ───────────────────────────────────────────────────────
   const patchServices = useCallback(async (list: PlannedService[]) => {

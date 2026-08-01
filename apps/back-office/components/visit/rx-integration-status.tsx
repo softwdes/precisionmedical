@@ -63,20 +63,32 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
         </div>
       </div>
 
-      <div className="px-5 pb-5 pt-1 flex flex-wrap gap-2.5">
+      <div className="px-5 pb-5 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <button
           type="button"
           onClick={() => openWidget('drug-list')}
-          className="inline-flex items-center gap-1.5 text-[13px] font-semibold bg-violet text-white rounded-md px-4 py-2.5 hover:bg-violet/90 transition-colors"
+          className="group flex items-center gap-3 text-left rounded-lg border border-violet/30 bg-violet/[0.06] px-4 py-3 hover:bg-violet/[0.1] hover:border-violet/50 transition-colors"
         >
-          <Plus className="w-4 h-4" /> {t('rxNewPrescription')}
+          <div className="w-9 h-9 rounded-md bg-violet text-white flex items-center justify-center shrink-0 group-hover:bg-violet/90 transition-colors">
+            <Plus className="w-4.5 h-4.5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-text-1">{t('rxNewPrescription')}</div>
+            <div className="text-[11px] text-text-muted">{t('rxNewPrescriptionHint')}</div>
+          </div>
         </button>
         <button
           type="button"
           onClick={() => openWidget('pharmacy')}
-          className="inline-flex items-center gap-1.5 text-[13px] font-semibold bg-bg-2/60 border border-border text-text-1 rounded-md px-4 py-2.5 hover:bg-bg-2 transition-colors"
+          className="group flex items-center gap-3 text-left rounded-lg border border-border bg-bg-2/40 px-4 py-3 hover:bg-bg-2 hover:border-border-strong transition-colors"
         >
-          <MapPin className="w-4 h-4 text-cyan" /> {t('rxOpenPharmacy')}
+          <div className="w-9 h-9 rounded-md bg-cyan/15 text-cyan flex items-center justify-center shrink-0">
+            <MapPin className="w-4.5 h-4.5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-text-1">{t('rxOpenPharmacy')}</div>
+            <div className="text-[11px] text-text-muted">{t('rxOpenPharmacyHint')}</div>
+          </div>
         </button>
       </div>
 

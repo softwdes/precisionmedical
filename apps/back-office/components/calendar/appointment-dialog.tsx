@@ -23,6 +23,7 @@ import {
 } from '@precision/ui';
 import { PersonAvatar } from '@/components/ui-phoenix';
 import { DoctorCombobox } from '@/components/ui-phoenix/doctor-combobox';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -160,8 +161,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [isOnline,      setIsOnline]      = useState(false);
   const [meetingUrl,    setMeetingUrl]    = useState('');
 
-  // Aviso: "cambiaste la duración y el horario elegido ya no aplica"
-  const [durationResetNotice, setDurationResetNotice] = useState(false);
+  // Alert bloqueante: "esa duración no entra en el horario elegido, volvimos a la que sí"
+  const [durationConflictAlert, setDurationConflictAlert] = useState(false);
 
   const [saving,         setSaving]         = useState(false);
   const [error,          setError]          = useState<string | null>(null);
@@ -173,6 +174,13 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const skipDurationReset = useRef(false); // idem, pero para el efecto de duración (ver más abajo)
   const slotIsoRef = useRef(slotIso);
   slotIsoRef.current = slotIso; // "última foto" de slotIso, legible desde el efecto de duración sin agregarlo como dependencia
+  // Última duración confirmada como válida para el slotIso actual — si el
+  // usuario prueba una duración que ya no entra, volvemos acá en vez de
+  // dejar el horario roto.
+  const lastValidDuration = useRef(duration);
+  // true entre "cambié la duración" y "ya llegó la respuesta del servidor
+  // confirmando si el horario elegido sigue entrando o no"
+  const pendingDurationCheck = useRef(false);
   const userChangedType = useRef(false); // true cuando el usuario eligió el tipo manualmente
 
   // ─── Auto-inferir tipo de cita desde el caso seleccionado ─────────────────
@@ -250,7 +258,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     if (!open) return;
     setError(null);
     setSuccess(null);
-    setDurationResetNotice(false);
+    setDurationConflictAlert(false);
+    pendingDurationCheck.current = false;
     userChangedType.current = false;
     setPatientQuery('');
     setPatientResults([]);
@@ -262,6 +271,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       // skipSlotReset prevents the clinic/provider change effect from wiping the slot.
       skipSlotReset.current = true;
       skipDurationReset.current = true;
+      lastValidDuration.current = editAppointment.durationMinutes;
       setCaseId(editAppointment.caseId);
       setClinicId(editAppointment.clinicId);
       setProviderId(editAppointment.providerId ?? '');
@@ -315,6 +325,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setProviderId(props.defaultProviderId ?? '');
       setSlotIso(null);
       setDuration(15);
+      lastValidDuration.current = 15;
       setType(props.defaultType ?? 'AUTO_ACCIDENT');
       // Un tipo pre-elegido cuenta como decisión tomada: la auto-inferencia por
       // accidentType no debe pisarlo
@@ -385,18 +396,41 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setSlotIso(null);
   }, [providerId, clinicId]);
 
-  // Reset de horario al cambiar duración — en efecto aparte porque acá SÍ
-  // avisamos: el horario elegido puede dejar de entrar (available-slots ya
-  // lo filtra si se solapa con otra cita a la nueva duración) y sin este
-  // aviso el horario "desaparecía" solo sin que quedara claro por qué.
+  // Cambiar duración NO limpia el horario a ciegas — si había uno elegido,
+  // esperamos a que WeeklySlotPicker confirme (vía onSlotsFetched) si sigue
+  // entrando a la nueva duración. handleSlotsFetched resuelve el resto.
   useEffect(() => {
     if (skipDurationReset.current) {
       skipDurationReset.current = false;
       return;
     }
-    if (slotIsoRef.current) setDurationResetNotice(true);
-    setSlotIso(null);
+    if (slotIsoRef.current) pendingDurationCheck.current = true;
   }, [duration]);
+
+  // El horario elegido sigue siendo válido para la duración actual — la
+  // "última duración válida" queda anotada por si una futura duración
+  // resulta no entrar y hay que volver acá.
+  useEffect(() => {
+    if (slotIso) lastValidDuration.current = duration;
+  }, [slotIso]);
+
+  // Se llama cada vez que WeeklySlotPicker trae una lista nueva de horarios
+  // (cambió duración, doctor, clínica o semana). Solo actuamos cuando el
+  // cambio pendiente de revisar fue el de duración (pendingDurationCheck):
+  // si el horario elegido ya no está en la lista, esa duración no entra —
+  // volvemos a la última que sí funcionaba y avisamos con un alert, en vez
+  // de dejar el horario roto en silencio.
+  const handleSlotsFetched = useCallback((fetchedSlots: Array<{ iso: string }>) => {
+    if (!pendingDurationCheck.current) return;
+    pendingDurationCheck.current = false;
+    const current = slotIsoRef.current;
+    if (!current) return;
+    const stillValid = fetchedSlots.some((s) => s.iso === current);
+    if (!stillValid) {
+      setDuration(lastValidDuration.current);
+      setDurationConflictAlert(true);
+    }
+  }, []);
 
   // ─── Duplicate check: reactive, inline ─────────────────────────────────────
   // Fires when the user picks a slot. Shows a warning banner — does NOT block submit.
@@ -425,9 +459,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slotIso, selectedPatient?.id]);
-
-  // Al elegir un horario nuevo, el aviso de "la duración cambió" ya cumplió su función
-  useEffect(() => { if (slotIso) setDurationResetNotice(false); }, [slotIso]);
 
   // ─── Computed: scheduledFor ──────────────────────────────────────────────────
 
@@ -619,6 +650,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   // ─── Form ────────────────────────────────────────────────────────────────────
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
@@ -902,13 +934,6 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
               {t('fieldAvailableSchedule')} <span className="text-rose">*</span>
             </Label>
 
-            {durationResetNotice && (
-              <div className="mt-1.5 rounded-md border border-amber/30 bg-amber/10 px-2.5 py-1.5 text-[11px] text-amber flex items-start gap-1.5">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                <span>{t('durationChangedResetSlot')}</span>
-              </div>
-            )}
-
             {!providerId || !clinicId ? (
               <p className="mt-1.5 text-[11px] text-text-muted italic">
                 {t('selectClinicAndDoctorHint')}
@@ -921,6 +946,7 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
                   duration={duration}
                   value={slotIso}
                   onChange={setSlotIso}
+                  onSlotsFetched={handleSlotsFetched}
                   maxWeeks={8}
                   initialDate={isEditMode && editAppointment && !isReschedule
                     ? new Date(editAppointment.scheduledFor).toLocaleDateString('en-CA', { timeZone: 'America/Denver' })
@@ -1073,5 +1099,16 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <ConfirmDialog
+      open={durationConflictAlert}
+      onConfirm={() => setDurationConflictAlert(false)}
+      showCancel={false}
+      confirmLabel={t('durationConflictAccept')}
+      variant="warning"
+      title={t('durationConflictTitle')}
+      description={t('durationConflictDescription', { duration: lastValidDuration.current })}
+    />
+    </>
   );
 }

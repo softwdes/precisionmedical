@@ -52,11 +52,13 @@ interface Props {
   initialDate?: string;
   /** Hora HH:MM clickeada en el calendario → auto-selecciona slot más cercano al cargar */
   initialTime?: string;
+  /** Se llama cada vez que llega una lista nueva de slots (cambió duration/provider/clinic/semana) — el padre decide qué hacer con eso (ej. detectar que el slot elegido ya no aplica) */
+  onSlotsFetched?: (slots: Slot[]) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime }: Props) {
+export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChange, maxWeeks = 4, initialDate, initialTime, onSlotsFetched }: Props) {
   const t = useTranslations('phoenix.calendar');
   const [weekStart,   setWeekStart]   = useState<Date>(() => {
     if (initialDate) {
@@ -108,6 +110,7 @@ export function WeeklySlotPicker({ clinicId, providerId, duration, value, onChan
           };
         });
         setSlots(mapped);
+        onSlotsFetched?.(mapped);
       })
       .catch(() => {})
       .finally(() => setLoading(false));

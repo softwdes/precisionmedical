@@ -16,12 +16,15 @@ type Variant = 'warning' | 'danger' | 'info';
 interface Props {
   open:        boolean;
   onConfirm:   () => void;
-  onCancel:    () => void;
+  /** Omitir junto con showCancel={false} para un alert de un solo botón */
+  onCancel?:   () => void;
   title:       string;
   description: string;
   confirmLabel?: string;
   cancelLabel?:  string;
   variant?:    Variant;
+  /** false = alert informativo de un solo botón (sin opción de cancelar) */
+  showCancel?: boolean;
 }
 
 const VARIANT_CONFIG: Record<Variant, {
@@ -55,11 +58,13 @@ export function ConfirmDialog({
   confirmLabel = 'Confirmar',
   cancelLabel  = 'Cancelar',
   variant      = 'warning',
+  showCancel   = true,
 }: Props) {
   const cfg = VARIANT_CONFIG[variant];
+  const dismiss = onCancel ?? onConfirm;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onCancel(); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) dismiss(); }}>
       <DialogContent
         className="max-w-sm p-0"
         onInteractOutside={(e) => e.preventDefault()}
@@ -78,13 +83,15 @@ export function ConfirmDialog({
         </DialogHeader>
 
         <DialogFooter className="px-6 py-5 flex-col-reverse sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            className="w-full sm:w-auto"
-          >
-            {cancelLabel}
-          </Button>
+          {showCancel && (
+            <Button
+              variant="outline"
+              onClick={dismiss}
+              className="w-full sm:w-auto"
+            >
+              {cancelLabel}
+            </Button>
+          )}
           <button
             type="button"
             onClick={onConfirm}

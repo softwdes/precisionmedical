@@ -561,15 +561,15 @@ export const FinanzasTab = forwardRef<FinanzasTabHandle, { caseId: string; filte
 
             {/* Distribution table */}
             <div className="overflow-x-auto max-h-72 overflow-y-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm table-fixed">
                 <thead className="sticky top-0 bg-bg-2/95 backdrop-blur-sm border-b border-border">
                   <tr>
                     <th className="sticky left-0 z-10 bg-bg-2 text-left px-4 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-56">Servicio / Fecha</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Costo</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Descuento %</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted hidden md:table-cell">Monto desc.</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pagado</th>
-                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Pendiente</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-24">Costo</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-24 hidden md:table-cell">Descuento %</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28 hidden md:table-cell">Monto desc.</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-24">Pagado</th>
+                    <th className="text-right px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-28">Pendiente</th>
                     <th className="px-3 py-2.5 text-[10px] uppercase tracking-wider font-semibold text-text-muted w-40">Pagar</th>
                     <th className="sticky right-0 z-10 bg-bg-2 px-3 py-2.5 w-12 text-[10px] uppercase tracking-wider font-semibold text-text-muted">Notas</th>
                   </tr>

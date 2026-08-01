@@ -182,6 +182,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     return () => clearInterval(id);
   }, [twilio.callStatus]);
 
+  // El CallLog ya lo crea el webhook de Twilio apenas conecta (outcome/
+  // duracion los pone otro webhook mas) — esto solo lo vincula al paciente/
+  // caso para que aparezca con nombre en Metricas > Comunicaciones en vez de
+  // solo el numero de telefono (mismo vinculo que ya hace new-case-dialog.tsx).
+  useEffect(() => {
+    if (!twilio.callSid) return;
+    fetch('/api/twilio/link-call', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ twilioCallSid: twilio.callSid, patientId: appt.patient.id, caseId: appt.case?.id ?? null }),
+    }).catch(() => {});
+  }, [twilio.callSid, appt.patient.id, appt.case?.id]);
+
   // ── Services tab ──────────────────────────────────────────────────────────
   const [services,       setServices]       = useState<PlannedService[]>([]);
   const [svcLoaded,      setSvcLoaded]      = useState(false);

@@ -2787,21 +2787,21 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           registrar, sin credenciales) decir "verificá el número" seria un
           consejo falso, el numero esta bien; el problema es la conexion. */}
       <Dialog open={!!twilio.error && !callDismissedError && !!activeCallInfo} onOpenChange={(o) => { if (!o) setCallDismissedError(true); }}>
-        <DialogContent className="max-w-sm p-0 overflow-hidden">
+        <DialogContent className="max-w-md p-0 overflow-hidden">
           <DialogTitle className="sr-only">{t('callFailedTitle')}</DialogTitle>
-          <div className="flex flex-col items-center px-6 py-8 gap-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-700 to-rose flex items-center justify-center text-white font-bold text-xl shadow-[0_8px_24px_rgba(244,63,94,.35)]">
+          <div className="flex flex-col items-center px-8 py-10 gap-5">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-rose-700 to-rose flex items-center justify-center text-white font-bold text-2xl shadow-[0_8px_24px_rgba(244,63,94,.35)]">
               {(activeCallInfo?.name ?? '?').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
             </div>
 
             <div className="text-center space-y-1">
-              <div className="text-text-1 font-bold text-lg">{activeCallInfo?.name}</div>
+              <div className="text-text-1 font-bold text-xl">{activeCallInfo?.name}</div>
               <div className="text-text-muted font-mono text-sm">{activeCallInfo?.phone}</div>
               <div className="flex items-center justify-center gap-1.5 mt-2">
-                <XIcon className="w-3.5 h-3.5 text-rose" />
-                <span className="text-rose text-[11px] font-semibold uppercase tracking-widest">{t('callFailedTitle')}</span>
+                <XIcon className="w-4 h-4 text-rose" />
+                <span className="text-rose text-xs font-semibold uppercase tracking-widest">{t('callFailedTitle')}</span>
               </div>
-              <p className="text-text-muted text-[11px] pt-1">{t('callFailedHint')}</p>
+              <p className="text-text-2 text-[13px] pt-2">{t('callFailedHint')}</p>
               <p className="text-text-muted/70 text-[10px] font-mono break-words pt-1">{twilio.error}</p>
             </div>
 

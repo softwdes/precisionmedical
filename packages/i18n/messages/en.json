@@ -4056,7 +4056,7 @@
       "tooltipCallPatient": "Call {phone}",
       "tooltipNoPhone": "No phone on file",
       "confirmCallTitle": "Call {name}?",
-      "confirmCallDescription": "This will place a real Twilio call to {phone}.",
+      "confirmCallDescription": "{phone}",
       "confirmCallAccept": "Call",
       "callFailedTitle": "Call failed",
       "callFailedHint": "No answer, or check that the number is correct.",

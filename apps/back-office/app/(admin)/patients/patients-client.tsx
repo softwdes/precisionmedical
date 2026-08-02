@@ -2782,21 +2782,53 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
       {/* Si la llamada falla hay que DECIRLO: el hook guardaba el error y
           nadie lo mostraba, asi que el dialogo se cerraba y no pasaba nada
           visible (parecia que el boton no hacia nada). */}
-      {twilio.error && !callDismissedError && (
-        <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-rose/40 bg-rose/10 px-4 py-3 shadow-2xl">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose shrink-0 mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <p className="text-rose text-xs font-semibold">{t('callFailedTitle')}</p>
-              <p className="text-text-2 text-[11px] mt-0.5 break-words">{twilio.error}</p>
+      {/* Llamada fallida — mismo diseño que "No contestó" de Nuevo caso.
+          Distingue las dos fallas: si la llamada NUNCA se inició (device sin
+          registrar, sin credenciales) decir "verificá el número" seria un
+          consejo falso, el numero esta bien; el problema es la conexion. */}
+      <Dialog open={!!twilio.error && !callDismissedError && !!activeCallInfo} onOpenChange={(o) => { if (!o) setCallDismissedError(true); }}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden">
+          <DialogTitle className="sr-only">{t('callFailedTitle')}</DialogTitle>
+          <div className="flex flex-col items-center px-6 py-8 gap-4">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-700 to-rose flex items-center justify-center text-white font-bold text-xl shadow-[0_8px_24px_rgba(244,63,94,.35)]">
+              {(activeCallInfo?.name ?? '?').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
             </div>
-            <button type="button" onClick={() => setCallDismissedError(true)}
-              className="shrink-0 text-text-muted hover:text-text-1 transition-colors" aria-label={t('btnClose')}>
-              <XIcon className="w-3.5 h-3.5" />
-            </button>
+
+            <div className="text-center space-y-1">
+              <div className="text-text-1 font-bold text-lg">{activeCallInfo?.name}</div>
+              <div className="text-text-muted font-mono text-sm">{activeCallInfo?.phone}</div>
+              <div className="flex items-center justify-center gap-1.5 mt-2">
+                <XIcon className="w-3.5 h-3.5 text-rose" />
+                <span className="text-rose text-[11px] font-semibold uppercase tracking-widest">{t('callFailedTitle')}</span>
+              </div>
+              <p className="text-text-muted text-[11px] pt-1">{t('callFailedHint')}</p>
+              <p className="text-text-muted/70 text-[10px] font-mono break-words pt-1">{twilio.error}</p>
+            </div>
+
+            <div className="flex flex-col w-full gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!activeCallInfo) return;
+                  setCallDismissedError(false);
+                  twilio.connect(activeCallInfo.phone);
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 bg-brand text-white font-semibold text-sm hover:bg-brand/90 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                {t('callFailedRetry')}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setCallDismissedError(true); setActiveCallInfo(null); }}
+                className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 border border-border bg-bg-2 text-text-1 font-semibold text-sm hover:bg-white/5 transition-colors"
+              >
+                {t('callFailedClose')}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {activeCallInfo && (twilio.callStatus === 'connecting' || twilio.callStatus === 'in-call') && (
         <div className="fixed bottom-4 right-4 z-50 shadow-2xl rounded-lg">

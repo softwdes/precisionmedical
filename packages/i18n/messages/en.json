@@ -4058,7 +4058,10 @@
       "confirmCallTitle": "Call {name}?",
       "confirmCallDescription": "This will place a real Twilio call to {phone}.",
       "confirmCallAccept": "Call",
-      "callFailedTitle": "Could not start the call"
+      "callFailedTitle": "Call failed",
+      "callFailedHint": "No answer, or check that the number is correct.",
+      "callFailedRetry": "Try again",
+      "callFailedClose": "Close"
     },
     "edson": {
       "title": "Edson Queue",

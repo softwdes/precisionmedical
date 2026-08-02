@@ -4058,7 +4058,10 @@
       "confirmCallTitle": "¿Llamar a {name}?",
       "confirmCallDescription": "Se iniciará una llamada real por Twilio al {phone}.",
       "confirmCallAccept": "Llamar",
-      "callFailedTitle": "No se pudo iniciar la llamada"
+      "callFailedTitle": "No se pudo llamar",
+      "callFailedHint": "No contestó, o verificá que el número sea correcto.",
+      "callFailedRetry": "Volver a intentar",
+      "callFailedClose": "Cerrar"
     },
     "edson": {
       "title": "Bandeja Edson",

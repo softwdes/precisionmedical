@@ -2353,13 +2353,19 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               </tr>
 
               {/* ── Fila expandida: casos del paciente ── */}
+              {/* Fondo mas marcado + borde izquierdo de acento: es lo que
+                  visualmente "cuelga" el bloque de su fila padre. Antes con
+                  bg-white/[0.03] casi no se distinguia del resto. */}
               {expandedId === p.id && (
-                <tr key={`${p.id}-cases`} id={`cases-row-${p.id}`} className="bg-white/[0.03] border-b border-row-sep">
-                  <td colSpan={7} className="px-6 py-2 overflow-x-auto">
+                <tr key={`${p.id}-cases`} id={`cases-row-${p.id}`} className="bg-bg-2/60 border-b border-row-sep">
+                  <td colSpan={7} className="px-6 py-3 overflow-x-auto border-l-[3px] border-brand">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between flex-wrap gap-2 py-1.5">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted flex items-center gap-1.5">
-                          <Briefcase className="w-3 h-3" /> {t('patientCases')}
+                        <span className="text-[11px] uppercase tracking-wider font-bold text-text-2 flex items-center gap-1.5">
+                          <Briefcase className="w-3.5 h-3.5 text-brand" /> {t('patientCases')}
+                          <span className="font-mono text-[10px] font-normal text-text-muted ml-1">
+                            {p.caseCount === 1 ? t('caseCountSingular') : t('caseCountPlural', { n: p.caseCount })}
+                          </span>
                         </span>
                         {!inactiveOnly && (
                           <button

@@ -4057,7 +4057,8 @@
       "tooltipNoPhone": "Sin teléfono registrado",
       "confirmCallTitle": "¿Llamar a {name}?",
       "confirmCallDescription": "Se iniciará una llamada real por Twilio al {phone}.",
-      "confirmCallAccept": "Llamar"
+      "confirmCallAccept": "Llamar",
+      "callFailedTitle": "No se pudo iniciar la llamada"
     },
     "edson": {
       "title": "Bandeja Edson",

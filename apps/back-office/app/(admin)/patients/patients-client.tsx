@@ -1893,6 +1893,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   // Nombre/telefono de la llamada en curso, para mostrarlos en la barra.
   const [activeCallInfo, setActiveCallInfo] = useState<{ name: string; phone: string } | null>(null);
   const [callElapsed, setCallElapsed] = useState(0);
+  const [callDismissedError, setCallDismissedError] = useState(false);
 
   useEffect(() => {
     if (twilio.callStatus !== 'in-call') { setCallElapsed(0); return; }
@@ -2768,6 +2769,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         onConfirm={() => {
           if (!callTarget) return;
           callOwnerRef.current = { patientId: callTarget.patientId, caseId: callTarget.caseId };
+          setCallDismissedError(false);
           setActiveCallInfo({ name: callTarget.name, phone: callTarget.phone });
           twilio.connect(callTarget.phone);
           setCallTarget(null);
@@ -2777,6 +2779,25 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
       {/* ActiveCallBar no es overlay: lo fijamos abajo a la derecha para que
           se vea mientras se sigue navegando la lista. */}
+      {/* Si la llamada falla hay que DECIRLO: el hook guardaba el error y
+          nadie lo mostraba, asi que el dialogo se cerraba y no pasaba nada
+          visible (parecia que el boton no hacia nada). */}
+      {twilio.error && !callDismissedError && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border border-rose/40 bg-rose/10 px-4 py-3 shadow-2xl">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-rose text-xs font-semibold">{t('callFailedTitle')}</p>
+              <p className="text-text-2 text-[11px] mt-0.5 break-words">{twilio.error}</p>
+            </div>
+            <button type="button" onClick={() => setCallDismissedError(true)}
+              className="shrink-0 text-text-muted hover:text-text-1 transition-colors" aria-label={t('btnClose')}>
+              <XIcon className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {activeCallInfo && (twilio.callStatus === 'connecting' || twilio.callStatus === 'in-call') && (
         <div className="fixed bottom-4 right-4 z-50 shadow-2xl rounded-lg">
           <ActiveCallBar

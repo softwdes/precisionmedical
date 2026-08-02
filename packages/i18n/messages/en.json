@@ -4057,7 +4057,8 @@
       "tooltipNoPhone": "No phone on file",
       "confirmCallTitle": "Call {name}?",
       "confirmCallDescription": "This will place a real Twilio call to {phone}.",
-      "confirmCallAccept": "Call"
+      "confirmCallAccept": "Call",
+      "callFailedTitle": "Could not start the call"
     },
     "edson": {
       "title": "Edson Queue",

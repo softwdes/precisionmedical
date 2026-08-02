@@ -2831,19 +2831,39 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         </DialogContent>
       </Dialog>
 
-      {activeCallInfo && (twilio.callStatus === 'connecting' || twilio.callStatus === 'in-call') && (
-        <div className="fixed bottom-4 right-4 z-50 shadow-2xl rounded-lg">
-          <ActiveCallBar
-            status={twilio.callStatus}
-            phone={activeCallInfo.phone}
-            patientName={activeCallInfo.name}
-            elapsed={callElapsed}
-            muted={twilio.muted}
-            onMuteToggle={twilio.toggleMute}
-            onHangUp={() => { twilio.hangUp(); setActiveCallInfo(null); }}
-          />
-        </div>
-      )}
+      {/* Llamada en curso — al medio, no en una barrita al pie: es el estado
+          mas importante de la pantalla mientras dura, y ahi abajo pasaba
+          desapercibido. Sin boton de cerrar: se sale colgando. */}
+      <Dialog open={!!activeCallInfo && (twilio.callStatus === 'connecting' || twilio.callStatus === 'in-call')}>
+        <DialogContent className="max-w-md p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+          <DialogTitle className="sr-only">{activeCallInfo?.name}</DialogTitle>
+          <div className="flex flex-col items-center px-8 py-10 gap-5">
+            <div className="relative">
+              <span className="absolute inset-0 rounded-full bg-emerald/30 animate-ping" />
+              <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-emerald/80 to-emerald flex items-center justify-center text-white font-bold text-2xl shadow-[0_8px_24px_rgba(16,185,129,.35)]">
+                {(activeCallInfo?.name ?? '?').split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
+              </div>
+            </div>
+
+            <div className="text-center space-y-1">
+              <div className="text-text-1 font-bold text-xl">{activeCallInfo?.name}</div>
+              <div className="text-text-muted font-mono text-sm">{activeCallInfo?.phone}</div>
+            </div>
+
+            {activeCallInfo && (twilio.callStatus === 'connecting' || twilio.callStatus === 'in-call') && (
+              <ActiveCallBar
+                status={twilio.callStatus}
+                phone={activeCallInfo.phone}
+                patientName={activeCallInfo.name}
+                elapsed={callElapsed}
+                muted={twilio.muted}
+                onMuteToggle={twilio.toggleMute}
+                onHangUp={() => { twilio.hangUp(); setActiveCallInfo(null); }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Seguros ─────────────────────────────────────────────────────────── */}
       {segurosTarget && (

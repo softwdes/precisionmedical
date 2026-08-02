@@ -2500,8 +2500,14 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                       </span>
                                     </td>
 
-                                    {/* Progress */}
-                                    <td className="px-3 py-2 min-w-[140px]">
+                                    {/* Progress — ancho ACOTADO a proposito: solo
+                                        tenia min-w, asi que la celda crecia hasta
+                                        que entrara toda la lista de faltantes y el
+                                        truncate del MissingTooltip nunca se
+                                        activaba. Con un maximo, el texto se corta
+                                        y la lista completa queda en el tooltip,
+                                        que es para lo que lo hicimos. */}
+                                    <td className="px-3 py-2 w-[230px] max-w-[230px]">
                                       <div className="flex items-center gap-2 mb-1">
                                         <TagPill label={progBadge} colorClass={prog.colorClass} />
                                       </div>

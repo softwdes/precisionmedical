@@ -1839,6 +1839,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         if (val) params.set('q', val);
         if (inactiveOnly) params.set('inactive', '1');
         if (scopeProviderId) params.set('providerId', scopeProviderId);
+        params.set('size', String(pageSize));
         const res  = await fetch(`/api/admin/patients/list?${params}`);
         const data = await res.json();
         startTransition(() => {

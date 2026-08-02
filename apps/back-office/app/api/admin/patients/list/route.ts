@@ -9,12 +9,18 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 
-const PAGE_SIZE = 15;
+const DEFAULT_PAGE_SIZE = 10;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q            = (searchParams.get('q') ?? '').trim();
   const page         = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10) || 0);
+  // Antes era una constante 15 hardcodeada: el server renderizaba 10 filas y
+  // apenas montaba el cliente esta API las reemplazaba por 15, asi que la
+  // grilla "crecia sola" despues de cargar. Ahora respeta el mismo size que
+  // usa la pagina (mismo clamp que app/(admin)/patients/page.tsx).
+  const PAGE_SIZE = Math.min(50, Math.max(5,
+    parseInt(searchParams.get('size') ?? String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE));
   const inactiveOnly = searchParams.get('inactive') === '1';
   // Portal médico: limita a pacientes con cita del provider indicado
   const providerId   = searchParams.get('providerId') ?? '';

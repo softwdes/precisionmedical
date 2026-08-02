@@ -4061,7 +4061,8 @@
       "callFailedTitle": "Call failed",
       "callFailedHint": "No answer, or check that the number is correct.",
       "callFailedRetry": "Try again",
-      "callFailedClose": "Close"
+      "callFailedClose": "Close",
+      "callFailedMicHint": "The browser blocked the microphone. Allow it from the padlock in the address bar and try again."
     },
     "edson": {
       "title": "Edson Queue",

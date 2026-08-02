@@ -2802,7 +2802,14 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 <XIcon className="w-4 h-4 text-rose" />
                 <span className="text-rose text-xs font-semibold uppercase tracking-widest">{t('callFailedTitle')}</span>
               </div>
-              <p className="text-text-2 text-[13px] pt-2">{t('callFailedHint')}</p>
+              {/* El motivo cambia el consejo: si el navegador bloqueo el
+                  microfono, decir "verifica el numero" manda a revisar lo que
+                  no es — el numero esta bien, falta el permiso. */}
+              <p className="text-text-2 text-[13px] pt-2">
+                {/Permission|31401|NotAllowed|user media/i.test(twilio.error ?? '')
+                  ? t('callFailedMicHint')
+                  : t('callFailedHint')}
+              </p>
               <p className="text-text-muted/70 text-[10px] font-mono break-words pt-1">{twilio.error}</p>
             </div>
 

@@ -4061,7 +4061,8 @@
       "callFailedTitle": "No se pudo llamar",
       "callFailedHint": "No contestó, o verificá que el número sea correcto.",
       "callFailedRetry": "Volver a intentar",
-      "callFailedClose": "Cerrar"
+      "callFailedClose": "Cerrar",
+      "callFailedMicHint": "El navegador bloqueó el micrófono. Permitilo desde el candado en la barra de direcciones y volvé a intentar."
     },
     "edson": {
       "title": "Bandeja Edson",

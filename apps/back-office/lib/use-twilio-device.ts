@@ -125,10 +125,12 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
       callRef.current = call;
 
       call.on('accept',     () => {
-        // OJO: 'accept' es el navegador conectando con Twilio (WebRTC), no
-        // el paciente contestando — el teléfono real puede seguir sonando
-        // acá, así que el ringback sigue hasta que el agente confirma
-        // "Contestó" (stopRingback expuesto abajo) o la llamada termina.
+        // 'accept' = el navegador quedo conectado con Twilio (WebRTC), no que
+        // el paciente contesto: el telefono real puede seguir sonando.
+        // PERO desde este momento Twilio ya nos transmite el ringback REAL de
+        // la operadora, asi que hay que cortar el nuestro — si no, se escuchan
+        // los dos tonos superpuestos (doble ring).
+        stopRingback();
         setCallStatus('in-call');
         setCallSid((call.parameters as Record<string, string>).CallSid ?? null);
       });

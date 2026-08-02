@@ -14,7 +14,11 @@ const securityHeaders = [
   { key: 'X-Frame-Options',          value: 'SAMEORIGIN' },
   { key: 'X-Content-Type-Options',   value: 'nosniff' },
   { key: 'Referrer-Policy',          value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy',       value: 'camera=(), microphone=(), geolocation=()' },
+  // microphone=(self): lo necesita Twilio Voice (llamadas por WebRTC desde el
+  // navegador). Con microphone=() el browser bloquea el mic AUNQUE el usuario
+  // haya dado permiso al sitio -> PermissionDeniedError 31401. camera y
+  // geolocation siguen bloqueadas: no las usamos.
+  { key: 'Permissions-Policy',       value: 'camera=(), microphone=(self), geolocation=()' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
 ];
 

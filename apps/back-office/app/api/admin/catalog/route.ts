@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders, Prisma } from '@precision-medical/database';
 import { createServerClient } from '@precision-medical/auth/server';
 import { fetchDbRole } from '@precision-medical/auth/v2-apps';
-import { listCatalog, findCatalogItem } from '@/lib/catalog';
+import { listCatalog, findCatalogItem, canEditCatalog } from '@/lib/catalog';
 
 const ItemSchema = z.object({
   id: z.number().int().optional(),
@@ -62,14 +62,13 @@ const ItemSchema = z.object({
 
 type ItemInput = z.infer<typeof ItemSchema>;
 
-/** Solo admin escribe. El doctor consulta. */
+/** Admin y doctores mantienen el catálogo; el resto del staff solo consulta. */
 async function requireEditor(): Promise<{ email: string } | NextResponse> {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
-  const role = await fetchDbRole(user.email);
-  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+  if (!canEditCatalog(await fetchDbRole(user.email))) {
     return NextResponse.json({ error: 'FORBIDDEN_EDIT_CATALOG' }, { status: 403 });
   }
   return { email: user.email };

@@ -63,6 +63,17 @@ export const CATALOG_COLS = Prisma.sql`
   "isActive", "isOrderable", "replacedByCode", notes
 `;
 
+/**
+ * Quién puede mantener el catálogo de precios.
+ *
+ * Decisión de Erick (2026-08-03): los doctores también editan, no solo admin —
+ * la clínica necesita controlar esta información desde el portal médico, que es
+ * el punto de sacarlos del Excel. El resto del staff solo consulta.
+ */
+export function canEditCatalog(role: string | null | undefined): boolean {
+  return role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'DOCTOR' || role === 'PROVIDER';
+}
+
 export async function listCatalog(): Promise<CatalogRow[]> {
   return db.$queryRaw<CatalogRow[]>`
     SELECT ${CATALOG_COLS}

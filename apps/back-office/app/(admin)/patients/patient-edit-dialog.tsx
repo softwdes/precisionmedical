@@ -216,10 +216,12 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       if (a === null || a < 0) { setError(t('errorDOBInvalid')); return; }
       if (a > 120) { setError(t('errorDOBYear')); return; }
     }
-    if (isMinor && !form.guardianName.trim()) {
-      setError(t('errorGuardianRequired'));
-      return;
-    }
+    // El tutor NO bloquea guardar (regla confirmada 2026-08-02): solo se exige
+    // para FIRMAR los consentimientos, que es otro momento del flujo — el
+    // formulario se le envia al apoderado y el firma. Ademas el dato suele YA
+    // existir en `guardianPatientId` (lo escribe el alta del menor) y este
+    // form todavia mira el campo de texto legado `guardianName`, asi que
+    // bloquear aca pedia un dato que la base ya tiene.
     if (form.addressZip && !/^\d{5}(-\d{4})?$/.test(form.addressZip.trim())) {
       setError(t('errorZipInvalid'));
       return;

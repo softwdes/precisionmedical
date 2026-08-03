@@ -602,6 +602,22 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     return () => controller.abort();
   }, [weekStart, calView, mobileDate, mobileView, filterClinic, filterProvider, refreshKey]); // eslint-disable-line
 
+  // El panel de detalle recibía una FOTO de la cita tomada al hacer clic, y esa
+  // foto nunca se refrescaba: al guardar una edición el grid se actualizaba,
+  // pero el panel — y el prellenado de "Editar", que sale de él — seguían
+  // mostrando los valores viejos. Se veía como "no guardó nada", y era peor que
+  // eso: el PATCH manda TODOS los campos, así que la edición siguiente
+  // re-enviaba los valores viejos y REVERTÍA lo que ya se había guardado.
+  useEffect(() => {
+    setSelectedAppt((prev) => {
+      if (!prev) return prev;
+      // Si la cita salió del rango visible (ej. se reagendó a otra semana) no
+      // hay versión fresca en la lista — se deja la última conocida en vez de
+      // cerrar el panel de golpe en la cara del usuario.
+      return appointments.find((a) => a.id === prev.id) ?? prev;
+    });
+  }, [appointments]);
+
   // ─── Navigation ─────────────────────────────────────────────────────────────
   const goToPrev = () => {
     // En vista día saltamos el fin de semana: lunes ← viernes.

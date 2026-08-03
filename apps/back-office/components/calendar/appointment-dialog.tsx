@@ -74,6 +74,11 @@ export interface EditAppointmentData {
   durationMinutes: number;
   type: string;
   notes: string | null;
+  // Telemedicina: se leían con un cast inline, así que un caller que no los
+  // pasara no fallaba el typecheck — y editar la cita apagaba la consulta en
+  // línea y borraba el enlace en silencio. Ahora son parte del contrato.
+  isOnline?: boolean;
+  meetingUrl?: string | null;
   clinicId: string;
   clinicName: string;
   clinicAddress?: string | null;
@@ -298,8 +303,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       setDuration(editAppointment.durationMinutes);
       setType(editAppointment.type as AppointmentType);
       setNotes(editAppointment.notes ?? '');
-      setIsOnline((editAppointment as { isOnline?: boolean }).isOnline ?? false);
-      setMeetingUrl((editAppointment as { meetingUrl?: string | null }).meetingUrl ?? '');
+      setIsOnline(editAppointment.isOnline ?? false);
+      setMeetingUrl(editAppointment.meetingUrl ?? '');
       setSelectedPatient({
         id: editAppointment.patient.id,
         firstName: editAppointment.patient.firstName,
@@ -615,22 +620,46 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     setSaving(true);
     try {
       if (isEditMode) {
-        // PATCH — editar cita existente
-        const res = await fetch(`/api/admin/appointments/${editAppointment!.id}`, {
+        // PATCH — editar cita existente.
+        //
+        // Se manda SOLO lo que el usuario cambió respecto de lo que el diálogo
+        // le mostró al abrirse. Antes se enviaban todos los campos siempre, y
+        // eso convertía cualquier prellenado desactualizado en pérdida de
+        // datos: los campos que nadie tocó se re-escribían con el valor viejo,
+        // revirtiendo un guardado anterior sin decir nada.
+        const base           = editAppointment!;
+        const nextNotes      = notes.trim() || null;
+        // Si se apaga "consulta en línea", el link se limpia también — evita
+        // que quede un meetingUrl viejo colgado tras desactivar.
+        const nextMeetingUrl = isOnline ? (meetingUrl.trim() || null) : null;
+        // Comparado por timestamp y no por string: el ISO del picker y el de la
+        // cita pueden estar formateados distinto y ser el mismo instante.
+        const slotChanged    = !!scheduledForIso
+          && new Date(scheduledForIso).getTime() !== new Date(base.scheduledFor).getTime();
+
+        const changes = {
+          ...(clinicId   && clinicId   !== base.clinicId   && { clinicId }),
+          ...(providerId && providerId !== base.providerId && { providerId }),
+          ...(slotChanged && { scheduledFor: scheduledForIso }),
+          ...(duration !== base.durationMinutes && { durationMinutes: duration }),
+          ...(type     !== base.type            && { type }),
+          ...(nextNotes      !== (base.notes ?? null)      && { notes: nextNotes }),
+          ...(isOnline       !== (base.isOnline ?? false)  && { isOnline }),
+          ...(nextMeetingUrl !== (base.meetingUrl ?? null) && { meetingUrl: nextMeetingUrl }),
+        };
+
+        // Nada que guardar: el PATCH rechaza un body vacío ("Al menos un campo
+        // requerido"), y mostrar ese error por no haber cambiado nada sería
+        // absurdo — se cierra igual que si hubiera guardado.
+        if (Object.keys(changes).length === 0) {
+          onOpenChange(false);
+          return;
+        }
+
+        const res = await fetch(`/api/admin/appointments/${base.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...(clinicId     && { clinicId }),
-            ...(providerId   && { providerId }),
-            ...(scheduledForIso && { scheduledFor: scheduledForIso }),
-            durationMinutes: duration,
-            type,
-            notes: notes.trim() || null,
-            isOnline,
-            // Si se apaga "consulta en línea", el link se limpia también —
-            // evita que quede un meetingUrl viejo colgado tras desactivar.
-            meetingUrl: isOnline ? (meetingUrl.trim() || null) : null,
-          }),
+          body: JSON.stringify(changes),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));

@@ -38,7 +38,13 @@ const MISSED_SCAN_LIMIT = 500;
 
 const QuerySchema = z.object({
   scope:   z.enum(['inbound', 'mine', 'answered-by-me', 'all']).default('inbound'),
-  outcome: z.enum(['ANSWERED', 'NO_ANSWER', 'BUSY', 'FAILED', 'IN_PROGRESS']).optional(),
+  /**
+   * Además de los valores del enum, acepta `MISSED` — el grupo que le importa a
+   * quien mira la lista ("no hablé con esta persona"), que del lado de Twilio
+   * son tres resultados distintos. Filtrar de a uno obligaría a la UI a saber
+   * que BUSY y FAILED también son perdidas.
+   */
+  outcome: z.enum(['ANSWERED', 'NO_ANSWER', 'BUSY', 'FAILED', 'IN_PROGRESS', 'MISSED']).optional(),
   from:    z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
   to:      z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
   page:    z.coerce.number().int().min(0).default(0),
@@ -117,9 +123,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const mineWhere = scopeWhere('mine', user.id, myName);
 
+  const outcomeWhere: Prisma.CallLogWhereInput = query.outcome
+    ? query.outcome === 'MISSED'
+      ? { outcome: { in: [...MISSED_OUTCOMES] } }
+      : { outcome: query.outcome }
+    : {};
+
   const where: Prisma.CallLogWhereInput = {
     ...scopeWhere(query.scope, user.id, myName),
-    ...(query.outcome ? { outcome: query.outcome } : {}),
+    ...outcomeWhere,
     ...(query.from || query.to ? { createdAt } : {}),
   };
 
@@ -182,6 +194,52 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (!last || last <= m.createdAt) pendingMissedIds.add(m.id);
   }
 
+  // ─── Reconocer al llamante por su número ───────────────────────────────────
+  //
+  // `patientId` solo se escribe cuando la llamada salió desde la ficha de un
+  // paciente. Todo lo demás (el dial pad, "Nuevo caso", y más adelante las
+  // entrantes) queda sin vincular, y la fila mostraba "No registrado" aunque el
+  // número estuviera en la base — que es justo lo que Erick reportó.
+  //
+  // Se busca por los últimos 10 dígitos contra `phone` y `phone2` normalizados
+  // en SQL, porque los teléfonos conviven como `(801) 367-9254` y `+18013679254`.
+  // Es la misma resolución que va a necesitar el webhook de entrantes (fase 3).
+  //
+  // Límite conocido: 8 de 5940 pacientes tienen el teléfono cifrado (`e:`) y no
+  // se pueden comparar en SQL. Esos siguen saliendo como no registrados.
+  const unlinkedKeys = [...new Set(
+    rows
+      .filter(r => !r.patient)
+      .map(r => phoneKey(r.direction === 'INBOUND' ? r.fromNumber : r.toNumber))
+      .filter(Boolean),
+  )];
+
+  type MatchedPatient = {
+    id: string; patientCode: string | null;
+    firstName: string; lastName: string;
+    phone: string | null; phone2: string | null;
+  };
+  const byPhoneKey = new Map<string, MatchedPatient[]>();
+
+  if (unlinkedKeys.length > 0) {
+    const matches = await db.$queryRaw<MatchedPatient[]>`
+      SELECT id, "patientCode", "firstName", "lastName", phone, phone2
+      FROM patients
+      WHERE right(regexp_replace(coalesce(phone,  ''), '\D', '', 'g'), 10) = ANY(${unlinkedKeys}::text[])
+         OR right(regexp_replace(coalesce(phone2, ''), '\D', '', 'g'), 10) = ANY(${unlinkedKeys}::text[])
+      ORDER BY "createdAt" DESC
+    `;
+    for (const m of matches) {
+      // Un mismo número puede pertenecer a varios pacientes (99 números de la
+      // base son familias que comparten línea). Se guardan todos y la UI avisa.
+      for (const key of new Set([phoneKey(m.phone), phoneKey(m.phone2)])) {
+        if (!key || !unlinkedKeys.includes(key)) continue;
+        const list = byPhoneKey.get(key);
+        if (list) list.push(m); else byPhoneKey.set(key, [m]);
+      }
+    }
+  }
+
   // ─── Nombre del agente ─────────────────────────────────────────────────────
   // `agentName` está denormalizado en la fila. Solo se resuelve por
   // `agentUserId` cuando falta (filas viejas, o entrantes contestadas donde el
@@ -210,7 +268,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const calls = rows.map((r) => {
-    const isInbound = r.direction === 'INBOUND';
+    const isInbound         = r.direction === 'INBOUND';
+    const counterpartNumber = isInbound ? r.fromNumber : r.toNumber;
+
+    // Vínculo real primero; si no hay, el reconocimiento por número.
+    const matched  = r.patient ? null : byPhoneKey.get(phoneKey(counterpartNumber)) ?? null;
+    const resolved = r.patient ?? matched?.[0] ?? null;
+
     return {
       id: r.id,
       twilioCallSid: r.twilioCallSid,
@@ -219,16 +283,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       durationSeconds: r.durationSeconds,
       createdAt: r.createdAt.toISOString(),
       /** El número del otro lado de la llamada — el que le importa a quien mira. */
-      counterpartNumber: isInbound ? r.fromNumber : r.toNumber,
-      patient: r.patient
+      counterpartNumber,
+      patient: resolved
         ? {
-            id: r.patient.id,
-            patientCode: r.patient.patientCode,
-            firstName: r.patient.firstName,
-            lastName: r.patient.lastName,
-            phone: dec(r.patient.phone),
+            id: resolved.id,
+            patientCode: resolved.patientCode,
+            firstName: resolved.firstName,
+            lastName: resolved.lastName,
+            phone: dec(resolved.phone),
           }
         : null,
+      /**
+       * `false` = el CallLog apunta a ese paciente. `true` = lo dedujimos del
+       * número. La UI lo marca, porque una deducción puede errarle: hay 99
+       * números compartidos por familias en la base.
+       */
+      patientMatchedByPhone: !r.patient && !!resolved,
+      /** Cuántos pacientes comparten ese número (solo si se dedujo). */
+      patientMatchCount: matched?.length ?? 0,
       case: r.case ? { id: r.case.id, caseCode: r.case.caseCode } : null,
       agentName: r.agentName ?? (r.agentUserId ? nameByUserId.get(r.agentUserId) ?? null : null),
       // Mismo criterio que `isMe`, para que la etiqueta "(yo)" coincida con lo

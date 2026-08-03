@@ -35,9 +35,11 @@ import {
   Undo2,
   RefreshCw,
   PhoneOff,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   EmptyState,
+  FilterPill,
   PersonAvatar,
   StatusPill,
   TableFooter,
@@ -65,11 +67,20 @@ export interface CallLogRow {
     lastName: string;
     phone: string | null;
   } | null;
+  /** El paciente se dedujo del número, no viene vinculado en el CallLog. */
+  patientMatchedByPhone: boolean;
+  /** Cuántos pacientes comparten ese número (familias). Solo si se dedujo. */
+  patientMatchCount: number;
   case: { id: string; caseCode: string } | null;
   agentName: string | null;
   agentIsMe: boolean;
   pendingCallback: boolean;
 }
+
+/** Filtro de resultado. `MISSED` agrupa NO_ANSWER + BUSY + FAILED en la API. */
+type OutcomeFilter = 'all' | 'ANSWERED' | 'MISSED';
+/** Filtro de período, en días hacia atrás. `0` = sin límite. */
+type PeriodFilter = 0 | 1 | 7 | 30;
 
 interface CallLogsResponse {
   calls: CallLogRow[];
@@ -129,12 +140,19 @@ export function CallHistoryDialog({
   const locale = useLocale();
 
   const [scope, setScope]     = useState<CallScope>('inbound');
+  const [outcome, setOutcome] = useState<OutcomeFilter>('all');
+  const [period, setPeriod]   = useState<PeriodFilter>(0);
   const [page, setPage]       = useState(0);
   const [data, setData]       = useState<CallLogsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(false);
 
-  const load = useCallback(async (nextScope: CallScope, nextPage: number) => {
+  const filtered = outcome !== 'all' || period !== 0;
+
+  const load = useCallback(async (
+    nextScope: CallScope, nextPage: number,
+    nextOutcome: OutcomeFilter, nextPeriod: PeriodFilter,
+  ) => {
     setLoading(true);
     setError(false);
     try {
@@ -143,6 +161,13 @@ export function CallHistoryDialog({
         page:  String(nextPage),
         size:  String(PAGE_SIZE),
       });
+      if (nextOutcome !== 'all') params.set('outcome', nextOutcome);
+      if (nextPeriod !== 0) {
+        // El día se corta en la zona de la clínica, no en UTC: con `1` el
+        // usuario espera "hoy", y en Denver UTC ya cambió de fecha a las 17:00.
+        const since = new Date(Date.now() - (nextPeriod - 1) * 86_400_000);
+        params.set('from', since.toLocaleDateString('en-CA', { timeZone: CLINIC_TZ }));
+      }
       const res = await fetch(`/api/admin/call-logs?${params}`);
       if (!res.ok) throw new Error(String(res.status));
       setData(await res.json() as CallLogsResponse);
@@ -155,8 +180,8 @@ export function CallHistoryDialog({
 
   useEffect(() => {
     if (!open) return;
-    void load(scope, page);
-  }, [open, scope, page, load]);
+    void load(scope, page, outcome, period);
+  }, [open, scope, page, outcome, period, load]);
 
   const switchScope = (next: CallScope) => {
     if (next === scope) return;
@@ -263,7 +288,48 @@ export function CallHistoryDialog({
           })}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+        {/* Filtros — aplican a la pestaña activa. Pills, no un formulario:
+            son 2 decisiones rápidas, no una búsqueda avanzada. */}
+        <div className="flex items-center gap-x-4 gap-y-2 flex-wrap px-4 sm:px-6 pt-3 pb-1 shrink-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">
+              {t('filterOutcome')}
+            </span>
+            {([
+              ['all',      t('filterAll')],
+              ['ANSWERED', t('outcomeAnswered')],
+              ['MISSED',   t('filterMissed')],
+            ] as [OutcomeFilter, string][]).map(([key, label]) => (
+              <FilterPill
+                key={key}
+                active={outcome === key}
+                onClick={() => { setOutcome(key); setPage(0); }}
+                label={label}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted mr-0.5">
+              {t('filterPeriod')}
+            </span>
+            {([
+              [1,  t('filterToday')],
+              [7,  t('filterDays', { n: 7 })],
+              [30, t('filterDays', { n: 30 })],
+              [0,  t('filterAllTime')],
+            ] as [PeriodFilter, string][]).map(([key, label]) => (
+              <FilterPill
+                key={key}
+                active={period === key}
+                onClick={() => { setPeriod(key); setPage(0); }}
+                label={label}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pt-2 pb-4">
           {loading && !data ? (
             <CallHistorySkeleton />
           ) : error ? (
@@ -271,7 +337,7 @@ export function CallHistoryDialog({
               <span>{t('loadError')}</span>
               <button
                 type="button"
-                onClick={() => void load(scope, page)}
+                onClick={() => void load(scope, page, outcome, period)}
                 className="inline-flex items-center gap-1.5 font-semibold hover:underline"
               >
                 <RefreshCw className="w-3 h-3" />
@@ -279,7 +345,15 @@ export function CallHistoryDialog({
               </button>
             </div>
           ) : calls.length === 0 ? (
-            <EmptyState.Rich icon={PhoneOff} title={t('emptyTitle')} subtitle={emptySubtitle()} />
+            // Con filtros puestos, "Sin llamadas todavía" miente: sí las hay,
+            // pero no en este recorte.
+            filtered
+              ? <EmptyState.Rich
+                  icon={SlidersHorizontal}
+                  title={t('emptyFilteredTitle')}
+                  subtitle={t('emptyFilteredHint')}
+                />
+              : <EmptyState.Rich icon={PhoneOff} title={t('emptyTitle')} subtitle={emptySubtitle()} />
           ) : (
             <>
               {/* Desktop / tablet — tabla con la 1ra y la última columna fijas.
@@ -306,7 +380,7 @@ export function CallHistoryDialog({
                         {calls.map(row => (
                           <tr key={row.id} className="border-b border-row-sep hover:bg-white/[0.02] transition-colors">
                             <td className="sticky left-0 z-10 bg-bg-0 px-4 py-2">
-                              <CallerCell row={row} unknownLabel={t('unregistered')} />
+                              <CallerCell row={row} unknownLabel={t('unregistered')} sharedLabel={(n) => t('sharedNumber', { count: n })} />
                             </td>
                             <td className="px-4 py-2"><DirectionPill direction={row.direction} label={directionLabel(row.direction)} /></td>
                             <td className="px-4 py-2"><OutcomePill outcome={row.outcome} label={outcomeLabel(row.outcome)} /></td>
@@ -344,7 +418,7 @@ export function CallHistoryDialog({
               <ul className={`md:hidden space-y-2 transition-opacity duration-150 ${loading ? 'opacity-40' : 'opacity-100'}`}>
                 {calls.map(row => (
                   <li key={row.id} className="rounded-lg border border-border bg-bg-1 p-3 space-y-2">
-                    <CallerCell row={row} unknownLabel={t('unregistered')} />
+                    <CallerCell row={row} unknownLabel={t('unregistered')} sharedLabel={(n) => t('sharedNumber', { count: n })} />
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <DirectionPill direction={row.direction} label={directionLabel(row.direction)} />
                       <OutcomePill outcome={row.outcome} label={outcomeLabel(row.outcome)} />
@@ -414,7 +488,14 @@ export function CallHistoryDialog({
  * vincular: el número crudo en ámbar — además de identificar la llamada,
  * señala visualmente cuáles conviene dar de alta.
  */
-function CallerCell({ row, unknownLabel }: { row: CallLogRow; unknownLabel: string }) {
+function CallerCell({
+  row, unknownLabel, sharedLabel,
+}: {
+  row: CallLogRow;
+  unknownLabel: string;
+  /** "compartido por N pacientes" — cuando el número no identifica a uno solo. */
+  sharedLabel: (n: number) => string;
+}) {
   // El número de ESTA llamada, no el teléfono principal del paciente: si llamó
   // desde su segunda línea, mostrar el primario haría que la fila mienta sobre
   // qué número sonó.
@@ -434,12 +515,26 @@ function CallerCell({ row, unknownLabel }: { row: CallLogRow; unknownLabel: stri
     );
   }
 
+  const shared = row.patientMatchedByPhone && row.patientMatchCount > 1;
+
   return (
     <div className="flex items-center gap-2 min-w-0">
       <PersonAvatar firstName={row.patient.firstName} lastName={row.patient.lastName} size={6} />
       <div className="min-w-0">
-        <div className="font-semibold text-text-1 text-[12.5px] truncate">
-          {row.patient.firstName} {row.patient.lastName}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-semibold text-text-1 text-[12.5px] truncate">
+            {row.patient.firstName} {row.patient.lastName}
+          </span>
+          {/* El paciente se dedujo del número y ese número lo comparten varios
+              (familias). Sin el aviso, la fila afirmaría algo que no sabemos. */}
+          {shared && (
+            <span
+              title={sharedLabel(row.patientMatchCount)}
+              className="shrink-0 rounded-full bg-amber/15 border border-amber/30 px-1.5 text-[9px] font-bold text-amber tabular-nums"
+            >
+              +{row.patientMatchCount - 1}
+            </span>
+          )}
         </div>
         <div className="font-mono text-[10px] text-text-muted truncate">
           {[row.patient.patientCode, phone].filter(Boolean).join(' · ')}

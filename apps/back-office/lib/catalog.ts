@@ -90,6 +90,49 @@ export async function findCatalogItem(id: number): Promise<CatalogRow | null> {
   return row ?? null;
 }
 
+// ─── Servicios con código de seguro (service_codes) ─────────────────────────
+//
+// Regla de negocio (Erick, 2026-08-03): los servicios CON código son para
+// pacientes CON seguro; el catálogo cash (catalog_items) es para los que no
+// tienen. Son dos precios del mismo servicio, no dos catálogos rivales.
+//
+// Se LEE en vivo de service_codes, no se copia: hay 349 asignaciones en
+// visit_service_codes y el HCFA de Brunella depende de esa tabla. Duplicarla
+// crearía dos verdades divergentes.
+
+export interface InsuranceServiceRow {
+  id: string;
+  code: string;
+  type: string; // 'CPT' | 'HCPCS' | 'CUSTOM_PM'
+  category: string;
+  shortDescription: string;
+  longDescription: string | null;
+  /** Lo que se le factura a la aseguradora. No hay costo real en esta tabla. */
+  currentFee: number;
+  fiscalYear: number;
+  modifiersAllowed: string[];
+  isActive: boolean;
+  notes: string | null;
+}
+
+export async function listInsuranceServices(): Promise<InsuranceServiceRow[]> {
+  const rows = await db.serviceCode.findMany({
+    where: { deletedAt: null },
+    select: {
+      id: true, code: true, type: true, category: true,
+      shortDescription: true, longDescription: true,
+      currentFee: true, fiscalYear: true, modifiersAllowed: true,
+      isActive: true, notes: true,
+    },
+    orderBy: [{ category: 'asc' }, { code: 'asc' }],
+  });
+
+  return rows.map((r) => ({
+    ...r,
+    currentFee: Number(r.currentFee), // Decimal → number para cruzar al cliente
+  }));
+}
+
 /** Serializa fechas para pasar del server component al client component. */
 export function serializeCatalog(rows: CatalogRow[]): Array<Omit<CatalogRow, 'priceVerifiedAt'> & { priceVerifiedAt: string | null }> {
   return rows.map((r) => ({ ...r, priceVerifiedAt: r.priceVerifiedAt?.toISOString() ?? null }));

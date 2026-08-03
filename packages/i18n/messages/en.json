@@ -4364,7 +4364,7 @@
     },
     "catalog": {
       "title": "Price catalog",
-      "subtitle": "{total} items · real cost and public price in one place",
+      "subtitle": "{total} items · cash and insurance pricing in one place",
       "searchPlaceholder": "Search by name or code…",
       "missing": "Missing",
       "empty": "No results with these filters",
@@ -4379,6 +4379,7 @@
       "tab": {
         "LAB": "Labs",
         "INJECTION_SERVICE": "Injections & services",
+        "INSURANCE": "Insurance services",
         "DME": "Braces"
       },
       "kind": {
@@ -4511,6 +4512,35 @@
       "err": {
         "nameRequired": "Name is required",
         "codeRequired": "Code is required"
+      },
+      "insurance": {
+        "banner": "These services have an insurance code and are billed to the payer. They are read from the service catalog — edit them in Settings → Services, not here.",
+        "searchPlaceholder": "Search by service, code or category…",
+        "noFee": "No fee",
+        "kpi": {
+          "total": "Services",
+          "totalSub": "With insurance code",
+          "avgFee": "Average fee",
+          "avgFeeSub": "Across those with a fee",
+          "noFee": "No fee",
+          "noFeeSub": "Left at $0",
+          "mangled": "Needs review",
+          "mangledSub": "Description broken in migration"
+        },
+        "filter": {
+          "noFee": "No fee",
+          "mangled": "Needs review"
+        },
+        "col": {
+          "service": "Service",
+          "type": "Type",
+          "category": "Category",
+          "modifiers": "Modifiers",
+          "fee": "Insurance fee"
+        },
+        "badge": {
+          "review": "Review"
+        }
       }
     }
   },

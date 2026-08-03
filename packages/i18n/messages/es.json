@@ -4363,7 +4363,7 @@
     },
     "catalog": {
       "title": "Catálogo de precios",
-      "subtitle": "{total} ítems · costo real y precio al público en un solo lugar",
+      "subtitle": "{total} ítems · precios cash y de seguro en un solo lugar",
       "searchPlaceholder": "Buscar por nombre o código…",
       "missing": "Falta",
       "empty": "Sin resultados con estos filtros",
@@ -4378,6 +4378,7 @@
       "tab": {
         "LAB": "Laboratorios",
         "INJECTION_SERVICE": "Inyecciones y servicios",
+        "INSURANCE": "Servicios con seguro",
         "DME": "Férulas"
       },
       "kind": {
@@ -4510,6 +4511,35 @@
       "err": {
         "nameRequired": "El nombre es obligatorio",
         "codeRequired": "El código es obligatorio"
+      },
+      "insurance": {
+        "banner": "Estos servicios tienen código de seguro y se facturan a la aseguradora. Se leen del catálogo de servicios — se editan desde Ajustes → Servicios, no desde acá.",
+        "searchPlaceholder": "Buscar por servicio, código o categoría…",
+        "noFee": "Sin fee",
+        "kpi": {
+          "total": "Servicios",
+          "totalSub": "Con código de seguro",
+          "avgFee": "Fee promedio",
+          "avgFeeSub": "Sobre los que tienen fee",
+          "noFee": "Sin fee",
+          "noFeeSub": "Quedaron en $0",
+          "mangled": "Por revisar",
+          "mangledSub": "Descripción rota en la migración"
+        },
+        "filter": {
+          "noFee": "Sin fee",
+          "mangled": "Por revisar"
+        },
+        "col": {
+          "service": "Servicio",
+          "type": "Tipo",
+          "category": "Categoría",
+          "modifiers": "Modificadores",
+          "fee": "Fee de seguro"
+        },
+        "badge": {
+          "review": "Revisar"
+        }
       }
     }
   },

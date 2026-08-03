@@ -40,14 +40,56 @@ export interface CatalogItem {
   notes: string | null;
 }
 
-/** Los tres tabs de la pantalla. El Excel agrupa inyectables y servicios juntos. */
-export type TabKey = 'LAB' | 'INJECTION_SERVICE' | 'DME';
+/**
+ * Tabs de la pantalla. Los tres primeros salen del Excel (precio cash, para
+ * pacientes SIN seguro); INSURANCE lee service_codes en vivo (pacientes CON
+ * seguro). Va entre inyectables y férulas por pedido de Erick.
+ */
+export type TabKey = 'LAB' | 'INJECTION_SERVICE' | 'INSURANCE' | 'DME';
 
+/** Qué kinds de catalog_items alimentan cada tab. INSURANCE no usa ninguno. */
 export const TAB_KINDS: Record<TabKey, CatalogKind[]> = {
   LAB: ['LAB'],
   INJECTION_SERVICE: ['INJECTION', 'SERVICE'],
+  INSURANCE: [],
   DME: ['DME'],
 };
+
+// ─── Servicios con código de seguro ─────────────────────────────────────────
+
+export interface InsuranceService {
+  id: string;
+  code: string;
+  type: string;
+  category: string;
+  shortDescription: string;
+  longDescription: string | null;
+  /** Lo que se factura a la aseguradora. Esta tabla no tiene costo real. */
+  currentFee: number;
+  fiscalYear: number;
+  modifiersAllowed: string[];
+  isActive: boolean;
+  notes: string | null;
+}
+
+/**
+ * Descripciones que la migración del v2 dejó rotas por OCR. Dos artefactos:
+ * el par "CH" interpolado dentro de las palabras (SPECICMHEN, INSECRHTION) y
+ * los dígitos del fee metidos dentro de una palabra (A80N7I.P0U0LATION).
+ *
+ * No sirve "contiene un dígito": "B9 LES" y "2ND LEVEL" son CPT legítimo. El
+ * artefacto real es un token con letras y 3+ dígitos.
+ *
+ * Aproximada a propósito: erra hacia marcar de más, porque un falso positivo
+ * solo cuesta una mirada y un falso negativo deja basura a la vista. Marca 130
+ * de 338. La limpieza real necesita un catálogo CPT oficial de referencia.
+ */
+export function looksMangled(description: string): boolean {
+  if (/C[A-Z]H/.test(description)) return true;
+  return description
+    .split(/\s+/)
+    .some((tok) => /[A-Za-z]/.test(tok) && (tok.match(/\d/g) ?? []).length >= 3);
+}
 
 /** Umbral bajo el cual el margen se marca en ámbar. */
 export const LOW_MARGIN = 1.5;

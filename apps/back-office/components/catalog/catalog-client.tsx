@@ -17,7 +17,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  FlaskConical, Syringe, Bandage, Plus, Search as SearchIcon, Pencil, Trash2,
+  FlaskConical, Syringe, Bandage, ShieldPlus, Plus, Search as SearchIcon, Pencil, Trash2,
   CheckCircle2, AlertTriangle, DollarSign, ShieldCheck, TrendingUp, Ban,
 } from 'lucide-react';
 import { Button, Input } from '@precision/ui';
@@ -26,14 +26,18 @@ import {
   DataTable, TableFooter, EmptyState, useToast,
 } from '@/components/ui-phoenix';
 import { CatalogItemDialog } from './catalog-item-dialog';
+import { InsuranceServicesTable } from './insurance-services-table';
 import {
-  type CatalogItem, type CatalogKind, type TabKey,
+  type CatalogItem, type CatalogKind, type TabKey, type InsuranceService,
   TAB_KINDS, LOW_MARGIN, STALE_MONTHS,
   markup, money, monthsSinceVerified, isStale, TUBE_SWATCH,
 } from './catalog-shared';
 
 interface Props {
+  /** Catálogo cash-pay (catalog_items) — pacientes SIN seguro. */
   items: CatalogItem[];
+  /** service_codes leído en vivo — pacientes CON seguro. */
+  services: InsuranceService[];
   canEdit: boolean;
 }
 
@@ -41,13 +45,15 @@ type QuickFilter = 'all' | 'noCost' | 'noPrice' | 'unverified' | 'lowMargin' | '
 
 const PAGE_SIZE = 25;
 
+// El tab de seguro va entre inyectables y férulas (pedido de Erick).
 const TABS: Array<{ key: TabKey; icon: React.ElementType }> = [
   { key: 'LAB', icon: FlaskConical },
   { key: 'INJECTION_SERVICE', icon: Syringe },
+  { key: 'INSURANCE', icon: ShieldPlus },
   { key: 'DME', icon: Bandage },
 ];
 
-export function CatalogClient({ items, canEdit }: Props): React.ReactElement {
+export function CatalogClient({ items, services, canEdit }: Props): React.ReactElement {
   const t = useTranslations('phoenix.catalog');
   const router = useRouter();
   const toast = useToast();
@@ -102,7 +108,11 @@ export function CatalogClient({ items, canEdit }: Props): React.ReactElement {
 
   const isLabTab = tab === 'LAB';
   const isDmeTab = tab === 'DME';
-  const defaultKind: CatalogKind = tab === 'INJECTION_SERVICE' ? 'INJECTION' : tab;
+  /** Este tab no sale de catalog_items: lee service_codes y no se edita acá. */
+  const isInsuranceTab = tab === 'INSURANCE';
+  const defaultKind: CatalogKind = tab === 'INJECTION_SERVICE' || tab === 'INSURANCE'
+    ? 'INJECTION'
+    : tab;
 
   function openNew(): void { setEditing(null); setDialogOpen(true); }
   function openEdit(item: CatalogItem): void { setEditing(item); setDialogOpen(true); }
@@ -126,8 +136,8 @@ export function CatalogClient({ items, canEdit }: Props): React.ReactElement {
     <div className="space-y-6">
       <PageHeader
         title={t('title')}
-        subtitle={t('subtitle', { total: items.length })}
-        action={canEdit ? (
+        subtitle={t('subtitle', { total: items.length + services.length })}
+        action={canEdit && !isInsuranceTab ? (
           <Button onClick={openNew}>
             <Plus className="w-4 h-4 mr-1" /> {t('action.new')}
           </Button>
@@ -137,7 +147,9 @@ export function CatalogClient({ items, canEdit }: Props): React.ReactElement {
       {/* ─── Tabs ─── */}
       <div className="flex gap-2 flex-wrap">
         {TABS.map(({ key, icon: Icon }) => {
-          const n = items.filter((i) => TAB_KINDS[key].includes(i.kind)).length;
+          const n = key === 'INSURANCE'
+            ? services.length
+            : items.filter((i) => TAB_KINDS[key].includes(i.kind)).length;
           const active = tab === key;
           return (
             <button
@@ -155,6 +167,8 @@ export function CatalogClient({ items, canEdit }: Props): React.ReactElement {
           );
         })}
       </div>
+
+      {isInsuranceTab ? <InsuranceServicesTable services={services} /> : <>
 
       {/* ─── KPIs ─── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -363,7 +377,9 @@ export function CatalogClient({ items, canEdit }: Props): React.ReactElement {
         ))}
       </div>
 
-      {canEdit && (
+      </>}
+
+      {canEdit && !isInsuranceTab && (
         <CatalogItemDialog
           open={dialogOpen}
           onClose={() => setDialogOpen(false)}

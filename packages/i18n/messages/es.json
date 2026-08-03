@@ -1888,7 +1888,12 @@
       "rxMissingAddressDesc": "ScriptSure exige calle, ciudad, estado y ZIP para crear al paciente. Completá su dirección en la ficha del paciente y volvé a intentar.",
       "rxMissingDobTitle": "Falta la fecha de nacimiento del paciente",
       "rxMissingDobDesc": "ScriptSure la exige para crear al paciente. Completala en su ficha y volvé a intentar.",
-      "rxWidgetError": "No se pudo conectar con ScriptSure. Intentá de nuevo en un momento."
+      "rxWidgetError": "No se pudo conectar con ScriptSure. Intentá de nuevo en un momento.",
+      "rxSentTitle": "Recetas enviadas",
+      "rxStatusSent": "Enviada a farmacia",
+      "rxStatusVoided": "Anulada",
+      "rxQty": "Cantidad",
+      "rxRefills": "Refills"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -4074,8 +4079,8 @@
       "editErrorTitle": "No se pudo guardar",
       "errorGoToGuardian": "Ir al responsable legal",
       "btnAccept": "Entendido",
-      "emailFromGuardian": "Se usa el correo del responsable legal",
-      "guardianIsContact": "El formulario de admisión y las notificaciones se envían a este correo."
+      "guardianIsContact": "El formulario de admisión y las notificaciones se envían a este correo.",
+      "emailGuardianIsPrimary": "Principal: {email} (responsable legal) — ahí llega el formulario y las notificaciones"
     },
     "edson": {
       "title": "Bandeja Edson",

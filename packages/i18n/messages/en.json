@@ -1888,7 +1888,12 @@
       "rxMissingAddressDesc": "ScriptSure requires street, city, state and ZIP to create the patient. Complete their address in the patient record and try again.",
       "rxMissingDobTitle": "Patient date of birth is missing",
       "rxMissingDobDesc": "ScriptSure requires it to create the patient. Complete it in their record and try again.",
-      "rxWidgetError": "Couldn't connect to ScriptSure. Please try again in a moment."
+      "rxWidgetError": "Couldn't connect to ScriptSure. Please try again in a moment.",
+      "rxSentTitle": "Sent prescriptions",
+      "rxStatusSent": "Sent to pharmacy",
+      "rxStatusVoided": "Voided",
+      "rxQty": "Qty",
+      "rxRefills": "Refills"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",
@@ -4074,8 +4079,8 @@
       "editErrorTitle": "Could not save",
       "errorGoToGuardian": "Go to legal guardian",
       "btnAccept": "Got it",
-      "emailFromGuardian": "Using the legal guardian email",
-      "guardianIsContact": "The intake form and notifications are sent to this email."
+      "guardianIsContact": "The intake form and notifications are sent to this email.",
+      "emailGuardianIsPrimary": "Primary: {email} (legal guardian) — intake form and notifications go there"
     },
     "edson": {
       "title": "Edson Queue",

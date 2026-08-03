@@ -475,14 +475,13 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                     se usa — un campo gris sin explicacion genera consultas. */}
                 <FormField.Input
                   label={t('fieldEmail')}
-                  value={guardianEmail ?? form.email}
+                  value={form.email}
                   onChange={(v) => { set('email')(v); if (emailError) validateEmail(v); }}
                   onBlur={() => validateEmail(form.email)}
                   placeholder="patient@email.com"
                   type="email"
                   error={emailError}
-                  disabled={!!guardianEmail}
-                  hint={guardianEmail ? t('emailFromGuardian') : undefined}
+                  hint={guardianEmail ? t('emailGuardianIsPrimary', { email: guardianEmail }) : undefined}
                 />
                 <div className="space-y-1">
                   <FormField.Input label={t('fieldDOB')} value={form.dateOfBirth} onChange={set('dateOfBirth')} type="date" />

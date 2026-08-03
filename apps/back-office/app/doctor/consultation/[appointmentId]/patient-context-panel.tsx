@@ -127,9 +127,34 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
   const h = p.history;
   const activeMeds = h.medications.filter((m) => m.status === 'IN_USE');
   const social = h.socialHistory;
+  // Plegado SOLO en mobile/iPad vertical: el panel mide ~1100px y empujaba las
+  // tabs de trabajo del doctor 1.4 pantallas abajo. Desde lg: siempre abierto.
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const hasAllergies = !!h.allergies?.trim();
 
   return (
     <div className="space-y-2">
+      {/* Cabecera plegable (solo mobile) — deja las tabs visibles de entrada.
+          Las alergias se muestran acá aunque esté cerrado: es dato de seguridad
+          clínica y no puede quedar escondido detrás de un tap. */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen((v) => !v)}
+        aria-expanded={mobileOpen}
+        className="lg:hidden w-full rounded-lg bg-bg-2/30 px-3 py-2 min-h-11 flex items-center gap-2.5 hover:bg-white/[0.02] transition-colors"
+      >
+        <PersonAvatar firstName={p.firstName} lastName={p.lastName} size={8} gradientClass="bg-gradient-to-br from-violet to-[#a78bfa]" />
+        <div className="min-w-0 flex-1 text-left">
+          <div className="text-[12px] font-bold text-text-1 truncate">{p.lastName}, {p.firstName}</div>
+          <div className="text-[10px] text-text-muted truncate">{t('ctxToggle')}</div>
+        </div>
+        {hasAllergies && (
+          <TagPill label={t('ctxAllergies')} colorClass="bg-rose/15 text-rose border-rose/30" compact />
+        )}
+        <ChevronDown className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${mobileOpen ? '' : '-rotate-90'}`} />
+      </button>
+
+      <div className={`space-y-2 ${mobileOpen ? '' : 'hidden lg:block'}`}>
       {/* Identidad + datos personales */}
       <div className="rounded-lg bg-bg-2/30 p-3 space-y-3">
         <div className="flex items-center gap-2.5">
@@ -306,6 +331,7 @@ export function PatientContextPanel({ patient: p }: { patient: PatientContext })
           </div>
         )}
       </Section>
+      </div>
     </div>
   );
 }

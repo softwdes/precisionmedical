@@ -735,8 +735,10 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                 <div className="rounded-lg border border-border bg-bg-1 p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">📝 {t('sectionNotes')}</div>
+                    {/* min-h-11 + margenes negativos: el hit area llega a 44px en
+                        mobile (antes 35x15) sin alterar la altura de la fila */}
                     <button type="button" onClick={() => setEditOpen(true)}
-                      className="text-[10px] text-brand hover:underline flex items-center gap-1">
+                      className="text-[10px] text-brand hover:underline flex items-center gap-1 min-h-11 px-2 -mx-2 -my-2 sm:min-h-0 sm:p-0 sm:m-0">
                       <Edit2 className="w-3 h-3" /> {t('actionEdit')}
                     </button>
                   </div>
@@ -835,33 +837,38 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
                   {cancelError && <p className="text-rose text-[11px] flex items-center gap-1"><AlertCircle className="w-3 h-3" />{cancelError}</p>}
                   <div className="flex gap-2">
                     <button type="button" onClick={() => { setCancelOpen(false); setCancelError(null); }} disabled={cancelling}
-                      className="flex-1 px-3 py-1.5 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
+                      className="flex-1 px-3 py-1.5 min-h-11 sm:min-h-0 rounded-md border border-border text-text-2 text-xs hover:bg-white/5 transition-colors">
                       {t('actionBack')}
                     </button>
                     <button type="button" onClick={handleCancel} disabled={cancelling}
-                      className="flex-1 px-3 py-1.5 rounded-md bg-rose/15 border border-rose/40 text-rose text-xs font-semibold hover:bg-rose/20 transition-colors flex items-center justify-center gap-1.5">
+                      className="flex-1 px-3 py-1.5 min-h-11 sm:min-h-0 rounded-md bg-rose/15 border border-rose/40 text-rose text-xs font-semibold hover:bg-rose/20 transition-colors flex items-center justify-center gap-1.5">
                       {cancelling ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
                       {cancelling ? t('cancellingInProgress') : t('confirmCancelYes')}
                     </button>
                   </div>
                 </div>
               ) : (
+                /* En sm+ el orden del DOM ya da la jerarquia espacial: destructiva
+                   sola a la izquierda (mr-auto) y primaria al extremo derecho. En
+                   columna eso se pierde, asi que en mobile se reordena con `order`:
+                   primaria arriba, editar, y cancelar al final como link ghost.
+                   "Cerrar" se oculta: el Dialog ya tiene su X arriba a la derecha. */
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <button type="button" onClick={() => setCancelOpen(true)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-rose/30 text-rose hover:bg-rose/10 text-xs font-medium transition-colors sm:mr-auto">
+                    className="order-3 sm:order-none flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md border border-rose/30 text-rose hover:bg-rose/10 text-xs font-medium transition-colors sm:mr-auto">
                     <Ban className="w-3.5 h-3.5" /> {t('actionCancelAppointment')}
                   </button>
                   <button type="button" onClick={() => { twilio.hangUp(); onClose(); }}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
+                    className="hidden sm:flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
                     <X className="w-3.5 h-3.5" /> {t('actionClose')}
                   </button>
                   <button type="button" onClick={() => setEditOpen(true)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
+                    className="order-2 sm:order-none flex items-center justify-center gap-1.5 px-3 py-2 min-h-11 sm:min-h-0 rounded-md border border-border text-text-2 hover:bg-white/5 text-xs font-medium transition-colors">
                     <Edit2 className="w-3.5 h-3.5" /> {t('actionEdit')}
                   </button>
                   {appt.status !== 'CONFIRMED' && appt.status !== 'COMPLETED' && (
                     <button type="button" onClick={handleConfirm} disabled={confirming}
-                      className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-emerald/15 border border-emerald/40 text-emerald hover:bg-emerald/20 text-xs font-semibold transition-colors disabled:opacity-50">
+                      className="order-1 sm:order-none flex items-center justify-center gap-1.5 px-4 py-2 min-h-11 sm:min-h-0 rounded-md bg-emerald/15 border border-emerald/40 text-emerald hover:bg-emerald/20 text-xs font-semibold transition-colors disabled:opacity-50">
                       {confirming ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                       {t('actionMarkConfirmed')}
                     </button>

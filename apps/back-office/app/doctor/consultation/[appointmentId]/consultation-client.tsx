@@ -156,12 +156,14 @@ export function ConsultationClient({
   const [tab, setTab] = React.useState<Tab>('notes');
   const isCurrent = (n: StepView): boolean => n === currentStep;
 
-  // Nodos del flujo del doctor — 4 pasos (el cobro sigue siendo del asistente)
-  const steps: Array<{ n: StepView; label: string; desc: string; done: boolean; current: boolean }> = [
-    { n: 1, label: t('stepCheckin'), desc: t('stepCheckinDesc'), done: !!a.checkedInAt || isInRoom || isCompleted, current: isCurrent(1) },
-    { n: 2, label: t('stepTriage'),  desc: t('stepTriageDesc'),  done: hasTriage || isInRoom || isCompleted,      current: isCurrent(2) },
-    { n: 3, label: t('stepDoctor'),  desc: t('stepDoctorDesc'),  done: !!a.doctorDoneAt || isCompleted,            current: isCurrent(3) },
-    { n: 4, label: t('stepSummary'), desc: t('stepSummaryDesc'), done: !!a.doctorDoneAt,                           current: isCurrent(4) },
+  // Nodos del flujo del doctor — 4 pasos (el cobro sigue siendo del asistente).
+  // `short` es la etiqueta de mobile: los 4 pasos tienen que entrar en 375px
+  // sin scroll horizontal (antes el riel medía 712px y el paso 4 quedaba fuera).
+  const steps: Array<{ n: StepView; label: string; short: string; desc: string; done: boolean; current: boolean }> = [
+    { n: 1, label: t('stepCheckin'), short: t('stepCheckinShort'), desc: t('stepCheckinDesc'), done: !!a.checkedInAt || isInRoom || isCompleted, current: isCurrent(1) },
+    { n: 2, label: t('stepTriage'),  short: t('stepTriageShort'),  desc: t('stepTriageDesc'),  done: hasTriage || isInRoom || isCompleted,      current: isCurrent(2) },
+    { n: 3, label: t('stepDoctor'),  short: t('stepDoctorShort'),  desc: t('stepDoctorDesc'),  done: !!a.doctorDoneAt || isCompleted,            current: isCurrent(3) },
+    { n: 4, label: t('stepSummary'), short: t('stepSummaryShort'), desc: t('stepSummaryDesc'), done: !!a.doctorDoneAt,                           current: isCurrent(4) },
   ];
 
   // Tabs del área de trabajo del doctor (nodo 3) — Servicios a la derecha de Prescripción
@@ -204,15 +206,19 @@ export function ConsultationClient({
         </Link>
       </div>
 
-      {/* Nodos de flujo — navegación LIBRE, estilo Day Admission (clic para ver cada paso) */}
-      <div className="rounded-lg bg-bg-2/30 px-4 py-3 overflow-x-auto">
-        <div className="flex items-center min-w-[560px]">
+      {/* Nodos de flujo — navegación LIBRE, estilo Day Admission (clic para ver cada paso).
+          Mobile/iPad vertical: grid de 4 celdas (icono arriba, etiqueta corta abajo) —
+          los 4 pasos entran en 375px sin swipe. Desde lg: el riel horizontal con
+          descripciones y conectores, igual que Day Admission. */}
+      <div className="rounded-lg bg-bg-2/30 px-2 py-2 sm:px-4 sm:py-3">
+        <div className="grid grid-cols-4 gap-1 lg:flex lg:items-center">
           {steps.map((s, i) => (
             <React.Fragment key={s.label}>
               <button
                 type="button"
                 onClick={() => setView(s.n)}
-                className={`flex items-center gap-2 shrink-0 rounded-md px-2 py-1.5 -mx-1 transition-all text-left ${
+                aria-current={view === s.n ? 'step' : undefined}
+                className={`flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-2 min-h-11 lg:min-h-0 lg:shrink-0 rounded-md px-1 py-1.5 lg:px-2 lg:-mx-1 transition-all text-center lg:text-left ${
                   view === s.n ? 'bg-bg-2/70 ring-1 ring-violet/40' : 'hover:bg-white/[0.03]'
                 }`}
               >
@@ -227,14 +233,15 @@ export function ConsultationClient({
                 >
                   {s.done ? <Check className="w-3.5 h-3.5" /> : i + 1}
                 </div>
-                <div className="min-w-0">
-                  <div className={`text-[12px] font-bold leading-tight ${s.current ? 'text-violet' : s.done ? 'text-emerald' : 'text-text-muted'}`}>
-                    {s.label}
+                <div className="min-w-0 w-full lg:w-auto">
+                  <div className={`text-[10px] lg:text-[12px] font-bold leading-tight truncate ${s.current ? 'text-violet' : s.done ? 'text-emerald' : 'text-text-muted'}`}>
+                    <span className="lg:hidden">{s.short}</span>
+                    <span className="hidden lg:inline">{s.label}</span>
                   </div>
-                  <div className="text-[9.5px] text-text-muted hidden sm:block">{s.desc}</div>
+                  <div className="text-[9.5px] text-text-muted hidden lg:block">{s.desc}</div>
                 </div>
               </button>
-              {i < steps.length - 1 && <div className="flex-1 h-px bg-bg-3 mx-3 min-w-[16px]" />}
+              {i < steps.length - 1 && <div className="hidden lg:block flex-1 h-px bg-bg-3 mx-3 min-w-[16px]" />}
             </React.Fragment>
           ))}
         </div>
@@ -391,18 +398,22 @@ export function ConsultationClient({
             <PatientContextPanel patient={patientContext} />
           </div>
           <div className="space-y-4 min-w-0">
-          <div className="flex gap-1 border-b border-border overflow-x-auto">
+          {/* Tabs del doctor — mobile: grid de 4 (icono arriba, etiqueta abajo),
+              mismo patrón que el bottom nav. Antes era una fila de 402px dentro
+              de 343px y "Servicios" quedaba cortada. Desde sm: fila normal. */}
+          <div className="grid grid-cols-4 sm:flex sm:gap-1 border-b border-border">
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                aria-current={tab === id ? 'page' : undefined}
+                className={`flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1 sm:gap-1.5 min-h-11 sm:min-h-0 px-1 sm:px-3.5 py-2 text-[10px] sm:text-[13px] font-semibold border-b-2 -mb-px transition-colors text-center sm:whitespace-nowrap ${
                   tab === id ? 'text-violet border-violet' : 'text-text-muted border-transparent hover:text-text-1'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
+                <Icon className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" />
+                <span className="max-w-full truncate">{label}</span>
               </button>
             ))}
           </div>

@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@precision/ui';
-import { FormField } from '@/components/ui-phoenix';
+import { FormField, PersonAvatar } from '@/components/ui-phoenix';
 
 type PatientStatus    = 'NEW' | 'ACTIVE' | 'COMPLETED' | 'DISCHARGED' | 'INACTIVE';
 type GuardianRelation = 'FATHER' | 'MOTHER' | 'LEGAL_GUARDIAN' | 'OTHER';
@@ -54,6 +54,13 @@ export interface EditablePatient {
   guardianName:                string | null;
   guardianPhone:               string | null;
   guardianRelation:            string | null;
+  // Vinculo real al tutor. Los 3 campos de arriba son legado (ver pending-tasks).
+  guardianPatientId?:          string | null;
+  guardianPatient?: {
+    id: string; patientCode: string | null;
+    firstName: string; lastName: string;
+    email: string | null; phone: string | null;
+  } | null;
 }
 
 interface Props {
@@ -176,6 +183,10 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
   const age     = useMemo(() => calcAge(form.dateOfBirth), [form.dateOfBirth]);
   const isMinor = age !== null && age < 18;
   const guardianMissing = isMinor && !form.guardianName.trim();
+  // Tutor vinculado (guardianPatientId). Su correo es el canal de contacto real
+  // del menor — ver pending-tasks.md.
+  const linkedGuardian = patient.guardianPatient ?? null;
+  const guardianEmail  = linkedGuardian?.email ?? null;
 
   const isDirty = Object.keys(initialForm).some(
     k => form[k as keyof typeof initialForm] !== initialForm[k as keyof typeof initialForm]
@@ -458,14 +469,20 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* En menores el correo de contacto es el del apoderado: el
+                    formulario de admision y las notificaciones se le envian a
+                    el. Se bloquea el campo del menor y se muestra CUAL correo
+                    se usa — un campo gris sin explicacion genera consultas. */}
                 <FormField.Input
                   label={t('fieldEmail')}
-                  value={form.email}
+                  value={guardianEmail ?? form.email}
                   onChange={(v) => { set('email')(v); if (emailError) validateEmail(v); }}
                   onBlur={() => validateEmail(form.email)}
                   placeholder="patient@email.com"
                   type="email"
                   error={emailError}
+                  disabled={!!guardianEmail}
+                  hint={guardianEmail ? t('emailFromGuardian') : undefined}
                 />
                 <div className="space-y-1">
                   <FormField.Input label={t('fieldDOB')} value={form.dateOfBirth} onChange={set('dateOfBirth')} type="date" />
@@ -565,9 +582,30 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
                   <h3 className="text-sm font-semibold text-amber">{t('sectionGuardian')}</h3>
                   <span className="text-[10px] text-amber/70 italic">{t('guardianRequired')}</span>
                 </div>
-                <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
-                  {t('guardianNote')}
-                </div>
+                {linkedGuardian ? (
+                  /* Tutor ya vinculado: se muestra su ficha y, sobre todo, la
+                     CONSECUENCIA — a que correo se envia todo. */
+                  <div className="rounded-md border border-emerald/30 bg-emerald/5 px-3 py-2.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <PersonAvatar size={6} firstName={linkedGuardian.firstName} lastName={linkedGuardian.lastName} />
+                      <span className="text-text-1 text-sm font-semibold">
+                        {linkedGuardian.firstName} {linkedGuardian.lastName}
+                      </span>
+                      {linkedGuardian.patientCode && (
+                        <span className="font-mono text-[10px] text-text-muted">{linkedGuardian.patientCode}</span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-text-2">
+                      {linkedGuardian.email && <span>{linkedGuardian.email}</span>}
+                      {linkedGuardian.phone && <span className="font-mono">{linkedGuardian.phone}</span>}
+                    </div>
+                    <p className="mt-1.5 text-[10px] text-emerald">{t('guardianIsContact')}</p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-amber/30 bg-amber/10 px-3 py-2 text-[11px] text-amber">
+                    {t('guardianNote')}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField.Input  label={`${t('fieldGuardianName')} *`} value={form.guardianName}     onChange={set('guardianName')}     placeholder={t('fieldGuardianName')} />
                   <FormField.Select label={t('fieldGuardianRelation')}     value={form.guardianRelation} onChange={set('guardianRelation')} options={GUARDIAN_OPTIONS} />

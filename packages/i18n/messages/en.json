@@ -4073,7 +4073,9 @@
       "callFailedMicHint": "The browser blocked the microphone. Allow it from the padlock in the address bar and try again.",
       "editErrorTitle": "Could not save",
       "errorGoToGuardian": "Go to legal guardian",
-      "btnAccept": "Got it"
+      "btnAccept": "Got it",
+      "emailFromGuardian": "Using the legal guardian email",
+      "guardianIsContact": "The intake form and notifications are sent to this email."
     },
     "edson": {
       "title": "Edson Queue",

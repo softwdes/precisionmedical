@@ -4073,7 +4073,9 @@
       "callFailedMicHint": "El navegador bloqueó el micrófono. Permitilo desde el candado en la barra de direcciones y volvé a intentar.",
       "editErrorTitle": "No se pudo guardar",
       "errorGoToGuardian": "Ir al responsable legal",
-      "btnAccept": "Entendido"
+      "btnAccept": "Entendido",
+      "emailFromGuardian": "Se usa el correo del responsable legal",
+      "guardianIsContact": "El formulario de admisión y las notificaciones se envían a este correo."
     },
     "edson": {
       "title": "Bandeja Edson",

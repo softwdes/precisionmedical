@@ -18,13 +18,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, Button, Label, Input,
 } from '@precision/ui';
 import {
-  Plus, Search, Star, Pencil, Trash2, FileText, Loader2, X, Stethoscope,
+  Plus, Search, Star, Pencil, Trash2, FileText, Loader2, X, Stethoscope, Eye,
 } from 'lucide-react';
 import {
-  PageHeader, DataTable, TableFooter, EmptyState, IconAction, TagPill, RichTextEditor,
+  PageHeader, DataTable, TableFooter, EmptyState, IconAction, TagPill, RichTextEditor, useToast,
 } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { DiagnosisPicker, type DiagnosisRow } from '@/components/visit/diagnosis-picker';
+import { useTransitionProgress } from '@/components/layout/navigation-progress';
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,15 @@ export function TemplatesClient({
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const router = useRouter();
+  const toast = useToast();
+
+  // El refresh de la lista después de guardar/borrar va en una transición:
+  // con isPending activo se deshabilitan las acciones de la fila para que no
+  // se pueda reabrir Ver/Editar con datos viejos antes de que llegue el
+  // refetch — si no, "guarda pero no se ve al toque" (hay que cerrar y
+  // volver a abrir para que aparezca el cambio).
+  const [isPending, startTransition] = React.useTransition();
+  useTransitionProgress(isPending);
 
   const [search, setSearch] = React.useState('');
   const [onlyFavorites, setOnlyFavorites] = React.useState(false);
@@ -100,6 +110,7 @@ export function TemplatesClient({
 
   // Modal de plantilla
   const [editing, setEditing] = React.useState<DoctorTemplate | null>(null);
+  const [viewing, setViewing] = React.useState<DoctorTemplate | null>(null);
   const [creating, setCreating] = React.useState(false);
   const [deleting, setDeleting] = React.useState<DoctorTemplate | null>(null);
 
@@ -128,9 +139,11 @@ export function TemplatesClient({
 
   const handleDelete = async (): Promise<void> => {
     if (!deleting) return;
-    await fetch(`/api/admin/templates?id=${deleting.id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/templates?id=${deleting.id}`, { method: 'DELETE' });
     setDeleting(null);
-    router.refresh();
+    if (!res.ok) { toast.error(t('tplErrDelete')); return; }
+    toast.success(t('tplDeletedSuccess'));
+    startTransition(() => { router.refresh(); });
   };
 
   return (
@@ -216,10 +229,11 @@ export function TemplatesClient({
                     </DataTable.Td>
                     <DataTable.Td align="right" className="!py-1">
                       <div className="flex items-center justify-end gap-1">
-                        <IconAction icon={Pencil} label={t('tplEdit')} onClick={() => setEditing(tpl)} />
+                        <IconAction icon={Eye} label={t('tplView')} onClick={() => setViewing(tpl)} disabled={isPending} />
+                        <IconAction icon={Pencil} label={t('tplEdit')} onClick={() => setEditing(tpl)} disabled={isPending} />
                         {/* Eliminar: solo admin (el doctor no puede) */}
                         {canDelete && (
-                          <IconAction icon={Trash2} label={t('tplDelete')} variant="danger" onClick={() => setDeleting(tpl)} />
+                          <IconAction icon={Trash2} label={t('tplDelete')} variant="danger" onClick={() => setDeleting(tpl)} disabled={isPending} />
                         )}
                       </div>
                     </DataTable.Td>
@@ -253,7 +267,23 @@ export function TemplatesClient({
           template={editing}
           userId={userId}
           onClose={() => { setCreating(false); setEditing(null); }}
-          onSaved={() => { setCreating(false); setEditing(null); router.refresh(); }}
+          onSaved={() => {
+            toast.success(editing ? t('tplSavedSuccess') : t('tplCreatedSuccess'));
+            setCreating(false);
+            setEditing(null);
+            startTransition(() => { router.refresh(); });
+          }}
+        />
+      )}
+
+      {/* Modal ver (solo lectura) */}
+      {viewing && (
+        <TemplateDialog
+          template={viewing}
+          userId={userId}
+          readOnly
+          onClose={() => setViewing(null)}
+          onSaved={() => setViewing(null)}
         />
       )}
 
@@ -276,12 +306,13 @@ export function TemplatesClient({
 // ─── Modal de plantilla ──────────────────────────────────────────────────────
 
 function TemplateDialog({
-  template, userId, onClose, onSaved,
+  template, userId, onClose, onSaved, readOnly = false,
 }: {
   template: DoctorTemplate | null;
   userId: string | null;
   onClose: () => void;
   onSaved: () => void;
+  readOnly?: boolean;
 }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
   const isEdit = !!template;
@@ -375,7 +406,7 @@ function TemplateDialog({
         <DialogContent className="max-w-3xl p-0 overflow-hidden flex flex-col max-h-[92vh]">
           <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
             <DialogTitle className="text-[15px]">
-              {isEdit ? t('tplEditTitle') : t('tplNewTitle')}
+              {readOnly ? t('tplViewTitle') : isEdit ? t('tplEditTitle') : t('tplNewTitle')}
             </DialogTitle>
           </DialogHeader>
 
@@ -384,11 +415,11 @@ function TemplateDialog({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t('tplFieldTitle')} *</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('tplTitlePlaceholder')} />
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('tplTitlePlaceholder')} disabled={readOnly} />
               </div>
               <div className="space-y-1.5">
                 <Label>{t('tplFieldDescription')}</Label>
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('tplDescPlaceholder')} />
+                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('tplDescPlaceholder')} disabled={readOnly} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -397,7 +428,8 @@ function TemplateDialog({
                 <select
                   value={encounterType}
                   onChange={(e) => setEncounterType(e.target.value)}
-                  className="w-full h-9 rounded-md border border-border bg-bg-2 px-2 text-[13px] text-text-1 outline-none focus:border-violet/50"
+                  disabled={readOnly}
+                  className="w-full h-9 rounded-md border border-border bg-bg-2 px-2 text-[13px] text-text-1 outline-none focus:border-violet/50 disabled:opacity-60"
                 >
                   {ENCOUNTER_TYPES.map((v) => <option key={v} value={v}>{t(`enc_${v}`)}</option>)}
                 </select>
@@ -407,7 +439,8 @@ function TemplateDialog({
                 <select
                   value={caseType}
                   onChange={(e) => setCaseType(e.target.value)}
-                  className="w-full h-9 rounded-md border border-border bg-bg-2 px-2 text-[13px] text-text-1 outline-none focus:border-violet/50"
+                  disabled={readOnly}
+                  className="w-full h-9 rounded-md border border-border bg-bg-2 px-2 text-[13px] text-text-1 outline-none focus:border-violet/50 disabled:opacity-60"
                 >
                   {CASE_TYPES.map((v) => <option key={v} value={v}>{t(`case_${v}`)}</option>)}
                 </select>
@@ -423,6 +456,7 @@ function TemplateDialog({
                   onChange={(html) => setContent((c) => ({ ...c, [key]: html }))}
                   placeholder={t('tplWriteHere')}
                   minHeight={140}
+                  disabled={readOnly}
                 />
               </div>
             ))}
@@ -438,25 +472,27 @@ function TemplateDialog({
                     </div>
                     <div className="text-[11px] text-text-muted">{t('dxHint')}</div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <select
-                      value={dxMode}
-                      onChange={(e) => setDxMode(e.target.value as 'ICD10' | 'SNOMED')}
-                      className="h-9 rounded-md border border-border bg-bg-2 px-2 text-[12px] text-text-1 outline-none focus:border-violet/50"
-                    >
-                      <option value="ICD10">ICD-10</option>
-                      <option value="SNOMED">SNOMED</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setPickerOpen(true)}
-                      className="h-9 px-3 rounded-md text-white text-[12px] font-semibold flex items-center gap-1.5"
-                      style={{ background: 'linear-gradient(135deg,#7C3AED,#A78BFA)' }}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      {dxMode === 'ICD10' ? t('dxAddIcd') : t('dxAddSnomed')}
-                    </button>
-                  </div>
+                  {!readOnly && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <select
+                        value={dxMode}
+                        onChange={(e) => setDxMode(e.target.value as 'ICD10' | 'SNOMED')}
+                        className="h-9 rounded-md border border-border bg-bg-2 px-2 text-[12px] text-text-1 outline-none focus:border-violet/50"
+                      >
+                        <option value="ICD10">ICD-10</option>
+                        <option value="SNOMED">SNOMED</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        className="h-9 px-3 rounded-md text-white text-[12px] font-semibold flex items-center gap-1.5"
+                        style={{ background: 'linear-gradient(135deg,#7C3AED,#A78BFA)' }}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        {dxMode === 'ICD10' ? t('dxAddIcd') : t('dxAddSnomed')}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-md border border-border overflow-hidden">
@@ -486,14 +522,16 @@ function TemplateDialog({
                             ) : <span className="text-text-muted">—</span>}
                           </td>
                           <td className="px-3 py-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => setDx((list) => list.filter((_, idx) => idx !== i))}
-                              className="text-text-muted hover:text-rose transition-colors"
-                              aria-label={t('dxRemove')}
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
+                            {!readOnly && (
+                              <button
+                                type="button"
+                                onClick={() => setDx((list) => list.filter((_, idx) => idx !== i))}
+                                className="text-text-muted hover:text-rose transition-colors"
+                                aria-label={t('dxRemove')}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -509,11 +547,17 @@ function TemplateDialog({
           </div>
 
           <DialogFooter className="px-5 py-4 border-t border-border flex-col sm:flex-row gap-2 shrink-0">
-            <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">{t('tplCancel')}</Button>
-            <Button onClick={() => void save()} disabled={saving} className="w-full sm:w-auto gap-1.5">
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Stethoscope className="w-3.5 h-3.5" />}
-              {isEdit ? t('tplSave') : t('tplCreate')}
-            </Button>
+            {readOnly ? (
+              <Button onClick={onClose} className="w-full sm:w-auto">{t('tplClose')}</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">{t('tplCancel')}</Button>
+                <Button onClick={() => void save()} disabled={saving} className="w-full sm:w-auto gap-1.5">
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Stethoscope className="w-3.5 h-3.5" />}
+                  {isEdit ? t('tplSave') : t('tplCreate')}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -6,6 +6,7 @@ import { Topbar } from './topbar';
 import { BootAnimation } from './boot-animation';
 import { NavigationProgressProvider } from './navigation-progress';
 import { MobileBottomNav } from './mobile-bottom-nav';
+import { ToastProvider } from '@/components/ui-phoenix';
 
 // Wrapper client component que maneja el state del mobile drawer.
 // Desktop (md+): sidebar siempre visible · Mobile: drawer con hamburger.
@@ -50,6 +51,7 @@ export function AdminShell({
   return (
     <BootAnimation>
       <NavigationProgressProvider>
+        <ToastProvider>
         <div className="min-h-screen bg-bg-0">
           <Sidebar
             mobileOpen={mobileOpen}
@@ -82,6 +84,7 @@ export function AdminShell({
           <MobileBottomNav onMenuClick={() => setMobileOpen(v => !v)} variant={variant} allowedModules={allowedModules} />
           {/* FloatingAI (agente) deshabilitado — se reactivará cuando el agente entre en uso */}
         </div>
+        </ToastProvider>
       </NavigationProgressProvider>
     </BootAnimation>
   );

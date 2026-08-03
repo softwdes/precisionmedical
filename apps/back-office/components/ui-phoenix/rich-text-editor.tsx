@@ -36,7 +36,11 @@ export function RichTextEditor({
   disabled = false,
 }: RichTextEditorProps) {
   const ref = React.useRef<HTMLDivElement>(null);
-  const lastEmitted = React.useRef<string>(value);
+  // Arranca en '' (no en `value`) a propósito: así el efecto de sync de abajo
+  // SÍ vuelca el contenido inicial en el primer render cuando se edita una
+  // plantilla existente. Si arrancara igual a `value`, la condición de guarda
+  // nunca dispara en el mount y el editor queda vacío aunque haya contenido.
+  const lastEmitted = React.useRef<string>('');
 
   // Sincroniza el HTML externo sin pisar lo que el usuario está escribiendo
   React.useEffect(() => {

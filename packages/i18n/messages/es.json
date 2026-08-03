@@ -1394,6 +1394,7 @@
       "myPatients": "Mis Pacientes",
       "stats": "Estadísticas",
       "templates": "Plantillas",
+      "catalog": "Laboratorios",
       "doctorPortal": "Portal Médico"
     },
     "doctor": {
@@ -1432,6 +1433,10 @@
       "stepTriageDesc": "El MA registra vitales y verifica documentos",
       "stepDoctor": "En sala (Doctor)",
       "stepDoctorDesc": "El doctor consulta y registra notas",
+      "stepCheckinShort": "Check-in",
+      "stepTriageShort": "Triaje",
+      "stepDoctorShort": "Doctor",
+      "stepSummaryShort": "Resumen",
       "stepServices": "Servicios y pagos",
       "stepServicesDesc": "Facturación post-consulta",
       "tabTriage": "Triaje",
@@ -1641,6 +1646,7 @@
       "tplPickForSection": "Elegir plantilla para: {section}",
       "tplPickSummary": "{sections} secciones con contenido · {dx} diagnósticos",
       "tplPickNoContent": "Esta plantilla no tiene contenido para esta sección",
+      "ctxToggle": "Contexto clínico del paciente",
       "ctxPersonal": "Información personal",
       "ctxContact": "Información de contacto",
       "ctxEmergencyExtra": "Emergencia y adicional",
@@ -1894,12 +1900,12 @@
       "rxSentTitle": "Recetas enviadas",
       "rxSentHint": "Ver lo enviado a la farmacia",
       "rxSyncing": "Buscando recetas nuevas…",
+      "rxSentEmptyTitle": "Todavía no enviaste recetas en esta consulta",
+      "rxSentEmptyHint": "Las que envíes a la farmacia desde ScriptSure van a aparecer acá.",
       "rxStatusSent": "Enviada a farmacia",
       "rxStatusVoided": "Anulada",
       "rxQty": "Cantidad",
-      "rxRefills": "Refills",
-      "rxSentEmptyTitle": "Todavía no enviaste recetas en esta consulta",
-      "rxSentEmptyHint": "Las que envíes a la farmacia desde ScriptSure van a aparecer acá."
+      "rxRefills": "Refills"
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",
@@ -1978,7 +1984,10 @@
       "resetFilters": "Resetear filtros",
       "newAppointment": "Nueva cita",
       "cancelPayment": "Cancelar pago",
-      "selectAll": "Seleccionar todo"
+      "selectAll": "Seleccionar todo",
+      "autocompleteChange": "Cambiar",
+      "autocompleteSearching": "Buscando...",
+      "autocompleteYears": "{age, plural, one {# año} other {# años}}"
     },
     "specialties": {
       "title": "Especialidades",
@@ -2498,6 +2507,8 @@
         "channelEmail": "email",
         "channelSms": "SMS",
         "channelEmailAndSms": "email y SMS",
+        "deliveryNoContactGuardian": "El apoderado no tiene email ni teléfono registrado, así que no se le puede enviar el formulario. El paciente es menor de edad: el formulario lo firma el apoderado, o se completa en la tablet de la clínica al llegar.",
+        "deliveryToGuardian": "al apoderado",
         "deliveryNoChannel": "Sin canal de entrega seleccionado — el paciente no recibirá el formulario.",
         "deliveryNoContact": "El paciente no tiene email ni teléfono registrado, así que no se le puede enviar el formulario. Puede completarlo en la tablet de la clínica al llegar.",
         "summaryForm": "Formulario público enviado con link tokenizado (30 días)",
@@ -2522,8 +2533,6 @@
         "btnViewCase": "Ver caso →",
         "errorRequired": "Completa todos los campos requeridos marcados con *",
         "outgoingConfirmHint": "Al confirmar arranca el temporizador · puedes editar el nombre, agregar email, fecha de nacimiento, etc.",
-        "autocompleteChange": "Cambiar",
-        "autocompleteSearching": "Buscando...",
         "titleSearch": "Nuevo caso · {name}",
         "badgeSearch": "paciente existente",
         "changePatient": "Cambiar paciente",
@@ -4086,7 +4095,25 @@
       "errorGoToGuardian": "Ir al responsable legal",
       "btnAccept": "Entendido",
       "guardianIsContact": "El formulario de admisión y las notificaciones se envían a este correo.",
-      "emailGuardianIsPrimary": "Principal: {email} (responsable legal) — ahí llega el formulario y las notificaciones"
+      "emailGuardianIsPrimary": "Principal: {email} (responsable legal) — ahí llega el formulario y las notificaciones",
+      "guardianSearchLabel": "Asignar responsable legal",
+      "guardianSearchPlaceholder": "Nombre, teléfono, correo o código de paciente…",
+      "guardianSearchHint": "El responsable legal también es una ficha de paciente — buscá primero para no duplicarlo.",
+      "guardianCreateNew": "Crear a \"{name}\" como paciente nuevo",
+      "guardianCreateNewEmpty": "Escribí un nombre para crear una ficha nueva",
+      "guardianCreateTitle": "Responsable legal nuevo",
+      "guardianCreateNote": "La ficha del paciente se crea al guardar. Hasta entonces no se crea nada.",
+      "guardianCancelCreate": "Cancelar",
+      "guardianUnlink": "Cambiar",
+      "guardianLegacyText": "Registrado como texto libre: {value}",
+      "guardianLegacyHint": "Campo legado. Asigná el responsable legal abajo para que su correo sea el canal de contacto.",
+      "fieldGuardianFirstName": "Nombre",
+      "fieldGuardianLastName": "Apellido",
+      "fieldGuardianEmail": "Correo del responsable",
+      "fieldGuardianDOB": "Fecha de nacimiento",
+      "guardianMustBeAdult": "{age} — el responsable legal debe ser mayor de edad",
+      "errorGuardianMinor": "El responsable legal debe ser mayor de edad para firmar los consentimientos.",
+      "errorGuardianIncomplete": "Completá nombre y apellido del responsable legal, o cancelá la ficha nueva."
     },
     "calls": {
       "historyTitle": "Historial de llamadas",
@@ -4125,7 +4152,17 @@
       "paginationNav": "Paginación del historial",
       "pageInfo": "Página {page} de {total}",
       "prevPage": "Página anterior",
-      "nextPage": "Página siguiente"
+      "nextPage": "Página siguiente",
+      "filterOutcome": "Resultado",
+      "filterPeriod": "Período",
+      "filterAll": "Todas",
+      "filterMissed": "Perdidas",
+      "filterToday": "Hoy",
+      "filterDays": "{n} días",
+      "filterAllTime": "Todo",
+      "emptyFilteredTitle": "Sin resultados para este filtro",
+      "emptyFilteredHint": "Probá ampliar el período o quitar el filtro de resultado.",
+      "sharedNumber": "{count} pacientes comparten este número — el nombre es una deducción"
     },
     "edson": {
       "title": "Bandeja Edson",
@@ -4317,6 +4354,157 @@
       "searchPlaceholder": "Buscar por nombre o email…",
       "filterActive": "Activos",
       "filterInactive": "Inactivos"
+    },
+    "catalog": {
+      "title": "Catálogo de precios",
+      "subtitle": "{total} ítems · costo real y precio al público en un solo lugar",
+      "searchPlaceholder": "Buscar por nombre o código…",
+      "missing": "Falta",
+      "empty": "Sin resultados con estos filtros",
+      "confirmDelete": "¿Eliminar «{name}» del catálogo?",
+      "action": {
+        "new": "Nuevo ítem",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "cancel": "Cancelar",
+        "save": "Guardar"
+      },
+      "tab": {
+        "LAB": "Laboratorios",
+        "INJECTION_SERVICE": "Inyecciones y servicios",
+        "DME": "Férulas"
+      },
+      "kind": {
+        "LAB": "Laboratorio",
+        "INJECTION": "Inyectable",
+        "SERVICE": "Servicio in-house",
+        "DME": "Férula / DME"
+      },
+      "cat": {
+        "LABORATORY": "Laboratorio",
+        "IMAGING": "Imagen",
+        "CARDIOLOGY": "Cardiología"
+      },
+      "kpi": {
+        "total": "Ítems",
+        "noCost": "Sin costo real",
+        "noCostSub": "No sabemos el margen",
+        "unverified": "Sin verificar",
+        "unverifiedSub": "Nunca o hace +{months} meses",
+        "avgMargin": "Margen promedio",
+        "avgMarginSub": "{n} bajo el mínimo"
+      },
+      "filter": {
+        "all": "Todos",
+        "noCost": "Sin costo",
+        "noPrice": "Sin precio",
+        "unverified": "Sin verificar",
+        "lowMargin": "Bajo margen",
+        "inactive": "Inactivos"
+      },
+      "col": {
+        "name": "Ítem",
+        "cost": "Costo real",
+        "public": "Precio público",
+        "margin": "Margen",
+        "sample": "Muestra",
+        "size": "Talla",
+        "verified": "Verificado",
+        "actions": "Acciones"
+      },
+      "badge": {
+        "reflex": "Reflex",
+        "notOrderable": "No disponible",
+        "replacedBy": "Usar {code}",
+        "fullPayment": "Pago completo",
+        "low": "bajo"
+      },
+      "status": {
+        "UNVERIFIED": "Sin verificar",
+        "UPDATE_REQUESTED": "Actualización pedida",
+        "staleMonths": "hace {months} meses"
+      },
+      "footer": {
+        "count": "{shown} de {total}"
+      },
+      "toast": {
+        "deleted": "Ítem eliminado",
+        "deleteFailed": "No se pudo eliminar"
+      },
+      "dialog": {
+        "new": "Nuevo ítem del catálogo",
+        "edit": "Editar ítem"
+      },
+      "section": {
+        "pricing": "Precios",
+        "reflex": "Reflex",
+        "sample": "Muestra",
+        "billing": "Códigos de facturación"
+      },
+      "field": {
+        "name": "Nombre",
+        "code": "Código",
+        "kind": "Tipo",
+        "category": "Categoría",
+        "size": "Talla",
+        "unitLabel": "Unidad",
+        "costPrice": "Costo real",
+        "publicPrice": "Precio público",
+        "memberPrice": "Precio membresía",
+        "margin": "Margen",
+        "priceNote": "Nota de precio",
+        "priceChangeReason": "Motivo del cambio de precio",
+        "markVerified": "Marcar precio como verificado hoy",
+        "lastVerified": "última verificación: {date}",
+        "reflexCost": "Costo del reflex",
+        "reflexPrice": "Precio del reflex al paciente",
+        "reflexPolicy": "Política del reflex",
+        "tubeColors": "Color de tubo",
+        "container": "Contenedor",
+        "specialHandling": "Manejo especial",
+        "alwaysFullPayment": "Se paga completo siempre (no va a lien ni a seguro)",
+        "isActive": "Activo",
+        "isOrderable": "Se puede ordenar",
+        "replacedByCode": "Reemplazado por el código",
+        "notes": "Notas"
+      },
+      "hint": {
+        "labCode": "Código LabCorp — conserva los ceros a la izquierda",
+        "internalCode": "Código interno, prefijo PM-",
+        "unitLabel": "Ej: por vista, por set",
+        "costPrice": "Lo que nos cuesta a nosotros",
+        "publicPrice": "Lo que se le cobra al paciente",
+        "memberPrice": "Opcional — dejar vacío si no hay membresía",
+        "priceNote": "Cuando el precio no es un número plano",
+        "priceChangeReason": "Queda en el historial de precios",
+        "reflex": "Estudios que disparan pruebas adicionales al salir positivos",
+        "reflexPolicy": "Ej: prepago, se reembolsa si es negativo",
+        "specialHandling": "Ej: plasma congelado, temperatura ambiente, 2 tubos",
+        "billing": "Opcional — se llenan si el ítem se factura a aseguradora",
+        "replacedByCode": "Código que lo sustituye"
+      },
+      "tube": {
+        "YELLOW": "Amarillo",
+        "LAVENDER": "Lavanda",
+        "LIGHT_BLUE": "Celeste",
+        "GREEN": "Verde",
+        "RED": "Rojo",
+        "PALE": "Pálido"
+      },
+      "container": {
+        "URINE_BOTTLE": "Frasco de orina",
+        "STOOL": "Heces",
+        "SPECIMEN": "Muestra genérica"
+      },
+      "margin": {
+        "needBoth": "Cargá costo y precio para ver el margen",
+        "perUnit": "por unidad",
+        "low": "bajo el mínimo de {min}x"
+      },
+      "err": {
+        "nameRequired": "El nombre es obligatorio",
+        "codeRequired": "El código es obligatorio"
+      }
     }
   },
   "clinical": {

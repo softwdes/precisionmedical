@@ -1393,6 +1393,7 @@
       "myPatients": "My Patients",
       "stats": "Statistics",
       "templates": "Templates",
+      "catalog": "Labs",
       "doctorPortal": "Doctor Portal",
       "admissionShort": "Check-in"
     },
@@ -1432,6 +1433,10 @@
       "stepTriageDesc": "MA records vitals and verifies documents",
       "stepDoctor": "In Room (Doctor)",
       "stepDoctorDesc": "Doctor consults and records notes",
+      "stepCheckinShort": "Check-in",
+      "stepTriageShort": "Triage",
+      "stepDoctorShort": "Doctor",
+      "stepSummaryShort": "Summary",
       "stepServices": "Services & Payments",
       "stepServicesDesc": "Post-consultation billing",
       "tabTriage": "Triage",
@@ -1574,6 +1579,7 @@
       "tplWriteHere": "Write here…",
       "tplErrTitle": "Title is required",
       "tplErrSave": "Could not save the template",
+      "tplErrNoUser": "Your account is not linked to a clinic user, so we can't record who creates the template. Please contact an administrator.",
       "tplErrDelete": "Could not delete the template",
       "tplSavedSuccess": "Template saved",
       "tplCreatedSuccess": "Template created",
@@ -1641,6 +1647,7 @@
       "tplPickForSection": "Choose a template for: {section}",
       "tplPickSummary": "{sections} sections with content · {dx} diagnoses",
       "tplPickNoContent": "This template has no content for this section",
+      "ctxToggle": "Patient clinical context",
       "ctxPersonal": "Personal information",
       "ctxContact": "Contact information",
       "ctxEmergencyExtra": "Emergency & additional",
@@ -1894,12 +1901,12 @@
       "rxSentTitle": "Sent prescriptions",
       "rxSentHint": "See what went to the pharmacy",
       "rxSyncing": "Checking for new prescriptions…",
+      "rxSentEmptyTitle": "No prescriptions sent in this visit yet",
+      "rxSentEmptyHint": "Whatever you send to the pharmacy from ScriptSure will show up here.",
       "rxStatusSent": "Sent to pharmacy",
       "rxStatusVoided": "Voided",
       "rxQty": "Qty",
-      "rxRefills": "Refills",
-      "rxSentEmptyTitle": "No prescriptions sent in this visit yet",
-      "rxSentEmptyHint": "Whatever you send to the pharmacy from ScriptSure will show up here."
+      "rxRefills": "Refills"
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",
@@ -1978,7 +1985,10 @@
       "resetFilters": "Reset filters",
       "newAppointment": "New appointment",
       "cancelPayment": "Cancel payment",
-      "selectAll": "Select all"
+      "selectAll": "Select all",
+      "autocompleteChange": "Change",
+      "autocompleteSearching": "Searching...",
+      "autocompleteYears": "{age, plural, one {# year} other {# years}}"
     },
     "specialties": {
       "title": "Specialties",
@@ -2498,6 +2508,8 @@
         "channelEmail": "email",
         "channelSms": "SMS",
         "channelEmailAndSms": "email and SMS",
+        "deliveryNoContactGuardian": "The guardian has no email or phone on file, so the form cannot be sent. The patient is a minor: the guardian signs the form, or it can be filled out on the clinic tablet on arrival.",
+        "deliveryToGuardian": "to guardian",
         "deliveryNoChannel": "No delivery channel selected — the patient will not receive the form.",
         "deliveryNoContact": "The patient has no email or phone on file, so the form cannot be sent. They can fill it out on the clinic tablet on arrival.",
         "summaryForm": "Public form sent with tokenized link (30 days)",
@@ -2522,8 +2534,6 @@
         "btnViewCase": "View case →",
         "errorRequired": "Complete all required fields marked with *",
         "outgoingConfirmHint": "On confirm the timer starts · you can edit the name, add email, date of birth, etc.",
-        "autocompleteChange": "Change",
-        "autocompleteSearching": "Searching...",
         "titleSearch": "New case · {name}",
         "badgeSearch": "existing patient",
         "changePatient": "Change patient",
@@ -4086,7 +4096,25 @@
       "errorGoToGuardian": "Go to legal guardian",
       "btnAccept": "Got it",
       "guardianIsContact": "The intake form and notifications are sent to this email.",
-      "emailGuardianIsPrimary": "Primary: {email} (legal guardian) — intake form and notifications go there"
+      "emailGuardianIsPrimary": "Primary: {email} (legal guardian) — intake form and notifications go there",
+      "guardianSearchLabel": "Assign guardian",
+      "guardianSearchPlaceholder": "Name, phone, email or patient code…",
+      "guardianSearchHint": "The guardian is a patient record too — search first so you don't duplicate one.",
+      "guardianCreateNew": "Create \"{name}\" as a new patient",
+      "guardianCreateNewEmpty": "Type a name to create a new record",
+      "guardianCreateTitle": "New guardian",
+      "guardianCreateNote": "The patient record is created when you save. Nothing is created until then.",
+      "guardianCancelCreate": "Cancel",
+      "guardianUnlink": "Change",
+      "guardianLegacyText": "On record as free text: {value}",
+      "guardianLegacyHint": "Legacy field. Assign the guardian below so their email becomes the contact channel.",
+      "fieldGuardianFirstName": "First name",
+      "fieldGuardianLastName": "Last name",
+      "fieldGuardianEmail": "Guardian email",
+      "fieldGuardianDOB": "Date of birth",
+      "guardianMustBeAdult": "{age} — a guardian must be 18 or older",
+      "errorGuardianMinor": "The guardian must be 18 or older to sign the consents.",
+      "errorGuardianIncomplete": "Enter the guardian's first and last name, or cancel the new record."
     },
     "calls": {
       "historyTitle": "Call history",
@@ -4125,7 +4153,17 @@
       "paginationNav": "Call history pagination",
       "pageInfo": "Page {page} of {total}",
       "prevPage": "Previous page",
-      "nextPage": "Next page"
+      "nextPage": "Next page",
+      "filterOutcome": "Outcome",
+      "filterPeriod": "Period",
+      "filterAll": "All",
+      "filterMissed": "Missed",
+      "filterToday": "Today",
+      "filterDays": "{n} days",
+      "filterAllTime": "All time",
+      "emptyFilteredTitle": "No results for this filter",
+      "emptyFilteredHint": "Try widening the period or clearing the outcome filter.",
+      "sharedNumber": "{count} patients share this number — the name is an inference"
     },
     "edson": {
       "title": "Edson Queue",
@@ -4317,6 +4355,157 @@
       "searchPlaceholder": "Search by name or email…",
       "filterActive": "Active",
       "filterInactive": "Inactive"
+    },
+    "catalog": {
+      "title": "Price catalog",
+      "subtitle": "{total} items · real cost and public price in one place",
+      "searchPlaceholder": "Search by name or code…",
+      "missing": "Missing",
+      "empty": "No results with these filters",
+      "confirmDelete": "Remove “{name}” from the catalog?",
+      "action": {
+        "new": "New item",
+        "edit": "Edit",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
+      "tab": {
+        "LAB": "Labs",
+        "INJECTION_SERVICE": "Injections & services",
+        "DME": "Braces"
+      },
+      "kind": {
+        "LAB": "Lab",
+        "INJECTION": "Injectable",
+        "SERVICE": "In-house service",
+        "DME": "Brace / DME"
+      },
+      "cat": {
+        "LABORATORY": "Laboratory",
+        "IMAGING": "Imaging",
+        "CARDIOLOGY": "Cardiology"
+      },
+      "kpi": {
+        "total": "Items",
+        "noCost": "No real cost",
+        "noCostSub": "Margin unknown",
+        "unverified": "Unverified",
+        "unverifiedSub": "Never or over {months} months ago",
+        "avgMargin": "Average markup",
+        "avgMarginSub": "{n} below minimum"
+      },
+      "filter": {
+        "all": "All",
+        "noCost": "No cost",
+        "noPrice": "No price",
+        "unverified": "Unverified",
+        "lowMargin": "Low margin",
+        "inactive": "Inactive"
+      },
+      "col": {
+        "name": "Item",
+        "cost": "Real cost",
+        "public": "Public price",
+        "margin": "Markup",
+        "sample": "Sample",
+        "size": "Size",
+        "verified": "Verified",
+        "actions": "Actions"
+      },
+      "badge": {
+        "reflex": "Reflex",
+        "notOrderable": "Unavailable",
+        "replacedBy": "Use {code}",
+        "fullPayment": "Paid in full",
+        "low": "low"
+      },
+      "status": {
+        "UNVERIFIED": "Unverified",
+        "UPDATE_REQUESTED": "Update requested",
+        "staleMonths": "{months} months ago"
+      },
+      "footer": {
+        "count": "{shown} of {total}"
+      },
+      "toast": {
+        "deleted": "Item deleted",
+        "deleteFailed": "Could not delete"
+      },
+      "dialog": {
+        "new": "New catalog item",
+        "edit": "Edit item"
+      },
+      "section": {
+        "pricing": "Pricing",
+        "reflex": "Reflex",
+        "sample": "Sample",
+        "billing": "Billing codes"
+      },
+      "field": {
+        "name": "Name",
+        "code": "Code",
+        "kind": "Type",
+        "category": "Category",
+        "size": "Size",
+        "unitLabel": "Unit",
+        "costPrice": "Real cost",
+        "publicPrice": "Public price",
+        "memberPrice": "Member price",
+        "margin": "Markup",
+        "priceNote": "Price note",
+        "priceChangeReason": "Reason for price change",
+        "markVerified": "Mark price as verified today",
+        "lastVerified": "last verified: {date}",
+        "reflexCost": "Reflex cost",
+        "reflexPrice": "Reflex price to patient",
+        "reflexPolicy": "Reflex policy",
+        "tubeColors": "Tube color",
+        "container": "Container",
+        "specialHandling": "Special handling",
+        "alwaysFullPayment": "Always paid in full (never lien or insurance)",
+        "isActive": "Active",
+        "isOrderable": "Orderable",
+        "replacedByCode": "Replaced by code",
+        "notes": "Notes"
+      },
+      "hint": {
+        "labCode": "LabCorp code — keep the leading zeros",
+        "internalCode": "Internal code, PM- prefix",
+        "unitLabel": "e.g. per view, per set",
+        "costPrice": "What it costs us",
+        "publicPrice": "What the patient is charged",
+        "memberPrice": "Optional — leave empty if there is no membership",
+        "priceNote": "When the price is not a plain number",
+        "priceChangeReason": "Recorded in the price history",
+        "reflex": "Tests that trigger additional testing when positive",
+        "reflexPolicy": "e.g. prepaid, refunded if negative",
+        "specialHandling": "e.g. plasma frozen, room temp, 2 tubes",
+        "billing": "Optional — fill in if the item is billed to insurance",
+        "replacedByCode": "Code that supersedes it"
+      },
+      "tube": {
+        "YELLOW": "Yellow",
+        "LAVENDER": "Lavender",
+        "LIGHT_BLUE": "Light blue",
+        "GREEN": "Green",
+        "RED": "Red",
+        "PALE": "Pale"
+      },
+      "container": {
+        "URINE_BOTTLE": "Urine bottle",
+        "STOOL": "Stool",
+        "SPECIMEN": "Generic specimen"
+      },
+      "margin": {
+        "needBoth": "Enter cost and price to see the markup",
+        "perUnit": "per unit",
+        "low": "below the {min}x minimum"
+      },
+      "err": {
+        "nameRequired": "Name is required",
+        "codeRequired": "Code is required"
+      }
     }
   },
   "clinical": {

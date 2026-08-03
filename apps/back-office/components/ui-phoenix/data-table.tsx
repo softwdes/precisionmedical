@@ -64,14 +64,17 @@ function Th({
   children,
   align,
   width,
+  className = '',
 }: {
   children: React.ReactNode;
   align?: Align;
   width?: string;
+  /** Para columnas sticky en tablas anchas: "sticky left-0 z-10 bg-bg-2". */
+  className?: string;
 }) {
   return (
     <th
-      className={`${alignClass(align)} px-4 py-2.5 font-semibold`}
+      className={`${alignClass(align)} px-4 py-2.5 font-semibold ${className}`}
       style={width ? { width } : undefined}
     >
       {children}

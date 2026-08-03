@@ -17,6 +17,7 @@ import {
   Scale,
   Sun,
   FileText,
+  FlaskConical,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -66,6 +67,7 @@ const DOCTOR_SECTIONS: NavSection[] = [
       { href: '/doctor/patients',  icon: Users,        labelKey: 'myPatients'                                },
       { href: '/doctor/stats',     icon: BarChart3,    labelKey: 'stats'                                     },
       { href: '/doctor/templates', icon: FileText,     labelKey: 'templates',  mockup: 'B.17.7'              },
+      { href: '/doctor/catalog',   icon: FlaskConical, labelKey: 'catalog'                                   },
     ],
   },
 ];

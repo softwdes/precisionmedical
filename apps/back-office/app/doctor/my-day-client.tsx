@@ -231,7 +231,13 @@ export function MyDayClient({
             borderColor: 'rgba(16,185,129,0.40)',
           }}
         >
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          {/* La zona del paciente abre la consulta en lectura aunque no haya
+              check-in — el guardrail aplica a ATENDER, no a ver los datos */}
+          <Link
+            href={consultHref(hero.id)}
+            title={t('openConsultation')}
+            className="flex items-center gap-3 flex-1 min-w-0 rounded-lg -m-1 p-1 hover:bg-white/[0.04] transition-colors"
+          >
             <PersonAvatar firstName={hero.patientFirstName} lastName={hero.patientLastName} size={12} gradientClass="bg-gradient-to-br from-emerald to-cyan" />
             <div className="min-w-0">
               <div className="text-[10px] uppercase tracking-wider font-bold text-emerald">
@@ -272,7 +278,7 @@ export function MyDayClient({
                 </div>
               )}
             </div>
-          </div>
+          </Link>
           {heroReady ? (
             <button
               type="button"

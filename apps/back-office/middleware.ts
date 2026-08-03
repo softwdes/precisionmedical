@@ -52,7 +52,8 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/twilio');
+    pathname.startsWith('/api/twilio') ||
+    pathname.startsWith('/api/scriptsure/webhook'); // DAW → nosotros, Basic Auth propio
 
   if (isPublic) return NextResponse.next();
 

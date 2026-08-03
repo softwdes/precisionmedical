@@ -1853,6 +1853,8 @@
       "fuScheduleAnother": "Schedule another",
       "medHxTitle": "Medication history",
       "medHxCount": "{count} recorded",
+      "medHxAddShort": "Add to history",
+      "medHxActiveCount": "{count} active",
       "medHxEmptyTitle": "No medications recorded",
       "medHxEmptySubtitle": "Add what the patient is currently taking, even if you didn't prescribe it.",
       "medHxActive": "Active",
@@ -1890,10 +1892,14 @@
       "rxMissingDobDesc": "ScriptSure requires it to create the patient. Complete it in their record and try again.",
       "rxWidgetError": "Couldn't connect to ScriptSure. Please try again in a moment.",
       "rxSentTitle": "Sent prescriptions",
+      "rxSentHint": "See what went to the pharmacy",
+      "rxSyncing": "Checking for new prescriptions…",
       "rxStatusSent": "Sent to pharmacy",
       "rxStatusVoided": "Voided",
       "rxQty": "Qty",
-      "rxRefills": "Refills"
+      "rxRefills": "Refills",
+      "rxSentEmptyTitle": "No prescriptions sent in this visit yet",
+      "rxSentEmptyHint": "Whatever you send to the pharmacy from ScriptSure will show up here."
     },
     "topbar": {
       "search": "Search firms, services, diagnoses...",

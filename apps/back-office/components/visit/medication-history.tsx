@@ -75,21 +75,47 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
     }
   };
 
+  // Activos primero: es lo que el doctor necesita ver de un vistazo
+  const sorted = React.useMemo(
+    () => [...items].sort((a, b) => (a.status === 'IN_USE' ? 0 : 1) - (b.status === 'IN_USE' ? 0 : 1)),
+    [items],
+  );
+  const activeCount = items.filter((m) => m.status === 'IN_USE').length;
+
   return (
     <div className="rounded-lg border border-border bg-bg-1">
-      <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+      {/* El botón de agregar vive en el encabezado — abajo quedaba enterrado
+          cuando la lista crecía (pedido de Erick 2026-08-03). */}
+      <div className="px-4 py-3 border-b border-border flex items-center gap-2 flex-wrap">
         <Pill className="w-4 h-4 text-violet shrink-0" />
-        <span className="text-text-1 font-semibold text-[12px] uppercase tracking-wider flex-1">
+        <span className="text-text-1 font-semibold text-[12px] uppercase tracking-wider">
           {t('medHxTitle')}
         </span>
+        {activeCount > 0 && (
+          <TagPill
+            label={t('medHxActiveCount', { count: activeCount })}
+            colorClass="bg-emerald/15 text-emerald border-emerald/30"
+          />
+        )}
         <span className="text-[10px] text-text-muted">{t('medHxCount', { count: items.length })}</span>
+        {!formOpen && (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold text-violet bg-violet/10 border border-violet/30 hover:bg-violet/20 hover:border-violet/50 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> {t('medHxAddShort')}
+          </button>
+        )}
       </div>
 
-      <div className="p-4 space-y-2">
-        {items.length === 0 ? (
+      {/* flex-col + order-first en el formulario: se abre ARRIBA de la lista,
+          visible al instante aunque el historial sea largo */}
+      <div className="p-4 flex flex-col gap-2">
+        {items.length === 0 && !formOpen ? (
           <EmptyState.Rich icon={Pill} title={t('medHxEmptyTitle')} subtitle={t('medHxEmptySubtitle')} />
         ) : (
-          items.map((m, i) => (
+          sorted.map((m, i) => (
             <div
               key={m.id ?? i}
               className={`rounded-md px-3 py-2 ${m.externalPrescriber ? 'border border-dashed border-border' : 'bg-bg-2/40'}`}
@@ -121,16 +147,8 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
           ))
         )}
 
-        {!formOpen ? (
-          <button
-            type="button"
-            onClick={() => setFormOpen(true)}
-            className="w-full flex items-center justify-center gap-1.5 text-[12px] font-semibold text-violet border border-dashed border-border rounded-md px-3 py-2.5 hover:bg-violet/[0.05] transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> {t('medHxAddBtn')}
-          </button>
-        ) : (
-          <div className="rounded-md border border-border bg-bg-2/40 p-3.5 space-y-3">
+        {formOpen && (
+          <div className="order-first rounded-md border border-violet/30 bg-violet/[0.04] p-3.5 space-y-3">
             <div className="flex items-center gap-1.5 text-[12px] font-semibold text-text-1">
               <Flag className="w-3.5 h-3.5 text-amber" /> {t('medHxFormTitle')}
             </div>
@@ -186,11 +204,11 @@ export function MedicationHistory({ appointmentId, medications }: Props): React.
               </div>
             )}
 
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={resetForm} className="h-9">
+            <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+              <Button variant="outline" onClick={resetForm} className="h-9 w-full sm:w-auto">
                 {t('medHxCancel')}
               </Button>
-              <Button onClick={() => void handleSave()} disabled={saving || !name.trim()} className="h-9 gap-1.5">
+              <Button onClick={() => void handleSave()} disabled={saving || !name.trim()} className="h-9 w-full sm:w-auto gap-1.5">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                 {t('medHxSave')}
               </Button>

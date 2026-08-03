@@ -285,3 +285,32 @@ export async function getScriptSureWidgetUrl(
   const sessionToken = await getSessionToken(loginEmail);
   return `${hosts().frontend}/widgets/${widget}/${patientId}?sessiontoken=${sessionToken}&darkmode=on`;
 }
+
+/**
+ * Recetas que ScriptSure tiene registradas para el paciente (lo mismo que
+ * muestra su widget `drug-history`). Endpoint descubierto observando las
+ * llamadas del propio widget — no está en la doc que pudimos leer.
+ *
+ * Se llama SOLO por acción del usuario (al cerrar el widget de prescripción),
+ * nunca en bucle ni por temporizador: DAW prohíbe el polling.
+ */
+export async function fetchScriptSureDrugHistory(
+  loginEmail: string,
+  patientId: number,
+): Promise<Array<Record<string, unknown>>> {
+  const sessionToken = await getSessionToken(loginEmail);
+  const res = await fetch(
+    `${hosts().backendScriptSure}/v3/drughistory/current/${patientId}/0?sessiontoken=${sessionToken}`,
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`ScriptSure drug history falló (${res.status}): ${text.slice(0, 200)}`);
+  }
+
+  const data: unknown = await res.json();
+  // Devuelve un array plano, pero por si envuelven la lista más adelante
+  if (Array.isArray(data)) return data as Array<Record<string, unknown>>;
+  const wrapped = (data as Record<string, unknown>)?.prescriptions ?? (data as Record<string, unknown>)?.items;
+  return Array.isArray(wrapped) ? (wrapped as Array<Record<string, unknown>>) : [];
+}

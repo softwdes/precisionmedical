@@ -1853,6 +1853,8 @@
       "fuScheduleAnother": "Agendar otra",
       "medHxTitle": "Historial de medicamentos",
       "medHxCount": "{count} registrados",
+      "medHxAddShort": "Agregar al historial",
+      "medHxActiveCount": "{count} activos",
       "medHxEmptyTitle": "Sin medicamentos registrados",
       "medHxEmptySubtitle": "Agregá lo que el paciente toma actualmente, aunque no lo hayas recetado vos.",
       "medHxActive": "Activo",
@@ -1890,10 +1892,14 @@
       "rxMissingDobDesc": "ScriptSure la exige para crear al paciente. Completala en su ficha y volvé a intentar.",
       "rxWidgetError": "No se pudo conectar con ScriptSure. Intentá de nuevo en un momento.",
       "rxSentTitle": "Recetas enviadas",
+      "rxSentHint": "Ver lo enviado a la farmacia",
+      "rxSyncing": "Buscando recetas nuevas…",
       "rxStatusSent": "Enviada a farmacia",
       "rxStatusVoided": "Anulada",
       "rxQty": "Cantidad",
-      "rxRefills": "Refills"
+      "rxRefills": "Refills",
+      "rxSentEmptyTitle": "Todavía no enviaste recetas en esta consulta",
+      "rxSentEmptyHint": "Las que envíes a la farmacia desde ScriptSure van a aparecer acá."
     },
     "topbar": {
       "search": "Buscar bufetes, servicios, diagnósticos...",

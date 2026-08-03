@@ -134,6 +134,10 @@ export async function PatientsData({
         emergencyContactName: true, emergencyContactPhone: true, emergencyContactRelation: true,
         emergency2Name: true, emergency2Phone: true, emergency2Relation: true,
         dateOfBirth: true, guardianName: true, guardianPhone: true, guardianRelation: true,
+        // Vinculo real al tutor (lo escribe el alta del menor). Los campos de
+        // texto de arriba son legado — ver pending-tasks.md.
+        guardianPatientId: true,
+        guardianPatient: { select: { id: true, patientCode: true, firstName: true, lastName: true, email: true, phone: true } },
         accidentDate: true, accidentType: true, insuranceCarrier: true, policyNumber: true,
         medicalHistory: true,
         createdAt: true, updatedAt: true,

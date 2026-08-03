@@ -190,6 +190,11 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   // true entre "cambié la duración" y "ya llegó la respuesta del servidor
   // confirmando si el horario elegido sigue entrando o no"
   const pendingDurationCheck = useRef(false);
+  // Slot que se estaba validando cuando cambio la duracion. Hay que guardarlo
+  // aparte: para cuando llegan los slots nuevos, la seleccion pudo haber
+  // cambiado (el picker auto-selecciona el mas cercano), y comparar contra
+  // slotIsoRef.current validaria el slot NUEVO en vez del que el usuario eligio.
+  const slotUnderCheck = useRef<string | null>(null);
   const userChangedType = useRef(false); // true cuando el usuario eligió el tipo manualmente
 
   // ─── Auto-inferir tipo de cita desde el caso seleccionado ─────────────────
@@ -434,7 +439,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     }
     // Cita pasada: WeeklySlotPicker ni se monta (ver render), así que
     // nunca llegaría onSlotsFetched a resolver este flag.
-    if (slotIsoRef.current && !isPastAppointment) pendingDurationCheck.current = true;
+    if (slotIsoRef.current && !isPastAppointment) {
+      pendingDurationCheck.current = true;
+      slotUnderCheck.current = slotIsoRef.current;
+    }
   }, [duration, isPastAppointment]);
 
   // El horario elegido sigue siendo válido para la duración actual — la
@@ -453,11 +461,19 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const handleSlotsFetched = useCallback((fetchedSlots: Array<{ iso: string }>) => {
     if (!pendingDurationCheck.current) return;
     pendingDurationCheck.current = false;
-    const current = slotIsoRef.current;
+    // Validamos el slot que el usuario TENIA elegido, no el que haya quedado
+    // seleccionado despues del refetch.
+    const current = slotUnderCheck.current;
+    slotUnderCheck.current = null;
     if (!current) return;
     const stillValid = fetchedSlots.some((s) => s.iso === current);
     if (!stillValid) {
+      // Volvemos a la duracion que si entraba Y restauramos el horario elegido:
+      // revertir solo la duracion dejaba al usuario con un horario que el nunca
+      // eligio (el picker ya habia saltado al mas cercano) sin avisar nada.
+      skipDurationReset.current = true;
       setDuration(lastValidDuration.current);
+      setSlotIso(current);
       setDurationConflictAlert(true);
     }
   }, []);

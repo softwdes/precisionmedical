@@ -2434,11 +2434,18 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                               <tr className="bg-bg-0 border-b border-row-sep">
                                 <th className="sticky left-0 z-10 bg-bg-0 text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[110px]">ID</th>
                                 <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[60px]">{t('colType')}</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted">{t('colDescription')}</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[100px]">{t('colAccidentDate')}</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">{t('colFirstAppt')}</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px]">{t('colLastAppt')}</th>
-                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[160px]">{t('colProgress')}</th>
+                                {/* Descripcion era la UNICA sin ancho, asi que
+                                    absorbia todo el sobrante y se veia enorme y
+                                    vacia, robandole lugar a Progreso. Ahora
+                                    todas tienen ancho y los headers no envuelven
+                                    ("Accident date" se partia en 2 lineas y
+                                    duplicaba la altura de la fila). */}
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[180px] whitespace-nowrap">{t('colDescription')}</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px] whitespace-nowrap">{t('colAccidentDate')}</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px] whitespace-nowrap">{t('colFirstAppt')}</th>
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[90px] whitespace-nowrap">{t('colLastAppt')}</th>
+                                {/* 230px para coincidir con el td (ver fix del truncate de Progreso) */}
+                                <th className="text-left px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[230px] whitespace-nowrap">{t('colProgress')}</th>
                                 <th className="sticky right-0 z-10 bg-bg-0 text-right px-3 py-1.5 text-[9px] uppercase tracking-wider font-semibold text-text-muted w-[120px]">{t('colActions')}</th>
                               </tr>
                             </thead>

@@ -463,6 +463,28 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const WEEKDAYS_ALL = Object.values(t.raw('weekdaysAll') as Record<string, string>);
   const MONTHS       = Object.values(t.raw('months') as Record<string, string>);
 
+  // ─── Etiquetas de doctor ──────────────────────────────────────────────────
+  // Antes era `Dr. ${lastName}` en todos lados. Con dos doctores del mismo
+  // apellido (Barry y Devin Clanton) el label queda ambiguo: el filtro sigue
+  // siendo correcto — filtra por id, no por nombre — pero no hay forma de saber
+  // a cuál de los dos se está eligiendo, y el día de uno con 27 citas se ve
+  // igual de vacío que si se hubieran perdido las 3.640 del otro.
+  //
+  // Se desambigua SIEMPRE, no solo cuando hay choque de apellido: si el label
+  // dependiera de quién más está activo, el nombre de un doctor cambiaría al dar
+  // de alta a otro.
+  /** Dropdowns y filtros, donde hay espacio de sobra: "Dr. Barry Clanton" */
+  const drFull = (p: { firstName: string; lastName: string }) =>
+    `${t('drPrefix')} ${p.firstName} ${p.lastName}`.trim();
+  /** Tarjetas del grid: las de 15 min ya están apretadas y el nombre completo no
+   *  entra — inicial y apellido alcanzan para distinguir. "Dr. B. Clanton" */
+  const drShort = (p: { firstName: string; lastName: string }) => {
+    const initial = p.firstName.trim().charAt(0);
+    return initial
+      ? `${t('drPrefix')} ${initial}. ${p.lastName}`
+      : `${t('drPrefix')} ${p.lastName}`;
+  };
+
   const [weekStart, setWeekStart]       = useState<Date>(() => getMondayOf(new Date()));
   const [appointments, setAppointments] = useState<CalendarAppointment[]>([]);
   const [loading, setLoading]           = useState(false);
@@ -853,7 +875,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
             options={clinics.map(c => ({ value: c.id, label: c.name }))} onChange={setFilterClinic} />
           {!lockedProviderId && (
             <FilterChip emoji="👨‍⚕️" placeholder={t('filterAllDoctors')} value={filterProvider}
-              options={providers.map(p => ({ value: p.id, label: `Dr. ${p.lastName}` }))} onChange={setFilterProvider} />
+              options={providers.map(p => ({ value: p.id, label: drFull(p) }))} onChange={setFilterProvider} />
           )}
           <FilterChip emoji="🚗" placeholder={t('filterAllTypes')} value={filterType}
             options={[
@@ -908,7 +930,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
               emoji="👨‍⚕️"
               placeholder={t('filterAllDoctors')}
               value={filterProvider}
-              options={providers.map(p => ({ value: p.id, label: `Dr. ${p.lastName}` }))}
+              options={providers.map(p => ({ value: p.id, label: drFull(p) }))}
               onChange={setFilterProvider}
             />
           )}
@@ -1120,7 +1142,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                 const s = getEventStyle(appt);
                 const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
                 const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
-                const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                const drName = appt.provider ? drShort(appt.provider) : '';
                 return (
                   <button key={appt.id} type="button" onClick={() => setSelectedAppt(appt)}
                     className="w-full text-left rounded-xl p-3 transition-all hover:brightness-110 active:scale-[0.99]"
@@ -1205,7 +1227,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                           {cellAppts.map(appt => {
                             const s = getEventStyle(appt);
                             const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
-                            const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                            const drName = appt.provider ? drShort(appt.provider) : '';
                             const isDragging = draggingId === appt.id;
                             return (
                               <button key={appt.id} type="button"
@@ -1345,7 +1367,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
                   {cellAppts.map(appt => {
                     const s = getEventStyle(appt);
                     const visitLabel = appt.visitNumber === 0 ? t('visitFirst') : appt.visitNumber > 0 ? t('visitN', { n: appt.visitNumber + 1 }) : '';
-                    const drName = appt.provider ? `Dr. ${appt.provider.lastName}` : '';
+                    const drName = appt.provider ? drShort(appt.provider) : '';
                     const timeRange = apptTimeRange(appt.scheduledFor, appt.durationMinutes);
                     const isDragging = draggingId === appt.id;
                     return (

@@ -36,7 +36,10 @@ export async function GET(): Promise<NextResponse> {
     }),
     db.provider.findMany({
       where: { status: 'ACTIVE', deletedAt: null },
-      orderBy: [{ lastName: 'asc' }],
+      // firstName como segundo criterio: con dos doctores del mismo apellido
+      // (Barry / Devin Clanton) el orden entre ellos no estaba garantizado, así
+      // que el mismo puesto de la lista podía ser otro doctor en cada carga.
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       select: { id: true, firstName: true, lastName: true, specialty: true, licenseNumber: true },
     }),
     db.specialtyCatalog.findMany({

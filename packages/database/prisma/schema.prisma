@@ -2481,6 +2481,8 @@ model DrugInteraction {
 
 // ─── Lab / Imaging catalog ───────────────────────────────────────────────────
 
+/// DEPRECADO — reemplazado por CatalogItem (kind = LAB). Se mantiene hasta
+/// verificar la migración de los 76 estudios del v2; luego se elimina.
 model LabCatalog {
   id       Int     @id @default(autoincrement())
   code     String  @unique
@@ -2490,6 +2492,134 @@ model LabCatalog {
 
   @@index([category])
   @@map("lab_catalog")
+}
+
+// ─── Catálogo de precios (labs · inyectables · servicios · férulas) ──────────
+//
+// Reemplaza el Excel "LabCorp Lab Pricing" que la clínica mantiene a mano.
+// Los cuatro bloques comparten la misma forma — costo real + precio público —
+// así que viven en una sola tabla con `kind` en vez de fragmentarse.
+//
+// Distinto de ServiceCode (B.33): ese es el catálogo de códigos facturables a
+// aseguradora (CPT/HCPCS → HCFA). Este es la lista de precios self-pay. El
+// puente entre ambos es `cptCode` / `hcpcsCode`, opcional.
+
+enum CatalogItemKind {
+  LAB // Send-out a LabCorp
+  INJECTION // Inyectables aplicados en clínica
+  SERVICE // In-house: EKG, rayos X, físicos, tests rápidos
+  DME // Férulas, cabestrillos, botas
+
+  @@map("catalog_item_kind")
+}
+
+/// Estado del precio. Reemplaza el texto libre que vivía en la columna NOTES
+/// del Excel ("Pricing verified 8/2/2025", "Price not verified",
+/// "REQUESTED PRICE UPDATE 6/29/26").
+enum CatalogPriceStatus {
+  VERIFIED
+  UNVERIFIED
+  UPDATE_REQUESTED
+
+  @@map("catalog_price_status")
+}
+
+model CatalogItem {
+  id   Int             @id @default(autoincrement())
+  kind CatalogItemKind
+
+  /// Código LabCorp para labs · PM-* interno para el resto.
+  code String  @unique
+  name String
+  /// Solo labs: 'LABORATORY' | 'IMAGING' | 'CARDIOLOGY'.
+  category String?
+  /// Agrupador dentro del kind: 'CULTURES', 'PAP', 'GENERAL'.
+  section String?
+  loinc    String?
+  /// 'LABCORP' | 'IN_HOUSE'.
+  vendor String @default("IN_HOUSE")
+
+  // ─── Precios (los tres kinds llevan costo real y precio público) ─────────
+  /// Lo que nos cuesta a nosotros (columna "Lab Corp" del Excel).
+  costPrice Decimal? @db.Decimal(10, 2)
+  /// Lo que se le cobra al paciente (columna "Cash Price").
+  publicPrice Decimal? @db.Decimal(10, 2)
+  /// Precio de membresía. Null mientras no exista el programa — la UI oculta
+  /// la columna si ningún ítem lo tiene cargado.
+  memberPrice Decimal? @db.Decimal(10, 2)
+  /// Texto cuando el precio no es un número plano (ej. "por vista").
+  priceNote String?
+  /// Unidad facturable variable (ej. rayos X "por vista").
+  unitLabel String?
+
+  // ─── Reflex (labs) ──────────────────────────────────────────────────────
+  /// Estudios que disparan pruebas adicionales al salir positivos. En el Excel
+  /// esto vivía como prosa en NOTES y nadie podía cotizarlo.
+  hasReflex    Boolean  @default(false)
+  reflexCost   Decimal? @db.Decimal(10, 2)
+  reflexPrice  Decimal? @db.Decimal(10, 2)
+  reflexPolicy String?  @db.Text // ej. "prepago, reembolsable si es negativo"
+
+  // ─── Muestra (labs) ─────────────────────────────────────────────────────
+  /// La columna "Tube Color" del Excel mezclaba tres conceptos distintos.
+  tubeColors      String[] @default([]) // 'YELLOW' | 'LAVENDER' | 'LIGHT_BLUE' | ...
+  containerType   String? // 'PARAPAK' | 'URINE_BOTTLE' | 'STOOL' | 'SPECIMEN'
+  specialHandling String? @db.Text // 'PLASMA FROZEN', 'ROOM TEMP', 2 tubos, etc.
+
+  // ─── DME ────────────────────────────────────────────────────────────────
+  sizeLabel String? // 'any size', 'Universal Size'
+  /// Férulas: se pagan completas siempre, no van a lien ni a seguro.
+  alwaysFullPayment Boolean @default(false)
+
+  // ─── Puente a facturación (opcional, se llena cuando se confirme) ───────
+  cptCode   String? // ej. 96372 administración de inyectable
+  hcpcsCode String? // ej. L3908 muñequera
+  ndcCode   String? // ej. J1885 Toradol
+
+  // ─── Verificación de precio ─────────────────────────────────────────────
+  priceStatus     CatalogPriceStatus @default(UNVERIFIED)
+  priceVerifiedAt DateTime?
+  priceVerifiedBy String?
+
+  // ─── Estado ─────────────────────────────────────────────────────────────
+  isActive Boolean @default(true)
+  /// Existe pero no se puede tomar/ofrecer (ej. HIV 139825 sin p24).
+  isOrderable Boolean @default(true)
+  /// Código que lo sustituye (ej. Histopathology 500918 → 599999).
+  replacedByCode String?
+  notes          String? @db.Text
+  sortOrder      Int     @default(0)
+
+  priceHistory CatalogPriceHistory[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([kind])
+  @@index([kind, category])
+  @@index([priceStatus])
+  @@index([isActive])
+  @@map("catalog_items")
+}
+
+/// Historial de cambios de precio. Permite ver cuándo subió LabCorp el costo y
+/// si el precio al paciente se ajustó en consecuencia.
+model CatalogPriceHistory {
+  id     Int         @id @default(autoincrement())
+  itemId Int
+  item   CatalogItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  costPrice   Decimal? @db.Decimal(10, 2)
+  publicPrice Decimal? @db.Decimal(10, 2)
+  memberPrice Decimal? @db.Decimal(10, 2)
+
+  changedAt     DateTime @default(now())
+  changedByName String?
+  reason        String?
+
+  @@index([itemId, changedAt])
+  @@map("catalog_price_history")
 }
 
 // ─── Billing Clínico (migrado de LM v2 costs + payments) ─────────────────────

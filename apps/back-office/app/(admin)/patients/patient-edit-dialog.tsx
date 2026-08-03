@@ -205,8 +205,11 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
       setError(t('errorNameRequired'));
       return;
     }
-    if (form.email && !validateEmail(form.email)) return;
-    if (form.phone && !validatePhone(form.phone)) return;
+    // Estos dos salian SIN setear error: el usuario tocaba Guardar y no pasaba
+    // nada visible (el error de campo puede quedar fuera de pantalla en un
+    // dialogo largo). Ahora siempre queda un mensaje arriba del footer.
+    if (form.email && !validateEmail(form.email)) { setError(t('errorEmailInvalid')); return; }
+    if (form.phone && !validatePhone(form.phone)) { setError(t('errorPhoneInvalid')); return; }
     if (form.dateOfBirth) {
       const a = calcAge(form.dateOfBirth);
       if (a === null || a < 0) { setError(t('errorDOBInvalid')); return; }
@@ -576,12 +579,17 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
               </div>
             </div>
 
-            {error && (
-              <p className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">
-                {error}
-              </p>
-            )}
           </div>
+
+          {/* El error va FUERA del area scrolleable: adentro quedaba al final
+              del contenido y, como el footer es sticky, al tocar Guardar con
+              el dialogo scrolleado arriba el mensaje aparecia fuera de
+              pantalla — parecia que el boton no hacia nada. */}
+          {error && (
+            <p className="mx-6 mb-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">
+              {error}
+            </p>
+          )}
 
           <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 sticky bottom-0 bg-bg-1">
             <Button variant="outline" onClick={() => handleClose()} disabled={saving} className="w-full sm:w-auto">

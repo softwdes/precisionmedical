@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
-  ArrowLeft, Check, ClipboardList, FlaskConical, FileText, Pill, Briefcase,
+  ArrowLeft, Check, ClipboardList, FlaskConical, FileText, Pill, Briefcase, Bandage,
   HeartPulse, Video,
 } from 'lucide-react';
 import { PageHeader, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
@@ -26,6 +26,7 @@ import { LabsTab } from '@/components/visit/labs-tab';
 import { VisitSummary } from '@/components/visit/visit-summary';
 import { MedicationHistory } from '@/components/visit/medication-history';
 import { RxIntegrationStatus } from '@/components/visit/rx-integration-status';
+import { BracesTab } from '@/components/visit/braces-tab';
 
 export interface ConsultationTriage {
   heightFt: number | null; heightIn: number | null; heightCm: number | null;
@@ -77,7 +78,7 @@ export interface ConsultationAppointment {
   triage: ConsultationTriage | null;
 }
 
-type Tab = 'notes' | 'labs' | 'rx' | 'services';
+type Tab = 'notes' | 'labs' | 'rx' | 'services' | 'braces';
 /** 4 nodos: el 4 es Resumen y salida (el cobro sigue siendo del asistente) */
 type StepView = 1 | 2 | 3 | 4;
 
@@ -172,6 +173,7 @@ export function ConsultationClient({
     { id: 'labs',     label: t('tabLabs'),     icon: FlaskConical },
     { id: 'rx',       label: t('tabRx'),       icon: Pill },
     { id: 'services', label: t('tabServices'), icon: Briefcase },
+    { id: 'braces',   label: t('tabBraces'),   icon: Bandage },
   ];
 
   return (
@@ -451,6 +453,8 @@ export function ConsultationClient({
               onRefresh={() => router.refresh()}
             />
           )}
+          {/* Férulas / DME — mismo componente que usa el asistente en Day Admission */}
+          {tab === 'braces' && <BracesTab appointmentId={a.id} />}
           </div>
         </div>
       )}

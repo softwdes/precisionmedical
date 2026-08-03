@@ -943,6 +943,9 @@ model Appointment {
   // B.19 Prescripciones electrónicas
   prescriptions Prescription[]
 
+  // Férulas / DME entregados en la visita
+  braces AppointmentBrace[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1094,6 +1097,9 @@ model VisitNote {
 
   // ─── B.19 Prescripciones electrónicas ───────────────────────────────────
   prescriptions Prescription[]
+
+  // ─── Férulas / DME entregados ───────────────────────────────────────────
+  braces AppointmentBrace[]
 
   // ─── Estado y firma ─────────────────────────────────────────────────────
   status       VisitNoteStatus @default(DRAFT)
@@ -1281,6 +1287,74 @@ model Prescription {
   @@index([visitNoteId])
   @@index([status])
   @@map("prescriptions")
+}
+
+/// Lado del cuerpo — una rodillera izquierda no es la misma que la derecha.
+enum BraceSide {
+  NA // el item no distingue lado (ej. faja lumbar)
+  LEFT
+  RIGHT
+
+  @@map("brace_side")
+}
+
+enum BraceStatus {
+  DISPENSED
+  RETURNED // el paciente la devolvió (talla equivocada)
+  VOIDED // se cargó por error
+
+  @@map("brace_status")
+}
+
+/// Férula / DME entregado al paciente en una visita.
+///
+/// Tabla propia (no una línea del JSON `plannedServiceCodes`) porque cada entrega
+/// es un hecho clínico y contable con su lado, talla y cantidad.
+///
+/// Los campos de catálogo son SNAPSHOT deliberado: si mañana cambia el precio o
+/// el HCPCS del item, esta visita tiene que seguir mostrando lo que realmente se
+/// entregó y cobró. Mismo criterio que labs y servicios.
+///
+/// Se cobra SIEMPRE completa, sin lien ni seguro (`CatalogItem.alwaysFullPayment`).
+/// No hay control de stock: si más adelante hace falta, se calcula sumando estas
+/// filas — por eso cada entrega es un registro, aunque se repita el mismo item.
+model AppointmentBrace {
+  id            String      @id @default(cuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  visitNoteId   String?
+  visitNote     VisitNote?  @relation(fields: [visitNoteId], references: [id], onDelete: SetNull)
+
+  /// Item del catálogo (catalog_items.id). Sin FK: el catálogo es soft-delete y
+  /// la entrega no debe desaparecer si el item se retira.
+  catalogItemId Int?
+
+  // Snapshot del catálogo al momento de entregar
+  code       String
+  name       String
+  sizeLabel  String?
+  hcpcsCode  String?
+  unitPrice  Decimal @db.Decimal(10, 2)
+
+  side     BraceSide @default(NA)
+  quantity Int       @default(1)
+
+  status     BraceStatus @default(DISPENSED)
+  voidedAt   DateTime?
+  voidReason String?
+  notes      String?
+
+  /// Quién la entregó — puede ser el doctor o el asistente
+  dispensedByName String?
+  dispensedAt     DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([appointmentId])
+  @@index([visitNoteId])
+  @@index([status])
+  @@map("appointment_braces")
 }
 
 /// Diagnóstico asociado a una nota de visita (ICD-10 + SNOMED dual).
@@ -2663,6 +2737,11 @@ model AppointmentBilling {
 
   serviceCode        String? // CPT code, ej: "97814"
   serviceDescription String? // Descripción del servicio
+
+  /// Cuando el cobro viene de una férula entregada (`AppointmentBrace`), se
+  /// identifica por el REGISTRO y no por el código: izquierda y derecha del
+  /// mismo modelo son dos cobros distintos y agrupar por código los colapsaría.
+  braceId String? @unique
 
   totalCost        Decimal @default(0) @db.Decimal(10, 2)
   discount         Decimal @default(0) @db.Decimal(10, 2)

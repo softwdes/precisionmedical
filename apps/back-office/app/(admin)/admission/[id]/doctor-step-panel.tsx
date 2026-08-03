@@ -17,14 +17,15 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { ClipboardList, FileText, FlaskConical, Briefcase, Loader2 } from 'lucide-react';
+import { ClipboardList, FileText, FlaskConical, Briefcase, Bandage, Loader2 } from 'lucide-react';
 import { VisitSummary, type SummaryTriage } from '@/components/visit/visit-summary';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
 import { LabsTab } from '@/components/visit/labs-tab';
+import { BracesTab } from '@/components/visit/braces-tab';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 
-type Tab = 'summary' | 'notes' | 'labs' | 'services';
+type Tab = 'summary' | 'notes' | 'labs' | 'braces' | 'services';
 
 interface Props {
   appointmentId: string;
@@ -97,6 +98,7 @@ export function DoctorStepPanel({
     { id: 'summary', label: t('tabSummary'), icon: ClipboardList },
     { id: 'notes', label: t('tabNotes'), icon: FileText },
     { id: 'labs', label: t('tabLabs'), icon: FlaskConical },
+    { id: 'braces', label: t('tabBraces'), icon: Bandage },
     { id: 'services', label: t('tabServicesPayments'), icon: Briefcase },
   ];
 
@@ -183,6 +185,10 @@ export function DoctorStepPanel({
                 seedDiagnoses={note?.diagnoses ?? []}
               />
             )}
+
+            {/* Férulas / DME — el mismo componente que usa el doctor en su portal.
+                El cobro cae solo en "Servicios y pagos": se paga todo junto. */}
+            {tab === 'braces' && <BracesTab appointmentId={appointmentId} />}
 
             {/* Servicios y pagos — el panel del viejo step 4, con cobro habilitado */}
             {tab === 'services' && (

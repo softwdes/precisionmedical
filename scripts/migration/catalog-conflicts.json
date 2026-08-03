@@ -1,0 +1,236 @@
+{
+  "generatedFrom": "C:/Users/Erick/Downloads/LabCorp Lab Pricing - LabCorp Prices.csv",
+  "byType": {
+    "VERIF_UPDATE_REQUESTED": 2,
+    "VERIF_UNVERIFIED": 4,
+    "DUPLICADO_PRECIO_DISTINTO": 1,
+    "SIN_PRECIO_PUBLICO": 2,
+    "SIN_COSTO_REAL": 25,
+    "PRECIO_NO_NUMERICO": 4,
+    "TEST_INACTIVO": 1,
+    "DUPLICADO_SERVICIO": 1,
+    "POSIBLE_DUPLICADO_V2": 4
+  },
+  "conflicts": [
+    {
+      "type": "VERIF_UPDATE_REQUESTED",
+      "item": "Albumin/Creatinine Ratio, Random Urine",
+      "detail": "REQUESTED PRICE UPDATE 6/29/26"
+    },
+    {
+      "type": "VERIF_UNVERIFIED",
+      "item": "Alkaline Phosphatase",
+      "detail": "Price not verified (Just pulled off of LabCorp Link)"
+    },
+    {
+      "type": "VERIF_UNVERIFIED",
+      "item": "ANA by IFA w. Titer (pattern cascade)",
+      "detail": "Nate's pick: $1,000 additional if it reflexes, must be paid up front. We can refund if it is negative / (ANA) by IFA, reflex to 11-biomarker profile"
+    },
+    {
+      "type": "DUPLICADO_PRECIO_DISTINTO",
+      "item": "161687 · Antigliadin Abs, IgG",
+      "detail": "L9: $16/$28 vs L18: $17.98/$32.36 → se toma L18 (verificación más reciente). REVISAR."
+    },
+    {
+      "type": "VERIF_UPDATE_REQUESTED",
+      "item": "Growth Hormone",
+      "detail": "PRICING UNCONFIRMED. REQUESTED UPDATED PRICING 11/10/25"
+    },
+    {
+      "type": "SIN_PRECIO_PUBLICO",
+      "item": "HIV 1 / HIV 2",
+      "detail": "Unable to draw this, requires special processing (without p24 antigen)"
+    },
+    {
+      "type": "VERIF_UNVERIFIED",
+      "item": "HIV 1 / HIV 2",
+      "detail": "Unable to draw this, requires special processing (without p24 antigen)"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "URINE DIP",
+      "detail": "servicio sin costo en el Excel"
+    },
+    {
+      "type": "PRECIO_NO_NUMERICO",
+      "item": "Celiac Antibodies tTG IgA, EMA IgA, Total IgA w/ Reflex to tTG IgG",
+      "detail": "costo: \"$172 + $197 for Reflex if +\""
+    },
+    {
+      "type": "PRECIO_NO_NUMERICO",
+      "item": "Celiac Antibodies tTG IgA, EMA IgA, Total IgA w/ Reflex to tTG IgG",
+      "detail": "precio público: \"$225 + $250 for Reflex if + (Must pay full amount and if doesn't reflex will refund the $250)\""
+    },
+    {
+      "type": "VERIF_UNVERIFIED",
+      "item": "Celiac Antibodies tTG IgA, EMA IgA, Total IgA w/ Reflex to tTG IgG",
+      "detail": ""
+    },
+    {
+      "type": "PRECIO_NO_NUMERICO",
+      "item": "Upper Respiratory Culture",
+      "detail": "costo: \"$11.29 (Reflexes may apply at $9 each)\""
+    },
+    {
+      "type": "PRECIO_NO_NUMERICO",
+      "item": "Upper Respiratory Culture",
+      "detail": "precio público: \"$20 + $18 if reflexes\""
+    },
+    {
+      "type": "TEST_INACTIVO",
+      "item": "Histopathology (TEST INACTIVE AS OF 11/10/25, USE NEW CODE 599999 BELOW)",
+      "detail": "reemplazar por 599999"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Shoulder sling",
+      "detail": "férula sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Allergy/ Kenalog Shot",
+      "detail": "inyectable sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Wrist Splint",
+      "detail": "férula sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Plantar Fascia Injection",
+      "detail": "inyectable sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Thumb Spica",
+      "detail": "férula sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Trigger Point Injection",
+      "detail": "inyectable sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Joint Injection",
+      "detail": "inyectable sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Lidocaine Migraine Block",
+      "detail": "inyectable sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Wrap Around hinged Knee Brace",
+      "detail": "férula sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Tetanus Injection",
+      "detail": "inyectable sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "True Fit Knee Immobilizer",
+      "detail": "férula sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Toradol Injection",
+      "detail": "inyectable sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Post Op Shoe",
+      "detail": "férula sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Rocephin Injection",
+      "detail": "inyectable sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Zofran Injection",
+      "detail": "inyectable sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Game Ready Ankle Brace",
+      "detail": "férula sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "EKG",
+      "detail": "servicio sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Game Changer Walker Boot",
+      "detail": "férula sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Urine Pregnancy Test",
+      "detail": "servicio sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Strep Test",
+      "detail": "servicio sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Sports Physical / Scout Physical",
+      "detail": "servicio sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Tb Test",
+      "detail": "servicio sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "X-Rays",
+      "detail": "servicio sin costo en el Excel"
+    },
+    {
+      "type": "SIN_COSTO_REAL",
+      "item": "Mission Physical",
+      "detail": "servicio sin costo en el Excel"
+    },
+    {
+      "type": "DUPLICADO_SERVICIO",
+      "item": "Urine Dip",
+      "detail": "línea 173 repetida"
+    },
+    {
+      "type": "SIN_PRECIO_PUBLICO",
+      "item": "95 estudios del v2",
+      "detail": "están en lab_catalog pero no en el Excel — quedan sin precio"
+    },
+    {
+      "type": "POSIBLE_DUPLICADO_V2",
+      "item": "CMP · Comprehensive Metabolic Panel",
+      "detail": "parece el mismo estudio que 322000 · CMP / COMPREHENSIVE METABOLIC PANEL (similitud 0.75) — decidir cuál queda"
+    },
+    {
+      "type": "POSIBLE_DUPLICADO_V2",
+      "item": "CRP · C-Reactive Protein",
+      "detail": "parece el mismo estudio que 006627 · CRP (C-Reactive Protein) (similitud 0.67) — decidir cuál queda"
+    },
+    {
+      "type": "POSIBLE_DUPLICADO_V2",
+      "item": "520008 · Anti-CCP (Cyclic Citrullinated Peptide) Antibodies, IgG and IgA (RDL)",
+      "detail": "parece el mismo estudio que 164914 · CCP / Cyclic Citrullinated Peptide Antibodies / AKA: Anti-CCP Antibodies, IgG & IgA by ELISA (similitud 0.73) — decidir cuál queda"
+    },
+    {
+      "type": "POSIBLE_DUPLICADO_V2",
+      "item": "504115 · 25-Hydroxy Vitamin D (D2+D3 Fractionated), LC / MS-MS",
+      "detail": "parece el mismo estudio que 081950 · VITAMIN D, 25-HYDROXY (similitud 0.67) — decidir cuál queda"
+    }
+  ]
+}

@@ -4070,7 +4070,10 @@
       "callFailedHint": "No contestó, o verificá que el número sea correcto.",
       "callFailedRetry": "Volver a intentar",
       "callFailedClose": "Cerrar",
-      "callFailedMicHint": "El navegador bloqueó el micrófono. Permitilo desde el candado en la barra de direcciones y volvé a intentar."
+      "callFailedMicHint": "El navegador bloqueó el micrófono. Permitilo desde el candado en la barra de direcciones y volvé a intentar.",
+      "editErrorTitle": "No se pudo guardar",
+      "errorGoToGuardian": "Ir al responsable legal",
+      "btnAccept": "Entendido"
     },
     "edson": {
       "title": "Bandeja Edson",

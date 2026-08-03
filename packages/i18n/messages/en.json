@@ -4070,7 +4070,10 @@
       "callFailedHint": "No answer, or check that the number is correct.",
       "callFailedRetry": "Try again",
       "callFailedClose": "Close",
-      "callFailedMicHint": "The browser blocked the microphone. Allow it from the padlock in the address bar and try again."
+      "callFailedMicHint": "The browser blocked the microphone. Allow it from the padlock in the address bar and try again.",
+      "editErrorTitle": "Could not save",
+      "errorGoToGuardian": "Go to legal guardian",
+      "btnAccept": "Got it"
     },
     "edson": {
       "title": "Edson Queue",

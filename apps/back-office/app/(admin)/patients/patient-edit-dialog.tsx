@@ -175,6 +175,7 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
 
   const age     = useMemo(() => calcAge(form.dateOfBirth), [form.dateOfBirth]);
   const isMinor = age !== null && age < 18;
+  const guardianMissing = isMinor && !form.guardianName.trim();
 
   const isDirty = Object.keys(initialForm).some(
     k => form[k as keyof typeof initialForm] !== initialForm[k as keyof typeof initialForm]
@@ -378,6 +379,31 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
         {t('actionEdit')}
       </Button>
 
+      {/* Error de validacion como alert centrado, no como texto al pie: antes
+          quedaba fuera de pantalla y parecia que Guardar no hacia nada.
+          Si el problema es el responsable legal, al aceptar lleva al campo. */}
+      <ConfirmDialog
+        open={!!error}
+        variant="danger"
+        showCancel={false}
+        title={t('editErrorTitle')}
+        description={error}
+        confirmLabel={guardianMissing ? t('errorGoToGuardian') : t('btnAccept')}
+        onConfirm={() => {
+          const goGuardian = guardianMissing;
+          setError('');
+          if (goGuardian) {
+            requestAnimationFrame(() => {
+              // Scroll a la seccion del responsable legal. No forzamos focus:
+              // el input vive en un hermano y depender de esa estructura seria
+              // fragil — con dejarlo a la vista alcanza.
+              document.getElementById('guardian-field')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+          }
+        }}
+      />
+
       <ConfirmDialog
         open={confirmExit}
         variant="warning"
@@ -519,7 +545,9 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
             {/* ══ Legal guardian (minors only) ══ */}
             {isMinor && (
               <div className="rounded-lg border border-amber/30 bg-amber/5 p-5 space-y-4">
-                <div className="flex items-center gap-2 pb-1 border-b border-amber/20">
+                {/* id: ancla para que el alert de validacion pueda traer al
+                    usuario hasta aca cuando falta el responsable legal. */}
+                <div id="guardian-field" className="flex items-center gap-2 pb-1 border-b border-amber/20 scroll-mt-6">
                   <ShieldAlert className="w-4 h-4 text-amber" />
                   <h3 className="text-sm font-semibold text-amber">{t('sectionGuardian')}</h3>
                   <span className="text-[10px] text-amber/70 italic">{t('guardianRequired')}</span>
@@ -581,15 +609,6 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
 
           </div>
 
-          {/* El error va FUERA del area scrolleable: adentro quedaba al final
-              del contenido y, como el footer es sticky, al tocar Guardar con
-              el dialogo scrolleado arriba el mensaje aparecia fuera de
-              pantalla — parecia que el boton no hacia nada. */}
-          {error && (
-            <p className="mx-6 mb-2 rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[11px] text-rose">
-              {error}
-            </p>
-          )}
 
           <DialogFooter className="px-6 py-4 border-t border-border flex-col sm:flex-row gap-2 sticky bottom-0 bg-bg-1">
             <Button variant="outline" onClick={() => handleClose()} disabled={saving} className="w-full sm:w-auto">

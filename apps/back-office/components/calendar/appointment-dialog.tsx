@@ -195,6 +195,10 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   // cambiado (el picker auto-selecciona el mas cercano), y comparar contra
   // slotIsoRef.current validaria el slot NUEVO en vez del que el usuario eligio.
   const slotUnderCheck = useRef<string | null>(null);
+  // Duracion que el usuario INTENTO poner (la revertimos, pero el mensaje
+  // tiene que nombrarla) + horario sugerido para esa duracion.
+  const durationRef = useRef(duration);
+  const [conflictSuggestion, setConflictSuggestion] = useState<{ time: string; tried: number } | null>(null);
   const userChangedType = useRef(false); // true cuando el usuario eligió el tipo manualmente
 
   // ─── Auto-inferir tipo de cita desde el caso seleccionado ─────────────────
@@ -452,6 +456,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     if (slotIso) lastValidDuration.current = duration;
   }, [slotIso]);
 
+  useEffect(() => { durationRef.current = duration; }, [duration]);
+
   // Se llama cada vez que WeeklySlotPicker trae una lista nueva de horarios
   // (cambió duración, doctor, clínica o semana). Solo actuamos cuando el
   // cambio pendiente de revisar fue el de duración (pendingDurationCheck):
@@ -468,6 +474,20 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
     if (!current) return;
     const stillValid = fetchedSlots.some((s) => s.iso === current);
     if (!stillValid) {
+      // Sugerir el horario valido MAS CERCANO al que queria, para la duracion
+      // que pidio: revertir a secas lo deja sin saber cuando si puede.
+      const target = new Date(current).getTime();
+      let best: string | null = null;
+      let bestDiff = Infinity;
+      for (const s of fetchedSlots) {
+        const diff = Math.abs(new Date(s.iso).getTime() - target);
+        if (diff < bestDiff) { bestDiff = diff; best = s.iso; }
+      }
+      setConflictSuggestion(
+        best
+          ? { time: new Date(best).toLocaleTimeString('en-US', { timeZone: 'America/Denver', hour: 'numeric', minute: '2-digit', hour12: true }), tried: durationRef.current }
+          : null,
+      );
       // Volvemos a la duracion que si entraba Y restauramos el horario elegido:
       // revertir solo la duracion dejaba al usuario con un horario que el nunca
       // eligio (el picker ya habia saltado al mas cercano) sin avisar nada.
@@ -1172,7 +1192,12 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
       confirmLabel={t('durationConflictAccept')}
       variant="warning"
       title={t('durationConflictTitle')}
-      description={t('durationConflictDescription', { duration: lastValidDuration.current })}
+      description={
+        t('durationConflictDescription', { duration: lastValidDuration.current })
+        + (conflictSuggestion
+            ? ' ' + t('durationConflictSuggestion', { duration: conflictSuggestion.tried, time: conflictSuggestion.time })
+            : '')
+      }
     />
     </>
   );

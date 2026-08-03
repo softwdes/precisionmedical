@@ -1554,6 +1554,7 @@
       "tplColActions": "Acciones",
       "tplNoResults": "Sin resultados para tu búsqueda",
       "tplEmpty": "Aún no hay plantillas",
+      "tplView": "Ver",
       "tplEdit": "Editar",
       "tplDelete": "Eliminar",
       "tplFooter": "{shown} de {total}",
@@ -1562,6 +1563,8 @@
       "tplDeleteConfirm": "¿Eliminar «{title}»? Esta acción la retira del sistema.",
       "tplEditTitle": "Editar plantilla",
       "tplNewTitle": "Nueva plantilla",
+      "tplViewTitle": "Ver plantilla",
+      "tplClose": "Cerrar",
       "tplFieldTitle": "Título",
       "tplTitlePlaceholder": "Ej. NG-MVA F/U",
       "tplFieldDescription": "Descripción",
@@ -1571,6 +1574,10 @@
       "tplWriteHere": "Escribe aquí…",
       "tplErrTitle": "El título es obligatorio",
       "tplErrSave": "No se pudo guardar la plantilla",
+      "tplErrDelete": "No se pudo eliminar la plantilla",
+      "tplSavedSuccess": "Plantilla guardada",
+      "tplCreatedSuccess": "Plantilla creada",
+      "tplDeletedSuccess": "Plantilla eliminada",
       "tplCancel": "Cancelar",
       "tplSave": "Guardar cambios",
       "tplCreate": "Crear plantilla",
@@ -3259,7 +3266,8 @@
       "scheduledOnSameCall": "✓ En la misma llamada",
       "rowPatient": "Paciente",
       "dragRescheduling": "Reprogramando cita…",
-      "dragError": "Error al reprogramar"
+      "dragError": "Error al reprogramar",
+      "durationConflictSuggestion": "Si necesitás {duration} min, el horario más cercano disponible es {time}."
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

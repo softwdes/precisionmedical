@@ -1554,6 +1554,7 @@
       "tplColActions": "Actions",
       "tplNoResults": "No results for your search",
       "tplEmpty": "No templates yet",
+      "tplView": "View",
       "tplEdit": "Edit",
       "tplDelete": "Delete",
       "tplFooter": "{shown} of {total}",
@@ -1562,6 +1563,8 @@
       "tplDeleteConfirm": "Delete «{title}»? This removes it from the system.",
       "tplEditTitle": "Edit template",
       "tplNewTitle": "New template",
+      "tplViewTitle": "View template",
+      "tplClose": "Close",
       "tplFieldTitle": "Title",
       "tplTitlePlaceholder": "e.g. NG-MVA F/U",
       "tplFieldDescription": "Description",
@@ -1571,6 +1574,10 @@
       "tplWriteHere": "Write here…",
       "tplErrTitle": "Title is required",
       "tplErrSave": "Could not save the template",
+      "tplErrDelete": "Could not delete the template",
+      "tplSavedSuccess": "Template saved",
+      "tplCreatedSuccess": "Template created",
+      "tplDeletedSuccess": "Template deleted",
       "tplCancel": "Cancel",
       "tplSave": "Save changes",
       "tplCreate": "Create template",
@@ -3259,7 +3266,8 @@
       "scheduledOnSameCall": "On the same call",
       "rowPatient": "Patient",
       "dragRescheduling": "Rescheduling appointment…",
-      "dragError": "Error rescheduling"
+      "dragError": "Error rescheduling",
+      "durationConflictSuggestion": "If you need {duration} min, the closest available time is {time}."
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

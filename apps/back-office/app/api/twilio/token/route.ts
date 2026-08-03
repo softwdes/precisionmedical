@@ -19,7 +19,9 @@ const { VoiceGrant }  = AccessToken;
  * Supabase entra tal cual. El prefijo `user-` deja lugar a identidades futuras
  * que no sean de persona (una cola, un bot).
  */
-export function identityForUser(userId: string): string {
+// Sin `export`: Next.js solo admite handlers y config como exports de un route
+// handler. Si otro módulo necesita este helper, va a un archivo de lib.
+function identityForUser(userId: string): string {
   return `user-${userId}`;
 }
 

@@ -415,10 +415,21 @@ export function PatientEditDialog({ patient, externalOpen, onClose }: Props) {
         onCancel={() => setConfirmExit(false)}
       />
 
-      <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+      {/* Mismo motivo que onInteractOutside: cerrar un ConfirmDialog anidado
+          (o su Escape) no debe cerrar el formulario. */}
+      <Dialog open={open} onOpenChange={(v) => { if (!v && !error && !confirmExit) handleClose(); }}>
         <DialogContent
           className="max-w-3xl max-h-[92vh] overflow-y-auto p-0"
-          onInteractOutside={(e) => { e.preventDefault(); handleClose(); }}
+          onInteractOutside={(e) => {
+            e.preventDefault();
+            // Los ConfirmDialog anidados (error de validacion / confirmar
+            // salida) se renderizan en un PORTAL, fuera del DOM de este
+            // dialogo, asi que interactuar con ellos cuenta como "clic
+            // afuera" y disparaba handleClose() -> "cerrar sin guardar" ->
+            // bucle infinito. Mientras haya uno abierto, no cerramos nada.
+            if (error || confirmExit) return;
+            handleClose();
+          }}
         >
           <DialogHeader className="px-6 pt-5 pb-4 border-b border-border sticky top-0 bg-bg-1 z-10">
             <DialogTitle className="flex items-center gap-2 text-text-1 text-base">

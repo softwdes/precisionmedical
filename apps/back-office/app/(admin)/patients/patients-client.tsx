@@ -15,6 +15,7 @@ import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
 import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-case-dialog';
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
+import { CallHistoryDialog } from '@/components/calls/call-history-dialog';
 import QRCode from 'qrcode';
 
 function fmtPhone(raw: string): string {
@@ -1777,6 +1778,7 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
 export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, scopeProviderId, basePath = '/patients' }: Props) {
   const doctorMode = !!scopeProviderId;
   const t      = useTranslations('phoenix.patients');
+  const tCalls = useTranslations('phoenix.calls');
   const router = useRouter();
 
   const STATUS_LABEL: Record<string, string> = {
@@ -1887,10 +1889,13 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
 
   // ─── Llamar al paciente (Twilio real) ───────────────────────────────────
   const twilio = useTwilioDevice();
-  const [callTarget, setCallTarget] = useState<{ name: string; phone: string; patientId: string; caseId: string | null } | null>(null);
+  // `patientId` puede ser null: devolver una llamada perdida de un número que
+  // no está en la base es un caso válido — se marca igual, solo que el CallLog
+  // queda sin vincular.
+  const [callTarget, setCallTarget] = useState<{ name: string; phone: string; patientId: string | null; caseId: string | null } | null>(null);
   // A quien pertenece la llamada en curso — se usa para vincular el CallLog
   // cuando Twilio nos devuelve el SID (el webhook crea la fila sin dueño).
-  const callOwnerRef = useRef<{ patientId: string; caseId: string | null } | null>(null);
+  const callOwnerRef = useRef<{ patientId: string | null; caseId: string | null } | null>(null);
   // Nombre/telefono de la llamada en curso, para mostrarlos en la barra.
   const [activeCallInfo, setActiveCallInfo] = useState<{ name: string; phone: string } | null>(null);
   const [callElapsed, setCallElapsed] = useState(0);
@@ -1907,12 +1912,34 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
     const owner = callOwnerRef.current;
     if (!sid || !owner) return;
     callOwnerRef.current = null;
+    // Sin paciente no hay nada que vincular — la llamada igual queda
+    // registrada por el webhook con el número, el agente y el resultado.
+    if (!owner.patientId) return;
     void fetch('/api/twilio/link-call', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ twilioCallSid: sid, patientId: owner.patientId, caseId: owner.caseId ?? undefined }),
     }).catch(() => {});
   }, [twilio.callSid]);
+
+  // ─── Historial de llamadas ──────────────────────────────────────────────
+  const [callHistoryOpen, setCallHistoryOpen] = useState(false);
+  const [missedPending,   setMissedPending]   = useState(0);
+
+  // El contador del botón se refresca al cargar y al cerrar el historial (ahí
+  // pudo devolverse una llamada). `size=1` porque solo interesa `counts`.
+  const refreshMissedPending = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/call-logs?scope=inbound&size=1');
+      if (!res.ok) return;
+      const json = await res.json() as { counts?: { missedPending?: number } };
+      setMissedPending(json.counts?.missedPending ?? 0);
+    } catch { /* el contador es informativo: si falla, no se muestra */ }
+  }, []);
+
+  useEffect(() => {
+    void refreshMissedPending();
+  }, [refreshMissedPending]);
   const [deletingCase, setDeletingCase]    = useState(false);
   const [deleteCaseError, setDeleteCaseError] = useState('');
 
@@ -2068,29 +2095,52 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           )}
         </div>
 
-        {/* Acciones — derecha (solo admin; el doctor no crea pacientes/casos) */}
-        {!doctorMode && (
+        {/* Acciones — derecha */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Quick Register deshabilitado temporalmente */}
-          {/* "New patient" (patient-create-dialog.tsx) fue eliminado del todo:
+          {/* Historial de llamadas — el contador rojo son las perdidas sin
+              devolver, visible desde la lista sin entrar a ningún lado.
+              A diferencia de "Create Patient / Create Case", esto NO está
+              limitado a admin: hoy lo ve también el portal médico, que es el
+              único usuario con acceso mientras se prueba. Cuando el módulo se
+              agregue a roles_config, el gate pasa a ser por rol y este botón
+              deja de depender de `doctorMode`. */}
+          <button
+            type="button"
+            onClick={() => setCallHistoryOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium hover:border-brand hover:text-brand transition-colors whitespace-nowrap"
+            title={tCalls('historyTitle')}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{tCalls('historyTitle')}</span>
+            <span className="sm:hidden">{tCalls('historyShort')}</span>
+            {missedPending > 0 && (
+              <span className="ml-0.5 rounded-full bg-rose/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-rose">
+                {missedPending}
+              </span>
+            )}
+          </button>
+
+          {/* Creación — solo admin; el doctor no crea pacientes/casos.
+              "New patient" (patient-create-dialog.tsx) fue eliminado del todo:
               "Create Patient / Create Case" es el único camino de creación, y
               es el que tiene la detección de menor de edad con vínculo real al
               padre/apoderado. El otro dialog había quedado huérfano (nadie lo
               importaba) y mantenerlo habría sido una segunda implementación del
               mismo flujo lista para desviarse — el mismo patrón que ya causó
               bugs con calcAge y los generadores de código duplicados. */}
-          <button
-            type="button"
-            onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-emerald text-white text-sm font-medium hover:bg-emerald/90 transition-colors whitespace-nowrap"
-            title={t('btnCreatePatientCaseTooltip')}
-          >
-            <PhoneOutgoing className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t('btnCreatePatientCase')}</span>
-            <span className="sm:hidden">{t('btnCreateShort')}</span>
-          </button>
+          {!doctorMode && (
+            <button
+              type="button"
+              onClick={() => { setNewCaseInitial(null); setNewCaseOpen(true); }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-emerald text-white text-sm font-medium hover:bg-emerald/90 transition-colors whitespace-nowrap"
+              title={t('btnCreatePatientCaseTooltip')}
+            >
+              <PhoneOutgoing className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t('btnCreatePatientCase')}</span>
+              <span className="sm:hidden">{t('btnCreateShort')}</span>
+            </button>
+          )}
         </div>
-        )}
       </div>
 
       {/* Tabs: Activos / Archivados */}
@@ -2773,6 +2823,18 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         open={!!sendPortalTarget}
         onOpenChange={(o) => { if (!o) setSendPortalTarget(null); }}
         caseInfo={sendPortalTarget}
+      />
+
+      {/* ─── Historial de llamadas ───────────────────────────────────────────
+          "Devolver" no abre un flujo propio: entrega el destino acá y cae en
+          el mismo ConfirmDialog → llamando → resultado de siempre. */}
+      <CallHistoryDialog
+        open={callHistoryOpen}
+        onOpenChange={(o) => {
+          setCallHistoryOpen(o);
+          if (!o) void refreshMissedPending();
+        }}
+        onCallBack={(target) => setCallTarget(target)}
       />
 
       {/* ─── Llamar al paciente ──────────────────────────────────────────────

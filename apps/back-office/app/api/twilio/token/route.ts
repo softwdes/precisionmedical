@@ -1,29 +1,14 @@
 import { NextResponse } from 'next/server';
 import twilio from 'twilio';
 import { createServerClient } from '@precision-medical/auth/server';
-import { TWILIO_ACCOUNT_SID, TWILIO_TWIML_APP_SID } from '@/lib/twilio-server';
+import { TWILIO_ACCOUNT_SID, TWILIO_TWIML_APP_SID, identityForUser } from '@/lib/twilio-server';
 
 const { AccessToken } = twilio.jwt;
 const { VoiceGrant }  = AccessToken;
 
-/**
- * Identidad de Twilio del usuario logueado.
- *
- * Antes era la constante 'back-office-agent' para TODOS. Eso alcanza para las
- * llamadas salientes, pero bloquea todo lo de entrantes:
- *   - Twilio no puede enrutar una llamada a un usuario en particular
- *   - no se puede saber quién contestó → `CallLog.agentUserId` queda vacío
- *   - "Mis llamadas" / "Que yo contesté" no se pueden filtrar
- *
- * Twilio acepta letras, números y `-_.` en la identidad, así que el UUID de
- * Supabase entra tal cual. El prefijo `user-` deja lugar a identidades futuras
- * que no sean de persona (una cola, un bot).
- */
-// Sin `export`: Next.js solo admite handlers y config como exports de un route
-// handler. Si otro módulo necesita este helper, va a un archivo de lib.
-function identityForUser(userId: string): string {
-  return `user-${userId}`;
-}
+// `identityForUser` / `userIdFromIdentity` viven en `lib/twilio-server.ts`:
+// Next.js solo admite handlers y config como exports de un route handler, y
+// exportarlos desde acá rompe `next build` (ver el comentario en ese archivo).
 
 export async function POST(): Promise<NextResponse> {
   try {

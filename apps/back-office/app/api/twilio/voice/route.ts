@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import twilio from 'twilio';
-import { TWILIO_PHONE_NUMBER } from '@/lib/twilio-server';
+import { TWILIO_PHONE_NUMBER, userIdFromIdentity } from '@/lib/twilio-server';
 import { db } from '@precision-medical/database';
+import { toE164 } from '@/lib/phone';
 
 const { VoiceResponse } = twilio.twiml;
-
-function toE164(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('1') && digits.length === 11) return `+${digits}`;
-  if (digits.length === 10) return `+1${digits}`;
-  return `+${digits}`;
-}
 
 // Twilio llama este webhook cuando el browser Device inicia una llamada saliente.
 export async function POST(req: NextRequest) {
@@ -31,15 +25,26 @@ export async function POST(req: NextRequest) {
     const toE164Num  = toE164(to);
     const callerE164 = TWILIO_PHONE_NUMBER ? toE164(TWILIO_PHONE_NUMBER) : undefined;
 
+    // Quién marcó. `From` viene como `client:user-<supabaseUserId>` porque el
+    // token ahora emite identidad por usuario (fase 1). Lo firma Twilio, así
+    // que es confiable — el `AgentName` del `device.connect()` no lo es, viaja
+    // desde el navegador. Sin esto `agentUserId` quedaba siempre null y las
+    // pestañas "Mis llamadas" / "Que yo contesté" no podían filtrar nada.
+    const agentUserId = userIdFromIdentity(from);
+
     // Crear el registro de llamada — el status callback lo actualizará con el outcome final
     if (callSid) {
       await db.callLog.create({
         data: {
           twilioCallSid:   callSid,
           direction:       'OUTBOUND',
-          fromNumber:      from ?? callerE164 ?? '',
+          // En salientes el origen real es NUESTRO número de Twilio: guardar
+          // `client:user-<uuid>` acá dejaba una columna de teléfono con un id
+          // adentro, imposible de mostrar y de comparar.
+          fromNumber:      callerE164 ?? from ?? '',
           toNumber:        toE164Num,
           outcome:         'IN_PROGRESS',
+          agentUserId,
           agentName:       agentName || null,
         },
       }).catch((e) => console.error('[twilio/voice] callLog.create failed:', e));

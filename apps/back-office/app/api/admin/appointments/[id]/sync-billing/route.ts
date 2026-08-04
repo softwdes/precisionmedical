@@ -3,6 +3,17 @@
  *
  * Creates one AppointmentBilling record per CPT service.
  * Uses raw SQL to bypass Prisma client type issues with new columns.
+ *
+ * IMPORTANTE: solo administra los cobros que nacen de `plannedServiceCodes`.
+ * En `appointment_billing` también viven cobros de OTRAS fuentes, cada una con su
+ * propio sincronizador:
+ *   · férulas          → `braceId`       (lib/brace-billing.ts)
+ *   · cargos efectivo  → `cashServiceId` (lib/cash-service-billing.ts)
+ * Esas filas se excluyen explícitamente de la query. Sin ese filtro esta ruta las
+ * borraba: las de férulas por tener `serviceCode` nulo (caían en el DELETE de
+ * "agregados"), y las de efectivo por tener un código que no está en la lista de
+ * CPT (caían en el DELETE de "códigos removidos"). Pasaba en cada guardado del
+ * tab de servicios.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -39,6 +50,8 @@ export async function POST(
       FROM appointment_billing ab
       LEFT JOIN billing_payments p ON p."billingId" = ab.id AND p.status != 'CANCELLED'
       WHERE ab."appointmentId" = ${id}
+        AND ab."braceId" IS NULL
+        AND ab."cashServiceId" IS NULL
       GROUP BY ab.id, ab."serviceCode"
     `;
 

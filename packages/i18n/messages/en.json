@@ -4393,6 +4393,11 @@
       "filterInactive": "Inactive"
     },
     "charges": {
+      "chargesOnVisit": "{count} charges on this visit",
+      "chargeOnVisit": "1 charge on this visit",
+      "noChargesOnVisit": "No charges on this visit",
+      "cashCollectedHint": "collected at the front desk",
+      "addCharge": "Add charge",
       "pickerTitle": "Add charge",
       "viewAll": "All",
       "viewInsurance": "Insurance",

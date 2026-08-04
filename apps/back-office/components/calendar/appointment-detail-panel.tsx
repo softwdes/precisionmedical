@@ -15,12 +15,13 @@ import {
   Phone, MessageSquare, Calendar,
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
   User, Scale, Shield, Headphones, Check, Edit2, Ban,
-  AlertCircle, X, Plus, Trash2, DollarSign,
+  AlertCircle, X, Plus, Trash2, DollarSign, Banknote,
   Stethoscope, Loader2, Clock,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, TagPill, type StatusState } from '@/components/ui-phoenix/status-pill';
-import { Dialog, DialogContent, DialogTitle } from '@precision/ui';
+import { EmptyState } from '@/components/ui-phoenix/empty-state';
+import { Dialog, DialogContent, DialogTitle, Button } from '@precision/ui';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
 import type { CoverageType } from '@/lib/coverage';
 import { AppointmentSecondaryModals, type SecondaryModalType } from './appointment-secondary-modals';
@@ -434,13 +435,35 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   // Detalle, para no duplicar la logica de busqueda/lista en dos lugares.
   const servicesBody = (
     <>
-      {/* Header con total + Pagar deuda */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{tc('chargesTitle')}</div>
-        <div className="flex items-center gap-2">
+      {/* Barra de acción — MISMO patrón que los tabs de Férulas y Laboratorios:
+          resumen y totales a la izquierda, acción sólida a la derecha. Antes esto
+          era un label uppercase + un botón punteado de ancho completo, que no se
+          parecía a ningún otro tab de la consulta. */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] text-text-muted">
+            {chargeCount === 0
+              ? tc('noChargesOnVisit')
+              : chargeCount === 1 ? tc('chargeOnVisit') : tc('chargesOnVisit', { count: chargeCount })}
+          </span>
+          {/* Los dos totales viven ACÁ, siempre a la vista: al fondo de la tabla
+              obligaban a scrollear para saber cuánto cobrar en el mostrador. */}
+          {insuranceTotal > 0 && (
+            <TagPill label={`${tc('totalToInsurance')} ${fmt$(insuranceTotal)}`} colorClass="bg-cyan/15 text-cyan border-cyan/30" />
+          )}
+          {cashTotal > 0 && (
+            <TagPill label={`${tc('totalCashToday')} ${fmt$(cashTotal)}`} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
+          )}
+          {/* Saldo pendiente del CASO (no de esta visita). Vivía como el número
+              grande del header; al pasar los totales de la visita a pills se
+              habría perdido, y es el dato que el asistente mira antes de cobrar. */}
+          {billingTotal !== undefined && billingTotal > 0 && (
+            <TagPill label={`${t('kpiTotalBalance')} ${fmt$(billingTotal)}`} colorClass="bg-amber/15 text-amber border-amber/30" />
+          )}
           {savingSvc && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
           {savedOk   && <span className="text-[10px] text-emerald">{t('savedOk')}</span>}
-          <span className="text-sm font-bold text-cyan">{fmt$(billingTotal ?? svcTotal)}</span>
+        </div>
+        <div className="flex items-center gap-2">
           {appt.case && !hidePayments && (
             <button
               type="button"
@@ -461,109 +484,108 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               <DollarSign className="w-3.5 h-3.5" /> {t('actionPayDebt')}
             </button>
           )}
+          {/* Acción primaria del tab, sólida y arriba a la derecha — igual que
+              "Dispense brace" en Férulas. */}
+          <Button onClick={() => setCatalogOpen(true)} className="h-9 gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> {tc('addCharge')}
+          </Button>
         </div>
       </div>
 
-      {/* Agregar cargo — abre el picker con los dos catálogos */}
-      <button
-        type="button"
-        onClick={() => setCatalogOpen(true)}
-        className="w-full flex items-center gap-2 justify-center rounded-lg border border-dashed border-violet/40 text-violet hover:bg-violet/5 py-2.5 text-sm font-semibold transition-colors"
-      >
-        <Plus className="w-4 h-4" /> {tc('pickerTitle')}
-      </button>
-
-      {/* UNA lista con los cargos de la visita, salgan del catálogo que salgan.
-          El badge de fuente dice quién paga cada línea. */}
+      {/* UNA tarjeta con los cargos de la visita, salgan del catálogo que
+          salgan, agrupados por quién paga. Antes cada fila llevaba su propio
+          badge: con 6 cargos eran 6 pills repetidos diciendo lo mismo. Dos
+          encabezados de sección dicen más con menos tinta. */}
       {!svcLoaded ? (
         <div className="flex items-center justify-center py-6 text-text-muted text-xs gap-2">
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
         </div>
       ) : chargeCount === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-          <Stethoscope className="w-8 h-8 text-text-muted/40 mb-3" />
-          <div className="text-text-muted text-sm">{tc('emptyTitle')}</div>
-          <div className="text-text-muted/60 text-xs mt-1 max-w-[320px]">{tc('emptyHint')}</div>
-        </div>
+        <EmptyState.Rich icon={Stethoscope} title={tc('emptyTitle')} subtitle={tc('emptyHint')} />
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <div className="grid grid-cols-[60px_1fr_96px_90px_36px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
-            <span>{t('colCode')}</span>
-            <span>{t('colDescription')}</span>
-            <span className="hidden sm:block">{tc('colSource')}</span>
-            <span className="text-right">{t('colCost')}</span>
-            <span />
-          </div>
+        <div className="rounded-lg border border-border bg-bg-1">
 
-          {/* A seguro — el fee es editable (lo negocia quien factura) */}
-          {services.map(svc => (
-            <div key={svc.id} className="grid grid-cols-[60px_1fr_96px_90px_36px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
-              <span className="font-mono text-[11px] text-cyan">{svc.code}</span>
-              <span className="text-xs text-text-1 pr-2 truncate">{svc.description}</span>
-              <span className="hidden sm:block">
-                <TagPill label={tc('badgeInsurance')} colorClass="bg-cyan/15 text-cyan border-cyan/30" />
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={svc.fee}
-                onBlur={e => {
-                  const v = parseFloat(e.target.value);
-                  if (!isNaN(v) && v !== svc.fee) updateServiceFee(svc.id, v);
-                }}
-                className="w-full text-right bg-transparent border border-transparent hover:border-border focus:border-cyan rounded px-1.5 py-0.5 text-xs font-semibold text-text-1 focus:outline-none focus:bg-bg-2 transition-colors"
-              />
-              <button type="button" onClick={() => setConfirmDeleteSvc(svc.id)}
-                className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors ml-auto">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+          {/* A seguro — el fee ES editable: lo ajusta quien factura */}
+          {services.length > 0 && (
+            <>
+              <div className="px-3 py-2 border-b border-border/60 flex items-center gap-2">
+                <Shield className="w-3.5 h-3.5 text-cyan shrink-0" />
+                <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">
+                  {tc('badgeInsurance')}
+                </span>
+              </div>
+              <div className="divide-y divide-border/40">
+                {services.map(svc => (
+                  <div key={svc.id} className="px-3 py-2 flex items-center gap-3 hover:bg-bg-2/30 transition-colors">
+                    <span className="font-mono text-[11.5px] text-cyan w-[68px] shrink-0">{svc.code}</span>
+                    {/* La descripción se lleva el espacio libre: con la grilla de
+                        antes le tocaba una fracción y se truncaba siempre. */}
+                    <span className="text-[12.5px] text-text-1 flex-1 min-w-[120px]">{svc.description}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={svc.fee}
+                      onBlur={e => {
+                        const v = parseFloat(e.target.value);
+                        if (!isNaN(v) && v !== svc.fee) updateServiceFee(svc.id, v);
+                      }}
+                      className="w-[78px] shrink-0 text-right tabular-nums bg-transparent border border-transparent hover:border-border focus:border-cyan rounded px-1.5 py-0.5 text-[12.5px] font-semibold text-text-1 focus:outline-none focus:bg-bg-2 transition-colors"
+                    />
+                    <button type="button" onClick={() => setConfirmDeleteSvc(svc.id)}
+                      className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors shrink-0">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* En efectivo — el precio NO se edita acá: es el precio público del
+              catálogo. Corregirlo visita por visita es como se pierde el control
+              de los márgenes; se arregla en el catálogo, una vez. */}
+          {cashCharges.length > 0 && (
+            <>
+              <div className={`px-3 py-2 border-b border-border/60 flex items-center gap-2 flex-wrap ${services.length > 0 ? 'border-t' : ''}`}>
+                <Banknote className="w-3.5 h-3.5 text-emerald shrink-0" />
+                <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">
+                  {tc('badgeCash')}
+                </span>
+                {/* La instrucción real para el asistente, no una etiqueta más */}
+                <span className="text-[11px] text-text-muted">· {tc('cashCollectedHint')}</span>
+              </div>
+              <div className="divide-y divide-border/40">
+                {cashCharges.map(c => (
+                  <div key={c.id} className="px-3 py-2 flex items-center gap-3 hover:bg-bg-2/30 transition-colors">
+                    <span className="font-mono text-[11.5px] text-emerald w-[68px] shrink-0 truncate" title={c.code}>{c.code}</span>
+                    <span className="text-[12.5px] text-text-1 flex-1 min-w-[120px]">
+                      {c.name}
+                      {c.quantity > 1 && <span className="text-text-muted"> ×{c.quantity}</span>}
+                      {c.unitLabel && <span className="text-text-muted"> · {c.unitLabel}</span>}
+                    </span>
+                    <span className="w-[78px] shrink-0 text-right tabular-nums text-[12.5px] font-semibold text-text-1 px-1.5">
+                      {fmt$(c.unitPrice * c.quantity)}
+                    </span>
+                    <button type="button" onClick={() => setConfirmVoidCash(c.id)}
+                      className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors shrink-0">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* El desglose ya vive arriba; acá abajo solo el total, que es el dato
+              secundario. Solo si hay de las dos fuentes: con una sola, repetiría
+              el pill del header. */}
+          {insuranceTotal > 0 && cashTotal > 0 && (
+            <div className="px-3 py-2.5 border-t border-border/60 text-right">
+              <span className="text-[11px] text-text-muted">{t('totalEstimated')}</span>
+              <span className="text-[12.5px] font-semibold text-text-1 ml-2 tabular-nums">{fmt$(svcTotal)}</span>
             </div>
-          ))}
-
-          {/* En efectivo — precio NO editable acá: es el precio público del
-              catálogo. Si está mal, se corrige en el catálogo y no visita por
-              visita, que es como se pierde el control de los márgenes. */}
-          {cashCharges.map(c => (
-            <div key={c.id} className="grid grid-cols-[60px_1fr_96px_90px_36px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
-              <span className="font-mono text-[11px] text-emerald truncate" title={c.code}>{c.code}</span>
-              <span className="text-xs text-text-1 pr-2 truncate">
-                {c.name}
-                {c.quantity > 1 && <span className="text-text-muted"> ×{c.quantity}</span>}
-                {c.unitLabel && <span className="text-text-muted"> · {c.unitLabel}</span>}
-              </span>
-              <span className="hidden sm:block">
-                <TagPill label={tc('badgeCash')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
-              </span>
-              <span className="text-right text-xs font-semibold text-text-1 px-1.5">
-                {fmt$(c.unitPrice * c.quantity)}
-              </span>
-              <button type="button" onClick={() => setConfirmVoidCash(c.id)}
-                className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors ml-auto">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-
-          {/* Total desglosado: lo que se le factura a la aseguradora y lo que hay
-              que cobrar HOY en el mostrador son dos números distintos. */}
-          <div className="px-3 py-2.5 bg-bg-2/50 flex items-center justify-end gap-4 flex-wrap">
-            {insuranceTotal > 0 && (
-              <span className="text-[11px] text-text-muted">
-                {tc('totalToInsurance')} <b className="text-cyan text-sm ml-0.5">{fmt$(insuranceTotal)}</b>
-              </span>
-            )}
-            {cashTotal > 0 && (
-              <span className="text-[11px] text-text-muted">
-                {tc('totalCashToday')} <b className="text-emerald text-sm ml-0.5">{fmt$(cashTotal)}</b>
-              </span>
-            )}
-            {insuranceTotal > 0 && cashTotal > 0 && (
-              <span className="text-[11px] text-text-muted border-l border-border pl-4">
-                {t('totalEstimated')} <b className="text-text-1 text-sm ml-0.5">{fmt$(svcTotal)}</b>
-              </span>
-            )}
-          </div>
+          )}
         </div>
       )}
     </>
@@ -592,8 +614,11 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
 
           {/* ─── Tabs — solo existen en modo inline. En el modal completo,
                Detalle es la unica vista y Servicios/Pagos son botones que
-               abren su propio modal encima, no un tab a donde navegar. ── */}
-          {inline && (
+               abren su propio modal encima, no un tab a donde navegar.
+               Y solo si hay MÁS DE UNO: al filtrar Detalle queda un tab único
+               ("Servicios") que repetía el nombre del tab de la pantalla que ya
+               lo contiene — una fila subrayada que solo hundía el contenido. ── */}
+          {inline && TABS.filter(tab => tab.id !== 'detail').length > 1 && (
           <div className="flex border-b border-border shrink-0">
             {TABS.filter(tab => tab.id !== 'detail').map(tab => (
               <button

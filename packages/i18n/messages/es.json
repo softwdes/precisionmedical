@@ -4392,6 +4392,11 @@
       "filterInactive": "Inactivos"
     },
     "charges": {
+      "chargesOnVisit": "{count} cargos en esta visita",
+      "chargeOnVisit": "1 cargo en esta visita",
+      "noChargesOnVisit": "Sin cargos en esta visita",
+      "cashCollectedHint": "se cobra en el mostrador",
+      "addCharge": "Agregar cargo",
       "pickerTitle": "Agregar cargo",
       "viewAll": "Todo",
       "viewInsurance": "Con seguro",

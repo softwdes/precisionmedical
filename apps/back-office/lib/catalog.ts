@@ -159,6 +159,25 @@ export interface PriceListEntry {
   sizeLabel: string | null;
 }
 
+/**
+ * Ítems cuya "descripción" es el código mismo ("82570" → "82570"). Son 18 en
+ * service_codes, basura de la migración del v2. No se pueden cotizar: nadie
+ * sabe qué son. Se mandan al final de su tab en vez de ocultarlos, para que
+ * quede a la vista que existen y alguien les ponga el nombre real.
+ */
+function isCodeOnlyName(name: string, code: string): boolean {
+  const norm = (s: string): string => s.replace(/[^a-z0-9]/gi, '').toUpperCase();
+  return norm(name) === norm(code);
+}
+
+/** Nombre real primero (alfabético); los que solo tienen código, al fondo. */
+function byNameCodeOnlyLast(a: PriceListEntry, b: PriceListEntry): number {
+  const ca = isCodeOnlyName(a.name, a.code) ? 1 : 0;
+  const cb = isCodeOnlyName(b.name, b.code) ? 1 : 0;
+  if (ca !== cb) return ca - cb;
+  return a.name.localeCompare(b.name, 'en', { sensitivity: 'base', numeric: true });
+}
+
 export async function listPriceList(): Promise<PriceListEntry[]> {
   const [cash, insurance] = await Promise.all([
     db.$queryRaw<Array<{
@@ -181,28 +200,30 @@ export async function listPriceList(): Promise<PriceListEntry[]> {
     }),
   ]);
 
-  return [
-    ...cash.map((r) => ({
-      key: `c${r.id}`,
-      tab: (r.kind === 'INJECTION' || r.kind === 'SERVICE'
-        ? 'INJECTION_SERVICE'
-        : r.kind) as PriceListTab,
-      code: r.code,
-      name: r.name,
-      price: r.price,
-      unitLabel: r.unitLabel,
-      sizeLabel: r.sizeLabel,
-    })),
-    ...insurance.map((r) => ({
-      key: `s${r.id}`,
-      tab: 'INSURANCE' as PriceListTab,
-      code: r.code,
-      name: r.shortDescription,
-      price: Number(r.currentFee),
-      unitLabel: null,
-      sizeLabel: null,
-    })),
-  ];
+  const cashEntries: PriceListEntry[] = cash.map((r) => ({
+    key: `c${r.id}`,
+    tab: (r.kind === 'INJECTION' || r.kind === 'SERVICE'
+      ? 'INJECTION_SERVICE'
+      : r.kind) as PriceListTab,
+    code: r.code,
+    name: r.name,
+    price: r.price,
+    unitLabel: r.unitLabel,
+    sizeLabel: r.sizeLabel,
+  }));
+
+  const insEntries: PriceListEntry[] = insurance.map((r) => ({
+    key: `s${r.id}`,
+    tab: 'INSURANCE' as PriceListTab,
+    code: r.code,
+    name: r.shortDescription,
+    price: Number(r.currentFee),
+    unitLabel: null,
+    sizeLabel: null,
+  }));
+
+  // El cliente filtra por tab respetando este orden, así que se ordena acá.
+  return [...cashEntries, ...insEntries.sort(byNameCodeOnlyLast)];
 }
 
 /** Serializa fechas para pasar del server component al client component. */

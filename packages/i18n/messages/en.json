@@ -4407,7 +4407,7 @@
         "save": "Save"
       },
       "tab": {
-        "LAB": "Labs",
+        "LAB": "LabCorp",
         "INJECTION_SERVICE": "Injections & services",
         "INSURANCE": "Insurance services",
         "DME": "Braces"
@@ -4587,7 +4587,7 @@
         "countFiltered": "{shown} of {total}",
         "onlyPriced": "Only items with a price are shown",
         "tab": {
-          "LAB": "Labs",
+          "LAB": "LabCorp",
           "INJECTION_SERVICE": "Injections & services",
           "INSURANCE": "Insurance services",
           "DME": "Braces"

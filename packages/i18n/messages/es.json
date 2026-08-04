@@ -4406,7 +4406,7 @@
         "save": "Guardar"
       },
       "tab": {
-        "LAB": "Laboratorios",
+        "LAB": "LabCorp",
         "INJECTION_SERVICE": "Inyecciones y servicios",
         "INSURANCE": "Servicios con seguro",
         "DME": "Férulas"
@@ -4586,7 +4586,7 @@
         "countFiltered": "{shown} de {total}",
         "onlyPriced": "Solo se muestran los ítems con precio cargado",
         "tab": {
-          "LAB": "Laboratorios",
+          "LAB": "LabCorp",
           "INJECTION_SERVICE": "Inyecciones y servicios",
           "INSURANCE": "Servicios con seguro",
           "DME": "Férulas"

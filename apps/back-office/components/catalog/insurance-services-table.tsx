@@ -128,7 +128,7 @@ export function InsuranceServicesTable({ services }: Props): React.ReactElement 
           <DataTable.Scroll>
             <DataTable.Table>
               <DataTable.Head>
-                <DataTable.Th className="sticky left-0 z-10 bg-bg-2">{t('insurance.col.service')}</DataTable.Th>
+                <DataTable.Th sticky="left">{t('insurance.col.service')}</DataTable.Th>
                 <DataTable.Th align="center">{t('insurance.col.type')}</DataTable.Th>
                 <DataTable.Th align="center">{t('insurance.col.category')}</DataTable.Th>
                 <DataTable.Th align="center">{t('insurance.col.modifiers')}</DataTable.Th>
@@ -143,7 +143,7 @@ export function InsuranceServicesTable({ services }: Props): React.ReactElement 
                   const mangled = looksMangled(s.shortDescription);
                   return (
                     <DataTable.Row key={s.id} muted={!s.isActive}>
-                      <DataTable.Td className="sticky left-0 z-10 bg-bg-0">
+                      <DataTable.Td sticky="left">
                         <div className="flex flex-col gap-0.5 min-w-[280px]">
                           <span className={mangled ? 'text-text-muted italic' : 'text-text-1'}>
                             {s.shortDescription}

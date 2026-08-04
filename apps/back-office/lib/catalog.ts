@@ -6,7 +6,7 @@
  * a db.catalogItem sin tocar los consumidores.
  */
 
-import { db, Prisma } from '@precision-medical/database';
+import { db } from '@precision-medical/database';
 
 export type CatalogKind = 'LAB' | 'INJECTION' | 'SERVICE' | 'DME';
 export type PriceStatus = 'VERIFIED' | 'UNVERIFIED' | 'UPDATE_REQUESTED';
@@ -45,22 +45,42 @@ export interface CatalogRow {
   notes: string | null;
 }
 
-/** Numeric → float8 para que salga como number y no como Prisma.Decimal. */
-export const CATALOG_COLS = Prisma.sql`
-  id, kind, code, name, category, section, vendor,
-  "costPrice"::float8   AS "costPrice",
-  "publicPrice"::float8 AS "publicPrice",
-  "memberPrice"::float8 AS "memberPrice",
-  "priceNote", "unitLabel",
-  "hasReflex",
-  "reflexCost"::float8  AS "reflexCost",
-  "reflexPrice"::float8 AS "reflexPrice",
-  "reflexPolicy",
-  "tubeColors", "containerType", "specialHandling",
-  "sizeLabel", "alwaysFullPayment",
-  "cptCode", "hcpcsCode", "ndcCode",
-  "priceStatus", "priceVerifiedAt", "priceVerifiedBy",
-  "isActive", "isOrderable", "replacedByCode", notes
+/**
+ * String plano, NO `Prisma.sql`.
+ *
+ * Interpolar un fragmento `Prisma.sql` dentro de un tagged template de
+ * `$queryRaw` depende de un `instanceof Prisma.Sql`, y en `next dev` eso falla:
+ * Next carga `@prisma/client` en capas de módulo separadas (RSC y route
+ * handler), así que el fragmento creado en una capa no es "un Sql" para la
+ * otra. Y cuando falla no tira error — pasa el fragmento como PARÁMETRO, la
+ * consulta queda en `SELECT $1 FROM catalog_items` y devuelve una sola columna
+ * `?column?` con el texto del SQL adentro. En Vercel no pasa (un solo bundle),
+ * así que es un bug que aparece solo en local y de forma intermitente.
+ *
+ * Con un string y `$queryRawUnsafe` no hay instanceof de por medio y se
+ * comporta igual en dev y en prod. Sin riesgo de inyección: esto es una
+ * constante del código y el único valor variable viaja como parámetro ($1).
+ *
+ * Numeric → float8 para que salga como number y no como Prisma.Decimal.
+ */
+const CATALOG_SELECT = `
+  SELECT
+    id, kind, code, name, category, section, vendor,
+    "costPrice"::float8   AS "costPrice",
+    "publicPrice"::float8 AS "publicPrice",
+    "memberPrice"::float8 AS "memberPrice",
+    "priceNote", "unitLabel",
+    "hasReflex",
+    "reflexCost"::float8  AS "reflexCost",
+    "reflexPrice"::float8 AS "reflexPrice",
+    "reflexPolicy",
+    "tubeColors", "containerType", "specialHandling",
+    "sizeLabel", "alwaysFullPayment",
+    "cptCode", "hcpcsCode", "ndcCode",
+    "priceStatus", "priceVerifiedAt", "priceVerifiedBy",
+    "isActive", "isOrderable", "replacedByCode", notes
+  FROM "catalog_items"
+  WHERE "deletedAt" IS NULL
 `;
 
 /**
@@ -75,18 +95,11 @@ export function canEditCatalog(role: string | null | undefined): boolean {
 }
 
 export async function listCatalog(): Promise<CatalogRow[]> {
-  return db.$queryRaw<CatalogRow[]>`
-    SELECT ${CATALOG_COLS}
-    FROM "catalog_items"
-    WHERE "deletedAt" IS NULL
-    ORDER BY kind, name
-  `;
+  return db.$queryRawUnsafe<CatalogRow[]>(`${CATALOG_SELECT} ORDER BY kind, name`);
 }
 
 export async function findCatalogItem(id: number): Promise<CatalogRow | null> {
-  const [row] = await db.$queryRaw<CatalogRow[]>`
-    SELECT ${CATALOG_COLS} FROM "catalog_items" WHERE id = ${id} AND "deletedAt" IS NULL
-  `;
+  const [row] = await db.$queryRawUnsafe<CatalogRow[]>(`${CATALOG_SELECT} AND id = $1`, id);
   return row ?? null;
 }
 

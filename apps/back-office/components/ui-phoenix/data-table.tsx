@@ -34,6 +34,36 @@ type Align = 'left' | 'center' | 'right';
 
 const alignClass = (a: Align | undefined) => a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left';
 
+/**
+ * Columnas fijas (Regla #4: obligatorias en tablas de 5+ columnas).
+ *
+ * El fondo de una celda sticky tiene que ser OPACO — si no, el contenido que
+ * scrollea se ve por debajo. Y tiene que empatar con el fondo de su fila, o la
+ * columna queda como una franja de otro color. Ese fondo es `bg-1` (el de
+ * `DataTable.Card`), NO `bg-0`: `bg-0` es el fondo de la página y es más
+ * oscuro que la Card.
+ *
+ * Esto se resolvía a mano en cada pantalla y salía mal seguido — el historial
+ * de llamadas terminó abandonando `DataTable.Card` justo por esto. Vive acá
+ * para que nadie más tenga que elegir el token.
+ */
+type Sticky = 'left' | 'right';
+
+const stickySide = (s: Sticky): string => (s === 'left' ? 'sticky left-0' : 'sticky right-0');
+
+/**
+ * El hover de la fila (`hover:bg-white/[0.02]` en el `<tr>`) queda tapado por
+ * el fondo opaco de la celda fija. Se repone con una capa `::before` sobre el
+ * fondo, activada por el `group` de `DataTable.Row` — así el resaltado cruza
+ * la fila entera y no solo el centro.
+ */
+const STICKY_BODY_BG = [
+  'bg-bg-1',
+  'before:absolute before:inset-0 before:pointer-events-none',
+  'before:bg-white/[0.02] before:opacity-0 group-hover:before:opacity-100',
+  'before:transition-opacity',
+].join(' ');
+
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-bg-1 overflow-hidden">
@@ -51,9 +81,11 @@ function Table({ children }: { children: React.ReactNode }) {
 }
 
 function Head({ children }: { children: React.ReactNode }) {
+  // Opaco, no `bg-bg-2/50`: una celda sticky tiene que ser opaca sí o sí, y con
+  // el header semitransparente quedaba de un tono distinto al resto de la fila.
   return (
     <thead>
-      <tr className="border-b border-row-sep bg-bg-2/50 text-text-muted text-[10px] uppercase tracking-wider">
+      <tr className="border-b border-row-sep bg-bg-2 text-text-muted text-[10px] uppercase tracking-wider">
         {children}
       </tr>
     </thead>
@@ -64,17 +96,24 @@ function Th({
   children,
   align,
   width,
+  sticky,
   className = '',
 }: {
   children: React.ReactNode;
   align?: Align;
   width?: string;
-  /** Para columnas sticky en tablas anchas: "sticky left-0 z-10 bg-bg-2". */
+  /** Fija la columna al scrollear en horizontal. Ver nota de Sticky arriba. */
+  sticky?: Sticky;
   className?: string;
 }) {
   return (
     <th
-      className={`${alignClass(align)} px-4 py-2.5 font-semibold ${className}`}
+      className={[
+        alignClass(align),
+        'px-4 py-2.5 font-semibold',
+        sticky ? `${stickySide(sticky)} z-10 bg-bg-2` : '',
+        className,
+      ].filter(Boolean).join(' ')}
       style={width ? { width } : undefined}
     >
       {children}
@@ -101,7 +140,9 @@ function Row({
   return (
     <tr
       onClick={onClick}
-      className={`border-b border-row-sep hover:bg-white/[0.02] transition-colors ${
+      // `group` para que las celdas sticky puedan reponer el hover que su
+      // fondo opaco tapa (ver STICKY_BODY_BG).
+      className={`group border-b border-row-sep hover:bg-white/[0.02] transition-colors ${
         muted ? 'opacity-50' : ''
       } ${highlight ? (highlightClass ?? 'bg-brand/[0.04]') : ''} ${onClick ? 'cursor-pointer' : ''}`}
     >
@@ -116,18 +157,26 @@ function Td({
   className = '',
   onClick,
   colSpan,
+  sticky,
 }: {
   children: React.ReactNode;
   align?: Align;
   className?: string;
   onClick?: (e: React.MouseEvent) => void;
   colSpan?: number;
+  /** Fija la columna al scrollear en horizontal. Ver nota de Sticky arriba. */
+  sticky?: Sticky;
 }) {
   return (
     <td
       colSpan={colSpan}
       onClick={onClick}
-      className={`${alignClass(align)} px-4 py-2 ${className}`}
+      className={[
+        alignClass(align),
+        'px-4 py-2',
+        sticky ? `${stickySide(sticky)} z-10 ${STICKY_BODY_BG}` : '',
+        className,
+      ].filter(Boolean).join(' ')}
     >
       {children}
     </td>

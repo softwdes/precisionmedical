@@ -169,19 +169,33 @@ mobile cards).
 para que ambas anclas siempre sean visibles cuando el contenido del medio se desplaza
 horizontalmente en laptops o pantallas pequeñas.
 
-```tsx
-// th / td de la primera columna
-<th className="sticky left-0 z-10 bg-bg-2 ...">  {/* thead */}
-<td className="sticky left-0 z-10 bg-bg-0 ...">  {/* tbody */}
+**Usá la prop `sticky` de `DataTable` — no escribas las clases a mano:**
 
-// th / td de la columna de acciones (última)
-<th className="sticky right-0 z-10 bg-bg-2 ...">
-<td className="sticky right-0 z-10 bg-bg-0 ...">
+```tsx
+<DataTable.Th sticky="left">Nombre</DataTable.Th>
+<DataTable.Th align="right" sticky="right">Acciones</DataTable.Th>
+
+<DataTable.Td sticky="left">{x.name}</DataTable.Td>
+<DataTable.Td align="right" sticky="right">{acciones}</DataTable.Td>
 ```
 
-Usar `bg-bg-2` en `thead` y `bg-bg-0` en `tbody` para que la celda sticky tape
-correctamente al hacer scroll. El `min-w` de la tabla debe ser lo más ajustado posible
-(máximo el ancho real del contenido sin sticky) para minimizar el scroll necesario.
+El primitivo ya resuelve las dos cosas que salían mal cuando esto se escribía a mano:
+
+1. **El fondo de la celda fija es `bg-bg-1`, no `bg-bg-0`.** Tiene que ser opaco (si no
+   se ve el contenido que scrollea por debajo) y tiene que empatar con el fondo de la
+   fila. Dentro de `DataTable.Card` ese fondo es `bg-1`; `bg-0` es el fondo de la
+   **página** y es más oscuro, así que la columna quedaba como una franja de otro color.
+   Esta guía decía `bg-bg-0` y por eso el bug se repitió en varias pantallas.
+2. **El hover.** `hover:bg-white/[0.02]` vive en el `<tr>` y queda tapado por el fondo
+   opaco de la celda; el primitivo lo repone con una capa `::before` y el `group` de
+   `DataTable.Row`, para que el resaltado cruce la fila entera.
+
+El `min-w` de la tabla debe ser lo más ajustado posible (máximo el ancho real del
+contenido sin sticky) para minimizar el scroll necesario.
+
+> Deuda conocida: `call-history-dialog.tsx`, `audit-logs-client.tsx`,
+> `patients-client.tsx` y `lawyer-detail-client.tsx` todavía arman la tabla y las
+> celdas sticky a mano. Migrarlos al primitivo cuando se los toque.
 
 ### Breakpoints estándar (Tailwind)
 

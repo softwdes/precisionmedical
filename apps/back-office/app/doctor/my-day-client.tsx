@@ -16,6 +16,8 @@ import {
   CalendarCheck2, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Hourglass, RefreshCw, Sun, Video, FileSignature,
 } from 'lucide-react';
 import { PageHeader, KpiCard, EmptyState, TagPill, PersonAvatar, DatePicker } from '@/components/ui-phoenix';
+import { CoverageChip } from '@/components/coverage/coverage-chip';
+import type { CoverageDTO } from '@/lib/coverage';
 
 export interface MyDayAppointment {
   id: string;
@@ -35,7 +37,10 @@ export interface MyDayAppointment {
   doctorDoneAt: string | null;
   patientFirstName: string;
   patientLastName: string;
+  caseId: string | null;
   caseCode: string | null;
+  /** ¿Quién paga? Referencia para el doctor antes de entrar a la consulta. */
+  coverage: CoverageDTO;
   clinicName: string;
 }
 
@@ -279,6 +284,13 @@ export function MyDayClient({
               )}
             </div>
           </Link>
+          {/* Fuera del <Link> a propósito: un <button> dentro de un <a> es HTML
+              inválido y el click quedaría peleado entre navegar y abrir el
+              diálogo. Acá es editable porque es el paciente que el doctor tiene
+              enfrente — en la cola de abajo va en modo lectura. */}
+          <div className="shrink-0">
+            <CoverageChip caseId={hero.caseId} coverage={hero.coverage} size="md" />
+          </div>
           {heroReady ? (
             <button
               type="button"
@@ -321,6 +333,12 @@ export function MyDayClient({
                   <span className="ml-2 font-mono text-[10px] text-cyan hidden sm:inline">{a.caseCode ?? ''}</span>
                   {a.isOnline && <Video className="w-3 h-3 text-cyan inline ml-1.5 -mt-0.5" />}
                 </div>
+                {/* Solo lectura: la fila entera es un link y quien corrige la
+                    cobertura es recepción o el asistente desde Day Admission.
+                    El doctor la resuelve en el hero o entrando a la consulta. */}
+                <span className="hidden sm:inline">
+                  <CoverageChip caseId={a.caseId} coverage={a.coverage} editable={false} />
+                </span>
                 {statusPill(a)}
                 <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-violet shrink-0 transition-colors" />
               </Link>

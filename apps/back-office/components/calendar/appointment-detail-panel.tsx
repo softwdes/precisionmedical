@@ -15,12 +15,14 @@ import {
   Phone, MessageSquare, Calendar,
   CheckCircle2, AlertTriangle, ChevronRight, ChevronDown,
   User, Scale, Shield, Headphones, Check, Edit2, Ban,
-  AlertCircle, Search, X, Plus, Trash2, DollarSign,
-  Stethoscope, Loader2, Clock, Star,
+  AlertCircle, X, Plus, Trash2, DollarSign,
+  Stethoscope, Loader2, Clock,
 } from 'lucide-react';
 import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
-import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
+import { StatusPill, TagPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 import { Dialog, DialogContent, DialogTitle } from '@precision/ui';
+import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
+import type { CoverageType } from '@/lib/coverage';
 import { AppointmentSecondaryModals, type SecondaryModalType } from './appointment-secondary-modals';
 import { AppointmentDialog, type EditAppointmentData } from './appointment-dialog';
 import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
@@ -72,9 +74,16 @@ interface PlannedService {
   category: string;
 }
 
-/** Fila del catálogo completo (modal de búsqueda) — trae isFavorite, a diferencia de PlannedService */
-interface CatalogService extends PlannedService {
-  isFavorite: boolean;
+/** Cargo del catálogo cash — fila real de `appointment_services`. */
+interface CashCharge {
+  id: string;
+  catalogItemId: number | null;
+  code: string;
+  name: string;
+  unitPrice: number;
+  unitLabel: string | null;
+  cptCode: string | null;
+  quantity: number;
 }
 
 interface Props {
@@ -90,6 +99,12 @@ interface Props {
    * "Pagar deuda" y su modal. El cobro lo hace el asistente en Day Admission.
    */
   hidePayments?: boolean;
+  /**
+   * Cobertura del caso. Solo ORDENA qué catálogo abre primero el picker; las dos
+   * listas se muestran siempre. Sin valor, arranca en efectivo — el default más
+   * seguro, porque cobrar de más es peor que facturar de menos.
+   */
+  coverage?: CoverageType;
 }
 
 type Tab = 'detail' | 'services';
@@ -159,9 +174,11 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = 'UNKNOWN' }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
+  /** Namespace de los cargos — compartido con el picker. */
+  const tc = useTranslations('phoenix.charges');
   const locale = useLocale();
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -204,22 +221,26 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     }).catch(() => {});
   }, [twilio.callSid, appt.patient.id, appt.case?.id]);
 
-  // ── Services (modal A: lo ya agregado a esta cita) ────────────────────────
+  // ── Cargos de la visita ───────────────────────────────────────────────────
+  //
+  // Dos fuentes, una sola lista en pantalla:
+  //   · `services`     → CPT de `service_codes`, se factura a la aseguradora.
+  //                      Persisten en el JSON `appointment.plannedServiceCodes`.
+  //   · `cashCharges`  → ítems de `catalog_items`, los paga el paciente.
+  //                      Persisten en la tabla `appointment_services`.
+  // Se muestran juntos con badge de fuente y el total se desglosa, porque
+  // "$107" mezclando plata de la aseguradora con plata del mostrador no le sirve
+  // a nadie: el asistente necesita saber cuánto cobrar HOY.
   const [services,       setServices]       = useState<PlannedService[]>([]);
+  const [cashCharges,    setCashCharges]    = useState<CashCharge[]>([]);
   const [svcLoaded,      setSvcLoaded]      = useState(false);
   const [savingSvc,      setSavingSvc]      = useState(false);
   const [savedOk,        setSavedOk]        = useState(false);
   const [confirmDeleteSvc, setConfirmDeleteSvc] = useState<string | null>(null);
+  const [confirmVoidCash,  setConfirmVoidCash]  = useState<string | null>(null);
 
-  // ── Catálogo de servicios (modal B: buscar/agregar, con favoritos) ────────
-  const [catalogOpen,         setCatalogOpen]         = useState(false);
-  const [serviceSearch,       setServiceSearch]       = useState('');
-  const [serviceResults,      setServiceResults]      = useState<CatalogService[]>([]);
-  const [searchingSvc,        setSearchingSvc]        = useState(false);
-  const [catalogFavoritesOnly, setCatalogFavoritesOnly] = useState(false);
-  const [catalogPage,         setCatalogPage]         = useState(1);
-  const [catalogTotalPages,   setCatalogTotalPages]   = useState(1);
-  const [togglingFavId,       setTogglingFavId]       = useState<string | null>(null);
+  // ── Picker unificado (los dos catálogos en una búsqueda) ──────────────────
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
 
   const isFirst   = appt.visitNumber === 0;
@@ -230,11 +251,24 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const lawyerDone    = !!appt.case?.attorney;
   const insuranceDone = !!appt.case?.primaryInsurance;
 
-  // ── Load services when tab/modal opens ────────────────────────────────────
+  // ── Carga de los cargos al abrir el tab/modal ─────────────────────────────
   const servicesVisible = inline ? activeTab === 'services' : servicesModalOpen;
+
+  const loadCashCharges = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/cash-services/${appt.id}`);
+      if (!res.ok) return;
+      const d = (await res.json()) as { charges: CashCharge[] };
+      setCashCharges(d.charges ?? []);
+    } catch { /* la lista queda como está */ }
+  }, [appt.id]);
+
   useEffect(() => {
     if (!servicesVisible || svcLoaded) return;
-    // Si el appointment ya trae los servicios en el prop, usarlos directamente
+    // Los cargos en efectivo siempre se piden: viven en su propia tabla y no
+    // vienen en el prop del appointment.
+    void loadCashCharges();
+
     if (appt.plannedServiceCodes) {
       setServices(appt.plannedServiceCodes);
       setSvcLoaded(true);
@@ -247,47 +281,7 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         setSvcLoaded(true);
       })
       .catch(() => setSvcLoaded(true));
-  }, [servicesVisible, appt.id, svcLoaded, appt.plannedServiceCodes]);
-
-  // Volver a página 1 cuando cambia la búsqueda o el filtro de favoritos
-  useEffect(() => { setCatalogPage(1); }, [serviceSearch, catalogFavoritesOnly]);
-
-  // ── Catálogo (modal B) — con la caja vacía ya muestra un listado navegable
-  // (favoritos primero, orden por defecto), no hace falta escribir nada
-  // primero. Al escribir, filtra igual; paginado real de a 10.
-  useEffect(() => {
-    if (!catalogOpen) return;
-    const delay = serviceSearch ? 300 : 0;
-    const timer = setTimeout(() => {
-      setSearchingSvc(true);
-      const params = new URLSearchParams({ page: String(catalogPage) });
-      if (serviceSearch) params.set('search', serviceSearch);
-      if (catalogFavoritesOnly) params.set('favoritesOnly', 'true');
-      fetch(`/api/admin/service-codes?${params}`)
-        .then(r => r.json())
-        .then(d => {
-          setServiceResults(d.codes ?? []);
-          setCatalogTotalPages(d.totalPages ?? 1);
-        })
-        .catch(() => {})
-        .finally(() => setSearchingSvc(false));
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [serviceSearch, catalogOpen, catalogPage, catalogFavoritesOnly]);
-
-  const toggleCatalogFavorite = useCallback(async (svc: CatalogService) => {
-    setTogglingFavId(svc.id);
-    // optimista — se revierte si falla
-    setServiceResults(prev => prev.map(s => s.id === svc.id ? { ...s, isFavorite: !s.isFavorite } : s));
-    try {
-      const res = await fetch(`/api/admin/services/${svc.id}/favorite`, { method: svc.isFavorite ? 'DELETE' : 'POST' });
-      if (!res.ok) throw new Error('failed');
-    } catch {
-      setServiceResults(prev => prev.map(s => s.id === svc.id ? { ...s, isFavorite: svc.isFavorite } : s));
-    } finally {
-      setTogglingFavId(null);
-    }
-  }, []);
+  }, [servicesVisible, appt.id, svcLoaded, appt.plannedServiceCodes, loadCashCharges]);
 
   // ── Service helpers ───────────────────────────────────────────────────────
   const patchServices = useCallback(async (list: PlannedService[]) => {
@@ -333,7 +327,76 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
     patchServices(next);
   }, [services, patchServices]);
 
-  const svcTotal = services.reduce((s, c) => s + c.fee, 0);
+  /**
+   * Alta desde el picker. La fuente decide DÓNDE se guarda, no cómo se muestra:
+   * a seguro va al JSON de la cita (lo lee el HCFA), en efectivo va a su tabla
+   * propia con una fila por cargo (dos aplicaciones del mismo inyectable son dos
+   * cobros — ver lib/cash-service-billing.ts).
+   */
+  const addBillable = useCallback(async (item: BillableItem) => {
+    if (item.source === 'INSURANCE') {
+      addService({
+        id: item.refId,
+        code: item.code,
+        description: item.name,
+        fee: item.price,
+        category: item.category ?? '',
+      });
+      return;
+    }
+    setSavingSvc(true);
+    try {
+      const res = await fetch(`/api/admin/cash-services/${appt.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          catalogItemId: Number(item.refId),
+          code: item.code,
+          name: item.name,
+          unitPrice: item.price,
+          cptCode: item.insuranceCode,
+          unitLabel: item.unitLabel,
+          quantity: 1,
+        }),
+      });
+      if (res.ok) {
+        const d = (await res.json()) as { charge: CashCharge };
+        setCashCharges(prev => [...prev, d.charge]);
+        setSavedOk(true);
+        setTimeout(() => setSavedOk(false), 2000);
+      }
+    } finally {
+      setSavingSvc(false);
+    }
+  }, [appt.id, addService]);
+
+  /** Anular, no borrar: el cargo pasó y queda en la auditoría. */
+  const voidCashCharge = useCallback(async (id: string) => {
+    setSavingSvc(true);
+    try {
+      const res = await fetch(`/api/admin/cash-services/item/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'VOIDED' }),
+      });
+      if (res.ok) setCashCharges(prev => prev.filter(c => c.id !== id));
+    } finally {
+      setSavingSvc(false);
+    }
+  }, []);
+
+  // Dos totales, no uno. El "$107" de antes sumaba plata de la aseguradora con
+  // plata del mostrador y el asistente tenía que separarla de cabeza.
+  const insuranceTotal = services.reduce((s, c) => s + c.fee, 0);
+  const cashTotal = cashCharges.reduce((s, c) => s + c.unitPrice * c.quantity, 0);
+  const svcTotal = insuranceTotal + cashTotal;
+  const chargeCount = services.length + cashCharges.length;
+
+  /** Claves que ya están en la visita, en el formato del picker. */
+  const addedKeys = new Set<string>([
+    ...services.map(s => `s${s.id}`),
+    ...cashCharges.map(c => c.catalogItemId !== null ? `c${c.catalogItemId}` : `c-${c.code}`),
+  ]);
 
   // ── Detail handlers ───────────────────────────────────────────────────────
   const handleConfirm = async () => {
@@ -372,8 +435,8 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
   const servicesBody = (
     <>
       {/* Header con total + Pagar deuda */}
-      <div className="flex items-center justify-between">
-        <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionCptServices')}</div>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{tc('chargesTitle')}</div>
         <div className="flex items-center gap-2">
           {savingSvc && <Loader2 className="w-3 h-3 text-text-muted animate-spin" />}
           {savedOk   && <span className="text-[10px] text-emerald">{t('savedOk')}</span>}
@@ -401,38 +464,45 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         </div>
       </div>
 
-      {/* Agregar servicio — abre el catálogo completo (modal B) */}
+      {/* Agregar cargo — abre el picker con los dos catálogos */}
       <button
         type="button"
         onClick={() => setCatalogOpen(true)}
-        className="w-full flex items-center gap-2 justify-center rounded-lg border border-dashed border-cyan/40 text-cyan hover:bg-cyan/5 py-2.5 text-sm font-semibold transition-colors"
+        className="w-full flex items-center gap-2 justify-center rounded-lg border border-dashed border-violet/40 text-violet hover:bg-violet/5 py-2.5 text-sm font-semibold transition-colors"
       >
-        <Plus className="w-4 h-4" /> {t('actionAddService')}
+        <Plus className="w-4 h-4" /> {tc('pickerTitle')}
       </button>
 
-      {/* Lista de servicios ya agregados a esta cita */}
+      {/* UNA lista con los cargos de la visita, salgan del catálogo que salgan.
+          El badge de fuente dice quién paga cada línea. */}
       {!svcLoaded ? (
         <div className="flex items-center justify-center py-6 text-text-muted text-xs gap-2">
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
         </div>
-      ) : services.length === 0 ? (
+      ) : chargeCount === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center">
           <Stethoscope className="w-8 h-8 text-text-muted/40 mb-3" />
-          <div className="text-text-muted text-sm">{t('emptyServicesTitle')}</div>
-          <div className="text-text-muted/60 text-xs mt-1">{t('emptyServicesHint')}</div>
+          <div className="text-text-muted text-sm">{tc('emptyTitle')}</div>
+          <div className="text-text-muted/60 text-xs mt-1 max-w-[320px]">{tc('emptyHint')}</div>
         </div>
       ) : (
         <div className="rounded-lg border border-border overflow-hidden">
-          <div className="grid grid-cols-[60px_1fr_90px_36px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
+          <div className="grid grid-cols-[60px_1fr_96px_90px_36px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
             <span>{t('colCode')}</span>
             <span>{t('colDescription')}</span>
+            <span className="hidden sm:block">{tc('colSource')}</span>
             <span className="text-right">{t('colCost')}</span>
             <span />
           </div>
+
+          {/* A seguro — el fee es editable (lo negocia quien factura) */}
           {services.map(svc => (
-            <div key={svc.id} className="grid grid-cols-[60px_1fr_90px_36px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
+            <div key={svc.id} className="grid grid-cols-[60px_1fr_96px_90px_36px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
               <span className="font-mono text-[11px] text-cyan">{svc.code}</span>
               <span className="text-xs text-text-1 pr-2 truncate">{svc.description}</span>
+              <span className="hidden sm:block">
+                <TagPill label={tc('badgeInsurance')} colorClass="bg-cyan/15 text-cyan border-cyan/30" />
+              </span>
               <input
                 type="number"
                 min="0"
@@ -450,106 +520,55 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
               </button>
             </div>
           ))}
-          <div className="px-3 py-2.5 bg-bg-2/50 flex justify-between items-center">
-            <span className="text-[10px] uppercase tracking-wider text-text-muted font-semibold">{t('totalEstimated')}</span>
-            <span className="text-sm font-bold text-cyan">{fmt$(svcTotal)}</span>
+
+          {/* En efectivo — precio NO editable acá: es el precio público del
+              catálogo. Si está mal, se corrige en el catálogo y no visita por
+              visita, que es como se pierde el control de los márgenes. */}
+          {cashCharges.map(c => (
+            <div key={c.id} className="grid grid-cols-[60px_1fr_96px_90px_36px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
+              <span className="font-mono text-[11px] text-emerald truncate" title={c.code}>{c.code}</span>
+              <span className="text-xs text-text-1 pr-2 truncate">
+                {c.name}
+                {c.quantity > 1 && <span className="text-text-muted"> ×{c.quantity}</span>}
+                {c.unitLabel && <span className="text-text-muted"> · {c.unitLabel}</span>}
+              </span>
+              <span className="hidden sm:block">
+                <TagPill label={tc('badgeCash')} colorClass="bg-emerald/15 text-emerald border-emerald/30" />
+              </span>
+              <span className="text-right text-xs font-semibold text-text-1 px-1.5">
+                {fmt$(c.unitPrice * c.quantity)}
+              </span>
+              <button type="button" onClick={() => setConfirmVoidCash(c.id)}
+                className="flex items-center justify-center w-7 h-7 rounded hover:bg-rose/10 text-text-muted hover:text-rose transition-colors ml-auto">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+
+          {/* Total desglosado: lo que se le factura a la aseguradora y lo que hay
+              que cobrar HOY en el mostrador son dos números distintos. */}
+          <div className="px-3 py-2.5 bg-bg-2/50 flex items-center justify-end gap-4 flex-wrap">
+            {insuranceTotal > 0 && (
+              <span className="text-[11px] text-text-muted">
+                {tc('totalToInsurance')} <b className="text-cyan text-sm ml-0.5">{fmt$(insuranceTotal)}</b>
+              </span>
+            )}
+            {cashTotal > 0 && (
+              <span className="text-[11px] text-text-muted">
+                {tc('totalCashToday')} <b className="text-emerald text-sm ml-0.5">{fmt$(cashTotal)}</b>
+              </span>
+            )}
+            {insuranceTotal > 0 && cashTotal > 0 && (
+              <span className="text-[11px] text-text-muted border-l border-border pl-4">
+                {t('totalEstimated')} <b className="text-text-1 text-sm ml-0.5">{fmt$(svcTotal)}</b>
+              </span>
+            )}
           </div>
         </div>
       )}
     </>
   );
 
-  // Contenido del catálogo (modal B) — buscar/filtrar/paginar y agregar a
-  // la cita. Favoritos primero por defecto (⭐ toggle real, ver
-  // UserServiceFavorite / B.33 — no es decorativo).
-  const catalogBody = (
-    <>
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted pointer-events-none" />
-          <input
-            type="text"
-            value={serviceSearch}
-            onChange={e => setServiceSearch(e.target.value)}
-            placeholder={t('searchServicePlaceholder')}
-            className="w-full bg-bg-2 border border-border rounded-lg pl-9 pr-9 py-2 text-sm text-text-1 placeholder:text-text-muted focus:outline-none focus:border-cyan transition-colors"
-          />
-          {serviceSearch && (
-            <button type="button" onClick={() => setServiceSearch('')}
-              className="absolute right-3 top-2.5 text-text-muted hover:text-text-1">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => setCatalogFavoritesOnly(v => !v)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors shrink-0 ${
-            catalogFavoritesOnly ? 'bg-amber/15 border-amber/40 text-amber' : 'border-border text-text-2 hover:bg-white/5'
-          }`}
-        >
-          <Star className={`w-3.5 h-3.5 ${catalogFavoritesOnly ? 'fill-amber' : ''}`} /> {t('favoritesOnly')}
-        </button>
-      </div>
-
-      <div className="rounded-lg border border-border overflow-hidden">
-        <div className="grid grid-cols-[32px_60px_1fr_80px_90px] text-[10px] uppercase tracking-wider text-text-muted font-semibold px-3 py-2 bg-bg-2/50 border-b border-border/50">
-          <span />
-          <span>{t('colCode')}</span>
-          <span>{t('colDescription')}</span>
-          <span className="text-right">{t('colCost')}</span>
-          <span className="text-right">{t('colAction')}</span>
-        </div>
-        {searchingSvc ? (
-          <div className="flex items-center justify-center py-8 text-text-muted text-xs gap-2">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('searching')}
-          </div>
-        ) : serviceResults.length === 0 ? (
-          <div className="px-3 py-8 text-center text-text-muted text-xs">{t('noResultsFor', { query: serviceSearch })}</div>
-        ) : (
-          serviceResults.map(svc => {
-            const already = !!services.find(s => s.id === svc.id);
-            return (
-              <div key={svc.id} className="grid grid-cols-[32px_60px_1fr_80px_90px] items-center px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
-                <button type="button" onClick={() => toggleCatalogFavorite(svc)} disabled={togglingFavId === svc.id}
-                  title={svc.isFavorite ? t('removeFavorite') : t('addFavorite')}
-                  className="flex items-center justify-center text-text-muted hover:text-amber transition-colors disabled:opacity-40">
-                  <Star className={`w-3.5 h-3.5 ${svc.isFavorite ? 'fill-amber text-amber' : ''}`} />
-                </button>
-                <span className="font-mono text-[11px] text-cyan">{svc.code}</span>
-                <span className="text-xs text-text-1 pr-2 truncate">{svc.description}</span>
-                <span className="text-xs font-semibold text-text-2 text-right">{fmt$(svc.fee)}</span>
-                <div className="flex justify-end">
-                  <button type="button" onClick={() => !already && addService(svc)} disabled={already}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
-                      already ? 'bg-emerald/15 text-emerald cursor-not-allowed' : 'bg-cyan text-black hover:bg-cyan/90'
-                    }`}>
-                    {already ? t('added') : t('select')}
-                  </button>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {catalogTotalPages > 1 && (
-        <div className="flex items-center justify-between text-[11px] text-text-muted">
-          <span>{t('pageOf', { page: catalogPage, total: catalogTotalPages })}</span>
-          <div className="flex gap-2">
-            <button type="button" disabled={catalogPage <= 1} onClick={() => setCatalogPage(p => p - 1)}
-              className="px-3 py-1.5 rounded-md border border-border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors">
-              {t('previous')}
-            </button>
-            <button type="button" disabled={catalogPage >= catalogTotalPages} onClick={() => setCatalogPage(p => p + 1)}
-              className="px-3 py-1.5 rounded-md border border-border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors">
-              {t('next')}
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
 
   const panelContent = (
     <>
@@ -890,6 +909,19 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         onCancel={() => setConfirmDeleteSvc(null)}
       />
 
+      {/* Anular un cargo en efectivo — no se borra la fila, se marca VOIDED:
+          el cargo existió y queda en la auditoría. */}
+      <ConfirmDialog
+        open={confirmVoidCash !== null}
+        variant="danger"
+        title={tc('voidTitle')}
+        description={tc('voidBody')}
+        confirmLabel={tc('voidTitle')}
+        cancelLabel="Cancel"
+        onConfirm={() => { if (confirmVoidCash) void voidCashCharge(confirmVoidCash); setConfirmVoidCash(null); }}
+        onCancel={() => setConfirmVoidCash(null)}
+      />
+
       {/* Confirm call — llamar de verdad es una accion real (Twilio), no solo abrir un link */}
       <ConfirmDialog
         open={callConfirmOpen}
@@ -979,21 +1011,17 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         </Dialog>
       )}
 
-      {/* Catálogo de servicios (modal B) — se abre desde "Agregar servicio",
-          tanto en modo inline (consulta del doctor) como en el modal de
-          Detalle, por eso no está condicionado por `inline`. */}
-      <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
-          <DialogTitle className="sr-only">{t('actionAddService')}</DialogTitle>
-          <div className="px-5 py-4 border-b border-border shrink-0 flex items-center gap-2">
-            <Search className="w-4 h-4 text-cyan" />
-            <h2 className="text-text-1 font-semibold text-base">{t('actionAddService')}</h2>
-          </div>
-          <div className="flex-1 overflow-y-auto p-5 space-y-3">
-            {catalogBody}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Picker de cargos — una búsqueda sobre los dos catálogos. Se abre tanto
+          en modo inline (consulta del doctor) como desde el modal de Detalle,
+          por eso no está condicionado por `inline`. */}
+      {catalogOpen && (
+        <ChargePickerDialog
+          coverage={coverage}
+          addedKeys={addedKeys}
+          onClose={() => setCatalogOpen(false)}
+          onAdd={addBillable}
+        />
+      )}
     </>
   );
 

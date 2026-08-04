@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation';
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { ConsultationClient } from './consultation-client';
 
 export const metadata = { title: 'Consulta · Portal Médico' };
@@ -57,6 +58,11 @@ export default async function DoctorConsultationPage({
         select: {
           id: true, caseCode: true, caseType: true, accidentType: true, accidentDate: true,
           pipVerifiedAt: true, intakeFormCompletedAt: true, consentsData: true,
+          // Cobertura. Las columnas van explícitas y no con COVERAGE_LIST_SELECT
+          // porque este select ya trae `primaryInsurance` con más campos y el
+          // spread lo pisaría.
+          coverageType: true, coverageVerifyMethod: true, coverageVerifiedAt: true,
+          coverageVerifiedByName: true, coverageCarrierName: true,
           primaryPolicyNumber: true, secondaryPolicyNumber: true,
           primaryInsurance: { select: { id: true, name: true, type: true } },
           secondaryInsurance: { select: { id: true, name: true } },
@@ -202,7 +208,11 @@ export default async function DoctorConsultationPage({
         noteStatus: a.visitNote?.status ?? null,
         doctorDoneAt: doctorDoneAt?.toISOString() ?? null,
         clinicName: a.clinic.name,
+        caseId: a.case?.id ?? null,
         caseCode: a.case?.caseCode ?? null,
+        // Vista de detalle: se pasa `consentsData` para que, si nadie respondió,
+        // el diálogo pueda sugerir lo que ya trae el formulario de admisión.
+        coverage: serializeCoverage(resolveCoverage(a.case ?? {})),
         verification,
         // Payload para el panel de servicios compartido (mismo de Day Admission)
         servicesPanel: {

@@ -7,6 +7,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@precision-medical/database';
+import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 export async function GET(
   _req: NextRequest,
@@ -44,6 +45,13 @@ export async function GET(
             primaryPolicyNumber:   true,
             lawFirmId:             true,
             attorneyId:            true,
+            // Cobertura (¿quién paga?). Explícitas y no con COVERAGE_LIST_SELECT
+            // porque este select ya trae `primaryInsurance` con más campos.
+            coverageType:           true,
+            coverageVerifyMethod:   true,
+            coverageVerifiedAt:     true,
+            coverageVerifiedByName: true,
+            coverageCarrierName:    true,
             lawFirm: {
               select: { id: true, firmName: true, phone: true, email: true },
             },
@@ -166,6 +174,9 @@ export async function GET(
           secondaryPolicyNumber: c.secondaryPolicyNumber ?? null,
         } : null,
         plannedServiceCodes: Array.isArray(appt.plannedServiceCodes) ? appt.plannedServiceCodes : [],
+        // Vista de detalle: se pasa el caso completo (con `consentsData`) para que
+        // el diálogo pueda sugerir lo que ya trae el formulario de admisión.
+        coverage: serializeCoverage(resolveCoverage(c ?? {})),
         financial,
       },
     });

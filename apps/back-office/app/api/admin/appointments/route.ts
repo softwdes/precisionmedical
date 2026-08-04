@@ -18,6 +18,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
 import { isWeekendInDenver } from '@/lib/scheduling-rules';
+import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 // ─── Include shape (typed via satisfies para que Prisma infiera GetPayload) ──
 const APPT_INCLUDE = {
@@ -41,6 +42,14 @@ const APPT_INCLUDE = {
       accidentDate: true,
       status: true,
       intakeFormCompletedAt: true,
+      // Cobertura: ordena qué catálogo abre primero el picker de cargos. Es una
+      // columna del caso, no una consulta extra — se deriva con
+      // `resolveCoverage` para no reimplementar la regla en el cliente.
+      coverageType: true,
+      coverageVerifyMethod: true,
+      coverageVerifiedAt: true,
+      coverageVerifiedByName: true,
+      coverageCarrierName: true,
       // En el modelo Case la relación al attorney es "attorney" (no lawyerReferrer)
       attorney: {
         select: {
@@ -181,6 +190,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           id:   appt.case.primaryInsurance.id,
           name: appt.case.primaryInsurance.name,
         } : null,
+        coverage: serializeCoverage(resolveCoverage(appt.case)),
       } : null,
       clinic: {
         id:   appt.clinic.id,

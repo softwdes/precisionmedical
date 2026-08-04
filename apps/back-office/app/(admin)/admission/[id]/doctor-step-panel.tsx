@@ -24,6 +24,7 @@ import { LabsTab } from '@/components/visit/labs-tab';
 import { BracesTab } from '@/components/visit/braces-tab';
 import type { PickableTemplate } from '@/components/visit/template-picker';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+import type { CoverageType } from '@/lib/coverage';
 
 type Tab = 'summary' | 'notes' | 'labs' | 'braces' | 'services';
 
@@ -40,12 +41,14 @@ interface Props {
   billingTotal?: number;
   /** Bloque extra bajo Servicios (historial de facturacion migrado) */
   servicesExtra?: React.ReactNode;
+  /** Cobertura del caso — ordena qué catálogo abre primero el picker de cargos */
+  coverage?: CoverageType;
   onRefresh: () => void;
 }
 
 export function DoctorStepPanel({
   appointmentId, appointmentStatus, checkedInAt, doctorDoneAt, providerName,
-  triage, servicesPanel, billingTotal, servicesExtra, onRefresh,
+  triage, servicesPanel, billingTotal, servicesExtra, coverage = 'UNKNOWN', onRefresh,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
 
@@ -198,6 +201,7 @@ export function DoctorStepPanel({
                   noBorder
                   initialTab="services"
                   appointment={servicesPanel}
+                  coverage={coverage}
                   onClose={() => {}}
                   onRefresh={onRefresh}
                   billingTotal={billingTotal}

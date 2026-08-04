@@ -25,6 +25,8 @@ import { PersonAvatar } from '@/components/ui-phoenix/person-avatar';
 import { StatusPill, type StatusState } from '@/components/ui-phoenix/status-pill';
 import { IntakeFormLinkDialog } from '@/components/cases/intake-form-link-dialog';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+import { CoverageChip } from '@/components/coverage/coverage-chip';
+import type { CoverageDTO } from '@/lib/coverage';
 import { DoctorStepPanel } from './doctor-step-panel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,6 +84,8 @@ interface ApptDetail {
     primaryInsurance: { id: string; name: string; shortCode: string; color: string; claimsPhone: string | null } | null;
   } | null;
   plannedServiceCodes: { id: string; code: string; description: string; fee: number; category: string }[];
+  /** ¿Quién paga? El asistente lo resuelve acá antes de pasar al paciente a sala. */
+  coverage: CoverageDTO;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -715,6 +719,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             }}
             billingTotal={billingHistory.reduce((s, b) => s + b.balanceDue, 0) || undefined}
             servicesExtra={<BillingHistoryList rows={billingHistory} />}
+            coverage={d.coverage.type}
             onRefresh={load}
           />
         )}
@@ -929,17 +934,25 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
                   <ShieldCheck className="w-4 h-4 text-emerald" />
                   <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('sectionCoverage')}</span>
                 </div>
+                {/* El chip primero: es el dato que el asistente necesita antes de
+                    pasar al paciente a sala, y acá SÍ es editable — este es el
+                    lugar donde recepción y el asistente lo resuelven. Antes este
+                    bloque solo mostraba "Sin seguro registrado", un aviso que no
+                    se podía accionar desde ninguna parte. */}
+                <div className="mb-2.5">
+                  <CoverageChip caseId={d.case?.id ?? null} coverage={d.coverage} size="md" />
+                </div>
                 {d.case?.primaryInsurance ? (
                   <div className={`rounded-md border p-2.5 ${d.case.pipActive ? 'border-emerald/30 bg-emerald/5' : 'border-amber/30 bg-amber/5'}`}>
                     <div className="font-semibold text-text-1 text-[12px] mb-1">{d.case.primaryInsurance.name}</div>
                     <StatusPill label={d.case.pipActive ? t('pipActive') : t('pipNotVerified')} state={d.case.pipActive ? 'success' : 'warning'} />
                     {d.case.primaryPolicyNumber && <div className="text-[10px] text-text-muted font-mono mt-1">{d.case.primaryPolicyNumber}</div>}
                   </div>
-                ) : (
+                ) : d.coverage.type === 'UNKNOWN' ? (
                   <div className="rounded-md border border-amber/30 bg-amber/5 p-2.5 text-[11px] text-amber flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />{t('noInsuranceRegistered')}
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Confirmations + CTA */}

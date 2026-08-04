@@ -18,6 +18,8 @@ import {
   HeartPulse, Video,
 } from 'lucide-react';
 import { PageHeader, EmptyState, TagPill, PersonAvatar } from '@/components/ui-phoenix';
+import { CoverageChip } from '@/components/coverage/coverage-chip';
+import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import { VisitNoteEditor, type VisitNoteData } from '@/components/visit/visit-note-editor';
 import type { PickableTemplate } from '@/components/visit/template-picker';
@@ -58,7 +60,10 @@ export interface ConsultationAppointment {
   /** El doctor ya terminó con el paciente (nodo 4) — no cierra la cita */
   doctorDoneAt: string | null;
   clinicName: string;
+  caseId: string | null;
   caseCode: string | null;
+  /** ¿Quién paga? Decide qué catálogo abre primero el picker de cargos. */
+  coverage: CoverageDTO;
   /** Verificación del caso — mismas fuentes que Day Admission */
   verification: {
     healthForm: boolean;
@@ -194,6 +199,9 @@ export function ConsultationClient({
                   <span>· {a.clinicName}</span>
                   {a.isOnline && <Video className="w-3.5 h-3.5 text-cyan" />}
                   {isInRoom && <TagPill label={t('statusInProgress')} colorClass="bg-violet/15 text-violet border-violet/30" />}
+                  {/* Quién paga, en la línea que el doctor ya lee. Editable: si
+                      está sin definir, se resuelve acá sin salir de la consulta. */}
+                  <CoverageChip caseId={a.caseId} coverage={a.coverage} />
                 </span>
               }
             />
@@ -449,6 +457,7 @@ export function ConsultationClient({
               hidePayments
               initialTab="services"
               appointment={a.servicesPanel}
+              coverage={a.coverage.type}
               onClose={() => {}}
               onRefresh={() => router.refresh()}
             />

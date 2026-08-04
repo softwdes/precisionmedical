@@ -946,6 +946,9 @@ model Appointment {
   // Férulas / DME entregados en la visita
   braces AppointmentBrace[]
 
+  // Servicios e inyectables cobrados en efectivo (catálogo cash)
+  cashServices AppointmentService[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1100,6 +1103,9 @@ model VisitNote {
 
   // ─── Férulas / DME entregados ───────────────────────────────────────────
   braces AppointmentBrace[]
+
+  // ─── Servicios e inyectables cobrados en efectivo ────────────────────────
+  cashServices AppointmentService[]
 
   // ─── Estado y firma ─────────────────────────────────────────────────────
   status       VisitNoteStatus @default(DRAFT)
@@ -1355,6 +1361,64 @@ model AppointmentBrace {
   @@index([visitNoteId])
   @@index([status])
   @@map("appointment_braces")
+}
+
+/// Servicio o inyectable del catálogo CASH cobrado en una visita.
+///
+/// Los cargos de una visita salen de dos catálogos distintos y no se pueden
+/// mezclar en una tabla:
+///  · `service_codes` → `VisitServiceCode` — se factura a la aseguradora (CPT).
+///  · `catalog_items` (INJECTION/SERVICE) → esta tabla — lo paga el paciente.
+///
+/// Mismo criterio que `AppointmentBrace`: el cargo se identifica por REGISTRO y
+/// no por código, así dos aplicaciones del mismo inyectable son dos cobros y no
+/// uno colapsado (el bug que sigue vivo en `sync-billing` con los CPT).
+model AppointmentService {
+  id            String      @id @default(cuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  visitNoteId   String?
+  visitNote     VisitNote?  @relation(fields: [visitNoteId], references: [id], onDelete: SetNull)
+
+  /// `catalog_items.id`. Sin FK: el catálogo es soft-delete y el cargo no debe
+  /// desaparecer si el ítem se retira.
+  catalogItemId Int?
+
+  // Snapshot del catálogo al momento de cobrar
+  code      String
+  name      String
+  unitPrice Decimal @db.Decimal(10, 2)
+  /// Código de seguro del ítem, si lo tiene cargado. Se guarda como evidencia
+  /// de que se cobró en efectivo algo que era facturable — no se usa para
+  /// facturar, justamente porque el paciente ya lo pagó.
+  cptCode   String?
+  unitLabel String?
+
+  quantity Int @default(1)
+
+  status     CashServiceStatus @default(CHARGED)
+  voidedAt   DateTime?
+  voidReason String?
+  notes      String?
+
+  /// Quién lo cargó — puede ser el doctor o el asistente
+  chargedByName String?
+  chargedAt     DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([appointmentId])
+  @@index([visitNoteId])
+  @@index([status])
+  @@map("appointment_services")
+}
+
+enum CashServiceStatus {
+  CHARGED
+  VOIDED
+
+  @@map("cash_service_status")
 }
 
 /// Diagnóstico asociado a una nota de visita (ICD-10 + SNOMED dual).
@@ -2248,6 +2312,26 @@ enum CaseTypeWorkflow {
   NURSING_HOME // Visitas domiciliarias
 }
 
+/// Quién paga la visita. Lo consume el staff clínico para saber qué precio
+/// cotizar; NO filtra catálogos (las dos listas se muestran siempre).
+enum CoverageType {
+  UNKNOWN // Nadie lo respondió todavía
+  INSURANCE // Tiene seguro médico
+  SELF_PAY // No tiene / prefiere pagar de su bolsillo
+  LIEN // MVA con lien — no se le cobra al paciente ni al seguro médico
+
+  @@map("coverage_type")
+}
+
+/// Cuánta confianza merece el dato de cobertura. La clínica a veces llama a la
+/// aseguradora y a veces no; el sistema no debe fingir que siempre lo hizo.
+enum CoverageVerifyMethod {
+  DECLARED // Vino del intake o lo dijo el paciente — sin confirmar
+  VERIFIED // Alguien llamó y la aseguradora confirmó que está activa
+
+  @@map("coverage_verify_method")
+}
+
 model Case {
   id       String @id @default(cuid())
   caseCode String @unique // "MVA-2962" auto-generado
@@ -2278,6 +2362,34 @@ model Case {
   secondaryInsuranceId  String?
   secondaryInsurance    InsuranceCarrier? @relation("CaseSecondaryInsurance", fields: [secondaryInsuranceId], references: [id])
   secondaryPolicyNumber String?
+
+  // ─── Cobertura: quién paga esta visita ──────────────────────────────────
+  //
+  // Dato OPERATIVO para el staff clínico (recepción, asistentes, doctores), no
+  // para facturación. Vive en el caso y no en el paciente porque la misma
+  // persona puede tener un MVA con lien y una visita de medicina general en
+  // efectivo.
+  //
+  // Deliberadamente separado de `primaryInsuranceId`: ese campo es el carrier
+  // normalizado (dato administrativo, se completa cuando alguien tiene la
+  // tarjeta a mano). `coverageType` se responde en 2 clicks con el paciente
+  // delante. Exigir el carrier para saber si tiene seguro es lo que dejó este
+  // dato vacío hasta hoy.
+  coverageType           CoverageType       @default(UNKNOWN)
+  /// DECLARED = lo dijo el paciente / vino del intake · VERIFIED = alguien
+  /// llamó a la aseguradora y confirmó que está activa. Null si UNKNOWN.
+  coverageVerifyMethod   CoverageVerifyMethod?
+  coverageVerifiedAt     DateTime?
+  /// `users.id` (cuid) de quien lo respondió.
+  coverageVerifiedById   String?
+  /// Nombre denormalizado para que el chip muestre "verificado · Ana R." sin un
+  /// join a `users` en cada fila de Mi Día (mismo criterio que
+  /// `AppointmentBrace.dispensedByName` y el `correctedByName` del triaje).
+  coverageVerifiedByName String?
+  /// Carrier en texto libre para cuando se sabe el nombre pero todavía no se
+  /// eligió el `InsuranceCarrier` normalizado. No reemplaza a la relación.
+  coverageCarrierName    String?
+  coverageNote           String?
 
   // Accident details (Phoenix prefiere acá vs Patient.accidentDate legacy)
   accidentDate     DateTime?
@@ -2338,6 +2450,7 @@ model Case {
   @@index([patientId])
   @@index([source])
   @@index([createdAt])
+  @@index([coverageType])
   @@map("cases")
 }
 
@@ -2742,6 +2855,11 @@ model AppointmentBilling {
   /// identifica por el REGISTRO y no por el código: izquierda y derecha del
   /// mismo modelo son dos cobros distintos y agrupar por código los colapsaría.
   braceId String? @unique
+
+  /// Ídem para los servicios e inyectables del catálogo cash
+  /// (`AppointmentService`): dos aplicaciones del mismo inyectable son dos
+  /// cobros. `serviceCode` guarda el código del ítem solo para mostrarlo.
+  cashServiceId String? @unique
 
   totalCost        Decimal @default(0) @db.Decimal(10, 2)
   discount         Decimal @default(0) @db.Decimal(10, 2)

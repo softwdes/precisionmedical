@@ -19,6 +19,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, Clock, Plus, Sear
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
+import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
 
 type CalendarView = 'day' | 'week' | 'month';
@@ -56,6 +57,8 @@ interface CalendarAppointment {
     intakeFormCompletedAt: string | null;
     attorney: { id: string; firmName: string | null; firstName: string; lastName: string; phone: string | null; email: string | null } | null;
     primaryInsurance: { id: string; name: string } | null;
+    /** Cobertura resuelta en el server (`resolveCoverage`) — ordena el picker de cargos */
+    coverage?: CoverageDTO;
   } | null;
   clinic: { id: string; name: string };
   provider: { id: string; firstName: string; lastName: string; specialty: string | null } | null;
@@ -1530,6 +1533,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
       {selectedAppt && (
         <AppointmentDetailPanel
           appointment={selectedAppt}
+          coverage={selectedAppt.case?.coverage?.type ?? 'UNKNOWN'}
           onClose={() => setSelectedAppt(null)}
           onRefresh={() => setRefreshKey(k => k + 1)}
         />

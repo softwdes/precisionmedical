@@ -9,6 +9,7 @@
 import { db } from '@precision-medical/database';
 import { decryptFieldOrOriginal } from '@/lib/decrypt';
 import { getSessionProvider } from '@/lib/get-session-provider';
+import { COVERAGE_LIST_SELECT, resolveCoverage, serializeCoverage } from '@/lib/coverage';
 import { MyDayClient, type MyDayAppointment, type UnsignedNote } from './my-day-client';
 
 export const metadata = { title: 'Mi Día · Portal Médico' };
@@ -72,7 +73,11 @@ export default async function DoctorMyDayPage({
         checkedInAt: true,
         attendanceSignedAt: true,
         patient: { select: { firstName: true, lastName: true } },
-        case: { select: { caseCode: true } },
+        // `caseType` alimenta la sugerencia de cobertura (un MVA sugiere lien).
+        // `consentsData` NO se trae acá: es el JSON de todos los consentimientos
+        // y por 20 filas es payload que la lista no usa — la sugerencia derivada
+        // del intake solo hace falta en el diálogo, que trae un caso solo.
+        case: { select: { id: true, caseCode: true, caseType: true, ...COVERAGE_LIST_SELECT } },
         clinic: { select: { name: true } },
         triageRecord: { select: { id: true, systolicMmhg: true, diastolicMmhg: true, pulseBpm: true, painScale: true } },
         visitNote: { select: { status: true } },
@@ -131,7 +136,9 @@ export default async function DoctorMyDayPage({
     doctorDoneAt: doneMap.get(a.id)?.toISOString() ?? null,
     patientFirstName: decryptFieldOrOriginal(a.patient.firstName) ?? '',
     patientLastName: decryptFieldOrOriginal(a.patient.lastName) ?? '',
+    caseId: a.case?.id ?? null,
     caseCode: a.case?.caseCode ?? null,
+    coverage: serializeCoverage(resolveCoverage(a.case ?? {})),
     clinicName: a.clinic.name,
   }));
 

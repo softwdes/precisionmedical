@@ -7,6 +7,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -25,6 +26,11 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
       accidentLocation: true,
       accidentNotes: true,
       consentsData: true,
+      coverageType: true,
+      coverageVerifyMethod: true,
+      coverageVerifiedAt: true,
+      coverageVerifiedByName: true,
+      coverageCarrierName: true,
       consentSignaturePng: true,
       portalToken: true,
       createdAt: true,
@@ -37,7 +43,9 @@ export async function GET(_req: NextRequest, { params }: Ctx): Promise<NextRespo
   });
 
   if (!c) return NextResponse.json({ ok: false, error: 'NOT_FOUND' }, { status: 404 });
-  return NextResponse.json({ ok: true, case: c });
+  // La cobertura va resuelta y no cruda: el cliente no debe reimplementar la
+  // regla de qué cuenta como seguro (es lo que hizo que hubiera tres verdades).
+  return NextResponse.json({ ok: true, case: c, coverage: serializeCoverage(resolveCoverage(c)) });
 }
 
 const PatchSchema = z.object({

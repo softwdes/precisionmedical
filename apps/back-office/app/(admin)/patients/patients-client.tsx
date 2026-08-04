@@ -9,6 +9,8 @@ import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
+import { CoverageChip } from '@/components/coverage/coverage-chip';
+import type { CoverageDTO } from '@/lib/coverage';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
 import { MedicalHistoryDialog } from './medical-history-dialog';
 import { CaseWizardDialog } from '@/components/cases/case-wizard-dialog';
@@ -292,6 +294,7 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
   const t      = useTranslations('phoenix.patients');
   const tWiz   = useTranslations('caseWizard');
   const [detail, setDetail] = useState<CaseDetail | null>(null);
+  const [coverage, setCoverage] = useState<CoverageDTO | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -299,7 +302,7 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
     setLoading(true);
     fetch(`/api/admin/cases/${caseId}`)
       .then(r => r.json())
-      .then(j => setDetail(j.case ?? null))
+      .then(j => { setDetail(j.case ?? null); setCoverage(j.coverage ?? null); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [open, caseId]);
@@ -372,6 +375,14 @@ function CaseViewDialog({ caseId, open, onClose, onEdit }: {
             {/* Insurance */}
             <div className="rounded-lg border border-border bg-bg-1 p-4 space-y-2">
               <p className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('caseLabelInsurance')}</p>
+              {/* Recepción decide acá, antes de que el paciente llegue: el chip
+                  responde "¿tiene seguro?" sin abrir el diálogo de Seguros, que
+                  pide 20 campos de póliza. */}
+              {coverage && (
+                <div className="pb-1">
+                  <CoverageChip caseId={detail.id} coverage={coverage} size="md" onChanged={setCoverage} />
+                </div>
+              )}
               {detail.primaryInsurance ? (
                 <div className="rounded-md border border-border/60 bg-bg-2/40 px-3 py-2.5">
                   <p className="text-[12.5px] text-text-1 font-medium">{detail.primaryInsurance.name}</p>

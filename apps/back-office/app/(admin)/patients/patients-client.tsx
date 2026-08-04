@@ -6,7 +6,7 @@ import { ActiveCallBar } from '@/components/cases/active-call-bar';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
 import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -16,6 +16,7 @@ import { NewCaseDialog, type NewCaseInitialState } from '@/components/cases/new-
 import { QuickRegisterDialog } from '@/components/patients/quick-register-dialog';
 import { SendPortalDialog } from '@/components/cases/send-portal-dialog';
 import { CallHistoryDialog } from '@/components/calls/call-history-dialog';
+import { PriceListDialog } from '@/components/catalog/price-list-dialog';
 import QRCode from 'qrcode';
 
 function fmtPhone(raw: string): string {
@@ -882,6 +883,15 @@ export interface PatientRow {
   guardianName: string | null;
   guardianPhone: string | null;
   guardianRelation: string | null;
+  // El vínculo real al tutor; los tres de arriba son texto legado. Declarados
+  // para que se vea que patients-data.tsx los tiene que traer: sin ellos el
+  // diálogo de edición no ve el tutor que ya existe.
+  guardianPatientId: string | null;
+  guardianPatient: {
+    id: string; patientCode: string | null;
+    firstName: string; lastName: string;
+    email: string | null; phone: string | null;
+  } | null;
   accidentDate: Date | null;
   accidentType: string | null;
   insuranceCarrier: string | null;
@@ -1778,7 +1788,8 @@ function ArchivosDialog({ patient, onClose }: { patient: PatientRow; onClose: ()
 export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, total, inactiveTotal = 0, activeTotal, specialties, clinics, providers, inactiveOnly = false, agentName, scopeProviderId, basePath = '/patients' }: Props) {
   const doctorMode = !!scopeProviderId;
   const t      = useTranslations('phoenix.patients');
-  const tCalls = useTranslations('phoenix.calls');
+  const tCalls  = useTranslations('phoenix.calls');
+  const tPrices = useTranslations('phoenix.catalog.priceList');
   const router = useRouter();
 
   const STATUS_LABEL: Record<string, string> = {
@@ -1925,6 +1936,11 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   // ─── Historial de llamadas ──────────────────────────────────────────────
   const [callHistoryOpen, setCallHistoryOpen] = useState(false);
   const [missedPending,   setMissedPending]   = useState(0);
+
+  // ─── Precios (visor de mostrador, solo lectura) ─────────────────────────
+  // Vive acá y no en el catálogo completo porque el uso es cotizar en el
+  // momento, con el paciente enfrente. Visible también en el portal médico.
+  const [priceListOpen, setPriceListOpen] = useState(false);
 
   // El contador del botón se refresca al cargar y al cerrar el historial (ahí
   // pudo devolverse una llamada). `size=1` porque solo interesa `counts`.
@@ -2118,6 +2134,19 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 {missedPending}
               </span>
             )}
+          </button>
+
+          {/* Precios — visor de mostrador. Solo lectura y sin costo real: se
+              abre con el paciente enfrente. Igual que el historial de llamadas,
+              lo ve también el portal médico. */}
+          <button
+            type="button"
+            onClick={() => setPriceListOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md border border-border bg-bg-2 text-text-2 text-sm font-medium hover:border-brand hover:text-brand transition-colors whitespace-nowrap"
+            title={tPrices('title')}
+          >
+            <Tag className="w-3.5 h-3.5" />
+            {tPrices('button')}
           </button>
 
           {/* Creación — solo admin; el doctor no crea pacientes/casos.
@@ -2758,17 +2787,31 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                 </div>
               )}
 
-              {viewTarget.guardianName && (
+              {/* Responsable legal. El tutor VINCULADO gana sobre el texto
+                  legado: esta vista miraba solo `guardianName`, que nadie llena,
+                  así que un menor con su apoderado bien cargado no mostraba nada.
+                  Es el mismo defecto que tenía el formulario de edición. */}
+              {(viewTarget.guardianPatient || viewTarget.guardianName) && (
                 <div className="rounded-md bg-amber/10 border border-amber/30 p-3 space-y-2">
                   <p className="text-[10px] uppercase tracking-wider font-semibold text-amber">Responsable legal</p>
-                  <div className="flex items-center gap-2 text-text-2">
+                  <div className="flex items-center gap-2 text-text-2 flex-wrap">
                     <UserCheck className="w-3.5 h-3.5 text-amber" />
-                    <span>{viewTarget.guardianName}</span>
+                    <span>
+                      {viewTarget.guardianPatient
+                        ? `${viewTarget.guardianPatient.firstName} ${viewTarget.guardianPatient.lastName}`.trim()
+                        : viewTarget.guardianName}
+                    </span>
+                    {viewTarget.guardianPatient?.patientCode && (
+                      <span className="font-mono text-[10px] text-text-muted">{viewTarget.guardianPatient.patientCode}</span>
+                    )}
                     {viewTarget.guardianRelation && <span className="text-text-muted text-xs">· {viewTarget.guardianRelation}</span>}
                   </div>
-                  {viewTarget.guardianPhone && (
-                    <div className="flex items-center gap-2 text-text-2 pl-5">
-                      <span className="font-mono text-xs">{viewTarget.guardianPhone}</span>
+                  {(viewTarget.guardianPatient?.email || viewTarget.guardianPatient?.phone || viewTarget.guardianPhone) && (
+                    <div className="flex items-center gap-3 text-text-2 pl-5 flex-wrap">
+                      {viewTarget.guardianPatient?.email && <span className="text-xs">{viewTarget.guardianPatient.email}</span>}
+                      <span className="font-mono text-xs">
+                        {viewTarget.guardianPatient ? viewTarget.guardianPatient.phone : viewTarget.guardianPhone}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -2836,6 +2879,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
         }}
         onCallBack={(target) => setCallTarget(target)}
       />
+
+      {/* ─── Precios ─────────────────────────────────────────────────────────
+          Los datos se piden la primera vez que se abre, no con la lista. */}
+      <PriceListDialog open={priceListOpen} onOpenChange={setPriceListOpen} />
 
       {/* ─── Llamar al paciente ──────────────────────────────────────────────
           Confirmacion explicita antes de marcar: es una llamada real por

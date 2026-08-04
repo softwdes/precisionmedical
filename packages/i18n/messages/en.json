@@ -4571,6 +4571,27 @@
         "badge": {
           "review": "Review"
         }
+      },
+      "priceList": {
+        "button": "Prices",
+        "title": "Prices",
+        "description": "Reference list for quoting on the spot. Read only.",
+        "search": "Search across all four tabs…",
+        "clear": "Clear search",
+        "loading": "Loading prices…",
+        "error": "Prices could not be loaded. Close and open again.",
+        "empty": "No priced items in this list",
+        "noMatches": "No results for “{q}”",
+        "insuranceNote": "This is the amount billed to the insurer, not what the patient pays out of pocket.",
+        "count": "{total} items",
+        "countFiltered": "{shown} of {total}",
+        "onlyPriced": "Only items with a price are shown",
+        "tab": {
+          "LAB": "Labs",
+          "INJECTION_SERVICE": "Injections & services",
+          "INSURANCE": "Insurance services",
+          "DME": "Braces"
+        }
       }
     }
   },

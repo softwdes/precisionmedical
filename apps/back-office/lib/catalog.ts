@@ -133,6 +133,78 @@ export async function listInsuranceServices(): Promise<InsuranceServiceRow[]> {
   }));
 }
 
+// ─── Lista de precios para mostrador (solo lectura) ─────────────────────────
+//
+// Payload deliberadamente flaco. Este modal se abre en recepción CON EL
+// PACIENTE MIRANDO LA PANTALLA, así que el costo real no viaja al cliente —
+// no está oculto por CSS, directamente no se consulta. Tampoco viajan tubo,
+// reflex ni notas internas: nada de eso sirve para cotizar.
+//
+// Solo ítems cotizables: activos, disponibles y con precio cargado. Los 96
+// labs arrastrados del v2 sin precio quedan afuera (decisión de Erick) — una
+// fila con guión es ruido en una herramienta de cotización.
+
+/** Los cuatro tabs del modal. Coincide con TabKey del catálogo. */
+export type PriceListTab = 'LAB' | 'INJECTION_SERVICE' | 'INSURANCE' | 'DME';
+
+export interface PriceListEntry {
+  key: string;
+  tab: PriceListTab;
+  code: string;
+  name: string;
+  price: number;
+  /** "por vista", "por set de labs STAT" */
+  unitLabel: string | null;
+  /** Talla, solo en férulas. */
+  sizeLabel: string | null;
+}
+
+export async function listPriceList(): Promise<PriceListEntry[]> {
+  const [cash, insurance] = await Promise.all([
+    db.$queryRaw<Array<{
+      id: number; kind: CatalogKind; code: string; name: string;
+      price: number; unitLabel: string | null; sizeLabel: string | null;
+    }>>`
+      SELECT id, kind, code, name,
+             "publicPrice"::float8 AS price,
+             "unitLabel", "sizeLabel"
+      FROM "catalog_items"
+      WHERE "deletedAt" IS NULL
+        AND "isActive" AND "isOrderable"
+        AND "publicPrice" IS NOT NULL AND "publicPrice" > 0
+      ORDER BY name
+    `,
+    db.serviceCode.findMany({
+      where: { deletedAt: null, isActive: true, currentFee: { gt: 0 } },
+      select: { id: true, code: true, shortDescription: true, currentFee: true },
+      orderBy: { shortDescription: 'asc' },
+    }),
+  ]);
+
+  return [
+    ...cash.map((r) => ({
+      key: `c${r.id}`,
+      tab: (r.kind === 'INJECTION' || r.kind === 'SERVICE'
+        ? 'INJECTION_SERVICE'
+        : r.kind) as PriceListTab,
+      code: r.code,
+      name: r.name,
+      price: r.price,
+      unitLabel: r.unitLabel,
+      sizeLabel: r.sizeLabel,
+    })),
+    ...insurance.map((r) => ({
+      key: `s${r.id}`,
+      tab: 'INSURANCE' as PriceListTab,
+      code: r.code,
+      name: r.shortDescription,
+      price: Number(r.currentFee),
+      unitLabel: null,
+      sizeLabel: null,
+    })),
+  ];
+}
+
 /** Serializa fechas para pasar del server component al client component. */
 export function serializeCatalog(rows: CatalogRow[]): Array<Omit<CatalogRow, 'priceVerifiedAt'> & { priceVerifiedAt: string | null }> {
   return rows.map((r) => ({ ...r, priceVerifiedAt: r.priceVerifiedAt?.toISOString() ?? null }));

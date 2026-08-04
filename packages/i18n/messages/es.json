@@ -4570,6 +4570,27 @@
         "badge": {
           "review": "Revisar"
         }
+      },
+      "priceList": {
+        "button": "Precios",
+        "title": "Precios",
+        "description": "Lista de consulta para cotizar en el momento. Solo lectura.",
+        "search": "Buscar en los cuatro tabs…",
+        "clear": "Limpiar búsqueda",
+        "loading": "Cargando precios…",
+        "error": "No se pudieron cargar los precios. Cerrá y volvé a abrir.",
+        "empty": "No hay ítems con precio cargado en esta lista",
+        "noMatches": "Sin resultados para «{q}»",
+        "insuranceNote": "Este es el monto que se le factura a la aseguradora, no lo que paga el paciente de su bolsillo.",
+        "count": "{total} ítems",
+        "countFiltered": "{shown} de {total}",
+        "onlyPriced": "Solo se muestran los ítems con precio cargado",
+        "tab": {
+          "LAB": "Laboratorios",
+          "INJECTION_SERVICE": "Inyecciones y servicios",
+          "INSURANCE": "Servicios con seguro",
+          "DME": "Férulas"
+        }
       }
     }
   },

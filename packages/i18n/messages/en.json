@@ -4392,11 +4392,43 @@
       "filterActive": "Active",
       "filterInactive": "Inactive"
     },
+    "coverage": {
+      "labelUnknown": "Coverage not set",
+      "labelInsurance": "Insurance",
+      "labelSelfPay": "No insurance · cash",
+      "labelLien": "Lien (MVA)",
+      "askShort": "Has insurance?",
+      "declared": "unverified",
+      "verified": "active, verified",
+      "verifiedBy": "{name} · {date}",
+      "dialogTitle": "Who pays for this visit?",
+      "dialogSubtitle": "Anyone on staff can answer. It tells you which price to quote — it doesn't block anything.",
+      "optInsurance": "Has medical insurance",
+      "optInsuranceHint": "Billed to the carrier",
+      "optSelfPay": "No insurance / pays directly",
+      "optSelfPayHint": "Patient pays at the front desk",
+      "optLien": "Lien (MVA)",
+      "optLienHint": "Charged to the settlement, not the patient",
+      "carrierLabel": "Carrier (optional)",
+      "carrierPlaceholder": "Aetna, State Farm…",
+      "carrierHelp": "The name is enough. Whoever has the card fills in the policy later.",
+      "verifyLabel": "I called and confirmed it's active",
+      "verifyHelp": "Without this it stays as declared by the patient.",
+      "noteLabel": "Note (optional)",
+      "suggestionIntakeMedical": "The intake form has a medical insurance on file",
+      "suggestionIntakeLien": "The intake form has a signed lien",
+      "suggestionCaseTypeMva": "This is an MVA case",
+      "clear": "Back to not set",
+      "save": "Save",
+      "saving": "Saving…",
+      "error": "Couldn't save the coverage.",
+      "noCase": "This appointment has no case attached.",
+      "changeAria": "Change case coverage"
+    },
     "catalog": {
       "title": "Price catalog",
       "subtitle": "{total} items · cash and insurance pricing in one place",
       "searchPlaceholder": "Search by name or code…",
-      "missing": "Missing",
       "empty": "No results with these filters",
       "confirmDelete": "Remove “{name}” from the catalog?",
       "action": {
@@ -4592,7 +4624,8 @@
           "INSURANCE": "Insurance services",
           "DME": "Braces"
         }
-      }
+      },
+      "missingCostHint": "Real cost not loaded for this item"
     }
   },
   "clinical": {

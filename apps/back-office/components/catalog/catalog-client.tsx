@@ -88,6 +88,10 @@ export function CatalogClient({ items, services, canEdit }: Props): React.ReactE
     return ms.length ? ms.reduce((a, b) => a + b, 0) / ms.length : null;
   }, [inTab]);
 
+  // Sin ningún costo cargado, la columna de margen es un guión en cada fila:
+  // ocupa ancho y no dice nada. Reaparece sola cuando carguen los costos.
+  const showMarkup = React.useMemo(() => inTab.some((i) => i.costPrice != null), [inTab]);
+
   const filtered = React.useMemo(() => {
     const needle = q.trim().toLowerCase();
     return inTab.filter((i) => {
@@ -210,7 +214,9 @@ export function CatalogClient({ items, services, canEdit }: Props): React.ReactE
           <FilterPill active={filter === 'noCost'} onClick={() => setFilter('noCost')} label={t('filter.noCost')} count={counts.noCost} />
           <FilterPill active={filter === 'noPrice'} onClick={() => setFilter('noPrice')} label={t('filter.noPrice')} count={counts.noPrice} />
           <FilterPill active={filter === 'unverified'} onClick={() => setFilter('unverified')} label={t('filter.unverified')} count={counts.unverified} />
-          <FilterPill active={filter === 'lowMargin'} onClick={() => setFilter('lowMargin')} label={t('filter.lowMargin')} count={counts.lowMargin} />
+          {showMarkup && (
+            <FilterPill active={filter === 'lowMargin'} onClick={() => setFilter('lowMargin')} label={t('filter.lowMargin')} count={counts.lowMargin} />
+          )}
           <FilterPill active={filter === 'inactive'} onClick={() => setFilter('inactive')} label={t('filter.inactive')} count={counts.inactive} />
         </div>
       </div>
@@ -221,29 +227,27 @@ export function CatalogClient({ items, services, canEdit }: Props): React.ReactE
           <DataTable.Scroll>
             <DataTable.Table>
               <DataTable.Head>
-                <DataTable.Th className="sticky left-0 z-10 bg-bg-2">{t('col.name')}</DataTable.Th>
+                <DataTable.Th sticky="left">{t('col.name')}</DataTable.Th>
                 <DataTable.Th align="right">{t('col.cost')}</DataTable.Th>
                 <DataTable.Th align="right">{t('col.public')}</DataTable.Th>
-                <DataTable.Th align="center">{t('col.margin')}</DataTable.Th>
+                {showMarkup && <DataTable.Th align="center">{t('col.margin')}</DataTable.Th>}
                 {isLabTab && <DataTable.Th align="center">{t('col.sample')}</DataTable.Th>}
                 {isDmeTab && <DataTable.Th align="center">{t('col.size')}</DataTable.Th>}
                 <DataTable.Th align="center">{t('col.verified')}</DataTable.Th>
                 {canEdit && (
-                  <DataTable.Th align="right" className="sticky right-0 z-10 bg-bg-2">
-                    {t('col.actions')}
-                  </DataTable.Th>
+                  <DataTable.Th align="right" sticky="right">{t('col.actions')}</DataTable.Th>
                 )}
               </DataTable.Head>
               <tbody>
                 {pageItems.length === 0 ? (
                   <tr>
-                    <DataTable.Td colSpan={8}>
+                    <DataTable.Td colSpan={4 + (showMarkup ? 1 : 0) + (isLabTab || isDmeTab ? 1 : 0) + (canEdit ? 1 : 0)}>
                       <EmptyState.Inline message={t('empty')} />
                     </DataTable.Td>
                   </tr>
                 ) : pageItems.map((i) => (
                   <DataTable.Row key={i.id} muted={!i.isActive}>
-                    <DataTable.Td className="sticky left-0 z-10 bg-bg-0">
+                    <DataTable.Td sticky="left">
                       <div className="flex flex-col gap-0.5 min-w-[220px]">
                         <span className="text-text-1">{i.name}</span>
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -258,9 +262,11 @@ export function CatalogClient({ items, services, canEdit }: Props): React.ReactE
 
                     <DataTable.Td align="right">
                       {i.costPrice == null ? (
-                        <span className="text-amber text-[11px] flex items-center justify-end gap-1">
-                          <AlertTriangle className="w-3 h-3" /> {t('missing')}
-                        </span>
+                        // Guión gris y no una alerta ámbar: falta el costo en
+                        // 96 de 243 labs y en casi todos los inyectables. Como
+                        // alerta en cada fila deja de leerse; el dato de cuántos
+                        // faltan está arriba, en su KPI.
+                        <span className="text-text-muted" title={t('missingCostHint')}>—</span>
                       ) : (
                         <span className="font-mono text-text-2">{money(i.costPrice)}</span>
                       )}
@@ -273,9 +279,11 @@ export function CatalogClient({ items, services, canEdit }: Props): React.ReactE
                       </div>
                     </DataTable.Td>
 
-                    <DataTable.Td align="center">
-                      <MarginCell item={i} lowLabel={t('badge.low')} />
-                    </DataTable.Td>
+                    {showMarkup && (
+                      <DataTable.Td align="center">
+                        <MarginCell item={i} lowLabel={t('badge.low')} />
+                      </DataTable.Td>
+                    )}
 
                     {isLabTab && (
                       <DataTable.Td align="center">
@@ -302,7 +310,7 @@ export function CatalogClient({ items, services, canEdit }: Props): React.ReactE
                     </DataTable.Td>
 
                     {canEdit && (
-                      <DataTable.Td align="right" className="sticky right-0 z-10 bg-bg-0">
+                      <DataTable.Td align="right" sticky="right">
                         <div className="flex items-center justify-end gap-1">
                           <IconAction onClick={() => openEdit(i)} icon={Pencil} label={t('action.edit')} />
                           <IconAction
@@ -359,8 +367,8 @@ export function CatalogClient({ items, services, canEdit }: Props): React.ReactE
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
                 <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">{t('col.cost')}</div>
-                <div className={`font-mono text-sm ${i.costPrice == null ? 'text-amber' : 'text-text-2'}`}>
-                  {i.costPrice == null ? t('missing') : money(i.costPrice)}
+                <div className={`font-mono text-sm ${i.costPrice == null ? 'text-text-muted' : 'text-text-2'}`}>
+                  {i.costPrice == null ? '—' : money(i.costPrice)}
                 </div>
               </div>
               <div>
@@ -413,11 +421,14 @@ function VerifyCell({ item }: { item: CatalogItem }): React.ReactElement {
   const months = monthsSinceVerified(item);
   const stale = isStale(item);
 
+  // Jerarquía a propósito: gris = nunca se revisó (es una tarea pendiente, no
+  // un error, y son 179 de 243 — en rosa la tabla entera se leía como rota),
+  // ámbar = hay que actuar (se pidió actualización o venció), verde = al día.
   if (item.priceStatus === 'UPDATE_REQUESTED') {
     return <StatusPill state="warning" label={t('status.UPDATE_REQUESTED')} />;
   }
   if (item.priceStatus !== 'VERIFIED') {
-    return <StatusPill state="danger" label={t('status.UNVERIFIED')} icon={<Ban className="w-3 h-3" />} />;
+    return <StatusPill state="neutral" label={t('status.UNVERIFIED')} icon={<Ban className="w-3 h-3" />} />;
   }
   return (
     <div className="flex flex-col items-center gap-0.5">

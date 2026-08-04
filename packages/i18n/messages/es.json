@@ -4391,11 +4391,43 @@
       "filterActive": "Activos",
       "filterInactive": "Inactivos"
     },
+    "coverage": {
+      "labelUnknown": "Cobertura sin definir",
+      "labelInsurance": "Seguro",
+      "labelSelfPay": "Sin seguro · efectivo",
+      "labelLien": "Lien (MVA)",
+      "askShort": "¿Tiene seguro?",
+      "declared": "sin verificar",
+      "verified": "activo verificado",
+      "verifiedBy": "{name} · {date}",
+      "dialogTitle": "¿Quién paga esta visita?",
+      "dialogSubtitle": "Lo puede responder cualquiera del staff. Sirve para saber qué precio cotizar — no bloquea nada.",
+      "optInsurance": "Tiene seguro médico",
+      "optInsuranceHint": "Se factura a la aseguradora",
+      "optSelfPay": "No tiene / paga directo",
+      "optSelfPayHint": "El paciente paga en el mostrador",
+      "optLien": "Lien (MVA)",
+      "optLienHint": "Se cobra al acuerdo, no al paciente",
+      "carrierLabel": "Aseguradora (opcional)",
+      "carrierPlaceholder": "Aetna, State Farm…",
+      "carrierHelp": "Con el nombre alcanza. La póliza y el resto los completa después quien tenga la tarjeta.",
+      "verifyLabel": "Llamé y confirmé que está activa",
+      "verifyHelp": "Sin esto queda como declarado por el paciente.",
+      "noteLabel": "Nota (opcional)",
+      "suggestionIntakeMedical": "El formulario de admisión trae un seguro médico cargado",
+      "suggestionIntakeLien": "El formulario de admisión trae un lien firmado",
+      "suggestionCaseTypeMva": "Es un caso MVA",
+      "clear": "Volver a sin definir",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "error": "No se pudo guardar la cobertura.",
+      "noCase": "Esta cita no tiene caso asociado.",
+      "changeAria": "Cambiar la cobertura del caso"
+    },
     "catalog": {
       "title": "Catálogo de precios",
       "subtitle": "{total} ítems · precios cash y de seguro en un solo lugar",
       "searchPlaceholder": "Buscar por nombre o código…",
-      "missing": "Falta",
       "empty": "Sin resultados con estos filtros",
       "confirmDelete": "¿Eliminar «{name}» del catálogo?",
       "action": {
@@ -4591,7 +4623,8 @@
           "INSURANCE": "Servicios con seguro",
           "DME": "Férulas"
         }
-      }
+      },
+      "missingCostHint": "Falta cargar el costo real de este ítem"
     }
   },
   "clinical": {

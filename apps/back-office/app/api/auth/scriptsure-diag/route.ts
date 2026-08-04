@@ -45,10 +45,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const fp = (v: string | undefined) =>
     v ? { len: v.length, sha: createHash('sha256').update(v).digest('hex').slice(0, 8) } : null;
 
+  // Qué nombres relacionados existen realmente en el runtime — SOLO nombres,
+  // nunca valores. Sirve para distinguir "no las cargaron" de "las cargaron con
+  // otro nombre / en otro entorno".
+  const relatedNames = Object.keys(process.env)
+    .filter((k) => /SCRIPT|DAW/i.test(k))
+    .sort();
+
   return NextResponse.json({
     outbound,
     login,
     creds: { apiKey: fp(process.env.SCRIPTSURE_API_KEY), secret: fp(process.env.SCRIPTSURE_SECRET) },
+    relatedNames,
+    envSanity: {
+      vercelEnv: process.env.VERCEL_ENV ?? null,
+      totalVars: Object.keys(process.env).length,
+      // Control: una variable que SÍ sabemos que está cargada en este proyecto
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    },
     at: new Date().toISOString(),
   });
 }

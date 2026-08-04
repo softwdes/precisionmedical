@@ -1446,6 +1446,8 @@
       "tabServices": "Servicios",
       "tabBraces": "Férulas",
       "braceTitle": "Férulas entregadas",
+      "braceCountThisVisit": "{count} férula(s) entregada(s) en esta visita",
+      "braceNoneThisVisit": "Sin férulas entregadas en esta visita",
       "braceAdd": "Entregar férula",
       "braceAddTitle": "Entregar una férula",
       "braceSearchPlaceholder": "Buscar por nombre o código…",

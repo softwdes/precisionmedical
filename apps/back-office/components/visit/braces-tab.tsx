@@ -15,6 +15,7 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Bandage, Plus, Loader2, AlertTriangle, Ban, History } from 'lucide-react';
+import { Button } from '@precision/ui';
 import { EmptyState, TagPill } from '@/components/ui-phoenix';
 import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 import { BracePickerDialog, type CatalogBrace } from './brace-picker-dialog';
@@ -162,13 +163,23 @@ export function BracesTab({ appointmentId }: { appointmentId: string }): React.R
     );
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center gap-2 text-[12.5px] text-text-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> {t('braceLoading')}
+      </div>
+    );
+  }
+
+  const dispensed = rows.filter((r) => r.status === 'DISPENSED').length;
+
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-bg-1">
-        <div className="px-4 py-3 border-b border-border flex items-center gap-2 flex-wrap">
-          <Bandage className="w-4 h-4 text-violet shrink-0" />
-          <span className="text-text-1 font-semibold text-[12px] uppercase tracking-wider">
-            {t('braceTitle')}
+      {/* Barra de acción — mismo patrón que el tab de Laboratorios */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] text-text-muted">
+            {dispensed > 0 ? t('braceCountThisVisit', { count: dispensed }) : t('braceNoneThisVisit')}
           </span>
           {total > 0 && (
             <TagPill
@@ -176,39 +187,36 @@ export function BracesTab({ appointmentId }: { appointmentId: string }): React.R
               colorClass="bg-emerald/15 text-emerald border-emerald/30"
             />
           )}
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[11.5px] font-semibold text-violet bg-violet/10 border border-violet/30 hover:bg-violet/20 hover:border-violet/50 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> {t('braceAdd')}
-          </button>
         </div>
+        <Button onClick={() => setPickerOpen(true)} className="h-9 gap-1.5">
+          <Plus className="w-3.5 h-3.5" /> {t('braceAdd')}
+        </Button>
+      </div>
 
-        <div className="p-2">
-          {loading ? (
-            <div className="p-6 flex items-center justify-center gap-2 text-[12.5px] text-text-2">
-              <Loader2 className="w-4 h-4 animate-spin" /> {t('braceLoading')}
+      {error && (
+        <div className="rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose flex items-center gap-1.5">
+          <AlertTriangle className="w-3.5 h-3.5" /> {error}
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <EmptyState.Rich icon={Bandage} title={t('braceEmptyTitle')} subtitle={t('braceEmptySubtitle')} />
+      ) : (
+        <div className="rounded-lg border border-border bg-bg-1">
+          <div className="px-3 py-2 border-b border-border/60 flex items-center gap-2">
+            <Bandage className="w-3.5 h-3.5 text-violet shrink-0" />
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-text-muted">
+              {t('braceTitle')}
+            </span>
+          </div>
+          <div className="divide-y divide-border/40">{rows.map((r) => braceRow(r))}</div>
+          {dispensed > 0 && (
+            <div className="px-3 py-2.5 border-t border-border/60">
+              <p className="text-[11px] text-text-muted">{t('braceFullPaymentNote')}</p>
             </div>
-          ) : rows.length === 0 ? (
-            <EmptyState.Rich icon={Bandage} title={t('braceEmptyTitle')} subtitle={t('braceEmptySubtitle')} />
-          ) : (
-            <div className="divide-y divide-border/40">{rows.map((r) => braceRow(r))}</div>
           )}
         </div>
-
-        {rows.some((r) => r.status === 'DISPENSED') && (
-          <div className="px-4 py-2.5 border-t border-border">
-            <p className="text-[11px] text-text-muted">{t('braceFullPaymentNote')}</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="mx-3 mb-3 rounded-md border border-rose/30 bg-rose/10 px-3 py-2 text-[12px] text-rose flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5" /> {error}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Ya entregadas en visitas anteriores — evita darle dos veces la misma */}
       {history.length > 0 && (

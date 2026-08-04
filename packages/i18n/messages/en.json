@@ -1446,6 +1446,8 @@
       "tabServices": "Services",
       "tabBraces": "Braces",
       "braceTitle": "Braces dispensed",
+      "braceCountThisVisit": "{count} brace(s) dispensed on this visit",
+      "braceNoneThisVisit": "No braces dispensed on this visit",
       "braceAdd": "Dispense brace",
       "braceAddTitle": "Dispense a brace",
       "braceSearchPlaceholder": "Search by name or code…",

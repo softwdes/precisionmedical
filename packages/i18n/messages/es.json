@@ -3324,7 +3324,11 @@
       "rowPatient": "Paciente",
       "dragRescheduling": "Reprogramando cita…",
       "dragError": "Error al reprogramar",
-      "durationConflictSuggestion": "Si necesitás {duration} min, el horario más cercano disponible es {time}."
+      "durationConflictSuggestion": "Si necesitás {duration} min, el horario más cercano disponible es {time}.",
+      "overlapTitle": "Se cruza con otra cita",
+      "overlapConfirm": "Solapar igual",
+      "overlapCancel": "Elegir otro horario",
+      "dragConnectionError": "Error de conexión al reprogramar"
     },
     "caseDetail": {
       "statusNewReferral": "Nuevo paciente",

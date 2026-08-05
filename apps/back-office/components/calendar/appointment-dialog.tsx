@@ -111,6 +111,16 @@ type AppointmentDialogProps = (CaseModeProps | FreeModeProps) & {
 
 // ─── Types (internal) ────────────────────────────────────────────────────────
 
+/**
+ * El pedido de guardado, ya armado y sin enviar. Se guarda para poder repetirlo
+ * tal cual cuando el usuario elige "solapar igual" tras el aviso de cruce.
+ */
+interface PendingSubmit {
+  mode: 'edit' | 'create';
+  url:  string;
+  body: Record<string, unknown>;
+}
+
 interface DuplicateAppt {
   id: string;
   scheduledFor: string;
@@ -182,6 +192,8 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
   const [error,          setError]          = useState<string | null>(null);
   const [success,        setSuccess]        = useState<{ clinicName: string; providerName: string; scheduledFor: string } | null>(null);
   const [duplicateAppts, setDuplicateAppts] = useState<DuplicateAppt[]>([]);
+  // Aviso de cruce con otra cita del doctor — no bloquea, deja decidir.
+  const [overlapPrompt,  setOverlapPrompt]  = useState<{ pending: PendingSubmit; message: string } | null>(null);
 
   // Prevents the clinic/provider change effect from clearing the pre-populated slot
   const skipSlotReset  = useRef(false);
@@ -617,90 +629,111 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
 
     // Duplicate warning is shown inline — no blocking confirm needed here.
 
+    const pending = buildSubmit();
+    if (!pending) return; // nada cambió — buildSubmit ya cerró el diálogo
+    await submitAppointment(pending, false);
+  };
+
+  /**
+   * Arma el pedido sin enviarlo, para que el reintento "solapar igual" pueda
+   * repetir exactamente el mismo body. Devuelve null cuando no hay nada que
+   * guardar (y en ese caso ya cerró el diálogo).
+   */
+  const buildSubmit = (): PendingSubmit | null => {
+    if (isEditMode) {
+      // PATCH — editar cita existente.
+      //
+      // Se manda SOLO lo que el usuario cambió respecto de lo que el diálogo le
+      // mostró al abrirse. Antes se enviaban todos los campos siempre, y eso
+      // convertía cualquier prellenado desactualizado en pérdida de datos: los
+      // campos que nadie tocó se re-escribían con el valor viejo, revirtiendo un
+      // guardado anterior sin decir nada.
+      const base           = editAppointment!;
+      const nextNotes      = notes.trim() || null;
+      // Si se apaga "consulta en línea", el link se limpia también — evita que
+      // quede un meetingUrl viejo colgado tras desactivar.
+      const nextMeetingUrl = isOnline ? (meetingUrl.trim() || null) : null;
+      // Comparado por timestamp y no por string: el ISO del picker y el de la
+      // cita pueden estar formateados distinto y ser el mismo instante.
+      const slotChanged    = !!scheduledForIso
+        && new Date(scheduledForIso).getTime() !== new Date(base.scheduledFor).getTime();
+
+      const changes = {
+        ...(clinicId   && clinicId   !== base.clinicId   && { clinicId }),
+        ...(providerId && providerId !== base.providerId && { providerId }),
+        ...(slotChanged && { scheduledFor: scheduledForIso }),
+        ...(duration !== base.durationMinutes && { durationMinutes: duration }),
+        ...(type     !== base.type            && { type }),
+        ...(nextNotes      !== (base.notes ?? null)      && { notes: nextNotes }),
+        ...(isOnline       !== (base.isOnline ?? false)  && { isOnline }),
+        ...(nextMeetingUrl !== (base.meetingUrl ?? null) && { meetingUrl: nextMeetingUrl }),
+      };
+
+      // Nada que guardar: el PATCH rechaza un body vacío ("Al menos un campo
+      // requerido"), y mostrar ese error por no haber cambiado nada sería
+      // absurdo — se cierra igual que si hubiera guardado.
+      if (Object.keys(changes).length === 0) {
+        onOpenChange(false);
+        return null;
+      }
+      return { mode: 'edit', url: `/api/admin/appointments/${base.id}`, body: changes };
+    }
+
+    // POST — crear nueva cita
+    const targetCaseId = props.mode === 'case' ? props.caseInfo!.id : caseId;
+    return {
+      mode: 'create',
+      url:  '/api/admin/appointments',
+      body: {
+        caseId: targetCaseId,
+        clinicId,
+        providerId,
+        scheduledFor: scheduledForIso,
+        durationMinutes: duration,
+        type,
+        notes: notes.trim() || undefined,
+        isOnline,
+        meetingUrl: isOnline ? (meetingUrl.trim() || undefined) : undefined,
+      },
+    };
+  };
+
+  const submitAppointment = async (pending: PendingSubmit, allowOverlap: boolean) => {
     setSaving(true);
+    setError(null);
     try {
-      if (isEditMode) {
-        // PATCH — editar cita existente.
-        //
-        // Se manda SOLO lo que el usuario cambió respecto de lo que el diálogo
-        // le mostró al abrirse. Antes se enviaban todos los campos siempre, y
-        // eso convertía cualquier prellenado desactualizado en pérdida de
-        // datos: los campos que nadie tocó se re-escribían con el valor viejo,
-        // revirtiendo un guardado anterior sin decir nada.
-        const base           = editAppointment!;
-        const nextNotes      = notes.trim() || null;
-        // Si se apaga "consulta en línea", el link se limpia también — evita
-        // que quede un meetingUrl viejo colgado tras desactivar.
-        const nextMeetingUrl = isOnline ? (meetingUrl.trim() || null) : null;
-        // Comparado por timestamp y no por string: el ISO del picker y el de la
-        // cita pueden estar formateados distinto y ser el mismo instante.
-        const slotChanged    = !!scheduledForIso
-          && new Date(scheduledForIso).getTime() !== new Date(base.scheduledFor).getTime();
-
-        const changes = {
-          ...(clinicId   && clinicId   !== base.clinicId   && { clinicId }),
-          ...(providerId && providerId !== base.providerId && { providerId }),
-          ...(slotChanged && { scheduledFor: scheduledForIso }),
-          ...(duration !== base.durationMinutes && { durationMinutes: duration }),
-          ...(type     !== base.type            && { type }),
-          ...(nextNotes      !== (base.notes ?? null)      && { notes: nextNotes }),
-          ...(isOnline       !== (base.isOnline ?? false)  && { isOnline }),
-          ...(nextMeetingUrl !== (base.meetingUrl ?? null) && { meetingUrl: nextMeetingUrl }),
-        };
-
-        // Nada que guardar: el PATCH rechaza un body vacío ("Al menos un campo
-        // requerido"), y mostrar ese error por no haber cambiado nada sería
-        // absurdo — se cierra igual que si hubiera guardado.
-        if (Object.keys(changes).length === 0) {
-          onOpenChange(false);
+      const res = await fetch(pending.url, {
+        method:  pending.mode === 'edit' ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ ...pending.body, ...(allowOverlap && { allowOverlap: true }) }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        // Cruce con otra cita del doctor: avisa y deja decidir en vez de
+        // rechazar el guardado (misma regla que el arrastre del calendario,
+        // confirmada por Erick 2026-08-05).
+        if (res.status === 409 && data.canOverride && data.message) {
+          setOverlapPrompt({ pending, message: data.message as string });
           return;
         }
-
-        const res = await fetch(`/api/admin/appointments/${base.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(changes),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
-        }
+        throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
+      }
+      if (pending.mode === 'edit') {
         router.refresh();
         onSuccess?.();
         onOpenChange(false);
-      } else {
-        // POST — crear nueva cita
-        const targetCaseId = props.mode === 'case' ? props.caseInfo!.id : caseId;
-        const res = await fetch('/api/admin/appointments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            caseId: targetCaseId,
-            clinicId,
-            providerId,
-            scheduledFor: scheduledForIso,
-            durationMinutes: duration,
-            type,
-            notes: notes.trim() || undefined,
-            isOnline,
-            meetingUrl: isOnline ? (meetingUrl.trim() || undefined) : undefined,
-          }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.message ?? data.error ?? `HTTP ${res.status}`);
-        }
-        const data = await res.json();
-        setSuccess({
-          scheduledFor: data.appointment.scheduledFor,
-          clinicName:   data.appointment.clinic.name,
-          providerName: `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`,
-        });
-        router.refresh();
-        onSuccess?.();
+        return;
       }
+      const data = await res.json();
+      setSuccess({
+        scheduledFor: data.appointment.scheduledFor,
+        clinicName:   data.appointment.clinic.name,
+        providerName: `${data.appointment.provider.firstName} ${data.appointment.provider.lastName}`,
+      });
+      router.refresh();
+      onSuccess?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : isEditMode ? t('errorSaveAppointment') : t('errorScheduleAppointment'));
+      setError(e instanceof Error ? e.message : pending.mode === 'edit' ? t('errorSaveAppointment') : t('errorScheduleAppointment'));
     } finally {
       setSaving(false);
     }
@@ -1213,6 +1246,23 @@ export function AppointmentDialog(props: AppointmentDialogProps) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Cruce con otra cita del doctor: avisa con el motivo concreto y deja
+        decidir. Va fuera del Dialog para que el ConfirmDialog quede por encima. */}
+    <ConfirmDialog
+      open={!!overlapPrompt}
+      variant="warning"
+      title={t('overlapTitle')}
+      description={overlapPrompt?.message ?? ''}
+      confirmLabel={t('overlapConfirm')}
+      cancelLabel={t('overlapCancel')}
+      onConfirm={() => {
+        const p = overlapPrompt;
+        setOverlapPrompt(null);
+        if (p) void submitAppointment(p.pending, true);
+      }}
+      onCancel={() => setOverlapPrompt(null)}
+    />
 
     <ConfirmDialog
       open={durationConflictAlert}

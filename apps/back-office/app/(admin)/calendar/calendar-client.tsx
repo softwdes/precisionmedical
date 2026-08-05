@@ -21,6 +21,7 @@ import { PageHeader } from '@/components/ui-phoenix/page-header';
 import { AppointmentDetailPanel } from '@/components/calendar/appointment-detail-panel';
 import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
+import { ConfirmDialog } from '@/components/ui-phoenix/confirm-dialog';
 
 type CalendarView = 'day' | 'week' | 'month';
 
@@ -531,6 +532,45 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
   const [dropTarget,  setDropTarget]  = useState<string | null>(null); // 'dayKey|slot'
   const [dragSaving,  setDragSaving]  = useState(false);
   const [dragError,   setDragError]   = useState<string | null>(null);
+  // Cruce con otra cita del doctor: avisa y deja decidir, no bloquea (regla
+  // confirmada por Erick 2026-08-05). Guarda el destino para poder reintentar
+  // con allowOverlap si el usuario elige solapar igual.
+  const [overlapPrompt, setOverlapPrompt] = useState<
+    { apptId: string; targetIso: string; message: string } | null
+  >(null);
+
+  /** El PATCH del arrastre, en un solo lugar: el reintento con allowOverlap usa lo mismo. */
+  const patchSchedule = async (apptId: string, targetIso: string, allowOverlap: boolean) => {
+    setDragSaving(true);
+    setDragError(null);
+    try {
+      const res = await fetch(`/api/admin/appointments/${apptId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledFor: targetIso, ...(allowOverlap && { allowOverlap: true }) }),
+      });
+      if (res.ok) {
+        setRefreshKey(k => k + 1);
+        return;
+      }
+      const data = await res.json() as { message?: string; error?: string; canOverride?: boolean };
+      // Cruce que el usuario puede decidir: en vez de rechazar, se le pregunta.
+      if (res.status === 409 && data.canOverride && data.message) {
+        setOverlapPrompt({ apptId, targetIso, message: data.message });
+        return;
+      }
+      // Se muestra el mensaje REAL del servidor. Antes el toast renderizaba una
+      // constante ("Error al reprogramar") y descartaba este texto, así que un
+      // rechazo con motivo concreto se veía como una falla aleatoria.
+      setDragError(data.message ?? data.error ?? t('dragError'));
+      setTimeout(() => setDragError(null), 6000);
+    } catch {
+      setDragError(t('dragConnectionError'));
+      setTimeout(() => setDragError(null), 6000);
+    } finally {
+      setDragSaving(false);
+    }
+  };
 
   const handleDrop = async (dayKey: string, slot: string) => {
     const apptId = draggingId;
@@ -539,29 +579,16 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
     if (!apptId) return;
     const appt = appointments.find(a => a.id === apptId);
     if (!appt) return;
-    // No-op if dropped on same slot
-    if (denverDateStr(new Date(appt.scheduledFor)) === dayKey && slotOf(appt.scheduledFor) === slot) return;
-    setDragSaving(true);
-    setDragError(null);
-    try {
-      const res = await fetch(`/api/admin/appointments/${apptId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduledFor: denverSlotToISO(dayKey, slot) }),
-      });
-      if (res.ok) {
-        setRefreshKey(k => k + 1);
-      } else {
-        const data = await res.json() as { message?: string; error?: string };
-        setDragError(data.message ?? data.error ?? 'Error al reprogramar');
-        setTimeout(() => setDragError(null), 4000);
-      }
-    } catch {
-      setDragError('Error de conexión');
-      setTimeout(() => setDragError(null), 4000);
-    } finally {
-      setDragSaving(false);
-    }
+
+    const targetIso = denverSlotToISO(dayKey, slot);
+    // No-op solo si el destino es EXACTAMENTE el mismo instante. Antes comparaba
+    // con slotOf(), que bucketea a :00/:30 — y la vista semana dibuja las :15 y
+    // :45 en esa misma fila, así que mover una cita de 10:15 a la fila de 10:00
+    // salía por acá sin pedido, sin toast y sin nada: la tarjeta volvía sola y
+    // parecía que el arrastre no funcionaba. Son 905 citas de 14.382 en :15/:45.
+    if (new Date(targetIso).getTime() === new Date(appt.scheduledFor).getTime()) return;
+
+    await patchSchedule(apptId, targetIso, false);
   };
 
   useEffect(() => {
@@ -818,11 +845,31 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
           <span className="text-text-1 text-sm font-medium">{t('dragRescheduling')}</span>
         </div>
       )}
+      {/* El motivo concreto del servidor, no un cartel genérico: max-w para que
+          un mensaje largo ("El doctor ya tiene una cita a las 10:15 con …") no
+          se estire a todo el ancho de la pantalla. */}
       {dragError && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg border border-rose/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl">
-          <span className="text-rose text-sm font-medium">{t('dragError')}</span>
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex items-start gap-2 rounded-lg border border-rose/40 bg-bg-1/95 backdrop-blur px-4 py-2 shadow-xl max-w-[min(90vw,32rem)]">
+          <span className="text-rose text-sm font-medium">{dragError}</span>
         </div>
       )}
+
+      {/* Cruce de horarios: avisa con el motivo y deja decidir. */}
+      <ConfirmDialog
+        open={!!overlapPrompt}
+        variant="warning"
+        title={t('overlapTitle')}
+        description={overlapPrompt?.message ?? ''}
+        confirmLabel={t('overlapConfirm')}
+        cancelLabel={t('overlapCancel')}
+        onConfirm={() => {
+          const p = overlapPrompt;
+          setOverlapPrompt(null);
+          if (p) void patchSchedule(p.apptId, p.targetIso, true);
+        }}
+        onCancel={() => setOverlapPrompt(null)}
+      />
+
 
       {/* ─── Mobile toolbar (md:hidden) ──────────────────────── */}
       <div className="md:hidden px-4 pb-1 flex items-center gap-2">

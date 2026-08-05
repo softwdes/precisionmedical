@@ -3325,7 +3325,11 @@
       "rowPatient": "Patient",
       "dragRescheduling": "Rescheduling appointment…",
       "dragError": "Error rescheduling",
-      "durationConflictSuggestion": "If you need {duration} min, the closest available time is {time}."
+      "durationConflictSuggestion": "If you need {duration} min, the closest available time is {time}.",
+      "overlapTitle": "Overlaps another appointment",
+      "overlapConfirm": "Overlap anyway",
+      "overlapCancel": "Pick another time",
+      "dragConnectionError": "Connection error while rescheduling"
     },
     "caseDetail": {
       "statusNewReferral": "New Referral",

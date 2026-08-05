@@ -17,7 +17,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
-import { isWeekendInDenver } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
 import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 // ─── Include shape (typed via satisfies para que Prisma infiera GetPayload) ──
@@ -222,6 +222,8 @@ const CreateSchema = z.object({
   notes:           z.string().max(2000).optional(),
   isOnline:        z.boolean().default(false),
   meetingUrl:      z.string().url().nullable().optional(),
+  /** Ver PatchSchema en [id]/route.ts: el cruce avisa y deja decidir. */
+  allowOverlap:    z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -275,34 +277,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // ─── Verificar conflicto de horario (P1) ──────────────────────────────
-  const newStart  = new Date(parsed.scheduledFor);
-  const newEnd    = new Date(newStart.getTime() + parsed.durationMinutes * 60 * 1000);
-  const bufferStart = new Date(newStart.getTime() - 240 * 60 * 1000); // ventana de búsqueda
-
-  const conflict = await db.appointment.findFirst({
-    where: {
-      providerId: parsed.providerId,
-      status:     { not: 'CANCELLED' },
-      scheduledFor: { gte: bufferStart, lt: newEnd },
-    },
-    select: {
-      id: true, scheduledFor: true, durationMinutes: true,
-      patient: { select: { firstName: true, lastName: true } },
-    },
-  });
-
-  if (conflict) {
-    const conflictEnd = new Date(conflict.scheduledFor.getTime() + conflict.durationMinutes * 60 * 1000);
-    if (conflict.scheduledFor < newEnd && conflictEnd > newStart) {
-      const conflictTime = conflict.scheduledFor.toLocaleTimeString('es-US', {
-        hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver',
-      });
+  // ─── Verificar cruce con otra cita del doctor (P1) ─────────────────────
+  // Ver lib/scheduling-rules: antes esto era un findFirst sin orden que solo
+  // chequeaba el cruce contra UNA candidata de la ventana, así que dejaba pasar
+  // cruces reales de forma intermitente.
+  if (!parsed.allowOverlap) {
+    const overlaps = await findOverlappingAppointments({
+      providerId:      parsed.providerId,
+      start:           new Date(parsed.scheduledFor),
+      durationMinutes: parsed.durationMinutes,
+    });
+    if (overlaps.length > 0) {
       return NextResponse.json(
         {
           error:   'SLOT_CONFLICT',
-          message: `El doctor ya tiene una cita a las ${conflictTime} con ${conflict.patient.firstName} ${conflict.patient.lastName}. Selecciona otro horario.`,
-          conflictAppointmentId: conflict.id,
+          message: describeOverlap(overlaps),
+          conflictAppointmentId: overlaps[0]!.id,
+          overlapCount: overlaps.length,
+          canOverride: true,
         },
         { status: 409 },
       );

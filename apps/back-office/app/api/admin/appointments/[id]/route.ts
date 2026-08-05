@@ -10,7 +10,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, Prisma, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
-import { isWeekendInDenver } from '@/lib/scheduling-rules';
+import { isWeekendInDenver, findOverlappingAppointments, describeOverlap } from '@/lib/scheduling-rules';
 
 export async function GET(
   _req: NextRequest,
@@ -44,6 +44,12 @@ const PatchSchema = z.object({
   type:                 z.enum(['AUTO_ACCIDENT','FAMILY_PRACTICE','URGENT_CARE','FOLLOW_UP','CONSULTATION']).optional(),
   isOnline:             z.boolean().optional(),
   meetingUrl:           z.string().url().nullable().optional(),
+  /**
+   * El cruce de horarios avisa y deja decidir, no bloquea (regla confirmada por
+   * Erick 2026-08-05): el 409 SLOT_CONFLICT trae `canOverride`, y el cliente
+   * reintenta con esto en true cuando el usuario elige solapar igual.
+   */
+  allowOverlap:         z.boolean().optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: 'Al menos un campo requerido' });
 
 export async function PATCH(
@@ -86,39 +92,38 @@ export async function PATCH(
     }, { status: 400 });
   }
 
-  // Chequeo de conflicto (mismo criterio que POST /api/admin/appointments) —
-  // faltaba acá: se podía editar hora/doctor/duración a un horario que ya
-  // tenía otra cita sin ningún aviso, porque el PATCH nunca revalidaba.
-  // Solo corre si algo relacionado al horario realmente cambió, y excluye
-  // esta misma cita del chequeo (si no, siempre "chocaría" consigo misma).
+  // Nota: NO hay chequeo de fecha pasada acá, a diferencia del POST (que
+  // rechaza con DATE_IN_PAST). Es deliberado — regla confirmada por Erick
+  // 2026-08-05: mover una cita a una fecha pasada es libre, sirve para corregir
+  // registros viejos. No agregar el guard sin volver a preguntar.
+
+  // Chequeo de cruce con otra cita del mismo doctor. Solo corre si algo
+  // relacionado al horario realmente cambió, y excluye esta misma cita (si no,
+  // siempre "chocaría" consigo misma). La lógica vive en lib/scheduling-rules
+  // porque los tres endpoints que guardan una cita la necesitan igual.
   const timingChanged = parsed.scheduledFor !== undefined || parsed.providerId !== undefined || parsed.durationMinutes !== undefined;
-  if (timingChanged) {
+  if (timingChanged && !parsed.allowOverlap) {
     const effectiveProviderId = parsed.providerId !== undefined ? parsed.providerId : existing.providerId;
     const effectiveDuration   = parsed.durationMinutes ?? existing.durationMinutes;
     const newStart = parsed.scheduledFor !== undefined ? new Date(parsed.scheduledFor) : new Date(existing.scheduledFor);
-    const newEnd   = new Date(newStart.getTime() + effectiveDuration * 60 * 1000);
 
     if (effectiveProviderId) {
-      const bufferStart = new Date(newStart.getTime() - 240 * 60 * 1000);
-      const conflict = await db.appointment.findFirst({
-        where: {
-          id:           { not: id },
-          providerId:   effectiveProviderId,
-          status:       { not: 'CANCELLED' },
-          scheduledFor: { gte: bufferStart, lt: newEnd },
-        },
-        select: { id: true, scheduledFor: true, durationMinutes: true },
+      const overlaps = await findOverlappingAppointments({
+        providerId:           effectiveProviderId,
+        start:                newStart,
+        durationMinutes:      effectiveDuration,
+        excludeAppointmentId: id,
       });
-      if (conflict) {
-        const conflictEnd = new Date(conflict.scheduledFor.getTime() + conflict.durationMinutes * 60 * 1000);
-        if (conflict.scheduledFor < newEnd && conflictEnd > newStart) {
-          const conflictTime = conflict.scheduledFor.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
-          return NextResponse.json({
-            error: 'SLOT_CONFLICT',
-            message: `El doctor ya tiene una cita a las ${conflictTime} que se cruza con este horario.`,
-            conflictAppointmentId: conflict.id,
-          }, { status: 409 });
-        }
+      if (overlaps.length > 0) {
+        return NextResponse.json({
+          error:   'SLOT_CONFLICT',
+          message: describeOverlap(overlaps),
+          conflictAppointmentId: overlaps[0]!.id,
+          overlapCount: overlaps.length,
+          // El cruce avisa y deja decidir: el cliente puede reintentar con
+          // allowOverlap para solapar a propósito.
+          canOverride: true,
+        }, { status: 409 });
       }
     }
   }

@@ -11,6 +11,10 @@ export const TWILIO_ACCOUNT_SID   = process.env.TWILIO_ACCOUNT_SID ?? '';
 export const TWILIO_PHONE_NUMBER  = process.env.TWILIO_PHONE_NUMBER ?? '';
 export const TWILIO_TWIML_APP_SID = process.env.TWILIO_TWIML_APP_SID ?? '';
 
+// La ventana de presencia vive en `lib/twilio-presence.ts`: el hook del
+// navegador también la necesita, y este archivo no puede entrar al bundle del
+// cliente porque instancia el cliente de Twilio con las credenciales.
+
 // ─── Identidad de Twilio por usuario ─────────────────────────────────────────
 //
 // Viven acá y NO en `app/api/twilio/token/route.ts` por una restricción de

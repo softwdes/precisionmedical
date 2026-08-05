@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Call, Device } from '@twilio/voice-sdk';
+import { PRESENCE_HEARTBEAT_MS } from '@/lib/twilio-presence';
 
 export type TwilioCallStatus = 'idle' | 'ready' | 'connecting' | 'in-call' | 'error';
 
@@ -51,6 +52,15 @@ function startRingback(): () => void {
   };
 }
 
+/** Llamada entrante esperando que alguien la conteste o la rechace. */
+export interface IncomingCall {
+  callSid: string;
+  /** Número del que llama, ya en E.164 tal como lo manda Twilio. */
+  from: string;
+  accept: () => void;
+  reject: () => void;
+}
+
 export interface UseTwilioDeviceReturn {
   callStatus: TwilioCallStatus;
   callSid:    string | null;
@@ -61,9 +71,27 @@ export interface UseTwilioDeviceReturn {
   toggleMute:   () => void;
   /** El agente confirmó que el paciente contestó — corta el ringback local. */
   stopRingback: () => void;
+  /** Entrante sonando ahora, o null. Solo con `receiveIncoming`. */
+  incoming:   IncomingCall | null;
+  /** El Device quedó registrado y este usuario puede recibir llamadas. */
+  registered: boolean;
 }
 
-export function useTwilioDevice(): UseTwilioDeviceReturn {
+export interface UseTwilioDeviceOptions {
+  /**
+   * Registrar el Device al montar y escuchar entrantes.
+   *
+   * ⚠️ Cambio de comportamiento respecto de las salientes: el registro y el
+   * permiso de micrófono pasan a ser PERMANENTES mientras la app esté abierta,
+   * en vez de pedirse al marcar. Es la única forma de que Twilio pueda enrutar
+   * una llamada a este navegador. Por eso es opt-in y no el default: las
+   * pantallas que solo marcan no tienen por qué tomar el micrófono.
+   */
+  receiveIncoming?: boolean;
+}
+
+export function useTwilioDevice(options: UseTwilioDeviceOptions = {}): UseTwilioDeviceReturn {
+  const { receiveIncoming = false } = options;
   const deviceRef  = useRef<Device | null>(null);
   const callRef    = useRef<Call | null>(null);
   const ringbackRef = useRef<(() => void) | null>(null);
@@ -72,6 +100,8 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
   const [callSid,    setCallSid]    = useState<string | null>(null);
   const [muted,      setMuted]      = useState(false);
   const [error,      setError]      = useState<string | null>(null);
+  const [incoming,   setIncoming]   = useState<IncomingCall | null>(null);
+  const [registered, setRegistered] = useState(false);
 
   const stopRingback = useCallback(() => {
     ringbackRef.current?.();
@@ -106,8 +136,43 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
       }
     });
 
+    // Entrantes. Twilio dispara esto en el navegador que gane el ring group.
+    // Se registra siempre (el permiso `incomingAllow` ya está en el token),
+    // pero solo llega algo si este usuario está en el TwiML del webhook, que
+    // depende de la presencia — o sea, de `receiveIncoming`.
+    device.on('incoming', (call: Call) => {
+      const params  = call.parameters as Record<string, string>;
+      const callSid = params.CallSid ?? '';
+      const from    = params.From ?? '';
+
+      const cleanup = () => {
+        setIncoming(null);
+        callRef.current = null;
+      };
+
+      call.on('cancel',     cleanup);   // colgó antes de que atendiéramos
+      call.on('disconnect', () => { cleanup(); setCallStatus('ready'); setMuted(false); setCallSid(null); });
+      call.on('reject',     cleanup);
+
+      setIncoming({
+        callSid,
+        from,
+        accept: () => {
+          // Sin ringback local acá: el tono se lo genera el navegador al
+          // sonar, y el audio del paciente entra apenas aceptamos.
+          call.accept();
+          callRef.current = call;
+          setIncoming(null);
+          setCallSid(callSid);
+          setCallStatus('in-call');
+        },
+        reject: () => { call.reject(); cleanup(); },
+      });
+    });
+
     await device.register();
     deviceRef.current = device;
+    setRegistered(true);
     return device;
   }, []);
 
@@ -159,6 +224,46 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     setMuted(next);
   }, [muted]);
 
+  // ─── Recepción: registrar al montar y latir ────────────────────────────────
+  //
+  // Sin esto el Device solo existe mientras dura una saliente, y Twilio no
+  // tiene a quién enrutar una entrante. El heartbeat es lo que hace que el
+  // webhook sepa que este navegador está vivo.
+  useEffect(() => {
+    if (!receiveIncoming) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const beat = () => fetch('/api/twilio/presence', { method: 'POST' }).catch(() => {});
+
+    void (async () => {
+      try {
+        await getOrCreateDevice();
+        if (cancelled) return;
+        await beat();
+        timer = setInterval(beat, PRESENCE_HEARTBEAT_MS);
+      } catch (err) {
+        // No se propaga a `error`: eso pinta la UI de "llamada fallida" y acá
+        // no hay ninguna llamada en curso. Solo no vamos a recibir.
+        console.error('[twilio] no se pudo registrar para recibir:', err);
+      }
+    })();
+
+    // Al cerrar la pestaña, borrar la presencia — si no, el webhook le marca a
+    // un cliente muerto y el paciente escucha timbrar contra nadie.
+    const onLeave = () => {
+      navigator.sendBeacon?.('/api/twilio/presence/leave');
+    };
+    window.addEventListener('pagehide', onLeave);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+      window.removeEventListener('pagehide', onLeave);
+      onLeave();
+    };
+  }, [receiveIncoming, getOrCreateDevice]);
+
   useEffect(() => {
     return () => {
       stopRingback();
@@ -168,5 +273,9 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { callStatus, callSid, muted, error, connect, hangUp, toggleMute, stopRingback };
+  return {
+    callStatus, callSid, muted, error,
+    connect, hangUp, toggleMute, stopRingback,
+    incoming, registered,
+  };
 }

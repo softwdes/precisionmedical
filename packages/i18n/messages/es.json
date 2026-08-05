@@ -4206,7 +4206,14 @@
       "filterAllTime": "Todo",
       "emptyFilteredTitle": "Sin resultados para este filtro",
       "emptyFilteredHint": "Probá ampliar el período o quitar el filtro de resultado.",
-      "sharedNumber": "{count} pacientes comparten este número — el nombre es una deducción"
+      "sharedNumber": "{count} pacientes comparten este número — el nombre es una deducción",
+      "incomingCall": "Llamada entrante",
+      "answer": "Contestar",
+      "reject": "Rechazar",
+      "unregisteredCaller": "Número no registrado",
+      "unregisteredHint": "Al contestar vas a poder crear el paciente o vincularlo a uno existente.",
+      "ctxActiveCase": "Caso activo",
+      "ctxNextAppointment": "Próxima cita"
     },
     "edson": {
       "title": "Bandeja Edson",

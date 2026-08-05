@@ -883,6 +883,35 @@ model ScriptSureSession {
   @@map("scriptsure_sessions")
 }
 
+/// Quién puede recibir una llamada entrante ahora mismo.
+///
+/// Twilio NO expone qué clientes tiene registrados, así que el ring group del
+/// webhook de entrantes no tiene forma de preguntárselo: hay que llevar la
+/// presencia por nuestra cuenta. Vive en la base y no en memoria por la misma
+/// razón que `ScriptSureSession` — en serverless cada request puede caer en
+/// una instancia distinta y no hay estado compartido en proceso.
+///
+/// El navegador manda un heartbeat mientras la app está abierta; el webhook
+/// arma un `<Client>` por cada fila fresca. Una fila vieja significa que esa
+/// persona cerró la pestaña o se quedó sin red, y marcarle el `<Client>` solo
+/// haría esperar al paciente contra un cliente muerto.
+model CallAgentPresence {
+  /// userId de Supabase — el mismo que va a `CallLog.agentUserId`.
+  userId String @id
+
+  /// Identidad de Twilio (`user-<userId>`), denormalizada: el webhook arma el
+  /// TwiML sin recalcular la convención.
+  identity String
+
+  /// Nombre para el `agentName` del CallLog cuando esta persona conteste.
+  agentName String?
+
+  lastSeenAt DateTime @updatedAt
+
+  @@index([lastSeenAt])
+  @@map("call_agent_presence")
+}
+
 model Appointment {
   id String @id @default(cuid())
 

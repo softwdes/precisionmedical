@@ -4207,7 +4207,14 @@
       "filterAllTime": "All time",
       "emptyFilteredTitle": "No results for this filter",
       "emptyFilteredHint": "Try widening the period or clearing the outcome filter.",
-      "sharedNumber": "{count} patients share this number — the name is an inference"
+      "sharedNumber": "{count} patients share this number — the name is an inference",
+      "incomingCall": "Incoming call",
+      "answer": "Answer",
+      "reject": "Decline",
+      "unregisteredCaller": "Number not registered",
+      "unregisteredHint": "After answering you'll be able to create the patient or link an existing one.",
+      "ctxActiveCase": "Active case",
+      "ctxNextAppointment": "Next appointment"
     },
     "edson": {
       "title": "Edson Queue",

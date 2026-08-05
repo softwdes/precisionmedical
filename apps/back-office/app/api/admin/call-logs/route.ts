@@ -23,6 +23,7 @@ import { createAdminClient } from '@precision-medical/auth/admin';
 import { getSessionUser } from '@/lib/session';
 import { decryptFieldOrOriginal as dec } from '@/lib/decrypt';
 import { phoneKey } from '@/lib/phone';
+import { findPatientsByPhoneKeys } from '@/lib/patient-phone-lookup';
 
 export const dynamic = 'force-dynamic';
 
@@ -207,38 +208,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   //
   // Límite conocido: 8 de 5940 pacientes tienen el teléfono cifrado (`e:`) y no
   // se pueden comparar en SQL. Esos siguen saliendo como no registrados.
-  const unlinkedKeys = [...new Set(
+  // La búsqueda vive en `lib/patient-phone-lookup.ts` porque el webhook de
+  // entrantes usa exactamente la misma: reconocer al llamante por su número.
+  const byPhoneKey = await findPatientsByPhoneKeys(
     rows
       .filter(r => !r.patient)
-      .map(r => phoneKey(r.direction === 'INBOUND' ? r.fromNumber : r.toNumber))
-      .filter(Boolean),
-  )];
-
-  type MatchedPatient = {
-    id: string; patientCode: string | null;
-    firstName: string; lastName: string;
-    phone: string | null; phone2: string | null;
-  };
-  const byPhoneKey = new Map<string, MatchedPatient[]>();
-
-  if (unlinkedKeys.length > 0) {
-    const matches = await db.$queryRaw<MatchedPatient[]>`
-      SELECT id, "patientCode", "firstName", "lastName", phone, phone2
-      FROM patients
-      WHERE right(regexp_replace(coalesce(phone,  ''), '\D', '', 'g'), 10) = ANY(${unlinkedKeys}::text[])
-         OR right(regexp_replace(coalesce(phone2, ''), '\D', '', 'g'), 10) = ANY(${unlinkedKeys}::text[])
-      ORDER BY "createdAt" DESC
-    `;
-    for (const m of matches) {
-      // Un mismo número puede pertenecer a varios pacientes (99 números de la
-      // base son familias que comparten línea). Se guardan todos y la UI avisa.
-      for (const key of new Set([phoneKey(m.phone), phoneKey(m.phone2)])) {
-        if (!key || !unlinkedKeys.includes(key)) continue;
-        const list = byPhoneKey.get(key);
-        if (list) list.push(m); else byPhoneKey.set(key, [m]);
-      }
-    }
-  }
+      .map(r => phoneKey(r.direction === 'INBOUND' ? r.fromNumber : r.toNumber)),
+  );
 
   // ─── Nombre del agente ─────────────────────────────────────────────────────
   // `agentName` está denormalizado en la fila. Solo se resuelve por

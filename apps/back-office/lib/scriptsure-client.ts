@@ -357,8 +357,10 @@ export async function addToMedCart(
     return { ok: false, raw: dupRaw.slice(0, 1200), status: dupRes.status, step: 'duplicates' };
   }
 
-  // El add espera `prescriptions` como arreglo — confirmado por su validación
-  // (path ["prescriptions"], "Required") una vez que duplicates pasó.
+  // Cada entrada de `prescriptions` lleva los datos del fármaco afuera y un
+  // objeto `prescription` adentro con los del envío — la misma forma que usa su
+  // historial (ahí el anidado se llama `Prescription`, acá en minúscula).
+  // Confirmado por su validación: path ["prescriptions", 0, "prescription"].
   const addBody = {
     prescriptions: [{
       drugName: drug.drugName,
@@ -368,9 +370,12 @@ export async function addToMedCart(
       RxNorm: drug.rxNorm,
       drugId: drug.scriptsureDrugId,
       quantity: drug.quantity,
-      refill: drug.refills,
-      ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),
-      ...(drug.daysSupply ? { duration: drug.daysSupply, daysSupply: drug.daysSupply } : {}),
+      prescription: {
+        quantity: drug.quantity,
+        refill: drug.refills,
+        ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),
+        ...(drug.daysSupply ? { duration: drug.daysSupply, daysSupply: drug.daysSupply } : {}),
+      },
     }],
   };
 

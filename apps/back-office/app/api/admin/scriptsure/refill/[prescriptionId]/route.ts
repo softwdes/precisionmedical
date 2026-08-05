@@ -124,6 +124,7 @@ export async function POST(
         step: cart.step,
         status: cart.status,
         raw: cart.raw,
+        clear: cart.clear ?? null,
       })) as Record<string, string>,
     }).catch(() => undefined);
 

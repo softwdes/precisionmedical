@@ -309,6 +309,65 @@ export interface MedCartResult {
   raw: unknown;
   status: number;
   step: 'duplicates' | 'add' | 'read';
+  /** Qué pasó al vaciar el carrito antes de cargar (queda en auditoría) */
+  clear?: unknown;
+}
+
+/**
+ * Vacía el carrito del paciente. Intenta el borrado masivo y, si no funciona,
+ * cae a borrar ítem por ítem leyendo el carrito — no confiamos en que un solo
+ * endpoint responda como esperamos, y el síntoma de que falle (recetas ajenas
+ * apareciendo al repetir) es confuso para el doctor.
+ */
+async function clearMedCart(
+  base: string,
+  sessionToken: string,
+  patientId: number,
+): Promise<Record<string, unknown>> {
+  const info: Record<string, unknown> = {};
+
+  try {
+    const res = await fetch(`${base}/v3/medcart/clear/${patientId}?sessiontoken=${sessionToken}`, {
+      method: 'DELETE',
+    });
+    info.bulkStatus = res.status;
+    info.bulkRaw = (await res.text()).slice(0, 300);
+  } catch (err) {
+    info.bulkError = String(err).slice(0, 200);
+  }
+
+  // Verificar qué quedó y borrar uno por uno lo que siga ahí
+  try {
+    const readRes = await fetch(`${base}/v3/medcart/patient/${patientId}?sessiontoken=${sessionToken}`);
+    const readTxt = await readRes.text();
+    info.afterBulkStatus = readRes.status;
+
+    let items: Array<Record<string, unknown>> = [];
+    try {
+      const parsed = JSON.parse(readTxt) as Record<string, unknown>;
+      const cart = (parsed.medcart ?? parsed) as Record<string, unknown>;
+      const list = (cart.items ?? cart.prescriptions ?? parsed) as unknown;
+      if (Array.isArray(list)) items = list as Array<Record<string, unknown>>;
+    } catch { /* si no parsea, queda el crudo en info */ }
+
+    info.remaining = items.length;
+    if (items.length === 0) { info.rawAfterBulk = readTxt.slice(0, 300); return info; }
+
+    const deleted: number[] = [];
+    for (const it of items) {
+      const rxId = it.rxId ?? it.prescriptionId ?? it.id;
+      if (rxId === undefined || rxId === null) continue;
+      const d = await fetch(`${base}/v3/medcart/${patientId}/${String(rxId)}?sessiontoken=${sessionToken}`, {
+        method: 'DELETE',
+      });
+      deleted.push(d.status);
+    }
+    info.itemDeleteStatuses = deleted;
+  } catch (err) {
+    info.readError = String(err).slice(0, 200);
+  }
+
+  return info;
 }
 
 /**
@@ -335,11 +394,12 @@ export async function addToMedCart(
 
   // El carrito de ScriptSure es ACUMULATIVO y persiste entre sesiones: si no se
   // vacía, "repetir" una receta muestra también todo lo cargado antes (incluidos
-  // los intentos fallidos). Se vacía primero para que quede solo la elegida.
-  // Es seguro: el carrito es un borrador, nada de lo enviado a farmacia vive ahí.
-  await fetch(`${base}/v3/medcart/clear/${patientId}?sessiontoken=${sessionToken}`, {
-    method: 'DELETE',
-  }).catch(() => undefined);
+  // los intentos fallidos). Es seguro vaciarlo: es un borrador, nada de lo ya
+  // enviado a farmacia vive ahí.
+  //
+  // NO se silencia el resultado: la primera versión usaba `.catch(() => {})` y
+  // cuando el clear falló nos quedamos sin saber por qué. Se reporta.
+  const clearInfo = await clearMedCart(base, sessionToken, patientId);
 
   // El add NO deduplica solo (documentado): primero se consulta duplicados por
   // ROUTED_MED_ID + GCN_SEQNO para no cargar dos veces el mismo fármaco.
@@ -365,7 +425,7 @@ export async function addToMedCart(
   );
   const dupRaw = await dupRes.text();
   if (!dupRes.ok) {
-    return { ok: false, raw: dupRaw.slice(0, 1200), status: dupRes.status, step: 'duplicates' };
+    return { ok: false, raw: dupRaw.slice(0, 1200), status: dupRes.status, step: 'duplicates', clear: clearInfo };
   }
 
   // Cada entrada de `prescriptions` lleva los datos del fármaco afuera y un
@@ -408,10 +468,10 @@ export async function addToMedCart(
   );
   const addRaw = await addRes.text();
   if (!addRes.ok) {
-    return { ok: false, raw: addRaw.slice(0, 1200), status: addRes.status, step: 'add' };
+    return { ok: false, raw: addRaw.slice(0, 1200), status: addRes.status, step: 'add', clear: clearInfo };
   }
 
-  return { ok: true, raw: addRaw.slice(0, 1200), status: addRes.status, step: 'add' };
+  return { ok: true, raw: addRaw.slice(0, 1200), status: addRes.status, step: 'add', clear: clearInfo };
 }
 
 /**

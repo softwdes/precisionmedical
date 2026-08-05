@@ -314,11 +314,13 @@ export interface MedCartResult {
  * que el widget abra con todo puesto — es el mecanismo oficial de ScriptSure
  * para "repetir" una receta.
  *
- * ⚠️ El esquema exacto del body NO está en la documentación que pudimos leer y
- * NO se pudo probar contra su API (nuestro entorno está bloqueado por su WAF).
- * Por eso manda los identificadores con varios alias y DEVUELVE LA RESPUESTA
- * CRUDA: el primer intento real muestra qué espera y se ajusta en una pasada,
- * igual que se hizo con el webhook y con el historial.
+ * El esquema NO está en la documentación disponible: se dedujo campo por campo
+ * leyendo su propia validación en intentos reales (2026-08-05). Por eso esta
+ * función DEVUELVE LA RESPUESTA CRUDA — es lo que permite ajustar sin adivinar
+ * cuando su contrato cambia o aparece un campo nuevo.
+ *
+ *   duplicates → { drugKeys: [...] }
+ *   add        → { prescriptions: [...] }
  */
 export async function addToMedCart(
   loginEmail: string,
@@ -344,16 +346,7 @@ export async function addToMedCart(
     Ndc: drug.ndc,
     RxNorm: drug.rxNorm,
   };
-  const dupBody = {
-    drugKeys: [drugKey],
-    prescriptions: [{
-      ...drugKey,
-      quantity: drug.quantity,
-      refill: drug.refills,
-      ...(drug.sig ? { directions: drug.sig } : {}),
-      ...(drug.daysSupply ? { duration: drug.daysSupply } : {}),
-    }],
-  };
+  const dupBody = { drugKeys: [drugKey] };
 
   const dupRes = await fetch(
     `${base}/v3/medcart/patient/${patientId}/duplicates/check?sessiontoken=${sessionToken}`,
@@ -364,17 +357,21 @@ export async function addToMedCart(
     return { ok: false, raw: dupRaw.slice(0, 1200), status: dupRes.status, step: 'duplicates' };
   }
 
+  // El add espera `prescriptions` como arreglo — confirmado por su validación
+  // (path ["prescriptions"], "Required") una vez que duplicates pasó.
   const addBody = {
-    drugName: drug.drugName,
-    ROUTED_MED_ID: drug.routedMedId,
-    GCN_SEQNO: drug.gcnSeqno,
-    Ndc: drug.ndc,
-    RxNorm: drug.rxNorm,
-    drugId: drug.scriptsureDrugId,
-    quantity: drug.quantity,
-    refill: drug.refills,
-    ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),
-    ...(drug.daysSupply ? { duration: drug.daysSupply, daysSupply: drug.daysSupply } : {}),
+    prescriptions: [{
+      drugName: drug.drugName,
+      ROUTED_MED_ID: drug.routedMedId,
+      GCN_SEQNO: drug.gcnSeqno,
+      Ndc: drug.ndc,
+      RxNorm: drug.rxNorm,
+      drugId: drug.scriptsureDrugId,
+      quantity: drug.quantity,
+      refill: drug.refills,
+      ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),
+      ...(drug.daysSupply ? { duration: drug.daysSupply, daysSupply: drug.daysSupply } : {}),
+    }],
   };
 
   const addRes = await fetch(

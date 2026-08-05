@@ -106,11 +106,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       }),
       user
-        ? db.userServiceFavorite.findMany({ where: { userId: user.id }, select: { serviceCodeId: true } })
+        ? db.userServiceFavorite.findMany({
+            where: { userId: user.id },
+            select: { serviceCodeId: true, catalogItemId: true },
+          })
         : Promise.resolve([]),
     ]);
 
-    const favIds = new Set(favorites.map((f) => f.serviceCodeId));
+    // Los favoritos de los DOS catálogos salen de la misma tabla (una fila apunta
+    // a uno de los dos, garantizado por un CHECK en la DB).
+    const favCodeIds = new Set(favorites.map((f) => f.serviceCodeId).filter(Boolean));
+    const favCatalogIds = new Set(favorites.map((f) => f.catalogItemId).filter((v): v is number => v !== null));
 
     let insuranceItems: BillableItem[] = codes.map((c) => ({
       key: `s${c.id}`,
@@ -121,13 +127,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       price: Number(c.currentFee),
       category: c.category,
       unitLabel: null,
-      isFavorite: favIds.has(c.id),
+      isFavorite: favCodeIds.has(c.id),
       insuranceCode: c.code,
     }));
 
     // Los cash sin precio quedan afuera: una fila con guión no se puede cobrar y
     // en un picker es ruido (mismo criterio que la lista de precios del mostrador).
-    const cashItems: BillableItem[] = cash
+    let cashItems: BillableItem[] = cash
       .filter((i) => i.publicPrice !== null && Number(i.publicPrice) > 0)
       .map((i) => ({
         key: `c${i.id}`,
@@ -138,14 +144,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         price: Number(i.publicPrice),
         category: i.kind,
         unitLabel: i.unitLabel,
-        isFavorite: false,
+        isFavorite: favCatalogIds.has(i.id),
         insuranceCode: i.cptCode ?? i.hcpcsCode ?? null,
       }));
 
-    if (favoritesOnly) insuranceItems = insuranceItems.filter((i) => i.isFavorite);
+    // El filtro aplica a las DOS listas. Antes solo filtraba la de seguro, así que
+    // en la vista de efectivo el botón "Favoritos" no hacía nada — un control que
+    // se puede activar y no cambia nada es peor que no tenerlo.
+    if (favoritesOnly) {
+      insuranceItems = insuranceItems.filter((i) => i.isFavorite);
+      cashItems = cashItems.filter((i) => i.isFavorite);
+    }
 
     // Favoritos primero — sort estable, conserva el orden dentro de cada grupo.
     insuranceItems.sort((a, b) => Number(b.isFavorite) - Number(a.isFavorite));
+    cashItems.sort((a, b) => Number(b.isFavorite) - Number(a.isFavorite));
 
     // ─── Apareo: el mismo servicio en las dos listas ─────────────────────────
     //

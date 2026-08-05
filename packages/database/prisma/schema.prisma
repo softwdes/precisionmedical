@@ -2234,11 +2234,22 @@ model ServiceCode {
   @@map("service_codes")
 }
 
+/// Favorito de un ítem cobrable, de CUALQUIERA de los dos catálogos.
+///
+/// Una tabla con dos tipos y no dos tablas: el picker ordena "favoritos primero"
+/// en UNA consulta, y `usageCount`/`lastUsedAt` es la misma métrica para las dos
+/// fuentes — duplicar la tabla duplicaría esa lógica.
+///
+/// Un CHECK en la DB (`user_service_favorites_one_target`) garantiza que cada
+/// fila apunte a uno y solo uno: con los dos, o con ninguno, no significa nada.
 model UserServiceFavorite {
-  id            String      @id @default(cuid())
+  id            String       @id @default(cuid())
   userId        String // Sin FK a User Phase 1A (no auth todavía) · Phase 1B FK real
-  serviceCodeId String
-  serviceCode   ServiceCode @relation(fields: [serviceCodeId], references: [id], onDelete: Cascade)
+  serviceCodeId String?
+  serviceCode   ServiceCode? @relation(fields: [serviceCodeId], references: [id], onDelete: Cascade)
+  /// `catalog_items.id` — sin FK: el catálogo es soft-delete y el favorito no
+  /// debe hacer fallar un borrado lógico.
+  catalogItemId Int?
 
   usageCount Int       @default(0)
   lastUsedAt DateTime?
@@ -2246,8 +2257,10 @@ model UserServiceFavorite {
   createdAt DateTime @default(now())
 
   @@unique([userId, serviceCodeId])
+  @@unique([userId, catalogItemId])
   @@index([userId])
   @@index([userId, usageCount])
+  @@index([catalogItemId])
   @@map("user_service_favorites")
 }
 

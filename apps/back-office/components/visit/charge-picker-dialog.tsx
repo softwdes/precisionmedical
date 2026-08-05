@@ -110,25 +110,40 @@ export function ChargePickerDialog({
   const toggleFavorite = async (item: BillableItem): Promise<void> => {
     setTogglingFav(item.key);
     const next = !item.isFavorite;
-    // Optimista, se revierte si falla.
-    setData((prev) => ({
+    // Optimista en las dos listas, se revierte si falla.
+    const mark = (v: boolean) => (prev: Payload): Payload => ({
       ...prev,
-      insurance: prev.insurance.map((i) => i.key === item.key ? { ...i, isFavorite: next } : i),
-    }));
+      insurance: prev.insurance.map((i) => i.key === item.key ? { ...i, isFavorite: v } : i),
+      cash: prev.cash.map((i) => i.key === item.key ? { ...i, isFavorite: v } : i),
+    });
+    setData(mark(next));
     try {
-      const res = await fetch(`/api/admin/services/${item.refId}/favorite`, {
+      // Un solo endpoint para los dos catálogos: habla la misma clave `s<id>` /
+      // `c<id>` que usa el picker, así el cliente no tiene que saber de qué tabla
+      // salió el ítem.
+      const res = await fetch(`/api/admin/billable-favorites/${item.key}`, {
         method: next ? 'POST' : 'DELETE',
       });
       if (!res.ok) throw new Error('failed');
     } catch {
-      setData((prev) => ({
-        ...prev,
-        insurance: prev.insurance.map((i) => i.key === item.key ? { ...i, isFavorite: !next } : i),
-      }));
+      setData(mark(!next));
     } finally {
       setTogglingFav(null);
     }
   };
+
+  /** Estrella de favorito — la misma en las dos listas. */
+  const favBtn = (item: BillableItem): React.ReactElement => (
+    <button
+      type="button"
+      onClick={() => void toggleFavorite(item)}
+      disabled={togglingFav === item.key}
+      title={item.isFavorite ? t('removeFavorite') : t('addFavorite')}
+      className="text-text-muted hover:text-amber transition-colors disabled:opacity-40 shrink-0"
+    >
+      <Star className={`w-3.5 h-3.5 ${item.isFavorite ? 'fill-amber text-amber' : ''}`} />
+    </button>
+  );
 
   const add = async (item: BillableItem): Promise<void> => {
     setAddingKey(item.key);
@@ -181,15 +196,7 @@ export function ChargePickerDialog({
         <div className="rounded-lg border border-border overflow-hidden">
           {data.insurance.map((i) => (
             <div key={i.key} className="flex items-center gap-2 px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
-              <button
-                type="button"
-                onClick={() => void toggleFavorite(i)}
-                disabled={togglingFav === i.key}
-                title={i.isFavorite ? t('removeFavorite') : t('addFavorite')}
-                className="text-text-muted hover:text-amber transition-colors disabled:opacity-40 shrink-0"
-              >
-                <Star className={`w-3.5 h-3.5 ${i.isFavorite ? 'fill-amber text-amber' : ''}`} />
-              </button>
+              {favBtn(i)}
               <span className="font-mono text-[11px] text-cyan w-[58px] shrink-0">{i.code}</span>
               <span className="text-xs text-text-1 flex-1 min-w-0 truncate">{i.name}</span>
               {addBtn(i, t('addInsurance'))}
@@ -219,8 +226,11 @@ export function ChargePickerDialog({
         <div className="rounded-lg border border-border overflow-hidden">
           {data.cash.map((i) => (
             <div key={i.key} className="flex items-center gap-2 px-3 py-2 border-b border-row-sep last:border-0 hover:bg-bg-2/30 transition-colors">
-              <span className="font-mono text-[11px] text-emerald w-[58px] shrink-0 truncate" title={i.code}>{i.code}</span>
-              <span className="text-xs text-text-1 flex-1 min-w-0 truncate">
+              {favBtn(i)}
+              {/* Sin columna de código: los `PM-INJ-…` son internos, nadie los
+                  busca y truncados no dicen nada. El ancho se lo lleva el nombre,
+                  que es por lo que el doctor sí busca. */}
+              <span className="text-xs text-text-1 flex-1 min-w-0" title={i.code}>
                 {i.name}
                 {i.unitLabel && <span className="text-text-muted"> · {i.unitLabel}</span>}
               </span>

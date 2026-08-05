@@ -26,8 +26,12 @@
 
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
+import { usePathname } from 'next/navigation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
-import { Search, Loader2, X, Star, Shield, ShieldCheck, ShieldQuestion, Banknote, Scale, Plus } from 'lucide-react';
+import {
+  Search, Loader2, X, Star, Shield, ShieldCheck, ShieldQuestion, Banknote, Scale, Plus,
+  Check, AlertTriangle, ExternalLink,
+} from 'lucide-react';
 import type { CoverageDTO } from '@/lib/coverage';
 
 export type BillableSource = 'INSURANCE' | 'CASH';
@@ -79,6 +83,7 @@ export function ChargePickerDialog({
   coverage, addedKeys, onClose, onAdd,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.charges');
+  const pathname = usePathname();
 
   const [q, setQ] = React.useState('');
   const [view, setView] = React.useState<View>('ALL');
@@ -87,6 +92,8 @@ export function ChargePickerDialog({
   const [loading, setLoading] = React.useState(true);
   const [addingKey, setAddingKey] = React.useState<string | null>(null);
   const [togglingFav, setTogglingFav] = React.useState<string | null>(null);
+  /** Ítem sin precio al que se le está escribiendo el monto de ESTA visita. */
+  const [pricing, setPricing] = React.useState<{ key: string; value: string } | null>(null);
 
   // Con la caja vacía no hay debounce: el listado inicial tiene que aparecer
   // solo, sin escribir nada.
@@ -145,10 +152,15 @@ export function ChargePickerDialog({
     </button>
   );
 
-  const add = async (item: BillableItem): Promise<void> => {
+  const add = async (item: BillableItem, priceOverride?: number): Promise<void> => {
     setAddingKey(item.key);
-    try { await onAdd(item); }
-    finally { setAddingKey(null); }
+    try {
+      // El monto escrito acá viaja como el precio del ítem: aplica SOLO a esta
+      // visita. El precio del catálogo no se toca — cambiarlo es editar el fee
+      // schedule y eso vive en el catálogo, con su rastro de verificación.
+      await onAdd(priceOverride !== undefined ? { ...item, price: priceOverride } : item);
+      setPricing(null);
+    } finally { setAddingKey(null); }
   };
 
   const fmt$ = (n: number): string => `$${n.toFixed(2)}`;
@@ -160,23 +172,82 @@ export function ChargePickerDialog({
     // cargo es su propia fila (ver lib/cash-service-billing.ts).
     const already = item.source === 'INSURANCE' && addedKeys.has(item.key);
     const cash = item.source === 'CASH';
+    const busy = addingKey === item.key;
+
+    if (already) {
+      // Deshabilitado CON explicación: "Agregado" a secas se leía como un botón
+      // roto. Ahora dice por qué no se puede tocar y dónde se cambia el monto.
+      return (
+        <span
+          title={t('alreadyAddedHint')}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald/15 text-emerald shrink-0 cursor-default"
+        >
+          <Check className="w-3 h-3" /> {t('alreadyAdded')}
+        </span>
+      );
+    }
+
+    // Sin precio cargado. No se agrega en cero: `sync-billing` saltea los
+    // servicios con fee <= 0, así que entraba a la visita y NUNCA generaba
+    // cobro — en silencio. Se pide el monto antes.
+    if (item.price <= 0) {
+      if (pricing?.key === item.key) {
+        const value = Number.parseFloat(pricing.value);
+        const valid = Number.isFinite(value) && value > 0;
+        return (
+          <span className="inline-flex items-center gap-1.5 shrink-0">
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              autoFocus
+              value={pricing.value}
+              onChange={(e) => setPricing({ key: item.key, value: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && valid) void add(item, value);
+                if (e.key === 'Escape') setPricing(null);
+              }}
+              placeholder="0.00"
+              aria-label={t('setAmount')}
+              className="w-[74px] text-right tabular-nums bg-bg-2 border border-amber/40 rounded px-1.5 py-0.5 text-[11px] font-semibold text-text-1 outline-none focus:border-amber"
+            />
+            <button
+              type="button"
+              disabled={!valid || busy}
+              onClick={() => void add(item, value)}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-amber/20 text-amber border border-amber/40 hover:bg-amber/30 disabled:opacity-40 transition-colors"
+            >
+              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+              {t('confirmAmount')}
+            </button>
+          </span>
+        );
+      }
+      return (
+        <button
+          type="button"
+          onClick={() => setPricing({ key: item.key, value: '' })}
+          title={t('thisVisitOnly')}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-amber/15 text-amber border border-amber/30 hover:bg-amber/25 transition-colors shrink-0"
+        >
+          <AlertTriangle className="w-3 h-3" /> {t('noPrice')} · {t('setAmount')}
+        </button>
+      );
+    }
+
     return (
       <button
         type="button"
-        disabled={already || addingKey === item.key}
+        disabled={busy}
         onClick={() => void add(item)}
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shrink-0 ${
-          already
-            ? 'bg-emerald/15 text-emerald cursor-not-allowed'
-            : cash
-              ? 'bg-emerald/15 text-emerald border border-emerald/30 hover:bg-emerald/25'
-              : 'bg-cyan/15 text-cyan border border-cyan/30 hover:bg-cyan/25'
+          cash
+            ? 'bg-emerald/15 text-emerald border border-emerald/30 hover:bg-emerald/25'
+            : 'bg-cyan/15 text-cyan border border-cyan/30 hover:bg-cyan/25'
         }`}
       >
-        {addingKey === item.key
-          ? <Loader2 className="w-3 h-3 animate-spin" />
-          : <Plus className="w-3 h-3" />}
-        {already ? t('added') : `${label} · ${fmt$(item.price)}`}
+        {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+        {`${label} · ${fmt$(item.price)}`}
       </button>
     );
   };
@@ -364,7 +435,21 @@ export function ChargePickerDialog({
               <span className="hidden sm:inline">{t('favoritesOnly')}</span>
             </button>
           </div>
-          <p className="text-[10.5px] text-text-muted">{t('searchesBoth')}</p>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-[10.5px] text-text-muted">{t('searchesBoth')}</p>
+            {/* Los montos que se escriben acá son de ESTA visita. Corregir el
+                precio de verdad es editar el fee schedule y vive en el catálogo,
+                que lleva el rastro de verificación (priceVerifiedAt/By). El
+                portal del doctor y el back-office tienen su propia ruta. */}
+            <a
+              href={pathname.startsWith('/doctor') ? '/doctor/catalog' : '/admin/catalog'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10.5px] text-text-muted hover:text-violet transition-colors inline-flex items-center gap-1 shrink-0"
+            >
+              {t('catalogFix')} <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
 
         <div className="px-5 py-3 overflow-y-auto flex-1">

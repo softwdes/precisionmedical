@@ -108,7 +108,7 @@ export async function POST(
       refills: rx.refills,
       sig: rx.frequency !== '—' ? rx.frequency : null,
       daysSupply: Number.isNaN(days) ? null : days,
-    });
+    }, { practiceId, doctorId: prescriberId });
 
     writeAuditLog(db, {
       ...actorFromHeaders(req.headers),

@@ -326,6 +326,7 @@ export async function addToMedCart(
   loginEmail: string,
   patientId: number,
   drug: MedCartDrug,
+  ctx?: { practiceId?: number; doctorId?: number },
 ): Promise<MedCartResult> {
   const sessionToken = await getSessionToken(loginEmail);
   const base = hosts().backendScriptSure;
@@ -371,6 +372,12 @@ export async function addToMedCart(
       drugId: drug.scriptsureDrugId,
       quantity: drug.quantity,
       prescription: {
+        // patientId es obligatorio y NUMÉRICO — su validación lo dijo con esas
+        // palabras ("patientId must be a number"). doctorId y practiceId van
+        // por adelantado: son los que suele pedir a continuación.
+        patientId,
+        ...(ctx?.doctorId ? { doctorId: ctx.doctorId, userId: ctx.doctorId } : {}),
+        ...(ctx?.practiceId ? { practiceId: ctx.practiceId } : {}),
         quantity: drug.quantity,
         refill: drug.refills,
         ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),

@@ -457,7 +457,7 @@ export function ConsultationClient({
               hidePayments
               initialTab="services"
               appointment={a.servicesPanel}
-              coverage={a.coverage.type}
+              coverage={a.coverage}
               onClose={() => {}}
               onRefresh={() => router.refresh()}
             />

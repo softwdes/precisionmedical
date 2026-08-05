@@ -1533,7 +1533,7 @@ export function CalendarClient({ clinics, providers, lockedProviderId }: Calenda
       {selectedAppt && (
         <AppointmentDetailPanel
           appointment={selectedAppt}
-          coverage={selectedAppt.case?.coverage?.type ?? 'UNKNOWN'}
+          coverage={selectedAppt.case?.coverage}
           onClose={() => setSelectedAppt(null)}
           onRefresh={() => setRefreshKey(k => k + 1)}
         />

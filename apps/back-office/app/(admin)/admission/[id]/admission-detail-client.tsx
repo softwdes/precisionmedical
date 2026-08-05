@@ -719,7 +719,7 @@ export function AdmissionDetailClient({ appointmentId }: { appointmentId: string
             }}
             billingTotal={billingHistory.reduce((s, b) => s + b.balanceDue, 0) || undefined}
             servicesExtra={<BillingHistoryList rows={billingHistory} />}
-            coverage={d.coverage.type}
+            coverage={d.coverage}
             onRefresh={load}
           />
         )}

@@ -27,8 +27,8 @@
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
-import { Search, Loader2, X, Star, Shield, Banknote, Plus } from 'lucide-react';
-import type { CoverageType } from '@/lib/coverage';
+import { Search, Loader2, X, Star, Shield, ShieldCheck, ShieldQuestion, Banknote, Scale, Plus } from 'lucide-react';
+import type { CoverageDTO } from '@/lib/coverage';
 
 export type BillableSource = 'INSURANCE' | 'CASH';
 
@@ -57,8 +57,11 @@ interface Payload {
 }
 
 interface Props {
-  /** Decide qué grupo se muestra primero. Nunca oculta el otro. */
-  coverage: CoverageType;
+  /**
+   * Decide qué grupo se muestra primero y se muestra como referencia arriba del
+   * buscador. Nunca oculta el otro grupo.
+   */
+  coverage: CoverageDTO;
   /** Claves de los CPT ya agregados, para marcarlos "Agregado". */
   addedKeys: Set<string>;
   onClose: () => void;
@@ -257,7 +260,23 @@ export function ChargePickerDialog({
 
   // Orden por cobertura: al asegurado se le muestra primero lo de seguro. Los dos
   // grupos están siempre — es orden, no filtro.
-  const insuranceFirst = coverage === 'INSURANCE';
+  const insuranceFirst = coverage.type === 'INSURANCE';
+
+  // La cobertura, a la vista en el momento de elegir el precio. Sin esto el dato
+  // vivía solo en el encabezado de la pantalla y había que acordarse de lo que se
+  // leyó dos clicks antes. Es REFERENCIA: no filtra ni bloquea nada.
+  const carrier = coverage.carrierName ?? t('covFallbackCarrier');
+  const covBanner: { text: string; cls: string; icon: React.ElementType } =
+    coverage.type === 'INSURANCE'
+      ? coverage.verifyMethod === 'VERIFIED'
+        ? { text: t('covInsuranceVerified', { carrier }), cls: 'border-emerald/30 bg-emerald/10 text-emerald', icon: ShieldCheck }
+        : { text: t('covInsuranceDeclared', { carrier }), cls: 'border-amber/30 bg-amber/10 text-amber', icon: Shield }
+      : coverage.type === 'SELF_PAY'
+        ? { text: t('covSelfPay'), cls: 'border-emerald/30 bg-emerald/10 text-emerald', icon: Banknote }
+        : coverage.type === 'LIEN'
+          ? { text: t('covLien'), cls: 'border-violet/30 bg-violet/10 text-violet', icon: Scale }
+          : { text: t('covUnknown'), cls: 'border-amber/30 bg-amber/10 text-amber', icon: ShieldQuestion };
+  const CovIcon = covBanner.icon;
 
   const VIEWS: Array<{ v: View; label: string; count: number; cls: string }> = [
     { v: 'ALL', label: t('viewAll'), count: data.counts.insurance + data.counts.cash + data.counts.pairs,
@@ -279,6 +298,12 @@ export function ChargePickerDialog({
         </DialogHeader>
 
         <div className="px-5 py-3 shrink-0 space-y-2.5 border-b border-border">
+          {/* Quién paga, en el momento de elegir el precio */}
+          <div className={`rounded-md border px-3 py-2 text-[11.5px] flex items-start gap-1.5 ${covBanner.cls}`}>
+            <CovIcon className="w-3.5 h-3.5 shrink-0 mt-px" />
+            <span>{covBanner.text}</span>
+          </div>
+
           {/* 3 botones de vista con sus conteos. Los conteos enseñan solos que la
               lista de efectivo es chica — cuando falte algo ahí, se va a pedir en
               vez de asumir que no se puede cobrar. */}

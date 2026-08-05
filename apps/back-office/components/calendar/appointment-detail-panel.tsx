@@ -23,7 +23,7 @@ import { StatusPill, TagPill, type StatusState } from '@/components/ui-phoenix/s
 import { EmptyState } from '@/components/ui-phoenix/empty-state';
 import { Dialog, DialogContent, DialogTitle, Button } from '@precision/ui';
 import { ChargePickerDialog, type BillableItem } from '@/components/visit/charge-picker-dialog';
-import type { CoverageType } from '@/lib/coverage';
+import type { CoverageDTO } from '@/lib/coverage';
 import { AppointmentSecondaryModals, type SecondaryModalType } from './appointment-secondary-modals';
 import { AppointmentDialog, type EditAppointmentData } from './appointment-dialog';
 import { FinanzasTab, type FinanzasTabHandle } from '@/components/cases/finanzas-tab';
@@ -101,12 +101,19 @@ interface Props {
    */
   hidePayments?: boolean;
   /**
-   * Cobertura del caso. Solo ORDENA qué catálogo abre primero el picker; las dos
-   * listas se muestran siempre. Sin valor, arranca en efectivo — el default más
-   * seguro, porque cobrar de más es peor que facturar de menos.
+   * Cobertura del caso. ORDENA qué catálogo abre primero el picker y se muestra
+   * ahí como referencia; las dos listas se ven siempre. Sin valor arranca en
+   * efectivo — el default más seguro, porque cobrar de más es peor que facturar
+   * de menos.
    */
-  coverage?: CoverageType;
+  coverage?: CoverageDTO;
 }
+
+/** Cobertura sin responder — default cuando el caller no la pasa. */
+const COVERAGE_UNSET: CoverageDTO = {
+  type: 'UNKNOWN', answered: false, verifyMethod: null, verifiedAt: null,
+  verifiedByName: null, carrierName: null, suggestion: null, suggestionSource: null,
+};
 
 type Tab = 'detail' | 'services';
 
@@ -175,7 +182,7 @@ const fmt$ = (n: number) =>
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = 'UNKNOWN' }: Props) {
+export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, initialTab = 'detail', inline = false, noBorder = false, billingTotal, hidePayments = false, coverage = COVERAGE_UNSET }: Props) {
   const router = useRouter();
   const t = useTranslations('phoenix.calendar');
   /** Namespace de los cargos — compartido con el picker. */

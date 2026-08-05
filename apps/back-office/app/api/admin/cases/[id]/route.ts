@@ -6,7 +6,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, writeAuditLog, actorFromHeaders } from '@precision-medical/database';
+import { db, writeAuditLog, actorFromHeaders, casePrefixFor } from '@precision-medical/database';
 import { resolveCoverage, serializeCoverage } from '@/lib/coverage';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -90,6 +90,31 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
       ...(chiropractor ? { chiropractor } : chiropractor === null ? { chiropractor: null } : {}),
       ...(lawFirmLabel ? { lawFirm: lawFirmLabel } : lawFirmLabel === null ? { lawFirm: null } : {}),
     };
+  }
+
+  // ── Corregir el prefijo del código cuando cambia el tipo ────────────────────
+  // "Se creó como MVA pero era medicina general": el tipo se corregía pero el
+  // código quedaba MVA-1122 para siempre. El número se CONSERVA (es global y
+  // único, el prefijo es solo etiqueta — ver codes.ts); solo cambia la etiqueta
+  // con el mismo mapeo de la creación. Solo se tocan códigos con formato de
+  // serie: los legados raros y los cifrados del v2 no se renombran.
+  let codeRename: { from: string; to: string } | null = null;
+  if (parsed.data.caseType !== undefined) {
+    const current = await db.case.findUnique({ where: { id }, select: { caseCode: true } });
+    const m = current?.caseCode.match(/^([A-Z]+)-([0-9]{1,6})$/);
+    if (m) {
+      const wanted = casePrefixFor(parsed.data.caseType);
+      if (m[1] !== wanted) {
+        const candidate = `${wanted}-${m[2]}`;
+        // Anticolisión: en el rango legado del v2 conviven MVA-2900 y CASE-2900,
+        // así que el destino puede existir. En ese caso el código no se toca.
+        const clash = await db.case.findUnique({ where: { caseCode: candidate }, select: { id: true } });
+        if (!clash) {
+          data.caseCode = candidate;
+          codeRename = { from: current!.caseCode, to: candidate };
+        }
+      }
+    }
   }
 
   // ── Assignment change audit ──────────────────────────────────────────────────
@@ -177,8 +202,33 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<NextResp
       action:      'UPDATE_CASE',
       entityType:  'cases',
       entityId:    id,
-      metadata:    { caseCode: updated.caseCode, fields: Object.keys(parsed.data) },
+      metadata: {
+        caseCode: updated.caseCode,
+        fields: Object.keys(parsed.data),
+        // Rastro del renombre: el código viejo puede estar en SMS/PDFs ya
+        // emitidos y soporte necesita poder rastrearlo (Regla #3).
+        ...(codeRename ? { previousCaseCode: codeRename.from, newCaseCode: codeRename.to } : {}),
+      },
       ipAddress:   req.headers.get('x-forwarded-for') ?? undefined,
+    });
+  }
+
+  // Si el PATCH traía asignaciones Y cambio de tipo, la rama de arriba logueó
+  // solo las asignaciones — el renombre del código no puede quedar sin rastro.
+  if (changingAssignment && codeRename) {
+    await writeAuditLog(db, {
+      actorType:   actor.actorType,
+      actorUserId: actor.actorUserId ?? undefined,
+      action:      'UPDATE_CASE',
+      entityType:  'cases',
+      entityId:    id,
+      metadata: {
+        caseCode: updated.caseCode,
+        fields: ['caseType'],
+        previousCaseCode: codeRename.from,
+        newCaseCode: codeRename.to,
+      },
+      ipAddress: req.headers.get('x-forwarded-for') ?? undefined,
     });
   }
 

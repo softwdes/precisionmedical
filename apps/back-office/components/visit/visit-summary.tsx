@@ -19,7 +19,7 @@ import { Button } from '@precision/ui';
 import {
   CheckCircle2, AlertTriangle, Clock3, FileText, FlaskConical, Briefcase,
   HeartPulse, Stethoscope, Loader2, LogOut, RotateCcw, Printer, ChevronRight,
-  CalendarPlus, CalendarCheck2,
+  CalendarPlus, CalendarCheck2, Bandage, DollarSign,
 } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
 import { AppointmentDialog } from '@/components/calendar/appointment-dialog';
@@ -43,6 +43,30 @@ interface ServiceCode {
   code: string;
   description: string;
   category?: string;
+  /** Fee que se le factura a la aseguradora. Hace falta para el desglose. */
+  fee?: number;
+}
+
+/** Cargo del catálogo cash (`appointment_services`) — lo paga el paciente. */
+interface CashChargeRow {
+  id: string;
+  code: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+  unitLabel: string | null;
+}
+
+/** Férula entregada (`appointment_braces`) — se paga completa, sin lien ni seguro. */
+interface BraceRow {
+  id: string;
+  code: string;
+  name: string;
+  sizeLabel: string | null;
+  unitPrice: number | string;
+  side: string;
+  quantity: number;
+  status: string;
 }
 
 interface Props {
@@ -116,6 +140,9 @@ function elapsed(from: string | null, to: Date): string | null {
   return `${Math.floor(mins / 60)} h ${mins % 60} min`;
 }
 
+/** Mismo formato que el tab de férulas y el de cargos. */
+const money = (n: number): string => `$${n.toFixed(2)}`;
+
 /** Tarjeta de sección del resumen */
 function Card({
   icon: Icon, title, action, children,
@@ -142,11 +169,21 @@ export function VisitSummary({
   variant = 'doctor', appointmentStatus, providerName, onStatusChange, followUp = null,
 }: Props): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
+  /** Etiquetas de cargos, compartidas con el tab y el picker. */
+  const tc = useTranslations('phoenix.charges');
   const router = useRouter();
   const isAssistant = variant === 'assistant';
 
   const [labs, setLabs] = React.useState<LabOrderRow[]>([]);
   const [loadingLabs, setLoadingLabs] = React.useState(true);
+  // Los cargos de la visita salen de TRES fuentes y el Resumen solo mostraba una
+  // (los CPT a seguro). Consecuencias reales: una inyección cobrada en efectivo
+  // no aparecía en la salida, las férulas tampoco, y el checklist marcaba
+  // "faltan servicios" cuando el doctor había cargado solo efectivo.
+  // Se piden acá, igual que los labs, en vez de pasarlos por props desde los dos
+  // padres (la consulta del doctor y Day Admission).
+  const [cash, setCash] = React.useState<CashChargeRow[]>([]);
+  const [braces, setBraces] = React.useState<BraceRow[]>([]);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [doneAt, setDoneAt] = React.useState<string | null>(doctorDoneAt);
@@ -160,6 +197,21 @@ export function VisitSummary({
       .then((d: { orders?: LabOrderRow[] }) => setLabs(d.orders ?? []))
       .catch(() => undefined)
       .finally(() => setLoadingLabs(false));
+  }, [appointmentId]);
+
+  React.useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const [c, b] = await Promise.all([
+        fetch(`/api/admin/cash-services/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
+        fetch(`/api/admin/braces/${appointmentId}`).then((r) => r.json()).catch(() => ({})),
+      ]);
+      if (!alive) return;
+      setCash((c as { charges?: CashChargeRow[] }).charges ?? []);
+      // Solo las entregadas: una devuelta o anulada no se cobra ni sale con el paciente.
+      setBraces(((b as { braces?: BraceRow[] }).braces ?? []).filter((r) => r.status === 'DISPENSED'));
+    })();
+    return () => { alive = false; };
   }, [appointmentId]);
 
   // Próximas citas del caso: si ya hay recita agendada hay que mostrarla, o el
@@ -186,6 +238,16 @@ export function VisitSummary({
 
   const isSigned = note?.status === 'SIGNED';
   const dxCount = note?.diagnoses.length ?? 0;
+
+  // Totales por quién paga — mismo desglose que el tab de cargos, para que la
+  // salida y el cobro digan el mismo número.
+  const insuranceTotal = services.reduce((s, c) => s + (Number(c.fee) || 0), 0);
+  const cashTotal = cash.reduce((s, c) => s + Number(c.unitPrice) * c.quantity, 0);
+  const bracesTotal = braces.reduce((s, r) => s + Number(r.unitPrice) * r.quantity, 0);
+  // Las férulas se pagan completas siempre, así que van con lo de efectivo en el
+  // "cobra hoy" (regla de negocio: CatalogItem.alwaysFullPayment).
+  const collectToday = cashTotal + bracesTotal;
+  const chargeCount = services.length + cash.length + braces.length;
   const timeInRoom = elapsed(checkedInAt, doneAt ? new Date(doneAt) : new Date());
 
   // Checklist de salida — NADA bloquea (decisión de Erick 2026-07-29). La nota
@@ -198,7 +260,9 @@ export function VisitSummary({
   }> = [
     { key: 'note', ok: isSigned, label: isSigned ? t('sumCheckNoteOk') : t('sumCheckNoteMissing'), fix: 'notes' },
     { key: 'dx', ok: dxCount > 0, label: dxCount > 0 ? t('sumCheckDxOk', { count: dxCount }) : t('sumCheckDxMissing'), fix: 'notes' },
-    { key: 'services', ok: services.length > 0, label: services.length > 0 ? t('sumCheckServicesOk', { count: services.length }) : t('sumCheckServicesMissing'), fix: 'services' },
+    // Cuenta las TRES fuentes: antes marcaba "faltan servicios" cuando el doctor
+    // había cargado solo una inyección en efectivo o una férula.
+    { key: 'services', ok: chargeCount > 0, label: chargeCount > 0 ? t('sumCheckServicesOk', { count: chargeCount }) : t('sumCheckServicesMissing'), fix: 'services' },
   ];
   const warnings = checks.filter((c) => !c.ok);
   const isCompleted = appointmentStatus === 'COMPLETED';
@@ -581,16 +645,97 @@ export function VisitSummary({
           </button>
         }
       >
-        {services.length === 0 ? (
+        {chargeCount === 0 ? (
           <div className="text-[12px] text-text-muted">{t('sumNoServices')}</div>
         ) : (
-          <div className="space-y-1">
-            {services.map((s) => (
-              <div key={s.id} className="flex items-center gap-2 text-[12.5px]">
-                <span className="font-mono text-[11px] text-cyan shrink-0 w-[70px]">{s.code}</span>
-                <span className="text-text-2 flex-1 min-w-0">{s.description}</span>
+          <div className="space-y-2.5">
+            {/* A seguro */}
+            {services.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                  {tc('badgeInsurance')}
+                </div>
+                {services.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2 text-[12.5px]">
+                    <span className="font-mono text-[11px] text-cyan shrink-0 w-[70px]">{s.code}</span>
+                    <span className="text-text-2 flex-1 min-w-0">{s.description}</span>
+                    {s.fee !== undefined && (
+                      <span className="text-text-2 shrink-0 tabular-nums">{money(s.fee)}</span>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+
+            {/* Paga directo — lo que hay que cobrar en el mostrador */}
+            {cash.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                  {tc('badgeCash')}
+                </div>
+                {cash.map((c) => (
+                  <div key={c.id} className="flex items-center gap-2 text-[12.5px]">
+                    <span className="font-mono text-[11px] text-emerald shrink-0 w-[70px] truncate" title={c.code}>{c.code}</span>
+                    <span className="text-text-2 flex-1 min-w-0">
+                      {c.name}
+                      {c.quantity > 1 && <span className="text-text-muted"> ×{c.quantity}</span>}
+                    </span>
+                    <span className="text-text-2 shrink-0 tabular-nums">{money(c.unitPrice * c.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Férulas — se pagan completas, sin lien ni seguro */}
+            {braces.length > 0 && (
+              <div className="space-y-1">
+                <div className="text-[10px] uppercase tracking-wider font-semibold text-text-muted">
+                  {t('braceTitle')}
+                </div>
+                {braces.map((r) => (
+                  <div key={r.id} className="flex items-center gap-2 text-[12.5px]">
+                    <Bandage className="w-3.5 h-3.5 text-violet shrink-0" />
+                    <span className="text-text-2 flex-1 min-w-0">
+                      {r.name}
+                      {r.sizeLabel && <span className="text-text-muted"> · {r.sizeLabel}</span>}
+                      {r.quantity > 1 && <span className="text-text-muted"> ×{r.quantity}</span>}
+                    </span>
+                    <span className="text-text-2 shrink-0 tabular-nums">{money(Number(r.unitPrice) * r.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Desglose: el mismo par de números del tab de cargos, para que la
+                salida y el cobro no se contradigan. */}
+            <div className="flex items-center justify-end gap-3 flex-wrap border-t border-border/60 pt-2">
+              {insuranceTotal > 0 && (
+                <span className="text-[11px] text-text-muted">
+                  {tc('totalToInsurance')} <b className="text-cyan text-[12.5px] ml-0.5 tabular-nums">{money(insuranceTotal)}</b>
+                </span>
+              )}
+              {collectToday > 0 && (
+                <span className="text-[11px] text-text-muted">
+                  {tc('totalCashToday')} <b className="text-emerald text-[12.5px] ml-0.5 tabular-nums">{money(collectToday)}</b>
+                </span>
+              )}
+            </div>
+
+            {/* Cobrar — solo del lado del asistente. El doctor no cobra (misma
+                regla que `hidePayments` en el tab de cargos). Manda al tab de
+                Servicios y pagos en vez de duplicar acá el modal de pago: una
+                segunda copia de la lógica de cobro es la forma de que los dos
+                totales empiecen a diferir. */}
+            {isAssistant && collectToday > 0 && (
+              <button
+                type="button"
+                onClick={() => onFix('services')}
+                className="w-full h-9 rounded-md bg-emerald text-black text-[12.5px] font-semibold hover:bg-emerald/90 transition-colors inline-flex items-center justify-center gap-1.5"
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                {t('sumCollect', { amount: money(collectToday) })}
+              </button>
+            )}
           </div>
         )}
       </Card>

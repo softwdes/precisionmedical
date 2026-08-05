@@ -153,7 +153,7 @@ export function DoctorStepPanel({
                 providerName={providerName}
                 note={note}
                 triage={triage}
-                services={(servicesPanel.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string }>}
+                services={(servicesPanel.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string; fee?: number }>}
                 checkedInAt={checkedInAt}
                 doctorDoneAt={doctorDoneAt}
                 onFix={(target) => setTab(target)}

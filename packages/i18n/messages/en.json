@@ -1860,6 +1860,7 @@
       "sumNoteState": "Note status",
       "sumOpenNote": "Open the note",
       "sumOpenLabs": "Open labs",
+      "sumCollect": "Collect {amount}",
       "sumOpenServices": "Open services",
       "sumNoServices": "No services recorded",
       "sumPrintNote": "Print the note",

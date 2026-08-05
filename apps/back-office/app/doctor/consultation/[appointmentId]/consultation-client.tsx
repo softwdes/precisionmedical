@@ -474,7 +474,7 @@ export function ConsultationClient({
           appointmentId={a.id}
           note={note}
           triage={a.triage}
-          services={(a.servicesPanel.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string }>}
+          services={(a.servicesPanel.plannedServiceCodes ?? []) as Array<{ id: string; code: string; description: string; fee?: number }>}
           checkedInAt={a.checkedInAt}
           doctorDoneAt={a.doctorDoneAt}
           onFix={(target) => { setTab(target); setView(3); }}

@@ -298,16 +298,20 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         setSavedOk(true);
         setTimeout(() => setSavedOk(false), 2000);
         // Sync billing records (one per CPT service)
-        fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
+        await fetch(`/api/admin/appointments/${appt.id}/sync-billing`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ caseId: appt.case?.id }),
         }).catch(() => {});
+        // El Resumen (nodo 4) lee los CPT del payload del SERVER, no de este
+        // estado. Sin avisar al padre, el doctor agregaba un servicio y en la
+        // salida no aparecía hasta el próximo refresh.
+        onRefresh();
       }
     } finally {
       setSavingSvc(false);
     }
-  }, [appt.id]);
+  }, [appt.id, appt.case?.id, onRefresh]);
 
   const addService = useCallback((svc: PlannedService) => {
     if (services.find(s => s.id === svc.id)) return;
@@ -365,11 +369,14 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         setCashCharges(prev => [...prev, d.charge]);
         setSavedOk(true);
         setTimeout(() => setSavedOk(false), 2000);
+        // El cargo crea su fila de facturación, así que el saldo del caso que
+        // muestra el padre (y el pill ámbar) quedaría viejo.
+        onRefresh();
       }
     } finally {
       setSavingSvc(false);
     }
-  }, [appt.id, addService]);
+  }, [appt.id, addService, onRefresh]);
 
   /** Anular, no borrar: el cargo pasó y queda en la auditoría. */
   const voidCashCharge = useCallback(async (id: string) => {
@@ -380,11 +387,14 @@ export function AppointmentDetailPanel({ appointment: appt, onClose, onRefresh, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'VOIDED' }),
       });
-      if (res.ok) setCashCharges(prev => prev.filter(c => c.id !== id));
+      if (res.ok) {
+        setCashCharges(prev => prev.filter(c => c.id !== id));
+        onRefresh();
+      }
     } finally {
       setSavingSvc(false);
     }
-  }, []);
+  }, [onRefresh]);
 
   // Dos totales, no uno. El "$107" de antes sumaba plata de la aseguradora con
   // plata del mostrador y el asistente tenía que separarla de cabeza.

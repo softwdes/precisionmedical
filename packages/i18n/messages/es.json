@@ -1859,6 +1859,7 @@
       "sumNoteState": "Estado de la nota",
       "sumOpenNote": "Abrir la nota",
       "sumOpenLabs": "Abrir laboratorios",
+      "sumCollect": "Cobrar {amount}",
       "sumOpenServices": "Abrir servicios",
       "sumNoServices": "Sin servicios registrados",
       "sumPrintNote": "Imprimir la nota",

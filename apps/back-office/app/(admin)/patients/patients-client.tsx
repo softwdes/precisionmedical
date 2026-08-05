@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Eye, Pencil, Trash2, Users, AlertTriangle, Phone, PhoneCall, PhoneOutgoing, Mail, Calendar, Car, Shield, UserCheck, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, UserPlus, Briefcase, QrCode, CalendarDays, Download, Printer, Copy, Check, Stethoscope, CheckCircle2, MoreHorizontal, FolderOpen, FileText, CreditCard, ClipboardList, History, Tag, Camera, Upload, ImageOff, RefreshCw, Search, X as XIcon } from 'lucide-react';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@precision/ui';
-import { PersonAvatar, TagPill } from '@/components/ui-phoenix';
+import { PersonAvatar, TagPill, CaseStageProgress } from '@/components/ui-phoenix';
 import { CoverageChip } from '@/components/coverage/coverage-chip';
 import type { CoverageDTO } from '@/lib/coverage';
 import { PatientEditDialog, type EditablePatient } from './patient-edit-dialog';
@@ -1818,7 +1818,8 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const [editTarget,   setEditTarget]   = useState<PatientRow | null>(null);
   const [viewTarget,   setViewTarget]   = useState<PatientRow | null>(null);
   const [quickRegister, setQuickRegister] = useState(false);
-  const [expandedId,    setExpandedId]    = useState<string | null>(null);
+  // Set, no un id unico: se pueden tener varios pacientes expandidos a la vez
+  const [expandedIds,   setExpandedIds]   = useState<Set<string>>(new Set());
   const [wizardPatient, setWizardPatient] = useState<{ id: string; firstName: string; lastName: string } | null>(null);
   const [expandedCases, setExpandedCases] = useState<Record<string, CaseRow[]>>({});
   const [loadingCases,  setLoadingCases]  = useState<Record<string, boolean>>({});
@@ -1970,10 +1971,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
   const [deletingCase, setDeletingCase]    = useState(false);
   const [deleteCaseError, setDeleteCaseError] = useState('');
 
-  const toggleExpand = useCallback(async (patientId: string) => {
-    if (expandedId === patientId) { setExpandedId(null); return; }
-    setExpandedId(patientId);
-    if (expandedCases[patientId]) return;
+  const fetchCases = useCallback(async (patientId: string) => {
     setLoadingCases(prev => ({ ...prev, [patientId]: true }));
     try {
       const res  = await fetch(`/api/admin/patients/${patientId}/cases`);
@@ -1982,7 +1980,19 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
     } finally {
       setLoadingCases(prev => ({ ...prev, [patientId]: false }));
     }
-  }, [expandedId, expandedCases]);
+  }, []);
+
+  // Expandir un paciente NO colapsa los demas: recepcion compara varios
+  // pacientes con sus casos a la vista. Cada uno se cierra con su propio clic.
+  const toggleExpand = useCallback(async (patientId: string) => {
+    if (expandedIds.has(patientId)) {
+      setExpandedIds(prev => { const next = new Set(prev); next.delete(patientId); return next; });
+      return;
+    }
+    setExpandedIds(prev => new Set(prev).add(patientId));
+    if (expandedCases[patientId]) return;
+    await fetchCases(patientId);
+  }, [expandedIds, expandedCases, fetchCases]);
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -2263,12 +2273,12 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                     <button
                       onClick={() => toggleExpand(p.id)}
                       className="p-1.5 rounded text-text-muted hover:text-brand transition-colors shrink-0"
-                      title={expandedId === p.id ? t('tooltipCollapse') : t('tooltipExpand')}
-                      aria-label={expandedId === p.id ? t('tooltipCollapse') : t('tooltipExpand')}
-                      aria-expanded={expandedId === p.id}
+                      title={expandedIds.has(p.id) ? t('tooltipCollapse') : t('tooltipExpand')}
+                      aria-label={expandedIds.has(p.id) ? t('tooltipCollapse') : t('tooltipExpand')}
+                      aria-expanded={expandedIds.has(p.id)}
                       aria-controls={`cases-row-${p.id}`}
                     >
-                      {expandedId === p.id
+                      {expandedIds.has(p.id)
                         ? <ChevronUp className="w-3.5 h-3.5" />
                         : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
@@ -2446,7 +2456,7 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
               {/* Fondo mas marcado + borde izquierdo de acento: es lo que
                   visualmente "cuelga" el bloque de su fila padre. Antes con
                   bg-white/[0.03] casi no se distinguia del resto. */}
-              {expandedId === p.id && (
+              {expandedIds.has(p.id) && (
                 <tr key={`${p.id}-cases`} id={`cases-row-${p.id}`} className="bg-bg-2/60 border-b border-row-sep">
                   <td colSpan={7} className="px-6 py-3 overflow-x-auto border-l-[3px] border-brand">
                     <div className="space-y-1.5">
@@ -2480,8 +2490,6 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                         {/* Mobile cards */}
                         <div className="md:hidden divide-y divide-white/[0.06]">
                           {(expandedCases[p.id] ?? []).map((c) => {
-                            const prog = calcIntakeProgress(c, p);
-                            const { badge: progBadge } = formatProgress(prog, t);
                             return (
                               <div key={c.id} className="py-2 flex flex-col gap-1.5">
                                 <div className="flex items-center justify-between gap-2">
@@ -2505,14 +2513,18 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                   {c.caseType && <span className="text-[10px] text-text-muted">{CASE_TYPE_LABEL[c.caseType] ?? c.caseType}</span>}
                                   {c.accidentDate && <span className="text-[10px] text-text-muted tabular-nums">{fmtLocalDate(c.accidentDate)}</span>}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <TagPill label={progBadge} colorClass={prog.colorClass} />
-                                  {prog.pct < 100 && (
-                                    <div className="flex-1 h-1.5 rounded-full bg-bg-2 overflow-hidden">
-                                      <div className={`h-full rounded-full ${prog.barClass}`} style={{ width: `${prog.pct}%` }} />
-                                    </div>
-                                  )}
-                                </div>
+                                {/* Etapa del CASO — misma info que la columna
+                                    Progreso del desktop (la admision ya esta en
+                                    la fila colapsada del paciente) */}
+                                <CaseStageProgress
+                                  status={c.status}
+                                  labels={{
+                                    admission: t('caseStageAdmission'),
+                                    treatment: t('caseStageTreatment'),
+                                    closure:   t('caseStageClosure'),
+                                    cancelled: t('caseStageCancelled'),
+                                  }}
+                                />
                               </div>
                             );
                           })}
@@ -2541,8 +2553,6 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                             </thead>
                             <tbody>
                               {(expandedCases[p.id] ?? []).map((c, idx) => {
-                                const prog = calcIntakeProgress(c, p);
-                                const { badge: progBadge, missingItems: progMissing } = formatProgress(prog, t);
                                 return (
                                   <tr
                                     key={c.id}
@@ -2597,26 +2607,22 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                       </span>
                                     </td>
 
-                                    {/* Progress — ancho ACOTADO a proposito: solo
-                                        tenia min-w, asi que la celda crecia hasta
-                                        que entrara toda la lista de faltantes y el
-                                        truncate del MissingTooltip nunca se
-                                        activaba. Con un maximo, el texto se corta
-                                        y la lista completa queda en el tooltip,
-                                        que es para lo que lo hicimos. */}
+                                    {/* Progreso del CASO por etapas — la fila
+                                        colapsada ya muestra el progreso de
+                                        ADMISION (badge + faltantes); repetirlo
+                                        aca era informacion duplicada. Esta es la
+                                        otra dimension: en que punto del recorrido
+                                        esta el caso (criterio de v2). */}
                                     <td className="px-3 py-2 w-[230px] max-w-[230px]">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <TagPill label={progBadge} colorClass={prog.colorClass} />
-                                      </div>
-                                      {prog.pct < 100 && (
-                                        <div className="h-1.5 rounded-full bg-bg-2 overflow-hidden w-full">
-                                          <div
-                                            className={`h-full rounded-full transition-all ${prog.barClass}`}
-                                            style={{ width: `${prog.pct}%` }}
-                                          />
-                                        </div>
-                                      )}
-                                      <MissingTooltip items={progMissing} pct={prog.pct < 100 ? prog.pct : undefined} missingLabel={t('progressMissingLabel')} />
+                                      <CaseStageProgress
+                                        status={c.status}
+                                        labels={{
+                                          admission: t('caseStageAdmission'),
+                                          treatment: t('caseStageTreatment'),
+                                          closure:   t('caseStageClosure'),
+                                          cancelled: t('caseStageCancelled'),
+                                        }}
+                                      />
                                     </td>
 
                                     {/* Acciones */}
@@ -2640,25 +2646,6 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                         >
                                           <Pencil className="w-3 h-3" />
                                         </button>
-                                        {!doctorMode && (
-                                          <button
-                                            onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
-                                            className="p-1.5 rounded text-text-muted hover:text-rose hover:bg-rose/10 transition-colors"
-                                            title={t('tooltipCancelCase')}
-                                            aria-label={`${t('tooltipCancelCase')} — ${c.caseCode}`}
-                                            disabled={c.status === 'CANCELLED'}
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </button>
-                                        )}
-                                        <button
-                                          onClick={() => setPdfCaseId(c.id)}
-                                          className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
-                                          title={t('tooltipDownloadPdf')}
-                                          aria-label={`${t('tooltipDownloadPdf')} — ${c.caseCode}`}
-                                        >
-                                          <Printer className="w-3 h-3" />
-                                        </button>
                                         <button
                                           onClick={() => setCaseApptTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-cyan hover:bg-cyan/10 transition-colors"
@@ -2668,6 +2655,14 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                           <CalendarDays className="w-3 h-3" />
                                         </button>
                                         <button
+                                          onClick={() => setPdfCaseId(c.id)}
+                                          className="p-1.5 rounded text-text-muted hover:text-amber hover:bg-amber/10 transition-colors"
+                                          title={t('tooltipDownloadPdf')}
+                                          aria-label={`${t('tooltipDownloadPdf')} — ${c.caseCode}`}
+                                        >
+                                          <Printer className="w-3 h-3" />
+                                        </button>
+                                        <button
                                           onClick={() => setCaseQrTarget(c)}
                                           className="p-1.5 rounded text-text-muted hover:text-brand hover:bg-brand/10 transition-colors"
                                           title={t('tooltipPatientQr')}
@@ -2675,6 +2670,24 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
                                         >
                                           <QrCode className="w-3 h-3" />
                                         </button>
+                                        {/* Eliminar va ULTIMO, en rojo y separado
+                                            del resto — antes estaba pegado a
+                                            editar y un misclick en filas de 24px
+                                            cancelaba un caso (criterio de v2). */}
+                                        {!doctorMode && (
+                                          <>
+                                            <span aria-hidden="true" className="w-px h-4 bg-border mx-1" />
+                                            <button
+                                              onClick={() => { setDeleteCaseTarget(c); setDeleteCaseError(''); }}
+                                              className="p-1.5 rounded text-rose/60 hover:text-rose hover:bg-rose/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                              title={t('tooltipCancelCase')}
+                                              aria-label={`${t('tooltipCancelCase')} — ${c.caseCode}`}
+                                              disabled={c.status === 'CANCELLED'}
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                            </button>
+                                          </>
+                                        )}
                                       </div>
                                     </td>
                                   </tr>
@@ -2863,8 +2876,10 @@ export function PatientsClient({ patients, q, page, pageSize = 10, totalPages, t
           onOpenChange={(v) => { if (!v) setWizardPatient(null); }}
           patient={wizardPatient}
           onCreated={() => {
-            setExpandedCases(prev => { const n = { ...prev }; delete n[wizardPatient.id]; return n; });
-            toggleExpand(wizardPatient.id);
+            // Mantener al paciente expandido y traer la lista fresca con el
+            // caso nuevo (toggleExpand lo cerraria si ya estaba abierto)
+            setExpandedIds(prev => new Set(prev).add(wizardPatient.id));
+            fetchCases(wizardPatient.id);
           }}
         />
       )}

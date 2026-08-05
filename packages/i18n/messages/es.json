@@ -1945,6 +1945,9 @@
       "rxStatus_voided": "Anulada",
       "rxStatus_error": "Con error · no llegó",
       "rxErrorNotice": "ScriptSure reportó un error: la farmacia NO recibió esta receta. Volvé a enviarla.",
+      "rxRefill": "Repetir",
+      "rxNoRefillTitle": "Esta receta no se puede repetir automáticamente",
+      "rxNoRefillDesc": "Es anterior a que empezáramos a guardar los códigos del medicamento, así que ScriptSure no puede identificarlo solo. Usá \"Nueva prescripción\" y buscalo por nombre; las recetas nuevas sí se van a poder repetir.",
       "rxQty": "Cantidad",
       "rxRefills": "Refills"
     },

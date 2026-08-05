@@ -22,13 +22,13 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@precision/ui';
 import {
-  Lock, ShieldCheck, ExternalLink, Loader2, AlertTriangle, Pill, ArrowRight, Send, MapPin,
+  Lock, ShieldCheck, ExternalLink, Loader2, AlertTriangle, Pill, ArrowRight, Send, MapPin, RotateCcw,
 } from 'lucide-react';
 import { TagPill } from '@/components/ui-phoenix';
 import { useTransitionProgress } from '@/components/layout/navigation-progress';
 
 type WidgetKind = 'drug-list' | 'pharmacy';
-type Status = 'loading' | 'ready' | 'not_onboarded' | 'missing_address' | 'missing_dob' | 'error';
+type Status = 'loading' | 'ready' | 'not_onboarded' | 'missing_address' | 'missing_dob' | 'no_refill' | 'error';
 
 interface SentRx {
   id: string;
@@ -42,6 +42,8 @@ interface SentRx {
   status: 'DRAFT' | 'SENT' | 'PENDING_DAW' | 'VOIDED' | 'ERROR';
   dawSentAt: string | null;
   createdAt: string;
+  /** false en recetas anteriores a que guardáramos los ids del fármaco */
+  canRefill: boolean;
 }
 
 /** Estado de la receta → clave i18n y color. ERROR va en rose: no llegó a la farmacia. */
@@ -73,6 +75,7 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
   const [showSent, setShowSent] = React.useState(false);
   const [sent, setSent] = React.useState<SentRx[]>([]);
   const [syncing, setSyncing] = React.useState(false);
+  const [refillingId, setRefillingId] = React.useState<string | null>(null);
 
   const loadPrescriptions = React.useCallback(async () => {
     try {
@@ -103,6 +106,37 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
       setStatus('ready');
     } catch {
       setStatus('error');
+    }
+  }
+
+  /**
+   * Repetir una receta del historial: ScriptSure abre con el medicamento ya
+   * cargado y el doctor decide si la envía. Nosotros nunca enviamos por él.
+   */
+  async function refill(rx: SentRx): Promise<void> {
+    setRefillingId(rx.id);
+    setShowSent(false);
+    setActive('drug-list'); // reusa el modal grande del widget
+    setStatus('loading');
+    setUrl(null);
+    try {
+      const res = await fetch(`/api/admin/scriptsure/refill/${rx.id}`, { method: 'POST' });
+      if (res.status === 409) { setStatus('not_onboarded'); return; }
+      if (res.status === 422) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setStatus(body?.error === 'PATIENT_MISSING_DOB' ? 'missing_dob'
+          : body?.error === 'MISSING_DRUG_IDS' ? 'no_refill'
+          : 'missing_address');
+        return;
+      }
+      if (!res.ok) { setStatus('error'); return; }
+      const data = (await res.json()) as { url: string };
+      setUrl(data.url);
+      setStatus('ready');
+    } catch {
+      setStatus('error');
+    } finally {
+      setRefillingId(null);
     }
   }
 
@@ -249,11 +283,28 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
                           )}
                         </div>
                       </div>
-                      <span className="text-[10.5px] text-text-muted shrink-0">
-                        {new Date(rx.dawSentAt ?? rx.createdAt).toLocaleString(undefined, {
-                          day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
-                        })}
-                      </span>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className="text-[10.5px] text-text-muted">
+                          {new Date(rx.dawSentAt ?? rx.createdAt).toLocaleString(undefined, {
+                            day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+                          })}
+                        </span>
+                        {/* Repetir: sirve para cualquier receta del historial, no
+                            solo las que fallaron */}
+                        {rx.canRefill && (
+                          <button
+                            type="button"
+                            onClick={() => void refill(rx)}
+                            disabled={refillingId === rx.id}
+                            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-violet hover:underline disabled:opacity-60"
+                          >
+                            {refillingId === rx.id
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : <RotateCcw className="w-3 h-3" />}
+                            {t('rxRefill')}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -297,6 +348,20 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
                   <div className="text-[12.5px] text-text-2 leading-relaxed">
                     <p className="text-text-1 font-medium mb-1">{t('rxNotOnboardedTitle')}</p>
                     <p>{t('rxNotOnboardedDesc')}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {status === 'no_refill' && (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="flex items-start gap-3 max-w-md">
+                  <div className="w-8 h-8 rounded-md bg-amber/10 border border-amber/25 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-4 h-4 text-amber" />
+                  </div>
+                  <div className="text-[12.5px] text-text-2 leading-relaxed">
+                    <p className="text-text-1 font-medium mb-1">{t('rxNoRefillTitle')}</p>
+                    <p>{t('rxNoRefillDesc')}</p>
                   </div>
                 </div>
               </div>

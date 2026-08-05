@@ -49,6 +49,12 @@ export interface MappedRx {
   pharmacyAddress: string | null;
   status: MappedRxStatus;
   writtenAt: Date | null;
+  /** Identificadores del fármaco — necesarios para repetir la receta */
+  ndc: string | null;
+  rxNorm: string | null;
+  routedMedId: string | null;
+  gcnSeqno: string | null;
+  scriptsureDrugId: string | null;
 }
 
 /**
@@ -115,6 +121,13 @@ export function mapRawRx(raw: Record<string, unknown>, outerStatus?: string): Ma
     pharmacyAddress: asStr(pick(rx, 'pharmacyAddress', 'pharmacyAddressLine1')) ?? null,
     status,
     writtenAt: writtenAt && !Number.isNaN(writtenAt.getTime()) ? writtenAt : null,
+    // Vienen en el nivel superior del item del historial (no dentro de
+    // `Prescription`). Verificado con el payload real del 2026-08-05.
+    ndc: asStr(pick(rx, 'Ndc', 'ndc')) ?? null,
+    rxNorm: asStr(pick(rx, 'RxNorm', 'rxNorm', 'rxcui')) ?? null,
+    routedMedId: asStr(pick(rx, 'ROUTED_MED_ID', 'routedMedId')) ?? null,
+    gcnSeqno: asStr(pick(rx, 'GCN_SEQNO', 'gcnSeqno')) ?? null,
+    scriptsureDrugId: asStr(pick(rx, 'drugId')) ?? null,
   };
 }
 
@@ -205,6 +218,11 @@ export async function persistPrescription(params: {
     status: mapped.status,
     dawRxId: mapped.dawRxId ?? null,
     dawSentAt: mapped.writtenAt ?? new Date(),
+    ndc: mapped.ndc,
+    rxNorm: mapped.rxNorm,
+    routedMedId: mapped.routedMedId,
+    gcnSeqno: mapped.gcnSeqno,
+    scriptsureDrugId: mapped.scriptsureDrugId,
   };
 
   const saved = existing

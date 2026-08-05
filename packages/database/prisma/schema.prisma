@@ -1319,6 +1319,16 @@ model Prescription {
   dawRxId   String?
   dawSentAt DateTime?
 
+  /// Identificadores del medicamento que devuelve ScriptSure. Se guardan para
+  /// poder REPETIR la receta: su carrito (MedCart) identifica el fármaco por
+  /// `routedMedId` + `gcnSeqno`, no por nombre. Sin esto, repetir obligaría al
+  /// doctor a buscar el medicamento de nuevo a mano.
+  ndc              String?
+  rxNorm           String?
+  routedMedId      String?
+  gcnSeqno         String?
+  scriptsureDrugId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

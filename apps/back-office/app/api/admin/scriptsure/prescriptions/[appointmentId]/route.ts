@@ -19,7 +19,7 @@ export async function GET(
   const access = await checkAppointmentAccess(appointmentId);
   if (access.deny) return access.deny;
 
-  const prescriptions = await db.prescription.findMany({
+  const rows = await db.prescription.findMany({
     where: { appointmentId },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -34,8 +34,19 @@ export async function GET(
       status: true,
       dawSentAt: true,
       createdAt: true,
+      // Solo para saber si se puede repetir — el carrito de ScriptSure resuelve
+      // el fármaco por estos ids, no por nombre. Las recetas anteriores a que
+      // empezáramos a guardarlos no se pueden repetir.
+      routedMedId: true,
+      gcnSeqno: true,
+      ndc: true,
     },
   });
+
+  const prescriptions = rows.map(({ routedMedId, gcnSeqno, ndc, ...rx }) => ({
+    ...rx,
+    canRefill: !!(routedMedId || gcnSeqno || ndc),
+  }));
 
   return NextResponse.json({ prescriptions });
 }

@@ -1946,6 +1946,9 @@
       "rxStatus_voided": "Voided",
       "rxStatus_error": "Failed · not delivered",
       "rxErrorNotice": "ScriptSure reported an error: the pharmacy did NOT receive this prescription. Please send it again.",
+      "rxRefill": "Repeat",
+      "rxNoRefillTitle": "This prescription can't be repeated automatically",
+      "rxNoRefillDesc": "It predates us storing the medication codes, so ScriptSure can't identify it on its own. Use \"New prescription\" and search it by name — newer prescriptions will be repeatable.",
       "rxQty": "Qty",
       "rxRefills": "Refills"
     },

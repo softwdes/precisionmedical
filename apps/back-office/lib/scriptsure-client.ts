@@ -271,7 +271,8 @@ export async function getOrCreateScriptSurePatientId(
   return patientId;
 }
 
-export type ScriptSureWidget = 'drug-list' | 'pharmacy';
+/** `medcart` abre el carrito ya cargado — es el widget del "repetir receta". */
+export type ScriptSureWidget = 'drug-list' | 'pharmacy' | 'medcart';
 
 /**
  * URL para embeber un widget de ScriptSure (iframe). Requiere que ya se haya
@@ -284,6 +285,89 @@ export async function getScriptSureWidgetUrl(
 ): Promise<string> {
   const sessionToken = await getSessionToken(loginEmail);
   return `${hosts().frontend}/widgets/${widget}/${patientId}?sessiontoken=${sessionToken}&darkmode=on`;
+}
+
+export interface MedCartDrug {
+  drugName: string;
+  routedMedId: string | null;
+  gcnSeqno: string | null;
+  ndc: string | null;
+  rxNorm: string | null;
+  scriptsureDrugId: string | null;
+  quantity: number;
+  refills: number;
+  sig: string | null;
+  daysSupply: number | null;
+}
+
+export interface MedCartResult {
+  ok: boolean;
+  /** Respuesta cruda de ScriptSure — se registra en auditoría para ajustar el
+   *  mapeo si su formato no coincide con lo asumido. */
+  raw: unknown;
+  status: number;
+  step: 'duplicates' | 'add' | 'read';
+}
+
+/**
+ * Pre-carga un medicamento en el carrito de recetas del paciente (MedCart) para
+ * que el widget abra con todo puesto — es el mecanismo oficial de ScriptSure
+ * para "repetir" una receta.
+ *
+ * ⚠️ El esquema exacto del body NO está en la documentación que pudimos leer y
+ * NO se pudo probar contra su API (nuestro entorno está bloqueado por su WAF).
+ * Por eso manda los identificadores con varios alias y DEVUELVE LA RESPUESTA
+ * CRUDA: el primer intento real muestra qué espera y se ajusta en una pasada,
+ * igual que se hizo con el webhook y con el historial.
+ */
+export async function addToMedCart(
+  loginEmail: string,
+  patientId: number,
+  drug: MedCartDrug,
+): Promise<MedCartResult> {
+  const sessionToken = await getSessionToken(loginEmail);
+  const base = hosts().backendScriptSure;
+
+  // El add NO deduplica solo (documentado): primero se consulta duplicados por
+  // ROUTED_MED_ID + GCN_SEQNO para no cargar dos veces el mismo fármaco.
+  const dupBody = [{
+    ROUTED_MED_ID: drug.routedMedId,
+    GCN_SEQNO: drug.gcnSeqno,
+    drugName: drug.drugName,
+  }];
+
+  const dupRes = await fetch(
+    `${base}/v3/medcart/patient/${patientId}/duplicates/check?sessiontoken=${sessionToken}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dupBody) },
+  );
+  const dupRaw = await dupRes.text();
+  if (!dupRes.ok) {
+    return { ok: false, raw: dupRaw.slice(0, 1200), status: dupRes.status, step: 'duplicates' };
+  }
+
+  const addBody = {
+    drugName: drug.drugName,
+    ROUTED_MED_ID: drug.routedMedId,
+    GCN_SEQNO: drug.gcnSeqno,
+    Ndc: drug.ndc,
+    RxNorm: drug.rxNorm,
+    drugId: drug.scriptsureDrugId,
+    quantity: drug.quantity,
+    refill: drug.refills,
+    ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),
+    ...(drug.daysSupply ? { duration: drug.daysSupply, daysSupply: drug.daysSupply } : {}),
+  };
+
+  const addRes = await fetch(
+    `${base}/v3/medcart/add/${patientId}?sessiontoken=${sessionToken}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addBody) },
+  );
+  const addRaw = await addRes.text();
+  if (!addRes.ok) {
+    return { ok: false, raw: addRaw.slice(0, 1200), status: addRes.status, step: 'add' };
+  }
+
+  return { ok: true, raw: addRaw.slice(0, 1200), status: addRes.status, step: 'add' };
 }
 
 /**

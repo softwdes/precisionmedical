@@ -76,6 +76,7 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
   const [sent, setSent] = React.useState<SentRx[]>([]);
   const [syncing, setSyncing] = React.useState(false);
   const [refillingId, setRefillingId] = React.useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = React.useState<string | null>(null);
 
   const loadPrescriptions = React.useCallback(async () => {
     try {
@@ -92,6 +93,7 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
     setActive(widget);
     setStatus('loading');
     setUrl(null);
+    setErrorDetail(null);
     try {
       const res = await fetch(`/api/admin/scriptsure/widget/${appointmentId}?widget=${widget}`);
       if (res.status === 409) { setStatus('not_onboarded'); return; }
@@ -119,6 +121,7 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
     setActive('drug-list'); // reusa el modal grande del widget
     setStatus('loading');
     setUrl(null);
+    setErrorDetail(null);
     try {
       const res = await fetch(`/api/admin/scriptsure/refill/${rx.id}`, { method: 'POST' });
       if (res.status === 409) { setStatus('not_onboarded'); return; }
@@ -129,7 +132,15 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
           : 'missing_address');
         return;
       }
-      if (!res.ok) { setStatus('error'); return; }
+      if (!res.ok) {
+        // El detalle crudo de ScriptSure se muestra en pantalla: sin esto habría
+        // que ir a buscarlo al audit log cada vez que su formato no coincide.
+        const body = (await res.json().catch(() => null)) as { raw?: unknown; message?: string } | null;
+        const detail = typeof body?.raw === 'string' ? body.raw : body?.message ?? null;
+        setErrorDetail(detail ? detail.slice(0, 400) : null);
+        setStatus('error');
+        return;
+      }
       const data = (await res.json()) as { url: string };
       setUrl(data.url);
       setStatus('ready');
@@ -145,6 +156,7 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
     setActive(null);
     setStatus('loading');
     setUrl(null);
+    setErrorDetail(null);
 
     // El doctor pudo enviar una receta dentro del widget. Le preguntamos a
     // ScriptSure qué recetas tiene el paciente y las guardamos — pull disparado
@@ -389,7 +401,14 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
                   <div className="w-8 h-8 rounded-md bg-rose/10 border border-rose/25 flex items-center justify-center shrink-0">
                     <AlertTriangle className="w-4 h-4 text-rose" />
                   </div>
-                  <p className="text-[12.5px] text-text-2 leading-relaxed">{t('rxWidgetError')}</p>
+                  <div className="min-w-0">
+                    <p className="text-[12.5px] text-text-2 leading-relaxed">{t('rxWidgetError')}</p>
+                    {errorDetail && (
+                      <pre className="mt-2 text-[10.5px] text-text-muted bg-bg-2/40 rounded-md p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-40">
+                        {errorDetail}
+                      </pre>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

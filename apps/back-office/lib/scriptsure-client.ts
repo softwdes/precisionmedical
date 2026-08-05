@@ -330,11 +330,19 @@ export async function addToMedCart(
 
   // El add NO deduplica solo (documentado): primero se consulta duplicados por
   // ROUTED_MED_ID + GCN_SEQNO para no cargar dos veces el mismo fármaco.
-  const dupBody = [{
+  //
+  // El body es un OBJETO, no un array — confirmado por su validación el
+  // 2026-08-05: "Expected object, received array". Se mandan los ids en el
+  // objeto y también envueltos en `drugs`, porque no sabemos cuál de las dos
+  // formas espera; su validador (tipo Zod) enumera lo que falta si erramos.
+  const drugFields = {
     ROUTED_MED_ID: drug.routedMedId,
     GCN_SEQNO: drug.gcnSeqno,
     drugName: drug.drugName,
-  }];
+    Ndc: drug.ndc,
+    RxNorm: drug.rxNorm,
+  };
+  const dupBody = { ...drugFields, drugs: [drugFields] };
 
   const dupRes = await fetch(
     `${base}/v3/medcart/patient/${patientId}/duplicates/check?sessiontoken=${sessionToken}`,

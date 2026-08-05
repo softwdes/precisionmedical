@@ -331,11 +331,12 @@ export async function addToMedCart(
   // El add NO deduplica solo (documentado): primero se consulta duplicados por
   // ROUTED_MED_ID + GCN_SEQNO para no cargar dos veces el mismo fármaco.
   //
-  // Contrato confirmado a partir de su propia validación (2026-08-05):
-  //   1er intento (array)  -> "Expected object, received array"
-  //   2do intento (objeto) -> path ["drugKeys"]: "Expected array, Required"
-  // Es decir: un objeto con `drugKeys` como arreglo. Cada entrada lleva los dos
-  // identificadores con los que ScriptSure resuelve duplicados.
+  // Contrato deducido de su propia validación, un campo por intento (2026-08-05):
+  //   1) array         -> "Expected object, received array"
+  //   2) objeto plano  -> falta ["drugKeys"] (array)
+  //   3) con drugKeys  -> falta ["prescriptions"] (array)
+  // Quedan las dos listas: los identificadores a comparar y las recetas contra
+  // las que comparar.
   const drugKey = {
     ROUTED_MED_ID: drug.routedMedId,
     GCN_SEQNO: drug.gcnSeqno,
@@ -343,7 +344,16 @@ export async function addToMedCart(
     Ndc: drug.ndc,
     RxNorm: drug.rxNorm,
   };
-  const dupBody = { drugKeys: [drugKey] };
+  const dupBody = {
+    drugKeys: [drugKey],
+    prescriptions: [{
+      ...drugKey,
+      quantity: drug.quantity,
+      refill: drug.refills,
+      ...(drug.sig ? { directions: drug.sig } : {}),
+      ...(drug.daysSupply ? { duration: drug.daysSupply } : {}),
+    }],
+  };
 
   const dupRes = await fetch(
     `${base}/v3/medcart/patient/${patientId}/duplicates/check?sessiontoken=${sessionToken}`,

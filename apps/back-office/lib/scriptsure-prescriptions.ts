@@ -32,6 +32,8 @@ export function asStr(v: unknown): string | undefined {
   return undefined;
 }
 
+export type MappedRxStatus = 'SENT' | 'VOIDED' | 'ERROR';
+
 export interface MappedRx {
   drugName: string;
   dawRxId?: string;
@@ -45,7 +47,7 @@ export interface MappedRx {
   clinicalIndication: string;
   pharmacyName: string | null;
   pharmacyAddress: string | null;
-  voided: boolean;
+  status: MappedRxStatus;
   writtenAt: Date | null;
 }
 
@@ -59,31 +61,59 @@ export function mapRawRx(raw: Record<string, unknown>, outerStatus?: string): Ma
   const drugName = asStr(pick(rx, 'drugName', 'drugDescription', 'medicationName', 'description', 'name'));
   if (!drugName) return null;
 
+  // ScriptSure anida los datos del envío en `Prescription` (y el estado además
+  // en `Prescription.Message`). Verificado con el primer payload real
+  // 2026-08-05: el estado NO viene en el nivel superior — leerlo solo ahí
+  // mostraba como "enviada" una receta que había fallado.
+  const nested = (rx.Prescription ?? rx.prescription ?? {}) as Record<string, unknown>;
+  const nestedMsg = (nested.Message ?? {}) as Record<string, unknown>;
+
   const statusRaw = (
+    asStr(pick(nested, 'messageStatus', 'messageType', 'status', 'prescriptionStatus')) ??
+    asStr(pick(nestedMsg, 'messageStatus', 'status')) ??
     asStr(pick(rx, 'messageType', 'status', 'messageStatus', 'event', 'prescriptionStatus')) ??
     outerStatus ?? ''
   ).toLowerCase();
 
-  const written = asStr(pick(rx, 'writtenDate', 'written_date', 'createdAt', 'dateWritten'));
+  // Anulada y con error NO son lo mismo: la primera es una decisión del doctor,
+  // la segunda un envío que falló y hay que reintentar.
+  const status: MappedRxStatus =
+    statusRaw.includes('void') || statusRaw.includes('cancel') ? 'VOIDED'
+    : statusRaw.includes('error') || statusRaw.includes('fail') || statusRaw.includes('reject') ? 'ERROR'
+    : 'SENT';
+
+  const written = asStr(pick(nested, 'writtenDate', 'fillDate')) ??
+    asStr(pick(rx, 'writtenDate', 'written_date', 'createdAt', 'dateWritten'));
   const writtenAt = written ? new Date(written) : null;
 
-  const sig = asStr(pick(rx, 'directions', 'sig', 'patientDirections', 'instructions'));
-  const daysSupply = asStr(pick(rx, 'daysSupply', 'days_supply'));
+  // Las indicaciones pueden venir en el sig, en el formato armado o sueltas
+  const script = (nested.PrescriptionScript ?? {}) as Record<string, unknown>;
+  const sig =
+    asStr(pick(rx, 'directions', 'sig', 'patientDirections', 'instructions')) ??
+    asStr(pick(script, 'drugFormat'));
+
+  const daysSupply = asStr(pick(nested, 'duration', 'daysSupply')) ??
+    asStr(pick(rx, 'daysSupply', 'days_supply', 'drugDuration'));
 
   return {
     drugName,
-    dawRxId: asStr(pick(rx, 'rxId', 'prescriptionId', 'messageId', 'id')),
-    doctorId: asStr(pick(rx, 'doctorId', 'prescriberId', 'userId')),
-    deaSchedule: asStr(pick(rx, 'deaSchedule', 'schedule')) ?? null,
-    dose: asStr(pick(rx, 'dose', 'strength')) ?? '—',
+    // `prescriptionId` de ScriptSure es el identificador estable de la receta;
+    // `messageId` cambia entre reenvíos del mismo rx.
+    dawRxId:
+      asStr(pick(rx, 'prescriptionId')) ??
+      asStr(pick(nested, 'prescriptionId', 'messageId')) ??
+      asStr(pick(rx, 'rxId', 'messageId', 'id')),
+    doctorId: asStr(pick(nested, 'doctorId', 'userId')) ?? asStr(pick(rx, 'doctorId', 'prescriberId', 'userId')),
+    deaSchedule: asStr(pick(rx, 'deaSchedule', 'schedule', 'MED_REF_DEA_CD')) ?? null,
+    dose: asStr(pick(rx, 'dose', 'strength', 'line1')) ?? '—',
     frequency: sig ?? '—',
     durationStr: daysSupply ? `${daysSupply} días` : '—',
     quantityTotal: Number(pick(rx, 'quantity', 'dispenseQuantity', 'quantityTotal') ?? 0) || 0,
-    refills: Number(pick(rx, 'refill', 'refills', 'refillCount') ?? 0) || 0,
+    refills: Number(pick(nested, 'refill') ?? pick(rx, 'refill', 'refills', 'refillCount') ?? 0) || 0,
     clinicalIndication: asStr(pick(rx, 'clinicalIndication', 'indication')) ?? '',
-    pharmacyName: asStr(pick(rx, 'pharmacyName', 'pharmacy', 'destination')) ?? null,
+    pharmacyName: asStr(pick(nested, 'pharmacy')) ?? asStr(pick(rx, 'pharmacyName', 'pharmacy', 'destination')) ?? null,
     pharmacyAddress: asStr(pick(rx, 'pharmacyAddress', 'pharmacyAddressLine1')) ?? null,
-    voided: statusRaw.includes('void') || statusRaw.includes('cancel') || statusRaw.includes('error'),
+    status,
     writtenAt: writtenAt && !Number.isNaN(writtenAt.getTime()) ? writtenAt : null,
   };
 }
@@ -104,11 +134,14 @@ interface MedEntry {
  * Refleja la receta en el historial de medicamentos: alta como Activo, o pasa a
  * Anterior si se anuló. Dedupe por `dawRxId` (o por nombre en las entradas
  * viejas que no lo tienen) para que re-sincronizar no duplique la lista.
+ *
+ * Una receta CON ERROR tampoco cuenta como activa: el paciente no la tiene, la
+ * farmacia nunca la recibió.
  */
 async function syncMedicationHistory(
   patientId: string,
   medicalHistory: unknown,
-  rx: { drugName: string; dawRxId?: string; voided: boolean; prescriberName: string | null },
+  rx: { drugName: string; dawRxId?: string; status: MappedRxStatus; prescriberName: string | null },
 ): Promise<void> {
   const mh = (medicalHistory ?? {}) as { medications?: MedEntry[] };
   const meds = [...(mh.medications ?? [])];
@@ -121,7 +154,7 @@ async function syncMedicationHistory(
   const entry: MedEntry = {
     id: idx >= 0 ? meds[idx]!.id : crypto.randomUUID(),
     name: rx.drugName,
-    status: rx.voided ? 'HISTORY' : 'IN_USE',
+    status: rx.status === 'SENT' ? 'IN_USE' : 'HISTORY',
     externalPrescriber: false,
     ...(rx.prescriberName ? { prescribedBy: rx.prescriberName } : {}),
     ...(rx.dawRxId ? { dawRxId: rx.dawRxId } : {}),
@@ -169,7 +202,7 @@ export async function persistPrescription(params: {
     pharmacyName: mapped.pharmacyName,
     pharmacyAddress: mapped.pharmacyAddress,
     prescriberName: params.prescriberName,
-    status: (mapped.voided ? 'VOIDED' : 'SENT') as 'VOIDED' | 'SENT',
+    status: mapped.status,
     dawRxId: mapped.dawRxId ?? null,
     dawSentAt: mapped.writtenAt ?? new Date(),
   };
@@ -201,7 +234,7 @@ export async function persistPrescription(params: {
   await syncMedicationHistory(params.patientId, params.medicalHistory, {
     drugName: mapped.drugName,
     ...(mapped.dawRxId ? { dawRxId: mapped.dawRxId } : {}),
-    voided: mapped.voided,
+    status: mapped.status,
     prescriberName: params.prescriberName,
   });
 

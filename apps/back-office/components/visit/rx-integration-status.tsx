@@ -39,10 +39,27 @@ interface SentRx {
   quantityTotal: number;
   refills: number;
   pharmacyName: string | null;
-  status: 'DRAFT' | 'SENT' | 'PENDING_DAW' | 'VOIDED';
+  status: 'DRAFT' | 'SENT' | 'PENDING_DAW' | 'VOIDED' | 'ERROR';
   dawSentAt: string | null;
   createdAt: string;
 }
+
+/** Estado de la receta → clave i18n y color. ERROR va en rose: no llegó a la farmacia. */
+const STATUS_KEY: Record<SentRx['status'], string> = {
+  SENT: 'sent',
+  DRAFT: 'draft',
+  PENDING_DAW: 'pending',
+  VOIDED: 'voided',
+  ERROR: 'error',
+};
+
+const STATUS_CLASS: Record<SentRx['status'], string> = {
+  SENT: 'bg-emerald/15 text-emerald border-emerald/30',
+  DRAFT: 'bg-white/5 text-text-muted border-border',
+  PENDING_DAW: 'bg-amber/15 text-amber border-amber/30',
+  VOIDED: 'bg-white/5 text-text-muted border-border',
+  ERROR: 'bg-rose/15 text-rose border-rose/30',
+};
 
 export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }): React.ReactElement {
   const t = useTranslations('phoenix.doctor');
@@ -206,12 +223,18 @@ export function RxIntegrationStatus({ appointmentId }: { appointmentId: string }
                             <TagPill label={`DEA ${rx.deaSchedule}`} colorClass="bg-amber/15 text-amber border-amber/30" />
                           )}
                           <TagPill
-                            label={rx.status === 'VOIDED' ? t('rxStatusVoided') : t('rxStatusSent')}
-                            colorClass={rx.status === 'VOIDED'
-                              ? 'bg-rose/15 text-rose border-rose/30'
-                              : 'bg-emerald/15 text-emerald border-emerald/30'}
+                            label={t(`rxStatus_${STATUS_KEY[rx.status]}`)}
+                            colorClass={STATUS_CLASS[rx.status]}
                           />
                         </div>
+                        {/* Con error la farmacia NUNCA la recibió — decirlo, no
+                            dejar que el doctor lo deduzca de un color */}
+                        {rx.status === 'ERROR' && (
+                          <p className="text-[11px] text-rose mt-1 flex items-start gap-1.5">
+                            <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                            {t('rxErrorNotice')}
+                          </p>
+                        )}
                         <div className="text-[11.5px] text-text-2 mt-1">
                           {[rx.dose !== '—' ? rx.dose : null, rx.frequency !== '—' ? rx.frequency : null]
                             .filter(Boolean).join(' · ') || null}

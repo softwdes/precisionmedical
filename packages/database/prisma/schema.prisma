@@ -1276,6 +1276,10 @@ enum RxStatus {
   SENT
   PENDING_DAW
   VOIDED
+  /// ScriptSure reportó `messageStatus: "Error"` — la receta NO llegó a la
+  /// farmacia. Distinto de VOIDED (que es una anulación deliberada): acá el
+  /// doctor tiene que reintentar. Mostrarlo como "enviada" sería peligroso.
+  ERROR
 }
 
 /// Prescripción electrónica DAW/EPCS.

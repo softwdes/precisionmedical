@@ -432,8 +432,28 @@ export async function addToMedCart(
   // objeto `prescription` adentro con los del envío — la misma forma que usa su
   // historial (ahí el anidado se llama `Prescription`, acá en minúscula).
   // Confirmado por su validación: path ["prescriptions", 0, "prescription"].
+  // El medicamento NO va suelto en la entrada: va en `Medication.PrescriptionDrugs`.
+  // Lo dijo su propia UI al editar el ítem — "Medication.PrescriptionDrugs must
+  // be set" — y lo confirma que el objeto `prescription` tiene un esquema fijo
+  // y chico (patientId, userId, doctorId, refill, duration, pharmacyId): todo lo
+  // demás que le mandábamos ahí lo descartaba en silencio.
+  const prescriptionDrug = {
+    drugName: drug.drugName,
+    ROUTED_MED_ID: drug.routedMedId,
+    GCN_SEQNO: drug.gcnSeqno,
+    Ndc: drug.ndc,
+    RxNorm: drug.rxNorm,
+    drugId: drug.scriptsureDrugId,
+    quantity: drug.quantity,
+    ...(drug.quantityQualifier ? { quantityQualifier: drug.quantityQualifier } : {}),
+    ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),
+    ...(drug.daysSupply ? { duration: drug.daysSupply, daysSupply: drug.daysSupply } : {}),
+  };
+
   const addBody = {
     prescriptions: [{
+      // Se mantienen también a nivel de la entrada por si los lee de ahí —
+      // los ignora sin romper nada si no corresponden.
       drugName: drug.drugName,
       ROUTED_MED_ID: drug.routedMedId,
       GCN_SEQNO: drug.gcnSeqno,
@@ -441,9 +461,10 @@ export async function addToMedCart(
       RxNorm: drug.rxNorm,
       drugId: drug.scriptsureDrugId,
       quantity: drug.quantity,
-      // La cantidad viaja con su unidad en su modelo (tableta, mL…); sin el
-      // calificador el carrito la mostraba vacía.
       ...(drug.quantityQualifier ? { quantityQualifier: drug.quantityQualifier } : {}),
+      Medication: {
+        PrescriptionDrugs: [prescriptionDrug],
+      },
       prescription: {
         // patientId es obligatorio y NUMÉRICO — su validación lo dijo con esas
         // palabras ("patientId must be a number"). doctorId y practiceId van
@@ -456,22 +477,10 @@ export async function addToMedCart(
         ...(drug.pharmacyId ? { pharmacyId: drug.pharmacyId } : {}),
         ...(drug.daysSupply ? { duration: drug.daysSupply } : {}),
 
-        // ── Sondeo de nombres de campo ──────────────────────────────────────
-        // Su API DESCARTA lo que no reconoce y DEVUELVE lo que aceptó, así que
-        // mandar varios candidatos a la vez es una forma barata de descubrir el
-        // nombre correcto en un solo intento, en vez de uno por despliegue.
-        // Cuando sepamos cuáles sobreviven, se dejan solo esos.
-        quantity: drug.quantity,
-        dispenseQuantity: drug.quantity,
-        quantityValue: drug.quantity,
-        qty: drug.quantity,
-        ...(drug.quantityQualifier
-          ? { quantityQualifier: drug.quantityQualifier, quantityUnitCode: drug.quantityQualifier }
-          : {}),
-        fillDate: new Date().toISOString(),
-        writtenDate: new Date().toISOString(),
-        ...(drug.sig ? { directions: drug.sig, sig: drug.sig, patientDirections: drug.sig } : {}),
-        ...(drug.daysSupply ? { daysSupply: drug.daysSupply } : {}),
+        // Su esquema para `prescription` es fijo: patientId, userId, doctorId,
+        // refill, duration y pharmacyId. Todo lo demas (medicamento, cantidad,
+        // indicaciones) va en Medication.PrescriptionDrugs — sondearlo aca solo
+        // servia para descubrirlo, y ya lo sabemos.
       },
     }],
   };

@@ -1328,6 +1328,11 @@ model Prescription {
   routedMedId      String?
   gcnSeqno         String?
   scriptsureDrugId String?
+  /// Código NCPDP de la farmacia (ej. "0000420"). ScriptSure la resuelve por
+  /// este id, no por el nombre — sin él, al repetir la receta queda sin destino.
+  pharmacyId       String?
+  /// Unidad de la cantidad (tableta, mL…). Su carrito la exige junto al número.
+  quantityQualifier String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

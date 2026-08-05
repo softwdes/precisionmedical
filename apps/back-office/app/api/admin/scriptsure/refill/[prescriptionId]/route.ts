@@ -35,6 +35,7 @@ export async function POST(
       id: true, appointmentId: true, drugName: true, dose: true, frequency: true,
       quantityTotal: true, refills: true, durationStr: true,
       ndc: true, rxNorm: true, routedMedId: true, gcnSeqno: true, scriptsureDrugId: true,
+      pharmacyId: true, quantityQualifier: true,
     },
   });
   if (!rx) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
@@ -104,6 +105,8 @@ export async function POST(
       ndc: rx.ndc,
       rxNorm: rx.rxNorm,
       scriptsureDrugId: rx.scriptsureDrugId,
+      pharmacyId: rx.pharmacyId,
+      quantityQualifier: rx.quantityQualifier,
       quantity: rx.quantityTotal,
       refills: rx.refills,
       sig: rx.frequency !== '—' ? rx.frequency : null,

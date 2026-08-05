@@ -55,6 +55,9 @@ export interface MappedRx {
   routedMedId: string | null;
   gcnSeqno: string | null;
   scriptsureDrugId: string | null;
+  /** Código NCPDP — ScriptSure resuelve la farmacia por acá, no por el nombre */
+  pharmacyId: string | null;
+  quantityQualifier: string | null;
 }
 
 /**
@@ -128,6 +131,8 @@ export function mapRawRx(raw: Record<string, unknown>, outerStatus?: string): Ma
     routedMedId: asStr(pick(rx, 'ROUTED_MED_ID', 'routedMedId')) ?? null,
     gcnSeqno: asStr(pick(rx, 'GCN_SEQNO', 'gcnSeqno')) ?? null,
     scriptsureDrugId: asStr(pick(rx, 'drugId')) ?? null,
+    pharmacyId: asStr(pick(nested, 'pharmacyId')) ?? asStr(pick(rx, 'pharmacyId')) ?? null,
+    quantityQualifier: asStr(pick(rx, 'quantityQualifier')) ?? null,
   };
 }
 
@@ -223,6 +228,8 @@ export async function persistPrescription(params: {
     routedMedId: mapped.routedMedId,
     gcnSeqno: mapped.gcnSeqno,
     scriptsureDrugId: mapped.scriptsureDrugId,
+    pharmacyId: mapped.pharmacyId,
+    quantityQualifier: mapped.quantityQualifier,
   };
 
   const saved = existing

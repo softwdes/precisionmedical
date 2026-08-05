@@ -294,6 +294,8 @@ export interface MedCartDrug {
   ndc: string | null;
   rxNorm: string | null;
   scriptsureDrugId: string | null;
+  pharmacyId: string | null;
+  quantityQualifier: string | null;
   quantity: number;
   refills: number;
   sig: string | null;
@@ -330,6 +332,14 @@ export async function addToMedCart(
 ): Promise<MedCartResult> {
   const sessionToken = await getSessionToken(loginEmail);
   const base = hosts().backendScriptSure;
+
+  // El carrito de ScriptSure es ACUMULATIVO y persiste entre sesiones: si no se
+  // vacía, "repetir" una receta muestra también todo lo cargado antes (incluidos
+  // los intentos fallidos). Se vacía primero para que quede solo la elegida.
+  // Es seguro: el carrito es un borrador, nada de lo enviado a farmacia vive ahí.
+  await fetch(`${base}/v3/medcart/clear/${patientId}?sessiontoken=${sessionToken}`, {
+    method: 'DELETE',
+  }).catch(() => undefined);
 
   // El add NO deduplica solo (documentado): primero se consulta duplicados por
   // ROUTED_MED_ID + GCN_SEQNO para no cargar dos veces el mismo fármaco.
@@ -371,6 +381,9 @@ export async function addToMedCart(
       RxNorm: drug.rxNorm,
       drugId: drug.scriptsureDrugId,
       quantity: drug.quantity,
+      // La cantidad viaja con su unidad en su modelo (tableta, mL…); sin el
+      // calificador el carrito la mostraba vacía.
+      ...(drug.quantityQualifier ? { quantityQualifier: drug.quantityQualifier } : {}),
       prescription: {
         // patientId es obligatorio y NUMÉRICO — su validación lo dijo con esas
         // palabras ("patientId must be a number"). doctorId y practiceId van
@@ -379,7 +392,10 @@ export async function addToMedCart(
         ...(ctx?.doctorId ? { doctorId: ctx.doctorId, userId: ctx.doctorId } : {}),
         ...(ctx?.practiceId ? { practiceId: ctx.practiceId } : {}),
         quantity: drug.quantity,
+        ...(drug.quantityQualifier ? { quantityQualifier: drug.quantityQualifier } : {}),
         refill: drug.refills,
+        // La farmacia se resuelve por su código NCPDP; el nombre es solo texto
+        ...(drug.pharmacyId ? { pharmacyId: drug.pharmacyId } : {}),
         ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),
         ...(drug.daysSupply ? { duration: drug.daysSupply, daysSupply: drug.daysSupply } : {}),
       },

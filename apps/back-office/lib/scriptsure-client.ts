@@ -451,13 +451,27 @@ export async function addToMedCart(
         patientId,
         ...(ctx?.doctorId ? { doctorId: ctx.doctorId, userId: ctx.doctorId } : {}),
         ...(ctx?.practiceId ? { practiceId: ctx.practiceId } : {}),
-        quantity: drug.quantity,
-        ...(drug.quantityQualifier ? { quantityQualifier: drug.quantityQualifier } : {}),
         refill: drug.refills,
         // La farmacia se resuelve por su código NCPDP; el nombre es solo texto
         ...(drug.pharmacyId ? { pharmacyId: drug.pharmacyId } : {}),
-        ...(drug.sig ? { directions: drug.sig, sig: drug.sig } : {}),
-        ...(drug.daysSupply ? { duration: drug.daysSupply, daysSupply: drug.daysSupply } : {}),
+        ...(drug.daysSupply ? { duration: drug.daysSupply } : {}),
+
+        // ── Sondeo de nombres de campo ──────────────────────────────────────
+        // Su API DESCARTA lo que no reconoce y DEVUELVE lo que aceptó, así que
+        // mandar varios candidatos a la vez es una forma barata de descubrir el
+        // nombre correcto en un solo intento, en vez de uno por despliegue.
+        // Cuando sepamos cuáles sobreviven, se dejan solo esos.
+        quantity: drug.quantity,
+        dispenseQuantity: drug.quantity,
+        quantityValue: drug.quantity,
+        qty: drug.quantity,
+        ...(drug.quantityQualifier
+          ? { quantityQualifier: drug.quantityQualifier, quantityUnitCode: drug.quantityQualifier }
+          : {}),
+        fillDate: new Date().toISOString(),
+        writtenDate: new Date().toISOString(),
+        ...(drug.sig ? { directions: drug.sig, sig: drug.sig, patientDirections: drug.sig } : {}),
+        ...(drug.daysSupply ? { daysSupply: drug.daysSupply } : {}),
       },
     }],
   };

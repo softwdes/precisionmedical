@@ -50,7 +50,22 @@ async function tomarLock(tx: Prisma.TransactionClient, clave: string): Promise<v
 }
 
 /**
- * Siguiente código de caso: `MVA-3130`, `CASE-3131`, `WI-3132`, …
+ * Prefijo del código según el tipo de caso.
+ *
+ * Decisión de negocio (Erick, 2026-08-05): en el sistema solo existen DOS
+ * etiquetas — `MVA` (accidente vehicular) y `GM` (medicina general, y
+ * cualquier otro tipo). Los `CASE-` que se ven en la base son legado del v2.
+ *
+ * Vive acá y no en cada ruta por la misma razón que los generadores: mientras
+ * el mapeo estuvo inline en la creación, la edición de tipo no lo conocía y
+ * los códigos quedaban con el prefijo viejo (MVA-3165 en un caso GM).
+ */
+export function casePrefixFor(caseType: string): 'MVA' | 'GM' {
+  return caseType === 'MVA' ? 'MVA' : 'GM';
+}
+
+/**
+ * Siguiente código de caso: `MVA-3130`, `GM-3131`, …
  *
  * @param prefix etiqueta del tipo de caso — no afecta la numeración.
  */

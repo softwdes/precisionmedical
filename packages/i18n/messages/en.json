@@ -2423,7 +2423,8 @@
         "outgoingDisabledHint": "Phone integration available in a future version.",
         "startSearchBtn": "Continue → Create Case / Appointment",
         "patientVerifyTitle": "Verify patient",
-        "patientVerifyHint": "Confirm this is the right patient before continuing."
+        "patientVerifyHint": "Confirm this is the right patient before continuing.",
+        "pasteHint": "Type it, or paste with Ctrl+V"
       },
       "newCase": {
         "dialogTitle": "New call · Create case",

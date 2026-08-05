@@ -2422,7 +2422,8 @@
         "outgoingDisabledHint": "Integración telefónica disponible en una próxima versión.",
         "startSearchBtn": "Continuar → Crear caso / Cita",
         "patientVerifyTitle": "Verificar paciente",
-        "patientVerifyHint": "Confirma que es el paciente correcto antes de continuar."
+        "patientVerifyHint": "Confirma que es el paciente correcto antes de continuar.",
+        "pasteHint": "Escribí, o pegá el número con Ctrl+V"
       },
       "newCase": {
         "dialogTitle": "Nueva llamada · Crear caso",

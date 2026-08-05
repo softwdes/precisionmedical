@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Button, Input, Label } from '@precision/ui';
 import { TagPill, PersonAvatar, InfoCard, FormField } from '@/components/ui-phoenix';
+import { phoneDigits, phoneKey } from '@/lib/phone';
 
 // B.2 PreCall step · "¿cómo empezamos la llamada?"
 //
@@ -371,6 +372,25 @@ export function PreCallStep({
     phoneScreenRef.current?.focus();
   }
 
+  /**
+   * Pegar un número entero de una vez.
+   *
+   * Recepción casi nunca tipea el número: lo tiene en un mail, un WhatsApp o
+   * una planilla. Tecla por tecla sobre 10 dígitos es donde se equivocan.
+   *
+   * Acepta cualquier formato que se copie del mundo real — `(801) 367-9254`,
+   * `801-367-9254`, `+1 801 367 9254`, `8013679254` — y se queda con los
+   * últimos 10 dígitos, que descarta el `+1` sin romper los que ya vienen sin
+   * código de país. Si pegan algo más corto se toma igual, para poder pegar y
+   * completar a mano.
+   */
+  function pasteNumber(text: string) {
+    const d = phoneDigits(text);
+    if (!d) return;
+    setQuickPhone(d.length >= 10 ? phoneKey(text) : d.slice(0, 10));
+    phoneScreenRef.current?.focus();
+  }
+
   const KEYS: Array<{ d: string; l?: string }> = [
     { d: '1' }, { d: '2', l: 'ABC' }, { d: '3', l: 'DEF' },
     { d: '4', l: 'GHI' }, { d: '5', l: 'JKL' }, { d: '6', l: 'MNO' },
@@ -417,10 +437,18 @@ export function PreCallStep({
         autoFocus
         className="rounded-lg border border-border bg-bg-0 px-4 py-2.5 relative overflow-hidden cursor-text outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-colors"
         onKeyDown={(e) => {
+          // Ctrl/Cmd+V no se intercepta: se deja pasar para que dispare el
+          // evento `paste` de abajo. Sin esta guarda, la `v` no llega igual
+          // (no es dígito) pero sí se comería un futuro atajo con modificador.
+          if (e.ctrlKey || e.metaKey) return;
           if (e.key >= '0' && e.key <= '9') { e.preventDefault(); pressKey(e.key); }
           else if (e.key === 'Backspace')    { e.preventDefault(); backspace(); }
           else if (e.key === 'Enter' && canStart) { e.preventDefault(); handleStartCall(); }
           else if (e.key === '*')            { e.preventDefault(); pressKey('*'); }
+        }}
+        onPaste={(e) => {
+          e.preventDefault();
+          pasteNumber(e.clipboardData.getData('text'));
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-cyan/5 to-transparent pointer-events-none" />
@@ -432,6 +460,13 @@ export function PreCallStep({
           {formatted || <span className="text-text-muted text-lg font-normal">(___) ___-____</span>}
           <span className="inline-block w-0.5 h-6 bg-cyan rounded-full ml-1 animate-[blink_1s_step-end_infinite] opacity-70" />
         </div>
+        {/* Solo mientras está vacío: una vez que hay número, estorba. Sin la
+            pista nadie descubre que se puede pegar — no parece un input. */}
+        {!formatted && (
+          <div className="text-[9px] text-text-muted/70 leading-none pb-0.5">
+            {t('pasteHint')}
+          </div>
+        )}
       </div>
 
       {/* Dial pad */}

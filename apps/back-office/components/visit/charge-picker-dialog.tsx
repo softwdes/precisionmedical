@@ -208,6 +208,11 @@ export function ChargePickerDialog({
   const cashGroup = (
     <div>
       {groupLabel(t('groupCash'), data.counts.cash)}
+      {/* El segundo caso no lo adivina nadie: un asegurado que elige pagar de su
+          bolsillo también usa esta lista. El botón dice "sin seguro", así que sin
+          esta línea el asistente descartaría la lista para un paciente con
+          seguro. Se lee la primera vez y después se vuelve invisible. */}
+      <p className="text-[11px] text-text-muted mb-1.5 -mt-0.5">{t('groupCashHint')}</p>
       {data.cash.length === 0 ? (
         <div className="text-[11px] text-text-muted italic px-1 py-2">{t('emptyCash')}</div>
       ) : (

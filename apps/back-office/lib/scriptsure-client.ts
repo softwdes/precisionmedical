@@ -477,10 +477,11 @@ export async function addToMedCart(
         ...(drug.pharmacyId ? { pharmacyId: drug.pharmacyId } : {}),
         ...(drug.daysSupply ? { duration: drug.daysSupply } : {}),
 
-        // Su esquema para `prescription` es fijo: patientId, userId, doctorId,
-        // refill, duration y pharmacyId. Todo lo demas (medicamento, cantidad,
-        // indicaciones) va en Medication.PrescriptionDrugs — sondearlo aca solo
-        // servia para descubrirlo, y ya lo sabemos.
+        // fillDate/writtenDate SÍ los acepta aunque su eco no los devuelva —
+        // con ellos la UI mostraba Fill Date y al quitarlos volvió a "—".
+        // Lección: el eco del add no es un espejo completo.
+        fillDate: new Date().toISOString(),
+        writtenDate: new Date().toISOString(),
       },
     }],
   };

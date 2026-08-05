@@ -42,8 +42,12 @@ export async function POST(req: NextRequest) {
         'El webhook "A call comes in" del número debe apuntar a /api/twilio/incoming, no acá.',
         toE164Num,
       );
+      // El mensaje es NEUTRO a propósito: lo escucha un paciente, no un
+      // técnico. La causa real va al log de arriba, que es donde se diagnostica.
       twiml.say({ language: 'es-MX', voice: 'Polly.Mia' },
-        'La configuración del sistema telefónico está incompleta. Por favor intente más tarde.');
+        'Gracias por llamar a Precision Medical Care. En este momento no podemos tomar su llamada. Por favor intente nuevamente en unos minutos.');
+      twiml.say({ language: 'en-US', voice: 'Polly.Joanna' },
+        'Thank you for calling Precision Medical Care. We cannot take your call right now. Please try again in a few minutes.');
       twiml.hangup();
       return new NextResponse(twiml.toString(), {
         headers: { 'Content-Type': 'text/xml; charset=utf-8' },

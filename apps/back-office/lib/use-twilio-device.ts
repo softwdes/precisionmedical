@@ -108,6 +108,33 @@ export function useTwilioDevice(options: UseTwilioDeviceOptions = {}): UseTwilio
     ringbackRef.current = null;
   }, []);
 
+  /**
+   * Soltar el micrófono al terminar una llamada.
+   *
+   * Sin esto el navegador se queda con el punto rojo de "grabando" en la
+   * pestaña después de colgar. En una clínica eso no es solo molesto: una
+   * pestaña abierta captando audio ambiente puede levantar conversación de
+   * OTROS pacientes, que es PHI que nadie autorizó.
+   *
+   * Hacen falta las dos llamadas porque cubren casos distintos:
+   *   - `unsetInputDevice()` es la API pública, pero devuelve sin hacer nada
+   *     si la app nunca fijó un input con `setInputDevice()` — que es
+   *     justamente nuestro caso (dejamos que el SDK use el default).
+   *   - `_stopDefaultInputDeviceStream()` es la que corta el stream que el SDK
+   *     adquiere por su cuenta. Es interna: va con optional chaining para que
+   *     una futura versión del SDK que la renombre no rompa la llamada, solo
+   *     deje de liberar (y ahí se revisa).
+   */
+  const releaseMicrophone = useCallback(() => {
+    const audio = deviceRef.current?.audio as (undefined | {
+      unsetInputDevice?: () => Promise<void>;
+      _stopDefaultInputDeviceStream?: () => void;
+    });
+    if (!audio) return;
+    try { void audio.unsetInputDevice?.()?.catch(() => {}); } catch { /* no-op */ }
+    try { audio._stopDefaultInputDeviceStream?.(); } catch { /* no-op */ }
+  }, []);
+
   const getOrCreateDevice = useCallback(async (): Promise<Device> => {
     if (deviceRef.current) return deviceRef.current;
 
@@ -148,6 +175,7 @@ export function useTwilioDevice(options: UseTwilioDeviceOptions = {}): UseTwilio
       const cleanup = () => {
         setIncoming(null);
         callRef.current = null;
+        releaseMicrophone();
       };
 
       call.on('cancel',     cleanup);   // colgó antes de que atendiéramos
@@ -199,22 +227,23 @@ export function useTwilioDevice(options: UseTwilioDeviceOptions = {}): UseTwilio
         setCallStatus('in-call');
         setCallSid((call.parameters as Record<string, string>).CallSid ?? null);
       });
-      call.on('disconnect', () => { stopRingback(); setCallStatus('ready'); setMuted(false); setCallSid(null); callRef.current = null; });
-      call.on('error',      (err: Error) => { stopRingback(); setError(err.message); setCallStatus('ready'); callRef.current = null; });
+      call.on('disconnect', () => { stopRingback(); releaseMicrophone(); setCallStatus('ready'); setMuted(false); setCallSid(null); callRef.current = null; });
+      call.on('error',      (err: Error) => { stopRingback(); releaseMicrophone(); setError(err.message); setCallStatus('ready'); callRef.current = null; });
     } catch (err) {
       stopRingback();
       setError(err instanceof Error ? err.message : 'Connection failed');
       setCallStatus('ready');
     }
-  }, [getOrCreateDevice, stopRingback]);
+  }, [getOrCreateDevice, stopRingback, releaseMicrophone]);
 
   const hangUp = useCallback(() => {
     stopRingback();
     callRef.current?.disconnect();
+    releaseMicrophone();
     callRef.current = null;
     setCallStatus('ready');
     setMuted(false);
-  }, [stopRingback]);
+  }, [stopRingback, releaseMicrophone]);
 
   const toggleMute = useCallback(() => {
     const call = callRef.current;
